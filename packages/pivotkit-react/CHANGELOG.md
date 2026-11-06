@@ -44,6 +44,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Labels `toastSaveRejected` and `toastDeleteRejected` ("The server could not save the template."),
   shown when the host's template callback throws or rejects without a message; a message the host
   gives (an `Error`, a text) is shown as before.
+- Compact layout: below 540 px of height the zones start folded into one line that says what is in
+  them; the line and the new Layout button of the toolbar open and fold them, and a drag opens them
+  while it lasts. Labels `layout`, `showLayout`, `hideLayout` and `layoutEmpty`.
 
 ### Fixed
 
@@ -66,3 +69,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   column by its type as the table does (dates as dates, numbers in the locale, yes/no in words) and
   applies a field's `fieldDefaults` format. The new `fieldDefaults[field].drillFormat` sets the
   format of the field's values there (`"text"`: an identifier as it is).
+- At medium widths (a half-width card of about 650 px) "Swap rows and columns" and the chips ran out
+  of their zones: the zones stack whenever the area next to the field list is narrower than 640 px
+  (a container query, no longer the narrow size class alone), and the swap button shows its icon
+  only, with its name and a tooltip, when the Columns zone is too narrow for the text.
+- A chart in a low report was cut at the bottom: the canvas had a minimum height of 240 px and grew
+  past its box. It is the size of its box now, and a pie leaves room for its labels above and below.

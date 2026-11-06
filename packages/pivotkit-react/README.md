@@ -131,9 +131,10 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap
   rows and columns" (also above the Columns zone).
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
-  Reset to the start view, Options, Templates, Export (XLSX and CSV of the table, PNG of the chart).
-  Every button has its text; when the report is too narrow, Reset, Redo, Templates, Options and the
-  chart type move one by one into a "More" menu.
+  Reset to the start view, Layout (the zones folded into one line or open), Options, Templates,
+  Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when the report is
+  too narrow, Reset, Redo, Layout, Templates, Options and the chart type move one by one into a
+  "More" menu.
 - Notes ("Undone: Region removed", "Exported pivot.xlsx") appear in the status line under the table,
   stay while the pointer or the focus is on them, and errors stay until closed. Adding a field shows
   none: the chip is the feedback.
@@ -144,8 +145,9 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   above or below, with its position announced ("Region is over Rows, position 2 of 3"); Space drops,
   Escape cancels. The table's values move with the arrow keys and open with Enter; the table has a
   name and a described hint. The chart canvas has a text alternative (type, values, counts, highest
-  and lowest value). The report's `lang` follows its labels. The report is a region landmark named by `labels.report`
-  ("Pivot report"), not a `<main>`, so it fits inside the host page's own main landmark.
+  and lowest value). The report's `lang` follows its labels. The report is a region landmark named
+  by `labels.report` ("Pivot report"), not a `<main>`, so it fits inside the host page's own main
+  landmark.
 
 For hosts: while a popover, the drill-down or the narrow field drawer of the report is open, the
 report listens for Escape on the whole document and closes its newest layer, also when the focus is
@@ -156,8 +158,18 @@ to the report first; close the report's layer before, or open the dialog when no
 
 The report adapts to its own width, not the window's: wide (1024 px and more) has the field list on
 the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (below 640 px) opens the
-field list as a drawer from the toolbar, stacks the zones, and shows menus as bottom sheets. Only the
-table scrolls sideways. In the narrow layout the zones sit above the table, so a report of a fixed
+field list as a drawer from the toolbar and shows menus as bottom sheets. The zones stack, one line
+each, whenever the area next to the field list is narrower than 640 px (a container query on that
+area: the narrow layout, and a medium one such as a half-width card of 650 px). "Swap rows and
+columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the
+Columns zone is too narrow for the text. Only the table scrolls sideways.
+
+Below 540 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`) the report starts in the compact
+layout: the zones fold into one line that says what is in them ("Rows: Team · Columns: Priority ·
+Values: Count of Ticket"), so the table keeps its room. A click on that line, or Layout in the
+toolbar, opens them; Layout folds them again. A drag from the field list or the table opens them
+while it lasts, so a field can still be dropped. The user's choice is state of the mounted report: it
+survives the host's renders, and it is not part of the view, so a template does not carry it. In the narrow layout the zones sit above the table, so a report of a fixed
 640 px leaves little room for it on a phone: give it more height there, for example
 `height="calc(100svh - 24px)"` (the page scrolls to the report, the table scrolls inside it).
 

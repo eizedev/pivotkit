@@ -6,7 +6,7 @@ const el = document.getElementById("early");
 el.data = DATASETS.sales.make(300);
 el.defaultView = { rows: ["Channel"], values: [{ field: "Units", agg: "sum" }] };
 el.theme = "dark";
-el.height = 420;
+el.height = 600;
 window.__definedBefore = customElements.get("pivot-report") !== undefined;
 // a URL the bundler leaves alone: the package loads only now
 const url = new URL("../packages/pivotkit-element/dist/index.js", location.href).href;

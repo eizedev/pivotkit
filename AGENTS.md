@@ -25,8 +25,8 @@ builds depend on it.
   pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
-  chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe focus and Escape helpers; `labels.js` the texts (en,
-  de); `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
+  chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
+  focus and Escape helpers; `labels.js` the texts (en, de); `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package and the contrast of the tokens);
   `test/types/` is a TypeScript consumer.
 - `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow

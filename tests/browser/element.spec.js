@@ -141,11 +141,11 @@ test.describe("lifecycle", () => {
         await expect(page.locator("#early .pk-root")).toBeVisible();
         expect(await page.evaluate(() => [window.__definedBefore, window.__definedAfter])).toEqual([false, true]);
         await expect(page.locator("#early .pk-root")).toHaveAttribute("data-pk-theme", "dark");
-        await expect(page.locator("#early .pk-root")).toHaveCSS("height", "420px");
+        await expect(page.locator("#early .pk-root")).toHaveCSS("height", "600px");
         expect(await zone(page, "#early", "rows")).toEqual(["Channel"]);
         // the setters run: the reflected attributes are there
         await expect(page.locator("#early")).toHaveAttribute("theme", "dark");
-        await expect(page.locator("#early")).toHaveAttribute("height", "420");
+        await expect(page.locator("#early")).toHaveAttribute("height", "600");
     });
 
     test("a start view set after the element is in the page starts the report on it; the same one again changes nothing", async ({ page }) => {

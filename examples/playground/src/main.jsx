@@ -11,6 +11,8 @@ import { DATASETS } from "./data.js";
 
 const SIZES = [2000, 4000, 100000];
 const params = new URLSearchParams(location.search);
+// ?height=480: the report at a fixed height in px, as a host card gives it (else the window's height)
+const fixedHeight = /^\d{3,4}$/.test(params.get("height") ?? "") ? Number(params.get("height")) : null;
 
 function stored(key, fallback) {
     try {
@@ -151,7 +153,8 @@ function App() {
                 fieldDefaults={DATASETS[dataset].fieldDefaults}
                 onCellClick={(c) => setLastClick({ row: c.row, col: c.col, count: c.count })}
                 locale={lang === "de" ? "de-DE" : "en-US"}
-                height="calc(100vh - var(--pg-head-h))"
+                height={fixedHeight ?? "calc(100vh - var(--pg-head-h))"}
+                className={fixedHeight ? "pg-fixed" : undefined}
                 fileName={`pivotkit-${dataset}`}
             />
             <footer className="pg-foot" aria-live="off">

@@ -116,6 +116,11 @@ body {
     box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 8px 24px rgb(16 24 40 / 0.06);
 }
 
+/* ?height=: the height the URL asks for, also below the page's minimum */
+.pg .pk-root.pg-fixed {
+    min-height: 0;
+}
+
 .pg-foot {
     display: flex;
     flex-wrap: wrap;

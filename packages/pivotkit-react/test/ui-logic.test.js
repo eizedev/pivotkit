@@ -8,7 +8,7 @@ import { MANY_SERIES, MAX_CATEGORIES } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, plural, resolveLabels } from "../src/labels.js";
-import { fieldAction, valueLabel } from "../src/names.js";
+import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
 
 const en = LABELS.en;
@@ -176,4 +176,14 @@ test("a field of the field list says where it is and what a click on it does", (
     // a number is added to Values once more
     assert.deepEqual(at("number", ["values", "rows"]), ["add", "values", "Priority, in Values, Rows", "Add to Values"]);
     assert.deepEqual(at("string", ["cols"], LABELS.de), ["move", "rows", "Priority, in Spalten", "Nach Zeilen verschieben"]);
+});
+
+test("the compact layout's one line names every zone with fields, rows first", () => {
+    const entries = { filters: [{ text: "Status" }], cols: [{ text: "Priority" }], rows: [{ text: "Team" }, { text: "Channel" }], values: [] };
+    assert.deepEqual(layoutSummary(entries, en), [
+        { zone: "rows", title: "Rows", fields: "Team, Channel" },
+        { zone: "cols", title: "Columns", fields: "Priority" },
+        { zone: "filters", title: "Filters", fields: "Status" }
+    ]);
+    assert.deepEqual(layoutSummary({ filters: [], cols: [], rows: [], values: [] }, LABELS.de), []);
 });

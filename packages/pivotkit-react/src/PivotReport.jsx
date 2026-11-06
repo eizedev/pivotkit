@@ -33,6 +33,9 @@ export function sizeOf(width) {
     return width < 640 ? "narrow" : width < 1024 ? "medium" : "wide";
 }
 
+/** Below this height (px) the report starts with its zones folded into one line, the compact layout. */
+export const COMPACT_HEIGHT = 540;
+
 /** A performance measure for the browser's performance timeline ("pivotkit:computePivot"). */
 function measured(name, fn) {
     const t0 = typeof performance !== "undefined" ? performance.now() : 0;
@@ -159,6 +162,11 @@ export function PivotReport(props) {
     const themeName = useResolvedTheme(theme, root);
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));
     const [size, setSize] = useState("wide");
+    const [short, setShort] = useState(false);
+    // the user's choice of the compact layout (Layout in the toolbar, the folded line); null: by height
+    const [folded, setFolded] = useState(/** @type {boolean | null} */ (null));
+    const layoutFolded = folded ?? short;
+    const zonesId = useId();
     const [drawer, setDrawer] = useState(false);
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement } | null} */ (null));
     const [drill, setDrill] = useState(/** @type {{ title: string, count: number, columns: Array<{ name: string, numeric: boolean }>, rows: string[][] } | null} */ (null));
@@ -291,7 +299,10 @@ export function PivotReport(props) {
         if (!el || typeof ResizeObserver !== "function") {
             return undefined;
         }
-        const ro = new ResizeObserver(([entry]) => setSize(sizeOf(entry.contentRect.width)));
+        const ro = new ResizeObserver(([entry]) => {
+            setSize(sizeOf(entry.contentRect.width));
+            setShort(entry.contentRect.height < COMPACT_HEIGHT);
+        });
         ro.observe(el);
         return () => ro.disconnect();
     }, []);
@@ -447,6 +458,7 @@ export function PivotReport(props) {
             className={`pk-root${className ? ` ${className}` : ""}`}
             data-pk-theme={themeName}
             data-pk-size={size}
+            data-pk-layout={layoutFolded ? "compact" : undefined}
             lang={labels.lang}
             // a named region, not <main>: the host's page has its own main landmark around the report
             role="region"
@@ -508,8 +520,23 @@ export function PivotReport(props) {
                                 onExport={doExport}
                                 chartReady={view.display === "chart" && chartReady}
                                 onShowFields={() => setDrawer(true)}
+                                layoutFolded={layoutFolded}
+                                onLayout={() => setFolded(!layoutFolded)}
+                                zonesId={zonesId}
                             />
-                            <Zones view={view} types={types} labels={labels} commit={commit} openFilter={(field, anchor) => setFilterTarget({ field, anchor })} encoded={encoded} locale={locale} onSwap={() => commit(swapAxes(view), { step: "swap" })} />
+                            <Zones
+                                view={view}
+                                types={types}
+                                labels={labels}
+                                commit={commit}
+                                openFilter={(field, anchor) => setFilterTarget({ field, anchor })}
+                                encoded={encoded}
+                                locale={locale}
+                                onSwap={() => commit(swapAxes(view), { step: "swap" })}
+                                id={zonesId}
+                                folded={layoutFolded}
+                                onShow={() => setFolded(false)}
+                            />
                             {result && result.issues.length > 0 && !empty ? (
                                 <details className="pk-issues">
                                     <summary>

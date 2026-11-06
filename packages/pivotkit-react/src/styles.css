@@ -344,6 +344,8 @@
 }
 
 .pk-main {
+    /* the zones stack by the width they get (below), not by the window's or the report's size class */
+    container: pk-main / inline-size;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -595,6 +597,47 @@
     gap: 8px;
 }
 
+/* the compact layout: the zones folded into one line that says what is in them */
+.pk-zones-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    width: 100%;
+    min-height: max(var(--pk-target), 2.4em);
+    padding: 0 10px;
+    border: 1.5px dashed var(--pk-drop-border);
+    border-radius: var(--pk-radius);
+    background: var(--pk-surface-2);
+    color: var(--pk-text);
+    font: inherit;
+    font-size: var(--pk-small);
+    text-align: start;
+    cursor: pointer;
+    transition: background var(--pk-duration), border-color var(--pk-duration);
+}
+
+.pk-zones-summary:hover {
+    border-color: var(--pk-border-strong);
+    background: var(--pk-surface-3);
+}
+
+.pk-zones-summary > svg {
+    flex: none;
+    color: var(--pk-muted);
+}
+
+.pk-zones-summary-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pk-zones-summary-zone {
+    color: var(--pk-muted);
+    font-weight: 650;
+}
+
 .pk-zone {
     position: relative;
     display: flex;
@@ -631,12 +674,33 @@
     min-width: 0;
 }
 
+/* the head of Columns measures itself: its swap button drops its text when the head is too narrow */
+.pk-zone-cols .pk-zone-head {
+    container: pk-zone-head / inline-size;
+}
+
 .pk-swap {
+    position: relative;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.35em;
+    min-width: var(--pk-target);
+    min-height: var(--pk-target);
     font-size: var(--pk-small);
     white-space: nowrap;
+}
+
+/* icon only, with its name for assistive technology and as a tooltip (title) */
+@container pk-zone-head (width < 20em) {
+    .pk-swap .pk-btn-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
 }
 
 .pk-swap:disabled {
@@ -1531,10 +1595,11 @@
     min-height: 0;
 }
 
+/* exactly the box: a canvas taller than its box is cut at the bottom (axes, a pie's lower half) */
 .pk-chart {
     width: 100%;
     height: 100%;
-    min-height: 240px;
+    min-height: 0;
     animation: pk-fade-in calc(var(--pk-duration) * 1.4) ease-out;
 }
 
@@ -1831,35 +1896,39 @@
     transition: transform calc(var(--pk-duration) * 1.4) var(--pk-ease), visibility 0s;
 }
 
-.pk-root[data-pk-size="narrow"] .pk-zones {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 6px;
-}
+/* zones stacked, one line each, when the main area is too narrow for two zones side by side: in the
+   narrow layout, and in the medium one when the field list leaves less than 640 px (a half-width card) */
+@container pk-main (width < 640px) {
+    .pk-zones {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
 
-.pk-root[data-pk-size="narrow"] .pk-zone {
-    flex-direction: row;
-    align-items: center;
-    min-height: 3em;
-    padding: 6px 8px;
-}
+    .pk-zone {
+        flex-direction: row;
+        align-items: center;
+        min-height: 3em;
+        padding: 6px 8px;
+    }
 
-.pk-root[data-pk-size="narrow"] .pk-zone-head {
-    width: 6.5em;
-    flex: none;
-}
+    .pk-zone-head {
+        width: 6.5em;
+        flex: none;
+    }
 
-/* the Columns zone keeps its swap button on its own line above the chips */
-.pk-root[data-pk-size="narrow"] .pk-zone-cols {
-    flex-wrap: wrap;
-}
+    /* the Columns zone keeps its swap button on its own line above the chips */
+    .pk-zone-cols {
+        flex-wrap: wrap;
+    }
 
-.pk-root[data-pk-size="narrow"] .pk-zone-cols .pk-zone-head {
-    width: 100%;
-}
+    .pk-zone-cols .pk-zone-head {
+        width: 100%;
+    }
 
-.pk-root[data-pk-size="narrow"] .pk-chips {
-    flex: 1;
-    min-width: 0;
+    .pk-chips {
+        flex: 1;
+        min-width: 0;
+    }
 }
 
 .pk-root[data-pk-size="narrow"] .pk-main {
@@ -1948,6 +2017,7 @@
 
 @media (forced-colors: active) {
     .pk-zone,
+    .pk-zones-summary,
     .pk-chip,
     .pk-btn {
         border: 1px solid CanvasText;

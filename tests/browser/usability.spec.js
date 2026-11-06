@@ -1,6 +1,6 @@
 // What a business user sees: words instead of bare icons, notes that explain, charts that stay
 // readable. Every test here fails without its fix.
-import { chips, expect, tableRows, test } from "./fixtures.js";
+import { chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test("narrow: every toolbar button keeps its text; the rest is in a labelled More menu", async ({ page }) => {
     for (const width of [640, 390]) {
@@ -148,4 +148,160 @@ test("the drill-down shows dates as dates, numbers in the locale and identifiers
         expect(table.Cost).toMatch(cost);
         expect(table["Disk GB"]).toMatch(/^\d[\d,.]*$/);
     }
+});
+
+test("a half-width report (650 px) stacks its zones; nothing in them is cut, in English and German", async ({ page }) => {
+    for (const lang of ["en", "de"]) {
+        // the playground's report is the window's width less 40 px
+        await page.setViewportSize({ width: 690, height: 900 });
+        await page.goto(`?data=tickets&lang=${lang}&height=640`);
+        await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "medium");
+        const zones = page.locator(".pk-zone");
+        await expect.poll(() => zones.evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().x))).size)).toBe(1);
+        // every chip and the swap button lie inside their zone, and no text is cut
+        const cut = await page.locator(".pk-zone").evaluateAll((els) =>
+            els.flatMap((zone) => {
+                const z = zone.getBoundingClientRect();
+                return [...zone.querySelectorAll(".pk-chip, .pk-swap")].filter((el) => {
+                    const r = el.getBoundingClientRect();
+                    const text = el.querySelector(".pk-btn-text");
+                    return r.left < z.left || r.right > z.right + 0.5 || (text && text.scrollWidth > text.clientWidth + 1);
+                }).map((el) => el.textContent);
+            })
+        );
+        expect(cut, lang).toEqual([]);
+        await expect(page.getByTestId("swap")).toHaveAccessibleName(lang === "de" ? "Zeilen und Spalten tauschen" : "Swap rows and columns");
+    }
+});
+
+test("where the Columns zone is too narrow, the swap button is an icon with its name and a tooltip", async ({ page }) => {
+    await page.setViewportSize({ width: 340, height: 900 });
+    await page.goto("?data=tickets&lang=de&height=700");
+    const swap = page.getByTestId("swap");
+    await expect(swap).toHaveAccessibleName("Zeilen und Spalten tauschen");
+    await expect(swap).toHaveAttribute("title", "Zeilen und Spalten tauschen");
+    const box = await swap.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(24);
+    expect(box.height).toBeGreaterThanOrEqual(24);
+    const head = await page.locator(".pk-zone-cols .pk-zone-head").boundingBox();
+    expect(box.x + box.width).toBeLessThanOrEqual(head.x + head.width + 0.5);
+});
+
+test("a low report (520 px) folds its zones into one line; Layout and the line open them, a drag still drops", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("?data=tickets&height=520");
+    const line = page.getByTestId("layout-summary");
+    await expect(line).toHaveText(/Rows: Team · Columns: Priority · Values: Count of Ticket/);
+    await expect(line).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(".pk-zone")).toHaveCount(0);
+    // more of the table in view than with the zones open
+    const rowsFolded = await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => {
+        const box = document.querySelector('[data-testid="pivot-table"]').getBoundingClientRect();
+        return trs.filter((tr) => tr.getBoundingClientRect().bottom <= box.bottom + 1).length;
+    });
+    expect(rowsFolded).toBeGreaterThanOrEqual(6);
+    // a field dragged from the list opens the zones while it is dragged
+    const from = await page.locator('.pk-field[data-field="Channel"]').boundingBox();
+    await page.mouse.move(from.x + 30, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 60, from.y + 30, { steps: 6 });
+    const filters = page.locator('[data-zone="filters"]');
+    await expect(filters).toBeVisible();
+    const to = await filters.boundingBox();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 16 });
+    await page.mouse.move(to.x + to.width / 2 + 1, to.y + to.height / 2 + 1, { steps: 2 });
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+    await expect(line).toHaveText(/Filters: Channel/);
+    // the line opens them and the focus goes to the first zone
+    await line.click();
+    await expect(page.locator(".pk-zone")).toHaveCount(4);
+    await expect(page.locator('[data-zone="filters"]')).toBeFocused();
+    // Layout in the toolbar (or in More) folds them again; the choice holds
+    await page.setViewportSize({ width: 1600, height: 800 });
+    const layout = page.getByTestId("layout");
+    await expect(layout).toHaveAttribute("aria-expanded", "true");
+    // from the keyboard (WebKit does not focus a button on a click): the focus stays on the button
+    await layout.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(layout).toHaveAttribute("aria-expanded", "false");
+    await expect(layout).toBeFocused();
+});
+
+test("a tall report starts with its zones open", async ({ page }) => {
+    await page.goto("?data=tickets&height=640");
+    await expect(page.locator(".pk-zone")).toHaveCount(4);
+    await expect(page.getByTestId("layout-summary")).toHaveCount(0);
+});
+
+test("a pie in a low report is drawn inside its box, labels included", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("?data=tickets&height=480");
+    await page.getByTestId("layout-summary").click();
+    await page.getByTestId("show-chart").click();
+    await toolbar(page, "chart-type");
+    await page.getByTestId("chart-pie").click();
+    const canvas = page.locator('[data-testid="pivot-chart"] canvas');
+    await expect(canvas).toBeVisible();
+    await page.waitForTimeout(600);
+    // the canvas is the box, not taller: nothing of the pie is cut at the bottom
+    const [chart, box] = await Promise.all([canvas.boundingBox(), page.locator(".pk-chart-box").boundingBox()]);
+    expect(chart.y + chart.height).toBeLessThanOrEqual(box.y + box.height + 0.5);
+    // the lowest drawn pixel (pie or label) is above the canvas's bottom edge
+    const lowest = await canvas.evaluate((c) => {
+        const ctx = c.getContext("2d");
+        const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
+        const bg = data.slice(0, 4).join();
+        for (let y = height - 1; y >= 0; y--) {
+            for (let x = 0; x < width; x++) {
+                const i = (y * width + x) * 4;
+                if (data.slice(i, i + 4).join() !== bg) return { y, height };
+            }
+        }
+        return { y: -1, height };
+    });
+    expect(lowest.y).toBeGreaterThan(0);
+    expect(lowest.y).toBeLessThan(lowest.height - 2);
+});
+
+test("chart tooltips show labels from the data as text: category, series and slice names", async ({ page }) => {
+    await page.goto("?data=markup");
+    await page.getByTestId("show-chart").click();
+    const chart = page.getByTestId("pivot-chart");
+    const canvas = chart.locator("canvas");
+    await expect(canvas).toBeVisible();
+    // hovers along a path until the tooltip (ECharts' HTML next to the canvas) shows `text`
+    const hoverUntil = async (points, text) => {
+        const box = await canvas.boundingBox();
+        for (const [fx, fy] of points) {
+            await page.mouse.move(box.x + box.width * fx, box.y + box.height * fy);
+            await page.waitForTimeout(120);
+            if ((await chart.textContent()).includes(text)) return true;
+        }
+        return false;
+    };
+    const across = Array.from({ length: 24 }, (_, i) => [0.08 + (0.88 * i) / 23, 0.6]);
+    const markupShown = async () => {
+        expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+        expect(await chart.locator("img, b, script").count()).toBe(0);
+    };
+    // bars: the categories are the labels
+    expect(await hoverUntil(across, "<img src=x onerror=window.__pwned=1>")).toBe(true);
+    await markupShown();
+    expect(await hoverUntil(across, "<b>bold")).toBe(true);
+    await markupShown();
+    // pie: the slices are the labels
+    await toolbar(page, "chart-type");
+    await page.getByTestId("chart-pie").click();
+    const ring = Array.from({ length: 36 }, (_, i) => [0.5 + 0.18 * Math.cos((i * Math.PI) / 18), 0.55 + 0.3 * Math.sin((i * Math.PI) / 18)]);
+    expect(await hoverUntil(ring, "<img src=x onerror")).toBe(true);
+    await markupShown();
+    // rows and columns swapped: the series are the labels
+    await toolbar(page, "chart-type");
+    await page.getByTestId("chart-bar").click();
+    await page.getByTestId("swap").click();
+    await expect.poll(() => chips(page, "cols")).toEqual(["Label"]);
+    expect(await hoverUntil(across, "<img src=x onerror")).toBe(true);
+    await markupShown();
 });

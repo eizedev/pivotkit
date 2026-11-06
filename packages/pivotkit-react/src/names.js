@@ -1,7 +1,7 @@
 /*
  * Names the UI writes for things the core leaves unnamed: a value ("Sum of Revenue", "% of grand
  * total of Revenue") and the derived field of a grouping ("Created (Month)"), in the labels' language;
- * and what a click on a field of the field list does, in words.
+ * what a click on a field of the field list does, and the zones folded into one line, in words.
  */
 
 import { fill } from "./labels.js";
@@ -52,4 +52,18 @@ export function fieldAction(field, type, zones, labels) {
     const name = zones.length ? `${field}, ${fill(labels.inZone, { zone: zones.map((z) => labels.zones[z] ?? z).join(", ") })}` : field;
     const description = kind === null ? "" : fill(kind === "move" ? labels.moveTo : labels.addTo, { zone: labels.zones[zone] });
     return { zone, kind, name, description };
+}
+
+/** The order of the zones in the one-line summary of the compact layout. */
+const SUMMARY_ORDER = Object.freeze(["rows", "cols", "values", "filters"]);
+
+/**
+ * The zones in one line, for the compact layout: "Rows: Team · Columns: Priority · Values: Count of
+ * Ticket"; zones without a field are left out.
+ * @param {Record<string, Array<{ text: string }>>} entries  the chips of each zone (zoneEntries)
+ * @param {import("./labels.js").UiLabels} labels
+ * @returns {Array<{ zone: string, title: string, fields: string }>}  empty when no field is placed
+ */
+export function layoutSummary(entries, labels) {
+    return SUMMARY_ORDER.filter((zone) => entries[zone] && entries[zone].length).map((zone) => ({ zone, title: labels.zones[zone], fields: entries[zone].map((e) => e.text).join(", ") }));
 }

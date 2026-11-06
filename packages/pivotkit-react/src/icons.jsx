@@ -36,6 +36,7 @@ const PATHS = {
     sortAsc: "M7 4v16M3 8l4-4 4 4M14 6h7M14 12h5M14 18h3",
     sortDesc: "M7 4v16M3 16l4 4 4-4M14 6h3M14 12h5M14 18h7",
     panel: "M4 5h16v14H4zM9 5v14",
+    layout: "M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z",
     trash: "M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
     save: "M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6",
     sparkle: "M12 4l1.8 4.6L18 10l-4.2 1.4L12 16l-1.8-4.6L6 10l4.2-1.4Z",

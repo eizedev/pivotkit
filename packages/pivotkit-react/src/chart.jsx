@@ -23,6 +23,12 @@ export function loadECharts() {
     return loading;
 }
 
+/**
+ * Room (px) above and below a pie for the labels outside it: the pie's radius is a share of its box,
+ * so a box without this room draws the top and bottom labels past the canvas.
+ */
+export const PIE_LABEL_ROOM = 24;
+
 /** Mark styles on top of the core's option: rounded bar ends, 2 px lines, tooltips in the theme. */
 export function decorate(option, style) {
     const v = (name) => style.getPropertyValue(name).trim();
@@ -45,7 +51,9 @@ export function decorate(option, style) {
             return { ...s, lineStyle: { width: 2 }, symbolSize: 7, smooth: false, areaStyle: s.areaStyle ? { opacity: 0.18 } : undefined, emphasis: { focus: "series" } };
         }
         if (s.type === "pie") {
-            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...s.label, color: v("--pk-text") || undefined } };
+            // the pie's box: below the legend (the core's top), with room for the labels above and below
+            const top = (typeof s.top === "number" ? s.top : 0) + PIE_LABEL_ROOM;
+            return { ...s, top, bottom: PIE_LABEL_ROOM, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...s.label, color: v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 3 }, label: { ...s.label, color: v("--pk-text") || undefined } };

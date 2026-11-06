@@ -1,6 +1,6 @@
 /*
- * The toolbar: Table | Chart, the chart type, Undo, Redo, Reset, the table options (totals, expand
- * and collapse), templates and export. (Swap rows and columns sits with the zones.) Every button keeps its text. When the
+ * The toolbar: Table | Chart, the chart type, Undo, Redo, Reset, Layout (the zones folded into one
+ * line or open), the table options (totals, expand and collapse), templates and export. (Swap rows and columns sits with the zones.) Every button keeps its text. When the
  * report is too narrow for all of them, the less used ones move, one by one, into a "More" menu
  * (OVERFLOW_ORDER); Table | Chart, Undo and Export always stay, with their text.
  */
@@ -13,7 +13,7 @@ import { fill } from "./labels.js";
 import { MenuButton, Option, Popover, Section } from "./popover.jsx";
 
 /** The buttons that move into "More" when the toolbar is too narrow, first to go first. */
-export const OVERFLOW_ORDER = Object.freeze(["reset", "redo", "templates", "options", "chartType"]);
+export const OVERFLOW_ORDER = Object.freeze(["reset", "redo", "layout", "templates", "options", "chartType"]);
 
 /** @param {{ icon: any, label: string, onClick: () => void, disabled?: boolean, testId?: string, shortcut?: string }} props */
 function TextButton({ icon, label, onClick, disabled, testId, shortcut }) {
@@ -186,7 +186,7 @@ function useOverflow(ref, key) {
  * @param {any} props  see PivotReport for what each one does
  */
 export function Toolbar(props) {
-    const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, onDisplay, onChart, onTotal, onExpand, onCollapse, templates, onLoadTemplate, onSaveTemplate, onDeleteTemplate, onExport, chartReady, onShowFields } = props;
+    const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, onDisplay, onChart, onTotal, onExpand, onCollapse, templates, onLoadTemplate, onSaveTemplate, onDeleteTemplate, onExport, chartReady, onShowFields, layoutFolded, onLayout, zonesId } = props;
     const bar = useRef(/** @type {HTMLDivElement | null} */ (null));
     const more = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const [panel, setPanel] = useState(/** @type {"options" | "templates" | null} */ (null));
@@ -232,6 +232,17 @@ export function Toolbar(props) {
             place: "history",
             button: () => <TextButton key="reset" icon="reset" label={labels.reset} onClick={onReset} disabled={!canReset} testId="reset" />,
             entry: (close) => <Option key="reset" inMenu icon="reset" disabled={!canReset} onSelect={() => { close(); onReset(); }} testId="more-reset">{labels.reset}</Option>
+        },
+        layout: {
+            place: "end",
+            // a disclosure of the zones: the same text, open or not; aria-expanded says which
+            button: () => (
+                <button key="layout" type="button" className="pk-btn" onClick={onLayout} aria-expanded={!layoutFolded} aria-controls={zonesId} title={layoutFolded ? labels.showLayout : labels.hideLayout} data-testid="layout">
+                    <Icon name="layout" />
+                    <span className="pk-btn-text">{labels.layout}</span>
+                </button>
+            ),
+            entry: (close) => <Option key="layout" inMenu icon="layout" onSelect={() => { close(); onLayout(); }} testId="more-layout">{layoutFolded ? labels.showLayout : labels.hideLayout}</Option>
         },
         options: {
             place: "end",

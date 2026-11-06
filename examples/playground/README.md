@@ -17,14 +17,15 @@ server, for example GitHub Pages or a test container. The build is esbuild only:
 first and imported as a consumer imports it (`pivotkit-react` and `pivotkit-react/styles.css`).
 
 URL parameters pick the start: `?data=tickets|sales|assets`, `rows=2000|4000|100000`, `preset=0|1|2`,
-`empty`, `lang=en|de`, `theme=light|dark` (sets `<html data-theme>` as PowerShell Universal does;
+`empty`, `lang=en|de`, `height=480` (the report at that height in px, as a host's card gives it),
+`theme=light|dark` (sets `<html data-theme>` as PowerShell Universal does;
 without it the report follows the system). The footer shows the engine timings of the last change
 and the last `onCellClick`.
 
 The report is controlled (`view` + `onViewChange`) and the page renders again on every engine timing,
 as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, the
-assets data set shows its "Inventory number" as it is in the drill-down (`drillFormat: "text"`), and saved
-templates are `deletable`, the presets are not. `?data=markup` is a small data set with labels that
+assets data set shows its "Inventory number" as it is in the drill-down (`drillFormat: "text"`),
+and saved templates are `deletable`, the presets are not. `?data=markup` is a small data set with labels that
 look like HTML, for the browser test that nothing is rendered as markup.
 
 The browser tests in [tests/browser](../../tests/browser/) run against this build and the test pages

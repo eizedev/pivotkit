@@ -3,13 +3,14 @@
  * move it, removed with its x, and its menu (chip-menus.jsx) holds everything else. A chip says what
  * is set on it in words: the grouping in its name ("Created (Month)"), "3 of 4" for a filter,
  * "Top 5", the sort; screen readers get the same in its name. After a chip is removed the focus goes
- * to its neighbour, or to the zone.
+ * to its neighbour, or to the zone. In the compact layout the zones fold into one line that says what
+ * is in them; a drag opens them while it lasts, so a field can still be dropped.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems } from "pivotkit-core";
 import { AxisMenu, ValueMenu, ZONE_ICON } from "./chip-menus.jsx";
-import { valueLabel } from "./names.js";
+import { layoutSummary, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { fill } from "./labels.js";
@@ -213,13 +214,38 @@ export function zoneEntries(view, types, labels) {
     };
 }
 
+/** The folded zones: one line with what is in them, a button that opens them. */
+function ZoneSummary({ entries, labels, id, onShow }) {
+    const parts = layoutSummary(entries, labels);
+    const text = parts.length ? parts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
+    return (
+        <button type="button" id={id} className="pk-zones-summary" aria-expanded="false" aria-label={`${labels.showLayout}: ${text}`} title={labels.showLayout} onClick={onShow} data-testid="layout-summary">
+            <Icon name="chevronRight" size={16} />
+            <span className="pk-zones-summary-text">
+                {parts.length
+                    ? parts.map((p, i) => (
+                          <React.Fragment key={p.zone}>
+                              {i ? <span aria-hidden="true"> · </span> : null}
+                              <span className="pk-zones-summary-zone">{p.title}:</span> {p.fields}
+                          </React.Fragment>
+                      ))
+                    : labels.layoutEmpty}
+            </span>
+        </button>
+    );
+}
+
 /**
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
  *   commit: (view: object, note?: any) => void, openFilter: (field: string, anchor: HTMLElement) => void,
- *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void }} props
+ *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
+ *   id: string, folded: boolean, onShow: () => void }} props  `folded`: the compact layout's one line
  */
-export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap }) {
+export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
+    // while something is dragged the zones are open, so it can be dropped into one
+    const dragging = Boolean(useActiveDrag());
+    const showing = useRef(false);
     // the state of every field chip, once per view (a filter summary counts the field's values)
     const states = useMemo(() => {
         const map = new Map();
@@ -248,8 +274,28 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
         const target = /** @type {HTMLElement | null} */ (chips[Math.min(at.index, chips.length - 1)] ?? zone);
         target?.focus({ preventScroll: true });
     });
+    // opened from the one line: its button is gone, the focus goes to the first zone
+    useEffect(() => {
+        if (showing.current && !folded) {
+            showing.current = false;
+            /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector("[data-zone]"))?.focus({ preventScroll: true });
+        }
+    }, [folded]);
+    if (folded && !dragging) {
+        return (
+            <ZoneSummary
+                entries={entries}
+                labels={labels}
+                id={id}
+                onShow={() => {
+                    showing.current = true;
+                    onShow();
+                }}
+            />
+        );
+    }
     return (
-        <div className="pk-zones" ref={root}>
+        <div className="pk-zones" ref={root} id={id}>
             {ZONES.map((zone) => (
                 <Zone
                     key={zone}
@@ -258,9 +304,10 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                     labels={labels}
                     action={
                         zone === "cols" ? (
-                            <button type="button" className="pk-link pk-swap" onClick={onSwap} disabled={view.rows.length + view.cols.length === 0} data-testid="swap">
+                            // the text goes when the zone is too narrow (styles.css): the title keeps it as a tooltip
+                            <button type="button" className="pk-link pk-swap" onClick={onSwap} disabled={view.rows.length + view.cols.length === 0} data-testid="swap" title={labels.swap}>
                                 <Icon name="swap" size={14} />
-                                {labels.swap}
+                                <span className="pk-btn-text">{labels.swap}</span>
                             </button>
                         ) : null
                     }
