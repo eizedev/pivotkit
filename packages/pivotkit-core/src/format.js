@@ -232,18 +232,23 @@ function shownDecimals(v, max) {
     return dot === -1 ? 0 : s.length - dot - 1;
 }
 
-/** "#,##0.00" in place of the number parts of an Intl result, the rest as quoted literals. */
-function sectionFromParts(parts, numberCode) {
+/**
+ * "#,##0.00" in place of the number parts of an Intl result, the rest as quoted literals. The percent
+ * sign is Excel's scaling "%", or a literal one for a value already in percent (scaledPercent false).
+ */
+function sectionFromParts(parts, numberCode, scaledPercent = true) {
     let out = "";
     let literal = "";
     let numberDone = false;
     for (const p of parts) {
         const isNumber = p.type === "integer" || p.type === "group" || p.type === "decimal" || p.type === "fraction";
-        if (isNumber || p.type === "minusSign") {
+        if (isNumber || p.type === "minusSign" || (p.type === "percentSign" && scaledPercent)) {
             out += quote(literal);
             literal = "";
             if (p.type === "minusSign") {
                 out += "-";
+            } else if (p.type === "percentSign") {
+                out += "%";
             } else if (!numberDone) {
                 out += numberCode;
                 numberDone = true;
@@ -255,11 +260,24 @@ function sectionFromParts(parts, numberCode) {
     return out + quote(literal);
 }
 
+/**
+ * An Excel code from the parts of an Intl format: one section, or "positive;negative" when the
+ * locale writes negatives other than with a leading minus (Excel's default for one section).
+ */
+function codeFromIntl(nf, sample, numberCode, scaledPercent = true) {
+    const positive = sectionFromParts(nf.formatToParts(sample), numberCode, scaledPercent);
+    const negative = sectionFromParts(nf.formatToParts(-sample), numberCode, scaledPercent);
+    return negative === `-${positive}` ? positive : `${positive};${negative}`;
+}
+
 function currencyCode(code, locale) {
     const nf = numberFormat(locale, { style: "currency", currency: code });
-    const digits = nf.resolvedOptions().maximumFractionDigits;
-    const number = `#,##0${fraction(digits)}`;
-    return `${sectionFromParts(nf.formatToParts(1234.5), number)};${sectionFromParts(nf.formatToParts(-1234.5), number)}`;
+    return codeFromIntl(nf, 1234.5, `#,##0${fraction(nf.resolvedOptions().maximumFractionDigits)}`);
+}
+
+/** Percent as the locale writes it ("25,5 %" in de-DE); scaled: the value is a fraction. */
+function percentCode(decimals, locale, scaled) {
+    return codeFromIntl(numberFormat(locale, { style: "percent" }), 0.5, `#,##0${fraction(decimals)}`, scaled);
 }
 
 function compactCode(v, locale) {
@@ -328,10 +346,10 @@ export function excelNumberFormat(spec, value, locale) {
         case "number":
             return `#,##0${fraction(f.decimals ?? shownDecimals(value, 2))}`;
         case "percent":
-            return `#,##0${fraction(f.decimals ?? shownDecimals(value * 100, 1))}%`;
+            return percentCode(f.decimals ?? shownDecimals(value * 100, 1), locale, true);
         case "percent100":
             // the value is already in percent: a literal % sign, no scaling
-            return `#,##0${fraction(f.decimals ?? shownDecimals(value, 1))}"%"`;
+            return percentCode(f.decimals ?? shownDecimals(value, 1), locale, false);
         case "currency":
             return codes.getOrSet(`${spec}|${locale}`, () => currencyCode((f.arg || "EUR").toUpperCase(), locale));
         case "compact":

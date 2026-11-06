@@ -157,9 +157,10 @@ test("XLSX number formats show cells as the grid does", () => {
     assert.deepEqual(value(undefined), ["#,##0", "#,##0.0", "#,##0.00"]);
     assert.deepEqual(value("number:1"), ["#,##0.0", "#,##0.0", "#,##0.0"]);
     // the currency symbol and its place as the locale writes it
-    assert.deepEqual(value("currency:eur").slice(0, 1), ['"€"#,##0.00;-"€"#,##0.00']);
-    // (de-DE puts a no-break space before the symbol)
-    assert.deepEqual(value("currency:eur", "de-DE").slice(0, 1), ['#,##0.00"\u00a0€";-#,##0.00"\u00a0€"']);
+    assert.deepEqual(value("currency:eur").slice(0, 1), ['"€"#,##0.00']);
+    // (de-DE puts a no-break space before the symbol and the percent sign)
+    assert.deepEqual(value("currency:eur", "de-DE").slice(0, 1), ['#,##0.00"\u00a0€"']);
+    assert.deepEqual(value("percent:1", "de-DE").slice(0, 1), ['#,##0.0"\u00a0"%']);
     // percent100 keeps its value and shows a literal percent sign
     assert.deepEqual(value("percent100"), ['#,##0"%"', '#,##0.0"%"', '#,##0.0"%"']);
     assert.deepEqual(value("compact").slice(0, 1), ["#,##0"]);
