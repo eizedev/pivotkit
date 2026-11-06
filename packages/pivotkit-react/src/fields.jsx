@@ -37,7 +37,8 @@ function FieldItem({ field, labels, zones, onAdd }) {
                         onAdd(field.name, action.zone);
                     }
                 }}
-                title={action.description ? `${action.name} \u2013 ${action.description}` : action.name}
+                // no title without an action: it would become the description
+                title={action.description ? `${action.name} \u2013 ${action.description}` : undefined}
                 aria-label={zones.length ? action.name : undefined}
                 aria-description={action.description || undefined}
             >
