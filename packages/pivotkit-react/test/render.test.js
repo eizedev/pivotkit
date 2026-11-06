@@ -71,3 +71,11 @@ test("ECharts is a file of its own with named imports, loaded on the first chart
     const mod = await import("../dist/echarts.js");
     assert.equal(typeof mod.init, "function");
 });
+
+test("the report is a named region, never a main landmark inside the host's page", () => {
+    const { html } = render({ data: rows, view: { rows: ["Region"] } });
+    assert.doesNotMatch(html, /<main[\s>]/);
+    assert.match(html, /class="pk-root"[^>]*role="region"[^>]*aria-label="Pivot report"|role="region"[^>]*aria-label="Pivot report"[^>]*class="pk-root"/);
+    const de = render({ data: rows, view: { rows: ["Region"] }, locale: "de-DE" }).html;
+    assert.match(de, /aria-label="Pivot-Bericht"/);
+});

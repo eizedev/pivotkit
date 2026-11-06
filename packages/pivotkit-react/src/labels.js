@@ -13,6 +13,8 @@ import { DEFAULT_LABELS } from "pivotkit-core";
 export const en = {
     /** the language of the texts, for the report's lang attribute */
     lang: "en",
+    /** the name of the report's region landmark */
+    report: "Pivot report",
     core: /** @type {import("pivotkit-core").Labels} */ ({
         ...DEFAULT_LABELS,
         aggregators: {
@@ -266,6 +268,7 @@ export const en = {
 
 export const de = {
     lang: "de",
+    report: "Pivot-Bericht",
     core: /** @type {import("pivotkit-core").Labels} */ ({
         ...DEFAULT_LABELS,
         blank: "(Leer)",

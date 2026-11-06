@@ -140,7 +140,8 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   above or below, with its position announced ("Region is over Rows, position 2 of 3"); Space drops,
   Escape cancels. The table's values move with the arrow keys and open with Enter; the table has a
   name and a described hint. The chart canvas has a text alternative (type, values, counts, highest
-  and lowest value). The report's `lang` follows its labels.
+  and lowest value). The report's `lang` follows its labels. The report is a region landmark named by `labels.report`
+  ("Pivot report"), not a `<main>`, so it fits inside the host page's own main landmark.
 
 For hosts: while a popover, the drill-down or the narrow field drawer of the report is open, the
 report listens for Escape on the whole document and closes its newest layer, also when the focus is

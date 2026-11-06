@@ -443,6 +443,9 @@ export function PivotReport(props) {
             data-pk-theme={themeName}
             data-pk-size={size}
             lang={labels.lang}
+            // a named region, not <main>: the host's page has its own main landmark around the report
+            role="region"
+            aria-label={labels.report}
             style={{ height }}
             // a click anywhere in the report focuses it, so the undo and redo shortcuts work
             tabIndex={-1}
@@ -477,7 +480,7 @@ export function PivotReport(props) {
                             />
                         </div>
                         {drawerOpen ? <div className="pk-scrim pk-drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" /> : null}
-                        <main className="pk-main">
+                        <div className="pk-main">
                             <Toolbar
                                 view={view}
                                 labels={labels}
@@ -560,7 +563,7 @@ export function PivotReport(props) {
                                 <span data-testid="row-count">{result ? fill(labels.rowsCount, { count: result.rows.length.toLocaleString(locale) }) : ""}</span>
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
-                        </main>
+                        </div>
                     </div>
                     <FilterPopover target={filterTarget} onClose={closeFilter} view={view} encoded={encoded} locale={locale} labels={labels} commit={commit} />
                 </PivotDnd>

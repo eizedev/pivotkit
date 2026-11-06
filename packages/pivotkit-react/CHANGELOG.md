@@ -47,3 +47,5 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - ECharts is loaded from `dist/echarts.js`, which imports bar, line, pie, heatmap, their components
   and the canvas renderer by name; the namespace imports before made a host's bundler keep every
   chart type.
+- The report is a `role="region"` named by the new label `report` ("Pivot report", "Pivot-Bericht")
+  instead of a `<main>`, which nested inside the host page's main landmark.
