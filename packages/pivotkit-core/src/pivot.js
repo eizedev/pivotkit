@@ -141,6 +141,39 @@ function indexCells(rows, rowTree, colTree) {
     return { cellIndex, pairOf, pairCells };
 }
 
+/**
+ * Aggregates every measure over the cells; the value of a cell is read once, on demand.
+ * @returns {(rowNode: PivotNode, colNode: PivotNode, measure: number) => number | string | null}
+ */
+function aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree) {
+    const nCol = colTree.nodes.length;
+    const { cellIndex, pairOf, pairCells } = indexCells(rows, rowTree, colTree);
+    const nCells = cellIndex.size;
+    const kernels = measures.map((m) => kernelFor(data, m, m.field ? columnOf(m.field) : null, nCells, locale));
+    for (const kernel of kernels) {
+        for (let i = 0; i < rows.length; i++) {
+            const cells = pairCells[pairOf[i]];
+            const r = rows[i];
+            for (let k = 0; k < cells.length; k++) {
+                kernel.add(cells[k], r);
+            }
+        }
+    }
+    const UNSET = Symbol("unset");
+    const memo = measures.map(() => new Array(nCells).fill(UNSET));
+    return (rowNode, colNode, m) => {
+        const cell = cellIndex.get(rowNode.id * nCol + colNode.id);
+        if (cell === undefined) {
+            return null;
+        }
+        let v = memo[m][cell];
+        if (v === UNSET) {
+            v = memo[m][cell] = kernels[m].get(cell);
+        }
+        return v;
+    };
+}
+
 /** Sorts the children of every node: by label (natural order, blank last) or by a value, per field. */
 function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
     const walk = (node) => {
@@ -231,7 +264,6 @@ export function computePivot(data, viewInput, options = {}) {
     const colColumns = view.cols.map(columnOf);
     const rowTree = buildTree(rowColumns, rows);
     const colTree = buildTree(colColumns, rows);
-    const nCol = colTree.nodes.length;
 
     // Measures: the visible values plus references used only for sorting, each computed once.
     const measureIndex = new Map();
@@ -251,31 +283,7 @@ export function computePivot(data, viewInput, options = {}) {
         }
     }
 
-    const { cellIndex, pairOf, pairCells } = indexCells(rows, rowTree, colTree);
-    const nCells = cellIndex.size;
-    const kernels = measures.map((m) => kernelFor(data, m, m.field ? columnOf(m.field) : null, nCells, locale));
-    for (const kernel of kernels) {
-        for (let i = 0; i < rows.length; i++) {
-            const cells = pairCells[pairOf[i]];
-            const r = rows[i];
-            for (let k = 0; k < cells.length; k++) {
-                kernel.add(cells[k], r);
-            }
-        }
-    }
-    const UNSET = Symbol("unset");
-    const memo = measures.map(() => new Array(nCells).fill(UNSET));
-    const measureValue = (rowNode, colNode, m) => {
-        const cell = cellIndex.get(rowNode.id * nCol + colNode.id);
-        if (cell === undefined) {
-            return null;
-        }
-        let v = memo[m][cell];
-        if (v === UNSET) {
-            v = memo[m][cell] = kernels[m].get(cell);
-        }
-        return v;
-    };
+    const measureValue = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree);
     const num = (v) => (typeof v === "number" ? v : null);
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));

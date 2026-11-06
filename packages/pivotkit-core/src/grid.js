@@ -20,7 +20,7 @@ import { hexToRgb, resolveLocale } from "./util.js";
 /**
  * @typedef {object} GridCell
  * @property {string} text      formatted for display
- * @property {string | number | null} value  raw value (number for values, key for labels)
+ * @property {string | number | boolean | null} value  raw value (number for values, key for labels)
  * @property {"corner" | "colHeader" | "rowHeader" | "value"} kind
  * @property {0 | 1 | 2} total  0 = none, 1 = subtotal, 2 = grand total
  * @property {number} [rowSpan]
@@ -77,6 +77,7 @@ export function valueName(spec, labels = DEFAULT_LABELS) {
     return fill(labels.valueName ?? DEFAULT_LABELS.valueName, { agg, field: spec.field });
 }
 
+/** @type {(kind: string) => 0 | 1 | 2} */
 const totalOf = (kind) => (kind === "grand" ? 2 : kind === "subtotal" ? 1 : 0);
 
 function ancestorAt(node, depth) {
@@ -167,178 +168,133 @@ export function isGrid(grid) {
 }
 
 /**
- * The pivot as a grid of cells. Dense: rows x columns cells are allocated, so the size is counted
- * first and more than `limits.cells` throws a PivotkitError (LIMIT_EXCEEDED) before any allocation.
- * @param {import("./pivot.js").PivotResult} result  from computePivot()
- * @param {object} [options]
- * @param {string} [options.locale]  used when the view names none; default the pivot's locale
- * @param {Partial<import("./labels.js").Labels>} [options.labels]  texts for totals, blanks and value names
- * @param {Partial<import("./limits.js").Limits>} [options.limits]
- * @returns {Grid}
+ * @typedef {object} GridContext  what the steps of one toGrid() call share
+ * @property {import("./pivot.js").PivotResult} result
+ * @property {import("./view.js").View} view
+ * @property {import("./labels.js").Labels} labels
+ * @property {Array<{ line: { node: import("./tree.js").PivotNode, kind: string }, vi: number }>} dataColumns
+ * @property {number} k      label columns
+ * @property {number} h      header rows
+ * @property {number} width
+ * @property {string[]} formats
+ * @property {Array<(v: unknown) => string>} formatters
+ * @property {string[]} names
  */
-export function toGrid(result, options = {}) {
-    expect(isPivotResult(result), "toGrid(result): result must come from computePivot()");
-    const limits = resolveLimits(options);
-    const view = result.view;
-    const locale = resolveLocale(view.formatting.locale, options.locale ?? result.locale);
-    const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
-    const rowDepth = view.rows.length;
-    const colDepth = view.cols.length;
-    const values = view.values;
-    const nValues = values.length;
 
-    const rowLines = axisLines(result.rowRoot, rowDepth, view.collapsed.rows, view.totals.rowSubtotals, view.totals.grandTotalRow);
-    const colLines = axisLines(result.colRoot, colDepth, view.collapsed.cols, view.totals.colSubtotals, view.totals.grandTotalColumn);
-    const dataColumns = [];
-    for (const line of colLines) {
-        if (nValues === 0) {
-            dataColumns.push({ line, vi: -1 });
-        } else {
-            values.forEach((_, vi) => dataColumns.push({ line, vi }));
+/** @typedef {GridCell & { mergeKey?: string }} LabelCell  a cell while merges are worked out */
+
+const toggleFor = (axis, node, collapsed) => ({ axis, path: node.path, collapsed });
+
+/**
+ * The label cell of an axis line at one level of the axis: the key of the line's ancestor at that
+ * level, the label of a total or collapsed group where it starts, or the empty rest it spans over.
+ * Column lines are labelled downwards in the header, row lines rightwards in the body.
+ * @param {GridContext} g
+ * @param {"rows" | "cols"} axis
+ */
+function labelCell(g, axis, { node, kind }, level) {
+    /** @type {"colHeader" | "rowHeader"} */
+    const cellKind = axis === "cols" ? "colHeader" : "rowHeader";
+    const pathOf = (n) => (axis === "cols" ? { colPath: n.path } : { rowPath: n.path });
+    const label = (n) => g.result.label(axis, n, g.labels);
+    const start = kind === "grand" ? 0 : node.depth - 1;
+    if (kind !== "leaf" && level === start) {
+        const text = kind === "collapsed" ? label(node) : node.parent ? fill(g.labels.total, { label: label(node) }) : g.labels.grandTotal;
+        /** @type {LabelCell} */
+        const cell = { text, value: kind === "collapsed" ? node.key : null, kind: cellKind, total: totalOf(kind), ...pathOf(node), mergeKey: `s${node.id}:${kind}` };
+        if (kind === "collapsed") {
+            cell.toggle = toggleFor(axis, node, true);
         }
+        return cell;
     }
-
-    const k = Math.max(1, rowDepth);
-    // header rows: one per column field, then the row of value names (row field names on its left)
-    const h = colDepth + 1;
-    const width = k + dataColumns.length;
-    checkLimit("cells", (h + rowLines.length) * width, limits.cells, "grid cells");
-
-    const formats = values.map((_, vi) => defaultFormat(result, vi));
-    const formatters = formats.map((f) => formatterFor(f, locale));
-    const names = values.map((v) => valueName(v, labels));
-    const nodeLabel = (axis, node) => result.label(axis, node, labels);
-    const totalLabel = (axis, node) => (node.parent ? fill(labels.total, { label: nodeLabel(axis, node) }) : labels.grandTotal);
-    const toggleFor = (axis, node, collapsed) => ({ axis, path: node.path, collapsed });
-
-    // ---- header ----
-    const header = [];
-    for (let r = 0; r < h; r++) {
-        header.push(new Array(width).fill(null));
+    if (kind !== "leaf" && level > start) {
+        return { text: "", value: null, kind: cellKind, total: totalOf(kind), mergeKey: `s${node.id}:${kind}` };
     }
+    const a = ancestorAt(node, level + 1);
+    /** @type {LabelCell} */
+    const cell = { text: label(a), value: a.key, kind: cellKind, total: 0, ...pathOf(a), mergeKey: `n${a.id}` };
+    if (a.children.length > 0) {
+        cell.toggle = toggleFor(axis, a, false);
+    }
+    return cell;
+}
+
+/** Header rows: one per column field, then the row of value names (row field names on its left). */
+function headerRows(g) {
+    const { view, k, h, width } = g;
+    const header = Array.from({ length: h }, () => new Array(width).fill(null));
     for (let r = 0; r < h; r++) {
         for (let c = 0; c < k; c++) {
-            let cell;
             if (r === h - 1) {
-                cell = { text: rowDepth > 0 ? view.rows[c] : "", value: null, kind: "corner", total: 0, field: rowDepth > 0 ? view.rows[c] : undefined };
+                header[r][c] = { text: view.rows.length > 0 ? view.rows[c] : "", value: null, kind: "corner", total: 0, field: view.rows.length > 0 ? view.rows[c] : undefined };
             } else if (c === k - 1) {
                 // the column field's name, next to its labels
-                cell = { text: view.cols[r], value: null, kind: "corner", total: 0, field: view.cols[r] };
+                header[r][c] = { text: view.cols[r], value: null, kind: "corner", total: 0, field: view.cols[r] };
             } else {
-                cell = { text: "", value: null, kind: "corner", total: 0, mergeKey: "corner" };
+                header[r][c] = { text: "", value: null, kind: "corner", total: 0, mergeKey: "corner" };
             }
-            header[r][c] = cell;
         }
     }
-    dataColumns.forEach(({ line, vi }, j) => {
+    g.dataColumns.forEach(({ line, vi }, j) => {
         const c = k + j;
-        const { node, kind } = line;
-        for (let level = 0; level < colDepth; level++) {
-            let cell;
-            const spanDown = kind === "grand" ? 0 : node.depth - 1;
-            if (kind !== "leaf" && level === spanDown) {
-                const text = kind === "collapsed" ? nodeLabel("cols", node) : totalLabel("cols", node);
-                cell = {
-                    text,
-                    value: kind === "collapsed" ? node.key : null,
-                    kind: "colHeader",
-                    total: totalOf(kind),
-                    colPath: node.path,
-                    mergeKey: `s${node.id}:${kind}`
-                };
-                if (kind === "collapsed") {
-                    cell.toggle = toggleFor("cols", node, true);
-                }
-            } else if (kind !== "leaf" && level > spanDown) {
-                cell = { text: "", value: null, kind: "colHeader", total: totalOf(kind), mergeKey: `s${node.id}:${kind}` };
-            } else {
-                const a = ancestorAt(node, level + 1);
-                cell = { text: nodeLabel("cols", a), value: a.key, kind: "colHeader", total: 0, colPath: a.path, mergeKey: `n${a.id}` };
-                if (a.children.length > 0) {
-                    cell.toggle = toggleFor("cols", a, false);
-                }
-            }
-            header[level][c] = cell;
+        for (let level = 0; level < view.cols.length; level++) {
+            header[level][c] = labelCell(g, "cols", line, level);
         }
         header[h - 1][c] = {
-            text: vi >= 0 ? names[vi] : "",
+            text: vi >= 0 ? g.names[vi] : "",
             value: null,
             kind: "colHeader",
-            total: totalOf(kind),
+            total: totalOf(line.kind),
             valueIndex: vi >= 0 ? vi : undefined,
-            colPath: node.path
+            colPath: line.node.path
         };
     });
-    const merges = [];
-    mergeRegion(header, 0, 0, h, width, merges);
+    return header;
+}
 
-    // ---- body ----
-    const body = rowLines.map(() => new Array(width).fill(null));
-    rowLines.forEach(({ node, kind }, i) => {
+/** Body rows: row labels, then one value cell per data column. */
+function bodyRows(g, rowLines) {
+    const { result, view, k, width } = g;
+    return rowLines.map((line) => {
+        const { node, kind } = line;
+        const row = new Array(width).fill(null);
         for (let level = 0; level < k; level++) {
-            let cell;
-            if (rowDepth === 0) {
-                cell = { text: nValues > 0 || colDepth > 0 ? labels.grandTotal : "", value: null, kind: "rowHeader", total: 2, rowPath: [] };
-            } else {
-                const spanRight = kind === "grand" ? 0 : node.depth - 1;
-                if (kind !== "leaf" && level === spanRight) {
-                    cell = {
-                        text: kind === "collapsed" ? nodeLabel("rows", node) : totalLabel("rows", node),
-                        value: kind === "collapsed" ? node.key : null,
-                        kind: "rowHeader",
-                        total: totalOf(kind),
-                        rowPath: node.path,
-                        mergeKey: `s${node.id}:${kind}`
-                    };
-                    if (kind === "collapsed") {
-                        cell.toggle = toggleFor("rows", node, true);
-                    }
-                } else if (kind !== "leaf" && level > spanRight) {
-                    cell = { text: "", value: null, kind: "rowHeader", total: totalOf(kind), mergeKey: `s${node.id}:${kind}` };
-                } else {
-                    const a = ancestorAt(node, level + 1);
-                    cell = { text: nodeLabel("rows", a), value: a.key, kind: "rowHeader", total: 0, rowPath: a.path, mergeKey: `n${a.id}` };
-                    if (a.children.length > 0) {
-                        cell.toggle = toggleFor("rows", a, false);
-                    }
-                }
-            }
-            body[i][level] = cell;
+            row[level] = view.rows.length === 0
+                ? { text: view.values.length > 0 || view.cols.length > 0 ? g.labels.grandTotal : "", value: null, kind: "rowHeader", total: 2, rowPath: [] }
+                : labelCell(g, "rows", line, level);
         }
-        dataColumns.forEach(({ line, vi }, j) => {
-            const total = Math.max(totalOf(kind), totalOf(line.kind));
+        g.dataColumns.forEach(({ line: col, vi }, j) => {
+            const total = /** @type {0 | 1 | 2} */ (Math.max(totalOf(kind), totalOf(col.kind)));
             if (vi < 0) {
-                body[i][k + j] = { text: "", value: null, kind: "value", total, rowPath: node.path, colPath: line.node.path };
+                row[k + j] = { text: "", value: null, kind: "value", total, rowPath: node.path, colPath: col.node.path };
                 return;
             }
-            const v = result.display(node, line.node, vi);
-            body[i][k + j] = {
-                text: v === null ? "" : formatters[vi](v),
+            const v = result.display(node, col.node, vi);
+            row[k + j] = {
+                text: v === null ? "" : g.formatters[vi](v),
                 value: v,
                 kind: "value",
-                total: /** @type {0|1|2} */ (total),
-                valueType: values[vi].showAs ? "number" : result.valueTypes[vi],
-                format: formats[vi],
+                total,
+                valueType: view.values[vi].showAs ? "number" : result.valueTypes[vi],
+                format: g.formats[vi],
                 rowPath: node.path,
-                colPath: line.node.path,
+                colPath: col.node.path,
                 valueIndex: vi
             };
         });
+        return row;
     });
-    const bodyMerges = [];
-    mergeRegion(body, 0, 0, body.length, k, bodyMerges);
-    for (const m of bodyMerges) {
-        merges.push({ ...m, row: m.row + h });
-    }
+}
 
-    // ---- conditional formatting over the value cells that are not totals ----
-    values.forEach((spec, vi) => {
+/** Conditional formatting over the value cells that are not totals: a style per cell. */
+function applyConditional(g, body) {
+    g.view.values.forEach((spec, vi) => {
         if (!spec.conditional) {
             return;
         }
         const cells = [];
         for (const row of body) {
-            for (let c = k; c < width; c++) {
+            for (let c = g.k; c < g.width; c++) {
                 const cell = row[c];
                 if (cell && cell.valueIndex === vi && cell.total === 0 && typeof cell.value === "number") {
                     cells.push(cell);
@@ -367,6 +323,54 @@ export function toGrid(result, options = {}) {
             }
         }
     });
+}
+
+/**
+ * The pivot as a grid of cells. Dense: rows x columns cells are allocated, so the size is counted
+ * first and more than `limits.cells` throws a PivotkitError (LIMIT_EXCEEDED) before any allocation.
+ * @param {import("./pivot.js").PivotResult} result  from computePivot()
+ * @param {object} [options]
+ * @param {string} [options.locale]  used when the view names none; default the pivot's locale
+ * @param {Partial<import("./labels.js").Labels>} [options.labels]  texts for totals, blanks and value names
+ * @param {Partial<import("./limits.js").Limits>} [options.limits]
+ * @returns {Grid}
+ */
+export function toGrid(result, options = {}) {
+    expect(isPivotResult(result), "toGrid(result): result must come from computePivot()");
+    const limits = resolveLimits(options);
+    const view = result.view;
+    const locale = resolveLocale(view.formatting.locale, options.locale ?? result.locale);
+    const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
+    const rowLines = axisLines(result.rowRoot, view.rows.length, view.collapsed.rows, view.totals.rowSubtotals, view.totals.grandTotalRow);
+    const colLines = axisLines(result.colRoot, view.cols.length, view.collapsed.cols, view.totals.colSubtotals, view.totals.grandTotalColumn);
+    const dataColumns = colLines.flatMap((line) => (view.values.length === 0 ? [{ line, vi: -1 }] : view.values.map((_, vi) => ({ line, vi }))));
+    const k = Math.max(1, view.rows.length);
+    const h = view.cols.length + 1;
+    const width = k + dataColumns.length;
+    checkLimit("cells", (h + rowLines.length) * width, limits.cells, "grid cells");
+
+    const formats = view.values.map((_, vi) => defaultFormat(result, vi));
+    /** @type {GridContext} */
+    const g = {
+        result,
+        view,
+        labels,
+        dataColumns,
+        k,
+        h,
+        width,
+        formats,
+        formatters: formats.map((f) => formatterFor(f, locale)),
+        names: view.values.map((v) => valueName(v, labels))
+    };
+    const header = headerRows(g);
+    const body = bodyRows(g, rowLines);
+    const merges = [];
+    mergeRegion(header, 0, 0, h, width, merges);
+    const bodyMerges = [];
+    mergeRegion(body, 0, 0, body.length, k, bodyMerges);
+    merges.push(...bodyMerges.map((m) => ({ ...m, row: m.row + h })));
+    applyConditional(g, body);
 
     const rows = header.concat(body);
     for (const row of rows) {
@@ -385,10 +389,9 @@ export function toGrid(result, options = {}) {
         dataColumns: dataColumns.map(({ line, vi }) => ({ colPath: line.node.path, valueIndex: vi, total: totalOf(line.kind) })),
         bodyRows: rowLines.map(({ node, kind }) => ({ rowPath: node.path, total: totalOf(kind), collapsed: kind === "collapsed" })),
         formats,
-        valueNames: names,
-        conditional: values.map((v) => v.conditional),
+        valueNames: g.names,
+        conditional: view.values.map((v) => v.conditional),
         locale,
         timeZone: result.timeZone
     };
 }
-
