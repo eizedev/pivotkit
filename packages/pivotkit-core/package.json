@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "fast-xml-parser": "5.11.2",
-    "read-excel-file": "9.3.12"
+    "read-excel-file": "9.3.14"
   },
   "types": "./types/index.d.ts",
   "publishConfig": {
