@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { strFromU8, unzipSync } from "fflate";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { readSheet } from "read-excel-file/node";
-import { computePivot, csvSeparator, encode, neutralizeFormula, toCsv, toCsvBytes, toGrid, toXlsx } from "../src/index.js";
+import { computePivot, encode, toGrid } from "../src/index.js";
+import { toCsv, toCsvBytes, toXlsx } from "../src/export.js";
+import { csvSeparator, neutralizeFormula } from "../src/csv.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -49,7 +51,8 @@ test("values are typed numbers and dates; totals are bold; a reader gets them ba
     const styles = parser.parse(xml("xl/styles.xml")).styleSheet;
     const fmts = [].concat(styles.numFmts.numFmt).map((f) => f.formatCode);
     assert.ok(fmts.includes("#,##0.0"));
-    assert.ok(fmts.includes("yyyy-mm-dd"));
+    // the grid's date format in Excel's terms: "Jan 5, 2026"
+    assert.ok(fmts.includes('mmm d"," yyyy'), fmts.join(" | "));
     const sheet = await readSheet(Buffer.from(bytes));
     // the column field's name sits next to its labels, above the row field names
     assert.deepEqual(sheet[0].slice(0, 3), [null, "Rep", "Ann"]);
@@ -85,8 +88,9 @@ test("CSV: separator by locale, quoting, repeated row labels", () => {
         { name: "Line\nbreak", note: "x", v: -2 },
         { name: "Smith, John", note: "y", v: 1000.25 }
     ]);
-    const g = toGrid(computePivot(d, { rows: ["name", "note"], values: [{ field: "v", agg: "sum" }], totals: { rowSubtotals: false } }), { locale: "en-US" });
-    const lines = toCsv(g, { locale: "en-US" }).split("\r\n");
+    const view = { rows: ["name", "note"], values: [{ field: "v", agg: "sum" }], totals: { rowSubtotals: false } };
+    const g = toGrid(computePivot(d, view), { locale: "en-US" });
+    const lines = toCsv(g).split("\r\n");
     assert.deepEqual(lines, [
         "name,note,Sum of v",
         '"Line\nbreak",x,-2',
@@ -95,29 +99,32 @@ test("CSV: separator by locale, quoting, repeated row labels", () => {
         "Grand Total,,999.75",
         ""
     ]);
-    const de = toCsv(g, { locale: "de-DE" }).split("\r\n");
+    // the grid's locale decides separator and decimal mark
+    const de = toCsv(toGrid(computePivot(d, view), { locale: "de-DE" })).split("\r\n");
     assert.equal(de[3], "Smith, John;y;1000,25");
 });
 
-test("CSV formula injection: = + - @ tab and CR get a leading quote, numbers do not", () => {
-    for (const s of ["=1+1", "+1", "-1", "@SUM(A1)", "\tx", "\rx"]) {
-        assert.equal(neutralizeFormula(s), `'${s}`);
+test("CSV formula injection: formulas get a leading quote, numbers and number ranges do not", () => {
+    for (const s of ["=1+1", "+1+1", "-2+3", "-1+cmd|' /C calc'!A0", "@SUM(A1)", "\tx", "\rx", "  =1+1", "\n=1", "\u0001@x", "-x", "+A1"]) {
+        assert.equal(neutralizeFormula(s), `'${s}`, JSON.stringify(s));
     }
-    assert.equal(neutralizeFormula("a=1"), "a=1");
+    for (const s of ["a=1", "-1", "+1", "-5%", "-1,234.5", "-10 – 0", "-0.5 – 0", "1 – 2", "(blank)"]) {
+        assert.equal(neutralizeFormula(s), s, JSON.stringify(s));
+    }
     const d = encode([{ k: "=cmd|' /C calc'!A0", v: -5 }, { k: "@x", v: 1 }]);
-    const csv = toCsv(toGrid(computePivot(d, { rows: ["k"], values: [{ field: "v", agg: "sum" }] }), { locale: "en-US" }), { locale: "en-US" });
+    const csv = toCsv(toGrid(computePivot(d, { rows: ["k"], values: [{ field: "v", agg: "sum" }] }), { locale: "en-US" }));
     assert.ok(csv.includes("'=cmd|' /C calc'!A0,-5"), csv);
     assert.ok(csv.includes("'@x,1"), csv);
 });
 
 test("CSV bytes start with a byte order mark unless switched off", () => {
     const g = toGrid(computePivot(data, { values: [{ agg: "count" }] }));
-    const b = toCsvBytes(g, { locale: "en-US" });
+    const b = toCsvBytes(g);
     assert.deepEqual([...b.slice(0, 3)], [0xef, 0xbb, 0xbf]);
-    assert.notEqual(toCsvBytes(g, { bom: false, locale: "en-US" })[0], 0xef);
+    assert.notEqual(toCsvBytes(g, { bom: false })[0], 0xef);
 });
 
 test("CSV dates are ISO dates", () => {
     const g = toGrid(computePivot(data, { values: [{ field: "Date", agg: "max" }] }), { locale: "en-US" });
-    assert.match(toCsv(g, { locale: "en-US" }), /Grand Total,2026-04-30\r\n$/);
+    assert.match(toCsv(g), /Grand Total,2026-04-30\r\n$/);
 });

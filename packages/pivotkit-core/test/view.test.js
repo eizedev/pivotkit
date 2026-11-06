@@ -4,6 +4,8 @@ import { computePivot, emptyView, encode, normalize, validate, VIEW_VERSION } fr
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
+/** The normalized view alone; the issues are checked through validate(). */
+const norm = (input, schema = data) => normalize(input, schema).view;
 
 test("a full view normalizes to itself, with names in the data's spelling", () => {
     const view = {
@@ -20,34 +22,34 @@ test("a full view normalizes to itself, with names in the data's spelling", () =
         chart: { type: "line", stacked: true, horizontal: false },
         formatting: { locale: "de-de" }
     };
-    const n = normalize(view, data);
+    const n = norm(view, data);
     assert.deepEqual(n.rows, ["Region"]);
     assert.deepEqual(n.cols, ["Product"]);
     assert.deepEqual(n.values, [{ field: "Units", agg: "sum", format: "number:1", label: "Units", showAs: { type: "percentOfRowTotal", axis: "rows" }, conditional: { type: "dataBar", color: "#336699" } }]);
     assert.deepEqual(n.sort, [{ field: "Region", by: "value", order: "desc", value: { field: "Units", agg: "sum" } }]);
     assert.deepEqual(n.derived, [{ name: "Month", field: "Date", by: "yearMonth" }]);
     assert.equal(n.formatting.locale, "de-DE");
-    assert.deepEqual(normalize(n, data), n);
+    assert.deepEqual(norm(n, data), n);
     assert.deepEqual(validate(n, data), { valid: true, errors: [] });
 });
 
 test("the schema may be encoded data, { fields } or a field list", () => {
     const fields = [{ name: "Region", type: "string" }];
-    assert.deepEqual(normalize({ rows: ["region"] }, { fields }).rows, ["Region"]);
-    assert.deepEqual(normalize({ rows: ["region"] }, fields).rows, ["Region"]);
-    assert.deepEqual(normalize({ rows: ["region"] }, data.schema).rows, ["Region"]);
+    assert.deepEqual(norm({ rows: ["region"] }, { fields }).rows, ["Region"]);
+    assert.deepEqual(norm({ rows: ["region"] }, fields).rows, ["Region"]);
+    assert.deepEqual(norm({ rows: ["region"] }, data.schema).rows, ["Region"]);
 });
 
 test("anything that is not a view becomes the empty view", () => {
     for (const input of [null, undefined, 42, "x", "[1,2]", [], true, () => 1, Symbol("s")]) {
-        assert.deepEqual(normalize(input, data), emptyView(), String(typeof input));
+        assert.deepEqual(norm(input, data), emptyView(), String(typeof input));
     }
     const cyclic = { rows: [] };
     cyclic.self = cyclic;
-    assert.deepEqual(normalize(cyclic, data), emptyView());
+    assert.deepEqual(norm(cyclic, data), emptyView());
     const throwing = { get rows() { throw new Error("boom"); } };
-    assert.deepEqual(normalize(throwing, data), emptyView());
-    assert.deepEqual(normalize("{\"rows\": [\"Region\"]}", data).rows, ["Region"]);
+    assert.deepEqual(norm(throwing, data), emptyView());
+    assert.deepEqual(norm("{\"rows\": [\"Region\"]}", data).rows, ["Region"]);
 });
 
 test("unknown names, aggregators, formats and keys are dropped and reported", () => {
@@ -62,7 +64,7 @@ test("unknown names, aggregators, formats and keys are dropped and reported", ()
         ],
         hack: true
     };
-    const n = normalize(view, data);
+    const n = norm(view, data);
     assert.deepEqual(n.rows, ["Region"]);
     assert.deepEqual(n.values, [{ field: "Units", agg: "sum", format: null, label: null, showAs: null, conditional: null }]);
     const { valid, errors } = validate(view, data);
@@ -75,7 +77,7 @@ test("unknown names, aggregators, formats and keys are dropped and reported", ()
 
 test("prototype keys do nothing and pollute nothing", () => {
     const json = '{"__proto__": {"polluted": 1}, "constructor": {"prototype": {"polluted": 1}}, "rows": ["Region"], "totals": {"__proto__": {"grandTotalRow": false}}, "values": [{"field": "Units", "agg": "sum", "__proto__": {"format": "x"}}]}';
-    const n = normalize(json, data);
+    const n = norm(json, data);
     assert.equal({}.polluted, undefined);
     assert.equal(Object.prototype.polluted, undefined);
     assert.equal(n.totals.grandTotalRow, true);
@@ -85,7 +87,7 @@ test("prototype keys do nothing and pollute nothing", () => {
 });
 
 test("colours, locales and labels only pass in safe forms", () => {
-    const n = normalize({
+    const n = norm({
         values: [
             { field: "Units", agg: "sum", conditional: { type: "colorScale", colors: ["red;background:url(x)", "#00ff00", "#0000ff"] } },
             { field: "Units", agg: "sum", conditional: { type: "dataBar", color: "expression(alert(1))" } },
@@ -100,10 +102,10 @@ test("colours, locales and labels only pass in safe forms", () => {
 });
 
 test("limits: huge lists are cut, huge views refused", () => {
-    const n = normalize({ filters: [{ field: "Region", type: "include", items: new Array(200_000).fill("North") }] }, data);
+    const n = norm({ filters: [{ field: "Region", type: "include", items: new Array(200_000).fill("North") }] }, data);
     assert.equal(n.filters[0].items.length, 100_000);
-    assert.deepEqual(normalize({ rows: ["Region"], pad: "x".repeat(6_000_000) }, data), emptyView());
-    const many = normalize({ values: new Array(1000).fill({ agg: "count" }) }, data);
+    assert.deepEqual(norm({ rows: ["Region"], pad: "x".repeat(6_000_000) }, data), emptyView());
+    const many = norm({ values: new Array(1000).fill({ agg: "count" }) }, data);
     assert.equal(many.values.length, 64);
 });
 
@@ -122,7 +124,7 @@ test("filter, sort and collapsed entries are checked against the field types", (
     }, data);
     const messages = errors.map((e) => `${e.path}: ${e.message}`);
     assert.equal(messages.length, 8, messages.join("\n"));
-    const n = normalize({ filters: [{ field: "Units", type: "include", items: ["abc", 3, "4"] }] }, data);
+    const n = norm({ filters: [{ field: "Units", type: "include", items: ["abc", 3, "4"] }] }, data);
     assert.deepEqual(n.filters[0].items, [3, 4]);
 });
 
@@ -144,6 +146,14 @@ test("computePivot normalizes what it gets, so a hostile view cannot break it", 
     assert.equal(r.values.length, 0);
 });
 
-test("an unknown version is read as the current one and reported", () => {
-    assert.deepEqual(validate({ version: 99 }, data).errors.map((e) => e.path), ["version"]);
+test("a newer version is refused, never read as an older one", () => {
+    const { view, issues } = normalize({ version: VIEW_VERSION + 1, rows: ["Region"] }, data);
+    assert.deepEqual(view, emptyView());
+    assert.deepEqual(issues.map((e) => e.path), ["version"]);
+    assert.match(issues[0].message, /newer/);
+    for (const bad of [0, -1, 1.5, "1"]) {
+        assert.deepEqual(validate({ version: bad }, data).errors.map((e) => e.path), ["version"], String(bad));
+    }
+    // no version: taken as the current one
+    assert.deepEqual(norm({ rows: ["Region"] }).rows, ["Region"]);
 });

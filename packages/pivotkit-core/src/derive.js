@@ -4,16 +4,16 @@
  *
  *   { name: "Order month", field: "OrderDate", by: "yearMonth" }
  *   { name: "Amount band", field: "Amount", by: "bin", size: 100, origin: 0 }
+ *
+ * DERIVED is the one table of grouping units: the source type each one needs, the type of the column
+ * it makes, its value and its label. normalize() and the pivot both read it; a new unit is one entry.
  */
 
-const MS_PER_DAY = 86400000;
+import { dateTimeFormat, numberFormat } from "./intl.js";
+import { MS_PER_DAY, decimalsOf, pad } from "./util.js";
 
-/** Units of date grouping; "bin" groups numbers. */
-export const DERIVE_UNITS = Object.freeze([
-    "year", "quarter", "month", "week", "day", "hour", "weekday", "yearQuarter", "yearMonth", "yearWeek", "bin"
-]);
-
-const pad = (n, width = 2) => String(n).padStart(width, "0");
+/** Bins smaller than this are refused: their labels and keys would no longer be exact. */
+export const MIN_BIN_SIZE = 1e-9;
 
 /** ISO 8601 week and its year for wall-clock milliseconds. */
 export function isoWeek(ms) {
@@ -28,112 +28,142 @@ export function isoWeek(ms) {
     return { year, week };
 }
 
-const monthNames = new Map();
-const weekdayNames = new Map();
+const monthName = (month, locale) =>
+    dateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2000, month - 1, 1)));
 
-function monthName(month, locale) {
-    const key = locale ?? "";
-    let f = monthNames.get(key);
-    if (!f) {
-        f = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
-        monthNames.set(key, f);
-    }
-    return f.format(new Date(Date.UTC(2000, month - 1, 1)));
-}
+// 2024-01-01 was a Monday
+const weekdayName = (weekday, locale) =>
+    dateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, weekday)));
 
-function weekdayName(weekday, locale) {
-    const key = locale ?? "";
-    let f = weekdayNames.get(key);
-    if (!f) {
-        f = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" });
-        weekdayNames.set(key, f);
-    }
-    // 2024-01-01 was a Monday
-    return f.format(new Date(Date.UTC(2024, 0, weekday)));
-}
+/**
+ * @typedef {object} DerivedUnit
+ * @property {"date" | "number"} source  the type of field it groups
+ * @property {"date" | "number"} type    the type of the column it makes
+ * @property {(d: Date) => number} [value]   date units: the group of a wall-clock date
+ * @property {(v: number, locale: string) => string} [label]  number results: the display label
+ */
 
-/** Per unit: value of a wall-clock ms, its label, and whether the derived column is a date. */
-const DATE_UNITS = {
-    year: { value: (d) => d.getUTCFullYear(), label: (v) => String(v) },
-    quarter: { value: (d) => Math.floor(d.getUTCMonth() / 3) + 1, label: (v) => `Q${v}` },
-    month: { value: (d) => d.getUTCMonth() + 1, label: (v, locale) => monthName(v, locale) },
-    week: { value: (d) => isoWeek(d.getTime()).week, label: (v) => `W${pad(v)}` },
-    day: { value: (d) => Math.floor(d.getTime() / MS_PER_DAY) * MS_PER_DAY, date: true },
-    hour: { value: (d) => d.getUTCHours(), label: (v) => `${pad(v)}:00` },
-    weekday: { value: (d) => ((d.getUTCDay() + 6) % 7) + 1, label: (v, locale) => weekdayName(v, locale) },
+/** @type {Readonly<Record<string, DerivedUnit>>} */
+export const DERIVED = Object.freeze({
+    year: { source: "date", type: "number", value: (d) => d.getUTCFullYear(), label: (v) => String(v) },
+    quarter: { source: "date", type: "number", value: (d) => Math.floor(d.getUTCMonth() / 3) + 1, label: (v) => `Q${v}` },
+    month: { source: "date", type: "number", value: (d) => d.getUTCMonth() + 1, label: monthName },
+    week: { source: "date", type: "number", value: (d) => isoWeek(d.getTime()).week, label: (v) => `W${pad(v)}` },
+    day: { source: "date", type: "date", value: (d) => Math.floor(d.getTime() / MS_PER_DAY) * MS_PER_DAY },
+    hour: { source: "date", type: "number", value: (d) => d.getUTCHours(), label: (v) => `${pad(v)}:00` },
+    weekday: { source: "date", type: "number", value: (d) => ((d.getUTCDay() + 6) % 7) + 1, label: weekdayName },
     yearQuarter: {
+        source: "date",
+        type: "number",
         value: (d) => d.getUTCFullYear() * 10 + Math.floor(d.getUTCMonth() / 3) + 1,
         label: (v) => `${Math.floor(v / 10)}-Q${v % 10}`
     },
     yearMonth: {
+        source: "date",
+        type: "number",
         value: (d) => d.getUTCFullYear() * 100 + d.getUTCMonth() + 1,
         label: (v) => `${Math.floor(v / 100)}-${pad(v % 100)}`
     },
     yearWeek: {
+        source: "date",
+        type: "number",
         value: (d) => {
             const w = isoWeek(d.getTime());
             return w.year * 100 + w.week;
         },
         label: (v) => `${Math.floor(v / 100)}-W${pad(v % 100)}`
-    }
-};
+    },
+    // number bins: value and label depend on size and origin, see binning()
+    bin: { source: "number", type: "number" }
+});
 
-const binFormats = new Map();
+/** Names of the grouping units, in the order a UI lists them. */
+export const DERIVE_UNITS = Object.freeze(Object.keys(DERIVED));
 
-function binLabel(lo, size, locale) {
-    const key = locale ?? "";
-    let f = binFormats.get(key);
-    if (!f) {
-        f = new Intl.NumberFormat(locale, { maximumFractionDigits: 6 });
-        binFormats.set(key, f);
-    }
-    // lower bound included, upper bound excluded
-    return `${f.format(lo)} – ${f.format(lo + size)}`;
+/**
+ * Number bins [lower, upper) of `size` from `origin`. Sizes like 0.1 have no exact binary form, so
+ * (v - origin) / size alone puts 0.3 into the bin 0.2 - 0.3. The bin index from that division is
+ * therefore corrected against the bounds computed in integers scaled by the decimals of size and
+ * origin, which are the decimal numbers the user wrote: 0.3 lands in 0.3 - 0.4, and keys are clean
+ * (0.3, not 0.30000000000000004).
+ * @param {number} size
+ * @param {number} origin
+ */
+export function binning(size, origin) {
+    const decimals = Math.min(20, Math.max(decimalsOf(size), decimalsOf(origin)));
+    const scale = 10 ** decimals;
+    const sizeS = Math.round(size * scale);
+    const originS = Math.round(origin * scale);
+    const scaled = decimals <= 15 && sizeS > 0 && Number.isSafeInteger(sizeS) && Number.isSafeInteger(originS);
+    /** lower bound of bin k */
+    const bound = (k) => {
+        const b = originS + k * sizeS;
+        return scaled && Number.isSafeInteger(b) ? b / scale : origin + k * size;
+    };
+    return {
+        decimals,
+        /** the lower bound of the bin of v; NaN when there is none (overflow) */
+        lowerOf(v) {
+            let k = Math.floor((v - origin) / size);
+            if (!Number.isFinite(k)) {
+                return NaN;
+            }
+            if (v >= bound(k + 1)) {
+                k++;
+            } else if (v < bound(k)) {
+                k--;
+            }
+            return bound(k);
+        },
+        /** the upper bound of the bin whose lower bound is lo */
+        upperOf(lo) {
+            return bound(Math.round((lo - origin) / size) + 1);
+        }
+    };
 }
 
 /**
  * The encoded column of a derived field; null when the source column is missing or of the wrong type.
+ * Cached on the encoded data (least recently used go first, see LIMITS.cacheEntries).
  * @param {import("./encode.js").Encoded} encoded
  * @param {{ name: string, field: string, by: string, size?: number, origin?: number }} spec  normalized
  * @returns {import("./encode.js").Column | null}
  */
 export function derivedColumn(encoded, spec) {
     const source = encoded.column(spec.field);
-    if (!source || !source.values) {
+    const unit = Object.hasOwn(DERIVED, spec.by) ? DERIVED[spec.by] : null;
+    if (!source || !source.values || !unit || source.type !== unit.source) {
         return null;
     }
-    const isBin = spec.by === "bin";
-    if (isBin ? source.type !== "number" : source.type !== "date" || !Object.hasOwn(DATE_UNITS, spec.by)) {
-        return null;
-    }
-    const cacheKey = `derived:${source.key}:${spec.by}:${spec.size ?? ""}:${spec.origin ?? ""}`;
-    const cached = encoded.cache.get(cacheKey);
-    if (cached) {
-        // the same grouping under another name shares the arrays
-        return cached.name === spec.name ? cached : { ...cached, name: spec.name, key: spec.name.toLowerCase() };
-    }
+    const id = `derived:${source.key}:${spec.by}:${spec.size ?? ""}:${spec.origin ?? ""}`;
+    const column = encoded.cache.getOrSet(id, () => buildDerived(source, spec, unit, id));
+    // the same grouping under another name shares the arrays
+    return column.name === spec.name ? column : { ...column, name: spec.name, key: spec.name.toLowerCase() };
+}
+
+function buildDerived(source, spec, unit, id) {
     const n = source.values.length;
     const codes = new Int32Array(n);
     const values = new Float64Array(n);
     const dict = [];
     const index = new Map();
-    const unit = isBin ? null : DATE_UNITS[spec.by];
-    const size = isBin ? spec.size : 0;
-    const origin = isBin ? spec.origin ?? 0 : 0;
+    const bins = spec.by === "bin" ? binning(spec.size, spec.origin ?? 0) : null;
     const date = new Date(0);
     for (let i = 0; i < n; i++) {
         const v = source.values[i];
-        if (Number.isNaN(v)) {
+        let key = NaN;
+        if (!Number.isNaN(v)) {
+            if (bins) {
+                key = bins.lowerOf(v);
+            } else {
+                date.setTime(v);
+                key = unit.value(date);
+            }
+        }
+        if (Number.isNaN(key)) {
             codes[i] = -1;
             values[i] = NaN;
             continue;
-        }
-        let key;
-        if (isBin) {
-            key = origin + Math.floor((v - origin) / size) * size;
-        } else {
-            date.setTime(v);
-            key = unit.value(date);
         }
         let code = index.get(key);
         if (code === undefined) {
@@ -145,20 +175,17 @@ export function derivedColumn(encoded, spec) {
         values[i] = key;
     }
     /** @type {import("./encode.js").Column} */
-    const column = {
-        name: spec.name,
-        key: spec.name.toLowerCase(),
-        type: unit && unit.date ? "date" : "number",
-        codes,
-        dict,
-        values,
-        derived: true
-    };
-    if (unit && unit.date) {
+    const column = { name: spec.name, key: spec.name.toLowerCase(), id, type: unit.type, codes, dict, values, derived: true };
+    if (unit.type === "date") {
         column.dateOnly = true;
+    } else if (bins) {
+        // lower bound included, upper bound excluded
+        column.labeler = (lo, locale) => {
+            const f = numberFormat(locale, { maximumFractionDigits: bins.decimals, signDisplay: "negative" });
+            return `${f.format(lo)} – ${f.format(bins.upperOf(lo))}`;
+        };
     } else {
-        column.labeler = isBin ? (v, locale) => binLabel(v, size, locale) : unit.label;
+        column.labeler = unit.label;
     }
-    encoded.cache.set(cacheKey, column);
     return column;
 }

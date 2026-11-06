@@ -1,25 +1,29 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { encode, toWallMs } from "../src/index.js";
+import { PivotkitError, encode } from "../src/index.js";
+import { toWallMs, wallClock } from "../src/time.js";
+
+const utc = wallClock("UTC");
 
 test("infers string, number, boolean, date and null columns", () => {
     const d = encode([
-        { s: "a", n: 1, b: true, d: "2026-03-04", t: "2026-03-04T10:15:00", x: null, o: new Date(2026, 0, 2) },
+        { s: "a", n: 1, b: true, d: "2026-03-04", t: "2026-03-04T10:15:00", x: null, o: new Date(Date.UTC(2026, 0, 2, 23, 30)) },
         { s: "b", n: 2.5, b: false, d: "2026-03-05", t: null, x: undefined, o: null }
     ]);
     assert.deepEqual(d.schema.fields, [
-        { name: "s", type: "string" },
-        { name: "n", type: "number" },
-        { name: "b", type: "boolean" },
-        { name: "d", type: "date" },
-        { name: "t", type: "date" },
-        { name: "x", type: "null" },
-        { name: "o", type: "date" }
+        { name: "s", type: "string", detected: "string" },
+        { name: "n", type: "number", detected: "number" },
+        { name: "b", type: "boolean", detected: "boolean" },
+        { name: "d", type: "date", detected: "date" },
+        { name: "t", type: "date", detected: "date" },
+        { name: "x", type: "null", detected: "null" },
+        { name: "o", type: "date", detected: "date" }
     ]);
     assert.equal(d.column("d").dateOnly, true);
     assert.equal(d.column("t").dateOnly, false);
-    // a Date object is read at its local wall clock: midnight of 2 January everywhere
-    assert.equal(d.column("o").values[0], Date.UTC(2026, 0, 2));
+    // a Date object is an instant, read at the wall clock of the default time zone UTC on every machine
+    assert.equal(d.column("o").values[0], Date.UTC(2026, 0, 2, 23, 30));
+    assert.equal(d.timeZone, "UTC");
 });
 
 test("matches column names case-insensitively and keeps the first spelling", () => {
@@ -55,11 +59,11 @@ test("invalid calendar dates are text, not dates", () => {
 });
 
 test("ISO strings without an offset keep their wall clock; with an offset they convert", () => {
-    assert.equal(toWallMs("2026-03-04T10:15:00"), Date.UTC(2026, 2, 4, 10, 15));
-    assert.equal(toWallMs("2026-03-04"), Date.UTC(2026, 2, 4));
-    assert.equal(toWallMs("2026-03-04T10:15:00Z", "UTC"), Date.UTC(2026, 2, 4, 10, 15));
-    assert.equal(toWallMs("2026-03-04T10:15:00+02:00", "UTC"), Date.UTC(2026, 2, 4, 8, 15));
-    assert.ok(Number.isNaN(toWallMs("not a date")));
+    assert.equal(toWallMs("2026-03-04T10:15:00", utc), Date.UTC(2026, 2, 4, 10, 15));
+    assert.equal(toWallMs("2026-03-04", utc), Date.UTC(2026, 2, 4));
+    assert.equal(toWallMs("2026-03-04T10:15:00Z", utc), Date.UTC(2026, 2, 4, 10, 15));
+    assert.equal(toWallMs("2026-03-04T10:15:00+02:00", utc), Date.UTC(2026, 2, 4, 8, 15));
+    assert.ok(Number.isNaN(toWallMs("not a date", utc)));
 });
 
 test("only the requested columns, in that order", () => {
@@ -67,8 +71,11 @@ test("only the requested columns, in that order", () => {
     assert.deepEqual(d.schema.fields.map((f) => f.name), ["c", "a"]);
 });
 
-test("survives non-object rows and empty input", () => {
-    assert.equal(encode(null).length, 0);
+test("survives non-object rows and empty input; rows that are no array are a programmer error", () => {
+    assert.equal(encode([]).length, 0);
+    for (const bad of [null, undefined, "rows", { length: 4e9 }, 5]) {
+        assert.throws(() => encode(bad), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT", String(bad));
+    }
     const d = encode([null, 5, "x", { a: 1 }]);
     assert.equal(d.length, 4);
     assert.deepEqual([...d.column("a").codes], [-1, -1, -1, 0]);

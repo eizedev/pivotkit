@@ -2,92 +2,70 @@
  * Typed, columnar encoding of the source rows. Every column is a dimension (Int32 codes into a
  * dictionary of distinct values, -1 for blank) and, when it holds numbers, booleans or dates, also a
  * measure (Float64Array, NaN for blank). The pivot works on these arrays only, so 100,000 rows need no
- * per-row objects.
- *
- * Dates are stored as wall-clock milliseconds: the calendar date and clock time as written, encoded as
- * if it were UTC. "2026-03-04T10:00" stays 10:00 on every machine; grouping by month or hour reads the
- * UTC fields of that number. A Date object or an ISO string with an offset is converted to the wall
- * clock of `timeZone` ("local", the default, or "UTC").
+ * per-row objects. Dates are wall-clock milliseconds in the data's time zone (see time.js).
  */
 
-/** @typedef {"string" | "number" | "boolean" | "date" | "null"} ColumnType */
+import { checkLimit, expect } from "./errors.js";
+import { resolveLimits } from "./limits.js";
+import { isIsoDate, resolveTimeZone, toWallMs, wallClock } from "./time.js";
+import { MS_PER_DAY, createCache } from "./util.js";
+
+/**
+ * The type of a column. "null" is a column without any value; it can be counted but not grouped by
+ * value or summed meaningfully.
+ * @typedef {"string" | "number" | "boolean" | "date" | "null"} ColumnType
+ */
 
 /**
  * @typedef {object} Column
  * @property {string} name        the data's own spelling, for display
  * @property {string} key         lower-case name, for case-insensitive matching
+ * @property {string} id          identity of the arrays, shared by a derived column under two names
  * @property {ColumnType} type
  * @property {Int32Array} codes   per row: index into dict, -1 for blank
  * @property {Array<string | number | boolean>} dict  distinct values in order of first appearance
  * @property {Float64Array | null} values  per row: number, 1/0, or wall-clock ms; NaN for blank
  * @property {boolean} [dateOnly] date columns: true when no value has a clock time
  * @property {boolean} [derived]  computed from another column by a derived field
- * @property {(value: any, locale?: string) => string} [labeler]  display label of a dict value
+ * @property {(value: any, locale: string) => string} [labeler]  display label of a dict value
+ */
+
+/**
+ * @typedef {object} SchemaField
+ * @property {string} name
+ * @property {ColumnType} type     the type the column is encoded with
+ * @property {ColumnType} detected the type found in the values; "number" for a string column whose
+ *   values are all numeric text, so a UI can offer `inferNumbers` or a `types` override
+ */
+
+/**
+ * @typedef {object} Issue
+ * @property {string} path
+ * @property {string} message
  */
 
 /**
  * @typedef {object} Encoded
  * @property {number} length
  * @property {Column[]} columns
- * @property {{ fields: Array<{ name: string, type: ColumnType }> }} schema
+ * @property {{ fields: SchemaField[] }} schema
  * @property {(name: string) => Column | undefined} column  case-insensitive lookup
- * @property {"local" | "UTC"} timeZone
- * @property {Map<string, any>} cache  derived columns and sort ranks, filled on demand
+ * @property {string} timeZone  the zone Date objects and ISO strings with an offset were read in
+ * @property {Issue[]} issues   column names that collide case-insensitively
+ * @property {ReturnType<typeof createCache>} cache  internal: derived columns and sort orders (LRU)
  */
 
+/** Column types that can be named in `encode(rows, { types })`. */
 export const COLUMN_TYPES = Object.freeze(["string", "number", "boolean", "date"]);
 
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
-const MS_PER_DAY = 86400000;
+// Numeric text in the plain form a CSV or a form field gives: no hex, no "Infinity", no blanks.
+const NUMERIC_TEXT = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
+const MAX_ISSUES = 100;
 
-/**
- * Wall-clock milliseconds of a Date, an ISO date string or epoch milliseconds; NaN if it is none.
- * @param {unknown} value
- * @param {"local" | "UTC"} [timeZone]
- */
-export function toWallMs(value, timeZone = "local") {
-    let date;
-    if (value instanceof Date) {
-        date = value;
-    } else if (typeof value === "string") {
-        const m = ISO_DATE.exec(value.trim());
-        if (!m) {
-            return NaN;
-        }
-        const [, y, mo, d, h, mi, s, frac, zone] = m;
-        if (!zone) {
-            // as written: no time zone conversion at all
-            const ms = frac ? Math.round(Number(`0.${frac}`) * 1000) : 0;
-            const t = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h || 0), Number(mi || 0), Number(s || 0), ms);
-            return validDate(t, Number(y), Number(mo), Number(d)) ? t : NaN;
-        }
-        date = new Date(value.trim());
-    } else if (typeof value === "number" && Number.isFinite(value)) {
-        date = new Date(value);
-    } else {
-        return NaN;
-    }
-    const t = date.getTime();
-    if (Number.isNaN(t)) {
-        return NaN;
-    }
-    if (timeZone === "UTC") {
-        return t;
-    }
-    return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
-}
+const isBlank = (v) => v === null || v === undefined || v === "" || typeof v === "function" || typeof v === "symbol";
 
-function validDate(t, y, mo, d) {
-    if (Number.isNaN(t)) {
-        return false;
-    }
-    const check = new Date(t);
-    // rejects 2026-02-30, which Date.UTC would roll over into March
-    return check.getUTCFullYear() === y && check.getUTCMonth() === mo - 1 && check.getUTCDate() === d;
-}
-
-function classify(v) {
-    if (v === null || v === undefined || v === "") {
+function classify(v, inferNumbers) {
+    if (isBlank(v)) {
         return null;
     }
     switch (typeof v) {
@@ -96,7 +74,10 @@ function classify(v) {
         case "boolean":
             return "boolean";
         case "string":
-            return ISO_DATE.test(v.trim()) && !Number.isNaN(toWallMs(v, "UTC")) ? "date" : "string";
+            if (isIsoDate(v)) {
+                return "date";
+            }
+            return inferNumbers && NUMERIC_TEXT.test(v.trim()) ? "number" : "string";
         case "bigint":
             return "number";
         default:
@@ -104,10 +85,10 @@ function classify(v) {
     }
 }
 
-function inferType(raw) {
+function inferType(raw, inferNumbers) {
     let type = null;
     for (let i = 0; i < raw.length; i++) {
-        const t = classify(raw[i]);
+        const t = classify(raw[i], inferNumbers);
         if (t === null || t === type) {
             continue;
         }
@@ -131,7 +112,7 @@ function toText(v) {
         try {
             return JSON.stringify(v) ?? "";
         } catch {
-            return String(v);
+            return "";
         }
     }
     return String(v);
@@ -147,7 +128,7 @@ function toNumberValue(v) {
     if (typeof v === "boolean") {
         return v ? 1 : 0;
     }
-    if (typeof v === "string" && v.trim() !== "") {
+    if (typeof v === "string" && NUMERIC_TEXT.test(v.trim())) {
         const n = Number(v.trim());
         return Number.isFinite(n) ? n : NaN;
     }
@@ -173,52 +154,52 @@ function toBooleanValue(v) {
     return null;
 }
 
+/** Per type: raw value -> dictionary key, null for blank. */
+const KEY_OF = {
+    number: (v) => {
+        const n = toNumberValue(v);
+        return Number.isNaN(n) ? null : n;
+    },
+    boolean: toBooleanValue,
+    date: (v, toWall) => {
+        const ms = toWallMs(v, toWall);
+        return Number.isNaN(ms) ? null : ms;
+    },
+    string: (v) => {
+        const t = toText(v);
+        return t === "" ? null : t;
+    },
+    null: () => null
+};
+
 /**
  * Builds one encoded column from its raw values.
  * @param {string} name
  * @param {unknown[]} raw
  * @param {ColumnType} type
- * @param {"local" | "UTC"} timeZone
+ * @param {(instant: number) => number} toWall
  * @returns {Column}
  */
-export function encodeColumn(name, raw, type, timeZone = "local") {
+function encodeColumn(name, raw, type, toWall) {
     const n = raw.length;
     const codes = new Int32Array(n);
     const dict = [];
     const index = new Map();
     const values = type === "number" || type === "boolean" || type === "date" ? new Float64Array(n) : null;
+    const keyOf = KEY_OF[type];
     let dateOnly = true;
     for (let i = 0; i < n; i++) {
         const v = raw[i];
-        let key;
-        if (v === null || v === undefined || v === "") {
-            key = null;
-        } else if (type === "number") {
-            key = toNumberValue(v);
-            if (Number.isNaN(key)) {
-                key = null;
-            }
-        } else if (type === "boolean") {
-            key = toBooleanValue(v);
-        } else if (type === "date") {
-            key = toWallMs(v, timeZone);
-            if (Number.isNaN(key)) {
-                key = null;
-            } else if (key % MS_PER_DAY !== 0) {
-                dateOnly = false;
-            }
-        } else {
-            key = toText(v);
-            if (key === "") {
-                key = null;
-            }
-        }
+        const key = isBlank(v) ? null : keyOf(v, toWall);
         if (key === null) {
             codes[i] = -1;
             if (values) {
                 values[i] = NaN;
             }
             continue;
+        }
+        if (type === "date" && key % MS_PER_DAY !== 0) {
+            dateOnly = false;
         }
         let code = index.get(key);
         if (code === undefined) {
@@ -231,8 +212,9 @@ export function encodeColumn(name, raw, type, timeZone = "local") {
             values[i] = typeof key === "boolean" ? (key ? 1 : 0) : key;
         }
     }
+    const key = name.toLowerCase();
     /** @type {Column} */
-    const column = { name, key: name.toLowerCase(), type, codes, dict, values };
+    const column = { name, key, id: `column:${key}`, type, codes, dict, values };
     if (type === "date") {
         column.dateOnly = dateOnly;
     }
@@ -243,31 +225,47 @@ export function encodeColumn(name, raw, type, timeZone = "local") {
  * Encodes an array of row objects.
  *
  * Column names are matched case-insensitively: "Team" and "team" are one column, displayed with the
- * spelling seen first. Types are inferred (number, boolean, date for Date objects and ISO date
- * strings, otherwise string; a column of mixed types is string) unless `options.types` names them.
+ * spelling seen first, and reported in `issues`. Types are inferred (number, boolean, date for Date
+ * objects and ISO date strings, otherwise string; a column of mixed types is string) unless
+ * `options.types` names them. Functions and symbols are blank.
  *
- * @param {ArrayLike<Record<string, unknown>>} rows
+ * @param {Array<Record<string, unknown>>} rows
  * @param {object} [options]
- * @param {Record<string, ColumnType>} [options.types]  type per column name (case-insensitive)
+ * @param {Record<string, Exclude<ColumnType, "null">>} [options.types]  type per column name (case-insensitive)
  * @param {string[]} [options.columns]  only these columns (case-insensitive), in this order
- * @param {"local" | "UTC"} [options.timeZone]  wall clock for Date objects and ISO strings with an offset
+ * @param {string} [options.timeZone]  "UTC" (default), an IANA name or "local": the wall clock of Date
+ *   objects and ISO strings with an offset
+ * @param {boolean} [options.inferNumbers]  numeric text ("12", "-3.5") makes a number column
+ * @param {Partial<import("./limits.js").Limits>} [options.limits]  `rows` caps the input size
  * @returns {Encoded}
  */
 export function encode(rows, options = {}) {
-    const list = rows && typeof rows.length === "number" ? rows : [];
-    const n = list.length >>> 0;
-    const timeZone = options.timeZone === "UTC" ? "UTC" : "local";
+    expect(Array.isArray(rows), "encode(rows): rows must be an array of objects");
+    const limits = resolveLimits(options);
+    checkLimit("rows", rows.length, limits.rows, "rows");
+    const n = rows.length;
+    const timeZone = resolveTimeZone(options.timeZone);
+    const toWall = wallClock(timeZone);
+    const inferNumbers = options.inferNumbers === true;
     const wanted = Array.isArray(options.columns)
         ? new Set(options.columns.filter((c) => typeof c === "string").map((c) => c.toLowerCase()))
         : null;
 
-    /** @type {Map<string, { name: string, raw: unknown[] }>} */
+    /** @type {Issue[]} */
+    const issues = [];
+    const report = (path, message) => {
+        if (issues.length < MAX_ISSUES) {
+            issues.push({ path, message });
+        }
+    };
+    /** @type {Map<string, { name: string, raw: unknown[], spellings: Set<string> }>} */
     const found = new Map();
     for (let r = 0; r < n; r++) {
-        const row = list[r];
+        const row = rows[r];
         if (row === null || typeof row !== "object") {
             continue;
         }
+        const seen = new Set();
         for (const k of Object.keys(row)) {
             const key = k.toLowerCase();
             let col = found.get(key);
@@ -275,9 +273,16 @@ export function encode(rows, options = {}) {
                 if (wanted && !wanted.has(key)) {
                     continue;
                 }
-                col = { name: k, raw: new Array(n).fill(null) };
+                col = { name: k, raw: new Array(n).fill(null), spellings: new Set([k]) };
                 found.set(key, col);
+            } else if (!col.spellings.has(k)) {
+                col.spellings.add(k);
+                report(col.name, `"${k}" and "${col.name}" are one column: names match case-insensitively`);
             }
+            if (seen.has(key)) {
+                report(col.name, `row ${r} has "${k}" next to another spelling of it; the later value is used`);
+            }
+            seen.add(key);
             col.raw[r] = row[k];
         }
     }
@@ -293,28 +298,43 @@ export function encode(rows, options = {}) {
     }
 
     const order = wanted ? [...wanted].filter((k) => found.has(k)) : [...found.keys()];
+    const detected = new Map();
     const columns = order.map((key) => {
         const { name, raw } = found.get(key);
-        const type = typeOverrides.get(key) ?? inferType(raw);
-        return encodeColumn(name, raw, type, timeZone);
+        const plain = inferType(raw, inferNumbers);
+        const asNumbers = plain === "string" && !inferNumbers ? inferType(raw, true) : plain;
+        detected.set(key, asNumbers);
+        return encodeColumn(name, raw, typeOverrides.get(key) ?? plain, toWall);
     });
-    return makeEncoded(n, columns, timeZone);
+    return makeEncoded(n, columns, { timeZone, issues, detected, cacheEntries: limits.cacheEntries });
 }
 
 /**
  * @param {number} length
  * @param {Column[]} columns
- * @param {"local" | "UTC"} timeZone
+ * @param {{ timeZone: string, issues: Issue[], detected: Map<string, ColumnType>, cacheEntries: number }} meta
  * @returns {Encoded}
  */
-export function makeEncoded(length, columns, timeZone = "local") {
+function makeEncoded(length, columns, meta) {
     const byKey = new Map(columns.map((c) => [c.key, c]));
-    return {
+    const encoded = {
         length,
         columns,
-        schema: { fields: columns.map((c) => ({ name: c.name, type: c.type })) },
+        schema: { fields: columns.map((c) => ({ name: c.name, type: c.type, detected: meta.detected.get(c.key) ?? c.type })) },
         column: (name) => (typeof name === "string" ? byKey.get(name.toLowerCase()) : undefined),
-        timeZone,
-        cache: new Map()
+        timeZone: meta.timeZone,
+        issues: meta.issues
     };
+    // internal; not enumerable so the data set prints and compares without it
+    Object.defineProperty(encoded, "cache", { value: createCache(meta.cacheEntries), enumerable: false });
+    return /** @type {Encoded} */ (encoded);
+}
+
+/**
+ * True for the output of encode().
+ * @param {unknown} data
+ * @returns {data is Encoded}
+ */
+export function isEncoded(data) {
+    return data !== null && typeof data === "object" && Array.isArray(data.columns) && typeof data.column === "function" && "cache" in data;
 }

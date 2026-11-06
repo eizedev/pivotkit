@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, isoWeek, toGrid } from "../src/index.js";
+import { computePivot, encode, toGrid } from "../src/index.js";
+import { isoWeek } from "../src/derive.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);

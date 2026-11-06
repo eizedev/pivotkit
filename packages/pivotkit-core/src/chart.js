@@ -5,15 +5,25 @@
  * are not plotted; collapsed groups are plotted as one category.
  */
 
-import { formatter } from "./format.js";
+import { DEFAULT_THEME } from "./defaults.js";
+import { checkLimit, expect } from "./errors.js";
+import { formatterFor } from "./format.js";
+import { defaultFormat, valueName } from "./grid.js";
 import { DEFAULT_LABELS } from "./labels.js";
-import { axisLines, defaultFormat, valueName } from "./grid.js";
+import { axisLines } from "./layout.js";
+import { resolveLimits } from "./limits.js";
+import { isPivotResult } from "./pivot.js";
+import { resolveLocale } from "./util.js";
 
 /**
- * @param {ReturnType<import("./pivot.js").computePivot>} result
- * @param {{ labels?: Partial<typeof DEFAULT_LABELS>, separator?: string }} [options]
+ * Chart data: one category per plotted row line, one series per column line and value. Dense like
+ * the grid: more than `limits.cells` data points throw a PivotkitError (LIMIT_EXCEEDED).
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {{ labels?: Partial<typeof DEFAULT_LABELS>, separator?: string, limits?: Partial<import("./limits.js").Limits> }} [options]
  */
 export function toSeries(result, options = {}) {
+    expect(isPivotResult(result), "toSeries(result): result must come from computePivot()");
+    const limits = resolveLimits(options);
     const view = result.view;
     const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
     const separator = options.separator ?? " / ";
@@ -34,6 +44,8 @@ export function toSeries(result, options = {}) {
         }
         return parts.length ? parts.join(separator) : labels.grandTotal;
     };
+    const plottedValues = view.values.filter((_, vi) => result.valueTypes[vi] !== "text").length;
+    checkLimit("cells", rowLines.length * Math.max(1, colLines.length * plottedValues), limits.cells, "chart data points");
     const names = view.values.map((v) => valueName(v, labels));
     const numeric = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
     const series = [];
@@ -71,22 +83,29 @@ export function toSeries(result, options = {}) {
  * @property {string} [backgroundColor]   default transparent
  * @property {string} [fontFamily]
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
+ * @property {[string, string]} [pieRadius]       inner and outer radius, default a ring (35%, 70%)
  */
 
 /**
- * A plain ECharts option for the view's chart (or the one given), themed by the host.
- * @param {ReturnType<import("./pivot.js").computePivot>} result
- * @param {{ chart?: { type?: string, stacked?: boolean, horizontal?: boolean } }} [view]  default result.view
- * @param {ChartTheme} [theme]
- * @param {{ locale?: string, labels?: object }} [options]
+ * A plain ECharts option for the view's chart, themed by the host.
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {object} [options]
+ * @param {{ type?: string, stacked?: boolean, horizontal?: boolean }} [options.chart]  overrides the view's chart
+ * @param {ChartTheme} [options.theme]
+ * @param {string} [options.locale]  used when the view names none; default the pivot's locale
+ * @param {Partial<typeof DEFAULT_LABELS>} [options.labels]
+ * @param {string} [options.separator]  between the parts of a multi-level label, default " / "
+ * @param {Partial<import("./limits.js").Limits>} [options.limits]
  */
-export function toEChartsOption(result, view, theme = {}, options = {}) {
-    const chart = { ...result.view.chart, ...((view && view.chart) || {}) };
-    const locale = options.locale ?? result.locale;
+export function toEChartsOption(result, options = {}) {
+    expect(isPivotResult(result), "toEChartsOption(result): result must come from computePivot()");
+    const theme = options.theme ?? {};
+    const chart = { ...result.view.chart, ...(options.chart || {}) };
+    const locale = resolveLocale(result.view.formatting.locale, options.locale ?? result.locale);
     const s = toSeries(result, options);
     const first = s.series[0];
-    const fmt = formatter(first ? first.format : "number", locale);
-    const compact = formatter(first && /^percent/.test(first.format) ? first.format : "compact", locale);
+    const fmt = formatterFor(first ? first.format : "number", locale);
+    const compact = formatterFor(first && /^percent/.test(first.format) ? first.format : "compact", locale);
     const textStyle = { color: theme.textColor, fontFamily: theme.fontFamily };
     const axisLine = { lineStyle: { color: theme.axisColor } };
     const base = {
@@ -106,7 +125,7 @@ export function toEChartsOption(result, view, theme = {}, options = {}) {
             ...base,
             tooltip: { trigger: "item", valueFormatter },
             legend: { type: "scroll", top: 0, textStyle },
-            series: [{ type: "pie", name: first ? first.name : "", radius: ["35%", "70%"], top: 24, data, label: { color: theme.textColor } }]
+            series: [{ type: "pie", name: first ? first.name : "", radius: [...(theme.pieRadius ?? DEFAULT_THEME.pieRadius)], top: 24, data, label: { color: theme.textColor } }]
         };
     }
 

@@ -8,8 +8,14 @@
  * The UI renders rows[r][c]; a null entry is covered by a merged cell above or to the left of it.
  */
 
-import { formatter } from "./format.js";
+import { checkLimit, expect } from "./errors.js";
+import { formatterFor, parseFormat } from "./format.js";
 import { DEFAULT_LABELS, fill } from "./labels.js";
+import { axisLines } from "./layout.js";
+import { resolveLimits } from "./limits.js";
+import { isPivotResult } from "./pivot.js";
+import { SHOW_AS } from "./show-as.js";
+import { hexToRgb, resolveLocale } from "./util.js";
 
 /**
  * @typedef {object} GridCell
@@ -29,21 +35,20 @@ import { DEFAULT_LABELS, fill } from "./labels.js";
  * @property {{ scale?: number, bar?: number, color: string | null }} [style]  conditional formatting
  */
 
-const PERCENT_SHOW_AS = new Set([
-    "percentOfGrandTotal", "percentOfRowTotal", "percentOfColumnTotal", "percentOfParentRow",
-    "percentOfParentColumn", "percentDifferenceFromPrevious", "percentRunningTotal"
-]);
-
-/** The format a value is shown with when the view names none. */
+/**
+ * The format a value is shown with: a percent or rank calculation decides its own (a percent format
+ * of the view's choice is kept), else the view's format, else one that fits the result type.
+ * @param {import("./pivot.js").PivotResult} result
+ * @param {number} vi  value index
+ */
 export function defaultFormat(result, vi) {
     const spec = result.values[vi];
-    if (spec.showAs) {
-        if (PERCENT_SHOW_AS.has(spec.showAs.type)) {
-            return "percent:1";
-        }
-        if (spec.showAs.type === "rankAscending" || spec.showAs.type === "rankDescending") {
-            return "integer";
-        }
+    const own = spec.showAs ? SHOW_AS[spec.showAs.type].format : null;
+    if (own === "percent") {
+        return spec.format && parseFormat(spec.format).name === "percent" ? spec.format : "percent";
+    }
+    if (own === "integer") {
+        return "integer";
     }
     if (spec.format) {
         return spec.format;
@@ -70,42 +75,6 @@ export function valueName(spec, labels = DEFAULT_LABELS) {
     const aggs = { ...DEFAULT_LABELS.aggregators, ...(labels.aggregators || {}) };
     const agg = Object.hasOwn(aggs, spec.agg) ? aggs[spec.agg] : spec.agg;
     return fill(labels.valueName ?? DEFAULT_LABELS.valueName, { agg, field: spec.field });
-}
-
-function pathKey(path) {
-    return JSON.stringify(path);
-}
-
-/**
- * The visible lines of an axis in display order: leaves, collapsed groups, subtotals after their
- * children and the grand total last.
- */
-export function axisLines(root, depth, collapsedPaths, subtotals, grandTotal) {
-    const collapsed = new Set(collapsedPaths.map(pathKey));
-    const lines = [];
-    if (depth === 0) {
-        lines.push({ node: root, kind: "leaf" });
-        return lines;
-    }
-    const visit = (node) => {
-        if (node.children.length === 0) {
-            lines.push({ node, kind: "leaf" });
-            return;
-        }
-        if (collapsed.has(pathKey(node.path))) {
-            lines.push({ node, kind: "collapsed" });
-            return;
-        }
-        node.children.forEach(visit);
-        if (subtotals) {
-            lines.push({ node, kind: "subtotal" });
-        }
-    };
-    root.children.forEach(visit);
-    if (grandTotal || lines.length === 0) {
-        lines.push({ node: root, kind: "grand" });
-    }
-    return lines;
 }
 
 const totalOf = (kind) => (kind === "grand" ? 2 : kind === "subtotal" ? 1 : 0);
@@ -161,11 +130,6 @@ function mergeRegion(matrix, top, left, bottom, right, merges) {
     }
 }
 
-function hexToRgb(hex) {
-    const h = hex.length === 4 ? hex.slice(1).split("").map((x) => x + x).join("") : hex.slice(1);
-    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-}
-
 /** The colour at position t (0..1) of a scale of two or three colours. */
 export function scaleColor(colors, t) {
     const stops = colors.map(hexToRgb);
@@ -177,14 +141,45 @@ export function scaleColor(colors, t) {
 }
 
 /**
- * @param {ReturnType<import("./pivot.js").computePivot>} result
+ * @typedef {object} Grid
+ * @property {Array<Array<GridCell | null>>} rows  header rows first; null is covered by a merge
+ * @property {number} headerRows
+ * @property {number} rowHeaderColumns
+ * @property {number} columnCount
+ * @property {Array<{ row: number, col: number, rowSpan: number, colSpan: number }>} merges
+ * @property {Array<{ colPath: any[], valueIndex: number, total: 0 | 1 | 2 }>} dataColumns
+ * @property {Array<{ rowPath: any[], total: 0 | 1 | 2, collapsed: boolean }>} bodyRows
+ * @property {string[]} formats     per value
+ * @property {string[]} valueNames  per value
+ * @property {Array<import("./view.js").Conditional | null>} conditional  per value, for the XLSX export
+ * @property {string} locale        the locale the texts are formatted in; the exports use it too
+ * @property {string} timeZone      the data's time zone
+ */
+
+/**
+ * True for the output of toGrid().
+ * @param {unknown} grid
+ * @returns {grid is Grid}
+ */
+export function isGrid(grid) {
+    return grid !== null && typeof grid === "object" && Array.isArray(grid.rows) && Array.isArray(grid.merges) && Number.isInteger(grid.columnCount);
+}
+
+/**
+ * The pivot as a grid of cells. Dense: rows x columns cells are allocated, so the size is counted
+ * first and more than `limits.cells` throws a PivotkitError (LIMIT_EXCEEDED) before any allocation.
+ * @param {import("./pivot.js").PivotResult} result  from computePivot()
  * @param {object} [options]
- * @param {string} [options.locale]  number and date formats; default the view's locale
+ * @param {string} [options.locale]  used when the view names none; default the pivot's locale
  * @param {Partial<typeof DEFAULT_LABELS>} [options.labels]  texts for totals, blanks and value names
+ * @param {Partial<import("./limits.js").Limits>} [options.limits]
+ * @returns {Grid}
  */
 export function toGrid(result, options = {}) {
+    expect(isPivotResult(result), "toGrid(result): result must come from computePivot()");
+    const limits = resolveLimits(options);
     const view = result.view;
-    const locale = options.locale ?? result.locale;
+    const locale = resolveLocale(view.formatting.locale, options.locale ?? result.locale);
     const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
     const rowDepth = view.rows.length;
     const colDepth = view.cols.length;
@@ -202,17 +197,18 @@ export function toGrid(result, options = {}) {
         }
     }
 
-    const formats = values.map((_, vi) => defaultFormat(result, vi));
-    const formatters = formats.map((f) => formatter(f, locale));
-    const names = values.map((v) => valueName(v, labels));
-    const nodeLabel = (axis, node) => result.label(axis, node, labels);
-    const totalLabel = (axis, node) => (node.parent ? fill(labels.total, { label: nodeLabel(axis, node) }) : labels.grandTotal);
-    const toggleFor = (axis, node, collapsed) => ({ axis, path: node.path, collapsed });
-
     const k = Math.max(1, rowDepth);
     // header rows: one per column field, then the row of value names (row field names on its left)
     const h = colDepth + 1;
     const width = k + dataColumns.length;
+    checkLimit("cells", (h + rowLines.length) * width, limits.cells, "grid cells");
+
+    const formats = values.map((_, vi) => defaultFormat(result, vi));
+    const formatters = formats.map((f) => formatterFor(f, locale));
+    const names = values.map((v) => valueName(v, labels));
+    const nodeLabel = (axis, node) => result.label(axis, node, labels);
+    const totalLabel = (axis, node) => (node.parent ? fill(labels.total, { label: nodeLabel(axis, node) }) : labels.grandTotal);
+    const toggleFor = (axis, node, collapsed) => ({ axis, path: node.path, collapsed });
 
     // ---- header ----
     const header = [];
@@ -389,8 +385,9 @@ export function toGrid(result, options = {}) {
         bodyRows: rowLines.map(({ node, kind }) => ({ rowPath: node.path, total: totalOf(kind), collapsed: kind === "collapsed" })),
         formats,
         valueNames: names,
-        /** per value: its conditional format from the view, for the XLSX export */
-        conditional: values.map((v) => v.conditional)
+        conditional: values.map((v) => v.conditional),
+        locale,
+        timeZone: result.timeZone
     };
 }
 

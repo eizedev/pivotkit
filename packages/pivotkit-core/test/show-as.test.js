@@ -73,6 +73,6 @@ test("the grid formats percent show-as as percent and keeps the raw aggregate ap
     const north = grid.rows[grid.headerRows];
     assert.equal(north[0].text, "North");
     assert.equal(north[1].text, "28.6%");
-    assert.equal(north[1].format, "percent:1");
+    assert.equal(north[1].format, "percent");
     assert.equal(r.value(findNode(r, "rows", ["North"]), findNode(r, "cols", ["A"]), 0), 8);
 });

@@ -51,7 +51,7 @@ test("pie uses the row totals and drops empty slices", () => {
 });
 
 test("heatmap: column keys across, row keys down, a visual map over the values", () => {
-    const heat = toEChartsOption(r, { chart: { type: "heatmap" } }, { heatmapColors: ["#ffffff", "#003366"] });
+    const heat = toEChartsOption(r, { chart: { type: "heatmap" }, theme: { heatmapColors: ["#ffffff", "#003366"] } });
     assert.deepEqual(heat.xAxis.data, ["A", "B"]);
     assert.deepEqual(heat.yAxis.data, ["North", "South", "West", "(blank)"]);
     assert.deepEqual(heat.series[0].data, [[0, 0, 8], [0, 1, 7], [0, 2, 4], [0, 3, 6], [1, 0, 2], [1, 1, 1]]);
@@ -60,7 +60,7 @@ test("heatmap: column keys across, row keys down, a visual map over the values",
 });
 
 test("the theme reaches colours and text; the option is plain data apart from formatters", () => {
-    const option = toEChartsOption(r, undefined, { colors: ["#111111", "#222222"], textColor: "#eeeeee" });
+    const option = toEChartsOption(r, { theme: { colors: ["#111111", "#222222"], textColor: "#eeeeee" } });
     assert.deepEqual(option.color, ["#111111", "#222222"]);
     assert.equal(option.textStyle.color, "#eeeeee");
     assert.equal(option.series[0].type, "bar");
