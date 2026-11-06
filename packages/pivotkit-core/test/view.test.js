@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, emptyView, encode, normalize, validate, VIEW_VERSION } from "../src/index.js";
+import { computePivot, emptyView, encode, migrate, normalize, toGrid, validate, VIEW_VERSION } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -156,4 +156,93 @@ test("a newer version is refused, never read as an older one", () => {
     }
     // no version: taken as the current one
     assert.deepEqual(norm({ rows: ["Region"] }).rows, ["Region"]);
+});
+
+test("migrate runs one step per version up to the current one", async () => {
+    const { runMigrations } = await import("../src/view.js");
+    // a made-up history: version 1 named the rows "rowFields", version 2 the columns "colFields"
+    const steps = {
+        1: ({ rowFields, ...v }) => ({ ...v, rows: rowFields }),
+        2: ({ colFields, ...v }) => ({ ...v, cols: colFields })
+    };
+    assert.deepEqual(runMigrations({ version: 1, rowFields: ["a"], colFields: ["b"] }, steps, 3).view, { version: 3, rows: ["a"], cols: ["b"] });
+    assert.deepEqual(runMigrations({ version: 2, rows: ["a"], colFields: ["b"] }, steps, 3).view, { version: 3, rows: ["a"], cols: ["b"] });
+    assert.equal(runMigrations({ version: 1 }, { 2: steps[2] }, 3).view, null);
+    assert.deepEqual(migrate({ version: VIEW_VERSION, rows: [] }), { view: { version: VIEW_VERSION, rows: [] }, issues: [] });
+    assert.equal(migrate([1, 2]).view, null);
+    assert.equal(migrate({ version: VIEW_VERSION + 1 }).view, null);
+});
+
+test("normalize returns the issues it found next to the view", () => {
+    const { view, issues } = normalize({ rows: ["Region", "Nope"], extra: 1 }, data);
+    assert.deepEqual(view.rows, ["Region"]);
+    assert.deepEqual(issues.map((i) => i.path), ["extra", "rows[1]"]);
+    assert.deepEqual(computePivot(data, { rows: ["Nope"] }).issues.map((i) => i.path), ["rows[0]"]);
+});
+
+test("formats: decimals up to 20, currencies from ISO 4217 only", () => {
+    const { errors } = validate({ values: [
+        { field: "Units", agg: "sum", format: "number:21" },
+        { field: "Units", agg: "sum", format: "number:99" },
+        { field: "Units", agg: "sum", format: "currency:xyz" },
+        { field: "Units", agg: "sum", format: "percent:20" },
+        { field: "Units", agg: "sum", format: "currency:chf" }
+    ] }, data);
+    assert.deepEqual(errors.map((e) => e.path), ["values[0].format", "values[1].format", "values[2].format"]);
+});
+
+test("one locale precedence: the view, then the options, then en-US", () => {
+    const view = { values: [{ field: "Price", agg: "sum" }] };
+    const text = (v, pivotOptions, gridOptions) => {
+        const g = toGrid(computePivot(data, v, pivotOptions), gridOptions);
+        return g.rows[1][1].text;
+    };
+    assert.equal(text(view), "127");
+    const decimal = { values: [{ field: "Price", agg: "average" }] };
+    assert.equal(text(decimal), "15.88");
+    assert.equal(text(decimal, { locale: "de-DE" }), "15,88");
+    assert.equal(text(decimal, {}, { locale: "de-DE" }), "15,88");
+    assert.equal(text({ ...decimal, formatting: { locale: "fr-CH" } }, { locale: "de-DE" }, { locale: "de-DE" }), "15,88");
+    assert.equal(toGrid(computePivot(data, { ...decimal, formatting: { locale: "en-GB" } }), { locale: "de-DE" }).locale, "en-GB");
+    assert.equal(toGrid(computePivot(data, decimal)).locale, "en-US");
+});
+
+/** A deterministic random generator (mulberry32). */
+function random(seed) {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+test("fuzz: normalize never throws, its output is valid and normalizes to itself", () => {
+    const rnd = random(7);
+    const pick = (list) => list[Math.floor(rnd() * list.length)];
+    const atoms = [null, true, false, 0, -1, 1.5, 1e308, "", "Region", "units", "Date", "sum", "count", "bin", "year", "include", "top", "value", "label", "rows", "cols", "#fff", "percentOfRowTotal", "runningTotal", "__proto__", "constructor", "de-DE", "UTC", "x".repeat(300)];
+    const keys = ["version", "rows", "cols", "values", "filters", "derived", "sort", "totals", "collapsed", "display", "chart", "formatting", "field", "agg", "type", "items", "op", "value", "value2", "count", "by", "name", "size", "origin", "order", "showAs", "conditional", "colors", "color", "locale", "timeZone", "axis", "format", "label", "__proto__"];
+    const make = (depth) => {
+        const r = rnd();
+        if (depth > 3 || r < 0.35) {
+            return pick(atoms);
+        }
+        if (r < 0.6) {
+            return Array.from({ length: Math.floor(rnd() * 4) }, () => make(depth + 1));
+        }
+        const obj = {};
+        for (let i = Math.floor(rnd() * 5); i > 0; i--) {
+            obj[pick(keys)] = make(depth + 1);
+        }
+        return obj;
+    };
+    for (let i = 0; i < 2000; i++) {
+        const input = rnd() < 0.5 ? make(0) : { ...make(1), rows: [pick(["Region", "Product", "Rep"])], values: [{ field: pick(["Units", "Price", null]), agg: pick(["sum", "count", "average"]) }] };
+        const { view } = normalize(input, data);
+        assert.deepEqual(validate(view, data), { valid: true, errors: [] }, JSON.stringify(input));
+        assert.deepEqual(normalize(view, data).view, view);
+        assert.doesNotThrow(() => toGrid(computePivot(data, input)));
+    }
 });

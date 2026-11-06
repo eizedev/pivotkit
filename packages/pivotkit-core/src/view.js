@@ -86,35 +86,44 @@ export const MIGRATIONS = Object.freeze({});
  * Brings a parsed view to the current version. A view without a version is taken as the current
  * one. A view of a newer version than this package knows is refused (view null), never read as an
  * older one: saving it again would silently drop what the newer version added.
- * @param {Record<string, unknown>} raw  a parsed view object
- * @param {Readonly<Record<number, (raw: Record<string, unknown>) => Record<string, unknown>>>} [steps]
+ * @param {unknown} raw  a parsed view object
  * @returns {{ view: Record<string, unknown> | null, issues: Issue[] }}
  */
-export function migrate(raw, steps = MIGRATIONS) {
+export function migrate(raw) {
+    return runMigrations(raw, MIGRATIONS, VIEW_VERSION);
+}
+
+/**
+ * The migration pipeline with its steps and target version as arguments, so it can be tested before
+ * the first real step exists.
+ * @param {unknown} raw
+ * @param {Readonly<Record<number, (raw: Record<string, unknown>) => Record<string, unknown>>>} steps
+ * @param {number} target
+ */
+export function runMigrations(raw, steps, target) {
     const issues = [];
     if (!isPlainObject(raw)) {
         return { view: null, issues: [{ path: "", message: "not a view object" }] };
     }
-    const version = get(raw, "version") ?? VIEW_VERSION;
+    const version = get(raw, "version") ?? target;
     if (!Number.isInteger(version) || version < 1) {
         return { view: null, issues: [{ path: "version", message: `unknown version ${JSON.stringify(version)}` }] };
     }
-    if (version > VIEW_VERSION) {
+    if (version > target) {
         return {
             view: null,
-            issues: [{ path: "version", message: `version ${version} is newer than this pivotkit-core reads (${VIEW_VERSION}); update pivotkit-core` }]
+            issues: [{ path: "version", message: `version ${version} is newer than this pivotkit-core reads (${target}); update pivotkit-core` }]
         };
     }
     let view = raw;
-    for (let v = version; v < VIEW_VERSION; v++) {
+    for (let v = version; v < target; v++) {
         const step = steps[v];
         if (typeof step !== "function") {
             return { view: null, issues: [{ path: "version", message: `no migration from version ${v}` }] };
         }
         view = step(view);
-        issues.push({ path: "version", message: `migrated from version ${v} to ${v + 1}` });
     }
-    return { view: { ...view, version: VIEW_VERSION }, issues };
+    return { view: { ...view, version: target }, issues };
 }
 
 // ---- helpers shared by the sections ----

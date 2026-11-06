@@ -80,3 +80,35 @@ test("survives non-object rows and empty input; rows that are no array are a pro
     assert.equal(d.length, 4);
     assert.deepEqual([...d.column("a").codes], [-1, -1, -1, 0]);
 });
+
+test("numeric text stays text unless inferNumbers is on; the detected type says what it could be", () => {
+    const rows = [{ n: "12", m: "7", s: "x" }, { n: "-3.5", m: 3, s: "1" }, { n: "1e3", m: null, s: "0x10" }];
+    const plain = encode(rows);
+    assert.deepEqual(plain.schema.fields.map((f) => [f.name, f.type, f.detected]), [["n", "string", "number"], ["m", "string", "number"], ["s", "string", "string"]]);
+    const inferred = encode(rows, { inferNumbers: true });
+    assert.deepEqual(inferred.schema.fields.map((f) => f.type), ["number", "number", "string"]);
+    assert.deepEqual([...inferred.column("n").values], [12, -3.5, 1000]);
+    // "0x10", "Infinity" and blanks are no numbers
+    assert.deepEqual(encode([{ s: "Infinity" }, { s: " " }], { inferNumbers: true }).column("s").type, "string");
+});
+
+test("functions and symbols in the data are blank, never their source text", () => {
+    const d = encode([{ k: function secret() { return "token"; }, v: Symbol("s") }, { k: "a", v: 1 }]);
+    assert.deepEqual(d.column("k").dict, ["a"]);
+    assert.deepEqual([...d.column("k").codes], [-1, 0]);
+    assert.equal(d.column("v").type, "number");
+    const text = encode([{ k: () => "x" }, { k: { nested: true } }]);
+    assert.deepEqual(text.column("k").dict, ['{"nested":true}']);
+});
+
+test("column names that differ only in case are one column, and that is reported", () => {
+    const d = encode([{ Team: "a" }, { team: "b" }, { Team: "c", TEAM: "d" }]);
+    assert.equal(d.columns.length, 1);
+    assert.deepEqual(d.column("team").dict, ["a", "b", "d"]);
+    assert.deepEqual(d.issues.map((i) => i.message), [
+        '"team" and "Team" are one column: names match case-insensitively',
+        '"TEAM" and "Team" are one column: names match case-insensitively',
+        'row 2 has "TEAM" next to another spelling of it; the later value is used'
+    ]);
+    assert.deepEqual(encode([{ a: 1 }]).issues, []);
+});

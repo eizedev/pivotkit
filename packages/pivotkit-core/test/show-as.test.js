@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, findNode, toGrid } from "../src/index.js";
+import { computePivot, encode, findNode, toGrid, validate } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -75,4 +75,27 @@ test("the grid formats percent show-as as percent and keeps the raw aggregate ap
     assert.equal(north[1].text, "28.6%");
     assert.equal(north[1].format, "percent");
     assert.equal(r.value(findNode(r, "rows", ["North"]), findNode(r, "cols", ["A"]), 0), 8);
+});
+
+test("running totals need an aggregator that adds up", () => {
+    for (const agg of ["average", "median", "min", "countUnique"]) {
+        for (const type of ["runningTotal", "percentRunningTotal"]) {
+            const { errors } = validate({ rows: ["Region"], values: [{ field: "Units", agg, showAs: type }] }, data);
+            assert.deepEqual(errors.map((e) => e.path), ["values[0].showAs"], `${agg} ${type}`);
+            const r = computePivot(data, { rows: ["Region"], values: [{ field: "Units", agg, showAs: type }] });
+            // the value stays, shown as it is
+            assert.equal(r.values[0].showAs, null);
+        }
+    }
+    for (const agg of ["sum", "count"]) {
+        assert.equal(validate({ rows: ["Region"], values: [{ field: "Units", agg, showAs: "runningTotal" }] }, data).valid, true, agg);
+    }
+    // difference from the previous item is meaningful for an average
+    assert.equal(validate({ rows: ["Region"], values: [{ field: "Units", agg: "average", showAs: "differenceFromPrevious" }] }, data).valid, true);
+});
+
+test("a percent format of the view's choice is kept for percent show-as", () => {
+    const r = computePivot(data, { rows: ["Region"], values: [{ field: "Units", agg: "sum", showAs: "percentOfGrandTotal", format: "percent:2" }] });
+    const grid = toGrid(r);
+    assert.equal(grid.rows[grid.headerRows][1].text, "35.71%");
 });
