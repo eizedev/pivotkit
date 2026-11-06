@@ -11,7 +11,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `yearMonth` labels follow the locale ("Jan 2025" instead of "2025-01"), `yearQuarter` reads
   "Q1 2025" instead of "2025-Q1"; the keys and their order are unchanged.
 - A value without a format shows the same decimals in its whole column (those of the data, at most
-  two; two for averages and spreads) instead of up to two per cell.
+  two; two for averages and spreads) instead of up to two per cell; a percent calculation shows one
+  decimal in every cell ("2.0%" next to "3.3%").
 
 ### Added
 

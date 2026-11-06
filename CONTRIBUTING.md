@@ -20,7 +20,11 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 
 ## Dependencies
 
-Every package is pinned to an exact version with the lock file. Check the license of every library
+Every package of a third party is pinned to an exact version with the lock file; a package of this
+repository that another one depends on takes a caret range (`pivotkit-react` depends on
+`^<version of pivotkit-core>`), so a host gets one copy of the core; `tests/ci.test.js` checks both.
+React 19 for the browser tests is a separate install with its own lock file in `tests/react19/` (an
+alias in the workspace would clash with React 18's peer dependencies). Check the license of every library
 you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime
 dependency except `fflate` for the XLSX zip; keep it that way.
 
@@ -54,9 +58,12 @@ changelog. A new public function is exported from `src/index.js` (or `src/export
   `LANG` set, as in `test/time-zones.test.js`.
 - A type change: `test/types/consumer.ts` compiles against the generated declarations
   (`npm run types`).
-- UI logic of `pivotkit-react` (view changes, layout helpers) lives in plain modules and is tested
-  with `node --test` in `packages/pivotkit-react/test/`; what needs a browser (drag and drop, menus,
-  downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground.
+- UI logic of `pivotkit-react` (view changes, the history, keyboard moves, names, the chart's text)
+  lives in plain `.js` modules and is tested with `node --test` in `packages/pivotkit-react/test/`;
+  `npm run coverage` measures those modules only. What needs a browser (drag and drop, menus, focus,
+  downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground and the
+  pages of `tests/browser/pages/` (a host page with React from an import map, a shadow root); it fails
+  on any console error or warning. A test that measures layout waits until it has settled.
 
 ## Releasing
 

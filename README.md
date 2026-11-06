@@ -26,7 +26,7 @@ The report builder in React (try it in the [playground](examples/playground/)):
 import { PivotReport } from "pivotkit-react";
 import "pivotkit-react/styles.css";
 
-<PivotReport data={rows} view={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }} onViewChange={save} />
+<PivotReport data={rows} defaultView={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }} onViewChange={save} />
 ```
 
 The engine without UI:
@@ -61,7 +61,8 @@ npm test
 npm run pack:check               # what npm pack would publish
 npm run bench -w pivotkit-core
 npm run playground               # the playground on http://localhost:5173
-npm run test:browser             # Playwright: the playground in Chromium, Firefox and WebKit
+npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host page, shadow root
+PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (after npm ci --prefix tests/react19)
 ```
 
 Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).

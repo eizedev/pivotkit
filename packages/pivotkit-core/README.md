@@ -137,7 +137,7 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
 Formats: `number` shows up to 2 decimals and `percent` up to 1; with a number of decimals
 (`number:2`, `percent:0`, up to 20) exactly that many. `currency` takes an ISO 4217 code. A value
 without a format gets the same decimals in every cell of its column: those of the source values (at
-most 2) for a sum, minimum, maximum, first or last, 2 for an average, median or spread, none for a count.
+most 2) for a sum, minimum, maximum, first or last, 2 for an average, median or spread, none for a count; a percent calculation one.
 
 Date groupings label their values in the locale: `yearMonth` "Jan 2025" ("Jan. 2025" in German),
 `yearQuarter` "Q1 2025", `month` "Jan", `weekday` "Mon"; the keys stay numbers that sort in time.
