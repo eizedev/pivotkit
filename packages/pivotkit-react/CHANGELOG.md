@@ -49,3 +49,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   chart type.
 - The report is a `role="region"` named by the new label `report` ("Pivot report", "Pivot-Bericht")
   instead of a `<main>`, which nested inside the host page's main landmark.
+- Counts in words take the plural form of the language ("1 series", "1 Reihe", "1 row"):
+  `rowsCount`, `drillCount` and the new `chartCategories` and `chartSeries` are objects with one
+  text per `Intl.PluralRules` category (`{ one, other }`, more for languages that have them);
+  `chartCounts` joins the two chart counts.

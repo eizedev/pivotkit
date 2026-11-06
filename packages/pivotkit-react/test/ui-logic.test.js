@@ -7,7 +7,7 @@ import { chartHints, chartSummary } from "../src/chart-summary.js";
 import { MANY_SERIES, MAX_CATEGORIES } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
-import { LABELS, resolveLabels } from "../src/labels.js";
+import { LABELS, plural, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
 
@@ -87,6 +87,24 @@ test("the chart's text alternative names type, values, counts and extremes", () 
     assert.equal(text, "Bars: Sum of V by R. 2 categories, 2 series. Highest 9 at South / A; lowest 1 at South / B. Switch to Table to read every value.");
     const de = chartSummary(s, { type: "line", rows: ["R"], valueNames: ["Summe von V"], labels: LABELS.de, locale: "de-DE" });
     assert.match(de, /^Linien: Summe von V nach R\. 2 Kategorien, 2 Reihen\./);
+});
+
+test("counts in words take the plural form of the language: 1 series, 1 Reihe", () => {
+    const r = computePivot(encode([{ R: "North", V: 5 }]), { rows: ["R"], values: [{ field: "V", agg: "sum" }] });
+    const s = toSeries(r);
+    assert.match(chartSummary(s, { type: "bar", rows: ["R"], valueNames: ["Sum of V"], labels: en, locale: "en-US" }), /\. 1 category, 1 series\./);
+    assert.match(chartSummary(s, { type: "bar", rows: ["R"], valueNames: ["Summe von V"], labels: LABELS.de, locale: "de-DE" }), /\. 1 Kategorie, 1 Reihe\./);
+    assert.equal(plural(en.rowsCount, 1, { lang: "en", locale: "en-US" }), "1 row");
+    assert.equal(plural(en.rowsCount, 1234, { lang: "en", locale: "en-US" }), "1,234 rows");
+    assert.equal(plural(LABELS.de.drillCount, 1, { lang: "de", locale: "de-DE" }), "1 Zeile");
+    assert.equal(plural(LABELS.de.drillCount, 0, { lang: "de", locale: "de-DE" }), "0 Zeilen");
+    // a language with more forms: a host's labels keep "few" and "many", which English does not have
+    const pl = resolveLabels("en", { lang: "pl", rowsCount: { one: "{count} wiersz", few: "{count} wiersze", many: "{count} wierszy", other: "{count} wiersza" } });
+    assert.equal(plural(pl.rowsCount, 3, { lang: pl.lang, locale: "pl-PL" }), "3 wiersze");
+    assert.equal(plural(pl.rowsCount, 5, { lang: pl.lang, locale: "pl-PL" }), "5 wierszy");
+    // a form of the wrong type is ignored; a missing form falls back to "other"
+    assert.equal(resolveLabels("en", { rowsCount: { one: 1 } }).rowsCount.one, "{count} row");
+    assert.equal(plural({ other: "{count} things" }, 1, { lang: "en", locale: "en-US" }), "1 things");
 });
 
 test("chart hints: many series, dates on columns for lines, the category cap", () => {

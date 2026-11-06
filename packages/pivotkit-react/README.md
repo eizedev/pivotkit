@@ -213,7 +213,11 @@ attribute), passed as `labels`; there is no registry of languages.
 <PivotReport data={rows} locale="de-DE" labels={{ zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" } }} />
 ```
 
-All keys are in `LABELS.en` (`src/labels.js`); `{name}` placeholders are filled in.
+All keys are in `LABELS.en` (`src/labels.js`); `{name}` placeholders are filled in. A count (`rowsCount`,
+`drillCount`, `chartCategories`, `chartSeries`) is an object with one text per plural category of
+the language, picked with `Intl.PluralRules` for the labels' `lang`:
+`{ one: "{count} row", other: "{count} rows" }`; a language with more forms adds them (`few`,
+`many`), a missing form falls back to `other`.
 
 ## Performance
 

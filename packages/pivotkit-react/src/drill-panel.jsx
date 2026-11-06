@@ -9,7 +9,7 @@ import React, { useId, useRef } from "react";
 import { useModal } from "./dom.js";
 import { cellText } from "./drill.js";
 import { Icon } from "./icons.jsx";
-import { fill } from "./labels.js";
+import { fill, plural } from "./labels.js";
 
 /**
  * @param {{ drill: { title: string, count: number, rows: object[], columns: string[] } | null, onClose: () => void,
@@ -41,7 +41,7 @@ export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
                         <h2 id={id}>{labels.drillTitle}</h2>
                         <p className="pk-drill-path">{drill.title}</p>
                         <p className="pk-muted" data-testid="drill-count">
-                            {drill.rows.length < drill.count ? fill(labels.drillShown, { shown: drill.rows.length.toLocaleString(locale), count: n }) : fill(labels.drillCount, { count: n })}
+                            {drill.rows.length < drill.count ? fill(labels.drillShown, { shown: drill.rows.length.toLocaleString(locale), count: n }) : plural(labels.drillCount, drill.count, { lang: labels.lang, locale })}
                         </p>
                     </div>
                     <button type="button" className="pk-icon-btn" onClick={onClose} data-autofocus="" aria-label={labels.close} title={labels.close}>

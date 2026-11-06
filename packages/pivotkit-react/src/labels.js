@@ -201,12 +201,15 @@ export const en = {
     issues: "Some parts of the view were not used:",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
-    rowsCount: "{count} rows",
+    // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...)
+    rowsCount: { one: "{count} row", other: "{count} rows" },
     tableName: "Pivot table",
     cellHint: "Click a value, or press Enter on it, to see the rows behind it. The arrow keys move between values.",
     // chart
     chartSummary: "{type}: {values} by {categories}.",
-    chartCounts: "{categories} categories, {series} series.",
+    chartCounts: "{categories}, {series}.",
+    chartCategories: { one: "{count} category", other: "{count} categories" },
+    chartSeries: { one: "{count} series", other: "{count} series" },
     chartExtremes: "Highest {max} at {maxAt}; lowest {min} at {minAt}.",
     chartTableHint: "Switch to Table to read every value.",
     chartManySeries: "{count} series are hard to tell apart. Swap rows and columns, or filter Columns to fewer items.",
@@ -215,7 +218,7 @@ export const en = {
     categories: "categories",
     // drill-down
     drillTitle: "Rows behind this value",
-    drillCount: "{count} rows",
+    drillCount: { one: "{count} row", other: "{count} rows" },
     drillShown: "Showing the first {shown} of {count} rows",
     close: "Close",
     // toasts and live region
@@ -474,11 +477,13 @@ export const de = {
     issues: "Einige Teile der Ansicht wurden nicht verwendet:",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
-    rowsCount: "{count} Zeilen",
+    rowsCount: { one: "{count} Zeile", other: "{count} Zeilen" },
     tableName: "Pivot-Tabelle",
     cellHint: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen. Die Pfeiltasten wechseln zwischen den Werten.",
     chartSummary: "{type}: {values} nach {categories}.",
-    chartCounts: "{categories} Kategorien, {series} Reihen.",
+    chartCounts: "{categories}, {series}.",
+    chartCategories: { one: "{count} Kategorie", other: "{count} Kategorien" },
+    chartSeries: { one: "{count} Reihe", other: "{count} Reihen" },
     chartExtremes: "Höchster Wert {max} bei {maxAt}; niedrigster {min} bei {minAt}.",
     chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
     chartManySeries: "{count} Reihen sind schwer zu unterscheiden. Zeilen und Spalten tauschen oder Spalten auf weniger Einträge filtern.",
@@ -486,7 +491,7 @@ export const de = {
     chartCapped: "Die ersten {shown} von {total} Kategorien. Mit einem Filter oder „Nur die obersten Einträge“ auswählen.",
     categories: "Kategorien",
     drillTitle: "Zeilen hinter diesem Wert",
-    drillCount: "{count} Zeilen",
+    drillCount: { one: "{count} Zeile", other: "{count} Zeilen" },
     drillShown: "Die ersten {shown} von {count} Zeilen",
     close: "Schließen",
     toastRemoved: "{field} entfernt",
@@ -553,6 +558,27 @@ export function fill(template, values) {
     return String(template).replace(/\{(\w+)\}/g, (all, name) => (Object.hasOwn(values, name) ? String(values[name]) : all));
 }
 
+/** The categories of Intl.PluralRules: the keys a count label may have. */
+const PLURAL_CATEGORIES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
+
+/**
+ * A count in words: the form of `forms` for the plural category of `count` in the labels' language
+ * (Intl.PluralRules), `other` when that form is missing, with {count} filled in the locale's digits.
+ * @param {Partial<Record<string, string>>} forms  e.g. { one: "{count} row", other: "{count} rows" }
+ * @param {number} count
+ * @param {{ lang: string, locale: string }} options
+ */
+export function plural(forms, count, { lang, locale }) {
+    let category = "other";
+    try {
+        category = new Intl.PluralRules(lang).select(count);
+    } catch {
+        // a language tag Intl does not take: the "other" form
+    }
+    const form = typeof forms[category] === "string" ? forms[category] : forms.other;
+    return fill(form ?? "", { count: count.toLocaleString(locale) });
+}
+
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const isTextList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
 
@@ -566,11 +592,13 @@ function merge(base, over) {
         return base;
     }
     const out = { ...base };
-    for (const key of Object.keys(base)) {
+    // a count label takes every plural form a language has, also those English lacks ("few", "many")
+    const keys = Object.hasOwn(base, "other") && Object.keys(base).every((k) => PLURAL_CATEGORIES.includes(k)) ? PLURAL_CATEGORIES : Object.keys(base);
+    for (const key of keys) {
         if (!Object.hasOwn(over, key)) {
             continue;
         }
-        const was = base[key];
+        const was = base[key] ?? "";
         const now = over[key];
         if (isObject(was)) {
             out[key] = merge(was, now);

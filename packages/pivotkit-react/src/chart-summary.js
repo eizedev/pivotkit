@@ -6,7 +6,7 @@
 
 import { formatter } from "pivotkit-core";
 import { CHART_TYPES, MANY_SERIES } from "./chart-types.js";
-import { fill } from "./labels.js";
+import { fill, plural } from "./labels.js";
 
 /**
  * "Bars: Sum of Revenue by Region. 4 categories, 3 series. Highest 1,234 at North / A; lowest ..."
@@ -16,7 +16,10 @@ import { fill } from "./labels.js";
 export function chartSummary(s, { type, rows, valueNames, labels, locale }) {
     const parts = [
         fill(labels.chartSummary, { type: labels.chartTypes[type] ?? type, values: valueNames.join(", "), categories: rows.length ? rows.join(" / ") : labels.categories }),
-        fill(labels.chartCounts, { categories: (s.categoryCount ?? s.categories.length).toLocaleString(locale), series: s.series.length.toLocaleString(locale) })
+        fill(labels.chartCounts, {
+            categories: plural(labels.chartCategories, s.categoryCount ?? s.categories.length, { lang: labels.lang, locale }),
+            series: plural(labels.chartSeries, s.series.length, { lang: labels.lang, locale })
+        })
     ];
     /** @type {{ v: number, si: number, ci: number } | null} */
     let max = null;

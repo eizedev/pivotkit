@@ -15,7 +15,7 @@ import { DrillPanel } from "./drill-panel.jsx";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { fill, messageOf, resolveLabels } from "./labels.js";
+import { fill, messageOf, plural, resolveLabels } from "./labels.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
@@ -560,7 +560,7 @@ export function PivotReport(props) {
                                 ) : null}
                             </section>
                             <div className="pk-status">
-                                <span data-testid="row-count">{result ? fill(labels.rowsCount, { count: result.rows.length.toLocaleString(locale) }) : ""}</span>
+                                <span data-testid="row-count">{result ? plural(labels.rowsCount, result.rows.length, { lang: labels.lang, locale }) : ""}</span>
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>
