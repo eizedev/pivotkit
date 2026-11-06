@@ -11,14 +11,37 @@
     "directory": "packages/pivotkit-core"
   },
   "bugs": "https://github.com/eizedev/pivotkit/issues",
-  "keywords": ["pivot-table", "pivot", "reporting", "excel-export", "echarts", "self-service-bi"],
+  "keywords": [
+    "pivot-table",
+    "pivot",
+    "reporting",
+    "excel-export",
+    "echarts",
+    "self-service-bi"
+  ],
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": "./src/index.js"
   },
-  "files": ["src", "README.md", "CHANGELOG.md", "LICENSE"],
+  "files": [
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "bench": "node bench/bench.js"
+  },
+  "dependencies": {
+    "fflate": "0.8.3"
+  },
+  "devDependencies": {
+    "fast-xml-parser": "5.11.2",
+    "read-excel-file": "9.3.12"
   }
 }
