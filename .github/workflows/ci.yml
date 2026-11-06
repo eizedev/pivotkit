@@ -51,13 +51,18 @@ jobs:
         # timings for the log only: shared runners vary too much for a threshold
         if: matrix.node == '24'
         run: npm run bench -w pivotkit-core
+      - name: Web component size
+        # what a page loads (first, on the first chart, on the first export), gzip, for the log
+        if: matrix.node == '24'
+        run: npm run size -w pivotkit-element
 
   browser:
-    # The playground (examples/playground) and the host pages (tests/browser/pages) in Chromium,
-    # Firefox and WebKit, on React 18 (the workspace's, as PowerShell Universal provides it) and on
-    # React 19 (tests/react19, its own lock file). Playwright's own image carries the browsers and
-    # their system libraries, so nothing is installed with apt. Its version must be the one of
-    # @playwright/test in package-lock.json; tests/ci.test.js checks that.
+    # The playground (examples/playground), the host pages and the web component's pages
+    # (tests/browser/pages) in Chromium, Firefox and WebKit, on React 18 (the workspace's, as
+    # PowerShell Universal provides it) and on React 19 (tests/react19, its own lock file).
+    # Playwright's own image carries the browsers and their system libraries, so nothing is installed
+    # with apt. Its version must be the one of @playwright/test in package-lock.json; tests/ci.test.js
+    # checks that.
     name: browser (React ${{ matrix.react }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -78,7 +83,7 @@ jobs:
         if: matrix.react == '19'
         run: npm ci --prefix tests/react19 --no-audit --no-fund --ignore-scripts
       - name: Browser tests
-        # builds the package, the playground and the host pages, then runs tests/browser against them
+        # builds the packages, the playground and the test pages, then runs tests/browser against them
         env:
           PIVOTKIT_REACT: ${{ matrix.react }}
         run: npm run test:browser

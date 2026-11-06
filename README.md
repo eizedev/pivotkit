@@ -16,7 +16,7 @@ Status: in development. Nothing is published to npm yet.
 | --- | --- | --- |
 | [pivotkit-core](packages/pivotkit-core/) | The engine in plain JavaScript, no UI and no framework | in development |
 | [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder: field list, drag and drop, table and chart, filters, templates, export; React and ECharts are provided by the host | in development |
-| [pivotkit-element](packages/pivotkit-element/) | Web component `<pivot-report>` with its own React, for Angular, PHP and plain HTML | planned |
+| [pivotkit-element](packages/pivotkit-element/) | The report builder as the web component `<pivot-report>` with its own React, for Angular, PHP and plain HTML; ECharts loaded on the first chart | in development |
 
 ## Example
 
@@ -27,6 +27,18 @@ import { PivotReport } from "pivotkit-react";
 import "pivotkit-react/styles.css";
 
 <PivotReport data={rows} defaultView={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }} onViewChange={save} />
+```
+
+The same as a web component, on a page without React (try it in the [example](examples/element/)):
+
+```html
+<script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
+<pivot-report locale="de-DE" default-view='{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]}'></pivot-report>
+<script type="module">
+    const report = document.querySelector("pivot-report");
+    report.data = rows;
+    report.addEventListener("pivot-view-change", (e) => save(e.detail.view));
+</script>
 ```
 
 The engine without UI:
@@ -49,7 +61,8 @@ The view passed to `computePivot` is plain JSON: the same object is the saved te
 step and what the UI edits. It is treated as user input: it cannot run code, and the limits in
 `LIMITS` keep its memory use bounded. See [pivotkit-core](packages/pivotkit-core/) for the API, the
 view, the limits and the export, and [pivotkit-react](packages/pivotkit-react/) for the component's
-props, theming tokens and labels.
+props, theming tokens and labels, and [pivotkit-element](packages/pivotkit-element/) for the
+element's properties, events, theming, CSP and bundle size.
 
 ## Development
 
@@ -58,10 +71,10 @@ npm ci
 npm run lint
 npm run types                    # type check, generated .d.ts, TypeScript consumer test
 npm test
-npm run pack:check               # what npm pack would publish
+npm run pack:check               # what npm pack would publish (all three packages)
 npm run bench -w pivotkit-core
 npm run playground               # the playground on http://localhost:5173
-npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host page, shadow root
+npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host pages, shadow root, web component
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (after npm ci --prefix tests/react19)
 ```
 

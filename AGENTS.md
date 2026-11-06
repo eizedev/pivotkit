@@ -1,8 +1,10 @@
 # AGENTS.md
 
-pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference), planned as three
-npm packages in this repository with npm workspaces: the engine `pivotkit-core` and the React UI
-`pivotkit-react` exist, the web component follows; see [README.md](README.md).
+pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference) as three npm
+packages in this repository with npm workspaces: the engine `pivotkit-core`, the React UI
+`pivotkit-react` and the web component `pivotkit-element`; see [README.md](README.md). The workspaces
+are listed in build order (core, react, element) in the root `package.json`: `npm run types` and the
+builds depend on it.
 
 ## Layout
 
@@ -26,15 +28,28 @@ npm packages in this repository with npm workspaces: the engine `pivotkit-core` 
   de); `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package and the contrast of the tokens);
   `test/types/` is a TypeScript consumer.
+- `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow
+  root on a React 18.3.1 of its own, for hosts without React (Angular, PHP, plain HTML). `build.js`
+  builds pivotkit-react's `dist/` first and bundles it with React, ReactDOM, pivotkit-core and
+  @dnd-kit into `dist/` (ES modules, minified, production React); ECharts (only the parts in
+  `ECHARTS_PARTS`) and the export are chunks loaded on first use; it writes
+  `dist/THIRD_PARTY_LICENSES.txt`. Every bundled package is a devDependency, the package has no
+  runtime dependency. `src/element.js` is the element (properties, lifecycle, one React root per
+  element), `src/props.js` the one table of attributes and how each maps to a property,
+  `src/events.js` the events (`pivot-*`, `respondWith()`), `src/host-css.js` moves pivotkit-react's
+  token rules to `:host`, `src/styles.js` adopts the stylesheet, `src/index.js` defines the tag.
+  `src/global.d.ts` (hand-written: JSDoc cannot augment globals) is copied into `types/` by `types.js`.
+  `test/` runs the pure modules, the build and a Node import with `node --test`.
 - `examples/playground/` - the playground: generated data with a fixed seed, built by esbuild into
   static files (`dist/`), served by `serve.js`.
+- `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run
+  build:playground` copies it to `examples/playground/dist/examples/element/`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
   `pages/` (a host page that loads `dist/index.js` with React from an import map and renders again
-  all the time; a shadow root); CI runs them on React 18 and React 19 (`tests/react19/`, own lock
-  file). `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
+  all the time; a shadow root; the web component's pages in `pages/element/`: two elements, upgrade,
+  loaded twice, strict CSP, listener counts, a page with its own React); CI runs them on React 18 and
+  React 19 (`tests/react19/`, own lock file). `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
   versions, caret ranges for this repository's own packages).
-- `packages/pivotkit-element/` - planned, not built yet: the web component `<pivot-report>`, bundling
-  its own React for hosts without one (Angular, PHP, plain HTML).
 - `scripts/check-pack.js` - checks what `npm pack` would publish.
 
 ## Commands
@@ -45,10 +60,12 @@ npm run lint                        # ESLint recommended rules and React's hook 
 npm run types                       # tsc with checkJs, generated .d.ts, TypeScript consumer (as CI)
 npm test                            # node --test in every workspace (as CI)
 npm run coverage                    # the tests with a coverage report (as CI); pivotkit-react: its .js modules only
-npm run pack:check                  # npm pack --dry-run of pivotkit-core and pivotkit-react, checked (as CI)
+npm run pack:check                  # npm pack --dry-run of the three packages, checked (as CI)
+npm run size -w pivotkit-element    # build the element and print what a page loads, gzip
 npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
 npm run playground                  # playground with rebuilds on http://localhost:5173
-npm run test:browser                # build the playground and test pages, Playwright in three browsers (as CI)
+npm run test:browser                # build the playground, the element and the test pages, Playwright in three browsers (as CI)
+PLAYGROUND_PORT=4195 npm run test:browser   # on another port, when 4173 is taken
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix tests/react19 first)
 ```
 
@@ -93,6 +110,13 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix
   `prefers-reduced-motion` turns them off. Layout follows the report's width (`data-pk-size`), not the
   window's. Check changes with screenshots in both themes at wide and narrow width.
 - Browser tests fail on any console error or warning (`tests/browser/fixtures.js`).
+- pivotkit-element: the shadow root is the boundary. No style of the page reaches in and none of
+  the report's out, except the `--pk-*` tokens set on the element (declared on `:host` by
+  `host-css.js`; never on `.pk-root` inside the element). Events are `pivot-*` CustomEvents that
+  bubble and are composed. An attribute is added in `src/props.js` only; data and other objects stay
+  properties; JSON attributes only for views. The element sets no global and touches no DOM when
+  imported without `customElements`. The first load stays free of ECharts and the export
+  (`test/build.test.js`).
 - A host may render the report on every change of its own state: props compared by value
   (`labels`, `limits`), data by `dataKey`, the history kept across renders (`use-view-history.js`).
 - Docs describe the current state; history belongs in each package's `CHANGELOG.md`, commits and pull
@@ -101,7 +125,8 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix
 ## Do not
 
 - Commit `node_modules/` or build output.
-- Add a runtime dependency to `pivotkit-core`, or bundle React or ECharts into `pivotkit-react`.
+- Add a runtime dependency to `pivotkit-core`, or bundle React or ECharts into `pivotkit-react`
+  (pivotkit-element is the package that bundles them).
 - Add a UI framework or an animation library to `pivotkit-react`; it has its own CSS.
 - Put secrets, host names or real data into code, examples or tests.
 

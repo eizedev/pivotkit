@@ -11,12 +11,14 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 3. Run `npm ci`, `npm run lint`, `npm run types` and `npm test`; for engine changes also
    `npm run bench -w pivotkit-core` and compare with the baseline in the package README; for UI
    changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
-   at the playground (`npm run playground`) in light and dark, wide and narrow.
+   at the playground (`npm run playground`) in light and dark, wide and narrow; for the web component
+   also `npm run size -w pivotkit-element` and the example (`examples/element/`, served after
+   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`).
    The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
    `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
 4. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
 5. Open a pull request with a short description and what you tested; use Conventional Commits
-   (`feat(core): ...`, `fix(react): ...`).
+   (`feat(core): ...`, `fix(react): ...`, `feat(element): ...`).
 
 ## Dependencies
 
@@ -26,6 +28,10 @@ depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.
 spans patch versions only (`^0.0.0` matches 0.0.0 alone, `^0.2.0` matches 0.2.x), so a host that
 also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
 when the ranges overlap.
+`pivotkit-element` bundles everything it needs: each bundled package (React, ReactDOM, @dnd-kit,
+ECharts, and pivotkit-core and pivotkit-react at the version in this repository) is an exact
+devDependency, and the package has no runtime dependency. A change of a bundled version changes what
+the element ships; its license lands in `dist/THIRD_PARTY_LICENSES.txt` by itself.
 React 19 for the browser tests is a separate install with its own lock file in `tests/react19/` (an
 alias in the workspace would clash with React 18's peer dependencies). Check the license of every library
 you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime
@@ -65,8 +71,8 @@ changelog. A new public function is exported from `src/index.js` (or `src/export
   lives in plain `.js` modules and is tested with `node --test` in `packages/pivotkit-react/test/`;
   `npm run coverage` measures those modules only. What needs a browser (drag and drop, menus, focus,
   downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground and the
-  pages of `tests/browser/pages/` (a host page with React from an import map, a shadow root); it fails
-  on any console error or warning. A test that measures layout waits until it has settled.
+  pages of `tests/browser/pages/` (a host page with React from an import map, a shadow root, the web
+  component's pages in `pages/element/`); it fails on any console error or warning. A test that measures layout waits until it has settled.
 
 ## Releasing
 
@@ -79,14 +85,16 @@ once:
 2. In the repository settings, create the environment `npm` with required reviewers.
 3. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
 
-Then for each release of `pivotkit-core`:
+Then for each release of a package (`pivotkit-core`, `pivotkit-react` or `pivotkit-element`):
 
-1. Move the `[Unreleased]` entries in `packages/pivotkit-core/CHANGELOG.md` under the new version and
-   date; set `version` in `packages/pivotkit-core/package.json`; merge that pull request.
-2. Tag the merge commit `pivotkit-core@<version>` and push the tag.
+1. Move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md` under the new version and
+   date; set `version` in `packages/<package>/package.json` (and the caret range or the
+   devDependency of the packages that use it, `tests/ci.test.js` checks both); merge that pull
+   request.
+2. Tag the merge commit `<package>@<version>` and push the tag.
 3. The workflow checks that the tag matches the version, runs lint, types, tests and the package
    check, waits for an environment reviewer, and publishes with an npm provenance attestation.
 
-`npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/`,
-`types/`). Verify against npm's current documentation which npm CLI version trusted publishing needs
+`npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
+`dist/`, `types/`, and for pivotkit-element `dist/THIRD_PARTY_LICENSES.txt`). Verify against npm's current documentation which npm CLI version trusted publishing needs
 before the first release; the workflow uses the npm that ships with Node 24.

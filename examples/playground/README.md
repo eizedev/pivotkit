@@ -27,4 +27,7 @@ templates are `deletable`, the presets are not. `?data=markup` is a small data s
 look like HTML, for the browser test that nothing is rendered as markup.
 
 The browser tests in [tests/browser](../../tests/browser/) run against this build and the test pages
-of `tests/browser/pages/`, built into `dist/pages/` by `npm run build:playground`.
+of `tests/browser/pages/`, built into `dist/pages/` by `npm run build:playground`. The same command
+builds pivotkit-element and copies it with its example ([examples/element](../element/)) into
+`dist/packages/pivotkit-element/dist/` and `dist/examples/element/`, so the static server shows the
+example at `/examples/element/`.
