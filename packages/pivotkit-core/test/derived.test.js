@@ -127,6 +127,9 @@ test("suggestDateUnit picks a grouping from the span of a date field", () => {
     assert.equal(suggestDateUnit(span(800), "d"), "yearQuarter");
     assert.equal(suggestDateUnit(span(3000), "d"), "year");
     assert.equal(suggestDateUnit(span(0), "d"), null, "one day: nothing to group");
+    assert.equal(suggestDateUnit(encode([{ d: null }, { d: null }]), "d"), null, "no dates at all");
+    const withBlanks = encode([{ d: "2026-01-01" }, { d: null }, { d: "2026-06-01" }, { d: undefined }]);
+    assert.equal(suggestDateUnit(withBlanks, "d"), "yearMonth", "blanks do not count for the span");
     assert.equal(suggestDateUnit(encode([{ d: "2026-01-01", n: 1 }]), "n"), null, "not a date");
     assert.equal(suggestDateUnit(data, "missing"), null);
     assert.equal(suggestDateUnit(data, "date"), "yearMonth", "case-insensitive, SALES spans Dec 2025 to Apr 2026");

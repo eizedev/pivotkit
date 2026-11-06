@@ -18,7 +18,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - `suggestDateUnit(data, field)`: the date grouping for a date field from the span of its values (day,
   month, quarter or year), so a UI can group a date as soon as it is placed.
-- `toSeries()` and `toEChartsOption()` take `maxCategories`; `toSeries()` reports `categoryCount`.
+- `toSeries()` and `toEChartsOption()` take `maxCategories`; `toSeries()` reports `categoryCount`;
+  `toEChartsOption()` takes `series`, the `toSeries()` result the caller has already.
 - `CATALOG.commonAggregators`, `CATALOG.timelineUnits` and `CATALOG.cyclicUnits` for a UI's menus.
 - `DEFAULT_LABELS.showAsName` and `DEFAULT_LABELS.showAs`: a value shown as a calculation is named
   after it ("% of grand total of Sales").

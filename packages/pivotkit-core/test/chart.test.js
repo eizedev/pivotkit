@@ -83,4 +83,7 @@ test("maxCategories plots the first categories in the view's order and reports h
     assert.equal(toSeries(r).categoryCount, 30);
     assert.equal(toEChartsOption(r, { maxCategories: 5 }).xAxis.data.length, 5);
     assert.throws(() => toSeries(r, { maxCategories: 0 }), PivotkitError);
+    // the series a caller already computed are used as they are
+    assert.deepEqual(toEChartsOption(r, { series: s }).xAxis.data, s.categories);
+    assert.throws(() => toEChartsOption(r, { series: /** @type {any} */ ({}) }), PivotkitError);
 });

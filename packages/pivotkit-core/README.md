@@ -55,7 +55,7 @@ Every function takes its required inputs first and all optional settings in one 
 | `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
 | `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
 | `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios. |
-| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap. ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut. |
+| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap. ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
 | `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars) and CSV (the grid's locale decides separator and decimal mark, formula-injection guard). |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views. |
 | `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
@@ -141,6 +141,7 @@ most 2) for a sum, minimum, maximum, first or last, 2 for an average, median or 
 
 Date groupings label their values in the locale: `yearMonth` "Jan 2025" ("Jan. 2025" in German),
 `yearQuarter` "Q1 2025", `month` "Jan", `weekday` "Mon"; the keys stay numbers that sort in time.
+The "Q" of quarters and the "W" of weeks are the same in every locale (Intl has no names for them).
 
 "Show values as": `percentOfGrandTotal`, `percentOfRowTotal`, `percentOfColumnTotal`,
 `percentOfParentRow`, `percentOfParentColumn`, `differenceFromPrevious`,

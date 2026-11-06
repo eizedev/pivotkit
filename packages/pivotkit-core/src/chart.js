@@ -106,6 +106,8 @@ export function toSeries(result, options) {
  * @param {string} [options.separator]  between the parts of a multi-level label, default " / "
  * @param {Partial<import("./limits.js").Limits>} [options.limits]
  * @param {number} [options.maxCategories]  plots the first categories only, see toSeries
+ * @param {ReturnType<typeof toSeries>} [options.series]  toSeries() of the same result and options, when
+ *   the caller has it already (it is not computed twice)
  */
 export function toEChartsOption(result, options) {
     options = optionsOf(options, "toEChartsOption");
@@ -113,7 +115,9 @@ export function toEChartsOption(result, options) {
     const theme = options.theme ?? {};
     const chart = { ...result.view.chart, ...(options.chart || {}) };
     const locale = resolveLocale(result.view.formatting.locale, options.locale ?? result.locale);
-    const s = toSeries(result, options);
+    // the chart data the caller already has (toSeries of the same result and options), or made here
+    const s = options.series ?? toSeries(result, options);
+    expect(s && Array.isArray(s.series) && Array.isArray(s.categories), "toEChartsOption: series must come from toSeries()");
     const first = s.series[0];
     const fmt = formatterFor(first ? first.format : "number", locale);
     const compact = formatterFor(first && /^percent/.test(first.format) ? first.format : "compact", locale);
