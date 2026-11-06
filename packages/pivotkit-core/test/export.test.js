@@ -169,8 +169,12 @@ test("XLSX number formats show cells as the grid does", () => {
     const big = sheetOf(toXlsx(gridOf([{ k: "a", v: 1_234_567 }], { rows: ["k"], values: [{ field: "v", agg: "sum", format: "compact" }] }))).cells;
     assert.equal(big.get("B2").code, '#,##0.0,,"M"');
     const pct = sheetOf(toXlsx(gridOf([{ k: "a", v: 1 }, { k: "b", v: 3 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }] }))).cells;
-    assert.deepEqual([pct.get("B2").code, pct.get("B4").code], ["#,##0%", "#,##0%"]);
-    const pct3 = sheetOf(toXlsx(gridOf([{ k: "a", v: 1 }, { k: "b", v: 2 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }] }))).cells;
+    // a calculation's own percent: one decimal in every cell
+    assert.deepEqual([pct.get("B2").code, pct.get("B4").code], ["#,##0.0%", "#,##0.0%"]);
+    // "percent" chosen in the view: up to one decimal per cell
+    const own = sheetOf(toXlsx(gridOf([{ k: "a", v: 1 }, { k: "b", v: 3 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal", format: "percent" }] }))).cells;
+    assert.deepEqual([own.get("B2").code, own.get("B4").code], ["#,##0%", "#,##0%"]);
+    const pct3 = sheetOf(toXlsx(gridOf([{ k: "a", v: 1 }, { k: "b", v: 2 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal", format: "percent" }] }))).cells;
     assert.equal(pct3.get("B2").code, "#,##0.0%");
 });
 

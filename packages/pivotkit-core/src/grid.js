@@ -77,7 +77,8 @@ export function defaultFormat(result, vi) {
     const spec = result.values[vi];
     const own = spec.showAs ? SHOW_AS[spec.showAs.type].format : null;
     if (own === "percent") {
-        return spec.format && parseFormat(spec.format).name === "percent" ? spec.format : "percent";
+        // one decimal in every cell ("2.0%", not "2%" next to "3.3%"), unless the view chose its own
+        return spec.format && parseFormat(spec.format).name === "percent" ? spec.format : "percent:1";
     }
     if (own === "integer") {
         return "integer";
