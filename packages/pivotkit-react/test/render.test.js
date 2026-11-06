@@ -1,0 +1,59 @@
+// The built package renders without a browser: a server render of <PivotReport> must not touch
+// window or document, and its markup must hold the zones, the fields and the computed table.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { LABELS, PivotReport } from "pivotkit-react";
+
+const rows = [
+    { Region: "North", Product: "A", Units: 3 },
+    { Region: "South", Product: "B", Units: 7 },
+    { Region: "North", Product: "B", Units: 2 }
+];
+
+function render(props) {
+    const errors = [];
+    const original = console.error;
+    console.error = (...args) => errors.push(args.join(" "));
+    try {
+        return { html: renderToString(React.createElement(PivotReport, props)), errors };
+    } finally {
+        console.error = original;
+    }
+}
+
+test("the package exports the component and the labels", async () => {
+    const mod = await import("pivotkit-react");
+    assert.deepEqual(Object.keys(mod).sort(), ["LABELS", "PivotReport"]);
+    assert.deepEqual(Object.keys(LABELS), ["en", "de"]);
+});
+
+test("a report renders its zones, fields and table, with no React warning", () => {
+    const { html, errors } = render({ data: rows, view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] }, theme: "dark" });
+    assert.deepEqual(errors, []);
+    assert.match(html, /data-pk-theme="dark"/);
+    for (const zone of ["Rows", "Columns", "Values", "Filters"]) {
+        assert.match(html, new RegExp(`aria-label="${zone}"`));
+    }
+    assert.match(html, /data-field="Units"/);
+    assert.match(html, /Sum of Units/);
+    // North: A 3, B 2, total 5; grand total 12
+    assert.match(html, /<td[^>]*>5<\/td>/);
+    assert.match(html, /<td[^>]*>12<\/td>/);
+});
+
+test("German labels and locale, and the empty state with its three steps", () => {
+    const { html, errors } = render({ data: rows, locale: "de-DE" });
+    assert.deepEqual(errors, []);
+    assert.match(html, /Den Bericht in drei Schritten bauen/);
+    assert.equal(html.match(/class="pk-step-n"/g).length, 3);
+    assert.match(html, /aria-label="Zeilen"/);
+});
+
+test("a view that makes too many cells shows the limit message instead of throwing", () => {
+    const many = Array.from({ length: 50 }, (_, i) => ({ A: `a${i}`, B: `b${i}`, V: i }));
+    const { html } = render({ data: many, view: { rows: ["A"], cols: ["B"], values: [{ field: "V", agg: "sum" }] }, limits: { cells: 100 } });
+    assert.match(html, /role="alert"/);
+    assert.match(html, /more than the limit of 100/);
+});

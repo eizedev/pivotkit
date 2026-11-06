@@ -1,0 +1,141 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { computePivot, encode, normalize } from "pivotkit-core";
+import {
+    addField, chartPresetOf, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
+    selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, toggleCollapsed, updateValue
+} from "../src/view-ops.js";
+
+const data = encode([
+    { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
+    { Region: "South", Product: "B", Units: 7, Date: "2026-02-14" },
+    { Region: "West", Product: "A", Units: 1, Date: "2026-02-20" }
+]);
+const norm = (v) => normalize(v, data).view;
+const empty = norm({});
+
+test("adding a field: an axis takes it from the other axis, Values adds a value, Filters an empty filter", () => {
+    let v = addField(empty, "Region", "rows");
+    assert.deepEqual(v.rows, ["Region"]);
+    v = addField(v, "Region", "cols");
+    assert.deepEqual([v.rows, v.cols], [[], ["Region"]]);
+    v = addField(v, "Units", "values", { type: "number" });
+    v = addField(v, "Region", "values", { type: "string" });
+    assert.deepEqual(v.values.map((x) => [x.field, x.agg]), [["Units", "sum"], ["Region", "count"]]);
+    v = addField(v, "Product", "filters");
+    assert.deepEqual(filterZoneFields(norm(v)), ["Product"]);
+    assert.deepEqual(norm(v).filters, [{ field: "Product", type: "exclude", items: [] }], "a valid filter that filters nothing");
+    assert.equal(isFiltered(v, "Product"), false);
+    assert.deepEqual(addField(v, "Product", "rows", { index: 0 }).rows, ["Product"]);
+});
+
+test("insert positions and reordering", () => {
+    let v = addField(addField(empty, "Region", "rows"), "Product", "rows", { index: 0 });
+    assert.deepEqual(v.rows, ["Product", "Region"]);
+    v = reorder(v, "rows", 0, 1);
+    assert.deepEqual(v.rows, ["Region", "Product"]);
+    assert.equal(reorder(v, "rows", 5, 0), v, "an index outside the zone changes nothing");
+});
+
+test("removing takes the field's filters and sort with it; removing a value leaves the axes", () => {
+    let v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Region", type: "exclude", items: ["West"] }], sort: [{ field: "Region", order: "desc" }] });
+    const noRegion = removeAt(v, "rows", 0);
+    assert.deepEqual([noRegion.rows, noRegion.filters, noRegion.sort], [[], [], []]);
+    v = removeAt(v, "values", 0);
+    assert.deepEqual([v.rows, v.values], [["Region"], []]);
+    const f = norm({ filters: [{ field: "Product", type: "include", items: ["A"] }] });
+    assert.deepEqual(removeAt(f, "filters", 0).filters, []);
+});
+
+test("moving between zones keeps filters between axes and Filters, and turns a value into an axis field", () => {
+    let v = norm({ rows: ["Region"], filters: [{ field: "Region", type: "exclude", items: ["West"] }], values: [{ field: "Product", agg: "count" }] });
+    v = moveField(v, "rows", 0, "filters", 0);
+    assert.deepEqual([v.rows, filterZoneFields(v), v.filters[0].items], [[], ["Region"], ["West"]]);
+    v = moveField(v, "filters", 0, "cols", 0);
+    assert.deepEqual([v.cols, v.filters.length], [["Region"], 1]);
+    v = moveField(v, "values", 0, "rows", 0);
+    assert.deepEqual([v.rows, v.values], [["Product"], []]);
+    v = moveField(norm(v), "rows", 0, "values", 0, { type: "string" });
+    assert.deepEqual([v.rows, v.values.map((x) => x.agg)], [[], ["count"]]);
+});
+
+test("date grouping replaces the field in place and can be removed again", () => {
+    const v = norm({ rows: ["Region", "Date"], filters: [{ field: "Date", type: "include", items: ["2026-01-05"] }] });
+    const g = groupField(v, "Date", "yearMonth", { name: "Date (month)" });
+    assert.equal(g.field, "Date (month)");
+    const grouped = norm(g.view);
+    assert.deepEqual(grouped.rows, ["Region", "Date (month)"]);
+    assert.deepEqual(grouped.derived, [{ name: "Date (month)", field: "Date", by: "yearMonth" }]);
+    assert.deepEqual(grouped.filters, [], "a filter on raw dates does not fit the groups");
+    const r = computePivot(data, grouped);
+    assert.deepEqual(r.rowRoot.children[0].children.map((n) => n.key), [202601]);
+    const back = groupField(grouped, "Date (month)", null);
+    assert.deepEqual([back.view.rows, back.view.derived], [["Region", "Date"], []]);
+});
+
+test("number bins are a derived field with a size", () => {
+    const v = norm({ rows: ["Units"] });
+    const { view } = groupField(v, "Units", "bin", { size: 5, name: "Units (by 5)" });
+    const r = computePivot(data, view);
+    assert.deepEqual(r.rowRoot.children.map((n) => n.key), [0, 5]);
+});
+
+test("item filters exclude what is not selected; selectedItems reads them back", () => {
+    const all = ["North", "South", "West"];
+    let v = setItemFilter(norm({ rows: ["Region"] }), "Region", ["North", "West"], all);
+    assert.deepEqual(norm(v).filters, [{ field: "Region", type: "exclude", items: ["South"] }]);
+    assert.deepEqual(selectedItems(norm(v), "Region", all), ["North", "West"]);
+    assert.equal(isFiltered(v, "Region"), true);
+    v = setItemFilter(v, "Region", all, all);
+    assert.deepEqual(v.filters, [], "everything selected is no filter");
+    const inc = norm({ filters: [{ field: "Region", type: "include", items: ["South"] }] });
+    assert.deepEqual(selectedItems(inc, "Region", all), ["South"]);
+    // a field in the Filters zone stays there when its filter is cleared
+    const zone = setItemFilter(inc, "Region", all, all);
+    assert.deepEqual(filterZoneFields(zone), ["Region"]);
+});
+
+test("label conditions and top N", () => {
+    let v = setLabelFilter(norm({ rows: ["Region"] }), "Region", { op: "contains", value: "th" });
+    assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["North", "South"]);
+    v = setLabelFilter(v, "Region", null);
+    v = setTopFilter(norm({ ...v, values: [{ field: "Units", agg: "sum" }] }), "Region", { count: 1, by: { field: "Units", agg: "sum" } });
+    assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["South"]);
+    assert.deepEqual(setTopFilter(v, "Region", null).filters, []);
+});
+
+test("sort, values, collapse, chart", () => {
+    let v = norm({ rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] });
+    v = setSort(v, "Region", { by: "value", order: "desc", value: { field: "Units", agg: "sum" } });
+    assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["South", "North", "West"]);
+    const avg = updateValue(norm({ ...v, values: [{ field: "Units", agg: "sum", showAs: { type: "runningTotal" } }] }), 0, { agg: "average" });
+    assert.equal(avg.values[0].showAs, null, "a running total does not fit an average");
+    v = toggleCollapsed(v, "rows", ["North"]);
+    assert.deepEqual(v.collapsed.rows, [["North"]]);
+    assert.deepEqual(toggleCollapsed(v, "rows", ["North"]).collapsed.rows, []);
+    assert.deepEqual(reorder(v, "rows", 0, 1).collapsed.rows, [], "collapsed paths belong to the old field order");
+    const c = setChart(v, "stacked");
+    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false }]);
+    assert.equal(chartPresetOf(c.chart), "stacked");
+    assert.equal(isEmptyView(empty), true);
+    assert.equal(defaultAgg("date"), "count");
+});
+
+test("every result is a view normalize accepts without issues", () => {
+    let v = empty;
+    const steps = [
+        (x) => addField(x, "Region", "rows"),
+        (x) => addField(x, "Date", "cols"),
+        (x) => groupField(x, "Date", "quarter", { name: "Date (quarter)" }).view,
+        (x) => addField(x, "Units", "values", { type: "number" }),
+        (x) => addField(x, "Product", "filters"),
+        (x) => setItemFilter(x, "Product", ["A"], ["A", "B"]),
+        (x) => moveField(x, "cols", 0, "rows", 0),
+        (x) => updateValue(x, 0, { showAs: { type: "percentOfGrandTotal", axis: "rows" }, format: "percent:1" })
+    ];
+    for (const step of steps) {
+        v = step(v);
+        assert.deepEqual(normalize(v, data).issues, [], JSON.stringify(v));
+        v = norm(v);
+    }
+});

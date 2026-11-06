@@ -2,7 +2,7 @@
   "name": "pivotkit-monorepo",
   "private": true,
   "type": "module",
-  "description": "Repository root of pivotkit: npm workspaces for pivotkit-core, pivotkit-react and pivotkit-element.",
+  "description": "Repository root of pivotkit: npm workspaces for pivotkit-core, pivotkit-react and pivotkit-element, the playground (examples/playground) and its browser tests (tests/browser).",
   "license": "MIT",
   "workspaces": [
     "packages/*"
@@ -12,15 +12,25 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "test": "npm test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present && node --test \"tests/*.test.js\"",
     "types": "npm run types --workspaces --if-present && npm run test:types --workspaces --if-present",
     "coverage": "npm run coverage --workspaces --if-present",
-    "pack:check": "node scripts/check-pack.js pivotkit-core"
+    "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react",
+    "playground": "node examples/playground/build.js --serve",
+    "build:playground": "node examples/playground/build.js",
+    "test:browser": "npm run build:playground && playwright test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "esbuild": "0.28.2",
     "eslint": "10.14.0",
     "globals": "17.13.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "typescript": "7.0.2"
   }
 }

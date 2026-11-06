@@ -1,0 +1,274 @@
+/*
+ * The pivot table from pivotkit-core's grid: sticky header rows and row labels, groups that expand
+ * and collapse, subtotal and total rows, colour scales and data bars, a click (or Enter) on a value
+ * for its rows. Header cells with a field name or a value name can be dragged into a zone. From
+ * VIRTUAL_FROM body rows on only the visible rows are rendered (virtual.js).
+ */
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDragSource } from "./dnd.jsx";
+import { useIsoLayoutEffect } from "./iso.js";
+import { Icon } from "./icons.jsx";
+import { fill } from "./labels.js";
+import { VIRTUAL_FROM, sliceRows, windowOf } from "./virtual.js";
+
+const totalClass = (t) => (t === 2 ? " pk-grand" : t === 1 ? " pk-sub" : "");
+
+/**
+ * Inline style of a value cell with conditional formatting: custom properties the stylesheet reads.
+ * @returns {any}
+ */
+function conditionalStyle(cell) {
+    const s = cell.style;
+    if (!s) {
+        return undefined;
+    }
+    if (s.scale !== undefined && s.color) {
+        return { "--pk-cell-bg": s.color };
+    }
+    if (s.bar !== undefined) {
+        return { "--pk-bar": `${Math.round(s.bar * 1000) / 10}%`, ...(s.color ? { "--pk-bar-color": s.color } : {}) };
+    }
+    return undefined;
+}
+
+/** A header cell that can be dragged into a zone: a field name in the corner or a value name. */
+function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope }) {
+    const { setNodeRef, isDragging, itemProps } = useDragSource(`table:${source.zone}:${source.index}:${source.field ?? ""}`, source);
+    return (
+        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind}>
+            {children}
+            <Icon name="grip" size={12} className="pk-th-grip" />
+        </th>
+    );
+}
+
+function Toggle({ toggle, text, labels, onToggle }) {
+    return (
+        <button type="button" className={`pk-toggle${toggle.collapsed ? "" : " pk-open"}`} aria-expanded={!toggle.collapsed} aria-label={fill(toggle.collapsed ? labels.expand : labels.collapse, { label: text })} onClick={() => onToggle(toggle.axis, toggle.path)}>
+            <Icon name="chevronRight" size={14} />
+        </button>
+    );
+}
+
+/**
+ * @param {{ grid: import("pivotkit-core").Grid, view: any, labels: import("./labels.js").UiLabels,
+ *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: number }} props
+ */
+export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
+    const wrap = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const table = useRef(/** @type {HTMLTableElement | null} */ (null));
+    const bodyCount = grid.rows.length - grid.headerRows;
+    const virtual = bodyCount >= VIRTUAL_FROM;
+    const [scroll, setScroll] = useState({ top: 0, height: 600 });
+    const [rowHeight, setRowHeight] = useState(34);
+    const [lefts, setLefts] = useState(/** @type {number[]} */ ([]));
+    const [tops, setTops] = useState(/** @type {number[]} */ ([]));
+    const [active, setActive] = useState(/** @type {{ r: number, c: number } | null} */ (null));
+    const focusNext = useRef(false);
+
+    // the measured height of a body row and the widths of the row label columns (sticky offsets)
+    useIsoLayoutEffect(() => {
+        const t = table.current;
+        if (!t) {
+            return;
+        }
+        const row = t.tBodies[0]?.querySelector("tr[data-r]");
+        if (row && row.getBoundingClientRect().height > 0) {
+            setRowHeight(row.getBoundingClientRect().height);
+        }
+        const headRows = t.tHead ? [...t.tHead.rows] : [];
+        const ys = headRows.map((tr) => tr.offsetTop);
+        setTops((old) => (old.length === ys.length && old.every((v, i) => v === ys[i]) ? old : ys));
+        const last = headRows[headRows.length - 1];
+        if (last) {
+            const xs = [];
+            let x = 0;
+            for (let c = 0; c < grid.rowHeaderColumns && c < last.cells.length; c++) {
+                xs.push(x);
+                x += last.cells[c].getBoundingClientRect().width;
+            }
+            setLefts((old) => (old.length === xs.length && old.every((v, i) => Math.abs(v - xs[i]) < 0.5) ? old : xs));
+        }
+    }, [grid, version]);
+
+    useEffect(() => {
+        const el = wrap.current;
+        if (!el) {
+            return undefined;
+        }
+        const update = () => setScroll({ top: el.scrollTop, height: el.clientHeight });
+        update();
+        const ro = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
+        ro?.observe(el);
+        return () => ro?.disconnect();
+    }, []);
+
+    const headHeight = tops.length ? (table.current?.tHead?.offsetHeight ?? rowHeight * grid.headerRows) : rowHeight * grid.headerRows;
+    const win = virtual ? windowOf({ count: bodyCount, scrollTop: scroll.top - headHeight, viewport: scroll.height, rowHeight }) : { start: 0, end: bodyCount, padTop: 0, padBottom: 0 };
+    const rows = useMemo(() => sliceRows(grid, win.start, win.end), [grid, win.start, win.end]);
+
+    // the first value cell takes the focus stop of the table
+    const firstValue = useMemo(() => {
+        for (let r = 0; r < bodyCount; r++) {
+            const row = grid.rows[grid.headerRows + r];
+            const c = row.findIndex((cell) => cell && cell.kind === "value" && cell.valueIndex !== undefined);
+            if (c !== -1) {
+                return { r, c };
+            }
+        }
+        return null;
+    }, [grid, bodyCount]);
+    const current = active && active.r < bodyCount && grid.rows[grid.headerRows + active.r]?.[active.c]?.kind === "value" ? active : firstValue;
+
+    const move = useCallback(
+        (dr, dc) => {
+            if (!current) {
+                return;
+            }
+            let { r, c } = current;
+            const valueAt = (rr, cc) => {
+                const cell = grid.rows[grid.headerRows + rr]?.[cc];
+                return cell && cell.kind === "value" && cell.valueIndex !== undefined;
+            };
+            for (let step = 0; step < Math.max(bodyCount, grid.columnCount); step++) {
+                r += dr;
+                c += dc;
+                if (r < 0 || r >= bodyCount || c < grid.rowHeaderColumns || c >= grid.columnCount) {
+                    return;
+                }
+                if (valueAt(r, c)) {
+                    break;
+                }
+            }
+            if (!valueAt(r, c)) {
+                return;
+            }
+            focusNext.current = true;
+            setActive({ r, c });
+            const el = wrap.current;
+            if (virtual && el) {
+                const y = (grid.headerRows + r) * rowHeight;
+                if (y < el.scrollTop + rowHeight * grid.headerRows || y + rowHeight > el.scrollTop + el.clientHeight) {
+                    el.scrollTop = Math.max(0, y - el.clientHeight / 2);
+                }
+            }
+        },
+        [current, grid, bodyCount, virtual, rowHeight]
+    );
+
+    useEffect(() => {
+        if (focusNext.current && current) {
+            focusNext.current = false;
+            const td = table.current?.querySelector(`td[data-r="${current.r}"][data-c="${current.c}"]`);
+            /** @type {HTMLElement | null} */ (td)?.focus({ preventScroll: false });
+        }
+    });
+
+    const onKeyDown = (e) => {
+        const keys = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1] };
+        if (keys[e.key] && e.target instanceof HTMLTableCellElement) {
+            e.preventDefault();
+            const [dr, dc] = keys[e.key];
+            move(dr, dc);
+        } else if ((e.key === "Enter" || e.key === " ") && e.target instanceof HTMLTableCellElement && current) {
+            e.preventDefault();
+            onCell(grid.rows[grid.headerRows + current.r][current.c]);
+        }
+    };
+
+    const stickyStyle = (col, extra) => (col < grid.rowHeaderColumns && lefts[col] !== undefined ? { left: lefts[col], ...extra } : extra);
+    const headerCell = (cell, r, c) => {
+        const top = { top: tops[r] ?? r * rowHeight };
+        const sticky = c < grid.rowHeaderColumns;
+        const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${sticky ? " pk-sticky" : ""}`;
+        const content = (
+            <span className="pk-th-content">
+                {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
+                <span className="pk-th-text">{cell.text}</span>
+            </span>
+        );
+        const props = { className, style: stickyStyle(c, top), colSpan: cell.colSpan, rowSpan: cell.rowSpan, scope: cell.kind === "colHeader" ? "col" : undefined };
+        if (cell.kind === "corner" && cell.field) {
+            const zone = view.rows.includes(cell.field) ? "rows" : "cols";
+            return (
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.field }}>
+                    {content}
+                </DraggableHeader>
+            );
+        }
+        if (cell.kind === "colHeader" && cell.valueIndex !== undefined && r === grid.headerRows - 1) {
+            const spec = view.values[cell.valueIndex];
+            return (
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }}>
+                    {content}
+                </DraggableHeader>
+            );
+        }
+        return (
+            <th key={c} {...props}>
+                {content}
+            </th>
+        );
+    };
+
+    const bodyCell = ({ cell, col, rowSpan, colSpan }, r) => {
+        if (cell.kind === "rowHeader") {
+            return (
+                <th key={col} scope="row" className={`pk-th pk-rowHeader pk-sticky${totalClass(cell.total)}${rowSpan > 1 ? " pk-span" : ""}`} style={stickyStyle(col)} rowSpan={rowSpan > 1 ? rowSpan : undefined} colSpan={colSpan > 1 ? colSpan : undefined}>
+                    <span className="pk-th-content">
+                        {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
+                        <span className="pk-th-text">{cell.text}</span>
+                    </span>
+                </th>
+            );
+        }
+        const isValue = cell.valueIndex !== undefined;
+        const focus = current && current.r === r && current.c === col;
+        const cond = conditionalStyle(cell);
+        return (
+            <td
+                key={col}
+                className={`pk-td${totalClass(cell.total)}${isValue ? " pk-clickable" : ""}${cell.valueType === "text" ? " pk-text" : ""}${cond ? (cell.style.bar !== undefined ? " pk-has-bar" : " pk-has-scale") : ""}`}
+                style={cond}
+                data-r={r}
+                data-c={col}
+                tabIndex={isValue ? (focus ? 0 : -1) : undefined}
+                onClick={isValue ? () => { setActive({ r, c: col }); onCell(cell); } : undefined}
+            >
+                {cell.text}
+            </td>
+        );
+    };
+
+    const width = grid.columnCount;
+    return (
+        <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? (e) => setScroll({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight }) : undefined} data-testid="pivot-table">
+            <table ref={table} className="pk-table" onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-describedby={undefined}>
+                <caption className="pk-sr">{labels.cellHint}</caption>
+                <thead>
+                    {grid.rows.slice(0, grid.headerRows).map((row, r) => (
+                        <tr key={r}>{row.map((cell, c) => (cell ? headerCell(cell, r, c) : null))}</tr>
+                    ))}
+                </thead>
+                <tbody key={version} className="pk-fresh">
+                    {win.padTop > 0 ? (
+                        <tr className="pk-spacer" aria-hidden="true" style={{ height: win.padTop }}>
+                            <td colSpan={width} />
+                        </tr>
+                    ) : null}
+                    {rows.map(({ index, cells }) => (
+                        <tr key={index} data-r={index} aria-rowindex={grid.headerRows + index + 1} className={totalClass(grid.bodyRows[index]?.total).trim() || undefined}>
+                            {cells.map((c) => bodyCell(c, index))}
+                        </tr>
+                    ))}
+                    {win.padBottom > 0 ? (
+                        <tr className="pk-spacer" aria-hidden="true" style={{ height: win.padBottom }}>
+                            <td colSpan={width} />
+                        </tr>
+                    ) : null}
+                </tbody>
+            </table>
+        </div>
+    );
+}

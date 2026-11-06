@@ -2,7 +2,71 @@
   "name": "pivotkit-react",
   "version": "0.0.0",
   "private": true,
-  "description": "React 18/19 pivot report builder on pivotkit-core: drag-and-drop fields, table and Apache ECharts chart, templates as JSON, Excel export. Not built yet.",
+  "description": "React 18/19 pivot report builder on pivotkit-core: drag-and-drop fields, table and Apache ECharts chart, filters, templates as JSON, undo, Excel and CSV export.",
   "license": "MIT",
-  "type": "module"
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-react"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivot-table",
+    "pivot",
+    "react",
+    "reporting",
+    "drag-and-drop",
+    "echarts",
+    "self-service-bi"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "types",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "test": "node build.js && node --test \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "test:types": "tsc -p test/types",
+    "prepack": "node build.js && npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\"",
+    "coverage": "node build.js && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\""
+  },
+  "peerDependencies": {
+    "echarts": ">=6.1.0 <7",
+    "react": ">=18.2 <20",
+    "react-dom": ">=18.2 <20"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "pivotkit-core": "0.0.0"
+  },
+  "devDependencies": {
+    "echarts": "6.1.0"
+  },
+  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
