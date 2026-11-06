@@ -46,6 +46,18 @@ test.describe("a host page that provides React", () => {
     });
 });
 
+test("a host that renders again does not move the focus inside an open popover", async ({ page }) => {
+    await page.goto("pages/host.html");
+    await page.getByTestId("chip-menu-Region").click();
+    await page.getByTestId("open-filter").click();
+    await expect(page.locator(".pk-filter-popover input[type=search]")).toBeFocused();
+    const second = page.locator(".pk-filter-popover .pk-value input").nth(1);
+    await second.focus();
+    const before = Number(await page.getByTestId("host-renders").textContent());
+    await expect.poll(async () => Number(await page.getByTestId("host-renders").textContent())).toBeGreaterThan(before + 4);
+    await expect(second).toBeFocused();
+});
+
 test.describe("inside a shadow root", () => {
     test("styles, theme from the shadow host, popovers, focus and the drill-down work", async ({ page }) => {
         await page.goto("pages/shadow.html");
@@ -53,6 +65,11 @@ test.describe("inside a shadow root", () => {
         await expect(root).toBeVisible();
         expect(await root.evaluate((el) => getComputedStyle(el).borderTopStyle)).toBe("solid");
         await page.evaluate(() => document.getElementById("shadow-host").setAttribute("data-theme", "dark"));
+        await expect(root).toHaveAttribute("data-pk-theme", "dark");
+        // an element inside the shadow root, above the report, is nearer and observed too
+        await page.evaluate(() => document.getElementById("shadow-host").shadowRoot.querySelector("div").setAttribute("data-theme", "light"));
+        await expect(root).toHaveAttribute("data-pk-theme", "light");
+        await page.evaluate(() => document.getElementById("shadow-host").shadowRoot.querySelector("div").removeAttribute("data-theme"));
         await expect(root).toHaveAttribute("data-pk-theme", "dark");
         // a popover: focus inside the shadow root, closes on a click outside, the focus goes back
         await page.getByTestId("export").click();

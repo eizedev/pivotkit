@@ -5,7 +5,7 @@
  * (OVERFLOW_ORDER); Table | Chart, Undo and Export always stay, with their text.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "./chart-types.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
@@ -190,13 +190,69 @@ export function Toolbar(props) {
     const [panel, setPanel] = useState(/** @type {"options" | "templates" | null} */ (null));
     const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}`);
     const hidden = new Set(OVERFLOW_ORDER.slice(0, level));
-    const shown = (name) => !hidden.has(name);
+    // a panel opened from "More" closes when its own button is back in the toolbar
+    if (panel && !hidden.has(panel)) {
+        setPanel(null);
+    }
+    const closePanel = useCallback(() => setPanel(null), []);
     const preset = chartTypeOf(view.chart);
     const mod = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl+";
-    const closePanel = () => setPanel(null);
-    const options = (close) => <OptionsPanel view={view} labels={labels} onTotal={onTotal} onExpand={onExpand} onCollapse={onCollapse} close={close} />;
-    const templatesPanel = (close) => <TemplatesPanel templates={templates} labels={labels} onLoad={onLoadTemplate} onSave={onSaveTemplate} onDelete={onDeleteTemplate} close={close} />;
     const chartTypeText = fill(labels.chartTypeIs, { type: labels.chartTypes[preset] });
+    const panels = {
+        options: (close) => <OptionsPanel view={view} labels={labels} onTotal={onTotal} onExpand={onExpand} onCollapse={onCollapse} close={close} />,
+        templates: (close) => <TemplatesPanel templates={templates} labels={labels} onLoad={onLoadTemplate} onSave={onSaveTemplate} onDelete={onDeleteTemplate} close={close} />
+    };
+    /**
+     * Every action that can move into "More", defined once: its button in the toolbar and its entry
+     * in the menu. `place` is the group of the toolbar it stands in.
+     * @type {Record<string, { place: "chart" | "history" | "end", button: () => React.ReactNode, entry: (close: () => void) => React.ReactNode }>}
+     */
+    const actions = {
+        chartType: {
+            place: "chart",
+            button: () => (
+                <MenuButton key="chartType" label={chartTypeText} icon={CHART_TYPES[preset].icon} text={chartTypeText} testId="chart-type">
+                    {(close) => <ChartTypeOptions view={view} labels={labels} onChart={onChart} close={close} />}
+                </MenuButton>
+            ),
+            entry: (close) => (
+                <Section key="chartType" title={chartTypeText}>
+                    <ChartTypeOptions view={view} labels={labels} onChart={onChart} close={close} />
+                </Section>
+            )
+        },
+        redo: {
+            place: "history",
+            button: () => <TextButton key="redo" icon="redo" label={labels.redo} onClick={onRedo} disabled={!canRedo} testId="redo" shortcut={`${mod}⇧Z`} />,
+            entry: (close) => <Option key="redo" inMenu icon="redo" disabled={!canRedo} onSelect={() => { close(); onRedo(); }} testId="more-redo">{labels.redo}</Option>
+        },
+        reset: {
+            place: "history",
+            button: () => <TextButton key="reset" icon="reset" label={labels.reset} onClick={onReset} disabled={!canReset} testId="reset" />,
+            entry: (close) => <Option key="reset" inMenu icon="reset" disabled={!canReset} onSelect={() => { close(); onReset(); }} testId="more-reset">{labels.reset}</Option>
+        },
+        options: {
+            place: "end",
+            button: () => (
+                <MenuButton key="options" label={labels.options} icon="sliders" text={labels.options} role="dialog" align="end" testId="options">
+                    {panels.options}
+                </MenuButton>
+            ),
+            entry: (close) => <Option key="options" inMenu icon="sliders" onSelect={() => { close(); setPanel("options"); }} testId="more-options">{`${labels.options}…`}</Option>
+        },
+        templates: {
+            place: "end",
+            button: () => (
+                <MenuButton key="templates" label={labels.templates} icon="bookmark" text={labels.templates} role="dialog" align="end" testId="templates">
+                    {panels.templates}
+                </MenuButton>
+            ),
+            entry: (close) => <Option key="templates" inMenu icon="bookmark" onSelect={() => { close(); setPanel("templates"); }} testId="more-templates">{`${labels.templates}…`}</Option>
+        }
+    };
+    // the order of the table is the order in the toolbar and in the menu
+    const ORDER = Object.keys(actions);
+    const buttons = (place) => ORDER.filter((id) => actions[id].place === place && !hidden.has(id)).map((id) => actions[id].button());
     return (
         <div className={`pk-toolbar${level >= OVERFLOW_ORDER.length ? " pk-wrap" : ""}`} role="toolbar" aria-label={labels.toolbar} ref={bar} data-overflow={level}>
             {size === "narrow" ? (
@@ -215,26 +271,12 @@ export function Toolbar(props) {
                     <span>{labels.chart}</span>
                 </button>
             </div>
-            {shown("chartType") ? (
-                <MenuButton label={chartTypeText} icon={CHART_TYPES[preset].icon} text={chartTypeText} testId="chart-type">
-                    {(close) => <ChartTypeOptions view={view} labels={labels} onChart={onChart} close={close} />}
-                </MenuButton>
-            ) : null}
+            {buttons("chart")}
             <span className="pk-sep" aria-hidden="true" />
             <TextButton icon="undo" label={labels.undo} onClick={onUndo} disabled={!canUndo} testId="undo" shortcut={`${mod}Z`} />
-            {shown("redo") ? <TextButton icon="redo" label={labels.redo} onClick={onRedo} disabled={!canRedo} testId="redo" shortcut={`${mod}⇧Z`} /> : null}
-            {shown("reset") ? <TextButton icon="reset" label={labels.reset} onClick={onReset} disabled={!canReset} testId="reset" /> : null}
+            {buttons("history")}
             <span className="pk-grow" />
-            {shown("options") ? (
-                <MenuButton label={labels.options} icon="sliders" text={labels.options} role="dialog" align="end" testId="options">
-                    {options}
-                </MenuButton>
-            ) : null}
-            {shown("templates") ? (
-                <MenuButton label={labels.templates} icon="bookmark" text={labels.templates} role="dialog" align="end" testId="templates">
-                    {templatesPanel}
-                </MenuButton>
-            ) : null}
+            {buttons("end")}
             <MenuButton label={labels.exportLabel} icon="download" text={labels.exportLabel} align="end" testId="export">
                 {(close) => (
                     <>
@@ -246,27 +288,14 @@ export function Toolbar(props) {
             </MenuButton>
             {level > 0 ? (
                 <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more}>
-                    {(close) => (
-                        <>
-                            {hidden.has("redo") ? <Option inMenu icon="redo" disabled={!canRedo} onSelect={() => { close(); onRedo(); }} testId="more-redo">{labels.redo}</Option> : null}
-                            {hidden.has("reset") ? <Option inMenu icon="reset" disabled={!canReset} onSelect={() => { close(); onReset(); }} testId="more-reset">{labels.reset}</Option> : null}
-                            {hidden.has("options") ? <Option inMenu icon="sliders" onSelect={() => { close(); setPanel("options"); }} testId="more-options">{`${labels.options}…`}</Option> : null}
-                            {hidden.has("templates") ? <Option inMenu icon="bookmark" onSelect={() => { close(); setPanel("templates"); }} testId="more-templates">{`${labels.templates}…`}</Option> : null}
-                            {hidden.has("chartType") ? (
-                                <Section title={chartTypeText}>
-                                    <ChartTypeOptions view={view} labels={labels} onChart={onChart} close={close} />
-                                </Section>
-                            ) : null}
-                        </>
-                    )}
+                    {(close) => ORDER.filter((id) => hidden.has(id)).map((id) => actions[id].entry(close))}
                 </MenuButton>
             ) : null}
-            <Popover open={panel === "options"} anchor={more} onClose={closePanel} label={labels.options} role="dialog" align="end">
-                {options(closePanel)}
-            </Popover>
-            <Popover open={panel === "templates"} anchor={more} onClose={closePanel} label={labels.templates} role="dialog" align="end">
-                {templatesPanel(closePanel)}
-            </Popover>
+            {panel ? (
+                <Popover open anchor={more} onClose={closePanel} label={labels[panel]} role="dialog" align="end">
+                    {panels[panel](closePanel)}
+                </Popover>
+            ) : null}
         </div>
     );
 }

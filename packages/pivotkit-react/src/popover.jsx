@@ -58,6 +58,12 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     }, [open, anchor, align, sheet]);
 
     useEscapeLayer(open, onClose);
+    // the latest onClose without re-running the open effect: a caller's inline arrow is new on
+    // every render, and a re-run would move the focus back to the first control
+    const closeRef = useRef(onClose);
+    useEffect(() => {
+        closeRef.current = onClose;
+    });
     useEffect(() => {
         if (!open) {
             return undefined;
@@ -68,7 +74,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         const t = requestAnimationFrame(() => /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true }));
         const onDown = (e) => {
             if (!eventWithin(e, [el, anchor.current])) {
-                onClose();
+                closeRef.current();
             }
         };
         const doc = el?.ownerDocument ?? document;
@@ -83,7 +89,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 button.focus({ preventScroll: true });
             }
         };
-    }, [open, anchor, onClose]);
+    }, [open, anchor]);
 
     if (!open || !layer) {
         return null;

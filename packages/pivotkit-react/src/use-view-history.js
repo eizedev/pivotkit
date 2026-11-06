@@ -94,15 +94,11 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
         [live, apply]
     );
 
-    return {
-        view: current,
-        viewKey: shown,
-        commit,
-        undo,
-        redo,
-        reset,
-        canUndo: live.past.length > 0,
-        canRedo: live.future.length > 0,
-        canReset: live.present !== live.start
-    };
+    const canUndo = live.past.length > 0;
+    const canRedo = live.future.length > 0;
+    const canReset = live.present !== live.start;
+    return useMemo(
+        () => ({ view: current, viewKey: shown, commit, undo, redo, reset, canUndo, canRedo, canReset }),
+        [current, shown, commit, undo, redo, reset, canUndo, canRedo, canReset]
+    );
 }

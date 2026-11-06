@@ -111,3 +111,22 @@ test("text from the data is never markup: table, filter list, drill-down and cha
     expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
     expect(await page.locator(".pk-root img, .pk-root script").count()).toBe(0);
 });
+
+test("a panel opened from More keeps the focus on a switch; it closes when its button fits again", async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto("?data=sales");
+    await page.getByTestId("more").click();
+    await page.getByTestId("more-options").click();
+    // the panel has taken the focus (on its first option) before the user moves it
+    await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")))).toBe(true);
+    const sw = page.getByTestId("total-rowSubtotals");
+    await sw.focus();
+    await page.keyboard.press("Space");
+    await expect(sw).not.toBeChecked();
+    await page.waitForTimeout(300);
+    await expect(sw).toBeFocused();
+    // wider: Options is a button of its own again, the panel of the More menu goes
+    await page.setViewportSize({ width: 1920, height: 900 });
+    await expect(page.getByTestId("options")).toBeVisible();
+    await expect(page.locator(".pk-popover")).toHaveCount(0);
+});

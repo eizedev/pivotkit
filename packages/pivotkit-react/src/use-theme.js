@@ -37,8 +37,13 @@ export function useResolvedTheme(wanted, ref) {
                 return () => {};
             }
             const mo = typeof MutationObserver === "function" ? new MutationObserver(onChange) : null;
-            // any data-theme in the page; a shadow root's own attributes are seen through its host's subtree
-            mo?.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"], subtree: true });
+            // an observer does not see into shadow trees: the document and every shadow root above the
+            // report (nested web components), each with its subtree
+            const options = { attributes: true, attributeFilter: ["data-theme"], subtree: true };
+            mo?.observe(document.documentElement, options);
+            for (let root = ref.current?.getRootNode(); root && root.nodeType === 11; root = /** @type {ShadowRoot} */ (root).host.getRootNode()) {
+                mo?.observe(root, options);
+            }
             const mq = darkQuery();
             mq?.addEventListener("change", onChange);
             return () => {
@@ -46,7 +51,7 @@ export function useResolvedTheme(wanted, ref) {
                 mq?.removeEventListener("change", onChange);
             };
         },
-        [wanted]
+        [wanted, ref]
     );
     const snapshot = () => resolveTheme(wanted, typeof document === "undefined" ? null : hostTheme(ref.current), darkQuery()?.matches ?? false);
     return useSyncExternalStore(subscribe, snapshot, () => resolveTheme(wanted, null, false));

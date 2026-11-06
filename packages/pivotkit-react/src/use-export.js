@@ -41,5 +41,5 @@ export function useExport({ fileName, result, locale, labels, limits, root, char
         } catch (e) {
             announce(fill(labels.toastExportFailed, { message: messageOf(e) }), { tone: "error" });
         }
-};
+    };
 }

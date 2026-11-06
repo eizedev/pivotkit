@@ -165,6 +165,7 @@ export function PivotReport(props) {
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
     const hintId = useId();
+    const closeFilter = useCallback(() => setFilterTarget(null), []);
     const { toasts, push, dismiss, pause } = useToasts();
     const announce = useCallback(
         /** @param {string} text @param {{ action?: { label: string, run: () => void }, tone?: "error" }} [extra] */
@@ -560,7 +561,7 @@ export function PivotReport(props) {
                             </div>
                         </main>
                     </div>
-                    <FilterPopover target={filterTarget} onClose={() => setFilterTarget(null)} view={view} encoded={encoded} locale={locale} labels={labels} commit={commit} />
+                    <FilterPopover target={filterTarget} onClose={closeFilter} view={view} encoded={encoded} locale={locale} labels={labels} commit={commit} />
                 </PivotDnd>
                 <DrillPanel drill={drill} onClose={() => setDrill(null)} labels={labels} locale={locale} timeZone={encoded.timeZone} />
                 <div className="pk-layer" ref={setLayer} />

@@ -140,9 +140,10 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
             return;
         }
         const style = getComputedStyle(root.current);
-        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES });
+        // the series of the summary and the hints, not computed a second time
+        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}) });
         chart.current.setOption(decorate(option, style), { notMerge: true });
-    }, [ready, result, labels, locale, themeName, root]);
+    }, [ready, result, series, labels, locale, themeName, root]);
 
     const empty = result.view.values.length === 0;
     const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows, valueNames, labels, locale }) : labels.noChartData;
