@@ -12,7 +12,7 @@ const src = fileURLToPath(new URL("../src/", import.meta.url));
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
         "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "LIMITS", "PivotkitError", "VIEW_VERSION", "aggregatorsFor",
-        "cellRows", "computePivot", "createHistory", "emptyView", "encode", "findNode", "formatter", "isFormat",
+        "cellRows", "computePivot", "createHistory", "emptyView", "encode", "fieldItems", "findNode", "formatter", "isFormat",
         "migrate", "normalize", "toEChartsOption", "toGrid", "toSeries", "validate", "viewFields"
     ]);
     assert.deepEqual(Object.keys(exporters).sort(), ["toCsv", "toCsvBytes", "toXlsx"]);

@@ -29,6 +29,7 @@
  * @typedef {import("./pivot.js").PivotResult} PivotResult
  * @typedef {import("./tree.js").PivotNode} PivotNode
  * @typedef {import("./grid.js").Grid} Grid
+ * @typedef {import("./items.js").FieldItem} FieldItem
  * @typedef {import("./grid.js").GridCell} GridCell
  * @typedef {import("./chart.js").ChartTheme} ChartTheme
  * @typedef {import("./format.js").Formatter} Formatter
@@ -41,6 +42,7 @@ export { encode } from "./encode.js";
 export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION } from "./view.js";
 export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
+export { fieldItems } from "./items.js";
 export { toGrid } from "./grid.js";
 export { toSeries, toEChartsOption } from "./chart.js";
 export { createHistory } from "./history.js";

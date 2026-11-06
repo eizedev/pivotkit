@@ -8,6 +8,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `fieldItems(data, field, { view, locale, labels, limits })`: the distinct values of a field, a derived
+  field of the view too, with label and row count in the table's label order, for a filter list.
 - `encode()`: typed columnar encoding (string, number, boolean, date including ISO strings) with Int32
   codes, dictionaries and Float64 measures; column names matched case-insensitively, colliding
   spellings listed in `data.issues`; `inferNumbers` turns numeric text into numbers, and
