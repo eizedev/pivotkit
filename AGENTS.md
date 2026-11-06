@@ -70,8 +70,11 @@ npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
 
 ## Exceptions to the repository standards
 
+Confirmed by the owner on 2026-11-06, each temporary:
+
 - Brand assets (icon, README header, social preview): not generated yet in `eizedev/brand`; added when
   they are.
-- Docs website (pivotkit.eize.dev): not built yet; follows with the React package.
+- Docs website (pivotkit.eize.dev): not built yet; follows with the React package. GitHub Pages needs
+  the repository to be public on GitHub Free.
 - Secret scanning, push protection, private vulnerability reporting and rulesets: not available while
   the repository is private on GitHub Free; switched on when it becomes public.
