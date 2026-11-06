@@ -1,0 +1,41 @@
+/* The page around the report: system colours only, so light and dark follow the page's theme. The
+   report itself is themed by its --pk-* tokens. */
+:root {
+    color-scheme: light dark;
+    font-family: system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+body {
+    margin: 0;
+    background: Canvas;
+    color: CanvasText;
+}
+header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+}
+h1 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+select {
+    min-height: 32px;
+    margin-left: 8px;
+    font: inherit;
+}
+main {
+    padding: 0 16px 16px;
+}
+#last-event {
+    margin: 8px 0 0;
+    overflow-wrap: anywhere;
+}

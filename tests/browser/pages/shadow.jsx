@@ -1,4 +1,5 @@
-// The report inside a shadow root, as the web component <pivot-report> will mount it: the stylesheet
+// The report inside a shadow root as a React host would mount it there (the web component
+// pivotkit-element adopts a constructed stylesheet instead, see element.spec.js): the stylesheet
 // is linked inside the root, the theme comes from the shadow host's data-theme.
 import React from "react";
 import { createRoot } from "react-dom/client";

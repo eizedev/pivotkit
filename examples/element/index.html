@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>pivotkit-element example</title>
+        <link rel="stylesheet" href="./example.css" />
+        <!-- the element with its own React; ECharts and the Excel export load from dist/chunks/ when needed -->
+        <script type="module" src="../../packages/pivotkit-element/dist/index.js"></script>
+        <script type="module" src="./app.js"></script>
+    </head>
+    <body>
+        <header>
+            <h1>Sales report</h1>
+            <label>
+                Theme
+                <select id="theme">
+                    <option value="auto">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </label>
+        </header>
+        <main>
+            <!-- data and templates are properties, set by app.js; the start view is JSON in an attribute -->
+            <pivot-report
+                height="640"
+                file-name="sales"
+                save-templates
+                default-view='{"rows":["Region","Country"],"cols":["Category"],"values":[{"field":"Revenue","agg":"sum","format":"currency:EUR"}]}'
+            ></pivot-report>
+            <p id="last-event" role="status">No change yet.</p>
+        </main>
+        <!-- what a server-rendered page (PHP, say) writes: the templates as JSON, read by app.js -->
+        <script type="application/json" id="templates">
+            [
+                { "name": "Revenue by region", "view": { "rows": ["Region"], "values": [{ "field": "Revenue", "agg": "sum", "format": "currency:EUR" }] } },
+                { "name": "Units per month (chart)", "view": { "rows": ["Month"], "values": [{ "field": "Units", "agg": "sum" }], "display": "chart", "chart": { "type": "line" } } }
+            ]
+        </script>
+    </body>
+</html>

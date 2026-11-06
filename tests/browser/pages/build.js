@@ -6,14 +6,20 @@
 //   React itself (PowerShell Universal) loads it. The page renders again every 200 ms with a new copy
 //   of the rows and a controlled view.
 // - shadow.html: the report inside a shadow root with its stylesheet linked there, as the web
-//   component will mount it.
+//   component mounts it.
+// - element-*.html: pages of the web component pivotkit-element (sources in element/), which loads
+//   from dist/packages/pivotkit-element/dist/ as it ships (npm run build -w pivotkit-element first):
+//   two elements, properties set before the definition, the package loaded twice, a strict CSP,
+//   listener and observer counts, a page with its own React. The element example
+//   (examples/element/) is copied to dist/examples/element/ next to it, at the same relative path as
+//   in the repository.
 //
 // PIVOTKIT_REACT=19 takes React and ReactDOM from tests/react19 (npm ci --prefix tests/react19);
 // the default is the React 18 of the workspace.
 //
 //   node tests/browser/pages/build.js
 import * as esbuild from "esbuild";
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -89,3 +95,25 @@ await writeFile(`${out}jsx-runtime.js`, 'import React from "react";\nexport cons
 const page = (title, body) => `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1" />\n<title>${title}</title>\n${body}\n</head>\n<body><div id="app"></div></body>\n</html>\n`;
 await writeFile(`${out}host.html`, page("pivotkit host page", `<link rel="stylesheet" href="./pivotkit-react.css" />\n<script type="importmap">${JSON.stringify(importMap)}</script>\n<script type="module" src="./host.js"></script>`));
 await writeFile(`${out}shadow.html`, page("pivotkit in a shadow root", '<script type="module" src="./shadow.js"></script>'));
+
+// the web component as it ships, the example next to it, and the element's test pages
+const playground = `${root}examples/playground/dist/`;
+await cp(`${root}packages/pivotkit-element/dist/`, `${playground}packages/pivotkit-element/dist/`, { recursive: true });
+// a second copy at another URL, as a page that loads the package twice (element-twice.html) has it
+await cp(`${root}packages/pivotkit-element/dist/`, `${out}element-copy/`, { recursive: true });
+await mkdir(`${playground}examples/element/`, { recursive: true });
+for (const file of ["index.html", "app.js", "example.css"]) {
+    await copyFile(`${root}examples/element/${file}`, `${playground}examples/element/${file}`);
+}
+const elementDir = `${here}element/`;
+const sources = await readdir(elementDir);
+// the React page leaves React to the import map; the others bundle their data
+await esbuild.build({ ...common, absWorkingDir: elementDir, entryPoints: { "element-react": "react.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "react/jsx-runtime"] });
+const scripts = sources.filter((f) => f.endsWith(".js") && f !== "leaks.js");
+await esbuild.build({ ...common, absWorkingDir: elementDir, entryPoints: Object.fromEntries(scripts.map((f) => [`element-${f.replace(/\.js$/, "")}`, f])), outdir: out });
+// a classic script that runs before any module: copied as it is
+await copyFile(`${elementDir}leaks.js`, `${out}element-leaks.js`);
+for (const html of sources.filter((f) => f.endsWith(".html"))) {
+    const text = (await readFile(`${elementDir}${html}`, "utf8")).replace("IMPORT_MAP", JSON.stringify({ imports: importMap.imports }));
+    await writeFile(`${out}element-${html}`, text);
+}
