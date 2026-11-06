@@ -21,7 +21,8 @@ Status: in development. Nothing is published to npm yet.
 ## Example
 
 ```js
-import { encode, computePivot, toGrid, toXlsx } from "pivotkit-core";
+import { encode, computePivot, toGrid } from "pivotkit-core";
+import { toXlsx } from "pivotkit-core/export";
 
 const data = encode(rows);                       // an array of objects
 const result = computePivot(data, {
@@ -34,16 +35,22 @@ const xlsx = toXlsx(grid);                       // Uint8Array
 ```
 
 The view passed to `computePivot` is plain JSON: the same object is the saved template, the undo
-step and what the UI edits. See [pivotkit-core](packages/pivotkit-core/) for the API and the view.
+step and what the UI edits. It is treated as user input: it cannot run code, and the limits in
+`LIMITS` keep its memory use bounded. See [pivotkit-core](packages/pivotkit-core/) for the API, the
+view, the limits and the export.
 
 ## Development
 
 ```bash
 npm ci
 npm run lint
+npm run types                    # type check, generated .d.ts, TypeScript consumer test
 npm test
+npm run pack:check               # what npm pack would publish
 npm run bench -w pivotkit-core
 ```
+
+Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
 
 ## License
 

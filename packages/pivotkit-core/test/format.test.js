@@ -25,3 +25,21 @@ test("format names are a fixed grammar; anything else is refused", () => {
     // an unknown format falls back to locale numbers
     assert.equal(formatter("bogus", { locale: "en-US" })(1.234), "1.23");
 });
+
+test("values that round to zero show no minus sign", () => {
+    const en = { locale: "en-US" };
+    assert.equal(formatter("number", en)(-0.001), "0");
+    assert.equal(formatter("number", en)(-0), "0");
+    assert.equal(formatter("percent", en)(-0.0001), "0%");
+    assert.equal(formatter("bytes", en)(-0.2), "0 B");
+    assert.equal(formatter("number", en)(-1.5), "-1.5");
+});
+
+test("explicit decimals are exact for number, percent and percent100; up to 20", () => {
+    const en = { locale: "en-US" };
+    assert.equal(formatter("percent:2", en)(0.25), "25.00%");
+    assert.equal(formatter("percent", en)(0.25), "25%");
+    assert.equal(formatter("percent100:1", en)(25), "25.0%");
+    assert.equal(isFormat("number:20"), true);
+    assert.equal(isFormat("number:21"), false);
+});
