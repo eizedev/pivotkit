@@ -5,3 +5,27 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- `<pivot-report>`: pivotkit-react's `<PivotReport>` as a custom element in an open shadow root, with
+  its own React 18.3.1, ReactDOM, pivotkit-react, pivotkit-core and @dnd-kit in the bundle; ECharts
+  (bar, line, pie and heatmap only) and the XLSX/CSV export are chunks loaded on first use.
+- Properties `data`, `dataKey`, `view`, `defaultView`, `templates`, `labels`, `fieldDefaults`, `limits`;
+  reflected attributes `locale` (else the element's `lang`), `theme`, `height`, `time-zone`,
+  `file-name`, `drill-down`, `drill-down-limit`, `save-templates`; JSON attributes `view` and
+  `default-view`. Controlled and uncontrolled as in pivotkit-react; a different `defaultView` starts
+  the report again on it.
+- Events `pivot-view-change`, `pivot-cell-click`, `pivot-template-save` and `pivot-template-delete`
+  (answered with `detail.respondWith(promise)`), and `pivot-export` (cancelable: the page keeps the
+  file); all bubble and are composed.
+- Styles in the shadow root as one shared constructed stylesheet (a `<style>` element where there is
+  none); the `--pk-*` tokens are declared on `:host`, so the page themes the element with rules on it
+  and nothing else crosses; `data-pk-theme` on the element tells the theme shown.
+- Lifecycle: properties set before the definition are taken over, a disconnected element unmounts its
+  React root (a move in the same task keeps it), a reconnected one mounts again on its last view.
+- `define(name)` for another tag name; loading the package twice does not throw. Imports in Node
+  without defining anything.
+- Type declarations: the element, `PivotReportEventMap`, `HTMLElementTagNameMap` and the event map of
+  the DOM.
+- `dist/THIRD_PARTY_LICENSES.txt` with the license texts of the bundled packages.

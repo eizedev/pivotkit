@@ -1,0 +1,22 @@
+{
+  // Type check of the sources (JSDoc in .js) and the .d.ts files that ship in the package: npm run
+  // types. Needs the generated types of pivotkit-core and pivotkit-react (the root's npm run types
+  // builds them first). The output (types/) is not committed; types.js adds the hand-written
+  // global.d.ts (the DOM's tag and event maps) to it.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "types",
+    "rootDir": "src",
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": [],
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "include": ["src/**/*.js", "src/**/*.d.ts"]
+}

@@ -21,7 +21,7 @@ export default [
     },
     {
         // tests, benchmarks and tooling run in Node
-        ignores: ["packages/*/src/**", "examples/*/src/**"],
+        ignores: ["packages/*/src/**", "examples/*/src/**", "examples/element/**"],
         languageOptions: { globals: { ...globals.node } }
     },
     {
@@ -30,8 +30,8 @@ export default [
         languageOptions: { globals: { ...globals["shared-node-browser"] } }
     },
     {
-        // the UI and the playground run in browsers
-        files: ["packages/pivotkit-react/src/**", "examples/*/src/**"],
+        // the UI, the web component, the playground and the element example run in browsers
+        files: ["packages/pivotkit-react/src/**", "packages/pivotkit-element/src/**", "examples/*/src/**", "examples/element/**"],
         languageOptions: { globals: { ...globals.browser } }
     },
     {

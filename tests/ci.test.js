@@ -24,7 +24,7 @@ test("the Playwright container image matches @playwright/test in package-lock.js
 const OWN = new Set(["pivotkit-core", "pivotkit-react", "pivotkit-element"]);
 
 test("every dependency is pinned to an exact version; this repository's own packages take a caret range", () => {
-    const manifests = ["package.json", "packages/pivotkit-core/package.json", "packages/pivotkit-react/package.json", "tests/react19/package.json"];
+    const manifests = ["package.json", "packages/pivotkit-core/package.json", "packages/pivotkit-react/package.json", "packages/pivotkit-element/package.json", "tests/react19/package.json"];
     for (const file of manifests) {
         const pkg = JSON.parse(readFileSync(new URL(file, root), "utf8"));
         for (const section of ["dependencies", "devDependencies"]) {
@@ -43,6 +43,18 @@ test("the own packages' caret ranges take the version of the package in this rep
     const core = JSON.parse(readFileSync(new URL("packages/pivotkit-core/package.json", root), "utf8"));
     const react = JSON.parse(readFileSync(new URL("packages/pivotkit-react/package.json", root), "utf8"));
     assert.equal(react.dependencies["pivotkit-core"], `^${core.version}`);
+});
+
+// pivotkit-element bundles its own packages: they are build-time devDependencies, pinned to the
+// version in this repository (npm links the workspace only when the version matches; else it would
+// fetch the package from the registry)
+test("pivotkit-element bundles the pivotkit-core and pivotkit-react of this repository", () => {
+    const element = JSON.parse(readFileSync(new URL("packages/pivotkit-element/package.json", root), "utf8"));
+    assert.deepEqual(Object.keys(element.dependencies ?? {}), [], "pivotkit-element has no runtime dependency: it bundles everything");
+    for (const name of ["pivotkit-core", "pivotkit-react"]) {
+        const own = JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, root), "utf8"));
+        assert.equal(element.devDependencies[name], own.version, `pivotkit-element devDependencies.${name}`);
+    }
 });
 
 test("the React 19 check installs from its own lock file", () => {

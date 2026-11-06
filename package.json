@@ -5,7 +5,9 @@
   "description": "Repository root of pivotkit: npm workspaces for pivotkit-core, pivotkit-react and pivotkit-element, the playground (examples/playground) and its browser tests (tests/browser).",
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/pivotkit-core",
+    "packages/pivotkit-react",
+    "packages/pivotkit-element"
   ],
   "engines": {
     "node": ">=22"
@@ -16,9 +18,9 @@
     "test": "npm test --workspaces --if-present && node --test \"tests/*.test.js\"",
     "types": "npm run types --workspaces --if-present && npm run test:types --workspaces --if-present",
     "coverage": "npm run coverage --workspaces --if-present",
-    "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react",
+    "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react && node scripts/check-pack.js pivotkit-element",
     "playground": "node examples/playground/build.js --serve",
-    "build:playground": "node examples/playground/build.js && node tests/browser/pages/build.js",
+    "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node tests/browser/pages/build.js",
     "test:browser": "npm run build:playground && playwright test"
   },
   "devDependencies": {

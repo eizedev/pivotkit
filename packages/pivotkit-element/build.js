@@ -1,0 +1,194 @@
+// Builds the package into dist/: ES modules that hold everything the element needs, React 18.3.1 and
+// ReactDOM, pivotkit-react, pivotkit-core and @dnd-kit, so a page needs no bundler, no import map and
+// no React of its own.
+//
+// - dist/index.js defines <pivot-report>; dist/element.js only exports the class and define().
+// - ECharts and the XLSX/CSV export (pivotkit-core/export with fflate) are loaded on first use, from
+//   chunks next to the entry (dist/chunks/), as pivotkit-react's dynamic imports ask for them.
+// - pivotkit-react's styles.css becomes a string with its tokens moved to :host (src/host-css.js).
+// - dist/THIRD_PARTY_LICENSES.txt holds the license texts of every bundled package.
+//
+// pivotkit-react's dist/ is built first, from its own build options: the element bundles the package
+// as it ships.
+//
+//   node build.js          build
+//   node build.js --size   build and print the gzip size of every file
+import * as esbuild from "esbuild";
+import { readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { gzipSync } from "node:zlib";
+import { options as reactOptions } from "../pivotkit-react/build.js";
+import { hostStyles } from "./src/host-css.js";
+
+const here = new URL(".", import.meta.url).pathname;
+
+/** pivotkit-react/styles.css as a JS string for the shadow root. */
+const shadowStyles = {
+    name: "shadow-styles",
+    setup(build) {
+        build.onLoad({ filter: /pivotkit-react[\\/]dist[\\/]styles\.css$/ }, async (args) => {
+            const css = hostStyles(await readFile(args.path, "utf8"));
+            const { code } = await esbuild.transform(css, { loader: "css", minify: true });
+            return { contents: `export default ${JSON.stringify(code)};`, loader: "js" };
+        });
+    }
+};
+
+/**
+ * The parts of ECharts pivotkit-react's loadECharts() (chart.jsx) registers. Its `import("echarts/charts")`
+ * would bundle every chart type, since a dynamic import keeps the whole namespace; here each of the
+ * three modules re-exports only these, so the chart chunks hold four chart types. test/build.test.js
+ * checks the list against chart.jsx.
+ */
+export const ECHARTS_PARTS = {
+    "echarts/charts": ["BarChart", "LineChart", "PieChart", "HeatmapChart"],
+    "echarts/components": ["GridComponent", "TooltipComponent", "LegendComponent", "VisualMapComponent"],
+    "echarts/renderers": ["CanvasRenderer"]
+};
+
+const echartsSubset = {
+    name: "echarts-subset",
+    setup(build) {
+        build.onResolve({ filter: /^echarts\/(charts|components|renderers)$/ }, (args) =>
+            args.namespace === "echarts-subset" ? undefined : { path: args.path, namespace: "echarts-subset", pluginData: args.resolveDir }
+        );
+        build.onLoad({ filter: /.*/, namespace: "echarts-subset" }, (args) => ({
+            contents: `export { ${ECHARTS_PARTS[args.path].join(", ")} } from ${JSON.stringify(args.path)};`,
+            resolveDir: args.pluginData,
+            loader: "js"
+        }));
+    }
+};
+
+/** @type {import("esbuild").BuildOptions} */
+export const options = {
+    absWorkingDir: here,
+    entryPoints: { index: "src/index.js", element: "src/element.js" },
+    outdir: "dist",
+    bundle: true,
+    splitting: true,
+    chunkNames: "chunks/[name]-[hash]",
+    format: "esm",
+    platform: "browser",
+    target: reactOptions.target,
+    minify: true,
+    define: { "process.env.NODE_ENV": '"production"' },
+    // the license texts go into one file (licenses() below), not into comments of the bundle
+    legalComments: "none",
+    metafile: true,
+    plugins: [shadowStyles, echartsSubset],
+    logLevel: "warning"
+};
+
+/**
+ * The package directories (node_modules/<name> or node_modules/@scope/<name>) of the bundled inputs.
+ * @param {import("esbuild").Metafile} metafile
+ */
+export function bundledPackages(metafile) {
+    const dirs = new Set();
+    for (const input of Object.keys(metafile.inputs)) {
+        const m = /^(.*node_modules[\\/](?:@[^\\/]+[\\/])?[^\\/]+)[\\/]/.exec(input);
+        if (m) {
+            dirs.add(m[1]);
+        }
+    }
+    return [...dirs].sort();
+}
+
+/** The license and notice files of the bundled packages, as one text. */
+async function licenses(metafile) {
+    const parts = [
+        "pivotkit-element bundles the following packages. Their license texts follow; pivotkit-core and",
+        "pivotkit-react are part of pivotkit (MIT, see LICENSE).",
+        ""
+    ];
+    for (const dir of bundledPackages(metafile)) {
+        const abs = join(here, dir);
+        const pkg = JSON.parse(await readFile(join(abs, "package.json"), "utf8"));
+        parts.push("=".repeat(78), `${pkg.name} ${pkg.version} (${pkg.license})`, "=".repeat(78), "");
+        // LICENSE, NOTICE and the like; a licenses/ directory (ECharts: code it took from d3) too
+        const files = [];
+        for (const entry of await readdir(abs, { withFileTypes: true })) {
+            if (!/^(licen[cs]es?|notice|copying)/i.test(entry.name)) {
+                continue;
+            }
+            if (entry.isFile()) {
+                files.push(entry.name);
+            } else if (entry.isDirectory()) {
+                files.push(...(await readdir(join(abs, entry.name))).map((f) => join(entry.name, f)));
+            }
+        }
+        if (files.length === 0) {
+            throw new Error(`${pkg.name}: no license file to bundle`);
+        }
+        for (const f of files.sort()) {
+            parts.push(`--- ${f} ---`, "", (await readFile(join(abs, f), "utf8")).trim(), "");
+        }
+    }
+    return parts.join("\n");
+}
+
+/**
+ * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
+ * each group of dynamic imports with what they add ("chart": ECharts, "export": XLSX and CSV).
+ * @param {import("esbuild").Metafile} metafile
+ * @returns {{ group: string, files: string[] }[]}
+ */
+export function loadGroups(metafile) {
+    const closure = (start, seen = new Set()) => {
+        const walk = (file) => {
+            if (seen.has(file)) {
+                return;
+            }
+            seen.add(file);
+            for (const imp of metafile.outputs[file]?.imports ?? []) {
+                if (imp.kind === "import-statement") {
+                    walk(imp.path);
+                }
+            }
+        };
+        start.forEach(walk);
+        return seen;
+    };
+    const initial = closure(["dist/index.js"]);
+    const dynamic = [...initial].flatMap((f) => (metafile.outputs[f]?.imports ?? []).filter((i) => i.kind === "dynamic-import").map((i) => i.path));
+    const groupOf = (file) => (/[\\/](core|charts|components|renderers)-[^\\/]+$/.test(file) ? "chart" : "export");
+    const groups = [{ group: "initial", files: [...initial] }];
+    for (const name of ["chart", "export"]) {
+        const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
+        groups.push({ group: name, files });
+    }
+    return groups;
+}
+
+/**
+ * The size of each load group, raw and gzip (level 9), in bytes.
+ * @param {import("esbuild").Metafile} metafile
+ */
+async function sizes(metafile) {
+    const out = [];
+    for (const { group, files } of loadGroups(metafile)) {
+        let raw = 0;
+        let gzip = 0;
+        for (const file of files) {
+            const bytes = await readFile(join(here, file));
+            raw += bytes.length;
+            gzip += gzipSync(bytes, { level: 9 }).length;
+        }
+        out.push({ group, files: files.length, raw, gzip });
+    }
+    return out;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+    await esbuild.build(reactOptions);
+    await rm(join(here, "dist"), { recursive: true, force: true });
+    const result = await esbuild.build(options);
+    await writeFile(join(here, "dist", "THIRD_PARTY_LICENSES.txt"), await licenses(result.metafile));
+    if (process.argv.includes("--size")) {
+        const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
+        for (const { group, files, raw, gzip } of await sizes(result.metafile)) {
+            console.log(`${group.padEnd(8)} ${String(files).padStart(3)} files ${kb(raw).padStart(11)} ${kb(gzip).padStart(11)} gzip`);
+        }
+    }
+}
