@@ -1,6 +1,7 @@
 /*
  * Names the UI writes for things the core leaves unnamed: a value ("Sum of Revenue", "% of grand
- * total of Revenue") and the derived field of a grouping ("Created (Month)"), in the labels' language.
+ * total of Revenue") and the derived field of a grouping ("Created (Month)"), in the labels' language;
+ * and what a click on a field of the field list does, in words.
  */
 
 import { fill } from "./labels.js";
@@ -30,3 +31,25 @@ export function groupingName(source, unit, labels, size) {
     return unit === "bin" ? fill(labels.binsName, { field: source, size }) : fill(labels.derivedName, { field: source, unit: labels.units[unit] ?? unit });
 }
 
+
+/** The zone a click on a field of the field list puts it in: numbers to Values, the rest to Rows. */
+export const quickZone = (type) => (type === "number" ? "values" : "rows");
+
+/**
+ * What a click on a field of the field list does, from its type and the zones it is in: "add" it to
+ * its quick zone (a number is added to Values once more each time), "move" it there from Columns or
+ * Filters (a field is on one axis only), or nothing when it is on that axis already. `name` is the
+ * button's accessible name (the field and where it is), `description` the action in words.
+ * @param {string} field
+ * @param {string} type
+ * @param {string[]} zones  the zones the field is in
+ * @param {import("./labels.js").UiLabels} labels
+ * @returns {{ zone: string, kind: "add" | "move" | null, name: string, description: string }}
+ */
+export function fieldAction(field, type, zones, labels) {
+    const zone = quickZone(type);
+    const kind = zone === "values" ? "add" : zones.includes(zone) ? null : zones.some((z) => z === "cols" || z === "filters") ? "move" : "add";
+    const name = zones.length ? `${field}, ${fill(labels.inZone, { zone: zones.map((z) => labels.zones[z] ?? z).join(", ") })}` : field;
+    const description = kind === null ? "" : fill(kind === "move" ? labels.moveTo : labels.addTo, { zone: labels.zones[zone] });
+    return { zone, kind, name, description };
+}

@@ -103,7 +103,8 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 
 - Fields: search the list; drag a field into a zone (the lists and the page scroll while dragging, the
   dragged field is drawn above everything); click a field to add it (numbers to Values, the rest to
-  Rows); or use its menu "Add to Rows / Columns / Values / Filters". A date is grouped as soon as it
+  Rows; a field in Columns or Filters moves to Rows, one in Rows stays, and the field's description
+  says which); or use its menu "Add to Rows / Columns / Values / Filters". A date is grouped as soon as it
   is placed, by the span of its values: up to 62 days by day, up to two years by month ("Jan 2025"),
   up to six years by quarter, longer by year; the chip says so ("Created (Month)").
 - Chips: drag to reorder or to another zone, drag back to the field list or press x to remove (a note

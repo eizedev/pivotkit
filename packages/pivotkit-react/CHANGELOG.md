@@ -59,3 +59,6 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Templates with the same name (a saved template with a preset's name) gave React duplicate keys,
   and a delete asked for confirmation on every entry of that name; entries are keyed and confirmed
   by their place in the list, and every one is shown.
+- A field of the field list described its click as "Add to Rows" wherever it was; its description
+  now says what a click does from where it is ("Move to Rows" from Columns or Filters, "Add to
+  Values" for a number), and a click on a field already in Rows changes nothing.

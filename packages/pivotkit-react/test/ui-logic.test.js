@@ -8,7 +8,7 @@ import { MANY_SERIES, MAX_CATEGORIES } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, plural, resolveLabels } from "../src/labels.js";
-import { valueLabel } from "../src/names.js";
+import { fieldAction, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
 
 const en = LABELS.en;
@@ -158,4 +158,22 @@ test("labels from a host: wrong types are ignored, not merged", () => {
     assert.equal(/** @type {any} */ (l).unknownKey, undefined);
     assert.deepEqual(resolveLabels("en", { emptySteps: ["One", "Two"] }).emptySteps, ["One", "Two"]);
     assert.deepEqual(resolveLabels("en", { emptySteps: [1, 2] }).emptySteps, en.emptySteps);
+});
+
+test("a field of the field list says where it is and what a click on it does", () => {
+    const at = (type, zones, labels = en) => {
+        const a = fieldAction("Priority", type, zones, labels);
+        return [a.kind, a.zone, a.name, a.description];
+    };
+    assert.deepEqual(at("string", []), ["add", "rows", "Priority", "Add to Rows"]);
+    // in Columns: a click moves it to Rows, it is not added a second time
+    assert.deepEqual(at("string", ["cols"]), ["move", "rows", "Priority, in Columns", "Move to Rows"]);
+    assert.deepEqual(at("date", ["filters"]), ["move", "rows", "Priority, in Filters", "Move to Rows"]);
+    // in Rows already: a click does nothing, so there is nothing to describe
+    assert.deepEqual(at("string", ["rows"]), [null, "rows", "Priority, in Rows", ""]);
+    // counted in Values, not on an axis: a click adds it to Rows
+    assert.deepEqual(at("string", ["values"]), ["add", "rows", "Priority, in Values", "Add to Rows"]);
+    // a number is added to Values once more
+    assert.deepEqual(at("number", ["values", "rows"]), ["add", "values", "Priority, in Values, Rows", "Add to Values"]);
+    assert.deepEqual(at("string", ["cols"], LABELS.de), ["move", "rows", "Priority, in Spalten", "Nach Zeilen verschieben"]);
 });

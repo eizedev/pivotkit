@@ -132,6 +132,24 @@ test.describe("names, roles and sizes", () => {
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName(new RegExp(`^Region, filtered ${total - 1} of ${total}, sorted`));
     });
 
+    test("a field in the list describes what a click on it does from where it is", async ({ page }) => {
+        await page.goto("?data=tickets");
+        const field = (name) => page.locator(`.pk-field[data-field="${name}"] .pk-field-name`);
+        await expect(field("Priority")).toHaveAccessibleName("Priority, in Columns");
+        await expect(field("Priority")).toHaveAccessibleDescription("Move to Rows");
+        await expect(field("Status")).toHaveAccessibleDescription("Add to Rows");
+        await expect(field("Lead hours")).toHaveAccessibleDescription("Add to Values");
+        await field("Priority").click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Team", "Priority"]);
+        await expect.poll(() => chips(page, "cols")).toEqual([]);
+        // on Rows now: a click changes nothing, and nothing is described
+        await expect(field("Priority")).toHaveAccessibleName("Priority, in Rows");
+        await expect(field("Priority")).toHaveAccessibleDescription("");
+        await field("Priority").click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Team", "Priority"]);
+        await expect(page.getByTestId("undo")).toBeEnabled();
+    });
+
     test("every control is at least 24 by 24 px (WCAG 2.5.8), wide and narrow", async ({ page }) => {
         // measured at rest: the chips scale in when they appear
         await page.emulateMedia({ reducedMotion: "reduce" });

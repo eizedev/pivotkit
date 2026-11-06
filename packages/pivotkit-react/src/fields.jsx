@@ -9,17 +9,17 @@ import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { fill } from "./labels.js";
+import { fieldAction } from "./names.js";
 import { MenuButton, Option } from "./popover.jsx";
 import { ZONES } from "./view-ops.js";
 
 const ZONE_ICON = { rows: "rows", cols: "cols", values: "sigma", filters: "filter" };
 
-/** The zone a click on a field adds it to. */
-export const quickZone = (type) => (type === "number" ? "values" : "rows");
-
 function FieldItem({ field, labels, zones, onAdd }) {
     const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: field.name });
     const typeLabel = labels.types[field.type] ?? field.type;
+    // what a click does, said where it is said: the title and the accessible description
+    const action = fieldAction(field.name, field.type, zones, labels);
     return (
         <li className={`pk-field${isDragging ? " pk-dragging" : ""}${zones.length ? " pk-placed" : ""}`} ref={setNodeRef} {...itemProps} data-field={field.name}>
             <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: field.name })} title={labels.fieldsHint}>
@@ -32,9 +32,14 @@ function FieldItem({ field, labels, zones, onAdd }) {
             <button
                 type="button"
                 className="pk-field-name"
-                onClick={() => onAdd(field.name, quickZone(field.type))}
-                title={`${field.name} \u2013 ${fill(labels.addTo, { zone: labels.zones[quickZone(field.type)] })}`}
-                aria-label={zones.length ? `${field.name}, ${fill(labels.inZone, { zone: zones.map((z) => labels.zones[z]).join(", ") })}` : undefined}
+                onClick={() => {
+                    if (action.kind) {
+                        onAdd(field.name, action.zone);
+                    }
+                }}
+                title={action.description ? `${action.name} \u2013 ${action.description}` : action.name}
+                aria-label={zones.length ? action.name : undefined}
+                aria-description={action.description || undefined}
             >
                 {field.name}
             </button>
