@@ -23,11 +23,12 @@ one copy of the core only when the ranges overlap.
 | Peer | Range | Why a peer |
 | --- | --- | --- |
 | `react`, `react-dom` | `>=18.2 <20` | Hooks break with two copies of React in one page. CI runs every browser test on React 18 and on React 19. |
-| `echarts` | `>=6.1.0 <7` | About 1 MB; a host that draws its own charts already has it, and its security updates stay with the host. It is loaded on the first chart (`import("echarts/core")` with bar, line, pie and heatmap only), so a report that never shows a chart does not load it. |
+| `echarts` | `>=6.1.0 <7` | About 1 MB; a host that draws its own charts already has it, and its security updates stay with the host. It is loaded on the first chart (`dist/echarts.js`: bar, line, pie and heatmap, the components they use and the canvas renderer, imported by name so a bundler keeps only these), so a report that never shows a chart does not load it. |
 
-`dist/index.js` is one ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
-`pivotkit-core/export`, `@dnd-kit/core`, `@dnd-kit/sortable` and `echarts/core`, `echarts/charts`,
-`echarts/components`, `echarts/renderers`. A host's bundler resolves them; a page without a bundler
+`dist/index.js` is an ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
+`pivotkit-core/export`, `@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
+`./echarts.js` next to it, whose imports `echarts/core`, `echarts/charts`, `echarts/components` and
+`echarts/renderers` stay bare too (named imports only). A host's bundler resolves them; a page without a bundler
 maps each to a file with an import map (`tests/browser/pages/build.js` builds such a page, and the
 browser tests load the package that way).
 

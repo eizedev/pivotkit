@@ -218,13 +218,13 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
 | First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 378 KiB | 121 KiB |
-| On the first chart (ECharts with bar, line, pie, heatmap, the components they use and the canvas renderer) | 10 | 615 KiB | 215 KiB |
+| On the first chart (ECharts with bar, line, pie, heatmap, the components they use and the canvas renderer) | 1 | 592 KiB | 200 KiB |
 | On the first XLSX or CSV export (pivotkit-core's export with fflate) | 1 | 17 KiB | 8 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart
-types the report draws are in the chunks (`ECHARTS_PARTS` in `build.js`, checked against
-pivotkit-react's `chart.jsx`). A page that already has ECharts loads it twice; one that needs a single
+types the report draws are in the chunk: pivotkit-react's `echarts.js` imports them by name
+(`test/build.test.js` checks the chunk against it). A page that already has ECharts loads it twice; one that needs a single
 copy uses [pivotkit-react](../pivotkit-react/) with its own React instead.
 
 ## React on the page

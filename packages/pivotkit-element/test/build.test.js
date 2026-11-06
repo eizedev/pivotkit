@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import * as esbuild from "esbuild";
-import { ECHARTS_PARTS, bundledPackages, loadGroups, options } from "../build.js";
+import { bundledPackages, loadGroups, options } from "../build.js";
 import { hostStyles } from "../src/host-css.js";
 
 const pkgDir = new URL("../", import.meta.url);
@@ -70,15 +70,14 @@ test("the transform fails loudly when pivotkit-react's token rules change", () =
     assert.throws(() => hostStyles(".pk-root { color: red; }"), /token rules changed/);
 });
 
-test("the ECharts parts are the ones pivotkit-react registers", async () => {
-    const chart = await readFile(new URL("../../pivotkit-react/src/chart.jsx", import.meta.url), "utf8");
-    const used = { "echarts/charts": [], "echarts/components": [], "echarts/renderers": [] };
-    for (const m of chart.matchAll(/\b(charts|components|renderers)\.([A-Z]\w+)/g)) {
-        used[`echarts/${m[1]}`].push(m[2]);
-    }
-    for (const [mod, names] of Object.entries(ECHARTS_PARTS)) {
-        assert.deepEqual([...names].sort(), [...new Set(used[mod])].sort(), mod);
-    }
+test("the chart chunks hold the chart types pivotkit-react's echarts.js imports, no other", async () => {
+    const parts = await readFile(new URL("../../pivotkit-react/src/echarts.js", import.meta.url), "utf8");
+    const imported = [...parts.matchAll(/\b([A-Z]\w*)Chart\b/g)].map((m) => m[1].toLowerCase());
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    // a chart type is in the bundle when its install.js is (echarts/core itself brings helpers of others)
+    const drawn = new Set(inputsOf(groups.chart).flatMap((i) => /echarts[\\/]lib[\\/]chart[\\/](\w+)[\\/]install\.js$/.exec(i)?.[1] ?? []));
+    assert.deepEqual([...drawn].sort(), [...new Set(imported)].sort());
+    assert.deepEqual([...drawn].sort(), ["bar", "heatmap", "line", "pie"]);
 });
 
 test("a page loads React, the report and the core first; ECharts and the export only on demand", () => {

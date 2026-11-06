@@ -22,7 +22,8 @@
   ],
   "type": "module",
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "./dist/echarts.js"
   ],
   "exports": {
     ".": {

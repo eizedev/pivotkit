@@ -4,7 +4,8 @@
 //
 // - dist/index.js defines <pivot-report>; dist/element.js only exports the class and define().
 // - ECharts and the XLSX/CSV export (pivotkit-core/export with fflate) are loaded on first use, from
-//   chunks next to the entry (dist/chunks/), as pivotkit-react's dynamic imports ask for them.
+//   chunks next to the entry (dist/chunks/), as pivotkit-react's dynamic imports ask for them. The
+//   chart chunks hold only the parts of ECharts pivotkit-react's dist/echarts.js imports by name.
 // - pivotkit-react's styles.css becomes a string with its tokens moved to :host (src/host-css.js).
 // - dist/THIRD_PARTY_LICENSES.txt holds the license texts of every bundled package.
 //
@@ -35,32 +36,6 @@ const shadowStyles = {
     }
 };
 
-/**
- * The parts of ECharts pivotkit-react's loadECharts() (chart.jsx) registers. Its `import("echarts/charts")`
- * would bundle every chart type, since a dynamic import keeps the whole namespace; here each of the
- * three modules re-exports only these, so the chart chunks hold four chart types. test/build.test.js
- * checks the list against chart.jsx.
- */
-export const ECHARTS_PARTS = {
-    "echarts/charts": ["BarChart", "LineChart", "PieChart", "HeatmapChart"],
-    "echarts/components": ["GridComponent", "TooltipComponent", "LegendComponent", "VisualMapComponent"],
-    "echarts/renderers": ["CanvasRenderer"]
-};
-
-const echartsSubset = {
-    name: "echarts-subset",
-    setup(build) {
-        build.onResolve({ filter: /^echarts\/(charts|components|renderers)$/ }, (args) =>
-            args.namespace === "echarts-subset" ? undefined : { path: args.path, namespace: "echarts-subset", pluginData: args.resolveDir }
-        );
-        build.onLoad({ filter: /.*/, namespace: "echarts-subset" }, (args) => ({
-            contents: `export { ${ECHARTS_PARTS[args.path].join(", ")} } from ${JSON.stringify(args.path)};`,
-            resolveDir: args.pluginData,
-            loader: "js"
-        }));
-    }
-};
-
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: here,
@@ -77,7 +52,7 @@ export const options = {
     // the license texts go into one file (licenses() below), not into comments of the bundle
     legalComments: "none",
     metafile: true,
-    plugins: [shadowStyles, echartsSubset],
+    plugins: [shadowStyles],
     logLevel: "warning"
 };
 
@@ -137,10 +112,10 @@ async function licenses(metafile) {
 
 /**
  * The most a page may load per group, gzip, in KiB: about 10 % over what was measured when the budget
- * was set (initial 121.4, chart 215.1, export 7.8 on CI). `--size` fails above it; raise it on purpose,
+ * was set (initial 121.4, chart 200.3, export 7.7 on one Mac). `--size` fails above it; raise it on purpose,
  * with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 134, chart: 237, export: 9 };
+export const SIZE_BUDGET_KIB = { initial: 134, chart: 221, export: 9 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -166,7 +141,7 @@ export function loadGroups(metafile) {
     };
     const initial = closure(["dist/index.js"]);
     const dynamic = [...initial].flatMap((f) => (metafile.outputs[f]?.imports ?? []).filter((i) => i.kind === "dynamic-import").map((i) => i.path));
-    const groupOf = (file) => (/[\\/](core|charts|components|renderers)-[^\\/]+$/.test(file) ? "chart" : "export");
+    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : "export");
     const groups = [{ group: "initial", files: [...initial] }];
     for (const name of ["chart", "export"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));

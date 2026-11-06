@@ -41,3 +41,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   when there is no room; field list as a modal drawer below 640 px.
 - Labels in English and German with plain words; `labels` overrides single texts and ignores entries
   of the wrong type; the report's `lang` follows the labels.
+
+### Fixed
+
+- ECharts is loaded from `dist/echarts.js`, which imports bar, line, pie, heatmap, their components
+  and the canvas renderer by name; the namespace imports before made a host's bundler keep every
+  chart type.

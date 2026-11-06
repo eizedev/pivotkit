@@ -57,3 +57,17 @@ test("a view that makes too many cells shows the limit message instead of throwi
     assert.match(html, /role="alert"/);
     assert.match(html, /more than the limit of 100/);
 });
+
+test("ECharts is a file of its own with named imports, loaded on the first chart only", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const index = await readFile(new URL("../dist/index.js", import.meta.url), "utf8");
+    const parts = await readFile(new URL("../dist/echarts.js", import.meta.url), "utf8");
+    // no static import of echarts in the entry: a report without a chart does not load it
+    assert.doesNotMatch(index, /^import[^;]*from\s*"echarts/m);
+    assert.match(index, /import\("\.\/echarts\.js"\)/);
+    // a namespace import (import("echarts/charts"), import * as) would keep every chart type in a bundle
+    assert.doesNotMatch(parts, /import\s*\*|import\("echarts/);
+    assert.match(parts, /import \{[^}]*\bBarChart\b[^}]*\} from "echarts\/charts"/);
+    const mod = await import("../dist/echarts.js");
+    assert.equal(typeof mod.init, "function");
+});

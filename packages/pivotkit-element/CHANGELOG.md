@@ -31,3 +31,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   the DOM; `pivotkit-element/jsx` declares the element in React's JSX.
 - `dist/THIRD_PARTY_LICENSES.txt` with the license texts of the bundled packages; a size budget per
   load group (`npm run size`).
+
+### Fixed
+
+- The chart chunk takes the ECharts parts from pivotkit-react's `echarts.js` instead of a list of
+  its own; it is one file of 200 KiB gzip (budget 221 KiB).

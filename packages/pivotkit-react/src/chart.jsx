@@ -1,7 +1,7 @@
 /*
  * The chart: pivotkit-core's ECharts option on an ECharts instance of the host's echarts package (a
- * peer dependency). ECharts is loaded on first use with only the chart types and components the core
- * builds, so a report that never shows a chart does not load it. Colours come from the --pk-* tokens.
+ * peer dependency). ECharts is loaded on first use (echarts.js: only the chart types and components the
+ * core builds), so a report that never shows a chart does not load it. Colours come from the --pk-* tokens.
  * At most MAX_CATEGORIES categories are drawn. The canvas has a text alternative (chart-summary.js),
  * and hints say when the chart is hard to read, with "Swap rows and columns" where that helps.
  */
@@ -16,22 +16,10 @@ import { chartThemeFrom } from "./theme.js";
 /** @type {Promise<any> | null} */
 let loading = null;
 
-/** echarts/core with bar, line, pie and heatmap, the components they use and the canvas renderer. */
+/** ECharts with the parts the chart draws with (echarts.js), loaded once on the first chart. */
 export function loadECharts() {
-    loading ??= Promise.all([import("echarts/core"), import("echarts/charts"), import("echarts/components"), import("echarts/renderers")]).then(([core, charts, components, renderers]) => {
-        core.use([
-            charts.BarChart,
-            charts.LineChart,
-            charts.PieChart,
-            charts.HeatmapChart,
-            components.GridComponent,
-            components.TooltipComponent,
-            components.LegendComponent,
-            components.VisualMapComponent,
-            renderers.CanvasRenderer
-        ]);
-        return core;
-    });
+    // a file of its own in dist/ (build.js), so the host's bundler splits it off
+    loading ??= import("./echarts.js");
     return loading;
 }
 

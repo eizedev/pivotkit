@@ -23,16 +23,17 @@ builds depend on it.
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
   pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `dnd.jsx` is the
-  only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `chart.jsx` the only importer of
-  echarts (lazy); `dom.js` the shadow-root-safe focus and Escape helpers; `labels.js` the texts (en,
+  only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
+  echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
+  chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe focus and Escape helpers; `labels.js` the texts (en,
   de); `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package and the contrast of the tokens);
   `test/types/` is a TypeScript consumer.
 - `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow
   root on a React 18.3.1 of its own, for hosts without React (Angular, PHP, plain HTML). `build.js`
   builds pivotkit-react's `dist/` first and bundles it with React, ReactDOM, pivotkit-core and
-  @dnd-kit into `dist/` (ES modules, minified, production React); ECharts (only the parts in
-  `ECHARTS_PARTS`) and the export are chunks loaded on first use; it writes
+  @dnd-kit into `dist/` (ES modules, minified, production React); ECharts (only the parts
+  pivotkit-react's `echarts.js` imports) and the export are chunks loaded on first use; it writes
   `dist/THIRD_PARTY_LICENSES.txt`. Every bundled package is a devDependency, the package has no
   runtime dependency. `src/element.js` is the element (properties, lifecycle, one React root per
   element), `src/props.js` the one table of attributes and how each maps to a property,

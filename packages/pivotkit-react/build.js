@@ -1,5 +1,6 @@
-// Builds the package into dist/: one ES module with the JSX compiled (React.createElement, so the
-// host needs only `react` and `react-dom`, no JSX runtime) and the stylesheet. React, ReactDOM,
+// Builds the package into dist/: index.js with the JSX compiled (React.createElement, so the host needs
+// only `react` and `react-dom`, no JSX runtime), echarts.js (the parts of ECharts the chart uses,
+// imported by name; index.js loads it on the first chart) and the stylesheet. React, ReactDOM,
 // ECharts, pivotkit-core and dnd-kit stay imports: the host's bundler resolves them once.
 //
 //   node build.js            build
@@ -9,10 +10,18 @@ import * as esbuild from "esbuild";
 const pkg = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./package.json", import.meta.url), "utf8"));
 const externals = [...Object.keys(pkg.peerDependencies ?? {}), ...Object.keys(pkg.dependencies ?? {})];
 
+/** chart.jsx's import("./echarts.js") stays an import of dist/echarts.js, a file of its own. */
+const echartsFile = {
+    name: "echarts-file",
+    setup(build) {
+        build.onResolve({ filter: /^\.\/echarts\.js$/ }, (args) => (args.kind === "dynamic-import" ? { path: "./echarts.js", external: true } : undefined));
+    }
+};
+
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: new URL(".", import.meta.url).pathname,
-    entryPoints: { index: "src/index.js", styles: "src/styles.css" },
+    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", styles: "src/styles.css" },
     outdir: "dist",
     bundle: true,
     format: "esm",
@@ -25,6 +34,7 @@ export const options = {
     jsxFragment: "React.Fragment",
     loader: { ".js": "jsx" },
     legalComments: "none",
+    plugins: [echartsFile],
     logLevel: "warning"
 };
 
