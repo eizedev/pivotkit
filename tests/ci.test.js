@@ -17,14 +17,38 @@ test("the Playwright container image matches @playwright/test in package-lock.js
     }
 });
 
-test("every dependency is pinned to an exact version", () => {
-    const manifests = ["package.json", "packages/pivotkit-core/package.json", "packages/pivotkit-react/package.json"];
+// The pinning rule: every dependency of a third party is one exact version (with the lock file); a
+// package of this repository that another one depends on takes a caret range, so a host that uses
+// pivotkit-core and pivotkit-react gets one copy of the core. The lock file pins it in development.
+const OWN = new Set(["pivotkit-core", "pivotkit-react", "pivotkit-element"]);
+
+test("every dependency is pinned to an exact version; this repository's own packages take a caret range", () => {
+    const manifests = ["package.json", "packages/pivotkit-core/package.json", "packages/pivotkit-react/package.json", "tests/react19/package.json"];
     for (const file of manifests) {
         const pkg = JSON.parse(readFileSync(new URL(file, root), "utf8"));
         for (const section of ["dependencies", "devDependencies"]) {
             for (const [name, range] of Object.entries(pkg[section] ?? {})) {
-                assert.match(range, /^\d+\.\d+\.\d+$/, `${file} ${section}.${name} is "${range}", not an exact version`);
+                if (section === "dependencies" && OWN.has(name)) {
+                    assert.match(range, /^\^\d+\.\d+\.\d+$/, `${file} ${section}.${name} is "${range}", not a caret range of an own package`);
+                } else {
+                    assert.match(range, /^\d+\.\d+\.\d+$/, `${file} ${section}.${name} is "${range}", not an exact version`);
+                }
             }
         }
+    }
+});
+
+test("the own packages' caret ranges take the version of the package in this repository", () => {
+    const core = JSON.parse(readFileSync(new URL("packages/pivotkit-core/package.json", root), "utf8"));
+    const react = JSON.parse(readFileSync(new URL("packages/pivotkit-react/package.json", root), "utf8"));
+    assert.equal(react.dependencies["pivotkit-core"], `^${core.version}`);
+});
+
+test("the React 19 check installs from its own lock file", () => {
+    const lock = JSON.parse(readFileSync(new URL("tests/react19/package-lock.json", root), "utf8"));
+    const pkg = JSON.parse(readFileSync(new URL("tests/react19/package.json", root), "utf8"));
+    for (const name of ["react", "react-dom"]) {
+        assert.match(lock.packages[`node_modules/${name}`].version, /^19\./);
+        assert.equal(lock.packages[`node_modules/${name}`].version, pkg.devDependencies[name]);
     }
 });

@@ -25,6 +25,8 @@ export default defineConfig({
     webServer: {
         command: `node examples/playground/serve.js ${port}`,
         url: `http://127.0.0.1:${port}/`,
-        reuseExistingServer: !process.env.CI
+        // never a server that is already running: it may serve another checkout's build
+        // (another port: PLAYGROUND_PORT=4180 npm run test:browser)
+        reuseExistingServer: false
     }
 });

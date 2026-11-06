@@ -53,11 +53,18 @@ jobs:
         run: npm run bench -w pivotkit-core
 
   browser:
-    # The playground (examples/playground) in Chromium, Firefox and WebKit. Playwright's own image
-    # carries the browsers and their system libraries, so nothing is installed with apt. Its version
-    # must be the one of @playwright/test in package-lock.json; tests/ci.test.js checks that.
+    # The playground (examples/playground) and the host pages (tests/browser/pages) in Chromium,
+    # Firefox and WebKit, on React 18 (the workspace's, as PowerShell Universal provides it) and on
+    # React 19 (tests/react19, its own lock file). Playwright's own image carries the browsers and
+    # their system libraries, so nothing is installed with apt. Its version must be the one of
+    # @playwright/test in package-lock.json; tests/ci.test.js checks that.
+    name: browser (React ${{ matrix.react }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        react: ["18", "19"]
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
       options: --user 1001
@@ -67,12 +74,17 @@ jobs:
           persist-credentials: false
       - name: Install
         run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Install React 19
+        if: matrix.react == '19'
+        run: npm ci --prefix tests/react19 --no-audit --no-fund --ignore-scripts
       - name: Browser tests
-        # builds the package and the playground, then runs tests/browser against the static build
+        # builds the package, the playground and the host pages, then runs tests/browser against them
+        env:
+          PIVOTKIT_REACT: ${{ matrix.react }}
         run: npm run test:browser
       - name: Playground build
         # the static files the tests opened, to try the playground without building it
-        if: always()
+        if: success() && matrix.react == '18'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playground
@@ -82,7 +94,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-react-${{ matrix.react }}
           path: |
             playwright-report/
             test-results/

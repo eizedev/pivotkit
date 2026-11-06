@@ -1,0 +1,10 @@
+{
+  "name": "pivotkit-react19-check",
+  "private": true,
+  "description": "React 19 for the browser tests (npm run test:browser with PIVOTKIT_REACT=19): its own install, so its peer dependencies do not collide with the React 18 of the workspaces.",
+  "license": "MIT",
+  "devDependencies": {
+    "react": "19.2.9",
+    "react-dom": "19.2.9"
+  }
+}
