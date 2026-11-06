@@ -3,6 +3,8 @@
  * are subtotals, leaves the deepest keys.
  */
 
+import { optionsOf } from "./util.js";
+
 /**
  * @typedef {object} PivotNode
  * @property {number} id
@@ -144,7 +146,8 @@ export function findNode(result, axis, path) {
  *   path per axis; omitted or [] for all rows
  * @returns {Int32Array}
  */
-export function cellRows(result, options = {}) {
+export function cellRows(result, options) {
+    options = optionsOf(options, "cellRows");
     const { row = [], col = [] } = options;
     const rowNode = Array.isArray(row) ? findNode(result, "rows", row) : row;
     const colNode = Array.isArray(col) ? findNode(result, "cols", col) : col;

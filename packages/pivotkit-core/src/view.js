@@ -16,7 +16,7 @@ import { isFormat } from "./format.js";
 import { resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
 import { canonicalTimeZone } from "./time.js";
-import { canonicalLocale, finite, get, isPlainObject } from "./util.js";
+import { canonicalLocale, finite, get, isPlainObject, optionsOf } from "./util.js";
 
 export const VIEW_VERSION = 1;
 
@@ -478,7 +478,8 @@ function context(schema, limits, issues) {
  * @param {{ limits?: Partial<import("./limits.js").Limits> }} [options]
  * @returns {{ view: View, issues: Issue[] }}
  */
-export function normalize(input, schema, options = {}) {
+export function normalize(input, schema, options) {
+    options = optionsOf(options, "normalize");
     const limits = resolveLimits(options);
     /** @type {Issue[]} */
     const issues = [];
@@ -524,7 +525,8 @@ export function normalize(input, schema, options = {}) {
  * @param {{ limits?: Partial<import("./limits.js").Limits> }} [options]
  * @returns {{ valid: boolean, errors: Issue[] }}
  */
-export function validate(input, schema, options = {}) {
+export function validate(input, schema, options) {
+    options = optionsOf(options, "validate");
     const { issues } = normalize(input, schema, options);
     return { valid: issues.length === 0, errors: issues };
 }

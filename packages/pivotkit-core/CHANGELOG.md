@@ -64,6 +64,10 @@ Breaking changes against the phase 1 code on `main` (never published):
 
 ### Fixed
 
+- A public function given options that are not an object (a locale string in an older call shape)
+  throws `INVALID_OPTION` instead of ignoring them.
+- Number bins whose index would exceed 2^53 (1e15 in bins of 1e-9) are blank instead of bins with
+  equal bounds.
 - Number bins of decimal sizes (0.1, 0.05, ...) put values on a bin boundary into the right bin.
 - The CSV formula guard looks past leading spaces, line breaks and control characters, and leaves plain
   numbers and bin labels such as `-10 – 0` alone. CSV numbers like `1e-20` no longer become `-0`.

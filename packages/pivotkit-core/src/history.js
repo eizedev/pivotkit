@@ -3,13 +3,15 @@
  * changing an object it pushed does not change the history.
  */
 
+import { optionsOf } from "./util.js";
 
 /**
  * @template T
  * @param {T} startView  the view "reset" returns to
  * @param {{ limit?: number }} [options]  how many steps are kept (default 100)
  */
-export function createHistory(startView, options = {}) {
+export function createHistory(startView, options) {
+    options = optionsOf(options, "createHistory");
     const limit = Math.max(1, Math.floor(options.limit ?? 100));
     const start = JSON.stringify(startView);
     /** @type {string[]} */

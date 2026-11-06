@@ -18,7 +18,7 @@ import { applyFilters } from "./filters.js";
 import { DEFAULT_LABELS, labelOf, ranksOf } from "./labels.js";
 import { SHOW_AS } from "./show-as.js";
 import { buildTree, groupBy } from "./tree.js";
-import { resolveLocale } from "./util.js";
+import { resolveLocale, optionsOf } from "./util.js";
 import { normalize } from "./view.js";
 
 /** @typedef {import("./tree.js").PivotNode} PivotNode */
@@ -225,7 +225,8 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
  *   when the view names none (natural sort, label filters, labels); default "en-US"
  * @returns {PivotResult}
  */
-export function computePivot(data, viewInput, options = {}) {
+export function computePivot(data, viewInput, options) {
+    options = optionsOf(options, "computePivot");
     expect(isEncoded(data), "computePivot(data, view): data must come from encode()");
     const { view, issues } = normalize(viewInput, data, options);
     const locale = resolveLocale(view.formatting.locale, options.locale);

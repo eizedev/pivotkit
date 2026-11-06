@@ -15,7 +15,7 @@ import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
 import { SHOW_AS } from "./show-as.js";
-import { hexToRgb, resolveLocale } from "./util.js";
+import { hexToRgb, resolveLocale, optionsOf } from "./util.js";
 
 /**
  * @typedef {object} GridCell
@@ -335,7 +335,8 @@ function applyConditional(g, body) {
  * @param {Partial<import("./limits.js").Limits>} [options.limits]
  * @returns {Grid}
  */
-export function toGrid(result, options = {}) {
+export function toGrid(result, options) {
+    options = optionsOf(options, "toGrid");
     expect(isPivotResult(result), "toGrid(result): result must come from computePivot()");
     const limits = resolveLimits(options);
     const view = result.view;

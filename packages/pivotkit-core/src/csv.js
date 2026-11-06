@@ -14,7 +14,7 @@
 import { expect } from "./errors.js";
 import { isGrid } from "./grid.js";
 import { numberFormat } from "./intl.js";
-import { DEFAULT_LOCALE, MS_PER_DAY, pad } from "./util.js";
+import { DEFAULT_LOCALE, MS_PER_DAY, pad, optionsOf } from "./util.js";
 
 const PLAIN_NUMBER = /^[+-]?\d[\d.,\u00a0\u202f ]*%?$/;
 const NUMBER_RANGE = /^[+-]?\d[\d.,\u00a0\u202f]*\s\u2013\s[+-]?\d[\d.,\u00a0\u202f]*$/;
@@ -68,7 +68,8 @@ function plainNumber(v, mark) {
  * @param {{ separator?: string, repeatLabels?: boolean }} [options]
  * @returns {string}
  */
-export function toCsv(grid, options = {}) {
+export function toCsv(grid, options) {
+    options = optionsOf(options, "toCsv");
     expect(isGrid(grid), "toCsv(grid): grid must come from toGrid()");
     const locale = grid.locale ?? DEFAULT_LOCALE;
     const separator = options.separator ?? csvSeparator(locale);
@@ -119,6 +120,7 @@ export function toCsv(grid, options = {}) {
  * @param {{ separator?: string, repeatLabels?: boolean, bom?: boolean }} [options]
  * @returns {Uint8Array}
  */
-export function toCsvBytes(grid, options = {}) {
+export function toCsvBytes(grid, options) {
+    options = optionsOf(options, "toCsvBytes");
     return new TextEncoder().encode((options.bom === false ? "" : "\uFEFF") + toCsv(grid, options));
 }

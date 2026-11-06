@@ -10,6 +10,8 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 2. Follow [AGENTS.md](AGENTS.md): layout, commands and the rules that keep the packages safe and small.
 3. Run `npm ci`, `npm run lint`, `npm run types` and `npm test`; for engine changes also
    `npm run bench -w pivotkit-core` and compare with the baseline in the package README.
+   The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
+   `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
 4. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
 5. Open a pull request with a short description and what you tested; use Conventional Commits
    (`feat(core): ...`, `fix(react): ...`).

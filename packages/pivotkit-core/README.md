@@ -73,6 +73,9 @@ here are internal and may change in any release.
   (`"Europe/Berlin"`), or `"local"` for the machine's zone (resolved to its name). The zone is in
   `data.timeZone`, `result.timeZone` and `grid.timeZone`; a view can carry `formatting.timeZone`, and
   `computePivot` reports when it differs from the data's.
+  A `Date` built in the browser from local parts (`new Date(2026, 2, 4)`, a date picker's value) is
+  local midnight, an instant: with the default `"UTC"` it shows as the previous day east of UTC. Pass
+  `timeZone: "local"` (or the zone the dates belong to) to `encode` for such data.
 - Errors: a bad view never throws; `normalize` drops what it cannot use and reports it as an issue. A
   programmer error throws a `PivotkitError` with a `code`: `INVALID_ARGUMENT` (for example
   `computePivot(null)`), `INVALID_OPTION` (an unknown locale or time zone in the options) or

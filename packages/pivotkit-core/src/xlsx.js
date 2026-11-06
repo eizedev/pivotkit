@@ -17,7 +17,7 @@ import { DEFAULT_THEME } from "./defaults.js";
 import { checkLimit, expect } from "./errors.js";
 import { excelNumberFormat } from "./format.js";
 import { isGrid } from "./grid.js";
-import { MS_PER_DAY, hexDigits } from "./util.js";
+import { MS_PER_DAY, hexDigits, optionsOf } from "./util.js";
 
 // Excel's serial day 0 is 1899-12-30; 25569 is 1970-01-01
 const EXCEL_EPOCH_OFFSET = 25569;
@@ -125,7 +125,8 @@ function sqref(cells) {
  *   theme: colours for conditional formats whose view names none
  * @returns {Uint8Array}
  */
-export function toXlsx(grid, options = {}) {
+export function toXlsx(grid, options) {
+    options = optionsOf(options, "toXlsx");
     expect(isGrid(grid), "toXlsx(grid): grid must come from toGrid()");
     checkLimit("xlsxRows", grid.rows.length, EXCEL_MAX_ROWS, "rows (an Excel sheet)");
     checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");

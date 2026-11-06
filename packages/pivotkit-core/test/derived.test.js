@@ -97,3 +97,16 @@ test("bins too small to be exact are refused; values beyond the range are blank"
     const r = computePivot(d, { derived: [{ name: "B", field: "x", by: "bin", size: 1e-9 }], rows: ["B"], values: [{ agg: "count" }] });
     assert.deepEqual(r.rowRoot.children.map((n) => n.key), [1, null]);
 });
+
+test("a bin index beyond 2^53 is blank instead of a bin whose bounds are equal", () => {
+    const big = encode([{ V: 1e15 }, { V: 2 }]);
+    const r = computePivot(big, { derived: [{ name: "B", field: "V", by: "bin", size: 1e-9 }], rows: ["B"], values: [{ agg: "count" }], formatting: { locale: "en-US" } });
+    const labels = r.rowRoot.children.map((n) => r.label("rows", n));
+    // 2 is still exact (2e9 bins from 0); 1e15 / 1e-9 = 1e24 bins is not
+    assert.equal(labels.length, 2);
+    assert.ok(labels.some((l) => l.startsWith("2 –")), labels.join(" | "));
+    for (const l of labels) {
+        const [lo, hi] = l.split(" – ");
+        assert.notEqual(lo, hi, `bin "${l}" has equal bounds`);
+    }
+});

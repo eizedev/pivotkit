@@ -102,10 +102,11 @@ export function binning(size, origin) {
     };
     return {
         decimals,
-        /** the lower bound of the bin of v; NaN when there is none (overflow) */
+        /** the lower bound of the bin of v; NaN when there is none (overflow, or a bin index beyond
+         * 2^53, where neighbouring bins can no longer be told apart: 1e15 in bins of 1e-9) */
         lowerOf(v) {
             let k = Math.floor((v - origin) / size);
-            if (!Number.isFinite(k)) {
+            if (!Number.isSafeInteger(k)) {
                 return NaN;
             }
             if (v >= bound(k + 1)) {

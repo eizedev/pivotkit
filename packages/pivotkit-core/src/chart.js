@@ -13,7 +13,7 @@ import { DEFAULT_LABELS } from "./labels.js";
 import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
-import { resolveLocale } from "./util.js";
+import { resolveLocale, optionsOf } from "./util.js";
 
 /**
  * Chart data: one category per plotted row line, one series per column line and value. Dense like
@@ -21,7 +21,8 @@ import { resolveLocale } from "./util.js";
  * @param {import("./pivot.js").PivotResult} result
  * @param {{ labels?: Partial<import("./labels.js").Labels>, separator?: string, limits?: Partial<import("./limits.js").Limits> }} [options]
  */
-export function toSeries(result, options = {}) {
+export function toSeries(result, options) {
+    options = optionsOf(options, "toSeries");
     expect(isPivotResult(result), "toSeries(result): result must come from computePivot()");
     const limits = resolveLimits(options);
     const view = result.view;
@@ -97,7 +98,8 @@ export function toSeries(result, options = {}) {
  * @param {string} [options.separator]  between the parts of a multi-level label, default " / "
  * @param {Partial<import("./limits.js").Limits>} [options.limits]
  */
-export function toEChartsOption(result, options = {}) {
+export function toEChartsOption(result, options) {
+    options = optionsOf(options, "toEChartsOption");
     expect(isPivotResult(result), "toEChartsOption(result): result must come from computePivot()");
     const theme = options.theme ?? {};
     const chart = { ...result.view.chart, ...(options.chart || {}) };

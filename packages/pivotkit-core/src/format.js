@@ -18,7 +18,7 @@
  */
 
 import { numberFormat, dateTimeFormat } from "./intl.js";
-import { createCache, resolveLocale } from "./util.js";
+import { createCache, resolveLocale, optionsOf } from "./util.js";
 
 /** @typedef {(value: unknown) => string} Formatter */
 
@@ -209,7 +209,8 @@ export function formatterFor(spec, locale) {
  * @param {{ locale?: string }} [options]  default "en-US"
  * @returns {Formatter}
  */
-export function formatter(spec, options = {}) {
+export function formatter(spec, options) {
+    options = optionsOf(options, "formatter");
     return formatterFor(spec, resolveLocale(null, options.locale));
 }
 

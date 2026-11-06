@@ -12,6 +12,19 @@ export const DEFAULT_LOCALE = "en-US";
 /** "7" -> "07" */
 export const pad = (n, width = 2) => String(n).padStart(width, "0");
 
+/**
+ * The options argument of a public function: undefined becomes {}, anything that is not a plain object
+ * throws, so a call in an older shape (a locale string where the options go) fails loudly instead of
+ * being ignored.
+ */
+export function optionsOf(options, fn) {
+    if (options === undefined || options === null) return {};
+    if (typeof options !== "object" || Array.isArray(options)) {
+        throw new PivotkitError("INVALID_OPTION", `${fn}: options must be an object, got ${JSON.stringify(options)}`);
+    }
+    return options;
+}
+
 /** True for an object that is not an array (and not null). */
 export const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 

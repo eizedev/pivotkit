@@ -8,7 +8,7 @@
 import { checkLimit, expect } from "./errors.js";
 import { resolveLimits } from "./limits.js";
 import { isIsoDate, resolveTimeZone, toWallMs, wallClock } from "./time.js";
-import { MS_PER_DAY, createCache } from "./util.js";
+import { MS_PER_DAY, createCache, optionsOf } from "./util.js";
 
 /**
  * The type of a column. "null" is a column without any value; it can be counted but not grouped by
@@ -243,7 +243,8 @@ function encodeColumn(name, raw, type, toWall) {
  * @param {Partial<import("./limits.js").Limits>} [options.limits]  `rows` caps the input size
  * @returns {Encoded}
  */
-export function encode(rows, options = {}) {
+export function encode(rows, options) {
+    options = optionsOf(options, "encode");
     expect(Array.isArray(rows), "encode(rows): rows must be an array of objects");
     const limits = resolveLimits(options);
     checkLimit("rows", rows.length, limits.rows, "rows");

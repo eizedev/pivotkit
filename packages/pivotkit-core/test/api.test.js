@@ -64,3 +64,16 @@ test("the catalog lists exactly what normalize accepts", () => {
     assert.ok(!CATALOG.showAsAlongAxis.includes("percentOfGrandTotal"));
     assert.ok(Object.isFrozen(CATALOG));
 });
+
+test("options in an older shape fail loudly instead of being ignored", async () => {
+    const { computePivot, toGrid } = core;
+    const data = encode([{ Team: "A", Hours: 1 }]);
+    const view = { version: 1, rows: ["Team"], values: [{ field: "Hours", agg: "sum" }] };
+    // the earlier positional locale: a string where the options object goes
+    assert.throws(() => computePivot(data, view, "de-DE"), (e) => e instanceof core.PivotkitError && e.code === "INVALID_OPTION");
+    const result = computePivot(data, view);
+    assert.throws(() => toGrid(result, "de-DE"), (e) => e.code === "INVALID_OPTION");
+    assert.throws(() => exporters.toCsv(toGrid(result), ["x"]), (e) => e.code === "INVALID_OPTION");
+    // undefined and null still mean "no options"
+    assert.equal(toGrid(result, undefined).locale, toGrid(result, null).locale);
+});
