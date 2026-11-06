@@ -37,7 +37,7 @@ test.describe("two elements on one page", () => {
         await expect(page.locator("#sales .pk-root")).toBeVisible();
         await expect(page.locator("#tickets .pk-root")).toBeVisible();
         // a shadow root each, the styles adopted (no <style> element, nothing in the page's head)
-        expect(await page.evaluate(() => ["sales", "tickets"].map((id) => document.getElementById(id).styling))).toEqual(["adopted", "adopted"]);
+        expect(await page.evaluate(() => ["sales", "tickets"].map((id) => document.getElementById(id)).map((el) => (el.shadowRoot.adoptedStyleSheets.length === 1 && !el.shadowRoot.querySelector("style") ? "adopted" : "other")))).toEqual(["adopted", "adopted"]);
         expect(await page.evaluate(() => document.getElementById("sales").shadowRoot.querySelectorAll("style").length)).toBe(0);
         expect(await page.evaluate(() => document.querySelectorAll("head style, head link[rel=stylesheet]").length)).toBe(0);
         await expect(page.locator("#tickets .pk-root")).toHaveAttribute("lang", "de");
@@ -128,6 +128,9 @@ test.describe("two elements on one page", () => {
         expect(kept.name).toBe("pivot.csv");
         expect(kept.text).toMatch(/Grand Total/);
         expect(downloads).toBe(0);
+        // the page kept the file: the report does not claim it was exported
+        await expect(sales.locator(".pk-toasts")).toContainText("Exported pivot.xlsx");
+        await expect(sales.locator(".pk-toasts")).not.toContainText("Exported pivot.csv");
         expect((await events(page, "pivot-export")).map((e) => e.detail.kind)).toEqual(["xlsx", "csv"]);
     });
 });
@@ -164,10 +167,80 @@ test.describe("lifecycle", () => {
         await expect.poll(() => zone(page, "#sales", "rows")).toEqual(["Product"]);
     });
 
-    test("loading the package twice defines once and throws nothing; define() takes other names", async ({ page }) => {
+    test("a page that stores every reported view and binds it as the start view does not restart the report", async ({ page }) => {
+        await page.goto("pages/element-two.html");
+        const sales = page.locator("#sales");
+        await expect(sales.locator(".pk-root")).toBeVisible();
+        // the pattern of a framework binding: [defaultView]="stored", stored = event.detail.view
+        await page.evaluate(() => {
+            const el = document.getElementById("sales");
+            el.addEventListener("pivot-view-change", (e) => (el.defaultView = e.detail.view));
+            window.__root = el.shadowRoot.querySelector(".pk-root");
+        });
+        await sales.getByRole("button", { name: "Remove Country" }).click();
+        await sales.getByRole("button", { name: "Remove Category" }).click();
+        await expect.poll(() => zone(page, "#sales", "rows")).toEqual(["Region"]);
+        expect(await page.evaluate(() => document.getElementById("sales").shadowRoot.querySelector(".pk-root") === window.__root)).toBe(true);
+        await expect(sales.getByTestId("undo")).toBeEnabled();
+        await sales.getByTestId("undo").click();
+        await expect.poll(() => sales.locator('[data-zone="cols"] .pk-chip').count()).toBe(1);
+    });
+
+    // not the shared fixture: the second copy warns on purpose, and the test checks the warnings
+    plain("loading the package twice defines once, throws nothing and warns with both versions; define() takes other names", async ({ page }) => {
+        const messages = [];
+        page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && messages.push(`${m.type()}: ${m.text()}`));
+        page.on("pageerror", (e) => messages.push(`pageerror: ${e.message}`));
         await page.goto("pages/element-twice.html");
         await expect(page.locator("my-pivot .pk-root")).toBeVisible();
         expect(await page.evaluate(() => window.__twice)).toEqual({ differentModules: true, sameDefinition: true, again: true, custom: true, customFirst: true });
+        const version = JSON.parse(await readFile(new URL("../../packages/pivotkit-element/package.json", import.meta.url), "utf8")).version;
+        expect(messages.length).toBeGreaterThan(0);
+        for (const m of messages) {
+            expect(m).toBe(`warning: <pivot-report> is defined already by pivotkit-element ${version}; pivotkit-element ${version} loaded again is not used for it`);
+        }
+    });
+
+    test("height=\"100%\" fills an element with a height from the page", async ({ page }) => {
+        await page.goto("pages/element-two.html");
+        await page.evaluate(() => {
+            const el = document.getElementById("sales");
+            el.style.height = "700px";
+            el.height = "100%";
+        });
+        await expect(page.locator("#sales .pk-root")).toHaveCSS("height", "700px");
+    });
+
+    test("the <style> fallback: without constructable stylesheets the report is styled all the same", async ({ page }) => {
+        await page.goto("pages/element-fallback.html");
+        const el = page.locator("#plain");
+        await expect(el.locator(".pk-root")).toBeVisible();
+        expect(await el.evaluate((e) => (e.shadowRoot.adoptedStyleSheets.length ? "adopted" : e.shadowRoot.querySelector("style") ? "style" : "none"))).toBe("style");
+        await expect(el.locator(".pk-root")).toHaveCSS("border-top-style", "solid");
+        // the tokens still sit on :host: the page themes the element as before
+        await page.addStyleTag({ content: "#plain { --pk-accent: rgb(1, 2, 3); }" });
+        expect(await token(page, "#plain", "--pk-accent")).toBe("rgb(1, 2, 3)");
+    });
+
+    test("a popover opens at its button inside a transformed ancestor", async ({ page }) => {
+        // no opening animation: the place is measured once
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.goto("pages/element-two.html");
+        await page.evaluate(() => {
+            const wrap = document.createElement("div");
+            Object.assign(wrap.style, { transform: "translateZ(0)", marginTop: "160px", marginLeft: "40px" });
+            const el = document.getElementById("sales");
+            el.before(wrap);
+            wrap.append(el);
+        });
+        const button = page.locator("#sales").getByTestId("export");
+        await button.click();
+        const menu = page.locator("#sales .pk-popover");
+        await expect(menu).toBeVisible();
+        const b = await button.boundingBox();
+        const m = await menu.boundingBox();
+        expect(Math.abs(m.y - (b.y + b.height + 6))).toBeLessThan(3);
+        expect(Math.abs(m.x + m.width - (b.x + b.width))).toBeLessThan(3);
     });
 
     test("disconnect unmounts, reconnect mounts again with the last view; a move keeps the report", async ({ page }) => {
@@ -300,12 +373,14 @@ test.describe("theme and styles", () => {
 });
 
 test.describe("a page with a React of its own", () => {
-    test("the page's React and the element's React 18.3.1 run side by side", async ({ page }) => {
+    test("the page's React and the element's React 18.3.1 run side by side (React 19: props and on<event> props)", async ({ page }) => {
         await page.goto("pages/element-react.html");
         await expect(page.locator("pivot-report .pk-root")).toBeVisible();
         expect(await page.evaluate(() => window.__pivotkitReact)).toMatch(wanted);
         // the element leaves no React global behind
         expect(await page.evaluate(() => typeof window.React)).toBe("undefined");
+        // React 19 set the data as a property, not as an attribute "[object Object],..."
+        expect(await page.locator("pivot-report").evaluate((el) => [el.hasAttribute("data"), Array.isArray(el.data)])).toEqual([false, true]);
         const renders = Number(await page.getByTestId("host-renders").textContent());
         await expect.poll(async () => Number(await page.getByTestId("host-renders").textContent())).toBeGreaterThan(renders + 3);
         // the host's re-renders do not touch the shadow root: a change stays, and its event reaches the page's React
@@ -370,7 +445,7 @@ plain("a strict Content-Security-Policy: styles, chart and export work without '
     await page.goto("pages/element-csp.html");
     const el = page.locator("#strict");
     await expect(el.locator(".pk-root")).toBeVisible();
-    expect(await page.evaluate(() => document.getElementById("strict").styling)).toBe("adopted");
+    expect(await page.locator("#strict").evaluate((el) => (el.shadowRoot.adoptedStyleSheets.length === 1 && !el.shadowRoot.querySelector("style") ? "adopted" : "other"))).toBe("adopted");
     // styled: the stylesheet applies
     await expect(el.locator(".pk-root")).toHaveCSS("border-top-style", "solid");
     // ECharts from its chunk, drawn on a canvas
@@ -406,4 +481,10 @@ test("the element example renders, and its theme switch themes the report", asyn
     await expect(root).toHaveAttribute("data-pk-theme", "dark");
     await page.locator("pivot-report").getByRole("button", { name: "Remove Country" }).click();
     await expect(page.locator("#last-event")).toHaveText("View: rows Region; 1 value(s).");
+    // the chart template groups the dates by month: the categories read "Jan 2025", not "Jan 1, 2025"
+    await tool(page.locator("pivot-report"), "templates");
+    await page.locator("pivot-report").getByTestId("template-Units per month (chart)").click();
+    const summary = page.locator('pivot-report [data-testid="chart-summary"]');
+    await expect(summary).toContainText(/\b[A-Z][a-z]{2} 202[56]\b/);
+    await expect(summary).not.toContainText(/[A-Z][a-z]{2} \d{1,2}, 202/);
 });

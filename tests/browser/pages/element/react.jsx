@@ -6,6 +6,10 @@ import { createRoot } from "react-dom/client";
 import { DATASETS } from "../../../../examples/playground/src/data.js";
 
 const rows = DATASETS.sales.make(1000);
+const start = DATASETS.sales.presets[0].view;
+// React 19 sets a prop as a property when the element has one and listens for a custom event with
+// `on` + its exact name (react.dev, "Custom HTML elements"); React 18 needs a ref for both
+const react19 = Number(React.version.split(".")[0]) >= 19;
 
 function Host() {
     const [tick, setTick] = useState(0);
@@ -16,14 +20,18 @@ function Host() {
         return () => clearInterval(t);
     }, []);
     useEffect(() => {
+        if (react19) {
+            return undefined;
+        }
         // React 18 passes only attributes to a custom element: the properties are set here
         const el = report.current;
         el.data = rows;
-        el.defaultView = DATASETS.sales.presets[0].view;
+        el.defaultView = start;
         const onChange = () => setCount((n) => n + 1);
         el.addEventListener("pivot-view-change", onChange);
         return () => el.removeEventListener("pivot-view-change", onChange);
     }, []);
+    const props19 = react19 ? { data: rows, defaultView: start, "onpivot-view-change": () => setCount((n) => n + 1) } : {};
     return (
         <>
             <p data-testid="host-renders">{tick}</p>
@@ -31,7 +39,7 @@ function Host() {
             <button type="button" data-testid="host-button" onClick={() => setCount((n) => n + 100)}>
                 Host button
             </button>
-            <pivot-report ref={report} height="560" theme="light" />
+            <pivot-report ref={report} height="560" theme="light" {...props19} />
         </>
     );
 }

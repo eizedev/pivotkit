@@ -37,8 +37,16 @@ test("request: a rejected answer rejects, so the report shows the error", async 
     await assert.rejects(request(target, "pivot-template-delete", { name: "A" }), /no access/);
 });
 
-test("request: without a listener or an answer it resolves at once", async () => {
+test("request: without a listener or an answer it resolves at once, with a warning", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
     assert.equal(await request(new EventTarget(), "pivot-template-save", { name: "A" }), undefined);
+    assert.equal(warn.mock.callCount(), 1);
+    assert.match(warn.mock.calls[0].arguments[0], /no listener answered pivot-template-save/);
+    // an answer: no warning
+    const target = new EventTarget();
+    target.addEventListener("pivot-template-save", (e) => e.detail.respondWith(undefined));
+    await request(target, "pivot-template-save", {});
+    assert.equal(warn.mock.callCount(), 1);
 });
 
 test("request: respondWith() only while the event is dispatched, and once", async () => {

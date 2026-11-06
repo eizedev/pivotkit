@@ -30,7 +30,8 @@ export function emit(target, type, detail, options = {}) {
  * Dispatches an event whose listener may answer with `event.detail.respondWith(value or promise)`,
  * called while the event is dispatched (in the listener itself, not later). The returned promise
  * settles with that answer: the report shows "Saved" (or removes the template) when it resolves, and
- * an error with its message when it rejects. Without an answer it resolves at once.
+ * an error with its message when it rejects. Without an answer it resolves at once, with a console
+ * warning: the page may have no listener, or call respondWith() too late (after an await).
  * @param {EventTarget} target
  * @param {string} type
  * @param {object} detail
@@ -56,6 +57,11 @@ export function request(target, type, detail) {
         emit(target, type, { ...detail, respondWith });
     } finally {
         open = false;
+    }
+    if (!answered) {
+        // the report says "saved" or "deleted" now; whether the page did anything, it cannot know
+        const name = /** @type {{ localName?: string }} */ (target).localName ?? "pivot-report";
+        console.warn(`<${name}>: no listener answered ${type} with event.detail.respondWith(); the report treats it as done`);
     }
     return Promise.resolve(answer);
 }

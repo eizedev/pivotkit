@@ -26,6 +26,10 @@ const HOST_RULES = `:host {
 :host([hidden]) {
     display: none;
 }
+/* the React root's container: as high as the element, so height="100%" is a share of the element */
+.pk-mount {
+    height: 100%;
+}
 `;
 
 /**

@@ -59,9 +59,13 @@ report.addEventListener("pivot-template-save", (e) => {
     );
 });
 report.addEventListener("pivot-template-delete", (e) => {
-    const at = saved.findIndex((t) => t.name === e.detail.name);
-    if (at >= 0) saved.splice(at, 1);
-    report.templates = [...presets, ...saved];
+    e.detail.respondWith(
+        Promise.resolve().then(() => {
+            const at = saved.findIndex((t) => t.name === e.detail.name);
+            if (at >= 0) saved.splice(at, 1);
+            report.templates = [...presets, ...saved];
+        })
+    );
 });
 
 // theme="auto" (the default) follows <html data-theme>: the page's switch themes the report too

@@ -35,6 +35,16 @@ select {
 main {
     padding: 0 16px 16px;
 }
+/* the report's height: 640 px wide; on a phone the zones stack above the table, so the report takes
+   the screen's height (the page scrolls to it, the table scrolls inside it) */
+pivot-report {
+    height: 640px;
+}
+@media (max-width: 639px) {
+    pivot-report {
+        height: max(640px, calc(100svh - 24px));
+    }
+}
 #last-event {
     margin: 8px 0 0;
     overflow-wrap: anywhere;

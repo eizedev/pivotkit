@@ -26,7 +26,7 @@ function sheet() {
 /**
  * Adds the styles to a shadow root.
  * @param {ShadowRoot} shadow
- * @returns {"adopted" | "style"} how
+ * @returns {"adopted" | "style"} how (the browser tests read it from the shadow root instead)
  */
 export function adoptStyles(shadow) {
     const s = sheet();

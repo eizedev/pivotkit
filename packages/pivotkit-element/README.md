@@ -35,13 +35,21 @@ With a bundler: `npm install pivotkit-element`, then `import "pivotkit-element";
 `<pivot-report>`). `dist/` is ES modules; the files in `dist/chunks/` are loaded by relative URL
 from the entry, so serve the whole `dist/` directory, not `index.js` alone.
 
+From another origin (a CDN), module scripts are fetched with CORS: the server must send
+`Access-Control-Allow-Origin` for `index.js` and every chunk. Subresource Integrity covers only the
+`<script integrity>` of the entry; the chunks it imports later cannot carry a hash, so pin a version in
+the URL (or host `dist/` yourself) instead of relying on SRI. The bundle targets ES2022 in Chrome 111,
+Firefox 113 and Safari 16.4 or later (`target` in pivotkit-react's `build.js`); older browsers are not
+supported.
+
 | Entry | What |
 | --- | --- |
 | `pivotkit-element` (`dist/index.js`) | Defines `<pivot-report>`; exports `PivotReportElement`, `define`, `TAG`, `EVENTS` |
 | `pivotkit-element/element` (`dist/element.js`) | The same exports, defines nothing: `define("my-report")` registers another tag name |
 
 `define(name)` does nothing when the name is defined already, so a page that loads the package twice
-(two scripts, two copies) throws no error; the first definition stays. Without `customElements`
+(two scripts, two copies) throws no error; the first definition stays, and the second copy says so in
+a console warning with both versions (`PivotReportElement.version`). Without `customElements`
 (Node, a server render) importing the package defines nothing and touches no DOM.
 
 ## Properties and attributes
@@ -59,12 +67,11 @@ from the entry, so serve the whole `dist/` directory, not `index.js` alone.
 | `limits` | | `Partial<Limits>` | | pivotkit-core's limits. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
 | `theme` | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
-| `height` | `height` | `number \| string` | `640` | Pixels (`height="480"`) or a CSS length (`"100%"`: the element then needs a height from the page). |
+| `height` | `height` | `number \| string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). |
 | `timeZone` | `time-zone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
 | `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
-| `styling` | | `"adopted" \| "style"` | | Read only: how the styles reached the shadow root (see CSP). |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -78,6 +85,14 @@ output: read it or style with it (below), do not set it.
 Properties set before the element is defined (a framework that renders before the script has
 loaded) are taken over when it is.
 
+`data` is compared by identity, as in React: rows changed in place and the same array set again
+are not encoded again. Set a new array (`report.data = [...rows]`), or a new `dataKey`.
+
+On a phone the report's zones sit above the table, so the default 640 px leaves little room for it.
+Give the element more height on narrow screens, for example `height="100%"` and
+`@media (max-width: 639px) { pivot-report { height: calc(100svh - 24px); } }`, as the
+[example](../../examples/element/) does: the page scrolls to the report, the table scrolls inside it.
+
 ### Controlled and uncontrolled
 
 As with `<PivotReport>`:
@@ -85,8 +100,10 @@ As with `<PivotReport>`:
 - Uncontrolled (no `view`): the report starts on `defaultView` and keeps the view itself; every change
   is a `pivot-view-change` event. Setting a different `defaultView` (compared by value) starts the
   report again on it, with a new undo history and Reset pointing there; the same view again changes
-  nothing. That way a framework that sets properties after the element is in the page (React 18,
-  Angular) still gets its start view.
+  nothing, and so does the view the report last reported: a page that stores every
+  `pivot-view-change` and binds it as `defaultView` (`[defaultView]="stored"`) keeps the report and
+  its undo history. That way a framework that sets properties after the element is in the page
+  (React 18, Angular) still gets its start view.
 - Controlled (`view` set): the report shows that view. A change is a `pivot-view-change` event, and the
   report shows it only when the page sets `view = event.detail.view`; a page that does not set it keeps
   the report on its view. A view the page sets on its own becomes one undo step. `view = undefined`
@@ -112,8 +129,13 @@ or on the document gets it, with `event.target` the element.
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)
-when the promise resolves, and an error with its message when it rejects. Without `respondWith` the
-action counts as done at once. Either way the page then sets `templates` to the new list.
+when the promise resolves, and an error with its message when it rejects. Without `respondWith` (no
+listener, or `respondWith` after an `await`) the action counts as done at once and the element logs a
+console warning, since the user is told "saved" or "deleted" either way. The page then sets
+`templates` to the new list.
+
+When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" note: the
+page that kept the file says itself what became of it.
 
 ```js
 report.saveTemplates = true;
@@ -151,9 +173,15 @@ The tokens and their defaults are listed in the
 tokens are the styling interface.
 
 The styles reach the shadow root as one constructed stylesheet shared by every element of the
-document (`adoptedStyleSheets`, `styling === "adopted"`). Where a browser has none, or refuses one
-from another document, the element adds a `<style>` element to its shadow root instead
-(`styling === "style"`).
+document (`adoptedStyleSheets`). Where a browser has none, or refuses one, the element adds a
+`<style>` element to its shadow root instead (a browser test covers it). An element moved into
+another document (an iframe) after it was created keeps what it had; that case is not tested.
+
+Menus and popovers are `position: fixed`. Inside an ancestor with a `transform`, a `filter` or
+`contain` (router animations, dialogs, carousels) fixed elements are placed relative to that
+ancestor; the report measures its origin and places them at their button all the same (browser test
+with a transformed wrapper). The narrow layout's bottom sheets, the field drawer and the drill-down
+cover that ancestor, not the window, in such a case.
 
 ## Content-Security-Policy
 
@@ -171,6 +199,7 @@ default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect
   takes the same path as XLSX.
 - No violation is reported (`securitypolicyviolation`) and nothing is logged; the test checks that the
   policy is in force by adding an inline `<style>`, which is refused.
+- The `<style>` fallback is tested on its own page (constructable stylesheets removed), without CSP.
 
 Not covered: the `<style>` fallback (browsers without constructable stylesheets) needs
 `style-src 'unsafe-inline'`, since the element has no nonce option; only the `<meta>` form of the
@@ -181,7 +210,8 @@ its chunks. A page script that sets the properties must be a file (or carry a no
 
 What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
 gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
-update):
+update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
+(about 10 % above these numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
@@ -204,8 +234,19 @@ tree and renders again every 200 ms. Each element has its own React root; the el
 one copy of the bundle. A React page can use pivotkit-react directly and save the second React.
 
 React 18 passes only attributes to a custom element: set `data` and the other objects in a ref
-(`useEffect(() => { ref.current.data = rows; }, [rows])`), as the test page does. React 19 sets a prop
-as a property when the element has one; that path is not covered by a test here.
+(`useEffect(() => { ref.current.data = rows; }, [rows])`) and add listeners there. React 19 sets a prop
+as a property when the element has one, and listens for a custom event with `on` and the event's
+exact name (react.dev, "Custom HTML elements"):
+
+```jsx
+// React 19
+<pivot-report data={rows} defaultView={start} theme="auto" onpivot-view-change={(e) => save(e.detail.view)} />
+```
+
+The test page uses the ref in the React 18 job and these props in the React 19 job, and checks that
+`data` arrives as a property. For TypeScript, `import type {} from "pivotkit-element/jsx";` once
+declares `<pivot-report>` with its properties and `on<event>` props in React's JSX (needs
+`@types/react` 18.3 or later; the types describe React 19's behaviour).
 
 ## Angular
 
@@ -247,7 +288,26 @@ export class TicketReportComponent {
 
 `[data]="rows"` sets the property (Angular binds properties of an element with the schema); a new
 array is a new data set. For the controlled form bind `[view]="view"` and set `this.view` in the
-handler.
+handler. Binding the stored view back as `[defaultView]` is fine: the element ignores the view it
+reported itself.
+
+Change detection: the element runs React's scheduler, ECharts' pointer listeners and animation
+frames in whatever zone created it. Inside Angular's zone (zone.js) each of them may trigger change
+detection of the app. Not measured here; if it shows, create and feed the element outside the zone
+and come back in for the app's own state:
+
+```ts
+constructor(private zone: NgZone, private host: ElementRef<HTMLElement>) {}
+
+ngAfterViewInit() {
+    this.zone.runOutsideAngular(() => {
+        const report = document.createElement("pivot-report");
+        report.data = this.rows;
+        report.addEventListener("pivot-view-change", (e) => this.zone.run(() => this.onView(e)));
+        this.host.nativeElement.append(report);
+    });
+}
+```
 
 ## PHP and server-rendered pages
 
@@ -268,9 +328,11 @@ the browser does not run, and a module script hands them to the element:
 document.getElementById("report").data = JSON.parse(document.getElementById("report-rows").textContent);
 ```
 
-`JSON_HEX_TAG` writes `<` and `>` as `<` and `>`, so a value containing `</script>` cannot
-end the block. A start view as JSON fits in the `default-view` attribute (`htmlspecialchars` on the
-JSON); data never goes into an attribute.
+`JSON_HEX_TAG` writes `<` and `>` as `\u003C` and `\u003E`, so a value containing `</script>`
+cannot end the block. A start view as JSON fits in the `default-view` attribute:
+`default-view='<?= htmlspecialchars(json_encode($view), ENT_QUOTES) ?>'` (`ENT_QUOTES` also encodes
+`'`, which PHP before 8.1 leaves alone by default and the attribute's quotes need). Data never goes
+into an attribute.
 
 ## Types
 
@@ -278,21 +340,23 @@ JSON); data never goes into an attribute.
 (`PivotReportEventMap`), and the DOM's maps, so `document.createElement("pivot-report")` is a
 `PivotReportElement` and `addEventListener("pivot-view-change", (e) => e.detail.view)` knows the
 detail, on the element and on the document. The view type is a structural `PivotView`; the full one is
-pivotkit-core's `View`.
+pivotkit-core's `View`. `pivotkit-element/jsx` (types only) adds the element to React's JSX, see
+above.
 
 ## Development
 
 ```bash
 npm run build -w pivotkit-element    # pivotkit-react's dist, then dist/ of this package (esbuild)
-npm run size -w pivotkit-element     # the same, with the size of what a page loads
+npm run size -w pivotkit-element     # the same, with the size of what a page loads, checked against the budget
 npm test -w pivotkit-element         # build, then node --test: attributes, events, stylesheet, bundle, Node import
-npm run types -w pivotkit-element    # tsc: types/ from the JSDoc, plus src/global.d.ts
+npm run types -w pivotkit-element    # tsc: types/ from the JSDoc, plus src/global.d.ts and src/jsx.d.ts
 npm run test:browser                 # Playwright in Chromium, Firefox and WebKit, also of the element pages
 ```
 
 `build.js` bundles pivotkit-react as it ships (its `dist/`), with `process.env.NODE_ENV` set to
-`production`, and writes `dist/THIRD_PARTY_LICENSES.txt` with the license texts of every bundled
-package (React, ReactDOM, scheduler and @dnd-kit: MIT; ECharts: Apache-2.0 with its NOTICE; zrender:
+`production` and the package's version as `PivotReportElement.version`, and writes
+`dist/THIRD_PARTY_LICENSES.txt` with the license texts of every bundled package, once per name and
+version (React, ReactDOM, scheduler and @dnd-kit: MIT; ECharts: Apache-2.0 with its NOTICE; zrender:
 BSD-3-Clause; tslib: 0BSD; fflate: MIT). The browser test pages are in `tests/browser/pages/element/`.
 
 ## License

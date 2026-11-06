@@ -14,6 +14,19 @@ const inputsOf = (files) => files.flatMap((f) => Object.keys(built.metafile.outp
 
 const uncommented = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
+/** The selectors that end in .pk-root (with attributes, classes or pseudo-classes) and declare a token. */
+function tokensOnRoot(css) {
+    const out = [];
+    for (const m of uncommented(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        for (const selector of m[1].split(",").map((s) => s.trim())) {
+            if (/(^|[\s>+~])\.pk-root(\[[^\]]*\]|\.[\w-]+|:[\w-]+(\([^)]*\))?)*$/.test(selector) && /--pk-[\w-]+\s*:/.test(m[2])) {
+                out.push(selector);
+            }
+        }
+    }
+    return out;
+}
+
 /** Every --pk-* token a rule list declares, by selector. */
 function declared(css, selector) {
     const names = new Set();
@@ -43,12 +56,14 @@ test("the shadow stylesheet declares every token on :host, none on .pk-root", ()
     }
     // a --pk-font set higher up the page does not reach the report
     assert.ok(host.has("--pk-font"));
-    // a token is never declared on .pk-root itself: it would hide the host's value
-    for (const m of uncommented(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        if (/\.pk-root\s*$/.test(m[1].trim()) && !/\s/.test(m[1].trim())) {
-            assert.doesNotMatch(m[2], /--pk-[\w-]+\s*:/, `${m[1].trim()} declares a token`);
-        }
-    }
+    // a token is never declared on .pk-root itself, also not with an attribute or a class
+    // (.pk-root[data-pk-size=medium]): it would hide the host's value
+    assert.deepEqual(tokensOnRoot(css), []);
+});
+
+test("the token check catches a token on .pk-root with an attribute", () => {
+    // the medium-width override pivotkit-react had: the check above must see such a rule
+    assert.deepEqual(tokensOnRoot(`${hostStyles(reactCss)}.pk-root[data-pk-size="medium"]{--pk-panel-w:244px}`), ['.pk-root[data-pk-size="medium"]']);
 });
 
 test("the transform fails loudly when pivotkit-react's token rules change", () => {
@@ -103,6 +118,8 @@ test("the built package imports in Node without a DOM and defines nothing there"
     const mod = await import("../dist/index.js");
     assert.deepEqual(Object.keys(mod).sort(), ["EVENTS", "PivotReportElement", "TAG", "define"]);
     assert.equal(mod.TAG, "pivot-report");
+    const pkg = JSON.parse(await readFile(new URL("package.json", pkgDir), "utf8"));
+    assert.equal(mod.PivotReportElement.version, pkg.version);
     assert.equal(mod.define("my-report"), undefined);
     const bare = await import("../dist/element.js");
     assert.equal(bare.PivotReportElement, mod.PivotReportElement);

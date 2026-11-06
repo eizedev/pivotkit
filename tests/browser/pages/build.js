@@ -10,7 +10,7 @@
 // - element-*.html: pages of the web component pivotkit-element (sources in element/), which loads
 //   from dist/packages/pivotkit-element/dist/ as it ships (npm run build -w pivotkit-element first):
 //   two elements, properties set before the definition, the package loaded twice, a strict CSP,
-//   listener and observer counts, a page with its own React. The element example
+//   listener and observer counts, the <style> fallback, a page with its own React. The element example
 //   (examples/element/) is copied to dist/examples/element/ next to it, at the same relative path as
 //   in the repository.
 //
@@ -109,10 +109,13 @@ const elementDir = `${here}element/`;
 const sources = await readdir(elementDir);
 // the React page leaves React to the import map; the others bundle their data
 await esbuild.build({ ...common, absWorkingDir: elementDir, entryPoints: { "element-react": "react.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "react/jsx-runtime"] });
-const scripts = sources.filter((f) => f.endsWith(".js") && f !== "leaks.js");
+// classic scripts that run before any module: copied as they are
+const CLASSIC = ["leaks.js", "no-constructable.js"];
+const scripts = sources.filter((f) => f.endsWith(".js") && !CLASSIC.includes(f));
 await esbuild.build({ ...common, absWorkingDir: elementDir, entryPoints: Object.fromEntries(scripts.map((f) => [`element-${f.replace(/\.js$/, "")}`, f])), outdir: out });
-// a classic script that runs before any module: copied as it is
-await copyFile(`${elementDir}leaks.js`, `${out}element-leaks.js`);
+for (const file of CLASSIC) {
+    await copyFile(`${elementDir}${file}`, `${out}element-${file}`);
+}
 for (const html of sources.filter((f) => f.endsWith(".html"))) {
     const text = (await readFile(`${elementDir}${html}`, "utf8")).replace("IMPORT_MAP", JSON.stringify({ imports: importMap.imports }));
     await writeFile(`${out}element-${html}`, text);

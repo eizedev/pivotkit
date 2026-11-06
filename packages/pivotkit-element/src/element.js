@@ -72,6 +72,9 @@ import { adoptStyles } from "./styles.js";
 /** The tag the package defines. */
 export const TAG = "pivot-report";
 
+/** This package's version, from its package.json (build.js). */
+const VERSION = typeof __PIVOTKIT_ELEMENT_VERSION__ === "string" ? __PIVOTKIT_ELEMENT_VERSION__ : "0.0.0-source";
+
 // in Node there is no HTMLElement: a plain base keeps the module importable
 const Base = /** @type {typeof HTMLElement} */ (typeof HTMLElement === "undefined" ? /** @type {any} */ (class {}) : HTMLElement);
 const BY_ATTR = new Map(ATTRIBUTES.map((def) => [def.attr, def]));
@@ -92,8 +95,6 @@ export class PivotReportElement extends Base {
     /** @type {MutationObserver | null} */
     #observer = null;
     #queued = false;
-    /** How the styles got into the shadow root. */
-    #styling;
     /** The values of the object properties and of the JSON attributes. */
     #values = /** @type {Record<string, any>} */ ({});
     /** The last view the report reported: the start view when the element is connected again. */
@@ -105,12 +106,12 @@ export class PivotReportElement extends Base {
     constructor() {
         super();
         this.#shadow = this.attachShadow({ mode: "open" });
-        this.#styling = adoptStyles(this.#shadow);
+        adoptStyles(this.#shadow);
     }
 
-    /** How the styles reach the shadow root: "adopted" (a constructed stylesheet) or "style". */
-    get styling() {
-        return this.#styling;
+    /** The version of pivotkit-element this class comes from (two copies on a page tell each other apart). */
+    static get version() {
+        return VERSION;
     }
 
     connectedCallback() {
@@ -326,7 +327,12 @@ export class PivotReportElement extends Base {
      */
     #restart(value) {
         const json = JSON.stringify(value ?? null);
-        if (json !== this.#start.json && this.#values.view === undefined) {
+        // the view the report reported, given back (a page that stores every change and binds it as
+        // the start view): the report shows it already, a new mount would lose the history
+        const shown = this.#lastView !== undefined && json === JSON.stringify(this.#lastView);
+        if (shown) {
+            this.#start = { key: this.#start.key, json };
+        } else if (json !== this.#start.json && this.#values.view === undefined) {
             this.#start = { key: this.#start.key + 1, json };
             this.#lastView = undefined;
         }
@@ -334,6 +340,8 @@ export class PivotReportElement extends Base {
 
     #mount() {
         const container = this.ownerDocument.createElement("div");
+        // fills the element, so height="100%" is a share of the element's own height
+        container.className = "pk-mount";
         this.#shadow.append(container);
         this.#container = container;
         this.#root = createRoot(container);
@@ -431,7 +439,8 @@ let registered = false;
 
 /**
  * Defines the element under a tag name (default "pivot-report"). A name that is already defined is
- * left alone, so loading the package twice does not throw; its constructor is returned.
+ * left alone, so loading the package twice does not throw; its constructor is returned, and a warning
+ * names both versions when the definition is not this copy's.
  * @param {string} [name]
  * @returns {CustomElementConstructor | undefined} undefined without customElements (Node)
  */
@@ -441,6 +450,10 @@ export function define(name = TAG) {
     }
     const existing = customElements.get(name);
     if (existing) {
+        if (existing !== PivotReportElement && !(existing.prototype instanceof PivotReportElement)) {
+            const other = /** @type {any} */ (existing).version;
+            console.warn(`<${name}> is defined already${typeof other === "string" ? ` by pivotkit-element ${other}` : " by another script"}; pivotkit-element ${VERSION} loaded again is not used for it`);
+        }
         return existing;
     }
     const ctor = registered ? class extends PivotReportElement {} : PivotReportElement;

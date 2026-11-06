@@ -12,7 +12,7 @@
 // as it ships.
 //
 //   node build.js          build
-//   node build.js --size   build and print the gzip size of every file
+//   node build.js --size   build, print the gzip size of what a page loads, fail above SIZE_BUDGET_KIB
 import * as esbuild from "esbuild";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -21,6 +21,7 @@ import { options as reactOptions } from "../pivotkit-react/build.js";
 import { hostStyles } from "./src/host-css.js";
 
 const here = new URL(".", import.meta.url).pathname;
+const pkg = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
 
 /** pivotkit-react/styles.css as a JS string for the shadow root. */
 const shadowStyles = {
@@ -72,7 +73,7 @@ export const options = {
     platform: "browser",
     target: reactOptions.target,
     minify: true,
-    define: { "process.env.NODE_ENV": '"production"' },
+    define: { "process.env.NODE_ENV": '"production"', __PIVOTKIT_ELEMENT_VERSION__: JSON.stringify(pkg.version) },
     // the license texts go into one file (licenses() below), not into comments of the bundle
     legalComments: "none",
     metafile: true,
@@ -102,10 +103,16 @@ async function licenses(metafile) {
         "pivotkit-react are part of pivotkit (MIT, see LICENSE).",
         ""
     ];
+    // one entry per name and version: tslib, say, is bundled from two directories
+    const seen = new Set();
     for (const dir of bundledPackages(metafile)) {
         const abs = join(here, dir);
-        const pkg = JSON.parse(await readFile(join(abs, "package.json"), "utf8"));
-        parts.push("=".repeat(78), `${pkg.name} ${pkg.version} (${pkg.license})`, "=".repeat(78), "");
+        const meta = JSON.parse(await readFile(join(abs, "package.json"), "utf8"));
+        if (seen.has(`${meta.name}@${meta.version}`)) {
+            continue;
+        }
+        seen.add(`${meta.name}@${meta.version}`);
+        parts.push("=".repeat(78), `${meta.name} ${meta.version} (${meta.license})`, "=".repeat(78), "");
         // LICENSE, NOTICE and the like; a licenses/ directory (ECharts: code it took from d3) too
         const files = [];
         for (const entry of await readdir(abs, { withFileTypes: true })) {
@@ -119,7 +126,7 @@ async function licenses(metafile) {
             }
         }
         if (files.length === 0) {
-            throw new Error(`${pkg.name}: no license file to bundle`);
+            throw new Error(`${meta.name}: no license file to bundle`);
         }
         for (const f of files.sort()) {
             parts.push(`--- ${f} ---`, "", (await readFile(join(abs, f), "utf8")).trim(), "");
@@ -127,6 +134,13 @@ async function licenses(metafile) {
     }
     return parts.join("\n");
 }
+
+/**
+ * The most a page may load per group, gzip, in KiB: about 10 % over what was measured when the budget
+ * was set (initial 121.4, chart 215.1, export 7.8 on CI). `--size` fails above it; raise it on purpose,
+ * with the reason in the commit.
+ */
+export const SIZE_BUDGET_KIB = { initial: 134, chart: 237, export: 9 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -187,8 +201,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     await writeFile(join(here, "dist", "THIRD_PARTY_LICENSES.txt"), await licenses(result.metafile));
     if (process.argv.includes("--size")) {
         const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
+        let over = false;
         for (const { group, files, raw, gzip } of await sizes(result.metafile)) {
-            console.log(`${group.padEnd(8)} ${String(files).padStart(3)} files ${kb(raw).padStart(11)} ${kb(gzip).padStart(11)} gzip`);
+            const budget = SIZE_BUDGET_KIB[group];
+            const fits = gzip / 1024 <= budget;
+            over ||= !fits;
+            console.log(`${group.padEnd(8)} ${String(files).padStart(3)} files ${kb(raw).padStart(11)} ${kb(gzip).padStart(11)} gzip  (budget ${budget} KiB${fits ? "" : ", OVER"})`);
+        }
+        if (over) {
+            console.error("pivotkit-element: a load group is over its size budget (SIZE_BUDGET_KIB in build.js)");
+            process.exit(1);
         }
     }
 }

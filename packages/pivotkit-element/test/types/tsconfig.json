@@ -5,9 +5,17 @@
     "target": "es2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["es2023", "dom"],
+    "lib": [
+      "es2023",
+      "dom"
+    ],
     "types": [],
-    "skipLibCheck": false
+    "skipLibCheck": false,
+    "jsx": "react",
+    "esModuleInterop": true
   },
-  "files": ["consumer.ts"]
+  "files": [
+    "consumer.ts",
+    "jsx.tsx"
+  ]
 }
