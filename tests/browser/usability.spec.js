@@ -130,3 +130,22 @@ test("a panel opened from More keeps the focus on a switch; it closes when its b
     await expect(page.getByTestId("options")).toBeVisible();
     await expect(page.locator(".pk-popover")).toHaveCount(0);
 });
+
+test("the drill-down shows dates as dates, numbers in the locale and identifiers as they are", async ({ page }) => {
+    for (const [lang, date, cost] of [["en", /^[A-Z][a-z]{2} \d{1,2}, \d{4}$/, /^€[\d,]+\.\d\d$/], ["de", /^\d{2}\.\d{2}\.\d{4}$/, /^[\d.]+,\d\d\u00a0€$/]]) {
+        await page.goto(`?data=assets&lang=${lang}`);
+        await page.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();
+        const panel = page.getByTestId("drill-panel");
+        await expect(panel).toBeVisible();
+        const table = await panel.locator("table").evaluate((t) => {
+            const names = [...t.querySelectorAll("thead th")].map((th) => th.textContent);
+            const first = [...t.querySelector("tbody tr").children].map((td) => td.textContent);
+            return Object.fromEntries(names.map((n, i) => [n, first[i]]));
+        });
+        // the playground's fieldDefaults: "Inventory number" drillFormat "text", Cost a currency
+        expect(table["Inventory number"]).toMatch(/^4\d{4}$/);
+        expect(table.Purchased).toMatch(date);
+        expect(table.Cost).toMatch(cost);
+        expect(table["Disk GB"]).toMatch(/^\d[\d,.]*$/);
+    }
+});

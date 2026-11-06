@@ -81,7 +81,7 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `templates` | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name. |
 | `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`). |
 | `onDeleteTemplate` | `(name) => unknown` | | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
-| `fieldDefaults` | `{ [field]: { agg?, format? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. |
+| `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`. |
@@ -119,6 +119,9 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   (contains, begins with, ...). A field in the Filters zone filters the whole report.
 - Notes above the result say what a top N does to totals and percentages ("Country shows the top 5
   only: ..."), what to do next when nothing is in Values, and how to open a value.
+- Drill-down: a click on a value opens a panel with the rows behind it, formatted as the table
+  formats them: dates as dates (with the time when the column has times), numbers in the locale,
+  yes/no in words, and a field's `fieldDefaults` format.
 - Table: sticky header and row labels, groups expand and collapse, subtotals and grand totals on and
   off (Options), a click on a value opens its rows. Field names and value names in the header can be
   dragged into a zone with the mouse; the chips' menus do the same from the keyboard. From 300 body

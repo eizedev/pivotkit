@@ -62,7 +62,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
 | `templates` | | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. |
 | `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. |
-| `fieldDefaults` | | `{ [field]: { agg?, format? } }` | | The aggregator and format a field gets in Values. |
+| `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is). |
 | `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
 | `limits` | | `Partial<Limits>` | | pivotkit-core's limits. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |

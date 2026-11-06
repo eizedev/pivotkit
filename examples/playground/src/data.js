@@ -126,6 +126,8 @@ export function assets(n, seed = 23) {
         const status = weighted(rnd, [["Active", 82], ["In repair", 4], ["Retired", 14]]);
         rows[i] = {
             Asset: `AS-${String(500000 + i)}`,
+            // a numeric identifier: shown as it is in the drill-down (fieldDefaults drillFormat "text")
+            "Inventory number": 40000 + i,
             "Source system": source,
             Type: type,
             "Operating system": pick(rnd, osOf[type]),
@@ -205,6 +207,7 @@ export const DATASETS = {
     },
     assets: {
         make: assets,
+        fieldDefaults: { "Inventory number": { drillFormat: "text" }, Cost: { format: "currency:EUR" } },
         presets: [
             {
                 name: "Assets per source system and type",

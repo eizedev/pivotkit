@@ -7,15 +7,14 @@
 
 import React, { useId, useRef } from "react";
 import { useModal } from "./dom.js";
-import { cellText } from "./drill.js";
 import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 
 /**
- * @param {{ drill: { title: string, count: number, rows: object[], columns: string[] } | null, onClose: () => void,
- *   labels: import("./labels.js").UiLabels, locale: string, timeZone: string }} props
+ * @param {{ drill: { title: string, count: number, columns: Array<{ name: string, numeric: boolean }>, rows: string[][] } | null,
+ *   onClose: () => void, labels: import("./labels.js").UiLabels, locale: string }} props
  */
-export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
+export function DrillPanel({ drill, onClose, labels, locale }) {
     const id = useId();
     const panel = useRef(/** @type {HTMLDivElement | null} */ (null));
     const { onKeyDown } = useModal(panel, Boolean(drill), onClose);
@@ -53,8 +52,8 @@ export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
                         <thead>
                             <tr>
                                 {drill.columns.map((c) => (
-                                    <th key={c} scope="col">
-                                        {c}
+                                    <th key={c.name} scope="col" className={c.numeric ? "pk-num" : undefined}>
+                                        {c.name}
                                     </th>
                                 ))}
                             </tr>
@@ -62,14 +61,11 @@ export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
                         <tbody>
                             {drill.rows.map((row, i) => (
                                 <tr key={i}>
-                                    {drill.columns.map((c) => {
-                                        const v = row ? row[c] : null;
-                                        return (
-                                            <td key={c} className={typeof v === "number" ? "pk-num" : undefined}>
-                                                {cellText(v, { locale, timeZone })}
-                                            </td>
-                                        );
-                                    })}
+                                    {drill.columns.map((c, k) => (
+                                        <td key={c.name} className={c.numeric ? "pk-num" : undefined}>
+                                            {row[k]}
+                                        </td>
+                                    ))}
                                 </tr>
                             ))}
                         </tbody>

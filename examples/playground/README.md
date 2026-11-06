@@ -22,7 +22,8 @@ without it the report follows the system). The footer shows the engine timings o
 and the last `onCellClick`.
 
 The report is controlled (`view` + `onViewChange`) and the page renders again on every engine timing,
-as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, and saved
+as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, the
+assets data set shows its "Inventory number" as it is in the drill-down (`drillFormat: "text"`), and saved
 templates are `deletable`, the presets are not. `?data=markup` is a small data set with labels that
 look like HTML, for the browser test that nothing is rendered as markup.
 

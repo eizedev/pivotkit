@@ -10,7 +10,7 @@ import { PivotkitError, computePivot, encode, findNode, suggestDateUnit, toGrid,
 import { PivotChart } from "./chart.jsx";
 import { groupingName, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
-import { DRILL_LIMIT, drillRows } from "./drill.js";
+import { DRILL_LIMIT, drillRows, drillTable } from "./drill.js";
 import { DrillPanel } from "./drill-panel.jsx";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
@@ -161,7 +161,7 @@ export function PivotReport(props) {
     const [size, setSize] = useState("wide");
     const [drawer, setDrawer] = useState(false);
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement } | null} */ (null));
-    const [drill, setDrill] = useState(/** @type {{ title: string, count: number, rows: object[], columns: string[] } | null} */ (null));
+    const [drill, setDrill] = useState(/** @type {{ title: string, count: number, columns: Array<{ name: string, numeric: boolean }>, rows: string[][] } | null} */ (null));
     const [hinted, setHinted] = useState(false);
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
@@ -347,13 +347,18 @@ export function PivotReport(props) {
                 return;
             }
             setHinted(true);
-            const { count, rows } = drillRows(result, { rowPath, colPath, data: encodedProp ? null : data, limit: drillDownLimit });
+            const { count, rows, indices } = drillRows(result, { rowPath, colPath, data: encodedProp ? null : data, limit: drillDownLimit });
             onCellClick?.({ row: rowPath, col: colPath, value, valueIndex, text, count, rows });
             if (drillDown) {
-                setDrill({ title: pathTitle(result, rowPath, colPath, labels), count, rows, columns: encoded.columns.map((c) => c.name) });
+                // the values as the table shows them; a host's format for a field (fieldDefaults) applies
+                const formatOf = (name) => {
+                    const d = defaultsFor(fieldDefaults, name);
+                    return d ? (d.drillFormat ?? d.format) : undefined;
+                };
+                setDrill({ title: pathTitle(result, rowPath, colPath, labels), count, ...drillTable(encoded, indices, { locale: result.locale, labels: labels.core, formatOf }) });
             }
         },
-        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, labels, encoded]
+        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, labels, encoded, fieldDefaults]
     );
 
     const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });
@@ -567,7 +572,7 @@ export function PivotReport(props) {
                     </div>
                     <FilterPopover target={filterTarget} onClose={closeFilter} view={view} encoded={encoded} locale={locale} labels={labels} commit={commit} />
                 </PivotDnd>
-                <DrillPanel drill={drill} onClose={() => setDrill(null)} labels={labels} locale={locale} timeZone={encoded.timeZone} />
+                <DrillPanel drill={drill} onClose={() => setDrill(null)} labels={labels} locale={locale} />
                 <div className="pk-layer" ref={setLayer}>
                     {/* a fixed probe at 0, 0: where fixed popovers start (popover.jsx) */}
                     <span className="pk-origin" aria-hidden="true" />

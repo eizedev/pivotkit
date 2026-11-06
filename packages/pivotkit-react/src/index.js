@@ -28,9 +28,12 @@
  */
 
 /**
- * @typedef {object} FieldDefaults  the host's settings for a new value of a field
- * @property {string} [agg]  aggregator, when it fits the field's type ("average" for durations)
- * @property {string} [format]  a format of pivotkit-core ("duration:h", "currency:EUR")
+ * @typedef {object} FieldDefaults  the host's settings for a field
+ * @property {string} [agg]  aggregator of a new value, when it fits the field's type ("average" for durations)
+ * @property {string} [format]  a format of pivotkit-core ("duration:h", "currency:EUR") for a new value,
+ *   and for the field's own numbers in the drill-down unless `drillFormat` is set
+ * @property {string} [drillFormat]  the format of the field's values in the drill-down: "text" shows an
+ *   identifier as it is (40072, not 40,072), "date" a date without its time
  */
 
 /**

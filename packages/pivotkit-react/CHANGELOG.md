@@ -62,3 +62,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A field of the field list described its click as "Add to Rows" wherever it was; its description
   now says what a click does from where it is ("Move to Rows" from Columns or Filters, "Add to
   Values" for a number), and a click on a field already in Rows changes nothing.
+- The drill-down showed raw values (ISO date texts, "40,072" for an identifier); it formats each
+  column by its type as the table does (dates as dates, numbers in the locale, yes/no in words) and
+  applies a field's `fieldDefaults` format. The new `fieldDefaults[field].drillFormat` sets the
+  format of the field's values there (`"text"`: an identifier as it is).
