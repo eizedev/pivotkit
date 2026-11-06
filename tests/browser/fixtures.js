@@ -1,0 +1,40 @@
+// Shared setup: every test fails when the page logs an error or a warning, or throws.
+import { test as base, expect } from "@playwright/test";
+
+export const test = base.extend({
+    page: async ({ page }, use) => {
+        const problems = [];
+        page.on("console", (m) => {
+            if (m.type() === "error" || m.type() === "warning") problems.push(`${m.type()}: ${m.text()}`);
+        });
+        page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
+        await use(page);
+        expect(problems, "console errors and warnings").toEqual([]);
+    }
+});
+
+export { expect };
+
+/** The chip texts of a zone, in order. */
+export async function chips(page, zone) {
+    return page.locator(`[data-zone="${zone}"] .pk-chip`).evaluateAll((els) => els.map((e) => e.getAttribute("data-chip")));
+}
+
+/** A mouse drag from one element to another with intermediate moves, as dnd-kit needs them. */
+export async function drag(page, from, to, { toPosition } = {}) {
+    const a = await from.boundingBox();
+    const b = await to.boundingBox();
+    const start = { x: a.x + Math.min(40, a.width / 2), y: a.y + a.height / 2 };
+    const end = toPosition ? { x: b.x + toPosition.x, y: b.y + toPosition.y } : { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 12, start.y + 12, { steps: 4 });
+    await page.mouse.move(end.x, end.y, { steps: 16 });
+    await page.mouse.move(end.x + 1, end.y + 1, { steps: 2 });
+    await page.mouse.up();
+}
+
+/** Body rows of the pivot table as arrays of cell texts. */
+export async function tableRows(page) {
+    return page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim())));
+}

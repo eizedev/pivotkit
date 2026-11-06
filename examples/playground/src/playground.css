@@ -1,0 +1,141 @@
+/* The page around the report: the report itself only gets a height and inherits the font. */
+:root {
+    --pg-head-h: 132px;
+    color-scheme: light;
+    --pg-bg: #eef1f5;
+    --pg-text: #1a1d23;
+    --pg-muted: #5a6270;
+    --pg-line: #d7dce3;
+    --pg-card: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --pg-bg: #0f1115;
+        --pg-text: #e8eaef;
+        --pg-muted: #a3aab7;
+        --pg-line: #2f343e;
+        --pg-card: #16181d;
+    }
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --pg-bg: #0f1115;
+    --pg-text: #e8eaef;
+    --pg-muted: #a3aab7;
+    --pg-line: #2f343e;
+    --pg-card: #16181d;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--pg-bg);
+    color: var(--pg-text);
+    font: 15px/1.45 Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+}
+
+.pg {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px 12px;
+    max-width: 1680px;
+    margin: 0 auto;
+}
+
+.pg-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+}
+
+.pg-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pg-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: conic-gradient(from 210deg, #2a78d6, #1baf7a, #eda100, #eb6834, #2a78d6);
+    box-shadow: inset 0 0 0 6px var(--pg-bg);
+}
+
+.pg h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.pg-title p {
+    margin: 0;
+    color: var(--pg-muted);
+    font-size: 0.9rem;
+}
+
+.pg-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pg-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    color: var(--pg-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.pg-controls select {
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--pg-line);
+    border-radius: 7px;
+    background: var(--pg-card);
+    color: var(--pg-text);
+    font: inherit;
+    font-size: 0.93rem;
+    font-weight: 400;
+}
+
+.pg .pk-root {
+    min-height: 560px;
+    box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 8px 24px rgb(16 24 40 / 0.06);
+}
+
+.pg-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 16px;
+    color: var(--pg-muted);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+    :root {
+        --pg-head-h: 236px;
+    }
+
+    .pg {
+        padding: 12px 10px;
+    }
+
+    .pg-controls label {
+        flex: 1 1 40%;
+    }
+}
