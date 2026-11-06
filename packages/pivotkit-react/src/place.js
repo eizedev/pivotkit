@@ -1,6 +1,8 @@
 /*
  * Where a popover goes: below its anchor, above it when there is not enough room below, and always
- * inside the viewport with a margin.
+ * inside the viewport with a margin. A popover is position: fixed; an ancestor with a transform, a
+ * filter or `contain` (a router animation, a dialog, a carousel) makes itself the containing block of
+ * fixed elements, so the place in viewport coordinates is moved by that block's origin (fromOrigin).
  */
 
 const MARGIN = 8;
@@ -23,4 +25,17 @@ export function placePopover(anchor, size, viewport, align = "start") {
     const wanted = align === "end" ? anchor.right - size.width : anchor.left;
     const left = Math.max(MARGIN, Math.min(wanted, viewport.width - size.width - MARGIN));
     return { top: Math.max(MARGIN, top), left, maxHeight: Math.max(120, room), side };
+}
+
+/**
+ * A place in viewport coordinates as the top and left of a fixed element whose containing block
+ * starts at `origin` (the viewport rect of a fixed probe at 0, 0: { top: 0, left: 0 } without a
+ * transformed ancestor).
+ * @template {{ top: number, left: number }} T
+ * @param {T} place
+ * @param {{ top: number, left: number }} origin
+ * @returns {T}
+ */
+export function fromOrigin(place, origin) {
+    return { ...place, top: place.top - origin.top, left: place.left - origin.left };
 }

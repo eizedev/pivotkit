@@ -12,13 +12,16 @@ const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 
 /**
  * Hands the file to the host's onExport, then downloads it unless onExport returned false.
+ * @returns {boolean} whether the report downloaded it
  * @param {Blob} blob
  * @param {{ kind: "xlsx" | "csv" | "png", file: string, doc: Document, onExport?: (file: { kind: "xlsx" | "csv" | "png", fileName: string, blob: Blob }) => unknown }} options
  */
 function deliver(blob, { kind, file, doc, onExport }) {
-    if (onExport?.({ kind, fileName: file, blob }) !== false) {
-        saveBlob(blob, file, doc);
+    if (onExport?.({ kind, fileName: file, blob }) === false) {
+        return false;
     }
+    saveBlob(blob, file, doc);
+    return true;
 }
 
 /**
@@ -34,13 +37,15 @@ export function useExport({ fileName, result, locale, labels, limits, root, char
         const file = `${base}.${kind}`;
         const doc = root.current?.ownerDocument ?? document;
         try {
+            /** @type {boolean} */
+            let downloaded;
             if (kind === "png") {
                 const surface = root.current ? getComputedStyle(root.current).getPropertyValue("--pk-surface").trim() : "";
                 const url = chartRef.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: surface || undefined });
                 if (!url) {
                     return;
                 }
-                deliver(dataUrlToBlob(url), { kind, file, doc, onExport });
+                downloaded = deliver(dataUrlToBlob(url), { kind, file, doc, onExport });
             } else {
                 if (!result) {
                     return;
@@ -48,9 +53,12 @@ export function useExport({ fileName, result, locale, labels, limits, root, char
                 const { toXlsx, toCsvBytes } = await import("pivotkit-core/export");
                 const grid = toGrid(result, { locale, labels: labels.core, limits });
                 const bytes = kind === "xlsx" ? toXlsx(grid, { sheetName: base }) : toCsvBytes(grid, { bom: true });
-                deliver(new Blob([/** @type {BlobPart} */ (bytes)], { type: kind === "xlsx" ? XLSX_TYPE : "text/csv;charset=utf-8" }), { kind, file, doc, onExport });
+                downloaded = deliver(new Blob([/** @type {BlobPart} */ (bytes)], { type: kind === "xlsx" ? XLSX_TYPE : "text/csv;charset=utf-8" }), { kind, file, doc, onExport });
             }
-            announce(fill(labels.toastExported, { file }));
+            // the host that kept the file says itself what became of it
+            if (downloaded) {
+                announce(fill(labels.toastExported, { file }));
+            }
         } catch (e) {
             announce(fill(labels.toastExportFailed, { message: messageOf(e) }), { tone: "error" });
         }

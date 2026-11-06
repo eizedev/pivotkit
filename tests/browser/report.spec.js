@@ -304,3 +304,20 @@ test("100,000 rows: the table body is virtualized and scrolls", async ({ page })
     const timings = await page.evaluate(() => Object.fromEntries(performance.getEntriesByType("measure").filter((e) => e.name.startsWith("pivotkit:")).map((e) => [e.name, Math.round(e.duration)])));
     test.info().annotations.push({ type: "timings", description: JSON.stringify(timings) });
 });
+
+test("a popover opens at its button also inside a transformed ancestor (a containing block for fixed elements)", async ({ page }) => {
+    // no opening animation: the place is measured once
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("?data=sales");
+    // a host's animation or dialog: transform makes #app the containing block of position: fixed
+    await page.evaluate(() => Object.assign(document.getElementById("app").style, { transform: "translateZ(0)", marginTop: "160px", marginLeft: "40px" }));
+    const button = page.getByTestId("export");
+    await button.click();
+    const menu = page.locator(".pk-popover");
+    await expect(menu).toBeVisible();
+    const b = await button.boundingBox();
+    const m = await menu.boundingBox();
+    // below the button, its right edge on the button's (align end), as without the transform
+    expect(Math.abs(m.y - (b.y + b.height + 6))).toBeLessThan(3);
+    expect(Math.abs(m.x + m.width - (b.x + b.width))).toBeLessThan(3);
+});

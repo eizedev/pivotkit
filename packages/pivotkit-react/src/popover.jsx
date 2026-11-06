@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import { FOCUSABLE, activeIn, eventWithin, trapTab, useEscapeLayer } from "./dom.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
-import { placePopover } from "./place.js";
+import { fromOrigin, placePopover } from "./place.js";
 
 /** The layer element and the size class of the report ("wide", "medium", "narrow"). */
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
@@ -40,7 +40,10 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 return;
             }
             const r = a.getBoundingClientRect();
-            setPos(placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align));
+            const place = placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align);
+            // the origin of the fixed containing block: not the viewport inside a transformed ancestor
+            const probe = layer?.querySelector(".pk-origin");
+            setPos(probe ? fromOrigin(place, probe.getBoundingClientRect()) : place);
         };
         place();
         const el = ref.current;
@@ -55,7 +58,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             window.removeEventListener("resize", place);
             window.removeEventListener("scroll", place, true);
         };
-    }, [open, anchor, align, sheet]);
+    }, [open, anchor, align, sheet, layer]);
 
     useEscapeLayer(open, onClose);
     // the latest onClose without re-running the open effect: a caller's inline arrow is new on

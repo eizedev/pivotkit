@@ -17,7 +17,7 @@ React, ReactDOM and ECharts are peer dependencies: the host provides them, so th
 each in the page (PowerShell Universal provides React 18.3.1 at runtime). `pivotkit-core` (a caret
 range on its current version) and `@dnd-kit/core` and `@dnd-kit/sortable` (pinned exactly) are
 regular dependencies. A host that also uses pivotkit-core directly must use a version inside that
-range: in 0.x a caret range spans patch versions only (`^0.0.0` matches 0.0.0 alone), and npm shares
+range: in 0.x a caret range spans patch versions only (`^0.1.0` matches 0.1.x), and npm shares
 one copy of the core only when the ranges overlap.
 
 | Peer | Range | Why a peer |
@@ -151,7 +151,9 @@ to the report first; close the report's layer before, or open the dialog when no
 The report adapts to its own width, not the window's: wide (1024 px and more) has the field list on
 the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (below 640 px) opens the
 field list as a drawer from the toolbar, stacks the zones, and shows menus as bottom sheets. Only the
-table scrolls sideways.
+table scrolls sideways. In the narrow layout the zones sit above the table, so a report of a fixed
+640 px leaves little room for it on a phone: give it more height there, for example
+`height="calc(100svh - 24px)"` (the page scrolls to the report, the table scrolls inside it).
 
 ## Theming
 
@@ -189,7 +191,7 @@ html[data-theme="dark"] .pk-root {
 | `--pk-radius`, `--pk-radius-sm` | `10px`, `7px` | Corners of panels, of buttons and chips |
 | `--pk-shadow`, `--pk-shadow-lg` | | Chips and buttons; popovers, drawer, drag preview |
 | `--pk-row-h` | `2.45em` | Height of a table row |
-| `--pk-panel-w` | `268px` | Width of the field list |
+| `--pk-panel-w` | `268px` | Width of the field list; at most 244 px in the medium layout |
 | `--pk-duration`, `--pk-ease` | `180ms` | Animations; `0ms` with `prefers-reduced-motion: reduce` |
 | `--pk-type-string`, `--pk-type-number`, `--pk-type-date`, `--pk-type-boolean` | | Field type icons |
 | `--pk-chart-1` ... `--pk-chart-8` | `#2a78d6` ... | Chart series colours, in this order; read by ECharts |

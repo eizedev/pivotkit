@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toGrid } from "pivotkit-core";
 import { decodeRow, drillRows, cellText } from "../src/drill.js";
 import { LABELS, fill, resolveLabels } from "../src/labels.js";
-import { placePopover } from "../src/place.js";
+import { fromOrigin, placePopover } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { sliceRows, windowOf } from "../src/virtual.js";
 
@@ -83,4 +83,10 @@ test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", 
     assert.equal(cellText(1234.5, { locale: "de-DE" }), "1.234,5");
     assert.equal(cellText(new Date(Date.UTC(2026, 0, 2, 3, 4)), { locale: "en-US", timeZone: "UTC" }), "Jan 2, 2026, 3:04 AM");
     assert.equal(cellText(null, { locale: "en-US" }), "");
+});
+
+test("a popover inside a transformed ancestor is placed from that ancestor's origin", () => {
+    const place = { top: 300, left: 120, maxHeight: 400, side: "below" };
+    assert.deepEqual(fromOrigin(place, { top: 0, left: 0 }), place);
+    assert.deepEqual(fromOrigin(place, { top: 200, left: 40 }), { top: 100, left: 80, maxHeight: 400, side: "below" });
 });

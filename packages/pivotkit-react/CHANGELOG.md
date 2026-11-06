@@ -27,7 +27,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Filter popover with values and row counts, search, select all or none and a text condition.
 - Undo, redo and reset; templates (load, save, delete of templates marked `deletable` after an in-page
   confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG, with
-  `onExport` seeing every file before its download and able to skip it.
+  `onExport` seeing every file before its download and able to skip it (then without the "Exported"
+  note).
+- Popovers and menus open at their button also inside an ancestor with a transform, a filter or
+  `contain`, which becomes the containing block of fixed elements.
+- The medium layout narrows the field list without setting `--pk-panel-w` on the root, so a host's
+  value of the token stays in force.
 - Notes in the status line under the table (none for adding a field), kept while hovered or focused.
 - Themes light and dark (`theme="auto"` follows the nearest `data-theme`, also across a shadow root,
   and `prefers-color-scheme`), CSS custom properties `--pk-*` with zero-specificity defaults,

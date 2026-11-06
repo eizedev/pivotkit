@@ -331,6 +331,11 @@
     min-height: 0;
 }
 
+/* medium: the field list at most 244 px wide; derived here, so --pk-panel-w stays the host's token */
+.pk-root[data-pk-size="medium"] .pk-layout {
+    grid-template-columns: min(var(--pk-panel-w), 244px) minmax(0, 1fr);
+}
+
 .pk-panel-slot {
     min-height: 0;
     min-width: 0;
@@ -345,10 +350,6 @@
     min-height: 0;
     gap: 10px;
     padding: 10px 14px 0;
-}
-
-.pk-root[data-pk-size="medium"] {
-    --pk-panel-w: 244px;
 }
 
 /* ---- field panel ---- */
@@ -791,6 +792,17 @@
 
 .pk-layer > * {
     pointer-events: auto;
+}
+
+/* where position: fixed starts: the viewport, or a transformed ancestor (popover.jsx) */
+.pk-layer > .pk-origin {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .pk-popover {
