@@ -130,7 +130,8 @@ or on the document gets it, with `event.target` the element.
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)
-when the promise resolves, and an error with its message when it rejects. Without `respondWith` (no
+when the promise resolves, and an error with its message when it rejects (a rejection without a
+message shows "The server could not save the template.", `labels.toastSaveRejected`). Without `respondWith` (no
 listener, or `respondWith` after an `await`) the action counts as done at once and the element logs a
 console warning, since the user is told "saved" or "deleted" either way. The page then sets
 `templates` to the new list.

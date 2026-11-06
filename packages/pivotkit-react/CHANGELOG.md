@@ -41,6 +41,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   when there is no room; field list as a modal drawer below 640 px.
 - Labels in English and German with plain words; `labels` overrides single texts and ignores entries
   of the wrong type; the report's `lang` follows the labels.
+- Labels `toastSaveRejected` and `toastDeleteRejected` ("The server could not save the template."),
+  shown when the host's template callback throws or rejects without a message; a message the host
+  gives (an `Error`, a text) is shown as before.
 
 ### Fixed
 

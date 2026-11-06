@@ -233,6 +233,9 @@ export const en = {
     toastExportFailed: "Export failed: {message}",
     toastSaveFailed: "The template could not be saved: {message}",
     toastDeleteFailed: "The template could not be deleted: {message}",
+    // the host refused without saying why (a rejected promise without a message)
+    toastSaveRejected: "The server could not save the template.",
+    toastDeleteRejected: "The server could not delete the template.",
     // what an undo step was, for "Undone: ..."
     steps: {
         added: "{field} added to {zone}",
@@ -505,6 +508,8 @@ export const de = {
     toastExportFailed: "Export fehlgeschlagen: {message}",
     toastSaveFailed: "Die Vorlage konnte nicht gespeichert werden: {message}",
     toastDeleteFailed: "Die Vorlage konnte nicht gelöscht werden: {message}",
+    toastSaveRejected: "Der Server konnte die Vorlage nicht speichern.",
+    toastDeleteRejected: "Der Server konnte die Vorlage nicht löschen.",
     steps: {
         added: "{field} zu {zone} hinzugefügt",
         removed: "{field} entfernt",
@@ -551,6 +556,19 @@ export const LABELS = Object.freeze({ en, de });
 /** The message of a thrown value, for a note. */
 export function messageOf(error) {
     return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The note for a host's callback that threw or rejected: `withMessage` with the host's own message
+ * when it gave one (an Error, a text, an object with a `message` text), else `withoutMessage`.
+ * @param {string} withMessage  with {message}
+ * @param {string} withoutMessage
+ * @param {unknown} error
+ */
+export function hostFailure(withMessage, withoutMessage, error) {
+    const raw = typeof error === "string" ? error : error !== null && typeof error === "object" && typeof (/** @type {any} */ (error).message) === "string" ? /** @type {any} */ (error).message : "";
+    const message = raw.trim();
+    return message ? fill(withMessage, { message }) : withoutMessage;
 }
 
 /** Replaces {name} placeholders; unknown names stay as they are. */

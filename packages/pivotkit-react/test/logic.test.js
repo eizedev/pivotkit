@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toGrid } from "pivotkit-core";
 import { decodeRow, drillRows, cellText } from "../src/drill.js";
-import { LABELS, fill, resolveLabels } from "../src/labels.js";
+import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { fromOrigin, placePopover } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { sliceRows, windowOf } from "../src/virtual.js";
@@ -89,4 +89,18 @@ test("a popover inside a transformed ancestor is placed from that ancestor's ori
     const place = { top: 300, left: 120, maxHeight: 400, side: "below" };
     assert.deepEqual(fromOrigin(place, { top: 0, left: 0 }), place);
     assert.deepEqual(fromOrigin(place, { top: 200, left: 40 }), { top: 100, left: 80, maxHeight: 400, side: "below" });
+});
+
+test("a host that refuses a template: its own message when it gives one, a plain note when not", () => {
+    const { en, de } = LABELS;
+    const save = (e, l = en) => hostFailure(l.toastSaveFailed, l.toastSaveRejected, e);
+    assert.equal(save(new Error("Name taken")), "The template could not be saved: Name taken");
+    assert.equal(save("Quota reached"), "The template could not be saved: Quota reached");
+    assert.equal(save({ message: "Forbidden" }), "The template could not be saved: Forbidden");
+    // nothing to show: no "undefined", no "[object Object]", no dangling colon
+    for (const e of [undefined, null, new Error(""), new Error("  "), "", {}, 42, false]) {
+        assert.equal(save(e), "The server could not save the template.", String(e));
+    }
+    assert.equal(save(undefined, de), "Der Server konnte die Vorlage nicht speichern.");
+    assert.equal(hostFailure(de.toastDeleteFailed, de.toastDeleteRejected, null), "Der Server konnte die Vorlage nicht löschen.");
 });

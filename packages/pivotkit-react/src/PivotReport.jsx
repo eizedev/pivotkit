@@ -15,7 +15,7 @@ import { DrillPanel } from "./drill-panel.jsx";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { fill, messageOf, plural, resolveLabels } from "./labels.js";
+import { fill, hostFailure, messageOf, plural, resolveLabels } from "./labels.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
@@ -372,7 +372,7 @@ export function PivotReport(props) {
                   await onSaveTemplate(name, view);
                   announce(fill(labels.toastSaved, { name }));
               } catch (e) {
-                  announce(fill(labels.toastSaveFailed, { message: messageOf(e) }), { tone: "error" });
+                  announce(hostFailure(labels.toastSaveFailed, labels.toastSaveRejected, e), { tone: "error" });
               }
           }
         : null;
@@ -383,7 +383,7 @@ export function PivotReport(props) {
                   announce(fill(labels.toastDeleted, { name }));
                   return true;
               } catch (e) {
-                  announce(fill(labels.toastDeleteFailed, { message: messageOf(e) }), { tone: "error" });
+                  announce(hostFailure(labels.toastDeleteFailed, labels.toastDeleteRejected, e), { tone: "error" });
                   return false;
               }
           }
