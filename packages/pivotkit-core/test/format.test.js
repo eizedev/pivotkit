@@ -43,3 +43,12 @@ test("explicit decimals are exact for number, percent and percent100; up to 20",
     assert.equal(isFormat("number:20"), true);
     assert.equal(isFormat("number:21"), false);
 });
+
+test("the automatic format has the same decimals in a whole value column", async () => {
+    const { computePivot, encode, toGrid } = await import("../src/index.js");
+    const texts = (rows, agg) => toGrid(computePivot(encode(rows), { rows: ["k"], values: [{ field: "v", agg }], totals: { grandTotalRow: false } })).rows.slice(1).map((r) => r[1].text);
+    assert.deepEqual(texts([{ k: "a", v: 3 }, { k: "b", v: 1.5 }, { k: "c", v: 2.25 }], "sum"), ["3.00", "1.50", "2.25"]);
+    assert.deepEqual(texts([{ k: "a", v: 3 }, { k: "b", v: 1.5 }], "max"), ["3.0", "1.5"]);
+    assert.deepEqual(texts([{ k: "a", v: 3 }, { k: "b", v: 12 }], "sum"), ["3", "12"], "whole numbers stay whole");
+    assert.deepEqual(texts([{ k: "a", v: 3 }, { k: "a", v: 4 }, { k: "b", v: 12 }], "average"), ["3.50", "12.00"]);
+});

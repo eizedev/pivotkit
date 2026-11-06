@@ -7,6 +7,7 @@
  *   const result = computePivot(data, view);         // normalizes again, so any input is safe
  *   const grid = toGrid(result);                     // table cells with merges and formatted text
  *   const option = toEChartsOption(result);          // for an Apache ECharts instance
+ *   const unit = suggestDateUnit(data, "Created");     // "day", "yearMonth", ... from the span of a date field
  *   // import { toXlsx, toCsv } from "pivotkit-core/export"
  *
  * Conventions: required inputs first (the subject leads), everything optional in one trailing options
@@ -43,6 +44,7 @@ export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION } fro
 export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
+export { suggestDateUnit } from "./derive.js";
 export { toGrid } from "./grid.js";
 export { toSeries, toEChartsOption } from "./chart.js";
 export { createHistory } from "./history.js";

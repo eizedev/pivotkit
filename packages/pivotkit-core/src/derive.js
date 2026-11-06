@@ -31,6 +31,10 @@ export function isoWeek(ms) {
 const monthName = (month, locale) =>
     dateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2000, month - 1, 1)));
 
+/** "Jan 2025" in English, "Jan. 2025" in German: the month of a year, as the locale writes it. */
+const yearMonthName = (v, locale) =>
+    dateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(Math.floor(v / 100), (v % 100) - 1, 1)));
+
 // 2024-01-01 was a Monday
 const weekdayName = (weekday, locale) =>
     dateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, weekday)));
@@ -56,13 +60,13 @@ export const DERIVED = Object.freeze({
         source: "date",
         type: "number",
         value: (d) => d.getUTCFullYear() * 10 + Math.floor(d.getUTCMonth() / 3) + 1,
-        label: (v) => `${Math.floor(v / 10)}-Q${v % 10}`
+        label: (v) => `Q${v % 10} ${Math.floor(v / 10)}`
     },
     yearMonth: {
         source: "date",
         type: "number",
         value: (d) => d.getUTCFullYear() * 100 + d.getUTCMonth() + 1,
-        label: (v) => `${Math.floor(v / 100)}-${pad(v % 100)}`
+        label: yearMonthName
     },
     yearWeek: {
         source: "date",
@@ -79,6 +83,42 @@ export const DERIVED = Object.freeze({
 
 /** Names of the grouping units, in the order a UI lists them. */
 export const DERIVE_UNITS = Object.freeze(Object.keys(DERIVED));
+
+/** Date units along the time line (every value is one period of one year), and their span limits. */
+const SPAN_UNITS = Object.freeze([
+    { unit: "day", maxDays: 62 },
+    { unit: "yearMonth", maxDays: 2 * 366 },
+    { unit: "yearQuarter", maxDays: 6 * 366 },
+    { unit: "year", maxDays: Infinity }
+]);
+
+/**
+ * The date grouping a date field gets when it is placed on an axis, from the span of its values:
+ * up to 62 days by day, up to two years by month, up to six years by quarter, longer by year. Null
+ * for a field that is not a date, has fewer than two different days, or is missing.
+ * @param {import("./encode.js").Encoded} encoded
+ * @param {string} field
+ * @returns {"day" | "yearMonth" | "yearQuarter" | "year" | null}
+ */
+export function suggestDateUnit(encoded, field) {
+    const column = encoded.column(field);
+    if (!column || column.type !== "date" || column.derived) {
+        return null;
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of column.dict) {
+        if (typeof v === "number") {
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+    }
+    const days = (max - min) / MS_PER_DAY;
+    if (!(days >= 1)) {
+        return null;
+    }
+    return /** @type {any} */ (SPAN_UNITS.find((s) => days <= s.maxDays).unit);
+}
 
 /**
  * Number bins [lower, upper) of `size` from `origin`. Sizes like 0.1 have no exact binary form, so

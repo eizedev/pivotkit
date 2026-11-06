@@ -15,7 +15,7 @@ import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
 import { SHOW_AS } from "./show-as.js";
-import { hexToRgb, resolveLocale, optionsOf } from "./util.js";
+import { decimalsOf, hexToRgb, resolveLocale, optionsOf } from "./util.js";
 
 /**
  * @typedef {object} GridCell
@@ -35,9 +35,41 @@ import { hexToRgb, resolveLocale, optionsOf } from "./util.js";
  * @property {{ scale?: number, bar?: number, color: string | null }} [style]  conditional formatting
  */
 
+/** Aggregators whose results have decimals even on whole numbers: shown with two. */
+const FRACTIONAL = new Set(["average", "median", "stdev", "stdevp", "var", "varp"]);
+/** Decimals shown at most by the automatic format. */
+const AUTO_DECIMALS = 2;
+
+/**
+ * The decimals of a number column's values, at most AUTO_DECIMALS: what a sum, minimum or maximum of
+ * them needs. Cached on the encoded data per column.
+ * @param {import("./encode.js").Encoded} encoded
+ * @param {string | null} field
+ */
+function sourceDecimals(encoded, field) {
+    const column = field ? encoded.column(field) : undefined;
+    if (!column || column.type !== "number") {
+        return AUTO_DECIMALS;
+    }
+    return encoded.cache.getOrSet(`decimals:${column.id}`, () => {
+        let d = 0;
+        for (const v of column.dict) {
+            if (typeof v === "number") {
+                d = Math.max(d, decimalsOf(v));
+                if (d >= AUTO_DECIMALS) {
+                    return AUTO_DECIMALS;
+                }
+            }
+        }
+        return d;
+    });
+}
+
 /**
  * The format a value is shown with: a percent or rank calculation decides its own (a percent format
- * of the view's choice is kept), else the view's format, else one that fits the result type.
+ * of the view's choice is kept), else the view's format, else one that fits the result type. The
+ * automatic number format has the same decimals in every cell of a value column: those of the source
+ * values (at most two) for a sum, minimum or maximum, two for an average or a spread.
  * @param {import("./pivot.js").PivotResult} result
  * @param {number} vi  value index
  */
@@ -61,20 +93,36 @@ export function defaultFormat(result, vi) {
         const column = result.encoded.column(spec.field);
         return column && column.dateOnly === false ? "datetime" : "date";
     }
-    return spec.agg === "count" || spec.agg === "countUnique" ? "integer" : "number";
+    if (spec.agg === "count" || spec.agg === "countUnique") {
+        return "integer";
+    }
+    return `number:${FRACTIONAL.has(spec.agg) ? AUTO_DECIMALS : sourceDecimals(result.encoded, spec.field)}`;
 }
 
-/** "Sum of Sales", or the value's own label. */
+/**
+ * "Sum of Sales", or the value's own label. A value shown as a calculation says so: "% of grand
+ * total of Sales" (a sum is named by its field alone), "Running total of Count of Ticket".
+ */
 export function valueName(spec, labels = DEFAULT_LABELS) {
     if (spec.label) {
         return spec.label;
     }
+    let base;
     if (!spec.field) {
-        return labels.countRows ?? DEFAULT_LABELS.countRows;
+        base = labels.countRows ?? DEFAULT_LABELS.countRows;
+    } else {
+        const aggs = { ...DEFAULT_LABELS.aggregators, ...(labels.aggregators || {}) };
+        const agg = Object.hasOwn(aggs, spec.agg) ? aggs[spec.agg] : spec.agg;
+        base = fill(labels.valueName ?? DEFAULT_LABELS.valueName, { agg, field: spec.field });
     }
-    const aggs = { ...DEFAULT_LABELS.aggregators, ...(labels.aggregators || {}) };
-    const agg = Object.hasOwn(aggs, spec.agg) ? aggs[spec.agg] : spec.agg;
-    return fill(labels.valueName ?? DEFAULT_LABELS.valueName, { agg, field: spec.field });
+    if (!spec.showAs) {
+        return base;
+    }
+    const names = { ...DEFAULT_LABELS.showAs, ...(labels.showAs || {}) };
+    const type = spec.showAs.type;
+    const showAs = Object.hasOwn(names, type) ? names[type] : type;
+    const value = spec.field && spec.agg === "sum" ? spec.field : base;
+    return fill(labels.showAsName ?? DEFAULT_LABELS.showAsName, { showAs, value });
 }
 
 /** @type {(kind: string) => 0 | 1 | 2} */

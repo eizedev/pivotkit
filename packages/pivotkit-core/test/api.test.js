@@ -13,7 +13,7 @@ test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
         "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "LIMITS", "PivotkitError", "VIEW_VERSION", "aggregatorsFor",
         "cellRows", "computePivot", "createHistory", "emptyView", "encode", "fieldItems", "findNode", "formatter", "isFormat",
-        "migrate", "normalize", "toEChartsOption", "toGrid", "toSeries", "validate", "viewFields"
+        "migrate", "normalize", "suggestDateUnit", "toEChartsOption", "toGrid", "toSeries", "validate", "viewFields"
     ]);
     assert.deepEqual(Object.keys(exporters).sort(), ["toCsv", "toCsvBytes", "toXlsx"]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
@@ -63,6 +63,9 @@ test("the catalog lists exactly what normalize accepts", () => {
     assert.ok(CATALOG.showAsAlongAxis.includes("runningTotal"));
     assert.ok(!CATALOG.showAsAlongAxis.includes("percentOfGrandTotal"));
     assert.ok(Object.isFrozen(CATALOG));
+    // the UI's sub-lists name only entries of the full lists
+    for (const agg of CATALOG.commonAggregators) assert.ok(CATALOG.aggregators.includes(agg), agg);
+    assert.deepEqual([...CATALOG.timelineUnits, ...CATALOG.cyclicUnits].sort(), CATALOG.deriveUnits.filter((u) => u !== "bin").sort());
 });
 
 test("options in an older shape fail loudly instead of being ignored", async () => {

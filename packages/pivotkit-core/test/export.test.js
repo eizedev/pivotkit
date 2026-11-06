@@ -153,8 +153,10 @@ test("XLSX number formats show cells as the grid does", () => {
         const { cells } = sheetOf(toXlsx(gridOf(rows, { rows: ["k"], values: [{ field: "v", agg: "sum", format }], totals: { grandTotalRow: false } }, locale)));
         return ["B2", "B3", "B4"].map((ref) => cells.get(ref).code);
     };
-    // default "number": up to two decimals, per cell, without a trailing dot
-    assert.deepEqual(value(undefined), ["#,##0", "#,##0.0", "#,##0.00"]);
+    // "number": up to two decimals, per cell, without a trailing dot
+    assert.deepEqual(value("number"), ["#,##0", "#,##0.0", "#,##0.00"]);
+    // the automatic format: the same decimals in the whole column, those of the data (at most two)
+    assert.deepEqual(value(undefined), ["#,##0.00", "#,##0.00", "#,##0.00"]);
     assert.deepEqual(value("number:1"), ["#,##0.0", "#,##0.0", "#,##0.0"]);
     // the currency symbol and its place as the locale writes it
     assert.deepEqual(value("currency:eur").slice(0, 1), ['"€"#,##0.00']);

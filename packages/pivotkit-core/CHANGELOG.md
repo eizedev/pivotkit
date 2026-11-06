@@ -6,8 +6,21 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- `yearMonth` labels follow the locale ("Jan 2025" instead of "2025-01"), `yearQuarter` reads
+  "Q1 2025" instead of "2025-Q1"; the keys and their order are unchanged.
+- A value without a format shows the same decimals in its whole column (those of the data, at most
+  two; two for averages and spreads) instead of up to two per cell.
+
 ### Added
 
+- `suggestDateUnit(data, field)`: the date grouping for a date field from the span of its values (day,
+  month, quarter or year), so a UI can group a date as soon as it is placed.
+- `toSeries()` and `toEChartsOption()` take `maxCategories`; `toSeries()` reports `categoryCount`.
+- `CATALOG.commonAggregators`, `CATALOG.timelineUnits` and `CATALOG.cyclicUnits` for a UI's menus.
+- `DEFAULT_LABELS.showAsName` and `DEFAULT_LABELS.showAs`: a value shown as a calculation is named
+  after it ("% of grand total of Sales").
 - `fieldItems(data, field, { view, locale, labels, limits })`: the distinct values of a field, a derived
   field of the view too, with label and row count in the table's label order, for a filter list.
 - `encode()`: typed columnar encoding (string, number, boolean, date including ISO strings) with Int32

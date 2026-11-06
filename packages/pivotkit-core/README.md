@@ -55,11 +55,12 @@ Every function takes its required inputs first and all optional settings in one 
 | `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
 | `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
 | `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios. |
-| `toSeries(result, { labels, separator, limits })`, `toEChartsOption(result, { chart, theme, locale, labels, limits })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap. ECharts itself is not imported. |
+| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap. ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut. |
 | `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars) and CSV (the grid's locale decides separator and decimal mark, formula-injection guard). |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views. |
 | `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
-| `CATALOG`, `aggregatorsFor(type)` | Every name a view accepts (aggregators, formats, show-as, filter types, grouping units, chart types), for a UI's menus; the aggregators that fit a field type. |
+| `CATALOG`, `aggregatorsFor(type)` | Every name a view accepts (aggregators, formats, show-as, filter types, grouping units, chart types), for a UI's menus, with the sub-lists `commonAggregators`, `timelineUnits` and `cyclicUnits`; the aggregators that fit a field type. |
+| `suggestDateUnit(data, field)` | The date grouping a date field gets on an axis, from the span of its values: up to 62 days `day`, up to two years `yearMonth`, up to six years `yearQuarter`, longer `year`; `null` for fewer than two days or a field that is not a date. |
 | `DEFAULT_LABELS`, `DEFAULT_THEME`, `LIMITS`, `VIEW_VERSION`, `PivotkitError` | Defaults to override, the limits, the view version, the error class. |
 
 Types: `import type { PivotResult, Grid, View, Encoded } from "pivotkit-core"`. Modules not listed
@@ -109,7 +110,7 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
                                               // stdev stdevp var varp first last
         format: "currency:EUR",               // number[:d] integer currency[:CODE] percent[:d] percent100[:d]
                                               // compact bytes duration[:unit] date datetime time text
-        label: null,                          // default "Sum of Sales"
+        label: null,                          // default "Sum of Sales"; with showAs "% of row total of Sales"
         showAs: { type: "percentOfRowTotal", axis: "rows" },
         conditional: { type: "colorScale", colors: ["#f8696b", "#63be7b"] }   // or { type: "dataBar" }
     }],
@@ -134,7 +135,12 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
 ```
 
 Formats: `number` shows up to 2 decimals and `percent` up to 1; with a number of decimals
-(`number:2`, `percent:0`, up to 20) exactly that many. `currency` takes an ISO 4217 code.
+(`number:2`, `percent:0`, up to 20) exactly that many. `currency` takes an ISO 4217 code. A value
+without a format gets the same decimals in every cell of its column: those of the source values (at
+most 2) for a sum, minimum, maximum, first or last, 2 for an average, median or spread, none for a count.
+
+Date groupings label their values in the locale: `yearMonth` "Jan 2025" ("Jan. 2025" in German),
+`yearQuarter` "Q1 2025", `month` "Jan", `weekday` "Mon"; the keys stay numbers that sort in time.
 
 "Show values as": `percentOfGrandTotal`, `percentOfRowTotal`, `percentOfColumnTotal`,
 `percentOfParentRow`, `percentOfParentColumn`, `differenceFromPrevious`,

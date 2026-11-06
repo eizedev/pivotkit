@@ -99,3 +99,12 @@ test("a percent format of the view's choice is kept for percent show-as", () => 
     const grid = toGrid(r);
     assert.equal(grid.rows[grid.headerRows][1].text, "35.71%");
 });
+
+test("a value shown as a calculation is named after it", () => {
+    const name = (spec, labels) => toGrid(computePivot(data, { rows: ["Region"], values: [spec] }), labels ? { labels } : undefined).valueNames[0];
+    assert.equal(name({ field: "Units", agg: "sum", showAs: "percentOfGrandTotal" }), "% of grand total of Units");
+    assert.equal(name({ field: "Units", agg: "average", showAs: "rankDescending" }), "Rank (largest first) of Average of Units");
+    assert.equal(name({ agg: "count", showAs: "runningTotal" }), "Running total of Count");
+    assert.equal(name({ field: "Units", agg: "sum", showAs: "percentOfGrandTotal", label: "Share" }), "Share", "an own name wins");
+    assert.equal(name({ field: "Units", agg: "sum", showAs: "percentOfRowTotal" }, { showAsName: "{showAs} von {value}", showAs: { percentOfRowTotal: "% der Zeilensumme" } }), "% der Zeilensumme von Units");
+});

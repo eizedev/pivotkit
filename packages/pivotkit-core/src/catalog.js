@@ -13,8 +13,14 @@ import { CHART_TYPES, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
 
 export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
+    /** the aggregators a UI offers first; the others are statistics for fewer people */
+    commonAggregators: Object.freeze(["sum", "count", "average", "min", "max"]),
     columnTypes: COLUMN_TYPES,
     deriveUnits: DERIVE_UNITS,
+    /** date units along the time line (each value one period of one year: "Jan 2025") */
+    timelineUnits: Object.freeze(["year", "yearQuarter", "yearMonth", "yearWeek", "day"]),
+    /** date units that repeat every year or day ("Jan" of every year), for comparing periods */
+    cyclicUnits: Object.freeze(["quarter", "month", "week", "weekday", "hour"]),
     filterTypes: FILTER_TYPES,
     labelOps: LABEL_OPS,
     valueOps: VALUE_OPS,

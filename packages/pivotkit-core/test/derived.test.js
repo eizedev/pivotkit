@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toGrid, validate } from "../src/index.js";
+import { computePivot, encode, suggestDateUnit, toGrid, validate } from "../src/index.js";
 import { isoWeek } from "../src/derive.js";
 import { SALES } from "./fixtures.js";
 
@@ -18,8 +18,8 @@ test("year, quarter, month", () => {
 });
 
 test("year-quarter, year-month and year-week keep years apart", () => {
-    assert.deepEqual(keysBy("yearQuarter").map((k) => k[1]), ["2025-Q4", "2026-Q1", "2026-Q2"]);
-    assert.deepEqual(keysBy("yearMonth").map((k) => k[1]), ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04"]);
+    assert.deepEqual(keysBy("yearQuarter").map((k) => k[1]), ["Q4 2025", "Q1 2026", "Q2 2026"]);
+    assert.deepEqual(keysBy("yearMonth").map((k) => k[1]), ["Dec 2025", "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026"]);
     // 2025-12-31 is in ISO week 1 of 2026
     assert.equal(keysBy("yearWeek")[0][1], "2026-W01");
 });
@@ -109,4 +109,25 @@ test("a bin index beyond 2^53 is blank instead of a bin whose bounds are equal",
         const [lo, hi] = l.split(" – ");
         assert.notEqual(lo, hi, `bin "${l}" has equal bounds`);
     }
+});
+
+test("year-month labels follow the locale; the keys stay numbers that sort in time", () => {
+    const r = computePivot(data, { derived: [{ name: "M", field: "Date", by: "yearMonth" }], rows: ["M"], values: [{ agg: "count" }], formatting: { locale: "de-DE" } });
+    const first = r.rowRoot.children[0];
+    assert.equal(first.key, 202512);
+    assert.match(r.label("rows", first), /^Dez\.? 2025$/);
+});
+
+test("suggestDateUnit picks a grouping from the span of a date field", () => {
+    const span = (days) => encode([{ d: new Date(Date.UTC(2026, 0, 1)) }, { d: new Date(Date.UTC(2026, 0, 1) + days * 86_400_000) }]);
+    assert.equal(suggestDateUnit(span(30), "d"), "day");
+    assert.equal(suggestDateUnit(span(62), "d"), "day");
+    assert.equal(suggestDateUnit(span(63), "d"), "yearMonth");
+    assert.equal(suggestDateUnit(span(700), "d"), "yearMonth");
+    assert.equal(suggestDateUnit(span(800), "d"), "yearQuarter");
+    assert.equal(suggestDateUnit(span(3000), "d"), "year");
+    assert.equal(suggestDateUnit(span(0), "d"), null, "one day: nothing to group");
+    assert.equal(suggestDateUnit(encode([{ d: "2026-01-01", n: 1 }]), "n"), null, "not a date");
+    assert.equal(suggestDateUnit(data, "missing"), null);
+    assert.equal(suggestDateUnit(data, "date"), "yearMonth", "case-insensitive, SALES spans Dec 2025 to Apr 2026");
 });

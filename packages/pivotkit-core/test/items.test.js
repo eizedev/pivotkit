@@ -22,7 +22,7 @@ test("the values of a field with their row counts, in label order and blank last
 test("a derived field of the view lists its groups, and its values filter the pivot", () => {
     const view = { derived: [{ name: "Month", field: "Date", by: "yearMonth" }] };
     const r = fieldItems(data, "Month", { view });
-    assert.deepEqual(r.items.map((i) => [i.label, i.count]), [["2025-12", 1], ["2026-01", 2], ["2026-02", 2], ["2026-03", 2], ["2026-04", 1]]);
+    assert.deepEqual(r.items.map((i) => [i.label, i.count]), [["Dec 2025", 1], ["Jan 2026", 2], ["Feb 2026", 2], ["Mar 2026", 2], ["Apr 2026", 1]]);
     // an item value names the group in an include filter
     const pivot = computePivot(data, { ...view, rows: ["Month"], filters: [{ field: "Month", type: "include", items: [r.items[1].value] }] });
     assert.deepEqual(pivot.rowRoot.children.map((n) => n.key), [202601]);

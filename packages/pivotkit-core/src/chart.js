@@ -18,8 +18,10 @@ import { resolveLocale, optionsOf } from "./util.js";
 /**
  * Chart data: one category per plotted row line, one series per column line and value. Dense like
  * the grid: more than `limits.cells` data points throw a PivotkitError (LIMIT_EXCEEDED).
+ * `maxCategories` keeps the first categories in the view's order (sort by value for the largest);
+ * `categoryCount` is the number there were before.
  * @param {import("./pivot.js").PivotResult} result
- * @param {{ labels?: Partial<import("./labels.js").Labels>, separator?: string, limits?: Partial<import("./limits.js").Limits> }} [options]
+ * @param {{ labels?: Partial<import("./labels.js").Labels>, separator?: string, limits?: Partial<import("./limits.js").Limits>, maxCategories?: number }} [options]
  */
 export function toSeries(result, options) {
     options = optionsOf(options, "toSeries");
@@ -34,6 +36,11 @@ export function toSeries(result, options) {
     // a pivot whose only row is the grand total still plots that one bar
     if (rowLines.length === 0) {
         rowLines = [{ node: result.rowRoot, kind: "leaf" }];
+    }
+    const categoryCount = rowLines.length;
+    if (options.maxCategories !== undefined) {
+        expect(Number.isInteger(options.maxCategories) && options.maxCategories > 0, "toSeries: maxCategories must be a positive whole number");
+        rowLines = rowLines.slice(0, options.maxCategories);
     }
     if (colLines.length === 0) {
         colLines = [{ node: result.colRoot, kind: "leaf" }];
@@ -68,6 +75,7 @@ export function toSeries(result, options) {
     }
     return {
         categories: rowLines.map(({ node }) => pathLabel("rows", node)),
+        categoryCount,
         categoryPaths: rowLines.map(({ node }) => node.path),
         series,
         // per value: the row totals over all columns, for pie charts
@@ -97,6 +105,7 @@ export function toSeries(result, options) {
  * @param {Partial<import("./labels.js").Labels>} [options.labels]
  * @param {string} [options.separator]  between the parts of a multi-level label, default " / "
  * @param {Partial<import("./limits.js").Limits>} [options.limits]
+ * @param {number} [options.maxCategories]  plots the first categories only, see toSeries
  */
 export function toEChartsOption(result, options) {
     options = optionsOf(options, "toEChartsOption");

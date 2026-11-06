@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toEChartsOption, toSeries } from "../src/index.js";
+import { PivotkitError, computePivot, encode, toEChartsOption, toSeries } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -71,4 +71,16 @@ test("a pivot without rows plots one category", () => {
     const s = toSeries(computePivot(data, { values: [{ field: "Units", agg: "sum" }] }));
     assert.deepEqual(s.categories, ["Grand Total"]);
     assert.deepEqual(s.series[0].data, [28]);
+});
+
+test("maxCategories plots the first categories in the view's order and reports how many there were", () => {
+    const rows = Array.from({ length: 30 }, (_, i) => ({ k: `k${String(i).padStart(2, "0")}`, v: i }));
+    const r = computePivot(encode(rows), { rows: ["k"], values: [{ field: "v", agg: "sum" }], sort: [{ field: "k", by: "value", order: "desc" }] });
+    const s = toSeries(r, { maxCategories: 5 });
+    assert.deepEqual(s.categories, ["k29", "k28", "k27", "k26", "k25"]);
+    assert.equal(s.categoryCount, 30);
+    assert.equal(s.series[0].data.length, 5);
+    assert.equal(toSeries(r).categoryCount, 30);
+    assert.equal(toEChartsOption(r, { maxCategories: 5 }).xAxis.data.length, 5);
+    assert.throws(() => toSeries(r, { maxCategories: 0 }), PivotkitError);
 });

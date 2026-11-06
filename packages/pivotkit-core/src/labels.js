@@ -20,6 +20,8 @@ const DATE_TIME = { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" };
  * @property {string} true
  * @property {string} false
  * @property {Record<string, string>} aggregators
+ * @property {string} [showAsName]  the name of a value shown as a calculation; {showAs} and {value}
+ * @property {Record<string, string>} [showAs]  names of the "show values as" calculations
  */
 
 /**
@@ -50,6 +52,20 @@ export const DEFAULT_LABELS = Object.freeze({
         varp: "VarP",
         first: "First",
         last: "Last"
+    }),
+    showAsName: "{showAs} of {value}",
+    showAs: Object.freeze({
+        percentOfGrandTotal: "% of grand total",
+        percentOfRowTotal: "% of row total",
+        percentOfColumnTotal: "% of column total",
+        percentOfParentRow: "% of parent row",
+        percentOfParentColumn: "% of parent column",
+        differenceFromPrevious: "Difference from previous",
+        percentDifferenceFromPrevious: "% difference from previous",
+        runningTotal: "Running total",
+        percentRunningTotal: "% running total",
+        rankAscending: "Rank (smallest first)",
+        rankDescending: "Rank (largest first)"
     })
 });
 
