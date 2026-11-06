@@ -46,6 +46,13 @@
  */
 
 /**
+ * @typedef {object} ExportFile  a file the report made, before it is downloaded
+ * @property {"xlsx" | "csv" | "png"} kind
+ * @property {string} fileName  with the extension ("pivot.xlsx"), made safe
+ * @property {Blob} blob
+ */
+
+/**
  * @typedef {object} PivotReportProps
  * @property {object[]} [data]  the rows; encoded once per array, or once per `dataKey`
  * @property {string | number} [dataKey]  identity of `data`: a new array with the same key is not encoded again
@@ -70,6 +77,8 @@
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [className]
  * @property {string} [fileName]  name of exported files without extension (default "pivot"); made safe
+ * @property {(file: ExportFile) => unknown} [onExport]  every exported file before its download;
+ *   returning false skips the download (the host keeps the file, for example to upload it)
  */
 
 export { PivotReport } from "./PivotReport.jsx";

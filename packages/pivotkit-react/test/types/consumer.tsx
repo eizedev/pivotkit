@@ -1,7 +1,7 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the component as a TypeScript user sees it.
 import React from "react";
-import { LABELS, PivotReport, type CellClick, type FieldDefaults, type PartialLabels, type PivotReportProps, type Template, type ViewInput } from "pivotkit-react";
+import { LABELS, PivotReport, type CellClick, type ExportFile, type FieldDefaults, type PartialLabels, type PivotReportProps, type Template, type ViewInput } from "pivotkit-react";
 import type { View } from "pivotkit-core";
 
 const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }];
@@ -14,9 +14,10 @@ const partial: PartialLabels = { zones: { rows: de }, undo: "Zurück" };
 // @ts-expect-error a label is text, not a number
 const wrong: PartialLabels = { undo: 5 };
 const deleteLater = async (name: string): Promise<void> => void name;
+const keepCsv = (f: ExportFile): boolean => f.kind !== "csv" || f.blob.size < 0 || f.fileName === "";
 
 export const elements = [
     <PivotReport key="a" {...props} onCellClick={onCell} onViewChange={(v: View) => v.rows.length} onSaveTemplate={(name: string, v: View) => [name, v]} labels={partial} />,
-    <PivotReport key="b" data={[]} dataKey="v1" defaultView={start} fieldDefaults={defaults} onDeleteTemplate={deleteLater} />,
+    <PivotReport key="b" data={[]} dataKey="v1" defaultView={start} fieldDefaults={defaults} onDeleteTemplate={deleteLater} onExport={keepCsv} />,
     <PivotReport key="c" view={start} onViewChange={() => undefined} labels={wrong} />
 ];

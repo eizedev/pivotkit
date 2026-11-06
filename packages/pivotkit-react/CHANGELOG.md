@@ -26,7 +26,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   categories, hints for many series and dates on Columns, and "Swap rows and columns".
 - Filter popover with values and row counts, search, select all or none and a text condition.
 - Undo, redo and reset; templates (load, save, delete of templates marked `deletable` after an in-page
-  confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG.
+  confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG, with
+  `onExport` seeing every file before its download and able to skip it.
 - Notes in the status line under the table (none for adding a field), kept while hovered or focused.
 - Themes light and dark (`theme="auto"` follows the nearest `data-theme`, also across a shadow root,
   and `prefers-color-scheme`), CSS custom properties `--pk-*` with zero-specificity defaults,

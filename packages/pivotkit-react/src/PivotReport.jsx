@@ -146,7 +146,8 @@ export function PivotReport(props) {
         limits: limitsProp,
         className,
         fileName = "pivot",
-        fieldDefaults
+        fieldDefaults,
+        onExport
     } = props;
 
     // props a host may rebuild on every render, compared by value
@@ -355,7 +356,7 @@ export function PivotReport(props) {
         [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, labels, encoded]
     );
 
-    const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce });
+    const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });
 
     const loadTemplate = useCallback(
         (t) => {

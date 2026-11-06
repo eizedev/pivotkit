@@ -92,9 +92,10 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `limits` | `Partial<Limits>` | | pivotkit-core's limits. A layout over `limits.cells` shows a message instead of the table. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
+| `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
 
 Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
-`Template`, `FieldDefaults`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
+`ExportFile`, `Template`, `FieldDefaults`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
 `PartialLabels`. The stylesheet is `pivotkit-react/styles.css`.
 
 ## What the user can do
