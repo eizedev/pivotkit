@@ -2,9 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, normalize } from "pivotkit-core";
 import {
-    addField, chartPresetOf, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
-    selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, toggleCollapsed, updateValue
+    addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
+    selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue
 } from "../src/view-ops.js";
+import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -116,7 +117,7 @@ test("sort, values, collapse, chart", () => {
     assert.deepEqual(reorder(v, "rows", 0, 1).collapsed.rows, [], "collapsed paths belong to the old field order");
     const c = setChart(v, "stacked");
     assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false }]);
-    assert.equal(chartPresetOf(c.chart), "stacked");
+    assert.equal(chartTypeOf(c.chart), "stacked");
     assert.equal(isEmptyView(empty), true);
     assert.equal(defaultAgg("date"), "count");
 });
@@ -138,4 +139,45 @@ test("every result is a view normalize accepts without issues", () => {
         assert.deepEqual(normalize(v, data).issues, [], JSON.stringify(v));
         v = norm(v);
     }
+});
+
+test("the chart type table: every entry round-trips and is a chart type of the core", async () => {
+    const { CATALOG } = await import("pivotkit-core");
+    for (const name of CHART_TYPE_NAMES) {
+        assert.equal(chartTypeOf(CHART_TYPES[name].chart), name);
+        assert.ok(CATALOG.chartTypes.includes(CHART_TYPES[name].chart.type), name);
+        assert.equal(normalize({ chart: CHART_TYPES[name].chart }, data).issues.length, 0, name);
+    }
+    assert.equal(chartTypeOf({ type: "bar", stacked: true, horizontal: true }), "horizontal");
+    assert.equal(chartTypeOf({ type: "unknown" }), "bar");
+});
+
+test("a date placed on an axis or in Filters comes grouped; a value gets the host's defaults", () => {
+    let v = addField(empty, "Date", "rows", { type: "date", dateUnit: "yearMonth", groupName: "Date (Month)" });
+    assert.deepEqual(v.rows, ["Date (Month)"]);
+    assert.deepEqual(v.derived, [{ name: "Date (Month)", field: "Date", by: "yearMonth" }]);
+    // placed again elsewhere, the grouping moves instead of staying twice
+    v = addField(norm(v), "Date", "cols", { type: "date", dateUnit: "yearMonth", groupName: "Date (Month)" });
+    assert.deepEqual([v.rows, v.cols], [[], ["Date (Month)"]]);
+    const f = norm(addField(empty, "Date", "filters", { type: "date", dateUnit: "year", groupName: "Date (Year)" }));
+    assert.deepEqual(filterZoneFields(f), ["Date (Year)"]);
+    assert.deepEqual(normalize(f, data).issues, []);
+    const withDefaults = addField(empty, "Units", "values", { type: "number", defaults: { agg: "average", format: "duration:h" } });
+    assert.deepEqual([withDefaults.values[0].agg, withDefaults.values[0].format], ["average", "duration:h"]);
+    const wrong = addField(empty, "Region", "values", { type: "string", defaults: { agg: "sum", format: "nonsense" } });
+    assert.deepEqual([wrong.values[0].agg, wrong.values[0].format], ["count", null], "a default that does not fit is ignored");
+    assert.equal(defaultAgg("number", "median"), "median");
+});
+
+test("swapping rows and columns takes collapsed groups and calculations along", () => {
+    const v = norm({
+        rows: ["Region", "Product"], cols: [], collapsed: { rows: [["North"]], cols: [] },
+        values: [{ field: "Units", agg: "sum", showAs: { type: "runningTotal", axis: "rows" } }, { field: "Units", agg: "sum", showAs: { type: "percentOfRowTotal" } }]
+    });
+    const s = swapAxes(v);
+    assert.equal(v.collapsed.rows.length, 1);
+    assert.deepEqual([s.rows, s.cols, s.collapsed], [[], ["Region", "Product"], { rows: [], cols: [["North"]] }]);
+    assert.deepEqual(s.values.map((x) => x.showAs), [{ type: "runningTotal", axis: "cols" }, { type: "percentOfColumnTotal", axis: "cols" }]);
+    assert.deepEqual(normalize(s, data).issues, []);
+    assert.deepEqual(swapAxes(s).values.map((x) => x.showAs.type), ["runningTotal", "percentOfRowTotal"]);
 });

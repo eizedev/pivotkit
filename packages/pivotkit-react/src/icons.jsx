@@ -45,6 +45,8 @@ const PATHS = {
     info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 11v5M12 8h.01",
     image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01",
     file: "M6 3h8l4 4v14H6zM14 3v4h4",
+    swap: "M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7",
+    top: "M4 20v-6h5v6M9 20V8h6v12M15 20v-9h5v9M3 20h18",
     drag: "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
 };
 

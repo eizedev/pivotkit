@@ -1,12 +1,14 @@
 /*
  * Popovers and menus: anchored to a button, placed inside the viewport (place.js), shown as a bottom
- * sheet on narrow reports. Escape and a click outside close them and focus goes back to the button;
- * arrow keys move between the options. They render into the report's own layer element, so the
- * --pk-* tokens and the theme apply.
+ * sheet on narrow reports. Escape (wherever the focus is), a click outside and the focus leaving
+ * close them, and focus goes back to the button; arrow keys move between the options. A bottom sheet
+ * is modal: Tab stays inside. They render into the report's own layer element, so the --pk-* tokens
+ * and the theme apply, also inside a shadow root.
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { FOCUSABLE, activeIn, eventWithin, trapTab, useEscapeLayer } from "./dom.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
 import { placePopover } from "./place.js";
@@ -14,7 +16,6 @@ import { placePopover } from "./place.js";
 /** The layer element and the size class of the report ("wide", "medium", "narrow"). */
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
 
-const FOCUSABLE = "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex='-1'])";
 const OPTION = "[data-pk-option]:not([disabled])";
 
 /**
@@ -27,21 +28,20 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
     const sheet = size === "narrow";
 
-    const place = useCallback(() => {
-        const el = ref.current;
-        const a = anchor.current;
-        if (!el || !a || sheet) {
-            return;
-        }
-        const r = a.getBoundingClientRect();
-        setPos(placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align));
-    }, [anchor, align, sheet]);
-
     useIsoLayoutEffect(() => {
         if (!open) {
             setPos(null);
             return undefined;
         }
+        const place = () => {
+            const el = ref.current;
+            const a = anchor.current;
+            if (!el || !a || sheet) {
+                return;
+            }
+            const r = a.getBoundingClientRect();
+            setPos(placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align));
+        };
         place();
         const el = ref.current;
         const ro = typeof ResizeObserver === "function" && el ? new ResizeObserver(place) : null;
@@ -55,8 +55,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             window.removeEventListener("resize", place);
             window.removeEventListener("scroll", place, true);
         };
-    }, [open, place]);
+    }, [open, anchor, align, sheet]);
 
+    useEscapeLayer(open, onClose);
     useEffect(() => {
         if (!open) {
             return undefined;
@@ -66,18 +67,19 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         // after the placement, so the page does not scroll to a popover still at 0,0
         const t = requestAnimationFrame(() => /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true }));
         const onDown = (e) => {
-            const target = /** @type {Node} */ (e.target);
-            if (el && !el.contains(target) && !anchor.current?.contains(target)) {
+            if (!eventWithin(e, [el, anchor.current])) {
                 onClose();
             }
         };
-        document.addEventListener("pointerdown", onDown, true);
+        const doc = el?.ownerDocument ?? document;
+        doc.addEventListener("pointerdown", onDown, true);
         const button = anchor.current;
         return () => {
             cancelAnimationFrame(t);
-            document.removeEventListener("pointerdown", onDown, true);
+            doc.removeEventListener("pointerdown", onDown, true);
             // focus goes back to the button unless the user moved it somewhere else
-            if (button && (document.activeElement === document.body || el?.contains(document.activeElement))) {
+            const now = activeIn(button);
+            if (button && button.isConnected && (!now || now === doc.body || el?.contains(now) || !now.isConnected)) {
                 button.focus({ preventScroll: true });
             }
         };
@@ -87,20 +89,31 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         return null;
     }
     const onKeyDown = (e) => {
-        if (e.key === "Escape") {
-            e.stopPropagation();
+        if (role === "menu" && e.key === "Tab") {
+            // a menu is left with Tab: it closes and the focus goes back to its button
+            e.preventDefault();
             onClose();
             return;
         }
+        if (sheet) {
+            trapTab(e, ref.current);
+        }
         if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
-            const options = [...ref.current.querySelectorAll(OPTION)];
+            const options = /** @type {HTMLElement[]} */ ([...(ref.current?.querySelectorAll(OPTION) ?? [])]).filter((o) => o.getClientRects().length > 0);
             if (options.length === 0 || (e.target instanceof HTMLInputElement && e.target.type !== "checkbox")) {
                 return;
             }
             e.preventDefault();
-            const at = options.indexOf(/** @type {Element} */ (document.activeElement));
+            const at = options.indexOf(/** @type {HTMLElement} */ (activeIn(ref.current)));
             const next = e.key === "Home" ? 0 : e.key === "End" ? options.length - 1 : (at + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
-            /** @type {HTMLElement} */ (options[next]).focus();
+            options[next].focus();
+        }
+    };
+    // Tab out of a popover closes it; a click on its button toggles it instead
+    const onBlur = (e) => {
+        const to = /** @type {Node | null} */ (e.relatedTarget);
+        if (to && !ref.current?.contains(to) && !anchor.current?.contains(to)) {
+            onClose();
         }
     };
     const style = sheet ? undefined : pos ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight } : { top: 0, left: 0, visibility: /** @type {const} */ ("hidden") };
@@ -116,6 +129,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 className={`pk-popover${sheet ? " pk-sheet" : ""}${pos?.side === "above" ? " pk-above" : ""}${className ? ` ${className}` : ""}`}
                 style={style}
                 onKeyDown={onKeyDown}
+                onBlur={sheet ? undefined : onBlur}
+                // a click on text inside keeps the focus here, not on the report around it
+                tabIndex={-1}
             >
                 {children}
             </div>
@@ -128,11 +144,13 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * A button that opens a popover. `children` is a function of `close`.
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
- *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string }} props
+ *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
+ *   buttonRef?: React.RefObject<HTMLButtonElement> }} props
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef(null);
+    const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
+    const ref = buttonRef ?? own;
     const id = useId();
     const close = useCallback(() => setOpen(false), []);
     return (
@@ -144,7 +162,7 @@ export function MenuButton({ label, icon, text, showText = true, className, role
                 aria-haspopup={role === "menu" ? "menu" : "dialog"}
                 aria-expanded={open}
                 aria-controls={open ? id : undefined}
-                aria-label={showText && text ? undefined : label}
+                aria-label={name ?? (showText && text ? undefined : label)}
                 title={title ?? (showText && text ? undefined : label)}
                 disabled={disabled}
                 data-testid={testId}

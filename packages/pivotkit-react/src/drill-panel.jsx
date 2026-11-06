@@ -1,9 +1,12 @@
 /*
  * The rows behind a clicked value, in a side panel over the report: the cell's labels as the title,
- * the number of rows, and the first rows (the limit of the drill-down) as a table.
+ * the number of rows, and the first rows (the limit of the drill-down) as a table. It is modal: the
+ * focus moves in, Tab stays inside, Escape (wherever the focus is) and the close button close it, and
+ * the focus goes back to the value that opened it.
  */
 
-import React, { useEffect, useId, useRef } from "react";
+import React, { useId, useRef } from "react";
+import { useModal } from "./dom.js";
 import { cellText } from "./drill.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
@@ -14,21 +17,8 @@ import { fill } from "./labels.js";
  */
 export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
     const id = useId();
-    const close = useRef(/** @type {HTMLButtonElement | null} */ (null));
-    const back = useRef(/** @type {Element | null} */ (null));
-    useEffect(() => {
-        if (drill) {
-            back.current = document.activeElement;
-            close.current?.focus({ preventScroll: true });
-            return () => {
-                const el = /** @type {HTMLElement | null} */ (back.current);
-                if (el && el.isConnected) {
-                    el.focus({ preventScroll: true });
-                }
-            };
-        }
-        return undefined;
-    }, [drill]);
+    const panel = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const { onKeyDown } = useModal(panel, Boolean(drill), onClose);
     if (!drill) {
         return null;
     }
@@ -42,12 +32,9 @@ export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
                 aria-modal="true"
                 aria-labelledby={id}
                 data-testid="drill-panel"
-                onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                        e.stopPropagation();
-                        onClose();
-                    }
-                }}
+                ref={panel}
+                tabIndex={-1}
+                onKeyDown={onKeyDown}
             >
                 <div className="pk-drill-head">
                     <div>
@@ -57,11 +44,11 @@ export function DrillPanel({ drill, onClose, labels, locale, timeZone }) {
                             {drill.rows.length < drill.count ? fill(labels.drillShown, { shown: drill.rows.length.toLocaleString(locale), count: n }) : fill(labels.drillCount, { count: n })}
                         </p>
                     </div>
-                    <button ref={close} type="button" className="pk-icon-btn" onClick={onClose} aria-label={labels.close} title={labels.close}>
+                    <button type="button" className="pk-icon-btn" onClick={onClose} data-autofocus="" aria-label={labels.close} title={labels.close}>
                         <Icon name="x" />
                     </button>
                 </div>
-                <div className="pk-drill-body">
+                <div className="pk-drill-body" tabIndex={0} aria-label={drill.title}>
                     <table className="pk-drill-table">
                         <thead>
                             <tr>

@@ -1,10 +1,11 @@
 /*
  * The field list: every column of the data with its type, searchable, each one draggable into a zone,
  * with a quick add (click: numbers go to Values, everything else to Rows) and a menu for every zone.
- * Dropping a chip here removes it from the report.
+ * Dropping a chip here removes it from the report. On a narrow report it is a modal drawer.
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { fill } from "./labels.js";
@@ -22,17 +23,23 @@ function FieldItem({ field, labels, zones, onAdd }) {
     return (
         <li className={`pk-field${isDragging ? " pk-dragging" : ""}${zones.length ? " pk-placed" : ""}`} ref={setNodeRef} {...itemProps} data-field={field.name}>
             <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: field.name })} title={labels.fieldsHint}>
-                <Icon name="grip" />
+                <Icon name="grip" size={18} />
             </span>
             <span className={`pk-type pk-type-${field.type}`} title={typeLabel}>
                 <Icon name={/** @type {any} */ (TYPE_ICON[field.type] ?? "text")} size={14} />
                 <span className="pk-sr">{typeLabel}</span>
             </span>
-            <button type="button" className="pk-field-name" onClick={() => onAdd(field.name, quickZone(field.type))} title={`${field.name} \u2013 ${fill(labels.addTo, { zone: labels.zones[quickZone(field.type)] })}`}>
+            <button
+                type="button"
+                className="pk-field-name"
+                onClick={() => onAdd(field.name, quickZone(field.type))}
+                title={`${field.name} \u2013 ${fill(labels.addTo, { zone: labels.zones[quickZone(field.type)] })}`}
+                aria-label={zones.length ? `${field.name}, ${fill(labels.inZone, { zone: zones.map((z) => labels.zones[z]).join(", ") })}` : undefined}
+            >
                 {field.name}
             </button>
             {zones.length ? (
-                <span className="pk-badges" aria-label={fill(labels.inZone, { zone: zones.map((z) => labels.zones[z]).join(", ") })}>
+                <span className="pk-badges" aria-hidden="true">
                     {zones.map((z) => (
                         <span key={z} className={`pk-badge pk-badge-${z}`} aria-hidden="true" title={fill(labels.inZone, { zone: labels.zones[z] })}>
                             <Icon name={/** @type {any} */ (ZONE_ICON[z])} size={12} />
@@ -63,9 +70,9 @@ function FieldItem({ field, labels, zones, onAdd }) {
 
 /**
  * @param {{ fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, labels: import("./labels.js").UiLabels,
- *   onAdd: (field: string, zone: string) => void, drawer: boolean, onClose: () => void }} props
+ *   onAdd: (field: string, zone: string) => void, drawer: boolean, open: boolean, onClose: () => void }} props
  */
-export function FieldPanel({ fields, placed, labels, onAdd, drawer, onClose }) {
+export function FieldPanel({ fields, placed, labels, onAdd, drawer, open, onClose }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
@@ -74,8 +81,22 @@ export function FieldPanel({ fields, placed, labels, onAdd, drawer, onClose }) {
         return q ? fields.filter((f) => f.name.toLowerCase().includes(q)) : fields;
     }, [fields, query]);
     const removing = active && active.kind !== "field";
+    const modal = drawer && open;
+    const el = useRef(/** @type {HTMLElement | null} */ (null));
+    const { onKeyDown } = useModal(el, modal, onClose, "[data-pk-opener='fields']");
+    const ref = (node) => {
+        el.current = node;
+        setNodeRef(node);
+    };
     return (
-        <aside className={`pk-panel${removing ? " pk-removing" : ""}${isOver && removing ? " pk-over" : ""}`} ref={setNodeRef} aria-label={labels.panel}>
+        <aside
+            className={`pk-panel${removing ? " pk-removing" : ""}${isOver && removing ? " pk-over" : ""}`}
+            ref={ref}
+            aria-label={labels.panel}
+            role={modal ? "dialog" : undefined}
+            aria-modal={modal ? true : undefined}
+            onKeyDown={modal ? onKeyDown : undefined}
+        >
             <div className="pk-panel-head">
                 <h2 className="pk-panel-title">{labels.fields}</h2>
                 {drawer ? (
@@ -88,7 +109,7 @@ export function FieldPanel({ fields, placed, labels, onAdd, drawer, onClose }) {
             <label className="pk-search">
                 <Icon name="search" />
                 <span className="pk-sr">{labels.searchFields}</span>
-                <input type="search" value={query} placeholder={labels.searchFields} onChange={(e) => setQuery(e.target.value)} />
+                <input type="search" value={query} placeholder={labels.searchFields} onChange={(e) => setQuery(e.target.value)} data-autofocus="" />
             </label>
             <ul className="pk-field-list">
                 {shown.map((f) => (

@@ -11,7 +11,10 @@
 
 :where(.pk-root) {
     --pk-font-size: max(14px, 1em);
-    --pk-small: 0.857em;
+    /* secondary text (hints, counts, section titles): never below 14 px */
+    --pk-small: max(14px, 0.93em);
+    /* the smallest hit area of a control (WCAG 2.5.8) */
+    --pk-target: 24px;
     --pk-radius: 10px;
     --pk-radius-sm: 7px;
     --pk-row-h: 2.45em;
@@ -20,6 +23,10 @@
     --pk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     --pk-heat-low: #eaf1fb;
     --pk-heat-high: #2a78d6;
+    /* colour scales a view leaves to the theme: low, middle, high (Excel's red, yellow, green) */
+    --pk-scale-low: #f8696b;
+    --pk-scale-mid: #ffeb84;
+    --pk-scale-high: #63be7b;
 
     color-scheme: light;
     --pk-surface: #ffffff;
@@ -30,6 +37,8 @@
     --pk-muted: #5a6270;
     --pk-border: #dde1e7;
     --pk-border-strong: #c3c9d2;
+    /* the dashed edge of an empty drop zone: 3:1 against --pk-surface-2 */
+    --pk-drop-border: #868e9a;
     --pk-grid: #edf0f3;
     --pk-accent: #2b5fd9;
     --pk-accent-text: #ffffff;
@@ -39,8 +48,13 @@
     --pk-total-strong: #e9edf3;
     --pk-danger: #b42318;
     --pk-focus: #2b5fd9;
+    --pk-shadow-sm: 0 1px 1px rgb(16 24 40 / 0.04);
     --pk-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.08);
     --pk-shadow-lg: 0 12px 32px rgb(16 24 40 / 0.16), 0 2px 6px rgb(16 24 40 / 0.08);
+    --pk-scrim: rgb(10 14 22 / 0.32);
+    --pk-scrim-light: rgb(10 14 22 / 0.18);
+    --pk-knob: #ffffff;
+    --pk-note: #eef3fd;
     --pk-type-string: #6250d6;
     --pk-type-number: #1a7f5a;
     --pk-type-date: #b5560b;
@@ -66,6 +80,7 @@
     --pk-muted: #a3aab7;
     --pk-border: #2f343e;
     --pk-border-strong: #454c58;
+    --pk-drop-border: #6f7785;
     --pk-grid: #23272e;
     --pk-accent: #84a3ff;
     --pk-accent-text: #0d1426;
@@ -75,7 +90,11 @@
     --pk-total-strong: #252a33;
     --pk-danger: #ff8b80;
     --pk-focus: #84a3ff;
+    --pk-shadow-sm: 0 1px 1px rgb(0 0 0 / 0.3);
     --pk-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+    --pk-scrim: rgb(0 0 0 / 0.5);
+    --pk-scrim-light: rgb(0 0 0 / 0.3);
+    --pk-note: #1e2638;
     --pk-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.4);
     --pk-type-string: #a99dff;
     --pk-type-number: #5fd3a3;
@@ -83,6 +102,9 @@
     --pk-type-boolean: #f08cc6;
     --pk-heat-low: #1d2735;
     --pk-heat-high: #3987e5;
+    --pk-scale-low: #c2413f;
+    --pk-scale-mid: #b39a2e;
+    --pk-scale-high: #3f9a5c;
     --pk-chart-1: #3987e5;
     --pk-chart-2: #d95926;
     --pk-chart-3: #199e70;
@@ -241,6 +263,7 @@
 }
 
 .pk-link {
+    min-height: var(--pk-target);
     padding: 0.15em 0.3em;
     border: 0;
     background: none;
@@ -422,10 +445,12 @@
 .pk-handle {
     display: grid;
     place-items: center;
-    width: 1.3em;
+    flex: none;
+    width: var(--pk-target);
+    min-height: var(--pk-target);
     height: 1.9em;
     color: var(--pk-muted);
-    opacity: 0.55;
+    opacity: 0.8;
     cursor: grab;
     border-radius: 5px;
     touch-action: none;
@@ -535,9 +560,19 @@
 
 .pk-toolbar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+}
+
+/* everything that can go into "More" is there and it still does not fit: two lines */
+.pk-toolbar.pk-wrap {
+    flex-wrap: wrap;
+}
+
+.pk-toolbar > * {
+    flex: none;
 }
 
 .pk-sep {
@@ -566,7 +601,7 @@
     gap: 6px;
     min-height: 4.6em;
     padding: 8px 10px 10px;
-    border: 1.5px dashed var(--pk-border);
+    border: 1.5px dashed var(--pk-drop-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface-2);
     transition: background var(--pk-duration), border-color var(--pk-duration), box-shadow var(--pk-duration);
@@ -585,6 +620,28 @@
 
 .pk-zone.pk-flash {
     animation: pk-flash 600ms var(--pk-ease);
+}
+
+.pk-zone-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em;
+    min-width: 0;
+}
+
+.pk-swap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    font-size: var(--pk-small);
+    white-space: nowrap;
+}
+
+.pk-swap:disabled {
+    color: var(--pk-muted);
+    cursor: default;
+    text-decoration: none;
 }
 
 .pk-zone-title {
@@ -623,7 +680,7 @@
     border: 1px solid var(--pk-border);
     border-radius: 999px;
     background: var(--pk-surface);
-    box-shadow: 0 1px 1px rgb(16 24 40 / 0.04);
+    box-shadow: var(--pk-shadow-sm);
     cursor: grab;
     touch-action: manipulation;
     animation: pk-pop var(--pk-duration) var(--pk-ease);
@@ -644,7 +701,8 @@
 }
 
 .pk-chip .pk-handle {
-    width: 1.1em;
+    height: var(--pk-target);
+    border-radius: 999px;
 }
 
 .pk-chip .pk-type {
@@ -695,8 +753,9 @@
 .pk-chip-x {
     display: inline-grid;
     place-items: center;
-    width: 1.7em;
-    height: 1.7em;
+    flex: none;
+    width: max(var(--pk-target), 1.7em);
+    height: max(var(--pk-target), 1.7em);
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -756,8 +815,73 @@
     transform-origin: bottom left;
 }
 
+/* chip menus: the options scroll, Remove stays at the foot */
 .pk-chip-menu {
     width: 400px;
+    overflow: hidden;
+    padding-bottom: 0;
+}
+
+.pk-menu-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* a shadow at an edge says there is more to scroll */
+    background:
+        linear-gradient(var(--pk-surface-raised) 30%, transparent) top / 100% 24px no-repeat local,
+        linear-gradient(transparent, var(--pk-surface-raised) 70%) bottom / 100% 24px no-repeat local,
+        radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--pk-text) 16%, transparent), transparent) top / 100% 10px no-repeat scroll,
+        radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--pk-text) 16%, transparent), transparent) bottom / 100% 10px no-repeat scroll;
+}
+
+.pk-menu-foot {
+    flex: none;
+    padding: 4px 0 6px;
+    border-top: 1px solid var(--pk-border);
+}
+
+.pk-more {
+    margin-top: 2px;
+}
+
+.pk-more-title {
+    display: flex;
+    align-items: center;
+    min-height: max(var(--pk-target), 2.2em);
+    padding: 0 0.6em;
+    border-radius: var(--pk-radius-sm);
+    color: var(--pk-accent);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pk-more-title:hover {
+    background: var(--pk-surface-3);
+}
+
+.pk-subtitle {
+    padding: 4px 8px 2px;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+.pk-badges-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+}
+
+.pk-badge-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    padding: 0 0.4em;
+    border-radius: 999px;
+    background: var(--pk-accent-soft);
+    color: var(--pk-accent);
+    font-size: var(--pk-small);
+    font-weight: 600;
 }
 
 .pk-filter-popover {
@@ -779,7 +903,7 @@
     position: absolute;
     inset: 0;
     z-index: 40;
-    background: rgb(10 14 22 / 0.32);
+    background: var(--pk-scrim);
     animation: pk-fade-in var(--pk-duration) ease-out;
 }
 
@@ -973,8 +1097,8 @@
     width: 0.9em;
     height: 0.9em;
     border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+    background: var(--pk-knob);
+    box-shadow: var(--pk-shadow-sm);
     transition: transform var(--pk-duration) var(--pk-ease);
 }
 
@@ -1020,7 +1144,7 @@
 }
 
 .pk-values {
-    max-height: 15em;
+    max-height: min(26em, 45vh);
     margin: 0;
     padding: 2px;
     overflow-y: auto;
@@ -1168,11 +1292,18 @@
     overscroll-behavior: contain;
 }
 
+/* as wide as its columns: one value column does not stretch over the whole report */
 .pk-table {
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 100%;
     font-variant-numeric: tabular-nums;
+}
+
+.pk-table thead td.pk-blank {
+    position: sticky;
+    z-index: 3;
+    background: var(--pk-surface-2);
+    border-bottom-color: var(--pk-border);
 }
 
 .pk-table :is(th, td) {
@@ -1329,9 +1460,10 @@
 .pk-toggle {
     display: inline-grid;
     place-items: center;
-    width: 1.5em;
-    height: 1.5em;
-    margin-left: -0.35em;
+    flex: none;
+    width: max(var(--pk-target), 1.7em);
+    height: max(var(--pk-target), 1.7em);
+    margin-left: -0.45em;
     padding: 0;
     border: 0;
     border-radius: 5px;
@@ -1366,10 +1498,25 @@
 /* chart */
 
 .pk-chart-wrap {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     flex: 1;
     min-width: 0;
     padding: 10px;
+}
+
+.pk-chart-hints {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pk-chart-box {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
 }
 
 .pk-chart {
@@ -1420,11 +1567,12 @@
     border: 1.5px solid color-mix(in srgb, var(--pk-accent) 45%, transparent);
 }
 
+/* the chips float three times, then rest */
 .pk-c1 {
     top: 2px;
     left: 4px;
     width: 70px;
-    animation: pk-float 3.2s ease-in-out infinite;
+    animation: pk-float 3.2s ease-in-out 3;
 }
 
 .pk-c2 {
@@ -1433,7 +1581,7 @@
     width: 88px;
     background: color-mix(in srgb, var(--pk-type-number) 16%, var(--pk-surface));
     border-color: color-mix(in srgb, var(--pk-type-number) 45%, transparent);
-    animation: pk-float 3.2s ease-in-out 0.4s infinite;
+    animation: pk-float 3.2s ease-in-out 0.4s 3;
 }
 
 .pk-c3 {
@@ -1442,7 +1590,7 @@
     width: 56px;
     background: color-mix(in srgb, var(--pk-type-date) 16%, var(--pk-surface));
     border-color: color-mix(in srgb, var(--pk-type-date) 45%, transparent);
-    animation: pk-float 3.2s ease-in-out 0.8s infinite;
+    animation: pk-float 3.2s ease-in-out 0.8s 3;
 }
 
 .pk-steps {
@@ -1498,7 +1646,7 @@
 }
 
 .pk-drill-scrim {
-    background: rgb(10 14 22 / 0.18);
+    background: var(--pk-scrim-light);
 }
 
 .pk-drill-head {
@@ -1554,33 +1702,27 @@
     text-align: right;
 }
 
-/* toasts */
+/* toasts: in the status line under the table, never over the data */
 
 .pk-toasts {
-    position: absolute;
-    left: 50%;
-    bottom: 14px;
-    z-index: 70;
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
-    transform: translateX(-50%);
-    pointer-events: none;
-    width: max-content;
-    max-width: calc(100% - 24px);
+    margin-left: auto;
+    min-width: 0;
 }
 
 .pk-toast {
     display: flex;
     align-items: center;
-    gap: 0.6em;
-    padding: 0.45em 0.4em 0.45em 1em;
+    gap: 0.5em;
+    max-width: 100%;
+    padding: 0.15em 0.25em 0.15em 0.85em;
     border-radius: 999px;
     background: var(--pk-text);
     color: var(--pk-surface);
-    box-shadow: var(--pk-shadow-lg);
-    pointer-events: auto;
+    font-size: var(--pk-small);
     animation: pk-toast-in calc(var(--pk-duration) * 1.4) var(--pk-ease);
 }
 
@@ -1594,16 +1736,61 @@
 }
 
 .pk-toast .pk-icon-btn {
-    width: 1.7em;
-    height: 1.7em;
+    width: max(var(--pk-target), 1.7em);
+    height: max(var(--pk-target), 1.7em);
     color: inherit;
-    opacity: 0.75;
+    opacity: 0.8;
 }
 
 .pk-toast .pk-icon-btn:hover {
     background: color-mix(in srgb, var(--pk-surface) 18%, transparent);
     color: inherit;
     opacity: 1;
+}
+
+/* notes above the result: what the top N means, the next step, how to open a value */
+
+.pk-note {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    flex-wrap: wrap;
+    padding: 0.45em 0.8em;
+    border: 1px solid color-mix(in srgb, var(--pk-accent) 25%, var(--pk-border));
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-note);
+    color: var(--pk-text);
+}
+
+.pk-note > .pk-icon {
+    color: var(--pk-accent);
+}
+
+.pk-note > span {
+    flex: 1 1 16em;
+    min-width: 0;
+}
+
+.pk-btn.pk-small-btn {
+    height: 2em;
+    padding: 0 0.65em;
+}
+
+.pk-btn.pk-danger-btn {
+    border-color: var(--pk-danger);
+    color: var(--pk-danger);
+    font-weight: 600;
+}
+
+.pk-template.pk-confirm {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 6px;
+}
+
+.pk-confirm-text {
+    flex: 1 1 100%;
+    font-weight: 600;
 }
 
 /* ---- narrow: field list as a drawer, zones stacked ---- */
@@ -1644,9 +1831,18 @@
     padding: 6px 8px;
 }
 
-.pk-root[data-pk-size="narrow"] .pk-zone-title {
+.pk-root[data-pk-size="narrow"] .pk-zone-head {
     width: 6.5em;
     flex: none;
+}
+
+/* the Columns zone keeps its swap button on its own line above the chips */
+.pk-root[data-pk-size="narrow"] .pk-zone-cols {
+    flex-wrap: wrap;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-zone-cols .pk-zone-head {
+    width: 100%;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-chips {
@@ -1746,12 +1942,9 @@
     }
 }
 
-/* narrow toolbar: view switches on the first line, history and menus on the second */
-.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-sep {
-    flex-basis: 100%;
-    height: 0;
-    margin: 0;
-    background: none;
+.pk-toolbar.pk-wrap .pk-sep,
+.pk-toolbar.pk-wrap .pk-grow {
+    display: none;
 }
 
 .pk-search input:focus-visible {

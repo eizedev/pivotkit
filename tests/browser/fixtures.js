@@ -32,9 +32,25 @@ export async function drag(page, from, to, { toPosition } = {}) {
     await page.mouse.move(end.x, end.y, { steps: 16 });
     await page.mouse.move(end.x + 1, end.y + 1, { steps: 2 });
     await page.mouse.up();
+    // dnd-kit swallows clicks for 50 ms after a drag ends (so a drop is no click); a person is slower
+    await page.waitForTimeout(100);
 }
 
 /** Body rows of the pivot table as arrays of cell texts. */
 export async function tableRows(page) {
     return page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim())));
+}
+
+/**
+ * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
+ * all buttons. `testId` is the button's ("redo", "reset", "options", "templates", "chart-type").
+ */
+export async function toolbar(page, testId) {
+    const own = page.getByTestId(testId);
+    if (await own.count()) {
+        await own.click();
+        return;
+    }
+    await page.getByTestId("more").click();
+    await page.getByTestId(`more-${testId}`).click();
 }

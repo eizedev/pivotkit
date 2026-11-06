@@ -1,5 +1,7 @@
 // The pivotkit playground: <PivotReport> with generated data, presets per data set, a language and a
-// theme switch, templates kept in the browser, and the engine timings of the last change.
+// theme switch, templates kept in the browser, and the engine timings of the last change. The report
+// is controlled (view + onViewChange) and the page renders again on every timing, as a host like
+// PowerShell Universal does: undo must survive that.
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
@@ -45,6 +47,14 @@ function useTimings() {
     return t;
 }
 
+const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** The report with its view in this page's state, as a host keeps a saved view. */
+function Report({ start, ...props }) {
+    const [view, setView] = useState(start);
+    return <PivotReport view={view} onViewChange={setView} {...props} />;
+}
+
 function App() {
     const [dataset, setDataset] = useState(params.get("data") in DATASETS ? params.get("data") : "tickets");
     const [size, setSize] = useState(SIZES.includes(Number(params.get("rows"))) ? Number(params.get("rows")) : 4000);
@@ -57,22 +67,25 @@ function App() {
 
     const rows = useMemo(() => DATASETS[dataset].make(size), [dataset, size]);
     const presets = DATASETS[dataset].presets;
-    const templates = useMemo(() => [...presets, ...saved], [presets, saved]);
+    // the host decides what can be deleted: the user's own templates, not the presets
+    const templates = useMemo(() => [...presets, ...saved.map((t) => ({ ...t, deletable: true }))], [presets, saved]);
     const start = preset >= 0 ? presets[preset].view : undefined;
 
-    useEffect(() => setSaved(stored(`pivotkit-templates-${dataset}`, [])), [dataset]);
     useEffect(() => {
         // the host page's theme, as PowerShell Universal sets it; "auto" leaves it to the system
         if (theme === "auto") document.documentElement.removeAttribute("data-theme");
         else document.documentElement.setAttribute("data-theme", theme);
     }, [theme]);
 
-    const saveTemplate = (name, view) => {
+    // asynchronous, as a host that stores templates on a server: the report waits for the promise
+    const saveTemplate = async (name, view) => {
+        await later(30);
         const next = [...saved.filter((t) => t.name !== name), { name, view }];
         setSaved(next);
         store(`pivotkit-templates-${dataset}`, next);
     };
-    const deleteTemplate = (name) => {
+    const deleteTemplate = async (name) => {
+        await later(30);
         const next = saved.filter((t) => t.name !== name);
         setSaved(next);
         store(`pivotkit-templates-${dataset}`, next);
@@ -92,7 +105,7 @@ function App() {
                 <div className="pg-controls">
                     <label>
                         Data
-                        <select value={dataset} onChange={(e) => { setDataset(e.target.value); setPreset(0); }} data-testid="pg-dataset">
+                        <select value={dataset} onChange={(e) => { setDataset(e.target.value); setPreset(0); setSaved(stored(`pivotkit-templates-${e.target.value}`, [])); }} data-testid="pg-dataset">
                             <option value="tickets">IT tickets</option>
                             <option value="sales">Sales</option>
                             <option value="assets">Assets per source system</option>
@@ -128,13 +141,14 @@ function App() {
                     </label>
                 </div>
             </header>
-            <PivotReport
+            <Report
                 key={`${dataset}:${size}:${preset}`}
+                start={start}
                 data={rows}
-                view={start}
                 templates={templates}
                 onSaveTemplate={saveTemplate}
-                onDeleteTemplate={(name) => (saved.some((t) => t.name === name) ? deleteTemplate(name) : undefined)}
+                onDeleteTemplate={deleteTemplate}
+                fieldDefaults={DATASETS[dataset].fieldDefaults}
                 onCellClick={(c) => setLastClick({ row: c.row, col: c.col, count: c.count })}
                 locale={lang === "de" ? "de-DE" : "en-US"}
                 height="calc(100vh - var(--pg-head-h))"
@@ -148,4 +162,6 @@ function App() {
     );
 }
 
+// the React the page runs on, for the browser test of the React 19 job
+window.__pivotkitReact = React.version;
 createRoot(document.getElementById("app")).render(<App />);

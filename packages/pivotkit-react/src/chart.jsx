@@ -2,12 +2,18 @@
  * The chart: pivotkit-core's ECharts option on an ECharts instance of the host's echarts package (a
  * peer dependency). ECharts is loaded on first use with only the chart types and components the core
  * builds, so a report that never shows a chart does not load it. Colours come from the --pk-* tokens.
+ * At most MAX_CATEGORIES categories are drawn. The canvas has a text alternative (chart-summary.js),
+ * and hints say when the chart is hard to read, with "Swap rows and columns" where that helps.
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toEChartsOption, toSeries } from "pivotkit-core";
+import { chartHints, chartSummary } from "./chart-summary.js";
+import { MAX_CATEGORIES, chartTypeOf } from "./chart-types.js";
+import { Icon } from "./icons.jsx";
 import { chartThemeFrom } from "./theme.js";
 
+/** @type {Promise<any> | null} */
 let loading = null;
 
 /** echarts/core with bar, line, pie and heatmap, the components they use and the canvas renderer. */
@@ -32,7 +38,8 @@ export function loadECharts() {
 /** Mark styles on top of the core's option: rounded bar ends, 2 px lines, tooltips in the theme. */
 export function decorate(option, style) {
     const v = (name) => style.getPropertyValue(name).trim();
-    const surface = v("--pk-surface") || "#fff";
+    // without the stylesheet the tokens are empty and ECharts keeps its own colours
+    const surface = v("--pk-surface") || undefined;
     const tooltip = {
         ...option.tooltip,
         backgroundColor: v("--pk-surface-raised") || surface,
@@ -65,18 +72,32 @@ export function decorate(option, style) {
 /**
  * @param {{ result: import("pivotkit-core").PivotResult, labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
- *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void }} props
+ *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
+ *   onSwap: () => void, datesOnColumnsOnly: boolean, valueNames: string[] }} props
  */
-export function PivotChart({ result, labels, locale, themeName, root, onInstance, onPoint }) {
+export function PivotChart({ result, labels, locale, themeName, root, onInstance, onPoint, onSwap, datesOnColumnsOnly, valueNames }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
     const [failed, setFailed] = useState(/** @type {string | null} */ (null));
-    const latest = useRef({ result, onPoint, labels });
-    latest.current = { result, onPoint, labels };
+    const summaryId = useId();
+    // the series as drawn: the core's chart data with the category cap
+    const series = useMemo(() => {
+        try {
+            return toSeries(result, { labels: labels.core, maxCategories: MAX_CATEGORIES });
+        } catch {
+            return null;
+        }
+    }, [result, labels]);
+    const latest = useRef({ series, onPoint, onInstance });
+    useEffect(() => {
+        latest.current = { series, onPoint, onInstance };
+    });
+    const type = chartTypeOf(result.view.chart);
 
     useEffect(() => {
         let disposed = false;
+        /** @type {ResizeObserver | null} */
         let ro = null;
         loadECharts().then(
             (echarts) => {
@@ -85,18 +106,17 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
                 }
                 const instance = echarts.init(el.current, null, { renderer: "canvas" });
                 chart.current = instance;
-                onInstance(instance);
+                latest.current.onInstance(instance);
                 instance.on("click", (p) => {
-                    const { result: r, onPoint: cb, labels: l } = latest.current;
-                    const type = r.view.chart.type;
-                    if (type === "pie") {
+                    const { series: s, onPoint: cb } = latest.current;
+                    const kind = p.seriesType;
+                    if (!s || kind === "pie") {
                         return;
                     }
-                    const s = toSeries(r, { labels: l.core });
-                    const seriesEntry = type === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
-                    const row = type === "heatmap" ? p.value?.[1] : p.dataIndex;
+                    const seriesEntry = kind === "heatmap" ? s.series.filter((x) => x.valueIndex === s.series[0]?.valueIndex)[p.value?.[0]] : s.series[p.seriesIndex];
+                    const row = kind === "heatmap" ? p.value?.[1] : p.dataIndex;
                     if (seriesEntry && s.categoryPaths[row]) {
-                        cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: type === "heatmap" ? p.value[2] : p.value });
+                        cb({ rowPath: s.categoryPaths[row], colPath: seriesEntry.colPath, valueIndex: seriesEntry.valueIndex, value: kind === "heatmap" ? p.value[2] : p.value });
                     }
                 });
                 ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => instance.resize()) : null;
@@ -110,7 +130,7 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
             ro?.disconnect();
             chart.current?.dispose();
             chart.current = null;
-            onInstance(null);
+            latest.current.onInstance(null);
         };
         // one instance per mounted chart; the latest props are read through refs
     }, []);
@@ -120,17 +140,40 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
             return;
         }
         const style = getComputedStyle(root.current);
-        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core });
+        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES });
         chart.current.setOption(decorate(option, style), { notMerge: true });
     }, [ready, result, labels, locale, themeName, root]);
 
     const empty = result.view.values.length === 0;
+    const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows, valueNames, labels, locale }) : labels.noChartData;
+    const hints = series && !empty ? chartHints(series, { type, datesOnColumnsOnly, labels, locale }) : [];
     return (
         <div className="pk-chart-wrap">
-            <div ref={el} className="pk-chart" data-testid="pivot-chart" role="img" aria-label={labels.chart} />
-            {!ready && !failed ? <div className="pk-chart-note">{labels.loadingChart}</div> : null}
-            {failed ? <div className="pk-chart-note pk-error">{failed}</div> : null}
-            {ready && empty ? <div className="pk-chart-note">{labels.noChartData}</div> : null}
+            {hints.length ? (
+                <div className="pk-chart-hints" data-testid="chart-hints">
+                    {hints.map((h) => (
+                        <p key={h.id} className="pk-note" data-hint={h.id}>
+                            <Icon name="info" size={16} />
+                            <span>{h.text}</span>
+                            {h.swap ? (
+                                <button type="button" className="pk-btn pk-small-btn" onClick={onSwap}>
+                                    <Icon name="swap" size={14} />
+                                    <span className="pk-btn-text">{labels.swap}</span>
+                                </button>
+                            ) : null}
+                        </p>
+                    ))}
+                </div>
+            ) : null}
+            <div className="pk-chart-box">
+                <div ref={el} className="pk-chart" data-testid="pivot-chart" role="img" aria-label={labels.chart} aria-describedby={summaryId} />
+                <p id={summaryId} className="pk-sr" data-testid="chart-summary">
+                    {summary}
+                </p>
+                {!ready && !failed ? <div className="pk-chart-note">{labels.loadingChart}</div> : null}
+                {failed ? <div className="pk-chart-note pk-error">{failed}</div> : null}
+                {ready && empty ? <div className="pk-chart-note">{labels.noChartData}</div> : null}
+            </div>
         </div>
     );
 }

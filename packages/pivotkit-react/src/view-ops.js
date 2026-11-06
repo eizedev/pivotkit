@@ -8,7 +8,8 @@
  * nothing yet is { type: "exclude", items: [] }.
  */
 
-import { aggregatorsFor } from "pivotkit-core";
+import { aggregatorsFor, isFormat } from "pivotkit-core";
+import { CHART_TYPES } from "./chart-types.js";
 
 /** @typedef {"rows" | "cols" | "values" | "filters"} Zone */
 export const ZONES = Object.freeze(/** @type {Zone[]} */ (["filters", "cols", "rows", "values"]));
@@ -42,8 +43,16 @@ export function axisOf(view, field) {
     return null;
 }
 
-/** The aggregator a new value of a field gets: sum for numbers, count for anything else. */
-export function defaultAgg(type) {
+/**
+ * The aggregator a new value of a field gets: the host's choice for the field when it fits the type
+ * (fieldDefaults), else sum for numbers and count for anything else.
+ * @param {string | undefined} type
+ * @param {string} [wanted]
+ */
+export function defaultAgg(type, wanted) {
+    if (typeof wanted === "string" && aggregatorsFor(type ?? "string").includes(wanted)) {
+        return wanted;
+    }
     return type === "number" && aggregatorsFor(type).includes("sum") ? "sum" : "count";
 }
 
@@ -71,21 +80,39 @@ function resetCollapsed(view, before) {
 }
 
 /**
+ * @typedef {object} AddOptions
+ * @property {number} [index]  position in the zone, default the end
+ * @property {string} [type]  the field's column type, for the aggregator
+ * @property {{ agg?: string, format?: string }} [defaults]  the host's settings for a new value of the field
+ * @property {string | null} [dateUnit]  a date grouping to place instead of the raw date (rows, columns, filters)
+ * @property {string} [groupName]  the name of that grouping's derived field
+ */
+
+/**
  * Places a field in a zone at an index (default the end). On an axis the field leaves the other axis
  * (a field is on one axis only); in Values it is added as a new value, so a field can be summed and
- * averaged at once; in Filters it gets an empty filter unless it has one.
+ * averaged at once; in Filters it gets an empty filter unless it has one. With `dateUnit` a date is
+ * placed grouped (by month, say), as its derived field.
  * @param {any} view
  * @param {string} field
  * @param {Zone} zone
- * @param {{ index?: number, type?: string }} [options]  type: the field's column type, for the aggregator
+ * @param {AddOptions} [options]
  */
 export function addField(view, field, zone, options = {}) {
+    if (options.dateUnit && zone !== "values") {
+        const name = options.groupName ?? `${field} (${options.dateUnit})`;
+        // the grouping moves when it is placed again, like any field
+        const placed = addField(removeField(view, name), field, zone, { ...options, dateUnit: null });
+        return groupField(placed, field, options.dateUnit, { name }).view;
+    }
     const next = clone(view);
     if (zone === "rows" || zone === "cols") {
         dropFromAxes(next, field);
         next[zone].splice(clamp(options.index, next[zone].length), 0, field);
     } else if (zone === "values") {
-        next.values.splice(clamp(options.index, next.values.length), 0, { field, agg: defaultAgg(options.type), format: null, label: null, showAs: null, conditional: null });
+        const wanted = options.defaults ?? {};
+        const format = typeof wanted.format === "string" && isFormat(wanted.format) ? wanted.format : null;
+        next.values.splice(clamp(options.index, next.values.length), 0, { field, agg: defaultAgg(options.type, wanted.agg), format, label: null, showAs: null, conditional: null });
     } else if (zone === "filters") {
         dropFromAxes(next, field);
         if (!next.filters.some((f) => same(f.field, field))) {
@@ -117,6 +144,18 @@ export function removeAt(view, zone, index) {
     return tidy(next);
 }
 
+/** Takes a field off the axes and out of the Filters zone (its filters go with it). */
+function removeField(view, field) {
+    if (!axisOf(view, field) && !filterZoneFields(view).some((f) => same(f, field))) {
+        return view;
+    }
+    const next = clone(view);
+    dropFromAxes(next, field);
+    next.filters = next.filters.filter((f) => !same(f.field, field));
+    resetCollapsed(next, view);
+    return tidy(next);
+}
+
 /** The field name of the entry at `index` of a zone. */
 export function fieldAt(view, zone, index) {
     if (zone === "values") {
@@ -129,6 +168,14 @@ export function fieldAt(view, zone, index) {
  * Moves an entry from one zone to another (or within one zone) to an index of the target zone. A value
  * moved to an axis or Filters places its field there; an axis field moved to Values adds a value and
  * leaves the axis.
+ */
+/**
+ * @param {any} view
+ * @param {Zone} from
+ * @param {number} fromIndex
+ * @param {Zone} to
+ * @param {number | undefined} toIndex
+ * @param {AddOptions} [options]
  */
 export function moveField(view, from, fromIndex, to, toIndex, options = {}) {
     if (from === to) {
@@ -148,7 +195,7 @@ export function moveField(view, from, fromIndex, to, toIndex, options = {}) {
             next.filters = next.filters.filter((f) => !same(f.field, field));
         }
     }
-    next = addField(next, field, to, { index: toIndex, type: options.type });
+    next = addField(next, field, to, { ...options, index: toIndex });
     resetCollapsed(next, view);
     return tidy(next);
 }
@@ -358,30 +405,33 @@ export function setDisplay(view, display) {
     return next;
 }
 
-/** The chart types of the picker as view.chart settings. */
-export const CHART_PRESETS = Object.freeze({
-    bar: { type: "bar", stacked: false, horizontal: false },
-    stacked: { type: "bar", stacked: true, horizontal: false },
-    horizontal: { type: "bar", stacked: false, horizontal: true },
-    line: { type: "line", stacked: false, horizontal: false },
-    area: { type: "area", stacked: false, horizontal: false },
-    pie: { type: "pie", stacked: false, horizontal: false },
-    heatmap: { type: "heatmap", stacked: false, horizontal: false }
-});
-
-/** The picker entry of a view's chart settings. */
-export function chartPresetOf(chart) {
-    if (chart.type === "bar") {
-        return chart.horizontal ? "horizontal" : chart.stacked ? "stacked" : "bar";
-    }
-    return Object.hasOwn(CHART_PRESETS, chart.type) ? chart.type : "bar";
+/** Switches to the chart with a picker entry's settings (chart-types.js). */
+export function setChart(view, name) {
+    const next = clone(view);
+    next.chart = { ...CHART_TYPES[name].chart };
+    next.display = "chart";
+    return next;
 }
 
-/** Switches to the chart with a picker entry's settings. */
-export function setChart(view, preset) {
+/**
+ * Swaps the fields of Rows and Columns, with their collapsed groups; a calculation along an axis
+ * ("running total along Rows") goes along the other one, so it still runs along the same fields.
+ */
+export function swapAxes(view) {
     const next = clone(view);
-    next.chart = { ...CHART_PRESETS[preset] };
-    next.display = "chart";
+    [next.rows, next.cols] = [next.cols, next.rows];
+    next.collapsed = { rows: next.collapsed.cols, cols: next.collapsed.rows };
+    for (const v of next.values) {
+        if (v.showAs && v.showAs.axis) {
+            v.showAs = { ...v.showAs, axis: v.showAs.axis === "rows" ? "cols" : "rows" };
+        }
+    }
+    const swapped = { percentOfRowTotal: "percentOfColumnTotal", percentOfColumnTotal: "percentOfRowTotal", percentOfParentRow: "percentOfParentColumn", percentOfParentColumn: "percentOfParentRow" };
+    for (const v of next.values) {
+        if (v.showAs && Object.hasOwn(swapped, v.showAs.type)) {
+            v.showAs = { ...v.showAs, type: swapped[v.showAs.type] };
+        }
+    }
     return next;
 }
 

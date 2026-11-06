@@ -55,7 +55,7 @@ function FilterBody({ view, field, encoded, locale, labels, commit, close }) {
         let next = setItemFilter(view, field, all.filter((v) => selected.has(keyOf(v))), all);
         next = setLabelFilter(next, field, op ? { op, value: text } : null);
         close();
-        commit(next);
+        commit(next, { step: "filter", field });
     };
     return (
         <form

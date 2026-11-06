@@ -25,8 +25,8 @@ import {
     useSensor,
     useSensors
 } from "@dnd-kit/core";
-import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
-import { fill } from "./labels.js";
+import { SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { announcementsOf, nextTarget } from "./dnd-moves.js";
 
 /**
  * @typedef {{ kind: "field" | "chip" | "table", field: string, zone?: string, index?: number, type?: string, label?: string }} DragSource
@@ -51,22 +51,25 @@ function collision(args) {
     return [...list].sort((a, b) => Number(String(b.id).startsWith("chip:")) - Number(String(a.id).startsWith("chip:")));
 }
 
-/**
- * Keyboard moves: left and right step between the chips of the zone the item is over, up and down
- * also reach the other zones. The field list is never a keyboard target (removing is the x button).
- */
-function keyboardCoordinates(event, args) {
-    const { context } = args;
-    const horizontal = event.code === "ArrowLeft" || event.code === "ArrowRight";
-    const zone = context.over?.data?.current?.zone ?? context.active?.data?.current?.zone;
-    const keep = context.droppableContainers.getEnabled().filter((entry) => {
-        const d = entry?.data?.current;
-        if (!d || d.kind === "panel") {
-            return false;
-        }
-        return horizontal && zone ? d.kind === "chip" && d.zone === zone : true;
-    });
-    return sortableKeyboardCoordinates(event, { ...args, context: { ...context, droppableContainers: { getEnabled: () => keep, get: (id) => context.droppableContainers.get(id) } } });
+/** The coordinate getter of the keyboard sensor: the centre of the next target (nextTarget). */
+function keyboardCoordinates(event, { context }) {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.code)) {
+        return undefined;
+    }
+    event.preventDefault();
+    const activeId = context.active?.id;
+    const targets = context.droppableContainers
+        .getEnabled()
+        .filter((entry) => entry && entry.id !== activeId && (entry.data?.current?.kind === "zone" || entry.data?.current?.kind === "chip"))
+        .map((entry) => ({ id: entry.id, zone: entry.data.current.zone, kind: entry.data.current.kind, index: entry.data.current.index }));
+    const over = context.over?.data?.current ?? null;
+    const id = nextTarget(event.code, targets, over, context.active?.data?.current ?? { kind: "field" });
+    const rect = id === null ? null : context.droppableRects.get(id);
+    const own = context.collisionRect;
+    if (!rect || !own) {
+        return undefined;
+    }
+    return { x: rect.left + rect.width / 2 - own.width / 2, y: rect.top + rect.height / 2 - own.height / 2 };
 }
 
 /** Where a drop over `over` goes. */
@@ -98,26 +101,9 @@ export function PivotDnd({ labels, onDrop, onDragStart, renderOverlay, children 
         useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates })
     );
-    const zoneName = (over) => {
-        const t = targetOf(null, over);
-        if (!t) {
-            return null;
-        }
-        return t.zone === "panel" ? labels.fields : labels.zones[t.zone];
-    };
-    const nameOf = (a) => a?.data?.current?.label ?? a?.data?.current?.field ?? "";
-    const accessibility = useMemo(
-        () => ({
-            screenReaderInstructions: { draggable: labels.dragInstructions },
-            announcements: {
-                onDragStart: ({ active: a }) => fill(labels.dragStart, { field: nameOf(a) }),
-                onDragOver: ({ active: a, over }) => (zoneName(over) ? fill(labels.dragOver, { field: nameOf(a), zone: zoneName(over) }) : fill(labels.dragOverNone, { field: nameOf(a) })),
-                onDragEnd: ({ active: a, over }) => (zoneName(over) ? fill(labels.dragEnd, { field: nameOf(a), zone: zoneName(over) }) : fill(labels.dragCancel, { field: nameOf(a) })),
-                onDragCancel: ({ active: a }) => fill(labels.dragCancel, { field: nameOf(a) })
-            }
-        }),
-        [labels]
-    );
+    const accessibility = useMemo(() => ({ screenReaderInstructions: { draggable: labels.dragInstructions }, announcements: announcementsOf(labels) }), [labels]);
+    // the dragged item lands without an animation when the system asks for reduced motion
+    const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     return (
         <DndContext
             sensors={sensors}
@@ -140,7 +126,7 @@ export function PivotDnd({ labels, onDrop, onDragStart, renderOverlay, children 
             }}
         >
             <DragContext.Provider value={{ active }}>{children}</DragContext.Provider>
-            <DragOverlay dropAnimation={{ duration: 160, easing: "cubic-bezier(.2,.8,.2,1)" }} zIndex={1000}>
+            <DragOverlay dropAnimation={reduced ? null : { duration: 160, easing: "cubic-bezier(.2,.8,.2,1)" }} zIndex={1000}>
                 {active ? renderOverlay(active) : null}
             </DragOverlay>
         </DndContext>

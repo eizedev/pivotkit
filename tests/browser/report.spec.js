@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
-import { chips, drag, expect, tableRows, test } from "./fixtures.js";
+import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("building a report", () => {
     test("the empty state explains the first steps; fields are added by drag and by menu", async ({ page }) => {
@@ -15,11 +15,12 @@ test.describe("building a report", () => {
         await page.getByRole("menuitem", { name: "Add to Columns" }).click();
         await expect.poll(() => chips(page, "cols")).toEqual(["Priority"]);
 
-        // a click on a number field adds it to Values
+        // a click on a number field adds it to Values, with the host's defaults (fieldDefaults: average)
         await page.locator('.pk-field[data-field="Lead hours"] .pk-field-name').click();
-        await expect.poll(() => chips(page, "values")).toEqual(["Sum of Lead hours"]);
+        await expect.poll(() => chips(page, "values")).toEqual(["Average of Lead hours"]);
         await expect(page.getByTestId("pivot-table")).toBeVisible();
-        await expect(page.locator(".pk-toasts")).toContainText("Lead hours added to Values");
+        // the chip is the feedback of an add: no note
+        await expect(page.locator(".pk-toast")).toHaveCount(0);
     });
 
     test("chips reorder by drag and by keyboard, and leave by x, by drag to the field list and by menu", async ({ page }) => {
@@ -34,14 +35,19 @@ test.describe("building a report", () => {
         await handle.focus();
         await page.keyboard.press("Space");
         await expect(handle).toHaveAttribute("aria-pressed", "true");
+        // picked up: over its own place
+        await expect(page.locator('[id^="DndLiveRegion"]')).toHaveText("Country is over Rows, position 1 of 2.");
+        // dnd-kit listens for the arrow keys from the next task on
+        await page.waitForTimeout(100);
         await page.keyboard.press("ArrowRight");
         // the move is measured on an animation frame; drop once the live region announces the target
-        await expect(page.locator('[id^="DndLiveRegion"]')).toHaveText("Country is over Rows.");
+        await expect(page.locator('[id^="DndLiveRegion"]')).toHaveText("Country is over Rows, position 2 of 2.");
         await page.keyboard.press("Space");
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
 
         await drag(page, page.locator('[data-zone="cols"] .pk-chip[data-chip="Category"]'), page.locator(".pk-panel"));
         await expect.poll(() => chips(page, "cols")).toEqual([]);
+        await expect(page.locator(".pk-toasts")).toContainText("Category removed");
 
         await page.getByRole("button", { name: "Remove Country" }).click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
@@ -68,38 +74,53 @@ test.describe("building a report", () => {
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
         await page.getByTestId("undo").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
-        await page.getByTestId("redo").click();
+        await expect(page.locator(".pk-toasts")).toContainText("Undone: Country removed");
+        await toolbar(page, "redo");
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
         await page.locator(".pk-status").click();
         await page.keyboard.press("ControlOrMeta+z");
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
         await page.keyboard.press("ControlOrMeta+Shift+z");
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
-        await page.getByTestId("reset").click();
+        await toolbar(page, "reset");
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
         await expect(page.getByTestId("undo")).toBeEnabled();
     });
 
-    test("value menu: aggregator, show values as and a colour scale", async ({ page }) => {
-        await page.goto("?data=tickets");
-        await page.getByTestId("chip-menu-Count of Ticket").click();
-        await page.getByTestId("showas-percentOfGrandTotal").click();
-        const rows = await tableRows(page);
-        expect(rows.at(-1).at(-1)).toBe("100%");
-        await page.getByTestId("chip-menu-Count of Ticket").click();
+    test("value menu: common aggregators first, statistics folded, show as renames the value, a colour scale", async ({ page }) => {
+        await page.goto("?data=sales");
+        await page.getByTestId("chip-menu-Sum of Revenue").click();
+        const menu = page.locator(".pk-chip-menu");
+        for (const agg of ["sum", "count", "average", "min", "max"]) await expect(menu.getByTestId(`agg-${agg}`)).toBeVisible();
+        await expect(menu.getByTestId("agg-stdev")).toBeHidden();
+        await menu.getByText("More statistics").click();
+        await expect(menu.getByTestId("agg-stdev")).toHaveText("Standard deviation (sample)");
+        // Remove stays reachable at the foot however long the menu is
+        await expect(menu.getByTestId("menu-remove")).toBeInViewport();
+        await menu.getByTestId("showas-percentOfGrandTotal").click();
+        await expect.poll(() => chips(page, "values")).toEqual(["% of grand total of Revenue"]);
+        await expect(page.locator('[data-testid="pivot-table"] thead')).toContainText("% of grand total of Revenue");
+        expect((await tableRows(page)).at(-1).at(-1)).toBe("100.0%");
+        await page.getByTestId("chip-menu-% of grand total of Revenue").click();
         await page.getByTestId("cond-colorScale").click();
         await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
     });
 
-    test("date grouping from a chip menu", async ({ page }) => {
+    test("a date is grouped by its span when it is placed; the chip keeps the date icon; months read Jan 2025", async ({ page }) => {
         await page.goto("?empty");
         await page.getByTestId("field-menu-Created").click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
-        await page.getByTestId("chip-menu-Created").click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Created (Month)"]);
+        await expect(page.locator('[data-zone="rows"] .pk-chip .pk-type')).toHaveClass(/pk-type-date/);
+        const labels = (await tableRows(page)).map((r) => r[0]);
+        expect(labels[0]).toMatch(/^[A-Z][a-z]{2} 20\d\d$/);
+        await page.getByTestId("chip-menu-Created (Month)").click();
         await page.getByTestId("group-year").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created (Year)"]);
-        const labels = (await tableRows(page)).map((r) => r[0]);
-        expect(labels).toEqual(["2025", "2026", "Grand Total"]);
+        expect((await tableRows(page)).map((r) => r[0])).toEqual(["2025", "2026", "Grand Total"]);
+        await page.getByTestId("chip-menu-Created (Year)").click();
+        await page.getByTestId("group-none").click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Created"]);
     });
 });
 
@@ -126,7 +147,7 @@ test.describe("filter, table and chart", () => {
         await expect.poll(async () => (await tableRows(page)).length).toBe(before - 3);
         await page.getByRole("button", { name: "Expand Central" }).click();
         await expect.poll(async () => (await tableRows(page)).length).toBe(before);
-        await page.getByTestId("options").click();
+        await toolbar(page, "options");
         await page.getByText("Row subtotals").click();
         await expect.poll(async () => (await tableRows(page)).some((r) => r[0].endsWith(" Total") && r[0] !== "Grand Total")).toBe(false);
     });
@@ -152,9 +173,13 @@ test.describe("filter, table and chart", () => {
         await page.goto("?data=tickets");
         await page.getByTestId("show-chart").click();
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Bars/);
         await page.getByTestId("chart-type").click();
         await page.getByTestId("chart-pie").click();
-        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-checked", "true");
+        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Pie/);
+        // the canvas has a text alternative
+        await expect(page.getByTestId("chart-summary")).toContainText("Pie: Count of Ticket by Team.");
         await page.getByTestId("export").click();
         const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-png").click()]);
         expect(download.suggestedFilename()).toBe("pivotkit-tickets.png");
@@ -183,21 +208,29 @@ test.describe("filter, table and chart", () => {
         await expect(page.locator(".pk-toasts")).toContainText("Exported pivotkit-tickets.csv");
     });
 
-    test("templates: save, load and delete", async ({ page }) => {
+    test("templates: save, load, and delete only what the host allows, after asking", async ({ page }) => {
         await page.goto("?data=tickets");
         await page.getByRole("button", { name: "Remove Priority" }).click();
-        await page.getByTestId("templates").click();
+        await toolbar(page, "templates");
         await page.getByTestId("template-name").fill("Teams only");
         await page.getByRole("button", { name: "Save", exact: true }).click();
-        await page.getByTestId("templates").click();
+        // "saved" comes when the host's promise is kept
+        await expect(page.locator(".pk-toasts")).toContainText("Template “Teams only” saved");
+        await toolbar(page, "templates");
+        // a preset of the host has no delete button
+        await expect(page.getByRole("button", { name: "Delete Open work per team (chart)" })).toHaveCount(0);
         await page.getByTestId("template-Open work per team (chart)").click();
-        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-checked", "true");
-        await page.getByTestId("templates").click();
+        await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
+        await toolbar(page, "templates");
         await page.getByTestId("template-Teams only").click();
         await expect.poll(() => chips(page, "cols")).toEqual([]);
-        await page.getByTestId("templates").click();
+        await toolbar(page, "templates");
         await page.getByRole("button", { name: "Delete Teams only" }).click();
+        // asked in place, no window.confirm (a dialog would fail the test through the console check)
+        await expect(page.getByText("Delete “Teams only”?")).toBeVisible();
+        await page.getByTestId("confirm-delete").click();
         await expect(page.getByTestId("template-Teams only")).toHaveCount(0);
+        await expect(page.locator(".pk-toasts")).toContainText("Template “Teams only” deleted");
     });
 });
 
@@ -215,8 +248,9 @@ test.describe("theme, language and layout", () => {
         expect(await root.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(22, 24, 29)");
     });
 
-    test("German labels and number format", async ({ page }) => {
+    test("German labels and number format, and the report's language", async ({ page }) => {
         await page.goto("?data=tickets&lang=de");
+        await expect(page.locator(".pk-root")).toHaveAttribute("lang", "de");
         await expect(page.locator('[data-zone="rows"] .pk-zone-title')).toHaveText("Zeilen");
         await expect(page.getByTestId("row-count")).toHaveText("4.000 Zeilen");
         expect((await tableRows(page)).at(-1)[0]).toBe("Gesamtergebnis");
@@ -224,7 +258,7 @@ test.describe("theme, language and layout", () => {
 
     test("text is at least 14 px", async ({ page }) => {
         await page.goto("?data=sales");
-        const sizes = await page.locator(".pk-root :is(.pk-field-name, .pk-chip-label, .pk-td, .pk-btn)").evaluateAll((els) => els.map((e) => parseFloat(getComputedStyle(e).fontSize)));
+        const sizes = await page.locator(".pk-root :is(.pk-field-name, .pk-chip-label, .pk-td, .pk-btn, .pk-hint, .pk-zone-hint, .pk-zone-title, .pk-th, .pk-note, .pk-status, .pk-swap, .pk-badge-text)").evaluateAll((els) => els.map((e) => parseFloat(getComputedStyle(e).fontSize)));
         expect(Math.min(...sizes)).toBeGreaterThanOrEqual(14);
     });
 

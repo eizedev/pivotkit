@@ -1,8 +1,10 @@
 /*
  * The pivot table from pivotkit-core's grid: sticky header rows and row labels, groups that expand
  * and collapse, subtotal and total rows, colour scales and data bars, a click (or Enter) on a value
- * for its rows. Header cells with a field name or a value name can be dragged into a zone. From
- * VIRTUAL_FROM body rows on only the visible rows are rendered (virtual.js).
+ * for its rows. Header cells with a field name or a value name can be dragged into a zone with the
+ * mouse; the same moves are in the chips' menus. From VIRTUAL_FROM body rows on only the visible rows
+ * are rendered (virtual.js). The table keeps the focus where it was when a group is expanded or
+ * collapsed: on the same toggle.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,10 +28,27 @@ function conditionalStyle(cell) {
     if (s.scale !== undefined && s.color) {
         return { "--pk-cell-bg": s.color };
     }
+    if (s.scale !== undefined) {
+        // a scale without colours of its own: the theme's low, middle and high colours (--pk-scale-*)
+        const t = Math.max(0, Math.min(1, s.scale));
+        const [from, to, part] = t < 0.5 ? ["--pk-scale-low", "--pk-scale-mid", t * 2] : ["--pk-scale-mid", "--pk-scale-high", (t - 0.5) * 2];
+        return { "--pk-cell-bg": `color-mix(in srgb, var(${to}) ${Math.round(part * 100)}%, var(${from}))` };
+    }
     if (s.bar !== undefined) {
         return { "--pk-bar": `${Math.round(s.bar * 1000) / 10}%`, ...(s.color ? { "--pk-bar-color": s.color } : {}) };
     }
     return undefined;
+}
+
+/** The first value cell of the body: row (from 0) and column, or null. */
+function firstValueCell(grid) {
+    for (let r = 0; r < grid.rows.length - grid.headerRows; r++) {
+        const c = grid.rows[grid.headerRows + r].findIndex((cell) => cell && cell.kind === "value" && cell.valueIndex !== undefined);
+        if (c !== -1) {
+            return { r, c };
+        }
+    }
+    return null;
 }
 
 /** A header cell that can be dragged into a zone: a field name in the corner or a value name. */
@@ -43,19 +62,23 @@ function DraggableHeader({ cell, source, children, className, style, colSpan, ro
     );
 }
 
+/** The key of a toggle, to find it again after the table changed. */
+const toggleKey = (axis, path) => `${axis}:${JSON.stringify(path)}`;
+
 function Toggle({ toggle, text, labels, onToggle }) {
+    const name = fill(toggle.collapsed ? labels.expand : labels.collapse, { label: text });
     return (
-        <button type="button" className={`pk-toggle${toggle.collapsed ? "" : " pk-open"}`} aria-expanded={!toggle.collapsed} aria-label={fill(toggle.collapsed ? labels.expand : labels.collapse, { label: text })} onClick={() => onToggle(toggle.axis, toggle.path)}>
-            <Icon name="chevronRight" size={14} />
+        <button type="button" className={`pk-toggle${toggle.collapsed ? "" : " pk-open"}`} aria-expanded={!toggle.collapsed} aria-label={name} title={name} data-pk-toggle={toggleKey(toggle.axis, toggle.path)} onClick={() => onToggle(toggle.axis, toggle.path)}>
+            <Icon name="chevronRight" size={16} />
         </button>
     );
 }
 
 /**
  * @param {{ grid: import("pivotkit-core").Grid, view: any, labels: import("./labels.js").UiLabels,
- *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: number }} props
+ *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: unknown, hintId?: string }} props
  */
-export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
+export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId }) {
     const wrap = useRef(/** @type {HTMLDivElement | null} */ (null));
     const table = useRef(/** @type {HTMLTableElement | null} */ (null));
     const bodyCount = grid.rows.length - grid.headerRows;
@@ -64,8 +87,17 @@ export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
     const [rowHeight, setRowHeight] = useState(34);
     const [lefts, setLefts] = useState(/** @type {number[]} */ ([]));
     const [tops, setTops] = useState(/** @type {number[]} */ ([]));
+    const [headHeight, setHeadHeight] = useState(0);
     const [active, setActive] = useState(/** @type {{ r: number, c: number } | null} */ (null));
     const focusNext = useRef(false);
+    const focusToggle = useRef(/** @type {string | null} */ (null));
+    const onToggle = useCallback(
+        (axis, path) => {
+            focusToggle.current = toggleKey(axis, path);
+            toggleGroup(axis, path);
+        },
+        [toggleGroup]
+    );
 
     // the measured height of a body row and the widths of the row label columns (sticky offsets)
     useIsoLayoutEffect(() => {
@@ -78,6 +110,7 @@ export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
             setRowHeight(row.getBoundingClientRect().height);
         }
         const headRows = t.tHead ? [...t.tHead.rows] : [];
+        setHeadHeight(t.tHead ? t.tHead.offsetHeight : 0);
         const ys = headRows.map((tr) => tr.offsetTop);
         setTops((old) => (old.length === ys.length && old.every((v, i) => v === ys[i]) ? old : ys));
         const last = headRows[headRows.length - 1];
@@ -104,60 +137,54 @@ export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
         return () => ro?.disconnect();
     }, []);
 
-    const headHeight = tops.length ? (table.current?.tHead?.offsetHeight ?? rowHeight * grid.headerRows) : rowHeight * grid.headerRows;
-    const win = virtual ? windowOf({ count: bodyCount, scrollTop: scroll.top - headHeight, viewport: scroll.height, rowHeight }) : { start: 0, end: bodyCount, padTop: 0, padBottom: 0 };
+    const head = headHeight || rowHeight * grid.headerRows;
+    const win = virtual ? windowOf({ count: bodyCount, scrollTop: scroll.top - head, viewport: scroll.height, rowHeight }) : { start: 0, end: bodyCount, padTop: 0, padBottom: 0 };
     const rows = useMemo(() => sliceRows(grid, win.start, win.end), [grid, win.start, win.end]);
 
     // the first value cell takes the focus stop of the table
-    const firstValue = useMemo(() => {
-        for (let r = 0; r < bodyCount; r++) {
-            const row = grid.rows[grid.headerRows + r];
-            const c = row.findIndex((cell) => cell && cell.kind === "value" && cell.valueIndex !== undefined);
-            if (c !== -1) {
-                return { r, c };
-            }
-        }
-        return null;
-    }, [grid, bodyCount]);
+    const firstValue = useMemo(() => firstValueCell(grid), [grid]);
     const current = active && active.r < bodyCount && grid.rows[grid.headerRows + active.r]?.[active.c]?.kind === "value" ? active : firstValue;
 
-    const move = useCallback(
-        (dr, dc) => {
-            if (!current) {
+    const move = (dr, dc) => {
+        if (!current) {
+            return;
+        }
+        let { r, c } = current;
+        const valueAt = (rr, cc) => {
+            const cell = grid.rows[grid.headerRows + rr]?.[cc];
+            return cell && cell.kind === "value" && cell.valueIndex !== undefined;
+        };
+        for (let step = 0; step < Math.max(bodyCount, grid.columnCount); step++) {
+            r += dr;
+            c += dc;
+            if (r < 0 || r >= bodyCount || c < grid.rowHeaderColumns || c >= grid.columnCount) {
                 return;
             }
-            let { r, c } = current;
-            const valueAt = (rr, cc) => {
-                const cell = grid.rows[grid.headerRows + rr]?.[cc];
-                return cell && cell.kind === "value" && cell.valueIndex !== undefined;
-            };
-            for (let step = 0; step < Math.max(bodyCount, grid.columnCount); step++) {
-                r += dr;
-                c += dc;
-                if (r < 0 || r >= bodyCount || c < grid.rowHeaderColumns || c >= grid.columnCount) {
-                    return;
-                }
-                if (valueAt(r, c)) {
-                    break;
-                }
+            if (valueAt(r, c)) {
+                break;
             }
-            if (!valueAt(r, c)) {
-                return;
+        }
+        if (!valueAt(r, c)) {
+            return;
+        }
+        focusNext.current = true;
+        setActive({ r, c });
+        const el = wrap.current;
+        if (virtual && el) {
+            const y = (grid.headerRows + r) * rowHeight;
+            if (y < el.scrollTop + rowHeight * grid.headerRows || y + rowHeight > el.scrollTop + el.clientHeight) {
+                el.scrollTop = Math.max(0, y - el.clientHeight / 2);
             }
-            focusNext.current = true;
-            setActive({ r, c });
-            const el = wrap.current;
-            if (virtual && el) {
-                const y = (grid.headerRows + r) * rowHeight;
-                if (y < el.scrollTop + rowHeight * grid.headerRows || y + rowHeight > el.scrollTop + el.clientHeight) {
-                    el.scrollTop = Math.max(0, y - el.clientHeight / 2);
-                }
-            }
-        },
-        [current, grid, bodyCount, virtual, rowHeight]
-    );
+        }
+    };
 
     useEffect(() => {
+        const key = focusToggle.current;
+        if (key && table.current) {
+            focusToggle.current = null;
+            const button = [...table.current.querySelectorAll("button[data-pk-toggle]")].find((b) => b.getAttribute("data-pk-toggle") === key);
+            /** @type {HTMLElement | undefined} */ (button)?.focus({ preventScroll: true });
+        }
         if (focusNext.current && current) {
             focusNext.current = false;
             const td = table.current?.querySelector(`td[data-r="${current.r}"][data-c="${current.c}"]`);
@@ -173,7 +200,10 @@ export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
             move(dr, dc);
         } else if ((e.key === "Enter" || e.key === " ") && e.target instanceof HTMLTableCellElement && current) {
             e.preventDefault();
-            onCell(grid.rows[grid.headerRows + current.r][current.c]);
+            const cell = grid.rows[grid.headerRows + current.r][current.c];
+            if (cell) {
+                onCell(cell);
+            }
         }
     };
 
@@ -189,6 +219,10 @@ export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
             </span>
         );
         const props = { className, style: stickyStyle(c, top), colSpan: cell.colSpan, rowSpan: cell.rowSpan, scope: cell.kind === "colHeader" ? "col" : undefined };
+        if (cell.kind === "corner" && !cell.field && !cell.text) {
+            // an empty corner names nothing: a plain cell, not a header without a name
+            return <td key={c} className={`${className} pk-blank`} style={props.style} colSpan={cell.colSpan} rowSpan={cell.rowSpan} />;
+        }
         if (cell.kind === "corner" && cell.field) {
             const zone = view.rows.includes(cell.field) ? "rows" : "cols";
             return (
@@ -244,14 +278,13 @@ export function PivotTable({ grid, view, labels, onToggle, onCell, version }) {
     const width = grid.columnCount;
     return (
         <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? (e) => setScroll({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight }) : undefined} data-testid="pivot-table">
-            <table ref={table} className="pk-table" onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-describedby={undefined}>
-                <caption className="pk-sr">{labels.cellHint}</caption>
+            <table ref={table} className="pk-table" onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
                     {grid.rows.slice(0, grid.headerRows).map((row, r) => (
                         <tr key={r}>{row.map((cell, c) => (cell ? headerCell(cell, r, c) : null))}</tr>
                     ))}
                 </thead>
-                <tbody key={version} className="pk-fresh">
+                <tbody>
                     {win.padTop > 0 ? (
                         <tr className="pk-spacer" aria-hidden="true" style={{ height: win.padTop }}>
                             <td colSpan={width} />

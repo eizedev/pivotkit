@@ -144,6 +144,8 @@ export function assets(n, seed = 23) {
 export const DATASETS = {
     tickets: {
         make: tickets,
+        // a duration is averaged, not summed, when it is added to Values
+        fieldDefaults: { "Lead hours": { agg: "average", format: "duration:h" } },
         presets: [
             {
                 name: "Tickets per team and priority",
@@ -224,5 +226,11 @@ export const DATASETS = {
                 }
             }
         ]
+    },
+    // not in the page's menu (?data=markup): labels that look like HTML, for the browser test that
+    // nothing from the data is rendered as markup
+    markup: {
+        make: (n) => Array.from({ length: Math.min(n, 60) }, (_, i) => ({ Label: i % 2 ? "<img src=x onerror=window.__pwned=1>" : `<b>bold ${i % 3}</b>`, Value: i })),
+        presets: [{ name: "Markup", view: { rows: ["Label"], values: [{ field: "Value", agg: "sum" }] } }]
     }
 };

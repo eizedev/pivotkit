@@ -1,0 +1,101 @@
+/*
+ * The history of a report as immutable data: every step is a view (as JSON text, so nobody can change
+ * it afterwards) and a note that says what it did ("Region removed"), for "Undone: Region removed".
+ * use-view-history.js keeps it in React state; these functions are pure, so every rule here is
+ * tested without a DOM.
+ *
+ * The history belongs to one data schema (field names and types). A step on another schema starts a
+ * new history from the view the report shows, so new data with the same columns keeps undo.
+ */
+
+/** Steps kept for undo. */
+export const HISTORY_LIMIT = 100;
+
+/**
+ * @typedef {object} HistoryState
+ * @property {string} schema   the schema the views were normalized against
+ * @property {string} start    the start view, the target of reset
+ * @property {string} present  the view the history is at
+ * @property {Array<{ view: string, note: string }>} past     older views, each with the note of the step that left it
+ * @property {Array<{ view: string, note: string }>} future   views undone, newest undo last
+ */
+
+/**
+ * @param {string} schema
+ * @param {string} start  JSON of the start view
+ * @param {string} [current]  JSON of the view shown now, default the start
+ * @returns {HistoryState}
+ */
+export function createState(schema, start, current = start) {
+    return { schema, start, present: current, past: [], future: [] };
+}
+
+/**
+ * The state a step works on: a new history when the schema changed, and the view the report shows
+ * recorded first when it differs from the history (a controlled host passed another view).
+ * @param {HistoryState} state
+ * @param {{ schema: string, start: string, shown: string, outside: string }} at
+ */
+export function settle(state, at) {
+    let s = state.schema === at.schema ? state : createState(at.schema, at.start, at.shown);
+    if (s.present !== at.shown) {
+        s = record(s, at.shown, at.outside);
+    }
+    return s;
+}
+
+/**
+ * A new step; an unchanged view is none. Clears the steps that were undone.
+ * @param {HistoryState} state
+ * @param {string} view  JSON
+ * @param {string} note
+ * @returns {HistoryState}
+ */
+export function record(state, view, note) {
+    if (view === state.present) {
+        return state;
+    }
+    const past = [...state.past, { view: state.present, note }].slice(-HISTORY_LIMIT);
+    return { ...state, present: view, past, future: [] };
+}
+
+/**
+ * One step back; `note` says what was undone (null when there was nothing to undo).
+ * @param {HistoryState} state
+ * @returns {{ state: HistoryState, note: string | null }}
+ */
+export function undo(state) {
+    const last = state.past[state.past.length - 1];
+    if (!last) {
+        return { state, note: null };
+    }
+    return {
+        state: { ...state, present: last.view, past: state.past.slice(0, -1), future: [...state.future, { view: state.present, note: last.note }] },
+        note: last.note
+    };
+}
+
+/**
+ * One undone step again.
+ * @param {HistoryState} state
+ * @returns {{ state: HistoryState, note: string | null }}
+ */
+export function redo(state) {
+    const next = state.future[state.future.length - 1];
+    if (!next) {
+        return { state, note: null };
+    }
+    return {
+        state: { ...state, present: next.view, future: state.future.slice(0, -1), past: [...state.past, { view: state.present, note: next.note }] },
+        note: next.note
+    };
+}
+
+/**
+ * Back to the start view, as one step that can be undone.
+ * @param {HistoryState} state
+ * @param {string} note
+ */
+export function reset(state, note) {
+    return record(state, state.start, note);
+}

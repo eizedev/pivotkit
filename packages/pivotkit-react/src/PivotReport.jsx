@@ -1,59 +1,36 @@
 /*
- * <PivotReport>: the report builder. It owns the view and its history; the field list, the zones,
- * the toolbar, the table and the chart are views of that state and change it through commit(). The
- * pivot is computed once per view (memoized by the view's JSON); the grid only for the table.
+ * <PivotReport>: the report builder. The view and its undo history live in useViewHistory (controlled
+ * by the host or not); the field list, the zones, the toolbar, the table and the chart are views of
+ * that state and change it through commit(), which they get as a prop. The pivot is computed once per
+ * view; the grid only for the table.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { computePivot, createHistory, emptyView, encode, findNode, normalize, toGrid, viewFields } from "pivotkit-core";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { PivotkitError, computePivot, encode, findNode, suggestDateUnit, toGrid, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
+import { groupingName, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
 import { DrillPanel } from "./drill-panel.jsx";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { fill, resolveLabels } from "./labels.js";
+import { fill, messageOf, resolveLabels } from "./labels.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
-import { resolveTheme } from "./theme.js";
 import { Toasts, useToasts } from "./toasts.jsx";
 import { Toolbar } from "./toolbar.jsx";
-import { addField, filterZoneFields, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, toggleCollapsed } from "./view-ops.js";
+import { useExport } from "./use-export.js";
+import { useResolvedTheme } from "./use-theme.js";
+import { useViewHistory } from "./use-view-history.js";
+import {
+    addField, filterZoneFields, filtersOf, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed
+} from "./view-ops.js";
 import { Zones } from "./zones.jsx";
 
 /** Width classes of the report (its own width, not the window's). */
 export function sizeOf(width) {
     return width < 640 ? "narrow" : width < 1024 ? "medium" : "wide";
-}
-
-/** Light or dark from the theme prop, <html data-theme> and the system setting; follows changes. */
-function useResolvedTheme(wanted) {
-    const read = () => {
-        if (typeof document === "undefined") {
-            return resolveTheme(wanted, null, false);
-        }
-        const media = typeof matchMedia === "function" ? matchMedia("(prefers-color-scheme: dark)").matches : false;
-        return resolveTheme(wanted, document.documentElement.getAttribute("data-theme"), media);
-    };
-    const [theme, setTheme] = useState(read);
-    useEffect(() => {
-        setTheme(read());
-        if (wanted === "light" || wanted === "dark" || typeof document === "undefined") {
-            return undefined;
-        }
-        const update = () => setTheme(read());
-        const mo = typeof MutationObserver === "function" ? new MutationObserver(update) : null;
-        mo?.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-        const mq = typeof matchMedia === "function" ? matchMedia("(prefers-color-scheme: dark)") : null;
-        mq?.addEventListener("change", update);
-        return () => {
-            mo?.disconnect();
-            mq?.removeEventListener("change", update);
-        };
-        // read() depends on `wanted` only
-    }, [wanted]);
-    return theme;
 }
 
 /** A performance measure for the browser's performance timeline ("pivotkit:computePivot"). */
@@ -68,18 +45,6 @@ function measured(name, fn) {
         }
     }
     return out;
-}
-
-function saveBlob(blob, name) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 /** "Region: North · Product: A" for a cell's paths. */
@@ -110,6 +75,15 @@ function outerPaths(result) {
     };
     walk(result.rowRoot);
     return out;
+}
+
+/** The host's settings for a field (fieldDefaults), matched case-insensitively like column names. */
+function defaultsFor(fieldDefaults, field) {
+    if (!fieldDefaults || typeof fieldDefaults !== "object") {
+        return undefined;
+    }
+    const key = Object.keys(fieldDefaults).find((k) => k.toLowerCase() === String(field).toLowerCase());
+    return key === undefined ? undefined : fieldDefaults[key];
 }
 
 function EmptyState({ labels, templates, onTemplate }) {
@@ -153,8 +127,10 @@ function EmptyState({ labels, templates, onTemplate }) {
 export function PivotReport(props) {
     const {
         data,
+        dataKey,
         encoded: encodedProp,
-        view: startView,
+        view: viewProp,
+        defaultView,
         onViewChange,
         templates = [],
         onSaveTemplate,
@@ -167,26 +143,38 @@ export function PivotReport(props) {
         labels: customLabels,
         theme = "auto",
         height = 640,
-        limits,
+        limits: limitsProp,
         className,
-        fileName = "pivot"
+        fileName = "pivot",
+        fieldDefaults
     } = props;
 
+    // props a host may rebuild on every render, compared by value
     const labelsKey = JSON.stringify(customLabels ?? null);
-    const labels = useMemo(() => resolveLabels(locale, customLabels), [locale, labelsKey]);
-    const limitsKey = JSON.stringify(limits ?? null);
-    const themeName = useResolvedTheme(theme);
+    const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
+    const limitsKey = JSON.stringify(limitsProp ?? null);
+    const limits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const themeName = useResolvedTheme(theme, root);
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));
     const [size, setSize] = useState("wide");
     const [drawer, setDrawer] = useState(false);
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement } | null} */ (null));
-    const [drill, setDrill] = useState(null);
+    const [drill, setDrill] = useState(/** @type {{ title: string, count: number, rows: object[], columns: string[] } | null} */ (null));
+    const [hinted, setHinted] = useState(false);
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
-    const { toasts, push, dismiss } = useToasts();
+    const hintId = useId();
+    const { toasts, push, dismiss, pause } = useToasts();
+    const announce = useCallback(
+        /** @param {string} text @param {{ action?: { label: string, run: () => void }, tone?: "error" }} [extra] */
+        (text, extra) => push({ text, ...extra }),
+        [push]
+    );
 
-    // the data, encoded once per data set
+    // the data, encoded once per data set: per array, or per dataKey when the host gives one (a host
+    // that builds a new array on every render passes a key, so the rows are not encoded again)
+    const dataIdentity = dataKey !== undefined ? dataKey : data;
     const source = useMemo(() => {
         try {
             const enc = encodedProp ?? measured("encode", () => encode(/** @type {any[]} */ (Array.isArray(data) ? data : []), { timeZone: timeZone ?? "UTC", limits }));
@@ -194,71 +182,63 @@ export function PivotReport(props) {
         } catch (error) {
             return { encoded: encode([]), error };
         }
-        // limits by value
-    }, [encodedProp, data, timeZone, limitsKey]);
+        // data is read through dataIdentity: with a dataKey a new array with the same key is the same data
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [encodedProp, dataIdentity, timeZone, limits]);
     const encoded = source.encoded;
 
-    // the view and its history; a new start view (by value) or new data start a new history
-    const startKey = JSON.stringify(startView ?? null);
-    const history = useMemo(() => createHistory(normalize(startView ?? emptyView(), encoded, { limits }).view), [startKey, encoded]);
-    const [tick, setTick] = useState(0);
-    const view = useMemo(() => history.current, [history, tick]);
-    const viewKey = JSON.stringify(view);
+    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside });
+    const view = history.view;
 
-    const announce = useCallback((text, extra = undefined) => push({ text, ...extra }), [push]);
+    const stepText = useCallback(
+        (note) => {
+            const template = Object.hasOwn(labels.steps, note.step) ? labels.steps[note.step] : labels.steps.change;
+            return fill(template, {
+                field: note.field ?? "",
+                name: note.name ?? "",
+                zone: labels.zones[note.zone] ?? note.zone ?? "",
+                display: note.display ? labels[note.display] : "",
+                type: note.type ? labels.chartTypes[note.type] : ""
+            });
+        },
+        [labels]
+    );
+    const undo = useCallback(() => {
+        const note = history.undo();
+        if (note !== null) {
+            announce(fill(labels.toastUndone, { step: note }));
+        }
+    }, [history, labels, announce]);
+    const redo = useCallback(() => {
+        const note = history.redo();
+        if (note !== null) {
+            announce(fill(labels.toastRedone, { step: note }));
+        }
+    }, [history, labels, announce]);
+    // the toast's Undo runs later, on the history of that moment
+    const undoLater = useRef(undo);
+    useEffect(() => {
+        undoLater.current = undo;
+    });
+    const reset = useCallback(() => {
+        history.reset(labels.steps.reset);
+        announce(labels.toastReset);
+    }, [history, labels, announce]);
 
+    /**
+     * Every change of the view: `note.step` names it for "Undone: ...". Adding needs no note on
+     * screen (the chip appears); a removal offers Undo.
+     */
     const commit = useCallback(
-        (next, note = {}) => {
-            const normalized = normalize(next, encoded, { limits }).view;
-            if (!history.push(normalized)) {
+        /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] */
+        (next, note = { step: "change" }) => {
+            if (!history.commit(next, stepText(note)) || !note.removed) {
                 return;
             }
-            setTick((t) => t + 1);
-            onViewChange?.(normalized);
-            if (note.removed) {
-                announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), {
-                    action: {
-                        label: labels.undo,
-                        run: () => {
-                            const back = history.undo();
-                            setTick((t) => t + 1);
-                            onViewChange?.(back);
-                        }
-                    }
-                });
-            } else if (note.added) {
-                announce(fill(labels.toastAdded, { field: note.field, zone: labels.zones[note.added] }));
-            } else if (note.moved) {
-                announce(fill(labels.toastMoved, { field: note.field ?? "", zone: labels.zones[note.moved] }));
-            }
+            announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
         },
-        [history, encoded, onViewChange, labels, announce, limitsKey]
+        [history, stepText, labels, announce]
     );
-
-    const undo = useCallback(() => {
-        if (history.canUndo) {
-            // not onViewChange?.(history.undo()): an optional call skips its arguments
-            const next = history.undo();
-            onViewChange?.(next);
-            setTick((t) => t + 1);
-            announce(labels.toastUndone);
-        }
-    }, [history, onViewChange, labels, announce]);
-    const redo = useCallback(() => {
-        if (history.canRedo) {
-            // not onViewChange?.(history.redo()): an optional call skips its arguments
-            const next = history.redo();
-            onViewChange?.(next);
-            setTick((t) => t + 1);
-            announce(labels.toastRedone);
-        }
-    }, [history, onViewChange, labels, announce]);
-    const reset = useCallback(() => {
-        const next = history.reset();
-        setTick((t) => t + 1);
-        onViewChange?.(next);
-        announce(labels.toastReset);
-    }, [history, onViewChange, labels, announce]);
 
     // the pivot, once per view
     const computed = useMemo(() => {
@@ -267,10 +247,11 @@ export function PivotReport(props) {
         } catch (error) {
             return { result: null, error };
         }
-    }, [encoded, viewKey, locale, limitsKey]);
+    }, [encoded, view, locale, limits]);
     const result = computed.result;
+    const empty = isEmptyView(view);
     const gridState = useMemo(() => {
-        if (!result || view.display !== "table" || isEmptyView(view)) {
+        if (!result || view.display !== "table" || empty) {
             return { grid: null, error: null };
         }
         try {
@@ -278,12 +259,13 @@ export function PivotReport(props) {
         } catch (error) {
             return { grid: null, error };
         }
-    }, [result, view, locale, labels, limitsKey]);
+    }, [result, view.display, empty, locale, labels, limits]);
     const error = source.error ?? computed.error ?? gridState.error;
 
-    // fields: the data's columns for the list, with derived fields for the type of a chip
+    // fields: the data's columns for the list; the type of a chip is its source field's
     const fields = encoded.schema.fields;
     const types = useMemo(() => new Map(viewFields(view, encoded).map((f) => [f.name.toLowerCase(), f.type])), [view, encoded]);
+    const typeOf = useCallback((field) => types.get(sourceOf(view, field ?? "").toLowerCase()) ?? "string", [types, view]);
     const placed = useMemo(() => {
         const map = new Map();
         const mark = (name, zone) => {
@@ -311,46 +293,49 @@ export function PivotReport(props) {
         ro.observe(el);
         return () => ro.disconnect();
     }, []);
-    useEffect(() => {
-        if (size !== "narrow") {
-            setDrawer(false);
-        }
-    }, [size]);
+    const drawerOpen = drawer && size === "narrow";
     const panelRef = useRef(/** @type {HTMLDivElement | null} */ (null));
     useEffect(() => {
         // the closed drawer is out of the tab order and hidden from assistive technology
         if (panelRef.current) {
-            panelRef.current.inert = size === "narrow" && !drawer;
+            panelRef.current.inert = size === "narrow" && !drawerOpen;
         }
-    }, [size, drawer]);
+    }, [size, drawerOpen]);
 
-    const typeOf = (field) => types.get(sourceOf(view, field ?? "").toLowerCase()) ?? "string";
-
-    const addTo = useCallback(
-        (field, zone) => {
-            commit(addField(view, field, zone, { type: typeOf(field) }), { added: zone, field });
+    /** How a field from the field list is placed: a date grouped by its span, a value with the host's defaults. */
+    const placeOptions = useCallback(
+        (field, zone, index = undefined) => {
+            const column = encoded.column(field);
+            const unit = zone !== "values" && column && column.type === "date" && !column.derived ? suggestDateUnit(encoded, field) : null;
+            return { index, type: typeOf(field), defaults: defaultsFor(fieldDefaults, field), dateUnit: unit, groupName: unit ? groupingName(column.name, unit, labels) : undefined };
         },
-        // typeOf reads types and view
-        [view, types, commit]
+        [encoded, typeOf, fieldDefaults, labels]
+    );
+    const addTo = useCallback(
+        (field, zone, index = undefined) => {
+            const options = placeOptions(field, zone, index);
+            commit(addField(view, field, zone, options), { step: "added", field: options.groupName ?? field, zone });
+        },
+        [view, placeOptions, commit]
     );
 
     const onDrop = useCallback(
         (src, target) => {
             if (target.zone === "panel") {
                 if (src.kind !== "field") {
-                    commit(removeAt(view, src.zone, src.index), { removed: true, field: src.label ?? src.field });
+                    commit(removeAt(view, src.zone, src.index), { step: "removed", removed: true, field: src.label ?? src.field });
                 }
                 return;
             }
             if (src.kind === "field") {
-                commit(addField(view, src.field, /** @type {any} */ (target.zone), { index: target.index, type: typeOf(src.field) }), { added: target.zone, field: src.field });
+                addTo(src.field, target.zone, target.index);
             } else {
                 const zone = /** @type {any} */ (target.zone);
-                const index = target.index;
-                commit(moveField(view, src.zone, src.index, zone, index, { type: typeOf(src.field) }), src.zone !== zone ? { moved: zone, field: src.label ?? src.field } : {});
+                const note = src.zone !== zone ? { step: "moved", field: src.label ?? src.field, zone } : { step: "reordered", zone };
+                commit(moveField(view, src.zone, src.index, zone, target.index, { type: typeOf(src.field) }), note);
             }
         },
-        [view, types, commit]
+        [view, typeOf, commit, addTo]
     );
 
     const openCell = useCallback(
@@ -359,6 +344,7 @@ export function PivotReport(props) {
             if (!result) {
                 return;
             }
+            setHinted(true);
             const { count, rows } = drillRows(result, { rowPath, colPath, data: encodedProp ? null : data, limit: drillDownLimit });
             onCellClick?.({ row: rowPath, col: colPath, value, valueIndex, text, count, rows });
             if (drillDown) {
@@ -368,42 +354,38 @@ export function PivotReport(props) {
         [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, labels, encoded]
     );
 
-    const doExport = useCallback(
-        async (kind) => {
-            const file = `${fileName}.${kind}`;
-            try {
-                if (kind === "png") {
-                    const surface = root.current ? getComputedStyle(root.current).getPropertyValue("--pk-surface").trim() : "#fff";
-                    const url = chartRef.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: surface || "#fff" });
-                    if (!url) {
-                        return;
-                    }
-                    saveBlob(await (await fetch(url)).blob(), file);
-                } else {
-                    if (!result) {
-                        return;
-                    }
-                    const { toXlsx, toCsvBytes } = await import("pivotkit-core/export");
-                    const grid = toGrid(result, { locale, labels: labels.core, limits });
-                    const bytes = kind === "xlsx" ? toXlsx(grid, { sheetName: fileName }) : toCsvBytes(grid, { bom: true });
-                    saveBlob(new Blob([/** @type {BlobPart} */ (bytes)], { type: kind === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv;charset=utf-8" }), file);
-                }
-                announce(fill(labels.toastExported, { file }));
-            } catch (e) {
-                announce(fill(labels.toastExportFailed, { message: e && e.message ? e.message : String(e) }), { tone: "error" });
-            }
-        },
-        [fileName, result, locale, labels, limitsKey, announce]
-    );
+    const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce });
 
     const loadTemplate = useCallback(
         (t) => {
-            const { view: v } = normalize(t.view, encoded, { limits });
-            commit(v);
+            commit(t.view, { step: "template", name: t.name });
             announce(fill(labels.toastLoaded, { name: t.name }));
         },
-        [encoded, commit, labels, announce, limitsKey]
+        [commit, labels, announce]
     );
+    // the host's callbacks may return a promise: the note comes when it is kept
+    const saveTemplate = onSaveTemplate
+        ? async (name) => {
+              try {
+                  await onSaveTemplate(name, view);
+                  announce(fill(labels.toastSaved, { name }));
+              } catch (e) {
+                  announce(fill(labels.toastSaveFailed, { message: messageOf(e) }), { tone: "error" });
+              }
+          }
+        : null;
+    const deleteTemplate = onDeleteTemplate
+        ? async (name) => {
+              try {
+                  await onDeleteTemplate(name);
+                  announce(fill(labels.toastDeleted, { name }));
+                  return true;
+              } catch (e) {
+                  announce(fill(labels.toastDeleteFailed, { message: messageOf(e) }), { tone: "error" });
+                  return false;
+              }
+          }
+        : null;
 
     const onKeyDown = (e) => {
         const target = /** @type {HTMLElement} */ (e.target);
@@ -424,8 +406,7 @@ export function PivotReport(props) {
         }
     };
 
-    const tooLarge = error && error.code === "LIMIT_EXCEEDED";
-    const empty = isEmptyView(view);
+    const tooLarge = error instanceof PivotkitError && error.code === "LIMIT_EXCEEDED" ? /** @type {{ value: number, max: number }} */ (error.details) : null;
     const layerValue = useMemo(() => ({ layer, size }), [layer, size]);
     const renderOverlay = (src) => (
         <div className="pk-chip pk-overlay">
@@ -437,12 +418,29 @@ export function PivotReport(props) {
         </div>
     );
 
+    // notes above the result: top N changes what totals mean; a layout without values shows no numbers
+    const notes = [];
+    if (!empty && !error) {
+        for (const field of [...view.rows, ...view.cols]) {
+            const top = filtersOf(view, field, ["top"])[0];
+            if (top) {
+                notes.push({ id: `top:${field}`, text: fill(top.bottom ? labels.bottomNote : labels.topNote, { field, count: top.count.toLocaleString(locale) }) });
+            }
+        }
+        if (view.values.length === 0 && view.display === "table") {
+            notes.push({ id: "values", text: labels.noValuesHint });
+        }
+    }
+    const isDate = (f) => typeOf(f) === "date";
+    const showTable = !error && !(empty && view.display === "table") && view.display !== "chart" && gridState.grid;
+
     return (
         <div
             ref={root}
             className={`pk-root${className ? ` ${className}` : ""}`}
             data-pk-theme={themeName}
             data-pk-size={size}
+            lang={labels.lang}
             style={{ height }}
             // a click anywhere in the report focuses it, so the undo and redo shortcuts work
             tabIndex={-1}
@@ -459,11 +457,24 @@ export function PivotReport(props) {
                         }
                     }}
                 >
-                    <div className={`pk-layout${drawer ? " pk-drawer-open" : ""}`}>
+                    <div className={`pk-layout${drawerOpen ? " pk-drawer-open" : ""}`}>
                         <div className="pk-panel-slot" ref={panelRef}>
-                            <FieldPanel fields={fields} placed={placed} labels={labels} onAdd={(f, z) => { addTo(f, z); if (size === "narrow") setDrawer(false); }} drawer={size === "narrow"} onClose={() => setDrawer(false)} />
+                            <FieldPanel
+                                fields={fields}
+                                placed={placed}
+                                labels={labels}
+                                onAdd={(f, z) => {
+                                    addTo(f, z);
+                                    if (size === "narrow") {
+                                        setDrawer(false);
+                                    }
+                                }}
+                                drawer={size === "narrow"}
+                                open={drawerOpen}
+                                onClose={() => setDrawer(false)}
+                            />
                         </div>
-                        {size === "narrow" && drawer ? <div className="pk-scrim pk-drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" /> : null}
+                        {drawerOpen ? <div className="pk-scrim pk-drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" /> : null}
                         <main className="pk-main">
                             <Toolbar
                                 view={view}
@@ -471,24 +482,24 @@ export function PivotReport(props) {
                                 size={size}
                                 canUndo={history.canUndo}
                                 canRedo={history.canRedo}
-                                canReset={history.canUndo || history.canRedo}
+                                canReset={history.canReset}
                                 onUndo={undo}
                                 onRedo={redo}
                                 onReset={reset}
-                                onDisplay={(d) => commit(setDisplay(view, d))}
-                                onChart={(p) => commit(setChart(view, p))}
-                                onTotal={(key, on) => commit(setTotal(view, key, on))}
-                                onExpand={() => commit(setCollapsed(view, "rows", null))}
-                                onCollapse={() => result && commit(setCollapsed(view, "rows", outerPaths(result)))}
+                                onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
+                                onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
+                                onTotal={(key, on) => commit(setTotal(view, key, on), { step: "totals" })}
+                                onExpand={() => commit(setCollapsed(view, "rows", null), { step: "collapse" })}
+                                onCollapse={() => result && commit(setCollapsed(view, "rows", outerPaths(result)), { step: "collapse" })}
                                 templates={templates}
                                 onLoadTemplate={loadTemplate}
-                                onSaveTemplate={onSaveTemplate ? (name) => { onSaveTemplate(name, view); announce(fill(labels.toastSaved, { name })); } : null}
-                                onDeleteTemplate={onDeleteTemplate ? (name) => { onDeleteTemplate(name); announce(fill(labels.toastDeleted, { name })); } : null}
+                                onSaveTemplate={saveTemplate}
+                                onDeleteTemplate={deleteTemplate}
                                 onExport={doExport}
                                 chartReady={view.display === "chart" && chartReady}
                                 onShowFields={() => setDrawer(true)}
                             />
-                            <Zones view={view} types={types} labels={labels} commit={commit} openFilter={(field, anchor) => setFilterTarget({ field, anchor })} />
+                            <Zones view={view} types={types} labels={labels} commit={commit} openFilter={(field, anchor) => setFilterTarget({ field, anchor })} encoded={encoded} locale={locale} onSwap={() => commit(swapAxes(view), { step: "swap" })} />
                             {result && result.issues.length > 0 && !empty ? (
                                 <details className="pk-issues">
                                     <summary>
@@ -503,11 +514,23 @@ export function PivotReport(props) {
                                     </ul>
                                 </details>
                             ) : null}
+                            {notes.map((n) => (
+                                <p key={n.id} className="pk-note" data-testid={`note-${n.id.split(":")[0]}`}>
+                                    <Icon name={n.id === "values" ? "sigma" : "top"} size={16} />
+                                    <span>{n.text}</span>
+                                </p>
+                            ))}
+                            {showTable && view.values.length ? (
+                                <p id={hintId} className={hinted ? "pk-sr" : "pk-note pk-cell-hint"} data-testid="cell-hint">
+                                    <Icon name="info" size={16} />
+                                    <span>{labels.cellHint}</span>
+                                </p>
+                            ) : null}
                             <section className="pk-result" aria-label={view.display === "chart" ? labels.chart : labels.table}>
                                 {error ? (
                                     <div className="pk-message pk-error" role="alert">
                                         <Icon name="info" />
-                                        <p>{tooLarge ? fill(labels.tooLarge, { value: Number(error.details.value).toLocaleString(locale), max: Number(error.details.max).toLocaleString(locale) }) : fill(labels.error, { message: error.message })}</p>
+                                        <p>{tooLarge ? fill(labels.tooLarge, { value: Number(tooLarge.value).toLocaleString(locale), max: Number(tooLarge.max).toLocaleString(locale) }) : fill(labels.error, { message: messageOf(error) })}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
                                     <EmptyState labels={labels} templates={templates} onTemplate={loadTemplate} />
@@ -518,6 +541,9 @@ export function PivotReport(props) {
                                         locale={locale}
                                         themeName={themeName}
                                         root={root}
+                                        valueNames={view.values.map((v) => valueLabel(v, labels))}
+                                        datesOnColumnsOnly={view.cols.some(isDate) && !view.rows.some(isDate)}
+                                        onSwap={() => commit(swapAxes(view), { step: "swap" })}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));
@@ -525,22 +551,20 @@ export function PivotReport(props) {
                                         onPoint={(p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={tick} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path))} onCell={(cell) => openCell(cell)} />
+                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
                                 ) : null}
                             </section>
                             <div className="pk-status">
                                 <span data-testid="row-count">{result ? fill(labels.rowsCount, { count: result.rows.length.toLocaleString(locale) }) : ""}</span>
-                                {!empty && view.display === "table" && view.values.length ? <span className="pk-muted">{labels.cellHint}</span> : null}
+                                <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </main>
                     </div>
                     <FilterPopover target={filterTarget} onClose={() => setFilterTarget(null)} view={view} encoded={encoded} locale={locale} labels={labels} commit={commit} />
                 </PivotDnd>
                 <DrillPanel drill={drill} onClose={() => setDrill(null)} labels={labels} locale={locale} timeZone={encoded.timeZone} />
-                <Toasts toasts={toasts} dismiss={dismiss} closeLabel={labels.close} />
                 <div className="pk-layer" ref={setLayer} />
             </LayerContext.Provider>
         </div>
     );
 }
-
