@@ -9,7 +9,9 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 1. Fork, create a branch named after the change (`feat/...`, `fix/...`, `docs/...`).
 2. Follow [AGENTS.md](AGENTS.md): layout, commands and the rules that keep the packages safe and small.
 3. Run `npm ci`, `npm run lint`, `npm run types` and `npm test`; for engine changes also
-   `npm run bench -w pivotkit-core` and compare with the baseline in the package README.
+   `npm run bench -w pivotkit-core` and compare with the baseline in the package README; for UI
+   changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
+   at the playground (`npm run playground`) in light and dark, wide and narrow.
    The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
    `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
 4. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
@@ -52,6 +54,9 @@ changelog. A new public function is exported from `src/index.js` (or `src/export
   `LANG` set, as in `test/time-zones.test.js`.
 - A type change: `test/types/consumer.ts` compiles against the generated declarations
   (`npm run types`).
+- UI logic of `pivotkit-react` (view changes, layout helpers) lives in plain modules and is tested
+  with `node --test` in `packages/pivotkit-react/test/`; what needs a browser (drag and drop, menus,
+  downloads, themes, layouts) is a Playwright test in `tests/browser/` against the playground.
 
 ## Releasing
 

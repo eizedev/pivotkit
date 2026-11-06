@@ -1,8 +1,8 @@
 # AGENTS.md
 
 pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference), planned as three
-npm packages in this repository with npm workspaces: the engine `pivotkit-core` exists, the React UI
-and the web component follow; see [README.md](README.md).
+npm packages in this repository with npm workspaces: the engine `pivotkit-core` and the React UI
+`pivotkit-react` exist, the web component follows; see [README.md](README.md).
 
 ## Layout
 
@@ -12,9 +12,19 @@ and the web component follow; see [README.md](README.md).
   importer of fflate); every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
   (show-as.js); `CATALOG` (catalog.js) lists them for a UI.
-- `packages/pivotkit-react/` - planned, not built yet: the React 18/19 UI on the core. React will be a
-  peer dependency the host provides (PowerShell Universal provides React 18.3.1 at runtime), never
-  bundled.
+- `packages/pivotkit-react/` - the React 18/19 UI on the core: `<PivotReport>`. JSX in `src/` with
+  JSDoc types, built by esbuild (`build.js`) into `dist/` (JSX as `React.createElement`, every
+  dependency left as an import) and `dist/styles.css`. React, ReactDOM and ECharts are peer
+  dependencies the host provides (PowerShell Universal provides React 18.3.1 at runtime), never
+  bundled. One module per concern: `PivotReport.jsx` owns the view and its history and is the only
+  caller of `commit()`; every view change is a pure function in `view-ops.js`; `dnd.jsx` is the only
+  importer of @dnd-kit; `chart.jsx` the only importer of echarts (lazy); `labels.js` the texts (en,
+  de); `styles.css` every `--pk-*` token. `test/` runs with `node --test` (no DOM: pure logic, a server
+  render of the built package, contrast of the tokens); `test/types/` is a TypeScript consumer.
+- `examples/playground/` - the playground: generated data with a fixed seed, built by esbuild into
+  static files (`dist/`), served by `serve.js`.
+- `tests/browser/` - Playwright tests of the playground in Chromium, Firefox and WebKit;
+  `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact versions).
 - `packages/pivotkit-element/` - planned, not built yet: the web component `<pivot-report>`, bundling
   its own React for hosts without one (Angular, PHP, plain HTML).
 - `scripts/check-pack.js` - checks what `npm pack` would publish.
@@ -27,8 +37,10 @@ npm run lint                        # ESLint, recommended rules only (as CI)
 npm run types                       # tsc with checkJs, generated .d.ts, TypeScript consumer (as CI)
 npm test                            # node --test in every workspace (as CI)
 npm run coverage                    # the tests with a coverage report (as CI)
-npm run pack:check                  # npm pack --dry-run of pivotkit-core, checked (as CI)
+npm run pack:check                  # npm pack --dry-run of pivotkit-core and pivotkit-react, checked (as CI)
 npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
+npm run playground                  # playground with rebuilds on http://localhost:5173
+npm run test:browser                # build the playground, Playwright in three browsers (as CI)
 ```
 
 ## Rules that matter here
@@ -59,13 +71,20 @@ npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
 - Designed for up to about 100,000 rows: typed arrays, no per-row objects in hot loops. Run the
   benchmark before and after engine changes and compare with the baseline in the package README.
 - The engine sources use only globals browsers and Node share (ESLint enforces it for `src/`).
+- UI: text at least 14 px (`--pk-font-size`), every action reachable by keyboard and by a menu (drag
+  and drop is never the only way), every icon button with a label, colours only from `--pk-*` tokens
+  (both themes must pass `test/contrast.test.js`), animations through `--pk-duration` so
+  `prefers-reduced-motion` turns them off. Layout follows the report's width (`data-pk-size`), not the
+  window's. Check changes with screenshots in both themes at wide and narrow width.
+- Browser tests fail on any console error or warning (`tests/browser/fixtures.js`).
 - Docs describe the current state; history belongs in each package's `CHANGELOG.md`, commits and pull
   requests. Conventional Commits with the package as scope (`feat(core): ...`).
 
 ## Do not
 
 - Commit `node_modules/` or build output.
-- Add a runtime dependency to `pivotkit-core`, or bundle React into `pivotkit-react`.
+- Add a runtime dependency to `pivotkit-core`, or bundle React or ECharts into `pivotkit-react`.
+- Add a UI framework or an animation library to `pivotkit-react`; it has its own CSS.
 - Put secrets, host names or real data into code, examples or tests.
 
 ## Exceptions to the repository standards

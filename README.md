@@ -15,10 +15,21 @@ Status: in development. Nothing is published to npm yet.
 | Package | What | Status |
 | --- | --- | --- |
 | [pivotkit-core](packages/pivotkit-core/) | The engine in plain JavaScript, no UI and no framework | in development |
-| [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder; React is provided by the host | planned |
+| [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder: field list, drag and drop, table and chart, filters, templates, export; React and ECharts are provided by the host | in development |
 | [pivotkit-element](packages/pivotkit-element/) | Web component `<pivot-report>` with its own React, for Angular, PHP and plain HTML | planned |
 
 ## Example
+
+The report builder in React (try it in the [playground](examples/playground/)):
+
+```jsx
+import { PivotReport } from "pivotkit-react";
+import "pivotkit-react/styles.css";
+
+<PivotReport data={rows} view={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }} onViewChange={save} />
+```
+
+The engine without UI:
 
 ```js
 import { encode, computePivot, toGrid } from "pivotkit-core";
@@ -37,7 +48,8 @@ const xlsx = toXlsx(grid);                       // Uint8Array
 The view passed to `computePivot` is plain JSON: the same object is the saved template, the undo
 step and what the UI edits. It is treated as user input: it cannot run code, and the limits in
 `LIMITS` keep its memory use bounded. See [pivotkit-core](packages/pivotkit-core/) for the API, the
-view, the limits and the export.
+view, the limits and the export, and [pivotkit-react](packages/pivotkit-react/) for the component's
+props, theming tokens and labels.
 
 ## Development
 
@@ -48,6 +60,8 @@ npm run types                    # type check, generated .d.ts, TypeScript consu
 npm test
 npm run pack:check               # what npm pack would publish
 npm run bench -w pivotkit-core
+npm run playground               # the playground on http://localhost:5173
+npm run test:browser             # Playwright: the playground in Chromium, Firefox and WebKit
 ```
 
 Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).

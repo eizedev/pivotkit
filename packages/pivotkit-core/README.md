@@ -6,8 +6,9 @@ headers for any table renderer, chart options for Apache ECharts, and XLSX and C
 PivotTable is the reference for how things behave.
 
 Status: in development, not published to npm yet. ES modules for Node 22 or later; the sources use only
-what browsers and Node share (no `process`, no `Buffer`), but there is no browser test run yet. The only
-dependency is [fflate](https://github.com/101arrowz/fflate) (MIT) for the XLSX zip, and only the
+what browsers and Node share (no `process`, no `Buffer`), and the browser tests of the playground run
+them in Chromium, Firefox and WebKit through pivotkit-react. The only dependency is
+[fflate](https://github.com/101arrowz/fflate) (MIT) for the XLSX zip, and only the
 `pivotkit-core/export` entry loads it. TypeScript declarations are generated from the JSDoc types.
 
 ## Example
