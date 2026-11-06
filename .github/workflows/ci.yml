@@ -9,9 +9,15 @@ on:
 permissions:
   contents: read
 
+# a newer push to the same branch or pull request replaces the run in progress
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         # the maintained Node LTS lines
@@ -28,5 +34,17 @@ jobs:
         run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Lint
         run: npm run lint
-      - name: Unit tests
-        run: npm test
+      - name: Types
+        # type check of the JSDoc sources, generated .d.ts, and a TypeScript consumer compiled against them
+        run: npm run types
+      - name: Unit tests with coverage
+        run: npm run coverage
+      - name: Package contents
+        # npm pack --dry-run: LICENSE, docs, sources and types in the tarball; publishes nothing
+        run: npm run pack:check
+      - name: Audit
+        run: npm audit --audit-level=high
+      - name: Benchmark
+        # timings for the log only: shared runners vary too much for a threshold
+        if: matrix.node == '24'
+        run: npm run bench -w pivotkit-core

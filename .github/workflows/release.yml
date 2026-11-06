@@ -1,0 +1,51 @@
+name: Release
+
+# Prepared, not active. Publishes pivotkit-core to npm with provenance when a tag
+# pivotkit-core@<version> is pushed, but only after the maintainer has
+#   1. created the package on npm and set up trusted publishing for this repository and workflow,
+#   2. created the GitHub environment "npm" with required reviewers,
+#   3. set the repository variable NPM_RELEASE_ENABLED to "true".
+# Until then every run is skipped. See CONTRIBUTING.md, "Releasing".
+on:
+  push:
+    tags: ["pivotkit-core@*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: vars.NPM_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      # OIDC token for npm trusted publishing and the provenance attestation; no npm token is stored
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: Install
+        run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Tag matches the package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(node -p "require('./packages/pivotkit-core/package.json').version")"
+          test "$TAG" = "pivotkit-core@$version" || { echo "tag $TAG does not match pivotkit-core@$version"; exit 1; }
+      - name: Lint, types, tests
+        run: npm run lint && npm run types && npm test
+      - name: Package contents
+        run: npm run pack:check
+      - name: Publish
+        run: npm publish --workspace pivotkit-core --provenance --access public
