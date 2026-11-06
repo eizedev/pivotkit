@@ -14,6 +14,20 @@ const events = (page, type) => page.evaluate((t) => window.__events.filter((e) =
 /** The chip names of a zone of one element. */
 const zone = (page, host, name) => page.locator(`${host} [data-zone="${name}"] .pk-chip`).evaluateAll((els) => els.map((e) => e.getAttribute("data-chip")));
 
+/**
+ * Clicks a toolbar action of one element: its own button, or its entry in "More" when the toolbar has
+ * no room for it (fonts differ between machines).
+ */
+async function tool(host, testId) {
+    const own = host.getByTestId(testId);
+    if (await own.count()) {
+        await own.click();
+        return;
+    }
+    await host.getByTestId("more").click();
+    await host.getByTestId(`more-${testId}`).click();
+}
+
 /** A custom property's value on an element's .pk-root. */
 const token = (page, host, name) => page.locator(`${host} .pk-root`).evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name);
 
@@ -73,26 +87,30 @@ test.describe("two elements on one page", () => {
     test("templates: save and delete wait for the page's promise; a rejected one shows its message", async ({ page }) => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");
-        await sales.getByTestId("templates").click();
+        await tool(sales, "templates");
         await sales.getByTestId("template-name").fill("Mine");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("Template “Mine” saved");
         const [save] = await events(page, "pivot-template-save");
         expect(save.detail.name).toBe("Mine");
         expect(save.detail.view.rows).toEqual(["Region", "Country"]);
-        await sales.getByTestId("templates").click();
+        await tool(sales, "templates");
         await sales.getByTestId("template-name").fill("fail");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("the server said no");
-        await sales.getByTestId("templates").click();
+        await tool(sales, "templates");
         await sales.getByRole("button", { name: "Delete Mine" }).click();
         await sales.getByTestId("confirm-delete").click();
         await expect(sales.locator(".pk-toasts")).toContainText("Template “Mine” deleted");
-        await sales.getByTestId("templates").click();
+        await tool(sales, "templates");
         await expect(sales.getByTestId("template-Mine")).toHaveCount(0);
         expect((await events(page, "pivot-template-delete"))[0].detail.name).toBe("Mine");
-        // the other element has neither templates nor save-templates: no Templates menu
-        await expect(page.locator("#tickets").getByTestId("templates")).toHaveCount(0);
+        // the other element has no save-templates: its Templates menu offers no save
+        await page.keyboard.press("Escape");
+        const tickets = page.locator("#tickets");
+        await tool(tickets, "templates");
+        await expect(tickets.locator(".pk-popover")).toHaveCount(1);
+        await expect(tickets.getByTestId("template-name")).toHaveCount(0);
     });
 
     test("export: the page sees every file; preventDefault() keeps it from the download", async ({ page }) => {
