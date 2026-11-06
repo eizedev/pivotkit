@@ -232,6 +232,24 @@ test.describe("filter, table and chart", () => {
         await expect(page.getByTestId("template-Teams only")).toHaveCount(0);
         await expect(page.locator(".pk-toasts")).toContainText("Template “Teams only” deleted");
     });
+
+    test("templates with the same name: every entry is shown, a delete asks for that entry only", async ({ page }) => {
+        await page.goto("?data=tickets");
+        const preset = "Tickets per team and priority";
+        await toolbar(page, "templates");
+        await page.getByTestId("template-name").fill(preset);
+        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await expect(page.locator(".pk-toasts")).toContainText(`Template “${preset}” saved`);
+        await toolbar(page, "templates");
+        // the host's preset and the user's template of the same name, one delete button (the saved one)
+        await expect(page.getByTestId(`template-${preset}`)).toHaveCount(2);
+        await page.getByRole("button", { name: `Delete ${preset}` }).click();
+        await expect(page.getByTestId("confirm-delete")).toHaveCount(1);
+        await expect(page.getByTestId(`template-${preset}`)).toHaveCount(1);
+        await page.getByTestId("confirm-delete").click();
+        await expect(page.getByTestId(`template-${preset}`)).toHaveCount(1);
+        await expect(page.getByRole("button", { name: `Delete ${preset}` })).toHaveCount(0);
+    });
 });
 
 test.describe("theme, language and layout", () => {

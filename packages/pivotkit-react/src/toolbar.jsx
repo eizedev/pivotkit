@@ -87,18 +87,20 @@ function SaveTemplate({ labels, onSave, close }) {
 
 /**
  * The templates: load one, save the view, delete one the host marked `deletable`. A delete asks
- * first, in place, and the entry goes only when the host's callback has finished.
+ * first, in place, and the entry goes only when the host's callback has finished. Names need not be
+ * unique (a saved template may have a preset's name): every entry is shown, keyed and confirmed by its
+ * place in the list.
  */
 function TemplatesPanel({ templates, labels, onLoad, onSave, onDelete, close }) {
-    const [confirming, setConfirming] = useState(/** @type {string | null} */ (null));
+    const [confirming, setConfirming] = useState(/** @type {number | null} */ (null));
     const [busy, setBusy] = useState(false);
     return (
         <>
             <Section title={labels.templates}>
                 {templates.length === 0 ? <p className="pk-hint">{labels.noTemplates}</p> : null}
-                {templates.map((t) =>
-                    confirming === t.name ? (
-                        <div key={t.name} className="pk-template pk-confirm" role="group" aria-label={fill(labels.deleteConfirm, { name: t.name })}>
+                {templates.map((t, i) =>
+                    confirming === i ? (
+                        <div key={`${i}:${t.name}`} className="pk-template pk-confirm" role="group" aria-label={fill(labels.deleteConfirm, { name: t.name })}>
                             <span className="pk-confirm-text">{fill(labels.deleteConfirm, { name: t.name })}</span>
                             <button
                                 type="button"
@@ -122,12 +124,12 @@ function TemplatesPanel({ templates, labels, onLoad, onSave, onDelete, close }) 
                             </button>
                         </div>
                     ) : (
-                        <div key={t.name} className="pk-template">
+                        <div key={`${i}:${t.name}`} className="pk-template">
                             <Option icon="bookmark" onSelect={() => { close(); onLoad(t); }} testId={`template-${t.name}`}>
                                 {t.name}
                             </Option>
                             {onDelete && t.deletable === true ? (
-                                <button type="button" className="pk-icon-btn" onClick={() => setConfirming(t.name)} aria-label={fill(labels.deleteTemplate, { name: t.name })} title={fill(labels.deleteTemplate, { name: t.name })}>
+                                <button type="button" className="pk-icon-btn" onClick={() => setConfirming(i)} aria-label={fill(labels.deleteTemplate, { name: t.name })} title={fill(labels.deleteTemplate, { name: t.name })}>
                                     <Icon name="trash" />
                                 </button>
                             ) : null}

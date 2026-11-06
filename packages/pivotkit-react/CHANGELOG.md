@@ -56,3 +56,6 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `rowsCount`, `drillCount` and the new `chartCategories` and `chartSeries` are objects with one
   text per `Intl.PluralRules` category (`{ one, other }`, more for languages that have them);
   `chartCounts` joins the two chart counts.
+- Templates with the same name (a saved template with a preset's name) gave React duplicate keys,
+  and a delete asked for confirmation on every entry of that name; entries are keyed and confirmed
+  by their place in the list, and every one is shown.

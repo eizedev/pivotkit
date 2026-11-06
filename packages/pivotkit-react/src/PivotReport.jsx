@@ -107,8 +107,8 @@ function EmptyState({ labels, templates, onTemplate }) {
             </ol>
             {templates.length ? (
                 <div className="pk-empty-actions">
-                    {templates.slice(0, 3).map((t) => (
-                        <button key={t.name} type="button" className="pk-btn" onClick={() => onTemplate(t)}>
+                    {templates.slice(0, 3).map((t, i) => (
+                        <button key={`${i}:${t.name}`} type="button" className="pk-btn" onClick={() => onTemplate(t)}>
                             <Icon name="sparkle" />
                             <span className="pk-btn-text">{fill(labels.tryTemplate, { name: t.name })}</span>
                         </button>
