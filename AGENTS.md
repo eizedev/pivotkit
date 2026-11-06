@@ -72,9 +72,11 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix
   ECharts.
 - Every third-party package is pinned to an exact version with the lock file; CI installs with
   `npm ci --ignore-scripts`. Exception: a package of this repository that another one depends on
-  takes a caret range (`"pivotkit-core": "^0.0.0"` in pivotkit-react), so a host gets one copy of the
-  core; the lock file still pins it in development. Chart wrapper packages have been hijacked on npm before: prefer a small
-  own wrapper over a wrapper package.
+  takes a caret range on its current version (`"pivotkit-core": "^0.0.0"` in pivotkit-react); the lock
+  file still pins it in development. In 0.x a caret range spans patch versions only (`^0.0.0` is
+  0.0.0 alone), so a host that also uses pivotkit-core directly must use a version inside the range;
+  npm shares one copy only when the ranges overlap. Chart wrapper packages have been hijacked on npm
+  before: prefer a small own wrapper over a wrapper package.
 - Exports must be safe to open: CSV text that a spreadsheet would run as a formula gets a leading `'`
   (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace and control
   characters, or `+` `-` unless the text is a plain number or a number range); XLSX writes text as

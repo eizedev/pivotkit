@@ -15,8 +15,10 @@ npm install pivotkit-react react react-dom echarts
 
 React, ReactDOM and ECharts are peer dependencies: the host provides them, so there is one copy of
 each in the page (PowerShell Universal provides React 18.3.1 at runtime). `pivotkit-core` (a caret
-range, so a host that also uses the core gets one copy) and `@dnd-kit/core` and `@dnd-kit/sortable`
-(pinned exactly) are regular dependencies.
+range on its current version) and `@dnd-kit/core` and `@dnd-kit/sortable` (pinned exactly) are
+regular dependencies. A host that also uses pivotkit-core directly must use a version inside that
+range: in 0.x a caret range spans patch versions only (`^0.0.0` matches 0.0.0 alone), and npm shares
+one copy of the core only when the ranges overlap.
 
 | Peer | Range | Why a peer |
 | --- | --- | --- |
@@ -137,6 +139,11 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   Escape cancels. The table's values move with the arrow keys and open with Enter; the table has a
   name and a described hint. The chart canvas has a text alternative (type, values, counts, highest
   and lowest value). The report's `lang` follows its labels.
+
+For hosts: while a popover, the drill-down or the narrow field drawer of the report is open, the
+report listens for Escape on the whole document and closes its newest layer, also when the focus is
+outside the report. A host that opens a dialog of its own over an open report layer gets that Escape
+to the report first; close the report's layer before, or open the dialog when none is open.
 
 ## Layout
 

@@ -21,8 +21,11 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 ## Dependencies
 
 Every package of a third party is pinned to an exact version with the lock file; a package of this
-repository that another one depends on takes a caret range (`pivotkit-react` depends on
-`^<version of pivotkit-core>`), so a host gets one copy of the core; `tests/ci.test.js` checks both.
+repository that another one depends on takes a caret range on its current version (`pivotkit-react`
+depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.x a caret range
+spans patch versions only (`^0.0.0` matches 0.0.0 alone, `^0.2.0` matches 0.2.x), so a host that
+also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
+when the ranges overlap.
 React 19 for the browser tests is a separate install with its own lock file in `tests/react19/` (an
 alias in the workspace would clash with React 18's peer dependencies). Check the license of every library
 you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime

@@ -18,8 +18,9 @@ test("the Playwright container image matches @playwright/test in package-lock.js
 });
 
 // The pinning rule: every dependency of a third party is one exact version (with the lock file); a
-// package of this repository that another one depends on takes a caret range, so a host that uses
-// pivotkit-core and pivotkit-react gets one copy of the core. The lock file pins it in development.
+// package of this repository that another one depends on takes a caret range on its current version
+// (in 0.x that spans patch versions only; a host shares one copy only when its own range overlaps).
+// The lock file pins it in development.
 const OWN = new Set(["pivotkit-core", "pivotkit-react", "pivotkit-element"]);
 
 test("every dependency is pinned to an exact version; this repository's own packages take a caret range", () => {
