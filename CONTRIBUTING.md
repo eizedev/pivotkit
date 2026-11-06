@@ -83,8 +83,11 @@ once:
 1. Make the repository public: npm provenance is not available for private repositories (npm's
    documentation, "Trusted publishers").
 2. Create the packages on npm and configure trusted publishing for each: this repository, the
-   workflow file `release.yml` and the environment `npm`. No npm token is stored in GitHub. A new
-   trusted publisher must publish once within two days of being set up.
+   workflow file `release.yml` and the environment `npm`. No npm token is stored in GitHub. The
+   split into a "build" and a "publish" job keeps the OIDC token away from the dependencies; it does
+   not prove the tarball: "build" runs the dev dependencies that make `dist/`, and provenance attests
+   the workflow and the commit, not that `dist/` is unaltered. "publish" checks only that the
+   tarball's name and version match the tag.
 3. In the repository settings, create the environment `npm` with required reviewers and deployments
    from tags only (deployment branch and tag rule `*@*`).
 4. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.

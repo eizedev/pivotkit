@@ -113,8 +113,17 @@ jobs:
         run: |
           npm install --global npm@11.21.1 --ignore-scripts --no-audit --no-fund
           npm --version
+      - name: Tarball matches the tag
+        env:
+          TAG: ${{ github.ref_name }}
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        # read the package.json inside the tarball itself, not the one in the repository
+        run: |
+          actual="$(tar -xOzf "pack/$TARBALL" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s);console.log(p.name+"@"+p.version)})')"
+          test "$actual" = "$TAG" || { echo "tarball holds $actual, tag is $TAG"; exit 1; }
       - name: Publish
         env:
           TARBALL: ${{ needs.build.outputs.tarball }}
-        # the tarball only: nothing of the repository is installed or run in this job
-        run: npm publish "pack/$TARBALL" --provenance --access public
+        # the tarball only: nothing of the repository is installed or run in this job, and no
+        # lifecycle script of the tarball runs while the OIDC token is available
+        run: npm publish "pack/$TARBALL" --provenance --access public --ignore-scripts

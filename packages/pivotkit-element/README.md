@@ -102,7 +102,8 @@ As with `<PivotReport>`:
   report again on it, with a new undo history and Reset pointing there; the same view again changes
   nothing, and so does the view the report last reported: a page that stores every
   `pivot-view-change` and binds it as `defaultView` (`[defaultView]="stored"`) keeps the report and
-  its undo history. That way a framework that sets properties after the element is in the page
+  its undo history. Feed the view back unchanged and before the next change: an older view (from a
+  debounced or asynchronous store) counts as a new start view and starts the report again. That way a framework that sets properties after the element is in the page
   (React 18, Angular) still gets its start view.
 - Controlled (`view` set): the report shows that view. A change is a `pivot-view-change` event, and the
   report shows it only when the page sets `view = event.detail.view`; a page that does not set it keeps
@@ -181,7 +182,8 @@ Menus and popovers are `position: fixed`. Inside an ancestor with a `transform`,
 `contain` (router animations, dialogs, carousels) fixed elements are placed relative to that
 ancestor; the report measures its origin and places them at their button all the same (browser test
 with a transformed wrapper). The narrow layout's bottom sheets, the field drawer and the drill-down
-cover that ancestor, not the window, in such a case.
+cover that ancestor, not the window, in such a case. The drag preview (also `position: fixed`) is not
+corrected there and is not tested; a scaled ancestor (`scale()`) is not corrected either.
 
 ## Content-Security-Policy
 
