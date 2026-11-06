@@ -22,10 +22,19 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./export": {
+      "types": "./types/export.d.ts",
+      "default": "./src/export.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "src",
+    "types",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -35,7 +44,11 @@
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\"",
-    "bench": "node bench/bench.js"
+    "test:types": "tsc -p test/types",
+    "types": "tsc -p .",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "bench": "node bench/bench.js",
+    "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
   },
   "dependencies": {
     "fflate": "0.8.3"
@@ -43,5 +56,10 @@
   "devDependencies": {
     "fast-xml-parser": "5.11.2",
     "read-excel-file": "9.3.12"
+  },
+  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

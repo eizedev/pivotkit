@@ -12,11 +12,15 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "types": "npm run types --workspaces --if-present && npm run test:types --workspaces --if-present",
+    "coverage": "npm run coverage --workspaces --if-present",
+    "pack:check": "node scripts/check-pack.js pivotkit-core"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "eslint": "10.14.0",
-    "globals": "17.13.0"
+    "globals": "17.13.0",
+    "typescript": "7.0.2"
   }
 }

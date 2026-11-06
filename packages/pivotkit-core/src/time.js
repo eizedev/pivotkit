@@ -23,6 +23,9 @@ const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.
  * Milliseconds of a UTC date and time, years 0-99 included (Date.UTC maps them to 1900-1999).
  */
 function utc(y, mo, d, h = 0, mi = 0, s = 0, ms = 0) {
+    if (y >= 100) {
+        return Date.UTC(y, mo - 1, d, h, mi, s, ms);
+    }
     const date = new Date(Date.UTC(2000, mo - 1, d, h, mi, s, ms));
     date.setUTCFullYear(y);
     return date.getTime();
@@ -39,8 +42,14 @@ export function parseIso(text) {
     if (!m) {
         return null;
     }
-    const [, ys, mos, ds, hs, mis, ss, frac, zone] = m;
-    const [y, mo, d, h, mi, s] = [ys, mos, ds, hs ?? "0", mis ?? "0", ss ?? "0"].map(Number);
+    const zone = m[8];
+    const y = +m[1];
+    const mo = +m[2];
+    const d = +m[3];
+    const h = m[4] === undefined ? 0 : +m[4];
+    const mi = m[5] === undefined ? 0 : +m[5];
+    const s = m[6] === undefined ? 0 : +m[6];
+    const frac = m[7];
     if (mo < 1 || mo > 12 || d < 1 || h > 23 || mi > 59 || s > 59) {
         return null;
     }

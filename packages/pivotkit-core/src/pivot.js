@@ -54,7 +54,7 @@ import { normalize } from "./view.js";
  * @property {Int32Array} colLeafOf
  * @property {(row: PivotNode, col: PivotNode, valueIndex: number) => number | string | null} value  raw aggregate
  * @property {(row: PivotNode, col: PivotNode, valueIndex: number) => number | string | null} display  after show-as
- * @property {(axis: "rows" | "cols", node: PivotNode, labels?: Partial<typeof DEFAULT_LABELS>) => string} label
+ * @property {(axis: "rows" | "cols", node: PivotNode, labels?: Partial<import("./labels.js").Labels>) => string} label
  */
 
 const refKey = (ref) => `${ref.agg}\u0000${ref.field ?? ""}`;
@@ -220,6 +220,7 @@ export function computePivot(data, viewInput, options = {}) {
         }
     };
 
+    /** @type {Int32Array} */
     let rows = new Int32Array(data.length);
     for (let i = 0; i < rows.length; i++) {
         rows[i] = i;
@@ -346,5 +347,6 @@ export function computePivot(data, viewInput, options = {}) {
  * @returns {result is PivotResult}
  */
 export function isPivotResult(result) {
-    return result !== null && typeof result === "object" && typeof result.display === "function" && result.rowRoot !== undefined;
+    const r = /** @type {any} */ (result);
+    return r !== null && typeof r === "object" && typeof r.display === "function" && r.rowRoot !== undefined;
 }

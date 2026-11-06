@@ -7,7 +7,8 @@
  * Each step runs once to warm up, then the median of several runs is printed in milliseconds.
  */
 
-import { computePivot, encode, toCsv, toEChartsOption, toGrid, toXlsx } from "../src/index.js";
+import { computePivot, encode, toEChartsOption, toGrid } from "../src/index.js";
+import { toCsv, toXlsx } from "../src/export.js";
 
 // a small deterministic generator (mulberry32), so every run sees the same data
 function random(seed) {
@@ -112,7 +113,7 @@ function bench(n) {
     const grid = toGrid(first, { locale: "en-US" });
     const x = time(() => toXlsx(grid), runs);
     console.log(`${fmt(x.ms)}  toXlsx        ${(x.out.length / 1024).toFixed(0)} KB`);
-    const c = time(() => toCsv(grid, { locale: "en-US" }), runs);
+    const c = time(() => toCsv(grid), runs);
     console.log(`${fmt(c.ms)}  toCsv`);
     const e = time(() => toEChartsOption(computePivot(data, { rows: ["Region"], cols: ["Category"], values: [{ field: "Units", agg: "sum" }] })), runs);
     console.log(`${fmt(e.ms)}  computePivot + toEChartsOption (8 x 12 bar)`);

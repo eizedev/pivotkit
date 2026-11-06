@@ -4,10 +4,28 @@
 
 import { collator, dateTimeFormat } from "./intl.js";
 
+/** @type {Intl.DateTimeFormatOptions} */
 const DATE = { dateStyle: "medium", timeZone: "UTC" };
+/** @type {Intl.DateTimeFormatOptions} */
 const DATE_TIME = { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" };
 
-/** Default texts of the grid; every one can be replaced through toGrid's `labels` option. */
+/**
+ * @typedef {object} Labels  texts of the grid and chart; {label}, {agg} and {field} are placeholders
+ * @property {string} blank
+ * @property {string} total
+ * @property {string} grandTotal
+ * @property {string} values
+ * @property {string} valueName
+ * @property {string} countRows
+ * @property {string} true
+ * @property {string} false
+ * @property {Record<string, string>} aggregators
+ */
+
+/**
+ * Default texts of the grid; every one can be replaced through toGrid's `labels` option.
+ * @type {Readonly<Labels>}
+ */
 export const DEFAULT_LABELS = Object.freeze({
     blank: "(blank)",
     total: "{label} Total",
@@ -51,7 +69,7 @@ export function labelOf(column, value, locale, labels = DEFAULT_LABELS) {
     }
     switch (column.type) {
         case "date":
-            return dateTimeFormat(locale, column.dateOnly ? DATE : DATE_TIME).format(new Date(value));
+            return dateTimeFormat(locale, column.dateOnly ? DATE : DATE_TIME).format(new Date(Number(value)));
         case "boolean":
             return value ? (labels.true ?? "true") : (labels.false ?? "false");
         default:

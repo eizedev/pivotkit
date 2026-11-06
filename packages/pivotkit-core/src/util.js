@@ -47,12 +47,21 @@ export function decimalsOf(x) {
 }
 
 /**
+ * @typedef {object} Cache  a bounded cache (least recently used go first)
+ * @property {number} limit
+ * @property {number} size
+ * @property {(key: string) => any} get
+ * @property {(key: string, value: any) => any} set
+ * @property {(key: string, make: () => any) => any} getOrSet  the cached value, made and stored on a miss
+ */
+
+/**
  * A bounded cache that forgets the least recently used entry first.
- * @template V
  * @param {number} limit
+ * @returns {Cache}
  */
 export function createCache(limit) {
-    /** @type {Map<string, V>} */
+    /** @type {Map<string, any>} */
     const map = new Map();
     return {
         limit,
@@ -71,7 +80,7 @@ export function createCache(limit) {
         },
         /**
          * @param {string} key
-         * @param {V} value
+         * @param {any} value
          */
         set(key, value) {
             map.delete(key);
@@ -82,10 +91,8 @@ export function createCache(limit) {
             return value;
         },
         /**
-         * The cached value, made and stored on a miss.
          * @param {string} key
-         * @param {() => V} make
-         * @returns {V}
+         * @param {() => any} make
          */
         getOrSet(key, make) {
             const hit = this.get(key);

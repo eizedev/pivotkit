@@ -52,7 +52,7 @@ import { MS_PER_DAY, createCache } from "./util.js";
  * @property {(name: string) => Column | undefined} column  case-insensitive lookup
  * @property {string} timeZone  the zone Date objects and ISO strings with an offset were read in
  * @property {Issue[]} issues   column names that collide case-insensitively
- * @property {ReturnType<typeof createCache>} cache  internal: derived columns and sort orders (LRU)
+ * @property {import("./util.js").Cache} cache  internal: derived columns and sort orders (LRU)
  */
 
 /** Column types that can be named in `encode(rows, { types })`. */
@@ -89,6 +89,10 @@ function inferType(raw, inferNumbers) {
     let type = null;
     for (let i = 0; i < raw.length; i++) {
         const t = classify(raw[i], inferNumbers);
+        if (t === "string") {
+            // text absorbs every other type: nothing after it can change the result
+            return "string";
+        }
         if (t === null || t === type) {
             continue;
         }
@@ -336,5 +340,6 @@ function makeEncoded(length, columns, meta) {
  * @returns {data is Encoded}
  */
 export function isEncoded(data) {
-    return data !== null && typeof data === "object" && Array.isArray(data.columns) && typeof data.column === "function" && "cache" in data;
+    const d = /** @type {any} */ (data);
+    return d !== null && typeof d === "object" && Array.isArray(d.columns) && typeof d.column === "function" && "cache" in d;
 }

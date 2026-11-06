@@ -25,7 +25,10 @@
  * @property {(column: import("./encode.js").Column | null, cells: number, ranks: Int32Array | null, labelOf: (code: number) => string) => Kernel} create
  */
 
+/** @type {(columnType: string) => ResultType} */
 const numberResult = () => "number";
+/** @type {(columnType: string) => ResultType} */
+const textResult = () => "text";
 
 function count(column, cells) {
     const n = new Float64Array(cells);
@@ -188,7 +191,9 @@ function firstLast(isLast) {
     };
 }
 
+/** @type {(columnType: string) => ResultType} */
 const dateOrNumber = (t) => (t === "date" ? "date" : "number");
+/** @type {(columnType: string) => ResultType} */
 const sameAsColumn = (t) => (t === "date" ? "date" : t === "number" ? "number" : "text");
 
 /** @type {Readonly<Record<string, AggregatorDef>>} */
@@ -204,7 +209,7 @@ export const AGGREGATORS = Object.freeze({
     },
     listUnique: {
         numeric: false,
-        resultType: () => "text",
+        resultType: textResult,
         create: (column, cells, ranks, labelOf) => {
             const u = uniqueSets(column, cells);
             return {

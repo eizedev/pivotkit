@@ -25,7 +25,7 @@ export const LIMITS = Object.freeze({
     cacheEntries: 64 // derived columns and sort orders kept per encoded data set (least recently used go)
 });
 
-/** @typedef {typeof LIMITS} Limits */
+/** @typedef {{ [K in keyof typeof LIMITS]: number }} Limits */
 
 /**
  * The limits with `options.limits` merged over the defaults.
@@ -40,6 +40,7 @@ export function resolveLimits(options) {
     if (typeof custom !== "object") {
         throw new PivotkitError("INVALID_OPTION", "options.limits must be an object");
     }
+    /** @type {Limits} */
     const out = { ...LIMITS };
     for (const key of Object.keys(custom)) {
         const value = custom[key];

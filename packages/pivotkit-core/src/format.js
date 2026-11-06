@@ -33,12 +33,14 @@ export const MAX_DECIMALS = 20;
 const DURATION_SECONDS = { ms: 0.001, s: 1, min: 60, h: 3600, d: 86400 };
 const FORMAT_PATTERN = /^(number|integer|currency|percent|percent100|compact|bytes|duration|date|datetime|time|text)(?::([A-Za-z0-9]{1,10}))?$/;
 const WITH_DECIMALS = new Set(["number", "percent", "percent100"]);
+/** @type {Record<string, Intl.DateTimeFormatOptions>} */
 const DATE_STYLES = {
     date: { dateStyle: "medium", timeZone: "UTC" },
     datetime: { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" },
     time: { timeStyle: "short", timeZone: "UTC" }
 };
 // shown without a minus for -0 and for values that round to zero
+/** @type {Intl.NumberFormatOptions} */
 const SIGN = { signDisplay: "negative" };
 
 let currencies = null;
@@ -110,6 +112,7 @@ export function formatDuration(seconds, locale) {
     if (total < 60) {
         return `${sign}${numberFormat(locale, { maximumFractionDigits: 1 }).format(total)} s`;
     }
+    /** @type {Array<[string, number]>} */
     const units = [["d", 86400], ["h", 3600], ["min", 60], ["s", 1]];
     const first = units.findIndex(([, size]) => total >= size);
     const [bigLabel, bigSize] = units[first];

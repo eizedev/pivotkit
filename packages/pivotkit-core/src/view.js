@@ -54,7 +54,10 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   report was made for; the host passes it to encode(), computePivot() reports a mismatch
  */
 
-/** A view with nothing placed: the start of a new report. */
+/**
+ * A view with nothing placed: the start of a new report.
+ * @returns {View}
+ */
 export function emptyView() {
     return {
         version: VIEW_VERSION,
@@ -115,7 +118,7 @@ export function runMigrations(raw, steps, target) {
             issues: [{ path: "version", message: `version ${version} is newer than this pivotkit-core reads (${target}); update pivotkit-core` }]
         };
     }
-    let view = raw;
+    let view = /** @type {Record<string, unknown>} */ (raw);
     for (let v = version; v < target; v++) {
         const step = steps[v];
         if (typeof step !== "function") {

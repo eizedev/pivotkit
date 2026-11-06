@@ -14,6 +14,29 @@
  * throws; a programmer error or a resource limit throws a PivotkitError.
  */
 
+/**
+ * @typedef {import("./encode.js").Encoded} Encoded
+ * @typedef {import("./encode.js").Column} Column
+ * @typedef {import("./encode.js").ColumnType} ColumnType
+ * @typedef {import("./encode.js").SchemaField} SchemaField
+ * @typedef {import("./view.js").View} View
+ * @typedef {import("./view.js").ValueSpec} ValueSpec
+ * @typedef {import("./view.js").ValueRef} ValueRef
+ * @typedef {import("./view.js").FilterSpec} FilterSpec
+ * @typedef {import("./view.js").DerivedSpec} DerivedSpec
+ * @typedef {import("./view.js").SortSpec} SortSpec
+ * @typedef {import("./view.js").Issue} Issue
+ * @typedef {import("./pivot.js").PivotResult} PivotResult
+ * @typedef {import("./tree.js").PivotNode} PivotNode
+ * @typedef {import("./grid.js").Grid} Grid
+ * @typedef {import("./grid.js").GridCell} GridCell
+ * @typedef {import("./chart.js").ChartTheme} ChartTheme
+ * @typedef {import("./format.js").Formatter} Formatter
+ * @typedef {import("./limits.js").Limits} Limits
+ * @typedef {import("./labels.js").Labels} Labels
+ * @typedef {import("./errors.js").PivotkitErrorCode} PivotkitErrorCode
+ */
+
 export { encode } from "./encode.js";
 export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION } from "./view.js";
 export { computePivot } from "./pivot.js";

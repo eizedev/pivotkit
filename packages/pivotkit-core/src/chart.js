@@ -19,7 +19,7 @@ import { resolveLocale } from "./util.js";
  * Chart data: one category per plotted row line, one series per column line and value. Dense like
  * the grid: more than `limits.cells` data points throw a PivotkitError (LIMIT_EXCEEDED).
  * @param {import("./pivot.js").PivotResult} result
- * @param {{ labels?: Partial<typeof DEFAULT_LABELS>, separator?: string, limits?: Partial<import("./limits.js").Limits> }} [options]
+ * @param {{ labels?: Partial<import("./labels.js").Labels>, separator?: string, limits?: Partial<import("./limits.js").Limits> }} [options]
  */
 export function toSeries(result, options = {}) {
     expect(isPivotResult(result), "toSeries(result): result must come from computePivot()");
@@ -93,7 +93,7 @@ export function toSeries(result, options = {}) {
  * @param {{ type?: string, stacked?: boolean, horizontal?: boolean }} [options.chart]  overrides the view's chart
  * @param {ChartTheme} [options.theme]
  * @param {string} [options.locale]  used when the view names none; default the pivot's locale
- * @param {Partial<typeof DEFAULT_LABELS>} [options.labels]
+ * @param {Partial<import("./labels.js").Labels>} [options.labels]
  * @param {string} [options.separator]  between the parts of a multi-level label, default " / "
  * @param {Partial<import("./limits.js").Limits>} [options.limits]
  */

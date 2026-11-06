@@ -162,7 +162,8 @@ export function scaleColor(colors, t) {
  * @returns {grid is Grid}
  */
 export function isGrid(grid) {
-    return grid !== null && typeof grid === "object" && Array.isArray(grid.rows) && Array.isArray(grid.merges) && Number.isInteger(grid.columnCount);
+    const g = /** @type {any} */ (grid);
+    return g !== null && typeof g === "object" && Array.isArray(g.rows) && Array.isArray(g.merges) && Number.isInteger(g.columnCount);
 }
 
 /**
@@ -171,7 +172,7 @@ export function isGrid(grid) {
  * @param {import("./pivot.js").PivotResult} result  from computePivot()
  * @param {object} [options]
  * @param {string} [options.locale]  used when the view names none; default the pivot's locale
- * @param {Partial<typeof DEFAULT_LABELS>} [options.labels]  texts for totals, blanks and value names
+ * @param {Partial<import("./labels.js").Labels>} [options.labels]  texts for totals, blanks and value names
  * @param {Partial<import("./limits.js").Limits>} [options.limits]
  * @returns {Grid}
  */
