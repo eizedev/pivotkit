@@ -39,6 +39,41 @@ test("every dependency is pinned to an exact version; this repository's own pack
     }
 });
 
+/**
+ * Whether a version is inside a caret range, as npm reads it: ^1.2.3 is 1.x from 1.2.3, ^0.2.3 is
+ * 0.2.x from 0.2.3, ^0.0.3 is 0.0.3 alone. Plain x.y.z versions only, as this repository uses them.
+ */
+function caretSatisfies(range, version) {
+    const [a, b, c] = range.replace(/^\^/, "").split(".").map(Number);
+    const [x, y, z] = version.split(".").map(Number);
+    const atLeast = x > a || (x === a && (y > b || (y === b && z >= c)));
+    if (a > 0) return atLeast && x === a;
+    if (b > 0) return atLeast && x === 0 && y === b;
+    return x === 0 && y === 0 && z === c;
+}
+
+test("caretSatisfies reads caret ranges as npm does", () => {
+    assert.equal(caretSatisfies("^0.1.0", "0.1.4"), true);
+    assert.equal(caretSatisfies("^0.1.0", "0.2.0"), false);
+    assert.equal(caretSatisfies("^0.0.1", "0.0.2"), false);
+    assert.equal(caretSatisfies("^1.2.0", "1.9.0"), true);
+    assert.equal(caretSatisfies("^1.2.0", "1.1.9"), false);
+});
+
+// publish order core, react, element: a range of an own package must take the version in this
+// repository, else npm would fetch another one from the registry instead of linking the workspace
+test("every caret range on an own package is satisfied by the workspace version", () => {
+    for (const name of ["pivotkit-core", "pivotkit-react", "pivotkit-element"]) {
+        const pkg = JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, root), "utf8"));
+        for (const [dep, range] of Object.entries(pkg.dependencies ?? {})) {
+            if (OWN.has(dep)) {
+                const own = JSON.parse(readFileSync(new URL(`packages/${dep}/package.json`, root), "utf8"));
+                assert.ok(caretSatisfies(range, own.version), `${name} needs ${dep}@${range}, the repository has ${own.version}`);
+            }
+        }
+    }
+});
+
 test("the own packages' caret ranges take the version of the package in this repository", () => {
     const core = JSON.parse(readFileSync(new URL("packages/pivotkit-core/package.json", root), "utf8"));
     const react = JSON.parse(readFileSync(new URL("packages/pivotkit-react/package.json", root), "utf8"));

@@ -3,10 +3,15 @@ name: Release
 # Prepared, not active. Publishes a package of this repository (pivotkit-core, pivotkit-react or
 # pivotkit-element) to npm with provenance when a tag <package>@<version> is pushed, but only after
 # the maintainer has
-#   1. created the package on npm and set up trusted publishing for this repository and workflow,
-#   2. created the GitHub environment "npm" with required reviewers,
-#   3. set the repository variable NPM_RELEASE_ENABLED to "true".
+#   1. made the repository public (npm provenance is not available for private repositories),
+#   2. created the package on npm and set up trusted publishing for this repository, the workflow
+#      release.yml and the environment "npm",
+#   3. created the GitHub environment "npm" with required reviewers, deployable from tags only,
+#   4. set the repository variable NPM_RELEASE_ENABLED to "true".
 # Until then every run is skipped. See CONTRIBUTING.md, "Releasing".
+#
+# Two jobs: "build" installs, checks and packs without any publishing right (the dependencies run
+# there); "publish" gets the OIDC token, installs nothing and publishes the tarball "build" made.
 on:
   push:
     tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*"]
@@ -19,25 +24,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  build:
     if: vars.NPM_RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: npm
+    timeout-minutes: 20
     permissions:
       contents: read
-      # OIDC token for npm trusted publishing and the provenance attestation; no npm token is stored
-      id-token: write
+      # to find the CI run of the tagged commit
+      actions: read
+    outputs:
+      tarball: ${{ steps.pack.outputs.file }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # the whole history, for the check that the tag is on main
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-      - name: Install
-        run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Tag matches the package version
         id: package
         env:
@@ -51,11 +56,65 @@ jobs:
           version="$(node -p "require('./packages/$name/package.json').version")"
           test "$TAG" = "$name@$version" || { echo "tag $TAG does not match $name@$version"; exit 1; }
           echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: The tagged commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$GITHUB_SHA is not on main"; exit 1; }
+      - name: CI passed for the tagged commit
+        # the browser matrix runs in ci.yml only; a release needs its green run for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')"
+          test "$runs" -gt 0 || { echo "no successful CI run for $GITHUB_SHA"; exit 1; }
+      - name: Install
+        run: npm ci --no-audit --no-fund --ignore-scripts
       - name: Lint, types, tests
         run: npm run lint && npm run types && npm test
       - name: Package contents
         run: npm run pack:check
-      - name: Publish
+      - name: Pack
+        id: pack
         env:
           PACKAGE: ${{ steps.package.outputs.name }}
-        run: npm publish --workspace "$PACKAGE" --provenance --access public
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack"
+          # prepack logs to stderr; the JSON with the file name goes to stdout
+          file="$(npm pack --workspace "$PACKAGE" --pack-destination "$RUNNER_TEMP/pack" --json | node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => console.log(JSON.parse(s.slice(s.indexOf("[")))[0].filename))')"
+          test -f "$RUNNER_TEMP/pack/$file"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/pack/${{ steps.pack.outputs.file }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      # OIDC token for npm trusted publishing and the provenance attestation; no npm token is stored
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tarball
+          path: pack
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # trusted publishing needs Node 22.14.0 or later
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: npm for trusted publishing
+        # trusted publishing needs npm 11.5.1 or later (npm's documentation, "Trusted publishers");
+        # one pinned version instead of whatever ships with the runner's Node
+        run: |
+          npm install --global npm@11.21.1 --ignore-scripts --no-audit --no-fund
+          npm --version
+      - name: Publish
+        env:
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        # the tarball only: nothing of the repository is installed or run in this job
+        run: npm publish "pack/$TARBALL" --provenance --access public

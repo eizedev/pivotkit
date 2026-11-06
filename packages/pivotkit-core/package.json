@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Pivot engine without UI: typed encoding, pivot tables with totals and subtotals, show values as, filters, date grouping, chart options for Apache ECharts, XLSX and CSV export.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",

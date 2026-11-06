@@ -25,7 +25,7 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 Every package of a third party is pinned to an exact version with the lock file; a package of this
 repository that another one depends on takes a caret range on its current version (`pivotkit-react`
 depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.x a caret range
-spans patch versions only (`^0.0.0` matches 0.0.0 alone, `^0.2.0` matches 0.2.x), so a host that
+spans patch versions only (`^0.1.0` matches 0.1.x, `^0.0.1` matches 0.0.1 alone), so a host that
 also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
 when the ranges overlap.
 `pivotkit-element` bundles everything it needs: each bundled package (React, ReactDOM, @dnd-kit,
@@ -80,21 +80,30 @@ Nothing is published yet, and there is no npm account for the packages. The rele
 (`.github/workflows/release.yml`) is prepared but skipped until it is switched on. To switch it on
 once:
 
-1. Create the package on npm and configure trusted publishing for this repository and the workflow
-   file `release.yml` (npm's documentation: "Trusted publishers"). No npm token is stored in GitHub.
-2. In the repository settings, create the environment `npm` with required reviewers.
-3. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
+1. Make the repository public: npm provenance is not available for private repositories (npm's
+   documentation, "Trusted publishers").
+2. Create the packages on npm and configure trusted publishing for each: this repository, the
+   workflow file `release.yml` and the environment `npm`. No npm token is stored in GitHub. A new
+   trusted publisher must publish once within two days of being set up.
+3. In the repository settings, create the environment `npm` with required reviewers and deployments
+   from tags only (deployment branch and tag rule `*@*`).
+4. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
+5. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
 
-Then for each release of a package (`pivotkit-core`, `pivotkit-react` or `pivotkit-element`):
+Then for each release of a package, in the order `pivotkit-core`, `pivotkit-react`,
+`pivotkit-element` (pivotkit-react depends on a published pivotkit-core; the element bundles both):
 
 1. Move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md` under the new version and
-   date; set `version` in `packages/<package>/package.json` (and the caret range or the
-   devDependency of the packages that use it, `tests/ci.test.js` checks both); merge that pull
-   request.
-2. Tag the merge commit `<package>@<version>` and push the tag.
-3. The workflow checks that the tag matches the version, runs lint, types, tests and the package
-   check, waits for an environment reviewer, and publishes with an npm provenance attestation.
+   date; set `version` in `packages/<package>/package.json`, and the caret range or the
+   devDependency of the packages that use it (`tests/ci.test.js` checks that every own range takes
+   the version in this repository); merge that pull request.
+2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tag.
+3. The workflow's `build` job checks that the tag matches the version, that the commit is on main
+   and that CI passed for it, runs lint, types, tests and the package check, and packs the tarball;
+   it has no publishing right. The `publish` job waits for an environment reviewer, then publishes
+   only that tarball with an npm provenance attestation, with npm 11.21.1 (trusted publishing needs
+   11.5.1 or later and Node 22.14.0 or later).
 
 `npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
-`dist/`, `types/`, and for pivotkit-element `dist/THIRD_PARTY_LICENSES.txt`). Verify against npm's current documentation which npm CLI version trusted publishing needs
-before the first release; the workflow uses the npm that ships with Node 24.
+`dist/`, `types/`, and for pivotkit-element `dist/THIRD_PARTY_LICENSES.txt`); it fails while a
+package is marked `"private": true`.

@@ -23,3 +23,13 @@ updates:
     groups:
       eslint:
         patterns: ["eslint", "@eslint/*", "globals"]
+  - package-ecosystem: "npm"
+    # React 19 for the browser tests: its own lock file, outside the workspaces
+    directory: "/tests/react19"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "build(deps)"
