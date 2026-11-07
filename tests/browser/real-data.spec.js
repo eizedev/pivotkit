@@ -20,12 +20,19 @@ const int = (x) => x.toLocaleString("en-US");
 const one = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const pct = (x) => `${one(x * 100)}%`;
 
-/** The cells of the table row whose label cells include `label`. */
+/**
+ * The cells of the table row whose label cells include `label`, once the table shows it: a change
+ * (Enter in a menu) renders in a later task under React 19's scheduling, so the row is waited for.
+ */
 async function row(page, label) {
-    const rows = await tableRows(page);
-    const found = rows.find((r) => r.includes(label));
-    expect(found, `a row "${label}" in ${JSON.stringify(rows.map((r) => r.slice(0, 2)))}`).toBeTruthy();
-    return found;
+    let rows = [];
+    await expect
+        .poll(async () => {
+            rows = await tableRows(page);
+            return rows.some((r) => r.includes(label));
+        }, { message: `a row "${label}" in the table` })
+        .toBe(true);
+    return rows.find((r) => r.includes(label));
 }
 
 async function open(page, query) {

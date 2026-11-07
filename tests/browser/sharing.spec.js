@@ -142,7 +142,8 @@ test.describe("sharing a view", () => {
         await page.getByRole("button", { name: "Remove Country" }).click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
         await page.getByTestId("show-chart").click();
-        await expect(page.getByTestId("pivot-chart")).toBeVisible();
+        // drawn: ECharts has loaded (a reload during its load is a warning in Firefox)
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await page.reload();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
         await expect(page.getByTestId("pivot-chart")).toBeVisible();
