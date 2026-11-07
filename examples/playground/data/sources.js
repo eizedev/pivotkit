@@ -1,4 +1,4 @@
-// The four real data sets of the playground: where each comes from, the request that fetched its
+// The five real data sets of the playground: where each comes from, the request that fetched its
 // snapshot, and how the response becomes the array of plain objects (one per row) that pivotkit takes.
 // `npm run docs:data` (scripts/docs-data.js) runs these requests once and writes the snapshots next to
 // this file; the playground and its browser tests read the snapshots, never the APIs. The "Learn with
@@ -200,6 +200,72 @@ export function nobelRows(laureates) {
     return rows.sort((a, b) => a.Year - b.Year || a.Category.localeCompare(b.Category, "en") || a.Laureate.localeCompare(b.Laureate, "en"));
 }
 // --8<-- [end:nobel]
+
+// --8<-- [start:endoflife]
+/** Every release cycle of every product on endoflife.date: release, support and end-of-life dates. */
+export const ENDOFLIFE = {
+    // the API's category slugs as labels; a category added later keeps its slug
+    categories: {
+        app: "App",
+        database: "Database",
+        device: "Device",
+        framework: "Framework",
+        lang: "Language",
+        os: "Operating system",
+        "server-app": "Server app",
+        service: "Service",
+        standard: "Standard"
+    }
+};
+
+/** All products with all their release cycles in one response (about 3 MB). No key needed. */
+export const endoflifeUrl = "https://endoflife.date/api/v1/products/full";
+
+/** Whole days from the date `from` to the date `to` ("YYYY-MM-DD", read as UTC: no time zone shift). */
+export function daysBetween(from, to) {
+    return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+}
+
+/**
+ * One row per release cycle from the response of `endoflifeUrl`. The API decides "EOL" and
+ * "Maintained" on the day it generated the response (`generated_at`); "Days to EOL" counts from that
+ * day too, so the three agree. A date the API does not know is null, never a boolean.
+ */
+export function endoflifeRows(response) {
+    const asOf = response.generated_at.slice(0, 10);
+    const rows = [];
+    for (const p of response.result) {
+        for (const r of p.releases) {
+            // eolFrom is a date or null (not known); isEol is always a boolean
+            const eol = r.eolFrom ?? null;
+            rows.push({
+                Product: p.label,
+                Category: ENDOFLIFE.categories[p.category] ?? p.category,
+                Cycle: r.name,
+                Released: r.releaseDate,
+                "EOL date": eol,
+                EOL: r.isEol,
+                // any support left, extended support included
+                Maintained: r.isMaintained,
+                LTS: r.isLts,
+                // the end of active support: not provided for products without that phase, null when unknown
+                "Active support until": r.eoasFrom ?? null,
+                // from the release to its end of life in years of 365.25 days (1,461 days are 4 years), cut, not
+                // rounded, to 0.01 so that a range of whole years holds exactly its cycles; blank without an end
+                "Support years": eol === null ? null : Math.floor((daysBetween(r.releaseDate, eol) * 400) / 1461) / 100,
+                // negative: the end of life lies that many days back
+                "Days to EOL": eol === null ? null : daysBetween(asOf, eol),
+                "Latest version": r.latest?.name ?? null,
+                "Latest release": r.latest?.date ?? null,
+                "Release year": Number(r.releaseDate.slice(0, 4)),
+                // last: long, and only useful to search or filter by
+                Tags: p.tags.length ? p.tags.join(", ") : null
+            });
+        }
+    }
+    return rows.sort((a, b) => a.Product.localeCompare(b.Product, "en") || b.Released.localeCompare(a.Released) || a.Cycle.localeCompare(b.Cycle, "en"));
+}
+// --8<-- [end:endoflife]
 
 /**
  * A snapshot on disk is `{ columns, dicts, rows }`: each row an array in the order of `columns`, and a

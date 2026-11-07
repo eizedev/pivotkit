@@ -54,23 +54,24 @@ const later = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The rows of a data set: generated ones at once, a real one's snapshot after its chunk has loaded
- * (null until then).
+ * (null until then), with the day the snapshot was fetched (null for generated data).
  */
 function useRows(dataset, size) {
     const set = DATASETS[dataset];
     const generated = useMemo(() => (set.make ? set.make(size) : null), [set, size]);
-    const [loaded, setLoaded] = useState({ dataset: null, rows: null });
+    const [loaded, setLoaded] = useState({ dataset: null, rows: null, fetched: null });
     useEffect(() => {
         if (!set.load) return undefined;
         let live = true;
-        set.load().then((rows) => {
-            if (live) setLoaded({ dataset, rows });
+        set.load().then(({ rows, fetched }) => {
+            if (live) setLoaded({ dataset, rows, fetched });
         });
         return () => {
             live = false;
         };
     }, [set, dataset]);
-    return set.make ? generated : loaded.dataset === dataset ? loaded.rows : null;
+    if (set.make) return { rows: generated, fetched: null };
+    return loaded.dataset === dataset ? { rows: loaded.rows, fetched: loaded.fetched } : { rows: null, fetched: null };
 }
 
 /** The report with its view in this page's state, as a host keeps a saved view. */
@@ -89,7 +90,7 @@ function App() {
     const [lastClick, setLastClick] = useState(null);
     const timings = useTimings();
 
-    const rows = useRows(dataset, size);
+    const { rows, fetched } = useRows(dataset, size);
     const { presets, source } = DATASETS[dataset];
     // the host decides what can be deleted: the user's own templates, not the presets
     const templates = useMemo(() => [...presets, ...saved.map((t) => ({ ...t, deletable: true }))], [presets, saved]);
@@ -125,7 +126,8 @@ function App() {
                         <h1>pivotkit playground</h1>
                         {source ? (
                             <p data-testid="pg-source">
-                                Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>. Pick a question under Start, then change it.
+                                Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>
+                                {fetched ? <span data-testid="pg-as-of">, as of {fetched}</span> : null}. Pick a question under Start, then change it.
                                 {source.credit ? <small className="pg-credit" data-testid="pg-credit">{source.credit}</small> : null}
                             </p>
                         ) : (

@@ -13,7 +13,7 @@ import { useDragSource } from "./dnd.jsx";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
-import { VIRTUAL_FROM, sliceRows, windowOf } from "./virtual.js";
+import { VIRTUAL_FROM, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
 
 const totalClass = (t) => (t === 2 ? " pk-grand" : t === 1 ? " pk-sub" : "");
 
@@ -81,9 +81,12 @@ function Toggle({ toggle, text, labels, onToggle }) {
 /**
  * @param {{ grid: import("pivotkit-core").Grid, view: any, labels: import("./labels.js").UiLabels,
  *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: unknown, hintId?: string,
- *   infoOf?: (field: string) => { description?: string } | undefined }} props
+ *   onRowLabel?: (label: string | null) => void, infoOf?: (field: string) => { description?: string } | undefined }} props
+ *   `onRowLabel`: the whole label of the row of a focused value or a tapped row label while the table
+ *   is virtual (its labels are cut to one line); null when there is none to show; `infoOf`: the host's
+ *   description of a field
  */
-export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, infoOf }) {
+export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, onRowLabel, infoOf }) {
     const wrap = useRef(/** @type {HTMLDivElement | null} */ (null));
     const table = useRef(/** @type {HTMLTableElement | null} */ (null));
     const bodyCount = grid.rows.length - grid.headerRows;
@@ -93,6 +96,8 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const [lefts, setLefts] = useState(/** @type {number[]} */ ([]));
     const [tops, setTops] = useState(/** @type {number[]} */ ([]));
     const [headHeight, setHeadHeight] = useState(0);
+    // the width of the table's box, measured: the sticky offsets of the label columns follow it
+    const [width, setWidth] = useState(0);
     const [active, setActive] = useState(/** @type {{ r: number, c: number } | null} */ (null));
     const focusNext = useRef(false);
     const focusToggle = useRef(/** @type {string | null} */ (null));
@@ -116,8 +121,11 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         }
         const headRows = t.tHead ? [...t.tHead.rows] : [];
         setHeadHeight(t.tHead ? t.tHead.offsetHeight : 0);
-        const ys = headRows.map((tr) => tr.offsetTop);
-        setTops((old) => (old.length === ys.length && old.every((v, i) => v === ys[i]) ? old : ys));
+        // fractional: offsetTop rounds, and a row 36.8 px high left a 0.2 px gap under the first header
+        // row through which the body showed while it scrolled (#9)
+        const top = t.tHead ? t.tHead.getBoundingClientRect().top : 0;
+        const ys = headRows.map((tr) => tr.getBoundingClientRect().top - top);
+        setTops((old) => (old.length === ys.length && old.every((v, i) => Math.abs(v - ys[i]) < 0.01) ? old : ys));
         const last = headRows[headRows.length - 1];
         if (last) {
             const xs = [];
@@ -128,14 +136,18 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             }
             setLefts((old) => (old.length === xs.length && old.every((v, i) => Math.abs(v - xs[i]) < 0.5) ? old : xs));
         }
-    }, [grid, version]);
+        // width: the label columns get narrower or wider with the report (their cap is a share of it)
+    }, [grid, version, width]);
 
     useEffect(() => {
         const el = wrap.current;
         if (!el) {
             return undefined;
         }
-        const update = () => setScroll({ top: el.scrollTop, height: el.clientHeight });
+        const update = () => {
+            setScroll({ top: el.scrollTop, height: el.clientHeight });
+            setWidth(el.clientWidth);
+        };
         update();
         const ro = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
         ro?.observe(el);
@@ -145,6 +157,45 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const head = headHeight || rowHeight * grid.headerRows;
     const win = virtual ? windowOf({ count: bodyCount, scrollTop: scroll.top - head, viewport: scroll.height, rowHeight }) : { start: 0, end: bodyCount, padTop: 0, padBottom: 0 };
     const rows = useMemo(() => sliceRows(grid, win.start, win.end), [grid, win.start, win.end]);
+
+    // the body row the status line names, while it does
+    // (with its grid: a row of another grid names nothing)
+    const [shownRow, setLabelRow] = useState(/** @type {{ r: number, span: number, grid: unknown } | null} */ (null));
+    const labelRow = shownRow && shownRow.grid === grid ? shownRow : null;
+    // a label shown for another grid (or a table no longer virtual) would name the wrong row
+    useEffect(() => {
+        onRowLabel?.(null);
+    }, [grid, onRowLabel]);
+    const showRowLabel = virtual && onRowLabel
+        ? (/** @type {number} */ r, span = 1) => {
+              setLabelRow({ r, span, grid });
+              onRowLabel(rowLabelOf(grid, r));
+          }
+        : undefined;
+    const clearRowLabel = () => {
+        if (labelRow !== null) {
+            setLabelRow(null);
+            onRowLabel?.(null);
+        }
+    };
+    // the label goes when the focus leaves the table, or when its row is scrolled out of view
+    const onScroll = (/** @type {React.UIEvent<HTMLDivElement>} */ e) => {
+        const box = e.currentTarget;
+        setScroll({ top: box.scrollTop, height: box.clientHeight });
+        const row = labelRow;
+        if (row !== null) {
+            // the rows it names (a merged label: all of them), against the box under the sticky header
+            const y = head + row.r * rowHeight - box.scrollTop;
+            if (y + row.span * rowHeight <= head || y >= box.clientHeight) {
+                clearRowLabel();
+            }
+        }
+    };
+    const onBlur = (/** @type {React.FocusEvent<HTMLDivElement>} */ e) => {
+        if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
+            clearRowLabel();
+        }
+    };
 
     // the first value cell takes the focus stop of the table
     const firstValue = useMemo(() => firstValueCell(grid), [grid]);
@@ -254,7 +305,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const bodyCell = ({ cell, col, rowSpan, colSpan }, r) => {
         if (cell.kind === "rowHeader") {
             return (
-                <th key={col} scope="row" className={`pk-th pk-rowHeader pk-sticky${totalClass(cell.total)}${rowSpan > 1 ? " pk-span" : ""}`} style={stickyStyle(col)} rowSpan={rowSpan > 1 ? rowSpan : undefined} colSpan={colSpan > 1 ? colSpan : undefined} title={virtual ? cell.text : undefined}>
+                <th key={col} scope="row" className={`pk-th pk-rowHeader pk-sticky${totalClass(cell.total)}${rowSpan > 1 ? " pk-span" : ""}`} style={stickyStyle(col)} rowSpan={rowSpan > 1 ? rowSpan : undefined} colSpan={colSpan > 1 ? colSpan : undefined} title={virtual ? cell.text : undefined} onClick={showRowLabel ? () => showRowLabel(r, rowSpan) : undefined}>
                     <span className="pk-th-content">
                         {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
                         <span className="pk-th-text">{cell.text}</span>
@@ -275,15 +326,18 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                 data-c={col}
                 tabIndex={isValue ? (focus ? 0 : -1) : undefined}
                 onClick={clickable ? () => { setActive({ r, c: col }); onCell(cell); } : undefined}
+                onFocus={showRowLabel ? () => showRowLabel(r) : undefined}
             >
                 {cell.text}
+                {/* an empty cell is still a stop of the arrow keys: a screen reader hears why it is empty */}
+                {isValue && cell.text === "" ? <span className="pk-sr pk-no-copy">{cell.hasRows ? labels.emptyValue : labels.emptyCell}</span> : null}
             </td>
         );
     };
 
-    const width = grid.columnCount;
+    const columns = grid.columnCount;
     return (
-        <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? (e) => setScroll({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight }) : undefined} data-testid="pivot-table">
+        <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? onScroll : undefined} onBlur={virtual ? onBlur : undefined} data-testid="pivot-table">
             {/* --pk-row-cols: the row label columns share at most 40 % of the width (styles.css) */}
             <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
@@ -294,7 +348,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                 <tbody>
                     {win.padTop > 0 ? (
                         <tr className="pk-spacer" aria-hidden="true" style={{ height: win.padTop }}>
-                            <td colSpan={width} />
+                            <td colSpan={columns} />
                         </tr>
                     ) : null}
                     {rows.map(({ index, cells }) => (
@@ -304,7 +358,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                     ))}
                     {win.padBottom > 0 ? (
                         <tr className="pk-spacer" aria-hidden="true" style={{ height: win.padBottom }}>
-                            <td colSpan={width} />
+                            <td colSpan={columns} />
                         </tr>
                     ) : null}
                 </tbody>

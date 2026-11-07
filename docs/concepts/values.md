@@ -44,7 +44,9 @@ The report's value menu offers sum, count, average, minimum and maximum first an
 under "More statistics". A value is named after its aggregator and field ("Sum of Revenue") unless
 the view gives it a `label`. `aggregatorsFor(type)` in pivotkit-core lists what fits a field type, and
 `fieldDefaults` in the UI picks the aggregator a field gets when it is added (an average for a
-duration, say).
+duration, say). Another aggregator picked in the value's menu drops "show values as" and keeps the
+format while the result is in the field's unit (an average to a median: still hours), whether the
+user or the host's `fieldDefaults` chose it; a count, a distinct count or a list starts with its own.
 
 ## Show values as
 
@@ -120,7 +122,7 @@ with Excel's thousands scaling, and the locale's date order. Where Excel cannot 
 - Number labels (a year on rows) stay numbers.
 
 CSV uses the grid's locale for the separator and the decimal mark and keeps 15 significant digits.
-A value the table shows as a percent (the `percent` and `percent100` formats, the "show values as"
-percentages) is written in percent with a `%`, at full precision: the table's "-2.6 %" becomes
-`-2.56435492186162%`, which spreadsheets read back as the fraction. The XLSX keeps the fraction with
-a percent number format.
+A percent (the `percent` and `percent100` formats) and every "show values as" value (a share, a
+difference, a running total, a rank) are written as the table shows them, rounded to the decimals of
+their format: the table's "-2.6 %" becomes `-2.6%`, which spreadsheets read back as the fraction.
+The XLSX keeps their full precision, a percent as the fraction with a percent number format.

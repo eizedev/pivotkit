@@ -202,6 +202,7 @@ export function scaleColor(colors, t) {
  * @property {Array<{ colPath: any[], valueIndex: number, total: 0 | 1 | 2 }>} dataColumns
  * @property {Array<{ rowPath: any[], total: 0 | 1 | 2, collapsed: boolean }>} bodyRows
  * @property {string[]} formats     per value
+ * @property {Array<string | null>} showAs  per value: its "show values as" type, or null
  * @property {string[]} valueNames  per value
  * @property {Array<import("./view.js").Conditional | null>} conditional  per value, for the XLSX export
  * @property {string} locale        the locale the texts are formatted in; the exports use it too
@@ -450,6 +451,7 @@ export function toGrid(result, options) {
         dataColumns: dataColumns.map(({ line, vi }) => ({ colPath: line.node.path, valueIndex: vi, total: totalOf(line.kind) })),
         bodyRows: rowLines.map(({ node, kind }) => ({ rowPath: node.path, total: totalOf(kind), collapsed: kind === "collapsed" })),
         formats,
+        showAs: view.values.map((v) => (v.showAs ? v.showAs.type : null)),
         valueNames: g.names,
         conditional: view.values.map((v) => v.conditional),
         locale,

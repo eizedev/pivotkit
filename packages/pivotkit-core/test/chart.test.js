@@ -59,6 +59,16 @@ test("heatmap: column keys across, row keys down, a visual map over the values",
     assert.deepEqual(heat.visualMap.inRange.color, ["#ffffff", "#003366"]);
 });
 
+test("heatmap: empty cells show the background, every column name is shown, labels in the theme", () => {
+    const heat = toEChartsOption(r, { chart: { type: "heatmap" }, theme: { textColor: "#cccccc" } });
+    // ECharts' split areas are light grey in every theme
+    assert.equal(heat.xAxis.splitArea.show, false);
+    assert.equal(heat.yAxis.splitArea.show, false);
+    assert.equal(heat.xAxis.axisLabel.interval, 0);
+    assert.equal(heat.xAxis.axisLabel.color, "#cccccc");
+    assert.equal(heat.yAxis.axisLabel.color, "#cccccc");
+});
+
 test("the theme reaches colours and text; the option is plain data apart from formatters", () => {
     const option = toEChartsOption(r, { theme: { colors: ["#111111", "#222222"], textColor: "#eeeeee" } });
     assert.deepEqual(option.color, ["#111111", "#222222"]);

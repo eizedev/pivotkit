@@ -82,7 +82,16 @@ const SHOTS = [
             await page.getByTestId("drill-panel").waitFor();
         }
     },
-    { name: "learn-nobel", query: "data=nobel&preset=0&theme=light", size: WIDE }
+    { name: "learn-nobel", query: "data=nobel&preset=0&theme=light", size: WIDE },
+    {
+        name: "learn-endoflife",
+        query: "data=endoflife&preset=4&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: "Nexus Repository" }).locator("td").last().click();
+            await page.getByTestId("drill-panel").waitFor();
+        }
+    }
 ];
 
 const server = spawn(process.execPath, [new URL("examples/playground/serve.js", root).pathname, String(port)], { stdio: "ignore" });

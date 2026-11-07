@@ -30,7 +30,7 @@ const TEXT = [
     ["--pk-text", "--pk-surface"], ["--pk-text", "--pk-surface-2"], ["--pk-text", "--pk-surface-3"], ["--pk-text", "--pk-total-strong"],
     ["--pk-text", "--pk-drop"], ["--pk-muted", "--pk-surface"], ["--pk-muted", "--pk-surface-2"], ["--pk-muted", "--pk-surface-3"],
     ["--pk-accent-text", "--pk-accent"], ["--pk-accent", "--pk-accent-soft"], ["--pk-accent", "--pk-surface"], ["--pk-danger", "--pk-surface"],
-    ["--pk-surface", "--pk-text"], ["--pk-text", "--pk-note"], ["--pk-muted", "--pk-surface-raised"], ["--pk-accent", "--pk-note"],
+    ["--pk-surface", "--pk-text"], ["--pk-text", "--pk-note"], ["--pk-muted", "--pk-surface-raised"], ["--pk-accent", "--pk-note"], ["--pk-danger", "--pk-surface-raised"],
     // the "Learn more" link of a description, the "i" while hovered, the x of a tip
     ["--pk-accent", "--pk-surface-raised"], ["--pk-accent", "--pk-surface-3"], ["--pk-muted", "--pk-note"]
 ];

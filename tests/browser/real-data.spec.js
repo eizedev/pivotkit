@@ -12,6 +12,7 @@ const weather = load("weather");
 const countries = load("countries");
 const quakes = load("earthquakes");
 const nobel = load("nobel");
+const eol = load("endoflife");
 
 const sum = (list) => list.reduce((s, x) => s + x, 0);
 const avg = (list) => sum(list) / list.length;
@@ -56,8 +57,8 @@ test.describe("weather", () => {
         await open(page, "data=weather&preset=2");
         const sg = weather.filter((x) => x.City === "Singapore" && x.Date.startsWith("2025"));
         const r = await row(page, "Singapore");
-        // Autumn, Spring, Summer, Winter, Grand Total
-        expect(r.slice(1)).toEqual([...["Autumn", "Spring", "Summer", "Winter"].map((s) => int(sum(sg.filter((x) => x.Season === s).map((x) => x["Rain day"])))), int(sg.filter((x) => x["Rain mm"] >= 1).length)]);
+        // the seasons in the order the playground gives the field (fieldDefaults.order), Grand Total
+        expect(r.slice(1)).toEqual([...["Spring", "Summer", "Autumn", "Winter"].map((s) => int(sum(sg.filter((x) => x.Season === s).map((x) => x["Rain day"])))), int(sg.filter((x) => x["Rain mm"] >= 1).length)]);
     });
 
     test("Berlin, 2023 to 2025: the chart's table", async ({ page }) => {
@@ -97,8 +98,9 @@ test.describe("countries", () => {
         await open(page, "data=countries&preset=2");
         const hi = (y) => total(year(y).filter((x) => x["Income group"] === "High income"), "GDP (US$)");
         const r = await row(page, "High income");
-        // 2019 has no year before it in the report: blank
+        // 2019 has no year before it in the report: blank, "No value" for a screen reader (there are rows)
         expect(r[1]).toBe("");
+        await expect(page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^High income/ }).locator("td").first()).toHaveText("No value");
         expect(r[2]).toBe(pct(hi(2020) / hi(2019) - 1));
         expect(r[6]).toBe(pct(hi(2024) / hi(2023) - 1));
     });
@@ -191,6 +193,116 @@ test.describe("Nobel laureates", () => {
     });
 });
 
+test.describe("software end of life", () => {
+    const year = (x) => x["EOL date"]?.slice(0, 4);
+    // a date as the report writes it in en-US: the snapshot's dates are calendar days, no time zone
+    const usDate = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+    const known = eol.filter((x) => x["Support years"] !== null);
+
+    test("release cycles reaching end of life per year: chart and its table", async ({ page }) => {
+        await open(page, "data=endoflife&preset=0");
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await page.getByTestId("show-table").click();
+        expect((await row(page, "2025"))[1]).toBe(int(eol.filter((x) => year(x) === "2025").length));
+        const shown = eol.filter((x) => year(x) >= "2016" && year(x) <= "2030");
+        expect((await row(page, "Grand Total"))[1]).toBe(int(shown.length));
+    });
+
+    test("the products with the most supported release cycles, top 10", async ({ page }) => {
+        await open(page, "data=endoflife&preset=1");
+        const ranked = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length);
+        const rows = await tableRows(page);
+        expect(rows.map((r) => r[0])).toEqual([...ranked.slice(0, 10).map(([p]) => p), "Grand Total"]);
+        const oldest = ranked[0][1].map((x) => x.Released).sort()[0];
+        expect(rows[0].slice(1)).toEqual([int(ranked[0][1].length), usDate(oldest)]);
+        await expect(page.getByTestId("note-top")).toContainText("Product shows the top 10 only");
+    });
+
+    test("support length per category in ranges of 2 years, without unknown ends", async ({ page }) => {
+        await open(page, "data=endoflife&preset=2");
+        const os = known.filter((x) => x.Category === "Operating system");
+        const r = await row(page, "Operating system");
+        // 0 – 2, 2 – 4, ...: each cycle counts in the range of its whole years
+        expect(r[1]).toBe(pct(os.filter((x) => x["Support years"] < 2).length / os.length));
+        expect(r[2]).toBe(pct(os.filter((x) => x["Support years"] >= 2 && x["Support years"] < 4).length / os.length));
+        expect(r.at(-1)).toBe("100.0%");
+        const head = await page.locator('[data-testid="pivot-table"] thead').textContent();
+        expect(head).not.toContain("(blank)");
+    });
+
+    test("LTS against the rest: average support in years", async ({ page }) => {
+        await open(page, "data=endoflife&preset=3");
+        const lang = known.filter((x) => x.Category === "Language");
+        const r = await row(page, "Language");
+        // No, Yes, Grand Total: the boolean LTS reads as No and Yes
+        expect(r.slice(1)).toEqual([one(avg(lang.filter((x) => !x.LTS).map((x) => x["Support years"]))), one(avg(lang.filter((x) => x.LTS).map((x) => x["Support years"]))), one(avg(lang.map((x) => x["Support years"])))]);
+        const head = await page.locator('[data-testid="pivot-table"] thead').textContent();
+        expect(head).toContain("No");
+        expect(head).toContain("Yes");
+    });
+
+    test("what reaches end of life in the next 12 months: a click lists the cycles", async ({ page }) => {
+        await open(page, "data=endoflife&preset=4");
+        const next = eol.filter((x) => x["Days to EOL"] !== null && x["Days to EOL"] >= 0 && x["Days to EOL"] < 365);
+        expect((await row(page, "Grand Total")).at(-1)).toBe(int(next.length));
+        const ranked = Object.entries(Object.groupBy(next, (x) => x.Product)).sort((a, b) => b[1].length - a[1].length);
+        const [product, cycles] = ranked[0];
+        const cell = page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: product }).locator("td").last();
+        await expect(cell).toHaveText(int(cycles.length));
+        await cell.click();
+        await expect(page.getByTestId("drill-count")).toHaveText(`${cycles.length} rows`);
+        await expect(page.locator(".pk-drill-table tbody")).toContainText(cycles[0].Cycle);
+    });
+
+    test("German: dates, booleans and numbers in German notation", async ({ page }) => {
+        await open(page, "data=endoflife&preset=3&lang=de");
+        const head = await page.locator('[data-testid="pivot-table"] thead').textContent();
+        expect(head).toContain("Nein");
+        expect(head).toContain("Ja");
+        const lang = known.filter((x) => x.Category === "Language" && x.LTS);
+        expect((await row(page, "Language"))[2]).toBe(avg(lang.map((x) => x["Support years"])).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+        await open(page, "data=endoflife&preset=1&lang=de");
+        const top = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length)[0];
+        const oldest = top[1].map((x) => x.Released).sort()[0];
+        expect((await row(page, top[0]))[2]).toBe(new Date(oldest).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }));
+    });
+
+    test("the export keeps dates, booleans and blanks", async ({ page }) => {
+        await open(page, "data=endoflife&preset=3");
+        await page.getByTestId("export").click();
+        const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
+        expect(xlsx.suggestedFilename()).toBe("pivotkit-endoflife.xlsx");
+        const sheet = await readSheet(await readFile(await xlsx.path()));
+        const lang = known.filter((x) => x.Category === "Language");
+        const line = sheet.find((r) => r[0] === "Language");
+        expect(line[2]).toBeCloseTo(avg(lang.filter((x) => x.LTS).map((x) => x["Support years"])), 9);
+        // a category without LTS cycles: an empty cell, not a zero
+        expect(sheet.find((r) => r[0] === "Device")[2]).toBeNull();
+        await page.getByTestId("export").click();
+        const [csv] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
+        const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
+        expect(text.split(/\r?\n/).find((l) => l.startsWith("Device,"))).toMatch(/^Device,[\d.]+,,[\d.]+$/);
+    });
+});
+
+test.describe("software end of life in a time zone far from UTC", () => {
+    // the dates are calendar days: a year, a quarter or a date must not move with the browser's zone
+    for (const timezoneId of ["Pacific/Kiritimati", "Pacific/Pago_Pago"]) {
+        test.describe(timezoneId, () => {
+            test.use({ timezoneId });
+            test("EOL years and the oldest release date stay the same", async ({ page }) => {
+                await open(page, "data=endoflife&preset=0");
+                await page.getByTestId("show-table").click();
+                expect((await row(page, "2026"))[1]).toBe(int(eol.filter((x) => x["EOL date"]?.startsWith("2026")).length));
+                await open(page, "data=endoflife&preset=1");
+                const top = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length)[0];
+                const oldest = top[1].map((x) => x.Released).sort()[0];
+                expect((await row(page, top[0]))[2]).toBe(new Date(oldest).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }));
+            });
+        });
+    }
+});
+
 // A few "try this" tasks of the documentation's "Learn with real data" page, as a person does them.
 test.describe("learning tasks", () => {
     test("weather: Max instead of Average; rain days as % of row total", async ({ page }) => {
@@ -243,6 +355,29 @@ test.describe("learning tasks", () => {
         expect((await row(page, "0 – 100"))[1]).toBe(int(quakes.filter((x) => x["Depth km"] < 100).length));
     });
 
+    test("end of life: category as a heatmap; the median instead of the average", async ({ page }) => {
+        await open(page, "data=endoflife&preset=0");
+        await page.getByTestId("field-menu-Category").click();
+        await page.getByRole("menuitem", { name: "Add to Columns" }).click();
+        await page.getByTestId("chart-type").click();
+        await page.getByTestId("chart-heatmap").click();
+        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Heatmap/);
+        // ECharts draws a heatmap with a slider on more than one canvas
+        await expect(page.locator('[data-testid="pivot-chart"] canvas').first()).toBeVisible();
+        await page.getByTestId("show-table").click();
+        expect((await row(page, "2026"))[7]).toBe(int(eol.filter((x) => x["EOL date"]?.startsWith("2026") && x.Category === "Server app").length));
+
+        await open(page, "data=endoflife&preset=3");
+        await page.getByTestId("chip-menu-Average of Support years").click();
+        await page.getByText("More statistics").click();
+        await page.getByTestId("agg-median").click();
+        const years = eol.filter((x) => x.Category === "Language" && !x.LTS && x["Support years"] !== null).map((x) => x["Support years"]).sort((a, b) => a - b);
+        const mid = years.length / 2;
+        const median = years.length % 2 ? years[Math.floor(mid)] : (years[mid - 1] + years[mid]) / 2;
+        // the host's format for Support years (fieldDefaults, number:1) stays with the new aggregator
+        expect((await row(page, "Language"))[1]).toBe(one(median));
+    });
+
     test("Nobel: the sum of Share counts prizes, not laureates", async ({ page }) => {
         await open(page, "data=nobel&preset=0");
         await page.locator('.pk-field[data-field="Share"] .pk-field-name').click();
@@ -271,20 +406,28 @@ test("export of real data: the XLSX holds the numbers, the German CSV the same n
 });
 
 test("each real data set names its source and licence next to the data", async ({ page }) => {
-    for (const [data, text, licence] of [["weather", "Open-Meteo.com", "CC BY 4.0"], ["countries", "World Bank", "CC BY 4.0"], ["earthquakes", "U.S. Geological Survey", "public domain"], ["nobel", "Nobel Prize Outreach", "CC0"]]) {
+    for (const [data, text, licence] of [["weather", "Open-Meteo.com", "CC BY 4.0"], ["countries", "World Bank", "CC BY 4.0"], ["earthquakes", "U.S. Geological Survey", "public domain"], ["nobel", "Nobel Prize Outreach", "CC0"], ["endoflife", "endoflife.date", "MIT"]]) {
         await open(page, `data=${data}`);
         await expect(page.getByTestId("pg-source")).toContainText(text);
         await expect(page.getByTestId("pg-source").getByRole("link", { name: licence })).toBeVisible();
-        // the weather data also credits the Copernicus programme (ERA5, ERA5-Land), as the Climate Data Store asks
-        await expect(page.getByTestId("pg-credit")).toHaveCount(data === "weather" ? 1 : 0);
+        // the weather data also credits the Copernicus programme (ERA5, ERA5-Land), as the Climate Data Store asks;
+        // the end-of-life data shows the copyright notice of its MIT License
+        await expect(page.getByTestId("pg-credit")).toHaveCount(data === "weather" || data === "endoflife" ? 1 : 0);
     }
+    await open(page, "data=endoflife");
+    await expect(page.getByTestId("pg-credit")).toHaveText("Copyright 2020 endoflife.date contributors.");
+    // "supported right now", "the next 12 months": as of the day the snapshot was fetched
+    const fetched = JSON.parse(readFileSync(new URL("../../examples/playground/data/endoflife.json", import.meta.url), "utf8")).fetched;
+    expect(fetched).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await expect(page.getByTestId("pg-as-of")).toHaveText(`, as of ${fetched}`);
+    await expect(page.getByTestId("pg-source")).toContainText(`MIT, as of ${fetched}.`);
     await open(page, "data=weather");
     await expect(page.getByTestId("pg-credit")).toContainText("Contains modified Copernicus Climate Change Service information");
 });
 
 test("at 390 px the page does not scroll sideways with a real data set", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const data of ["weather", "countries", "earthquakes", "nobel"]) {
+    for (const data of ["weather", "countries", "earthquakes", "nobel", "endoflife"]) {
         await open(page, `data=${data}&theme=dark`);
         expect(await page.evaluate(() => document.documentElement.scrollWidth), data).toBe(390);
     }
@@ -305,7 +448,22 @@ test.describe("what the real data showed (#21 to #26)", () => {
         // Russia had no quake of 7 or more without a tsunami flag: that cell is blank
         expect(strong.filter((x) => x["Tsunami flag"] === "No")).toHaveLength(0);
         const blank = russia.locator("td").nth(0);
-        await expect(blank).toHaveText("");
+        // blank on screen; a screen reader hears why (a visually hidden text)
+        expect((await row(page, "Russia"))[1]).toBe("");
+        await expect(blank).toHaveText("No rows");
+        await expect(blank.locator(".pk-sr")).toHaveText("No rows");
+        await expect(blank).toHaveAccessibleName("No rows");
+        // a selection of the table (what Ctrl+C copies into a spreadsheet) keeps the empty cells empty
+        const copied = await page.evaluate(() => {
+            const range = document.createRange();
+            range.selectNodeContents(document.querySelector('[data-testid="pivot-table"] tbody'));
+            const sel = getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            return sel.toString();
+        });
+        expect(copied).toContain("Russia");
+        expect(copied).not.toContain("No rows");
         await expect(blank).not.toHaveClass(/pk-clickable/);
         await blank.click();
         await blank.focus();
@@ -330,6 +488,25 @@ test.describe("what the real data showed (#21 to #26)", () => {
         expect((await row(page, "4 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
     });
 
+    test("Starting at: empty is 0; a start too far from the values is refused with a note", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        // the ranges of 0.5 from 1e17 cannot be told apart: every row would be "(blank)"
+        await page.getByTestId("bin-start").fill("1e17");
+        await expect(page.getByTestId("bin-problem")).toContainText("Ranges from 100,000,000,000,000,000 cannot hold this field's values");
+        await expect(page.getByTestId("bin-start")).toHaveAttribute("aria-invalid", "true");
+        await expect(page.getByTestId("bin-start")).toHaveAttribute("aria-describedby", /.+/);
+        await expect(page.getByRole("button", { name: "Apply" }).first()).toBeDisabled();
+        await page.getByTestId("bin-start").press("Enter");
+        expect((await row(page, "4.5 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
+        // empty: from 0, as the placeholder says, not the range's old start
+        await page.getByTestId("bin-start").fill("");
+        await expect(page.getByTestId("bin-problem")).toHaveCount(0);
+        await page.getByTestId("bin-size").fill("2");
+        await page.getByTestId("bin-size").press("Enter");
+        expect((await row(page, "4 – 6"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 6).length));
+    });
+
     test("at 390 px a value is visible next to two levels of long row labels", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await open(page, "data=countries&preset=0");
@@ -352,13 +529,18 @@ test.describe("what the real data showed (#21 to #26)", () => {
         await expect(names).toHaveAttribute("colspan", "13");
     });
 
-    test("the seasons in the order of the year, from the field's menu", async ({ page }) => {
+    test("the seasons in the order of the year in a template without a sort; reversed and A to Z from the menu", async ({ page }) => {
         await open(page, "data=weather&preset=2");
         const seasons = () => page.locator(".pk-table thead tr:first-child th.pk-colHeader").allTextContents();
-        expect(await seasons()).toEqual(["Autumn", "Spring", "Summer", "Winter", "Grand Total"]);
+        expect(await seasons()).toEqual(["Spring", "Summer", "Autumn", "Winter", "Grand Total"]);
         await page.getByTestId("chip-menu-Season").click();
-        await page.getByTestId("sort-custom").click();
-        await expect.poll(seasons).toEqual(["Spring", "Summer", "Autumn", "Winter", "Grand Total"]);
+        await expect(page.getByTestId("sort-custom")).toHaveAttribute("aria-pressed", "true");
+        await page.getByTestId("sort-custom-desc").click();
+        await expect.poll(seasons).toEqual(["Winter", "Autumn", "Summer", "Spring", "Grand Total"]);
+        // A to Z stays A to Z: the host's order does not come back
+        await page.getByTestId("chip-menu-Season").click();
+        await page.getByRole("button", { name: "A to Z", exact: true }).click();
+        await expect.poll(seasons).toEqual(["Autumn", "Spring", "Summer", "Winter", "Grand Total"]);
     });
 
     test("the CSV holds a percentage as the table shows it, in percent", async ({ page }) => {
@@ -370,7 +552,14 @@ test.describe("what the real data showed (#21 to #26)", () => {
         const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
         const cell = text.split(/\r?\n/).find((l) => l.startsWith("High income;")).split(";")[2];
         expect(cell).toMatch(/^-?\d+(,\d+)?%$/);
-        // the table rounds to one decimal: "-2,6 %"
-        expect(Number(cell.replace("%", "").replace(",", ".")).toFixed(1)).toBe(shown.replace(/\s/g, "").replace("%", "").replace(",", ".").replace("−", "-"));
+        // as the table shows it, one decimal ("-2,6 %"): the same number, without the space before the sign
+        expect(cell).toBe(shown.replace(/\s/g, "").replace("−", "-"));
+        // the XLSX keeps every decimal
+        await page.getByTestId("export").click();
+        await expect(page.getByTestId("export-xlsx")).toContainText("Jede Zahl mit allen Nachkommastellen");
+        const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
+        const full = (await readSheet(await readFile(await xlsx.path()))).find((r) => r[0] === "High income")[2];
+        expect(full.toFixed(3)).toBe((Number(cell.replace("%", "").replace(",", ".")) / 100).toFixed(3));
+        expect(String(full).length).toBeGreaterThan(8);
     });
 });

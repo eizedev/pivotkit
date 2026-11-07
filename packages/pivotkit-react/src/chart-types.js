@@ -54,3 +54,60 @@ export const MAX_CATEGORIES = 50;
 export function pieLabelRoom(height) {
     return Math.round(Math.min(24, Math.max(0, height) * 0.05));
 }
+
+/** Width (px) a slanted column name of a heatmap takes at most; a longer one ends in "…". */
+export const SLANTED_LABEL_WIDTH = 120;
+/** Room (px) of a heatmap's chart that is not cells: the row names, the column names and the colour scale. */
+const HEATMAP_FRAME = { x: 80, y: 120 };
+/** Height (px) of a line of ECharts' 12 px labels with the room between two of them. */
+const LABEL_LINE = 16;
+/** Room (px) a cell keeps on each side of its number. */
+const LABEL_PAD = 4;
+
+/**
+ * How a heatmap writes its column names along the x axis of a chart `width` px wide: straight when
+ * the longest fits its column, else slanted by 45 degrees and cut at SLANTED_LABEL_WIDTH. Every name is
+ * shown (the core sets interval 0); the width of a character is estimated as 0.55 of the font size.
+ * @param {string[]} names
+ * @param {number} width  the chart's width in px
+ * @param {number} [fontSize]  px, ECharts' default for axis labels
+ * @returns {{ rotate: number, width?: number, overflow?: "truncate" }}
+ */
+export function columnLabelLayout(names, width, fontSize = 12) {
+    if (names.length === 0) {
+        return { rotate: 0 };
+    }
+    const slot = Math.max(0, width - HEATMAP_FRAME.x) / names.length;
+    const longest = Math.max(...names.map((n) => String(n).length)) * fontSize * 0.55;
+    return longest <= slot ? { rotate: 0 } : { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" };
+}
+
+/**
+ * True when the cells of a heatmap of `columns` x `rows` in a chart of `width` x `height` px hold their
+ * numbers as the chart writes them (`texts`, formatted: "1,234.5", "-12.3%"): the longest, estimated at
+ * 0.55 of the font size per character, fits a cell's width with room on both sides, and a line its height.
+ * @param {number} columns
+ * @param {number} rows
+ * @param {number} width
+ * @param {number} height
+ * @param {string[]} texts
+ * @param {number} [fontSize]  px, ECharts' default for labels
+ */
+export function heatmapCellLabels(columns, rows, width, height, texts, fontSize = 12) {
+    const w = Math.max(0, width - HEATMAP_FRAME.x) / Math.max(1, columns);
+    const h = Math.max(0, height - HEATMAP_FRAME.y) / Math.max(1, rows);
+    const longest = texts.reduce((m, t) => Math.max(m, String(t).length), 0) * fontSize * 0.55;
+    return w >= longest + 2 * LABEL_PAD && h >= LABEL_LINE;
+}
+
+/**
+ * Which row names of a heatmap the y axis writes in a chart `height` px high: every one (0) when a line
+ * fits each row, else every n-th (ECharts' interval: n - 1 names left out between two shown), so the
+ * names never overlap and the first one is always there.
+ * @param {number} rows
+ * @param {number} height
+ */
+export function rowLabelInterval(rows, height) {
+    const h = Math.max(0, height - HEATMAP_FRAME.y) / Math.max(1, rows);
+    return h >= LABEL_LINE ? 0 : Math.ceil(LABEL_LINE / Math.max(h, 0.1)) - 1;
+}

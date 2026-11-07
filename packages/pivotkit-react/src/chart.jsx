@@ -10,7 +10,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { fieldLabel, toEChartsOption } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
 import { tooltipFormatter } from "./chart-tooltip.js";
-import { MAX_CATEGORIES, chartTypeOf, pieLabelRoom } from "./chart-types.js";
+import { MAX_CATEGORIES, chartTypeOf, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "./chart-types.js";
 import { chartThemeFrom } from "./theme.js";
 
 /** @type {Promise<any> | null} */
@@ -30,8 +30,9 @@ export function loadECharts() {
  * @param {CSSStyleDeclaration} style  the report's computed style (the --pk-* tokens)
  * @param {number} [height]  the chart's height in px, for the room around a pie
  * @param {Document} [doc]  the chart's document, for the tooltip's nodes
+ * @param {number} [width]  the chart's width in px, for the column names of a heatmap
  */
-export function decorate(option, style, height = 480, doc = undefined) {
+export function decorate(option, style, height = 480, doc = undefined, width = 800) {
     const v = (name) => style.getPropertyValue(name).trim();
     // without the stylesheet the tokens are empty and ECharts keeps its own colours
     const surface = v("--pk-surface") || undefined;
@@ -59,13 +60,21 @@ export function decorate(option, style, height = 480, doc = undefined) {
             return { ...s, top, bottom: room, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...s.label, color: v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
-            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 3 }, label: { ...s.label, color: v("--pk-text") || undefined } };
+            // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
+            const texts = typeof s.label?.formatter === "function" ? s.data.map((/** @type {any} */ d) => s.label.formatter({ value: d })) : [];
+            const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height, texts);
+            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 3 }, label: { ...s.label, show: Boolean(s.label?.show) && fits, color: v("--pk-text") || undefined } };
         }
         return s;
     });
     const legend = option.legend ? { ...option.legend, icon: "roundRect", itemWidth: 12, itemHeight: 12, textStyle: { ...option.legend.textStyle, color: v("--pk-text") || undefined } } : undefined;
     const grid = option.grid ? { left: 12, right: 24, bottom: option.visualMap ? 64 : 12, containLabel: true, ...option.grid } : undefined;
-    return { ...option, tooltip, series, ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400 };
+    // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
+    const heatmap = series.some((s) => s.type === "heatmap") && option.xAxis?.axisLabel;
+    const xAxis = heatmap ? { ...option.xAxis, axisLabel: { ...option.xAxis.axisLabel, ...columnLabelLayout(option.xAxis.data ?? [], width) } } : option.xAxis;
+    // and its rows: every name where a line fits each row, else every n-th (rowLabelInterval)
+    const yAxis = heatmap && option.yAxis ? { ...option.yAxis, axisLabel: { ...option.yAxis.axisLabel, interval: rowLabelInterval(option.yAxis.data?.length ?? 0, height) } } : option.yAxis;
+    return { ...option, tooltip, series, ...(xAxis ? { xAxis } : {}), ...(yAxis ? { yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400 };
 }
 
 /**
@@ -81,8 +90,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
     const [failed, setFailed] = useState(/** @type {string | null} */ (null));
-    // the canvas height a pie's label room follows (pieLabelRoom); other types do not need it
-    const [pieHeight, setPieHeight] = useState(0);
+    // the canvas size a pie's label room (pieLabelRoom) and a heatmap's column names (columnLabelLayout)
+    // follow; other types do not need it
+    const [box, setBox] = useState("");
     const summaryId = useId();
     const type = chartTypeOf(result.view.chart);
     const latest = useRef({ series, onPoint, onInstance, type });
@@ -118,8 +128,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                     typeof ResizeObserver === "function"
                         ? new ResizeObserver(() => {
                               instance.resize();
-                              if (latest.current.type === "pie") {
-                                  setPieHeight(instance.getHeight());
+                              if (latest.current.type === "pie" || latest.current.type === "heatmap") {
+                                  setBox(`${instance.getWidth()}x${instance.getHeight()}`);
                               }
                           })
                         : null;
@@ -145,9 +155,9 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const style = getComputedStyle(root.current);
         // the series of the summary and the hints, not computed a second time
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}) });
-        chart.current.setOption(decorate(option, style, chart.current.getHeight(), root.current.ownerDocument), { notMerge: true });
-        // pieHeight: a pie is drawn again when its height changes
-    }, [ready, result, series, labels, locale, themeName, root, pieHeight]);
+        chart.current.setOption(decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth()), { notMerge: true });
+        // box: a pie or a heatmap is drawn again when its size changes
+    }, [ready, result, series, labels, locale, themeName, root, box]);
 
     const empty = result.view.values.length === 0;
     const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale }) : labels.noChartData;

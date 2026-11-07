@@ -59,11 +59,12 @@ the sort.
 - Drag it back to the field list, or press its **x**, to remove it. A note under the table offers Undo.
 - Open its **menu** (the arrow) for everything else.
 
-The menu of a **row or column field** has sort (by label or by a value, and "Custom order" when the
-field has one, such as the seasons in the order of the year), date grouping (along the time line:
+The menu of a **row or column field** has sort (by label or by a value, and "Custom order" and
+"Custom order, reversed" when the field has one, such as the seasons in the order of the year), date grouping (along the time line:
 year, quarter, month, week, day; or across years: quarter, month, week of the year, weekday, hour),
-number ranges (their size and where they start, "Starting at"; a new size keeps the start), top or
-bottom N, filter, and move. Remove is always at the foot.
+number ranges (their size and where they start, "Starting at"; a new size keeps the start, an empty
+start is 0, and a start so far from the field's numbers that every row would be blank is refused
+with a note under it), top or bottom N, filter, and move. Remove is always at the foot.
 
 ## Values
 
@@ -132,8 +133,9 @@ Columns, a tip offers **Swap rows and columns** (also above the Columns zone).
 - **Templates** loads a saved report. When the application allows it, "Save current view" saves yours
   under a name, and your own templates can be deleted.
 - **Export** downloads the table as **Excel** (XLSX) or **CSV**, or the chart as **PNG**. The Excel
-  file keeps the number formats, the merged headers, the bold totals and the highlighting. The CSV
-  writes percentages in percent ("-2.56435492186162%"), so they read as in the table.
+  file keeps every number with all its decimals, the number formats, the merged headers, the bold
+  totals and the highlighting. The CSV writes percentages and "show values as" calculations as the
+  table shows them ("-2.6%"); other numbers keep all their decimals. The export menu says so too.
 
 Notes such as "Undone: Region removed" or "Exported pivot.xlsx" appear in the status line under the
 table; errors stay until you close them.
@@ -171,7 +173,11 @@ A drag from the field list or the table opens them while it lasts.
 - A chip or a field handle is picked up with **Space**. **Left** and **Right** move it within a zone,
   **Up** and **Down** to the zone above or below; its position is announced ("Region is over Rows,
   position 2 of 3"). **Space** drops it, **Escape** cancels.
-- In the table the arrow keys move between values and **Enter** opens the rows behind one.
+- In the table the arrow keys move between values and **Enter** opens the rows behind one. An empty
+  cell is a stop too; a screen reader hears "No rows" (nothing behind it) or "No value" (rows
+  without a number).
+- From 300 rows on a row label is cut to one line; the status line under the table shows the whole
+  label of the row the focus is on, or of a label you tap.
 - The chart has a text alternative: type, values, counts, highest and lowest value.
 - The drill-down, the field drawer and the bottom sheets keep the focus inside while open and give it
   back when they close.

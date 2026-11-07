@@ -5,13 +5,13 @@
  * pivotkit-core's CATALOG; Remove is pinned to the foot of the menu so it is never scrolled away.
  */
 
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { CATALOG, aggregatorsFor, fieldLabel, isFormat } from "pivotkit-core";
 import { FieldDescription } from "./info.jsx";
 import { fill } from "./labels.js";
 import { groupingName, valueLabel } from "./names.js";
 import { Option, Section } from "./popover.jsx";
-import { ZONES, filtersOf, groupField, groupingOf, isFiltered, moveField, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, isFiltered, moveField, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
 
 /** The formats the value menu offers; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "integer", "currency", "percent", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
@@ -30,23 +30,26 @@ function More({ title, open, children }) {
 }
 
 /**
- * Number ranges: their size and where they start (Excel's "Starting at"). An empty start keeps the
- * ranges' own, or 0.
+ * Number ranges: their size and where they start (Excel's "Starting at"). An empty start is 0, as its placeholder says; a start whose ranges
+ * could not hold the field's numbers (`range`, see binProblem) is refused with a note under the input.
  */
-function BinForm({ grouping, labels, onApply, onClear }) {
+function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
     const [size, setSize] = useState(String(grouping?.size ?? ""));
     const [start, setStart] = useState(String(grouping?.origin ?? ""));
+    const problemId = useId();
     const n = Number(size);
-    const s = Number(start);
-    const startOk = start.trim() === "" || Number.isFinite(s);
-    const ok = size.trim() !== "" && Number.isFinite(n) && n > 0 && startOk;
+    const s = start.trim() === "" ? 0 : Number(start);
+    const sizeOk = size.trim() !== "" && Number.isFinite(n) && n > 0;
+    const far = sizeOk && Number.isFinite(s) && binProblem(n, s, range) === "far";
+    const ok = sizeOk && Number.isFinite(s) && !far;
+    const number = (x) => x.toLocaleString(locale, { maximumFractionDigits: 6 });
     return (
         <form
             className="pk-inline-form pk-bin-form"
             onSubmit={(e) => {
                 e.preventDefault();
                 if (ok) {
-                    onApply(n, start.trim() === "" ? undefined : s);
+                    onApply(n, s);
                 }
             }}
         >
@@ -56,8 +59,13 @@ function BinForm({ grouping, labels, onApply, onClear }) {
             </label>
             <label className="pk-field-label">
                 <span>{labels.binStart}</span>
-                <input type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={(e) => setStart(e.target.value)} data-testid="bin-start" />
+                <input type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={(e) => setStart(e.target.value)} data-testid="bin-start" aria-invalid={far || undefined} aria-describedby={far ? problemId : undefined} />
             </label>
+            {far && range ? (
+                <p id={problemId} className="pk-form-problem" data-testid="bin-problem">
+                    {fill(labels.binStartFar, { start: number(s), min: number(range.min), max: number(range.max) })}
+                </p>
+            ) : null}
             <button type="submit" className="pk-btn pk-primary" disabled={!ok}>
                 {labels.apply}
             </button>
@@ -118,7 +126,7 @@ function RemoveFoot({ labels, onRemove, close }) {
 }
 
 /** The menu of a chip on Rows or Columns. */
-export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, orderOf, info }) {
+export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, defaultsOf, rangeOf, locale, info }) {
     const source = sourceOf(view, field);
     const name = fieldLabel(field, labels.core);
     const sourceType = types.get(source.toLowerCase());
@@ -131,12 +139,14 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     const isSort = (by, order) => (sort ? sort.by === by && sort.order === order : by === "label" && order === "asc");
     // the custom order of the view, else the host's for the field (fieldDefaults.order); a grouped
     // field has items of its own
-    const hostOrder = source === field ? orderOf?.(source) : undefined;
+    const hostOrder = source === field ? defaultsOf?.(source)?.order : undefined;
     const customItems = sort?.by === "custom" ? sort.items : Array.isArray(hostOrder) && hostOrder.length > 0 ? hostOrder : null;
     const doSort = (by, order) => {
         close();
         const spec = by === "value" ? { by, order, value: firstRef } : by === "custom" ? { by, order, items: [...customItems] } : { by, order };
-        commit(setSort(view, field, by === "label" && order === "asc" ? null : spec), { step: "sort", field: name });
+        // A to Z is the default without an entry; a field with the host's order keeps it as an entry, or
+        // the host's order would come back (withHostOrders)
+        commit(setSort(view, field, by === "label" && order === "asc" && !(Array.isArray(hostOrder) && hostOrder.length > 0) ? null : spec), { step: "sort", field: name });
     };
     const regroup = (unit, size, origin) => {
         close();
@@ -158,7 +168,8 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
                     <Option checked={isSort("value", "desc")} icon="sortDesc" onSelect={() => doSort("value", "desc")}>{fill(labels.sortValueDesc, { value: firstName })}</Option>
                     <Option checked={isSort("value", "asc")} icon="sortAsc" onSelect={() => doSort("value", "asc")}>{fill(labels.sortValueAsc, { value: firstName })}</Option>
-                    {customItems ? <Option checked={sort?.by === "custom"} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
+                    {customItems ? <Option checked={isSort("custom", "asc")} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
+                    {customItems ? <Option checked={isSort("custom", "desc")} icon="sortDesc" onSelect={() => doSort("custom", "desc")} testId="sort-custom-desc">{labels.sortCustomDesc}</Option> : null}
                 </Section>
                 {sourceType === "date" ? (
                     <Section title={labels.groupBy}>
@@ -171,7 +182,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                 ) : null}
                 {sourceType === "number" ? (
                     <Section title={labels.bins}>
-                        <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
+                        <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} range={rangeOf?.(source) ?? null} locale={locale} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
                     </Section>
                 ) : null}
                 <Section title={labels.topN}>
@@ -190,7 +201,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
 }
 
 /** The menu of a value chip. */
-export function ValueMenu({ view, index, types, labels, commit, close, onRemove, info }) {
+export function ValueMenu({ view, index, types, labels, commit, close, onRemove, defaultsOf, info }) {
     const spec = view.values[index];
     const type = spec.field ? types.get(spec.field.toLowerCase()) ?? "string" : "number";
     const aggs = spec.field ? aggregatorsFor(type) : ["count"];
@@ -201,7 +212,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
     const name = valueLabel(spec, labels);
     const set = (patch) => {
         close();
-        commit(updateValue(view, index, patch), { step: "value", field: name });
+        commit(updateValue(view, index, patch, { defaults: spec.field ? defaultsOf?.(spec.field) : undefined }), { step: "value", field: name });
     };
     const [rename, setRename] = useState(spec.label ?? "");
     const aggOption = (a) => (

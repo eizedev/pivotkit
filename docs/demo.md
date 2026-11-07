@@ -1,15 +1,15 @@
 ---
 title: Live demo
-description: Try pivotkit in the browser - the playground with real public data (weather, countries, earthquakes, Nobel laureates) and generated business data, and the web component on a plain HTML page.
+description: Try pivotkit in the browser - the playground with real public data (weather, countries, earthquakes, Nobel laureates, software end of life) and generated business data, and the web component on a plain HTML page.
 hide:
   - toc
 ---
 
 # Live demo
 
-The playground below is `<PivotReport>` from pivotkit-react with four real public data sets - the
-daily weather of 14 cities, population, GDP and CO2 per country, the earthquakes of 2025 and the
-Nobel Prize laureates - and three generated ones: IT tickets, sales and assets per source system.
+The playground below is `<PivotReport>` from pivotkit-react with five real public data sets - the
+daily weather of 14 cities, population, GDP and CO2 per country, the earthquakes of 2025, the
+Nobel Prize laureates and the end-of-life dates of 489 software products - and three generated ones: IT tickets, sales and assets per source system.
 Each real data set starts with a template phrased as a question; [Learn with real data](learn.md)
 walks through all of them with tasks to try. Drag fields, open the menus on the chips, click a value,
 switch to the chart, export. Templates you save stay in this browser.
@@ -22,12 +22,13 @@ The playground's header picks the data set, a start template, the language and t
 generated data set the number of rows (2,000, 4,000 or 100,000). Its footer shows the engine timings
 of the last change.
 
-The real data are snapshots stored with the playground; the page calls none of the sources. Weather
+The real data are snapshots stored with the playground; the page calls none of the sources, and its source line says the day a snapshot was fetched ("as of"), the "now" of templates such as the end-of-life ones. Weather
 data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; contains modified Copernicus Climate
 Change Service information, see [Learn with real data](learn.md#query-it-live)); countries from the
 [World Bank](https://data.worldbank.org/), World Development Indicators (CC BY 4.0); earthquakes from
 the [U.S. Geological Survey](https://earthquake.usgs.gov/) (public domain); laureates from
-[Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/) (CC0). The generated rows
+[Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/) (CC0); release cycles from
+[endoflife.date](https://endoflife.date/) (MIT). The generated rows
 come from a fixed seed, so everyone sees the same numbers.
 
 ## The playground's URL parameters
@@ -36,9 +37,9 @@ The full-screen playground takes its start from the address, which is handy for 
 
 | Parameter | Values | What |
 | --- | --- | --- |
-| `data` | `weather`, `countries`, `earthquakes`, `nobel`, `tickets`, `sales`, `assets` | The data set |
+| `data` | `weather`, `countries`, `earthquakes`, `nobel`, `endoflife`, `tickets`, `sales`, `assets` | The data set |
 | `rows` | `2000`, `4000`, `100000` | The number of generated rows (generated data sets only) |
-| `preset` | `0` to `3` | The start template of the data set (the generated ones have three) |
+| `preset` | `0` to `4` | The start template of the data set (the generated ones have three, `endoflife` five) |
 | `empty` | | Start with an empty report |
 | `lang` | `en`, `de` | English or German |
 | `theme` | `light`, `dark` | The page's theme; without it the report follows the system |

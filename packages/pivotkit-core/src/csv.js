@@ -12,7 +12,7 @@
  */
 
 import { expect } from "./errors.js";
-import { parseFormat } from "./format.js";
+import { formatDecimals, parseFormat } from "./format.js";
 import { isGrid } from "./grid.js";
 import { numberFormat } from "./intl.js";
 import { DEFAULT_LOCALE, MS_PER_DAY, pad, optionsOf } from "./util.js";
@@ -62,24 +62,36 @@ function plainNumber(v, mark) {
     return mark === "." ? text : text.replace(".", mark);
 }
 
-/**
- * A value cell's number: a percent as the table shows it, in percent with a "%" ("-2.56435492186162%",
- * which spreadsheets read back as the fraction), any other number plain.
- * @param {number} v
- * @param {string | undefined} format  the cell's format
- * @param {string} mark  decimal mark
- */
-function numberText(v, format, mark) {
-    const name = parseFormat(format)?.name;
-    if (name === "percent") {
-        return `${plainNumber(v * 100, mark)}%`;
-    }
-    return name === "percent100" ? `${plainNumber(v, mark)}%` : plainNumber(v, mark);
+/** `v` rounded to `decimals` as Intl rounds it (half away from zero, on the exact value of the double). */
+function rounded(v, decimals) {
+    const r = Math.sign(v) * Number(Math.abs(v).toFixed(decimals));
+    return r === 0 ? 0 : r;
 }
 
 /**
- * The grid as CSV text. Values are written as plain numbers with the locale's decimal mark (a percent
- * with "%", in the unit the table shows), dates as ISO dates; labels of merged row headers are
+ * A value cell's number. A percent and a "show values as" value are written as the table shows them:
+ * rounded to the format's decimals, a percent in percent with a "%" ("-2.6%", which spreadsheets read
+ * back as the fraction); the XLSX export keeps their full precision. Any other number is plain, with
+ * full precision.
+ * @param {number} v
+ * @param {string | undefined} format  the cell's format
+ * @param {string} mark  decimal mark
+ * @param {boolean} showAs  the value is a "show values as" calculation
+ * @param {string} locale
+ */
+function numberText(v, format, mark, showAs, locale) {
+    const name = parseFormat(format)?.name;
+    const percent = name === "percent" || name === "percent100";
+    const decimals = showAs || percent ? formatDecimals(format, locale) : null;
+    const shown = name === "percent" ? v * 100 : v;
+    const text = plainNumber(decimals === null ? shown : rounded(shown, decimals), mark);
+    return percent ? `${text}%` : text;
+}
+
+/**
+ * The grid as CSV text. Values are written as plain numbers with the locale's decimal mark, dates as
+ * ISO dates; a percent and a "show values as" value as the table shows them (rounded, a percent in
+ * percent with "%"), every other number with full precision; labels of merged row headers are
  * repeated on every row so each line stands on its own.
  * @param {import("./grid.js").Grid} grid  from toGrid(); its locale decides the separator and decimal mark
  * @param {{ separator?: string, repeatLabels?: boolean }} [options]
@@ -122,7 +134,8 @@ export function toCsv(grid, options) {
                     return "";
                 }
                 if (source.kind === "value" && typeof source.value === "number" && Number.isFinite(source.value)) {
-                    return source.valueType === "date" ? isoOf(source.value) : numberText(source.value, source.format, mark);
+                    const showAs = source.valueIndex !== undefined && Boolean(grid.showAs?.[source.valueIndex]);
+                    return source.valueType === "date" ? isoOf(source.value) : numberText(source.value, source.format, mark, showAs, locale);
                 }
                 return quote(source.text);
             })

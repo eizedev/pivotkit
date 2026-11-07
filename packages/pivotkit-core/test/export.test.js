@@ -239,14 +239,23 @@ test("CSV: bin labels and negative numbers as text are not altered; the grid loc
     assert.equal(toCsv(de, { separator: "\t" }).split("\r\n")[1], "a\t1,5");
 });
 
-test("CSV writes a percent as the table shows it, in percent with full precision", () => {
+test("CSV writes a percent and a show-as value as the table shows them; other numbers with full precision", () => {
     const view = { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }, { field: "v", agg: "sum", format: "percent100" }, { field: "v", agg: "sum" }] };
     const rows = [{ k: "a", v: 1 }, { k: "b", v: 2 }];
     const en = toCsv(gridOf(rows, view)).split("\r\n");
-    assert.equal(en[1], "a,33.3333333333333%,1%,1");
+    // 33.3333...% is shown with one decimal
+    assert.equal(en[1], "a,33.3%,1%,1");
     assert.equal(en[3], "Grand Total,100%,3%,3");
     const de = toCsv(gridOf(rows, view, "de-DE")).split("\r\n");
-    assert.equal(de[1], "a;33,3333333333333%;1%;1");
+    assert.equal(de[1], "a;33,3%;1%;1");
+    // a format of the view's choice sets the decimals; an average without show-as keeps all of them
+    const third = { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal", format: "percent:3" }, { field: "v", agg: "average", format: "number:1" }, { field: "v", agg: "sum", format: "percent100:0" }] };
+    const thirds = toCsv(gridOf([{ k: "a", v: 1 }, { k: "a", v: 1.5 }, { k: "b", v: 4 }], third)).split("\r\n");
+    assert.equal(thirds[1], "a,38.462%,1.25,3%");
+    // other calculations: a difference in the decimals of its number format, a rank whole, negative values rounded away from zero
+    const diff = { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: { type: "differenceFromPrevious", axis: "rows" }, format: "number:1" }, { field: "v", agg: "sum", showAs: { type: "percentDifferenceFromPrevious", axis: "rows" } }] };
+    const d = toCsv(gridOf([{ k: "a", v: 3 }, { k: "b", v: 1.25 }], diff)).split("\r\n");
+    assert.equal(d[2], "b,-1.8,-58.3%");
     // a fraction times 100 keeps 15 significant digits, without binary noise
     assert.equal(toCsv(gridOf([{ k: "a", v: 7 }, { k: "b", v: 93 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }] })).split("\r\n")[1], "a,7%");
 });

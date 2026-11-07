@@ -209,6 +209,8 @@ export function PivotReport(props) {
     const [dragAt, setDragAt] = useState(/** @type {number | null} */ (null));
     // a tip's "Save as template" opens the Templates menu: a new number is a new request
     const [templatesRequest, setTemplatesRequest] = useState(0);
+    // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
+    const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
     const hintId = useId();
@@ -236,7 +238,20 @@ export function PivotReport(props) {
     }, [encodedProp, dataIdentity, timeZone, limits, typesKey]);
     const encoded = source.encoded;
 
-    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside });
+    // the host's custom orders (fieldDefaults.order), compared by value: every view shown sorts by them
+    const ordersKey = JSON.stringify(
+        fieldDefaults && typeof fieldDefaults === "object"
+            ? Object.entries(fieldDefaults).filter(([, d]) => d && Array.isArray(d.order) && d.order.length > 0).map(([field, d]) => [field, d.order])
+            : []
+    );
+    const orderOf = useMemo(() => {
+        const orders = /** @type {[string, unknown[]][]} */ (JSON.parse(ordersKey));
+        if (!orders.length) {
+            return undefined;
+        }
+        return (/** @type {string} */ field) => orders.find(([name]) => name.toLowerCase() === field.toLowerCase())?.[1];
+    }, [ordersKey]);
+    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
     const view = history.view;
 
     const stepText = useCallback(
@@ -413,11 +428,8 @@ export function PivotReport(props) {
         },
         [encoded, typeOf, fieldDefaults, labels, nameOf]
     );
-    /** The host's custom order of a field's items (fieldDefaults.order), for the sort menu. */
-    const orderOf = useCallback((field) => {
-        const order = defaultsFor(fieldDefaults, field)?.order;
-        return Array.isArray(order) ? order : undefined;
-    }, [fieldDefaults]);
+    /** The host's settings for a field (fieldDefaults), for the chip menus: its format, its custom order. */
+    const defaultsOf = useCallback((field) => defaultsFor(fieldDefaults, field), [fieldDefaults]);
     const addTo = useCallback(
         (field, zone, index = undefined) => {
             const options = placeOptions(field, zone, index);
@@ -688,7 +700,7 @@ export function PivotReport(props) {
                                 id={zonesId}
                                 folded={layoutFolded}
                                 onShow={() => setFolded(false)}
-                                orderOf={orderOf}
+                                defaultsOf={defaultsOf}
                                 infoOf={infoOf}
                             />
                             {result && result.issues.length > 0 && !empty ? (
@@ -741,11 +753,16 @@ export function PivotReport(props) {
                                         onPoint={(p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} infoOf={infoOf} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
                                 ) : null}
                             </section>
                             <div className="pk-status">
                                 <span data-testid="row-count">{result ? plural(labels.rowsCount, result.rows.length, { lang: labels.lang, locale }) : ""}</span>
+                                {rowLabel && showTable ? (
+                                    <span className="pk-row-label" data-testid="row-label">
+                                        {fill(labels.rowLabel, { label: rowLabel })}
+                                    </span>
+                                ) : null}
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>

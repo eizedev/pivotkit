@@ -36,9 +36,16 @@ export async function drag(page, from, to, { toPosition } = {}) {
     await page.waitForTimeout(100);
 }
 
-/** Body rows of the pivot table as arrays of cell texts. */
+/**
+ * Body rows of the pivot table as arrays of the cell texts on screen: without the visually hidden text
+ * of an empty cell ("No rows"), which only a screen reader reads.
+ */
 export async function tableRows(page) {
-    return page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => trs.map((tr) => [...tr.children].map((c) => c.textContent.trim())));
+    return page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) =>
+        trs.map((tr) =>
+            [...tr.children].map((c) => [...c.childNodes].filter((n) => !(n instanceof Element && n.classList.contains("pk-sr"))).map((n) => n.textContent).join("").trim())
+        )
+    );
 }
 
 /**
