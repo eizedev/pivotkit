@@ -41,6 +41,17 @@ const VALUE_FILTER = encodeViewLink({
     sort: [{ field: "Region", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } }]
 });
 
+/** Clicks a toolbar button, or its entry in "More" when the report is too narrow for it. */
+async function toolbar(page, testId) {
+    const own = page.getByTestId(testId);
+    if (await own.count()) {
+        await own.click();
+        return;
+    }
+    await page.getByTestId("more").click();
+    await page.getByTestId(`more-${testId}`).click();
+}
+
 /** @type {{ name: string, query: string, size: typeof WIDE, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
     // the hero of the start page: real data (the weather of 14 cities)
@@ -86,7 +97,7 @@ const SHOTS = [
         query: "data=sales&preset=1&theme=light",
         size: WIDE,
         open: async (page) => {
-            await page.getByTestId("chart-type").click();
+            await toolbar(page, "chart-type");
             await page.getByTestId("legend-bottom").click();
         }
     },
@@ -95,7 +106,7 @@ const SHOTS = [
         name: "share-menu",
         query: "data=sales&theme=light",
         size: WIDE,
-        open: (page) => page.getByTestId("views").click()
+        open: (page) => toolbar(page, "views")
     },
     {
         name: "filter-state",
@@ -128,7 +139,7 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
-            await page.getByTestId("chart-type").click();
+            await toolbar(page, "chart-type");
         }
     },
     {
@@ -137,7 +148,7 @@ const SHOTS = [
         query: "data=tickets&theme=light",
         size: WIDE,
         open: async (page) => {
-            await page.getByTestId("options").click();
+            await toolbar(page, "options");
             await page.getByTestId("setting-info-rowSubtotals").hover();
             await page.locator(".pk-info-pop").waitFor();
         }
@@ -155,7 +166,7 @@ const SHOTS = [
         query: "data=sales&theme=light",
         size: WIDE,
         open: async (page) => {
-            await page.getByTestId("views").click();
+            await toolbar(page, "views");
             await page.getByTestId("load-view").click();
             const file = toViewFile({ rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] }, { name: "Sunshine per city", source: { id: "weather", name: "Weather" } });
             await page.getByTestId("load-view-text").fill(JSON.stringify(file));

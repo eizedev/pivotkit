@@ -9,11 +9,12 @@ test("narrow: every toolbar button keeps its text; the rest is in a labelled Mor
         const buttons = page.locator(".pk-toolbar button");
         const texts = await buttons.evaluateAll((els) => els.filter((e) => e.getClientRects().length).map((e) => e.textContent.trim()));
         expect(texts.every((t) => t.length > 0), `${width}: ${JSON.stringify(texts)}`).toBe(true);
-        for (const name of ["Table", "Chart", "Undo", "Export", "More"]) {
+        // Redo stays next to Undo
+        for (const name of ["Table", "Chart", "Undo", "Redo", "Export", "More"]) {
             expect(texts.some((t) => t.startsWith(name)), `${width}: ${name}`).toBe(true);
         }
         await page.getByTestId("more").click();
-        await expect(page.getByRole("menuitem", { name: "Redo" })).toBeVisible();
+        await expect(page.getByRole("menuitem", { name: "Options…" })).toBeVisible();
         await page.keyboard.press("Escape");
     }
 });
@@ -48,11 +49,11 @@ test("lines with the dates on Columns get a hint to swap", async ({ page }) => {
     await page.getByTestId("field-menu-Created").click();
     await page.getByRole("menuitem", { name: "Add to Columns" }).click();
     await page.locator('.pk-field[data-field="Lead hours"] .pk-field-name').click();
-    await page.getByTestId("chart-type").click();
+    await toolbar(page, "chart-type");
     await page.getByTestId("chart-line").click();
     await expect(page.locator('[data-tip="chartDates"]')).toBeVisible();
     await page.locator('[data-tip="chartDates"]').getByRole("button", { name: "Swap rows and columns" }).click();
-    await expect.poll(() => chips(page, "rows")).toEqual(["Created (Month)"]);
+    await expect.poll(() => chips(page, "rows")).toEqual(["Created by month"]);
 });
 
 test("a chart draws 50 categories at most and says so", async ({ page }) => {
@@ -76,7 +77,7 @@ test("top N: its own badge on the chip and a note that totals cover the shown it
 
 test("a chip on a phone keeps its badges whole and a few characters of the field's name", async ({ page }) => {
     // the chips with the longest badges of the end-of-life templates: "Top 10" and a sort, "15 of 45"
-    for (const [preset, field] of [[1, "Product"], [0, "EOL date (Year)"]]) {
+    for (const [preset, field] of [[1, "Product"], [0, "EOL date by year"]]) {
         for (const [width, lang] of [[390, "en"], [320, "en"], [390, "de"], [320, "de"]]) {
             // a report high enough for its stacked zones open, in a window that holds it (no page
             // scrollbar takes width from the chips)
@@ -253,7 +254,7 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     await expect(page.locator('[data-zone="filters"]')).toBeFocused();
     await expect.poll(rowsInView).toBeLessThan(rowsFolded);
     // Layout in the toolbar (or in More) folds them again; the choice holds
-    await page.setViewportSize({ width: 1600, height: 800 });
+    await page.setViewportSize({ width: 1920, height: 800 });
     const layout = page.getByTestId("layout");
     await expect(layout).toHaveAttribute("aria-pressed", "true");
     // from the keyboard (WebKit does not focus a button on a click): the focus stays on the button
@@ -402,13 +403,14 @@ test("Enlarge lets the result fill the report; Escape or the button brings the z
     await expect(enlarge).toHaveAttribute("aria-pressed", "false");
     await enlarge.click();
     await expect(enlarge).toHaveAttribute("aria-pressed", "true");
-    await expect(enlarge).toHaveText("Enlarge");
+    // the button says what a click does now
+    await expect(enlarge).toHaveText("Reduce");
     await expect(page.locator(".pk-zones")).toBeHidden();
     await expect(page.locator(".pk-panel-slot")).toBeHidden();
     await expect(page.getByTestId("enlarged-fields")).toHaveText("Rows: Team · Columns: Priority · Values: Count of Ticket");
     expect((await result.boundingBox()).height).toBeGreaterThan(before + 100);
     // Escape closes an open menu of the report first; the result stays enlarged
-    await page.getByTestId("options").click();
+    await toolbar(page, "options");
     await expect(page.locator(".pk-popover")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(page.locator(".pk-popover")).toHaveCount(0);

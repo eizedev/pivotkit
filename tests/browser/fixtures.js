@@ -56,10 +56,18 @@ export async function toolbar(page, testId) {
     const own = page.getByTestId(testId);
     if (await own.count()) {
         await own.click();
-        return;
+    } else {
+        await page.getByTestId("more").click();
+        await page.getByTestId(`more-${testId}`).click();
     }
-    await page.getByTestId("more").click();
-    await page.getByTestId(`more-${testId}`).click();
+    // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
+    // so a test that moves the focus inside does not lose it to that
+    if (testId !== "redo" && testId !== "reset" && testId !== "layout") {
+        await expect.poll(() => page.evaluate(() => {
+            const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
+            return Boolean(deep(document)?.closest(".pk-popover"));
+        })).toBe(true);
+    }
 }
 
 /**

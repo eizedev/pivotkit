@@ -368,7 +368,7 @@ test.describe("learning tasks", () => {
         await page.getByRole("menuitem", { name: "Add to Columns" }).click();
         await page.getByTestId("chart-type").click();
         await page.getByTestId("chart-heatmap").click();
-        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Heatmap/);
+        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Heatmap");
         // ECharts draws a heatmap with a slider on more than one canvas
         await expect(page.locator('[data-testid="pivot-chart"] canvas').first()).toBeVisible();
         await page.getByTestId("show-table").click();

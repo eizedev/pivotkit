@@ -113,15 +113,15 @@ test.describe("building a report", () => {
         await page.goto("?empty");
         await page.getByTestId("field-menu-Created").click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
-        await expect.poll(() => chips(page, "rows")).toEqual(["Created (Month)"]);
+        await expect.poll(() => chips(page, "rows")).toEqual(["Created by month"]);
         await expect(page.locator('[data-zone="rows"] .pk-chip .pk-type')).toHaveClass(/pk-type-date/);
         const labels = (await tableRows(page)).map((r) => r[0]);
         expect(labels[0]).toMatch(/^[A-Z][a-z]{2} 20\d\d$/);
-        await page.getByTestId("chip-menu-Created (Month)").click();
+        await page.getByTestId("chip-menu-Created by month").click();
         await page.getByTestId("group-year").click();
-        await expect.poll(() => chips(page, "rows")).toEqual(["Created (Year)"]);
+        await expect.poll(() => chips(page, "rows")).toEqual(["Created by year"]);
         expect((await tableRows(page)).map((r) => r[0])).toEqual(["2025", "2026", "Grand Total"]);
-        await page.getByTestId("chip-menu-Created (Year)").click();
+        await page.getByTestId("chip-menu-Created by year").click();
         await page.getByTestId("group-none").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created"]);
     });
@@ -176,11 +176,13 @@ test.describe("filter, table and chart", () => {
         await page.goto("?data=tickets");
         await page.getByTestId("show-chart").click();
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
-        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Bars/);
+        // no type chosen yet: the data decides (bars for teams); the button says so, its name says what it is
+        await expect(page.getByTestId("chart-type")).toHaveText("Automatic");
+        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Automatic");
         await page.getByTestId("chart-type").click();
         await page.getByTestId("chart-pie").click();
         await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
-        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Pie/);
+        await expect(page.getByTestId("chart-type")).toHaveAccessibleName("Chart type: Pie");
         // the canvas has a text alternative
         await expect(page.getByTestId("chart-summary")).toContainText("Pie: Count of Ticket by Team.");
         await page.getByTestId("export").click();

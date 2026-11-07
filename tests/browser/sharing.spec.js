@@ -277,36 +277,31 @@ test.describe("sharing a view", () => {
 });
 
 test.describe("help switches", () => {
-    test("zone explanations: an i per zone, off and on in Options, remembered", async ({ page }) => {
-        await page.goto("?data=sales");
+    test("one switch, Show explanations, hides the i of the zones and of the fields; remembered; screen readers keep the text", async ({ page }) => {
+        await page.goto("?data=countries");
         await expect(page.locator(".pk-zone-info")).toHaveCount(4);
+        await expect(page.locator('.pk-field[data-field="Population"] .pk-info')).toHaveCount(1);
         const rows = page.getByTestId("zone-info-rows");
         await expect(rows).toHaveAccessibleName("About Rows");
         await rows.focus();
         await expect(page.locator(".pk-info-pop")).toContainText("Example: Region in Rows");
         await page.keyboard.press("Escape");
         await toolbar(page, "options");
-        await flip(page.getByTestId("show-zone-info"));
+        // two switches only: tips and explanations
+        await expect(page.locator(".pk-popover .pk-switch input")).toHaveCount(6);
+        await expect(page.getByTestId("show-zone-info")).toHaveCount(0);
+        await expect(page.getByTestId("show-field-info")).toHaveCount(0);
+        await flip(page.getByTestId("show-explanations"));
         await expect(page.locator(".pk-zone-info")).toHaveCount(0);
+        await expect(page.locator(".pk-panel .pk-info, .pk-chip .pk-info")).toHaveCount(0);
+        await expect(page.locator('.pk-field[data-field="Population"] .pk-field-name')).toHaveAttribute("aria-describedby", /.+/);
         await page.reload();
         await expect(page.getByTestId("pivot-table")).toBeVisible();
         await expect(page.locator(".pk-zone-info")).toHaveCount(0);
         await toolbar(page, "options");
-        await flip(page.getByTestId("show-zone-info"));
+        await flip(page.getByTestId("show-explanations"));
         await expect(page.locator(".pk-zone-info")).toHaveCount(4);
-    });
-
-    test("field descriptions: the switch hides every i of a field; screen readers keep the text", async ({ page }) => {
-        await page.goto("?data=sales");
-        await toolbar(page, "options");
-        // the generated sales data has no descriptions: no switch for them
-        await expect(page.getByTestId("show-field-info")).toHaveCount(0);
-        await page.goto("?data=countries");
         await expect(page.locator('.pk-field[data-field="Population"] .pk-info')).toHaveCount(1);
-        await toolbar(page, "options");
-        await flip(page.getByTestId("show-field-info"));
-        await expect(page.locator(".pk-panel .pk-info, .pk-chip .pk-info")).toHaveCount(0);
-        await expect(page.locator('.pk-field[data-field="Population"] .pk-field-name')).toHaveAttribute("aria-describedby", /.+/);
     });
 });
 
@@ -419,7 +414,7 @@ plain("a menu whose code cannot be loaded says so and loads on Try again", async
     let blocked = true;
     await page.route(/\/chunks\/menus-[^/]+\.js$/, (route) => (blocked ? route.abort() : route.continue()));
     await page.goto("?data=sales");
-    await page.getByTestId("options").click();
+    await toolbar(page, "options");
     const failed = page.getByTestId("menu-failed");
     await expect(failed).toContainText("This menu could not be loaded.");
     await expect(page.getByTestId("menu-retry")).toBeFocused();

@@ -1,6 +1,6 @@
 // pivotkit-react as hosts load it: its own dist file with React from the page (import map), the
 // React version of the CI job, a host that renders again all the time, and a shadow root.
-import { chips, drag, expect, test } from "./fixtures.js";
+import { chips, drag, expect, test, toolbar } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -77,12 +77,12 @@ test.describe("inside a shadow root", () => {
         await page.keyboard.press("Escape");
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await expect(page.getByTestId("export")).toBeFocused();
-        await page.getByTestId("options").click();
+        await toolbar(page, "options");
         await expect(page.locator(".pk-popover")).toHaveCount(1);
         await page.locator('[data-testid="pivot-table"] tbody').click({ position: { x: 5, y: 5 } });
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         // a click inside the popover keeps it open (composed path, not the shadow host)
-        await page.getByTestId("options").click();
+        await toolbar(page, "options");
         await page.getByText("Row subtotals").click();
         await expect(page.locator(".pk-popover")).toHaveCount(1);
         await page.keyboard.press("Escape");
