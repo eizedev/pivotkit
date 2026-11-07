@@ -1,0 +1,14 @@
+{#-
+  The repository link of the header without data-md-component="source": the theme's script would
+  otherwise ask api.github.com for the stars, forks and latest release on every page view, a request
+  to a third party from every reader. The link itself stays.
+-#}
+<a href="{{ config.repo_url }}" title="{{ lang.t('source') }}" class="md-source">
+  <div class="md-source__icon md-icon">
+    {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
+    {% include ".icons/" ~ icon ~ ".svg" %}
+  </div>
+  <div class="md-source__repository">
+    {{ config.repo_name }}
+  </div>
+</a>

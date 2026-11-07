@@ -62,7 +62,8 @@ builds depend on it.
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
   `scripts/docs-screenshots.js` from the playground. `docs/playground/` (the live demo, copied by
-  `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The
+  `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. `overrides/partials/source.html` replaces the theme's repository link with one
+  that does not ask api.github.com for stars and the latest release on every page view. The
   package READMEs ship to npm: links from them to the site are absolute (`https://pivotkit.eize.dev/...`).
 - `assets/` - icon, README header and social preview, generated in eizedev/brand (`pivotkit/`); changed
   there, never here.
