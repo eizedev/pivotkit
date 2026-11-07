@@ -137,7 +137,7 @@ so keep `chartOptions` to what the user should not change.
 **Only JSON.** Strings, finite numbers, booleans, `null`, plain objects and arrays pass. Functions
 (formatters), class instances (`Date`, `Map`), symbols, `Infinity`, the keys `__proto__`,
 `constructor` and `prototype`, more than 12 levels and more than 2,000 entries are left out, with one
-console warning that names them. It is compared by value, so a host may build a new object on every
+console warning that names them, when the chart is drawn (the check loads with ECharts). It is compared by value, so a host may build a new object on every
 render. The report's own formatters (numbers in the user's language) stay.
 
 **No markup, addresses or templates.** Some ECharts options are not data: ECharts writes a string

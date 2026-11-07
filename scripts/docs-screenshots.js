@@ -122,6 +122,16 @@ const SHOTS = [
         }
     },
     {
+        // the field list collapsed to a rail: the zones and the result take its room
+        name: "field-rail",
+        query: "data=sales&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("collapse-fields").click();
+            await page.getByTestId("expand-fields").blur();
+        }
+    },
+    {
         name: "filter-state",
         query: "data=sales&theme=light",
         size: WIDE,

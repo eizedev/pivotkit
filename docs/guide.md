@@ -199,6 +199,15 @@ PNG. All of it is in [Charts](concepts/charts.md).
 
 ## More room for the result
 
+**«** next to "Fields" collapses the field list to a slim rail at the side of the report that shows
+"Fields" and a search button: the zones and the result get its room. A click on the rail opens the
+list again; the search button opens it with the cursor in the search field. A chip dragged onto the
+rail leaves the report, as on the open list. The report remembers the choice (with the tips); an
+application can start the list open or collapsed. On a phone the field list is a drawer, as before
+([small screens](#small-screens)).
+
+![The field list collapsed to a rail with "Fields" and a search button](assets/screenshots/field-rail.png)
+
 Two buttons at the top right of the result give it more room; neither is part of the view.
 
 - **Enlarge** lets the table or the chart fill the report: the field list, the zones, the tips and
