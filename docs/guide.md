@@ -17,13 +17,14 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
 ## The parts
 
 - **Fields** (left): every column of the data, with an icon for its type (text, number, date,
-  yes/no) and a search. A mark next to a field shows which zone it is in.
+  yes/no) and a search. A mark next to a field shows which zone it is in. When the application
+  describes a field, an **i** next to it says what the field means.
 - **The zones**: **Rows** and **Columns** say how the table is split, **Values** what is computed in
   the cells, **Filters** what is left out of the whole report.
 - **The toolbar**: Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, Templates and
   Export. What does not fit the report's width moves into **More**, Reset and Redo first, then Layout,
   Templates, Options and the chart type; Table or Chart, Undo and Export always stay.
-- **The result**: the table or the chart, with notes above it and a status line below it.
+- **The result**: the table or the chart, with tips above it and a status line below it.
 
 ## Adding fields
 
@@ -36,6 +37,18 @@ There are three ways, all with the same result:
 A date is grouped as soon as it is placed, by the span of its values: up to 62 days by day, up to two
 years by month ("Jan 2025"), up to six years by quarter, longer by year. The chip says so:
 "Created (Month)". See [Dates and number ranges](concepts/dates.md).
+
+## What a field means
+
+When the application describes its fields, an **i** stands next to such a field in the list and on
+its chips. Point at it, or move the focus to it with Tab, and the description appears; click or tap it
+to keep it open, with **Learn more** when there is a page about the field. Escape closes it. The same
+text is at the top of the chip's menu and on the field's headers in the table and in the drill-down,
+and the field search finds a field by words of its description. The application may also give a
+field a clearer name than the data's; the report uses that name everywhere, also in the exported
+files.
+
+![A field's description next to the field list: what the World Bank counts as population, with Learn more](assets/screenshots/field-info.png)
 
 ## Chips
 
@@ -109,8 +122,8 @@ blank cell with no rows behind it opens nothing.
 area, pie or heatmap ("Chart type" in the toolbar). A click on a bar, a point or a heatmap cell opens
 its rows, as in the table.
 
-At most 50 categories are drawn, with a note. With more than 8 series, or lines with the dates on
-Columns, a hint offers **Swap rows and columns** (also above the Columns zone).
+At most 50 categories are drawn, with a tip. With more than 8 series, or lines with the dates on
+Columns, a tip offers **Swap rows and columns** (also above the Columns zone).
 
 ## Undo, templates and export
 
@@ -124,6 +137,20 @@ Columns, a hint offers **Swap rows and columns** (also above the Columns zone).
 
 Notes such as "Undone: Region removed" or "Exported pivot.xlsx" appear in the status line under the
 table; errors stay until you close them.
+
+## Tips
+
+Short tips above the result say what the report shows and what you can do next: that a top 5 changes
+what the totals mean, what 100 % is for a percentage, that a text field in Values is counted, that a
+date makes a column per day (with a button to group it by month), that a filter leaves nothing (with
+**Remove filter**), or that the view could be saved as a template. At most two show at a time, the
+most important first, and never over the table.
+
+- The **x** of a tip (Tab reaches it) hides that tip; the report remembers it.
+- **Options** has **Show tips**, to switch them all off and on, and **Show dismissed tips again**.
+- **Options**, **Help**, **Keyboard shortcuts** lists the keys.
+
+![Two tips above the table: the top 3 note and how to open a value, each with its x](assets/screenshots/tips.png)
 
 ## Small screens
 

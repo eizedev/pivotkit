@@ -13,7 +13,7 @@ builds depend on it.
   consumer), `bench/`. Public entry points: `src/index.js` and `src/export.js` (XLSX, CSV; the only
   importer of fflate); every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
-  (show-as.js); `CATALOG` (catalog.js) lists them for a UI.
+  (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`).
 - `packages/pivotkit-react/` - the React 18/19 UI on the core: `<PivotReport>`. JSX in `src/` with
   JSDoc types, built by esbuild (`build.js`) into `dist/` (JSX as `React.createElement`, every
   dependency left as an import) and `dist/styles.css`. React, ReactDOM and ECharts are peer
@@ -22,7 +22,7 @@ builds depend on it.
   One module per concern: `PivotReport.jsx` wires the parts and defines `commit()`, which it passes to
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
-  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `dnd.jsx` is the
+  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
@@ -136,6 +136,12 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   (both themes must pass `test/contrast.test.js`), animations through `--pk-duration` so
   `prefers-reduced-motion` turns them off. Layout follows the report's width (`data-pk-size`), not the
   window's. Check changes with screenshots in both themes at wide and narrow width.
+- A host's field labels and descriptions (`fieldDefaults`) are optional extras: a field without them
+  looks and works exactly as without `fieldDefaults` (no "i", no extra text, its own name); labels are
+  display only, views keep field names. A schema is data: local `$ref`s only, nothing fetched, sizes
+  capped (`SCHEMA_CAPS` in `schema.js`).
+- Tips are rows of `TIPS` (`tips.js`): a pure condition, a text in every language, an optional
+  action; at most `TIP_LIMIT` show, in the flow above the result, never over it.
 - Browser tests fail on any console error or warning (`tests/browser/fixtures.js`).
 - pivotkit-element: the shadow root is the boundary. No style of the page reaches in and none of
   the report's out, except the `--pk-*` tokens set on the element (declared on `:host` by

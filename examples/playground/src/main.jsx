@@ -1,5 +1,5 @@
 // The pivotkit playground: <PivotReport> with real public data (snapshots) and generated data, presets
-// per data set, a language and a theme switch, templates kept in the browser, and the engine timings of the last change. The report
+// per data set (the real ones with field descriptions), a language and a theme switch, templates kept in the browser, and the engine timings of the last change. The report
 // is controlled (view + onViewChange) and the page renders again on every timing, as a host like
 // PowerShell Universal does: undo must survive that.
 import React, { useEffect, useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import { PivotReport } from "pivotkit-react";
 import "pivotkit-react/styles.css";
 import "./playground.css";
 import { DATASETS, REAL } from "./data.js";
+import { withDescriptions } from "./descriptions.js";
 
 const SIZES = [2000, 4000, 100000];
 const params = new URLSearchParams(location.search);
@@ -183,7 +184,8 @@ function App() {
                 templates={templates}
                 onSaveTemplate={saveTemplate}
                 onDeleteTemplate={deleteTemplate}
-                fieldDefaults={DATASETS[dataset].fieldDefaults}
+                fieldDefaults={withDescriptions(DATASETS[dataset].fieldDefaults, dataset)}
+                storageKey="playground"
                 onCellClick={(c) => setLastClick({ row: c.row, col: c.col, count: c.count })}
                 locale={lang === "de" ? "de-DE" : "en-US"}
                 height={fixedHeight ?? "calc(100vh - var(--pg-head-h))"}

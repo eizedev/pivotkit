@@ -56,6 +56,14 @@ report.labels = { zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" }
 
 A language with more forms adds them (`few`, `many`); a missing form falls back to `other`.
 
+The tips are `labels.tips` (one text per tip id; `labels.tips.showAs` one per percentage
+calculation), their buttons `labels.tipActions`, the keyboard shortcuts of the help section
+`labels.shortcuts` and `labels.keys`.
+
+Field names are not labels: a field's display name in any language comes from `fieldDefaults`
+(`label`), see [Field descriptions and names](../concepts/fields.md). A host that shows German names
+passes German labels there; views keep the field names, so a template works in every language.
+
 ## Another language
 
 There is no registry of languages: another language is a whole labels object with its own `lang`,

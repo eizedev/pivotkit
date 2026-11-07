@@ -59,6 +59,17 @@ const SHOTS = [
         })
     },
     { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE },
+    // a field's description (fieldDefaults) opened from its "i", and the tips above the table
+    {
+        name: "field-info",
+        query: "data=countries&preset=0&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.locator('.pk-field[data-field="Population"] .pk-info').click();
+            await page.locator(".pk-info-pop a").waitFor();
+        }
+    },
+    { name: "tips", query: "data=countries&preset=0&theme=light", size: WIDE },
     // "Learn with real data": one template of each real data set
     { name: "learn-weather", query: "data=weather&preset=0&theme=light", size: WIDE },
     { name: "learn-countries", query: "data=countries&preset=0&theme=light", size: WIDE },

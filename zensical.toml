@@ -25,6 +25,7 @@ nav = [
     { "Values: aggregators, show as, formats" = "concepts/values.md" },
     { "Dates and number ranges" = "concepts/dates.md" },
     { "Filters, top N and sorting" = "concepts/filters.md" },
+    { "Field descriptions and names" = "concepts/fields.md" },
     { "Locale, time zones, limits and errors" = "concepts/limits.md" },
   ] },
   { "Reference" = [

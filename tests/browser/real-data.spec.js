@@ -81,7 +81,7 @@ test.describe("countries", () => {
         const rows = await tableRows(page);
         const start = rows.findIndex((r) => r.includes("India"));
         expect(rows.slice(start, start + 3).map((r) => r.at(-2))).toEqual(sa.slice(0, 3).map((x) => x.Country));
-        await expect(page.getByTestId("note-top")).toContainText("Country shows the top 3 only");
+        await expect(page.getByTestId("tip-top")).toContainText("Country shows the top 3 only");
     });
 
     test("share of the world's CO2 per region", async ({ page }) => {
@@ -219,7 +219,7 @@ test.describe("learning tasks", () => {
         await open(page, "data=countries&preset=0");
         await page.getByTestId("chip-menu-Country").click();
         await page.getByRole("button", { name: "Clear" }).click();
-        await expect(page.getByTestId("note-top")).toHaveCount(0);
+        await expect(page.getByTestId("tip-top")).toHaveCount(0);
         const southAsia = countries.filter((x) => x.Year === 2024 && x.Region === "South Asia");
         const rows = await tableRows(page);
         expect(rows.filter((r) => southAsia.some((c) => r.includes(c.Country)))).toHaveLength(southAsia.length);

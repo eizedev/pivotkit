@@ -43,7 +43,7 @@ supported.
 | `defaultView` | `default-view` (JSON) | Uncontrolled: the start view, see below.<br><small>Type: view; default: empty</small> |
 | `templates` |  | The Templates menu; the first three are also offered in the empty state.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
 | `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event.<br><small>Type: `boolean`; default: `false`</small> |
-| `fieldDefaults` |  | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns, offered as "Custom order" in its menu.<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order? } }`</small> |
+| `fieldDefaults` |  | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns, offered as "Custom order" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md).<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`</small> |
 | `labels` |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`).<br><small>Type: partial labels</small> |
 | `limits` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react.<br><small>Type: `Partial<Limits>`</small> |
 | `locale` | `locale` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not.<br><small>Type: `string`; default: `"en-US"`</small> |
@@ -54,6 +54,9 @@ supported.
 | `label` | `label` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`).<br><small>Type: `string`; default: `labels.report`</small> |
 | `drillDown` | `drill-down` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off.<br><small>Type: `boolean`; default: `true`</small> |
 | `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
+| `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
+| `storageKey` | `storage-key` | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
+| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off.<br><small>Type: `string[]`</small> |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -109,6 +112,7 @@ or on the document gets it, with `event.target` the element.
 | `pivot-template-save` | "Save current view" (with `save-templates`).<br><small>`detail`: `{ name, view, respondWith }`</small> |
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu.<br><small>`detail`: `{ name, respondWith }`</small> |
 | `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`) before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
+| `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)

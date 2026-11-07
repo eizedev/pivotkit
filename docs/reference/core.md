@@ -48,6 +48,20 @@ The date grouping a date field gets on an axis, from the span of its values: up 
 to two years `"yearMonth"`, up to six years `"yearQuarter"`, longer `"year"`; `null` for fewer than two
 days or a field that is not a date.
 
+### `fieldDefaultsFromSchema(schema, options?)`
+
+What a JSON Schema or an OpenAPI document says about each field of a row, in the shape of
+pivotkit-react's `fieldDefaults`: `title` becomes `label`, `description` stays `description`,
+`externalDocs.url` becomes `href` (https only), `type` `integer` or `number` and `format` `date` or
+`date-time` become `type`, `enum` becomes `order`. `schema` is the row's schema (an object with
+`properties`, or an array of rows), or an OpenAPI 3 / Swagger 2 document with `options.schema`, the
+name of a schema in `components.schemas` (or `definitions`) or a local `$ref`
+(`"#/components/schemas/Release"`). Only references inside the document are followed, `allOf` parts
+are merged, a nullable `anyOf`/`oneOf` is read as its one schema. Nothing is fetched or run; texts are
+plain and capped (label 120, description 1,000 characters, 1,000 fields and enum entries, 32 levels
+of `$ref`). A property with nothing to say is left out. Throws `INVALID_ARGUMENT` for input that is no
+schema. See [Field descriptions and names](../concepts/fields.md).
+
 ## Views
 
 A view is the report as JSON; [Views and templates](../concepts/views.md) describes its keys.
@@ -151,6 +165,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
+| `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
 | `DEFAULT_THEME` | Default colours for colour scales and data bars, and the pie's radius. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
 | `PivotkitError` | The error class; `code` is `INVALID_ARGUMENT`, `INVALID_OPTION` or `LIMIT_EXCEEDED`, `details` holds `{ limit, value, max }` for a limit. |
@@ -159,7 +174,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 
 `View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `Encoded`, `Column`,
 `ColumnType`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
-`Formatter`, `Limits`, `Labels` and `PivotkitErrorCode`, from `pivotkit-core`.
+`Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults` and `PivotkitErrorCode`, from `pivotkit-core`.
 
 ## Performance
 

@@ -31,6 +31,12 @@ Field names, values and labels are rendered as text by React (or `textContent` i
 A value like `<img src=x onerror=alert(1)>` shows as those characters; a browser test checks it with a
 data set of labels that look like HTML.
 
+Field labels and descriptions (`fieldDefaults`) are plain text too, capped in length; a "Learn more"
+link is shown only for an absolute `https:` URL and opens with `rel="noopener noreferrer"`.
+`fieldDefaultsFromSchema` treats a JSON Schema or OpenAPI document as data: it follows references
+inside the document only, fetches nothing, runs nothing, and caps the fields, texts, enum entries,
+reference depth and the number of schema objects it reads.
+
 ## Exports
 
 - **CSV**: text that a spreadsheet would run as a formula gets a leading `'`: text starting with a tab

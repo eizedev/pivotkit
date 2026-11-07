@@ -33,12 +33,12 @@ test("a chart with many series says so and swaps rows and columns", async ({ pag
     await page.getByRole("menuitem", { name: "Add to Columns" }).click();
     await page.locator('.pk-field[data-field="Revenue"] .pk-field-name').click();
     await page.getByTestId("show-chart").click();
-    const hint = page.locator('[data-hint="series"]');
+    const hint = page.locator('[data-tip="chartSeries"]');
     await expect(hint).toContainText("series are hard to tell apart");
     await hint.getByRole("button", { name: "Swap rows and columns" }).click();
     await expect.poll(() => chips(page, "rows")).toEqual(["Country"]);
     await expect.poll(() => chips(page, "cols")).toEqual(["Category"]);
-    await expect(page.locator('[data-hint="series"]')).toHaveCount(0);
+    await expect(page.locator('[data-tip="chartSeries"]')).toHaveCount(0);
 });
 
 test("lines with the dates on Columns get a hint to swap", async ({ page }) => {
@@ -50,8 +50,8 @@ test("lines with the dates on Columns get a hint to swap", async ({ page }) => {
     await page.locator('.pk-field[data-field="Lead hours"] .pk-field-name').click();
     await page.getByTestId("chart-type").click();
     await page.getByTestId("chart-line").click();
-    await expect(page.locator('[data-hint="dates"]')).toBeVisible();
-    await page.locator('[data-hint="dates"]').getByRole("button", { name: "Swap rows and columns" }).click();
+    await expect(page.locator('[data-tip="chartDates"]')).toBeVisible();
+    await page.locator('[data-tip="chartDates"]').getByRole("button", { name: "Swap rows and columns" }).click();
     await expect.poll(() => chips(page, "rows")).toEqual(["Created (Month)"]);
 });
 
@@ -62,7 +62,7 @@ test("a chart draws 50 categories at most and says so", async ({ page }) => {
     await page.getByRole("menuitem", { name: "Add to Rows" }).click();
     await page.locator('.pk-field[data-field="Lead hours"] .pk-field-name').click();
     await page.getByTestId("show-chart").click();
-    await expect(page.locator('[data-hint="capped"]')).toHaveText("Showing the first 50 of 100,000 categories. Add a filter or Top N to choose them.");
+    await expect(page.locator('[data-tip="chartCapped"]')).toHaveText("Showing the first 50 of 100,000 categories. Add a filter or Top N to choose them.");
 });
 
 test("top N: its own badge on the chip and a note that totals cover the shown items only", async ({ page }) => {
@@ -71,13 +71,13 @@ test("top N: its own badge on the chip and a note that totals cover the shown it
     await page.getByTestId("top-count").fill("2");
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Country"] [data-testid="top-badge"]')).toHaveText("Top 2");
-    await expect(page.getByTestId("note-top")).toHaveText("Country shows the top 2 only: totals and percentages cover these items, not all of them.");
+    await expect(page.getByTestId("tip-top")).toHaveText("Country shows the top 2 only: totals and percentages cover these items, not all of them.");
 });
 
 test("Rows without Values: a note says what to do; one value column is not stretched", async ({ page }) => {
     await page.goto("?data=sales");
     await page.getByRole("button", { name: "Remove Sum of Revenue" }).click();
-    await expect(page.getByTestId("note-values")).toContainText("Add a number to Values");
+    await expect(page.getByTestId("tip-values")).toContainText("Add a number to Values");
     await page.getByRole("button", { name: "Remove Category" }).click();
     await page.keyboard.press("ControlOrMeta+z");
     await page.keyboard.press("ControlOrMeta+z");
