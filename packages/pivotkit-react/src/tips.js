@@ -131,7 +131,8 @@ export const TIPS = Object.freeze([
             if (ctx.failed || ctx.empty) {
                 return null;
             }
-            const spec = ctx.view.values.find((v) => v.field && ["string", "boolean"].includes(ctx.typeOf(v.field)));
+            // a value with a name of its own ("Laureates") is counted on purpose
+            const spec = ctx.view.values.find((v) => v.field && !v.label && ["string", "boolean"].includes(ctx.typeOf(v.field)));
             return spec ? { field: name(ctx, spec.field) } : null;
         }
     },

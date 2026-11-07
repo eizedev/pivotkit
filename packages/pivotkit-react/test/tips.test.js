@@ -78,6 +78,7 @@ test("tips: top N, a filter that leaves nothing, a percentage, a text in Values"
     const text = contextOf(SALES, { rows: ["Region"], values: [{ field: "Rep", agg: "count" }] });
     assert.deepEqual(activeTips(text, { allowed: "on", dismissed: [] })[0], { id: "textValue", params: { field: "Rep" }, entry: TIPS.find((t) => t.id === "textValue") });
     assert.ok(!holding(contextOf(SALES, { rows: ["Region"], values: [{ field: "Units", agg: "count" }] })).includes("textValue"));
+    assert.ok(!holding(contextOf(SALES, { rows: ["Region"], values: [{ field: "Rep", agg: "count", label: "Reps" }] })).includes("textValue"), "a named count is on purpose");
 });
 
 test("tips: an ungrouped date with many columns, many columns, from their thresholds", () => {

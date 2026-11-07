@@ -64,7 +64,7 @@ polite live region. The tips, in the order they are shown, and when:
 | `showAs` | A value is shown as a percentage: what 100 % is for that calculation. | |
 | `chartDates` | Lines or areas with the dates on Columns (and none on Rows). | Swap rows and columns |
 | `chartSeries` | Bars, lines or areas with more than 8 series. | Swap rows and columns |
-| `textValue` | A text or yes/no field in Values: it is counted. | |
+| `textValue` | A text or yes/no field in Values without a name of its own: it is counted. | |
 | `dateUngrouped` | An ungrouped date on Columns with more than 12 columns, or on Rows with more than 60 rows. | Group by (the date's span: month, quarter, year) |
 | `manyColumns` | A table with more than 20 columns and fewer rows than columns. | Swap rows and columns |
 | `values` | Rows or Columns without a value. | |
