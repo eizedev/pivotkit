@@ -1114,6 +1114,15 @@
     white-space: nowrap;
 }
 
+/* the range form: size and start one below the other, their inputs in one column */
+.pk-bin-form .pk-field-label {
+    flex-basis: 100%;
+}
+
+.pk-bin-form .pk-field-label > span {
+    min-width: 7.5em;
+}
+
 .pk-narrow-input {
     flex: 0 0 5em;
     min-width: 5em;
@@ -1446,6 +1455,26 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25em;
+}
+
+/* A long row label wraps instead of pushing every value out of view on a phone: the row label
+   columns (and the field names above them) share at most half of the main area's width, each at
+   least 5em. A virtual table needs rows of one height, so there a label is cut with an ellipsis
+   and its full text is the cell's title. */
+.pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
+    max-width: max(5em, calc(50cqi / var(--pk-row-cols, 1)));
+}
+
+.pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-text {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.pk-table.pk-virtual tbody th.pk-rowHeader .pk-th-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .pk-draggable {

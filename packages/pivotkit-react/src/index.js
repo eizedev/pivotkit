@@ -34,6 +34,9 @@
  *   and for the field's own numbers in the drill-down unless `drillFormat` is set
  * @property {string} [drillFormat]  the format of the field's values in the drill-down: "text" shows an
  *   identifier as it is (40072, not 40,072), "date" a date without its time
+ * @property {Array<string | number | boolean | null>} [order]  the field's own order of items on Rows or
+ *   Columns ("Spring", "Summer", "Autumn", "Winter"): a field placed there is sorted in it, and its
+ *   menu offers it as "Custom order"; items not listed come after, by label
  */
 
 /**
@@ -68,7 +71,7 @@
  *   "saved" is shown when it returns or the promise it returns resolves, an error when it throws or rejects
  * @property {(name: string) => unknown} [onDeleteTemplate]  deletes a template marked
  *   `deletable`; the entry goes when it returns (or its promise resolves)
- * @property {Record<string, FieldDefaults>} [fieldDefaults]  per field name: aggregator and format of a new value
+ * @property {Record<string, FieldDefaults>} [fieldDefaults]  per field name: aggregator and format of a new value, custom order
  * @property {(cell: CellClick) => void} [onCellClick]
  * @property {boolean} [drillDown]  the panel with the rows behind a clicked value (default true)
  * @property {number} [drillDownLimit]  rows passed to the panel and onCellClick (default 1000)

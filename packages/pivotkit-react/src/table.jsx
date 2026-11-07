@@ -1,7 +1,7 @@
 /*
  * The pivot table from pivotkit-core's grid: sticky header rows and row labels, groups that expand
  * and collapse, subtotal and total rows, colour scales and data bars, a click (or Enter) on a value
- * for its rows. Header cells with a field name or a value name can be dragged into a zone with the
+ * for its rows (a cell with no rows behind it is not clickable; the arrow keys still stop on it). Header cells with a field name or a value name can be dragged into a zone with the
  * mouse; the same moves are in the chips' menus. From VIRTUAL_FROM body rows on only the visible rows
  * are rendered (virtual.js). The table keeps the focus where it was when a group is expanded or
  * collapsed: on the same toggle.
@@ -39,6 +39,9 @@ function conditionalStyle(cell) {
     }
     return undefined;
 }
+
+/** A value cell with rows behind it: a click or Enter opens them. */
+const drillable = (cell) => cell.valueIndex !== undefined && cell.hasRows !== false;
 
 /** The first value cell of the body: row (from 0) and column, or null. */
 function firstValueCell(grid) {
@@ -201,7 +204,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         } else if ((e.key === "Enter" || e.key === " ") && e.target instanceof HTMLTableCellElement && current) {
             e.preventDefault();
             const cell = grid.rows[grid.headerRows + current.r][current.c];
-            if (cell) {
+            if (cell && drillable(cell)) {
                 onCell(cell);
             }
         }
@@ -249,7 +252,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const bodyCell = ({ cell, col, rowSpan, colSpan }, r) => {
         if (cell.kind === "rowHeader") {
             return (
-                <th key={col} scope="row" className={`pk-th pk-rowHeader pk-sticky${totalClass(cell.total)}${rowSpan > 1 ? " pk-span" : ""}`} style={stickyStyle(col)} rowSpan={rowSpan > 1 ? rowSpan : undefined} colSpan={colSpan > 1 ? colSpan : undefined}>
+                <th key={col} scope="row" className={`pk-th pk-rowHeader pk-sticky${totalClass(cell.total)}${rowSpan > 1 ? " pk-span" : ""}`} style={stickyStyle(col)} rowSpan={rowSpan > 1 ? rowSpan : undefined} colSpan={colSpan > 1 ? colSpan : undefined} title={virtual ? cell.text : undefined}>
                     <span className="pk-th-content">
                         {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
                         <span className="pk-th-text">{cell.text}</span>
@@ -258,17 +261,18 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             );
         }
         const isValue = cell.valueIndex !== undefined;
+        const clickable = isValue && drillable(cell);
         const focus = current && current.r === r && current.c === col;
         const cond = conditionalStyle(cell);
         return (
             <td
                 key={col}
-                className={`pk-td${totalClass(cell.total)}${isValue ? " pk-clickable" : ""}${cell.valueType === "text" ? " pk-text" : ""}${cond ? (cell.style.bar !== undefined ? " pk-has-bar" : " pk-has-scale") : ""}`}
+                className={`pk-td${totalClass(cell.total)}${clickable ? " pk-clickable" : ""}${cell.valueType === "text" ? " pk-text" : ""}${cond ? (cell.style.bar !== undefined ? " pk-has-bar" : " pk-has-scale") : ""}`}
                 style={cond}
                 data-r={r}
                 data-c={col}
                 tabIndex={isValue ? (focus ? 0 : -1) : undefined}
-                onClick={isValue ? () => { setActive({ r, c: col }); onCell(cell); } : undefined}
+                onClick={clickable ? () => { setActive({ r, c: col }); onCell(cell); } : undefined}
             >
                 {cell.text}
             </td>
@@ -278,7 +282,8 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const width = grid.columnCount;
     return (
         <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? (e) => setScroll({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight }) : undefined} data-testid="pivot-table">
-            <table ref={table} className="pk-table" onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
+            {/* --pk-row-cols: the row label columns share at most half of the width (styles.css) */}
+            <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
                     {grid.rows.slice(0, grid.headerRows).map((row, r) => (
                         <tr key={r}>{row.map((cell, c) => (cell ? headerCell(cell, r, c) : null))}</tr>

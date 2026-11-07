@@ -82,6 +82,17 @@ test("number bins are a derived field with a size", () => {
     assert.deepEqual(r.rowRoot.children.map((n) => n.key), [0, 5]);
 });
 
+test("a new range size keeps the ranges' start; a start of its own replaces it", () => {
+    const v = norm({ derived: [{ name: "Units (by 2)", field: "Units", by: "bin", size: 2, origin: 1 }], rows: ["Units (by 2)"] });
+    const kept = groupField(v, "Units (by 2)", "bin", { size: 3, name: "Units (by 3)" }).view;
+    assert.deepEqual(kept.derived, [{ name: "Units (by 3)", field: "Units", by: "bin", size: 3, origin: 1 }]);
+    assert.ok(computePivot(data, kept).rowRoot.children.every((n) => n.key === null || (n.key - 1) % 3 === 0));
+    const moved = groupField(v, "Units (by 2)", "bin", { size: 3, origin: 0.5, name: "Units (by 3)" }).view;
+    assert.equal(moved.derived[0].origin, 0.5);
+    // a field grouped for the first time starts at 0
+    assert.equal(groupField(norm({ rows: ["Units"] }), "Units", "bin", { size: 3, name: "Units (by 3)" }).view.derived[0].origin, 0);
+});
+
 test("item filters exclude what is not selected; selectedItems reads them back", () => {
     const all = ["North", "South", "West"];
     let v = setItemFilter(norm({ rows: ["Region"] }), "Region", ["North", "West"], all);
@@ -151,6 +162,10 @@ test("the chart type table: every entry round-trips and is a chart type of the c
     }
     assert.equal(chartTypeOf({ type: "bar", stacked: true, horizontal: true }), "horizontal");
     assert.equal(chartTypeOf({ type: "unknown" }), "bar");
+    // a stacked area or line of a template is named by its own type, not as bars
+    assert.equal(chartTypeOf({ type: "area", stacked: true }), "area");
+    assert.equal(chartTypeOf({ type: "line", stacked: true }), "line");
+    assert.equal(chartTypeOf({ type: "pie", horizontal: true }), "pie");
 });
 
 test("a date placed on an axis or in Filters comes grouped; a value gets the host's defaults", () => {
@@ -198,4 +213,17 @@ test("a ninth field on an axis is over the limit the core keeps; the UI refuses 
     const values = { rows: [], cols: [], values: Array.from({ length: 17 }, () => ({ agg: "count" })) };
     assert.deepEqual(zoneOverLimit(values, {}), { zone: "values", max: 16 });
     assert.equal(zoneOverLimit(values, { values: 20 }), null);
+});
+
+test("a field with the host's custom order is sorted in it when placed on an axis", () => {
+    const order = ["West", "North"];
+    let v = addField(empty, "Region", "rows", { type: "string", defaults: { order } });
+    assert.deepEqual(norm(v).sort, [{ field: "Region", by: "custom", order: "asc", items: ["West", "North"] }]);
+    assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["West", "North", "South"]);
+    // moved to Columns, the field keeps its sort; a sort chosen in the view is not replaced
+    v = addField(setSort(v, "Region", { by: "label", order: "desc" }), "Region", "cols", { type: "string", defaults: { order } });
+    assert.deepEqual(norm(v).sort, [{ field: "Region", by: "label", order: "desc" }]);
+    // a date placed grouped has items of its own
+    const d = addField(empty, "Date", "rows", { type: "date", dateUnit: "yearMonth", groupName: "Date (Month)", defaults: { order: ["2026-01-05"] } });
+    assert.deepEqual(d.sort, []);
 });

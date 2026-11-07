@@ -83,7 +83,8 @@ function resetCollapsed(view, before) {
  * @typedef {object} AddOptions
  * @property {number} [index]  position in the zone, default the end
  * @property {string} [type]  the field's column type, for the aggregator
- * @property {{ agg?: string, format?: string }} [defaults]  the host's settings for a new value of the field
+ * @property {{ agg?: string, format?: string, order?: unknown[] }} [defaults]  the host's settings for
+ *   the field: a new value's aggregator and format, the custom order of its items on an axis
  * @property {string | null} [dateUnit]  a date grouping to place instead of the raw date (rows, columns, filters)
  * @property {string} [groupName]  the name of that grouping's derived field
  */
@@ -122,13 +123,18 @@ export function addField(view, field, zone, options = {}) {
     if (options.dateUnit && zone !== "values") {
         const name = options.groupName ?? `${field} (${options.dateUnit})`;
         // the grouping moves when it is placed again, like any field
-        const placed = addField(removeField(view, name), field, zone, { ...options, dateUnit: null });
+        // (a grouping has items of its own: the host's order of the date does not apply)
+        const placed = addField(removeField(view, name), field, zone, { ...options, dateUnit: null, defaults: undefined });
         return groupField(placed, field, options.dateUnit, { name }).view;
     }
     const next = clone(view);
     if (zone === "rows" || zone === "cols") {
         dropFromAxes(next, field);
         next[zone].splice(clamp(options.index, next[zone].length), 0, field);
+        const order = options.defaults?.order;
+        if (Array.isArray(order) && order.length > 0 && !next.sort.some((s) => same(s.field, field))) {
+            next.sort.push({ field, by: "custom", order: "asc", items: [...order] });
+        }
     } else if (zone === "values") {
         const wanted = options.defaults ?? {};
         const format = typeof wanted.format === "string" && isFormat(wanted.format) ? wanted.format : null;
@@ -256,7 +262,8 @@ export function updateValue(view, index, patch) {
  * @param {any} view
  * @param {string} field  the field on the axis (a source field or a derived one)
  * @param {string | null} unit  a DERIVED unit of pivotkit-core ("year", "month", "bin", ...)
- * @param {{ size?: number, name?: string }} [options]  bins: size; name: the derived field's name
+ * @param {{ size?: number, origin?: number, name?: string }} [options]  bins: size and origin (the
+ *   start of the ranges; without one a range field keeps its own, else 0); name: the derived field's name
  */
 export function groupField(view, field, unit, options = {}) {
     const spec = view.derived.find((d) => same(d.name, field));
@@ -267,7 +274,8 @@ export function groupField(view, field, unit, options = {}) {
     if (unit) {
         name = options.name ?? `${source} (${unit})`;
         const existing = next.derived.find((d) => same(d.name, name));
-        const wanted = unit === "bin" ? { name, field: source, by: unit, size: options.size, origin: 0 } : { name, field: source, by: unit };
+        const origin = options.origin ?? (spec?.by === "bin" ? spec.origin ?? 0 : 0);
+        const wanted = unit === "bin" ? { name, field: source, by: unit, size: options.size, origin } : { name, field: source, by: unit };
         if (existing) {
             Object.assign(existing, wanted);
         } else {
@@ -309,7 +317,7 @@ export function sourceOf(view, field) {
 }
 
 /**
- * Sort of a field: { by: "label" | "value", order, value? }; null removes the field's sort entry
+ * Sort of a field: { by: "label" | "value" | "custom", order, value?, items? }; null removes the field's sort entry
  * (natural label order).
  */
 export function setSort(view, field, sort) {

@@ -28,30 +28,41 @@ function More({ title, open, children }) {
     );
 }
 
-function NumberForm({ label, initial, onApply, onClear, applyLabel, clearLabel, testId, min = 0 }) {
-    const [value, setValue] = useState(String(initial ?? ""));
-    const n = Number(value);
-    const ok = value.trim() !== "" && Number.isFinite(n) && n > min;
+/**
+ * Number ranges: their size and where they start (Excel's "Starting at"). An empty start keeps the
+ * ranges' own, or 0.
+ */
+function BinForm({ grouping, labels, onApply, onClear }) {
+    const [size, setSize] = useState(String(grouping?.size ?? ""));
+    const [start, setStart] = useState(String(grouping?.origin ?? ""));
+    const n = Number(size);
+    const s = Number(start);
+    const startOk = start.trim() === "" || Number.isFinite(s);
+    const ok = size.trim() !== "" && Number.isFinite(n) && n > 0 && startOk;
     return (
         <form
-            className="pk-inline-form"
+            className="pk-inline-form pk-bin-form"
             onSubmit={(e) => {
                 e.preventDefault();
                 if (ok) {
-                    onApply(n);
+                    onApply(n, start.trim() === "" ? undefined : s);
                 }
             }}
         >
             <label className="pk-field-label">
-                <span>{label}</span>
-                <input type="number" inputMode="decimal" step="any" value={value} onChange={(e) => setValue(e.target.value)} data-testid={testId} />
+                <span>{labels.binSize}</span>
+                <input type="number" inputMode="decimal" step="any" value={size} onChange={(e) => setSize(e.target.value)} data-testid="bin-size" />
+            </label>
+            <label className="pk-field-label">
+                <span>{labels.binStart}</span>
+                <input type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={(e) => setStart(e.target.value)} data-testid="bin-start" />
             </label>
             <button type="submit" className="pk-btn pk-primary" disabled={!ok}>
-                {applyLabel}
+                {labels.apply}
             </button>
             {onClear ? (
                 <button type="button" className="pk-btn" onClick={onClear}>
-                    {clearLabel}
+                    {labels.clear}
                 </button>
             ) : null}
         </form>
@@ -106,7 +117,7 @@ function RemoveFoot({ labels, onRemove, close }) {
 }
 
 /** The menu of a chip on Rows or Columns. */
-export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove }) {
+export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, orderOf }) {
     const source = sourceOf(view, field);
     const sourceType = types.get(source.toLowerCase());
     const grouping = groupingOf(view, field);
@@ -116,14 +127,19 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     const firstName = firstValue ? valueLabel(firstValue, labels) : labels.core.countRows;
     const top = filtersOf(view, field, ["top"])[0];
     const isSort = (by, order) => (sort ? sort.by === by && sort.order === order : by === "label" && order === "asc");
+    // the custom order of the view, else the host's for the field (fieldDefaults.order); a grouped
+    // field has items of its own
+    const hostOrder = source === field ? orderOf?.(source) : undefined;
+    const customItems = sort?.by === "custom" ? sort.items : Array.isArray(hostOrder) && hostOrder.length > 0 ? hostOrder : null;
     const doSort = (by, order) => {
         close();
-        commit(setSort(view, field, by === "label" && order === "asc" ? null : by === "value" ? { by, order, value: firstRef } : { by, order }), { step: "sort", field });
+        const spec = by === "value" ? { by, order, value: firstRef } : by === "custom" ? { by, order, items: [...customItems] } : { by, order };
+        commit(setSort(view, field, by === "label" && order === "asc" ? null : spec), { step: "sort", field });
     };
-    const regroup = (unit, size) => {
+    const regroup = (unit, size, origin) => {
         close();
         const name = unit ? groupingName(source, unit, labels, size) : null;
-        commit(groupField(view, field, unit, { size, name: name ?? undefined }).view, { step: "group", field: source });
+        commit(groupField(view, field, unit, { size, origin, name: name ?? undefined }).view, { step: "group", field: source });
     };
     const unitOption = (u) => (
         <Option key={u} checked={grouping?.by === u} onSelect={() => regroup(u)} testId={`group-${u}`} hint={labels.unitHints[u] || undefined}>
@@ -138,6 +154,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
                     <Option checked={isSort("value", "desc")} icon="sortDesc" onSelect={() => doSort("value", "desc")}>{fill(labels.sortValueDesc, { value: firstName })}</Option>
                     <Option checked={isSort("value", "asc")} icon="sortAsc" onSelect={() => doSort("value", "asc")}>{fill(labels.sortValueAsc, { value: firstName })}</Option>
+                    {customItems ? <Option checked={sort?.by === "custom"} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
                 </Section>
                 {sourceType === "date" ? (
                     <Section title={labels.groupBy}>
@@ -150,7 +167,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                 ) : null}
                 {sourceType === "number" ? (
                     <Section title={labels.bins}>
-                        <NumberForm label={labels.binSize} initial={grouping?.size ?? ""} applyLabel={labels.apply} clearLabel={labels.clear} onApply={(size) => regroup("bin", size)} onClear={grouping ? () => regroup(null) : null} testId="bin-size" />
+                        <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
                     </Section>
                 ) : null}
                 <Section title={labels.topN}>

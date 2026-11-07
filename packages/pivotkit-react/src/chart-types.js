@@ -32,11 +32,12 @@ export function chartTypeOf(chart) {
     if (found) {
         return found;
     }
-    // a bar setting the picker has no entry for (stacked and horizontal): the closest bar entry
+    // a setting the picker has no entry for: a bar both stacked and horizontal is closest to the
+    // horizontal bars, a stacked line or area to its own type; "bar" only for a type it does not know
     if (chart.type === "bar") {
         return chart.horizontal ? "horizontal" : "stacked";
     }
-    return "bar";
+    return CHART_TYPE_NAMES.find((name) => CHART_TYPES[name].chart.type === chart.type) ?? "bar";
 }
 
 /** Charts with more series than this get a hint to swap or filter. */

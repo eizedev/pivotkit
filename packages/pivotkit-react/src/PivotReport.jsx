@@ -364,6 +364,11 @@ export function PivotReport(props) {
         },
         [encoded, typeOf, fieldDefaults, labels]
     );
+    /** The host's custom order of a field's items (fieldDefaults.order), for the sort menu. */
+    const orderOf = useCallback((field) => {
+        const order = defaultsFor(fieldDefaults, field)?.order;
+        return Array.isArray(order) ? order : undefined;
+    }, [fieldDefaults]);
     const addTo = useCallback(
         (field, zone, index = undefined) => {
             const options = placeOptions(field, zone, index);
@@ -581,6 +586,7 @@ export function PivotReport(props) {
                                 id={zonesId}
                                 folded={layoutFolded}
                                 onShow={() => setFolded(false)}
+                                orderOf={orderOf}
                             />
                             {result && result.issues.length > 0 && !empty ? (
                                 <details className="pk-issues">

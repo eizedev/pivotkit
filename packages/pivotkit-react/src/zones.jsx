@@ -57,7 +57,9 @@ function stateWords(state, labels, locale, firstValue) {
     }
     if (state.sort) {
         const desc = state.sort.order === "desc";
-        const order = state.sort.by === "value" ? fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: firstValue }) : desc ? labels.sortLabelDesc : labels.sortLabelAsc;
+        const order = state.sort.by === "value"
+            ? fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: firstValue })
+            : state.sort.by === "custom" ? labels.sortCustom : desc ? labels.sortLabelDesc : labels.sortLabelAsc;
         words.push(fill(labels.stateSorted, { order }));
     }
     return words.join(", ");
@@ -99,7 +101,7 @@ function Badges({ state, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, orderOf }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const chipRef = useRef(/** @type {HTMLElement | null} */ (null));
     const ref = (el) => {
@@ -144,7 +146,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                         zone === "values" ? (
                             <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} />
                         ) : (
-                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} />
+                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} orderOf={orderOf} />
                         )
                     }
                 </MenuButton>
@@ -239,9 +241,10 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
  *   commit: (view: object, note?: any) => void, openFilter: (field: string, anchor: HTMLElement) => void,
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
- *   id: string, folded: boolean, onShow: () => void }} props  `folded`: the compact layout's one line
+ *   id: string, folded: boolean, onShow: () => void, orderOf?: (field: string) => unknown[] | undefined }} props
+ *   `folded`: the compact layout's one line; `orderOf`: the host's custom order of a source field
  */
-export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow }) {
+export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, orderOf }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -351,6 +354,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             onRemove={onRemove}
                             state={zone === "values" ? null : states.get(e.field)}
                             locale={locale}
+                            orderOf={orderOf}
                         />
                     ))}
                 </Zone>

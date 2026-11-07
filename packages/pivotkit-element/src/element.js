@@ -39,6 +39,7 @@ export { EVENTS };
  * @property {string} [format]  a format of pivotkit-core ("duration:h", "currency:EUR") for a new value,
  *   and for the field's own numbers in the drill-down unless `drillFormat` is set
  * @property {string} [drillFormat]  the format of the field's values in the drill-down ("text": an identifier as it is)
+ * @property {Array<string | number | boolean | null>} [order]  the field's own order of items on Rows or Columns
  */
 
 /**
