@@ -10,11 +10,11 @@ templates phrased as questions: pick one under **Start** in the playground's hea
 then change the report with the tasks below. Every task says what you should see, so you know when
 you got it right.
 
-<p><a class="md-button md-button--primary" href="../playground/?data=weather" target="_blank" rel="noopener">Open the playground with the weather data</a></p>
+<p><a class="md-button md-button--primary" href="playground/?data=weather" target="_blank" rel="noopener">Open the playground with the weather data</a></p>
 
 | Data set | Rows | Fields | Source and licence |
 | --- | --- | --- | --- |
-| [Weather of 14 cities, 2023-2025](#weather) | 15,344 days | City, Country, Continent, Date, Season, Max °C, Min °C, Mean °C, Rain mm, Rain day, Sunshine h | [Weather data by Open-Meteo.com](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| [Weather of 14 cities, 2023-2025](#weather) | 15,344 days | City, Country, Continent, Date, Season, Max °C, Min °C, Mean °C, Rain mm, Rain day, Sunshine h | [Weather data by Open-Meteo.com](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); contains modified Copernicus Climate Change Service information ([attribution](#query-it-live)) |
 | [Countries, 2005-2024](#countries) | 4,340 country-years | Country, Code, Region, Income group, Year, Population, GDP (US$), CO2 (Mt) | [World Bank, World Development Indicators](https://data.worldbank.org/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [Earthquakes of magnitude 4.5+, 2025](#earthquakes) | 8,559 quakes | Time, Magnitude, Depth km, Place, Region, Latitude, Longitude, Alert, Tsunami flag | [U.S. Geological Survey](https://earthquake.usgs.gov/), public domain |
 | [Nobel Prize laureates, 1901-2026](#nobel-laureates) | 1,036 prizes | Laureate, Type, Gender, Category, Year, Share, Age at award, Country | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
@@ -47,7 +47,7 @@ years), the average of "Mean °C" coloured from cold to warm.
 
 - Read it: Reykjavik is the coldest city (‑1.4 °C in January), Dubai the hottest (35.7 °C in August).
   Cape Town, Sydney and São Paulo are warm in January and cool in July: the southern hemisphere.
-- Try this: open the menu of "Average of Mean °C" and pick **Max** instead of Average. The table now
+- Try this: open the menu of "Average of Mean °C" and pick **Maximum** instead of Average. The table now
   shows the highest daily mean of each month.
 - Try this: click **Swap rows and columns**. The months go down, the cities across.
 
@@ -55,16 +55,16 @@ years), the average of "Mean °C" coloured from cold to warm.
 
 - Read it: Cairo (11.1 hours a day), Mexico City (10.8) and Dubai (10.7). A note above the table says
   that the Grand Total covers these three cities only.
-- Try this: open the menu of "City", set **Top** to 5 and apply. Cape Town and Rome follow.
+- Try this: open the menu of "City", set **Count** under Top to 5 and press **Apply**. Cape Town and Rome follow.
 - Try this: drag "Date" to Columns. The report groups the dates by quarter on its own ("Date
   (Quarter)") since they span three years; the chip's menu switches to months or years.
 
 **How many rain days per season? (2025)** Cities on rows, seasons on columns, the sum of "Rain day",
 filtered to 2025 with the derived field "Year".
 
-- Read it: Singapore has the most rain days (286 in 2025), Cape Town the fewest (75), and half of
-  Cape Town's fall in its winter (38). Mumbai has none in winter and 90 in its summer monsoon.
-- Try this: open the menu of "Rain days" and pick **Show values as: % of row total**. Each row now
+- Read it: Singapore has the most rain days (286 in 2025), Cairo the fewest (5). Half of Cape Town's
+  75 fall in its winter (38). Mumbai has none in winter and 90 in its summer monsoon.
+- Try this: open the menu of "Rain days" and pick **Show as: % of row total**. Each row now
   adds up to 100 %: the share of a city's rain days per season.
 
 **Was 2025 warmer than 2023 in Berlin? (chart)** One line per year, filtered to Berlin.
@@ -86,6 +86,17 @@ https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&sta
 - Limits: 600 calls a minute, 5,000 an hour, 10,000 a day; a request of more than two weeks or more
   than 10 variables counts as several calls.
 - Licence: CC BY 4.0. Show "Weather data by Open-Meteo.com" with a link next to the data.
+- Underlying data: ECMWF IFS, ERA5 and ERA5-Land. For ERA5 and ERA5-Land the Copernicus Climate Data
+  Store asks for this attribution, which the playground shows too: "Contains modified Copernicus
+  Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data. Neither
+  the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus
+  information or data it contains." The citations are in
+  [SOURCES.md](https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/SOURCES.md#open-meteo-weatherjson).
+
+The JavaScript examples import the request and the mapping from
+[`sources.js`](https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/sources.js), a
+plain module without dependencies: save it next to your script, or paste the functions shown under
+each example.
 
 === "JavaScript (browser or Node)"
 
@@ -128,7 +139,7 @@ population, filtered to 2024 and to the top 3 countries of each region.
 - Read it: East Asia & Pacific comes first; its three largest countries (China 1.4B, Indonesia
   283.5M, Japan 124M) add up to 1.8B. South Asia follows with India (1.5B).
 - Try this: click the arrow before a region to collapse it; the subtotal stays.
-- Try this: remove the top 3 (the chip menu of "Country", **Clear** under Top). Every country shows,
+- Try this: remove the top 3 (the chip menu of "Country", **Clear** under Top and Count). Every country shows,
   and the region totals are the regions' populations.
 
 **What share of the world's CO2 comes from each region?** Regions on rows, five years on columns,
@@ -136,7 +147,7 @@ CO2 shown as **% of column total**.
 
 - Read it: East Asia & Pacific's share grew from 33.5 % (2005) to 45.8 % (2024); North America's fell
   from 22.6 % to 13.7 %. Every column adds up to 100 %.
-- Try this: change "Show values as" to **No calculation**. The cells show million tonnes.
+- Try this: change **Show as** to **The value itself**. The cells show million tonnes.
 - Try this: add "Population" to Values. Two values side by side under every year.
 
 **How much did GDP change from the year before?** Income groups on rows, 2019 to 2024 on columns,
@@ -151,7 +162,7 @@ GDP shown as **% difference from previous** along the columns.
 **How has population grown per income group? (chart)** Years on rows, income groups as stacked bars.
 
 - Read it: from 6.6 billion people in 2005 to 8.1 billion in 2024; the lower middle income group
-  grew the most.
+  grew the most, from 2.2 to 2.9 billion.
 - Try this: pick **Chart type: Lines**, then switch to **Table** and **Export > CSV**.
 
 ### Query it live
@@ -200,7 +211,7 @@ events in oceanic regions; it does not say that a tsunami happened.
 and the count again as **% of grand total**.
 
 - Read it: three in four quakes (75.1 %) are between 4.5 and 5; one is between 8.5 and 9.
-- Try this: open the menu of "Magnitude (by 0.5)" and set the range size to 1. The ranges become
+- Try this: open the menu of "Magnitude (by 0.5)" and set **Range size** to 1. The ranges become
   4 – 5, 5 – 6 and so on; 4 – 5 holds the same 6,430 quakes, as none is below 4.5.
 - Try this: switch to **Chart**. A bar per range; the tall first bar is the 4.5 to 5 range.
 
@@ -208,7 +219,7 @@ and the count again as **% of grand total**.
 magnitude next to it, top 10.
 
 - Read it: Russia leads with 1,870 quakes, most of them aftershocks of the magnitude 8.8 quake off
-  Kamchatka on 29 July; Indonesia (692) and Japan (538) follow.
+  Kamchatka on 29 July; Indonesia (692) and Japan (539) follow.
 - Try this: remove "Region" from Rows and add "Depth km" instead, then open its chip menu and group
   it in ranges of 100. Most quakes (7,430 of 8,559) are shallower than 100 km.
 
@@ -288,7 +299,7 @@ as **% of row total**, filtered to persons.
 **Which countries have the most laureates? (top 10)** Countries on rows, the count and the average
 age at the award, top 10.
 
-- Read it: USA 309, United Kingdom 97, Germany 86; the average laureate is about 60 years old.
+- Read it: USA 309, United Kingdom 97, Germany 86; the laureates of these ten countries were 61 years old on average when they won.
 - Try this: change the language in the header to **Deutsch**. Labels, numbers and the totals row
   ("Gesamtergebnis") follow; the data's own names stay as they are.
 
