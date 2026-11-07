@@ -170,7 +170,9 @@ export const REAL = {
             "Mean °C": { agg: "average", format: "number:1" },
             "Sunshine h": { agg: "average", format: "number:1" },
             "Rain mm": { agg: "sum", format: "number:0" },
-            "Rain day": { agg: "sum" }
+            "Rain day": { agg: "sum" },
+            // the seasons in the order of the year, offered as "Custom order" in the field's menu
+            Season: { order: ["Spring", "Summer", "Autumn", "Winter"] }
         },
         presets: [
             {

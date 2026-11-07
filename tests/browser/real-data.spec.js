@@ -289,3 +289,88 @@ test("at 390 px the page does not scroll sideways with a real data set", async (
         expect(await page.evaluate(() => document.documentElement.scrollWidth), data).toBe(390);
     }
 });
+
+test.describe("what the real data showed (#21 to #26)", () => {
+    test("ranges of years read 1900 – 1910, in English and German", async ({ page }) => {
+        for (const lang of ["en", "de"]) {
+            await open(page, `data=nobel&preset=0&lang=${lang}`);
+            await expect(page.locator(".pk-table thead th").filter({ hasText: /^1900 – 1910$/ })).toHaveCount(1);
+        }
+    });
+
+    test("a blank cell with no quakes behind it opens nothing, by click or Enter", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=2");
+        const russia = page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^Russia/ });
+        const strong = quakes.filter((x) => x.Magnitude >= 7 && x.Region === "Russia");
+        // Russia had no quake of 7 or more without a tsunami flag: that cell is blank
+        expect(strong.filter((x) => x["Tsunami flag"] === "No")).toHaveLength(0);
+        const blank = russia.locator("td").nth(0);
+        await expect(blank).toHaveText("");
+        await expect(blank).not.toHaveClass(/pk-clickable/);
+        await blank.click();
+        await blank.focus();
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("drill-count")).toHaveCount(0);
+        // the arrow keys still stop on it and move on to the count next to it, which opens
+        await page.keyboard.press("ArrowRight");
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("drill-count")).toHaveText(`${strong.length} rows`);
+    });
+
+    test("a new range size keeps the start; Starting at moves it", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await expect(page.getByTestId("bin-start")).toHaveValue("4.5");
+        await page.getByTestId("bin-size").fill("1");
+        await page.getByTestId("bin-size").press("Enter");
+        expect((await row(page, "4.5 – 5.5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5.5).length));
+        await page.getByTestId("chip-menu-Magnitude (by 1)").click();
+        await page.getByTestId("bin-start").fill("4");
+        await page.getByTestId("bin-start").press("Enter");
+        expect((await row(page, "4 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
+    });
+
+    test("at 390 px a value is visible next to two levels of long row labels", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await open(page, "data=countries&preset=0");
+        await expect(page.locator(".pk-table tbody th").filter({ hasText: "East Asia & Pacific" }).first()).toBeVisible();
+        const visible = await page.evaluate(() => {
+            const wrap = document.querySelector(".pk-table-wrap").getBoundingClientRect();
+            return [...document.querySelectorAll(".pk-table tbody td")].filter((td) => {
+                const r = td.getBoundingClientRect();
+                return td.textContent !== "" && r.left >= wrap.left && r.right <= wrap.right + 0.5;
+            }).length;
+        });
+        expect(visible).toBeGreaterThan(0);
+    });
+
+    test("one value: its name once over the months", async ({ page }) => {
+        await open(page, "data=weather&preset=0");
+        const names = page.locator(".pk-table thead tr:last-child th.pk-colHeader");
+        await expect(names).toHaveCount(1);
+        await expect(names).toHaveText("Average of Mean °C");
+        await expect(names).toHaveAttribute("colspan", "13");
+    });
+
+    test("the seasons in the order of the year, from the field's menu", async ({ page }) => {
+        await open(page, "data=weather&preset=2");
+        const seasons = () => page.locator(".pk-table thead tr:first-child th.pk-colHeader").allTextContents();
+        expect(await seasons()).toEqual(["Autumn", "Spring", "Summer", "Winter", "Grand Total"]);
+        await page.getByTestId("chip-menu-Season").click();
+        await page.getByTestId("sort-custom").click();
+        await expect.poll(seasons).toEqual(["Spring", "Summer", "Autumn", "Winter", "Grand Total"]);
+    });
+
+    test("the CSV holds a percentage as the table shows it, in percent", async ({ page }) => {
+        await open(page, "data=countries&preset=2&lang=de");
+        // 2020 against 2019 (2019, the first year, has nothing before it)
+        const shown = (await row(page, "High income"))[2];
+        await page.getByTestId("export").click();
+        const [csv] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
+        const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
+        const cell = text.split(/\r?\n/).find((l) => l.startsWith("High income;")).split(";")[2];
+        expect(cell).toMatch(/^-?\d+(,\d+)?%$/);
+        // the table rounds to one decimal: "-2,6 %"
+        expect(Number(cell.replace("%", "").replace(",", ".")).toFixed(1)).toBe(shown.replace(/\s/g, "").replace("%", "").replace(",", ".").replace("−", "-"));
+    });
+});
