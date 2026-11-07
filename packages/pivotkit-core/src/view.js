@@ -20,7 +20,12 @@ import { canonicalLocale, finite, get, isPlainObject, optionsOf } from "./util.j
 
 export const VIEW_VERSION = 1;
 
-export const CHART_TYPES = Object.freeze(["bar", "line", "area", "pie", "donut", "heatmap"]);
+/**
+ * The chart types. "auto" (the default, also when a view has no `chart.type`) leaves the choice to
+ * the data: lines when a date is on Rows, else bars (autoChartType in chart.js); any other type is
+ * one the user chose.
+ */
+export const CHART_TYPES = Object.freeze(["auto", "bar", "line", "area", "pie", "donut", "heatmap"]);
 /** The chart types drawn as slices of a circle: a pie, and a donut (a ring). */
 export const SLICE_CHART_TYPES = Object.freeze(["pie", "donut"]);
 export const DISPLAY_MODES = Object.freeze(["table", "chart"]);
@@ -101,7 +106,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" },
+        chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" },
         formatting: { locale: null, timeZone: null }
     };
 }

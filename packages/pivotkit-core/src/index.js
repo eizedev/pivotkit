@@ -53,7 +53,7 @@ export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
 export { suggestDateUnit } from "./derive.js";
 export { toGrid } from "./grid.js";
-export { toSeries, toEChartsOption } from "./chart.js";
+export { autoChartType, toSeries, toEChartsOption } from "./chart.js";
 export { createHistory } from "./history.js";
 export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor } from "./aggregators.js";
