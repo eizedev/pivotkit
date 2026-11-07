@@ -100,3 +100,18 @@ test("the React 19 check installs from its own lock file", () => {
         assert.equal(lock.packages[`node_modules/${name}`].version, pkg.devDependencies[name]);
     }
 });
+
+// The browser tests run as one job per engine and React version (each well inside its timeout): the
+// matrix covers every Playwright project on React 18 and 19, and each job runs its own project only.
+test("the browser jobs cover every engine on React 18 and 19, one engine per job", () => {
+    const ci = readFileSync(new URL(".github/workflows/ci.yml", root), "utf8");
+    const config = readFileSync(new URL("playwright.config.js", root), "utf8");
+    const projects = [...config.matchAll(/name: "(\w+)", use: \{ \.\.\.devices/g)].map((m) => m[1]);
+    assert.deepEqual(projects, ["chromium", "firefox", "webkit"]);
+    const job = ci.slice(ci.indexOf("\n  browser:"));
+    assert.match(job, /react: \["18", "19"\]/);
+    assert.match(job, new RegExp(`browser: \\[${projects.map((p) => `"${p}"`).join(", ")}\\]`));
+    assert.match(job, /npx playwright test --project=\$\{\{ matrix\.browser \}\}/);
+    const minutes = Number(/timeout-minutes: (\d+)/.exec(job)?.[1]);
+    assert.ok(minutes > 0 && minutes <= 15, `browser job timeout ${minutes} minutes`);
+});
