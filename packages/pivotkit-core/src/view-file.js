@@ -245,12 +245,16 @@ export function fromViewFile(input, options = {}) {
     let view;
     if (own(doc, "format") === VIEW_FILE_FORMAT) {
         read.envelope = true;
+        // an integer; anything else that is not missing is refused, never read as version 1: a newer
+        // or unknown version (2, 2.5, "2") could mean what version 1 does not
         const version = own(doc, "formatVersion");
-        if (typeof version === "number" && Number.isInteger(version) && version > VIEW_FILE_VERSION) {
-            return fail("newerFormat", `format version ${version} is newer than ${VIEW_FILE_VERSION}`);
-        }
-        if (version !== VIEW_FILE_VERSION) {
-            issue("formatVersion", `not ${VIEW_FILE_VERSION}; read as ${VIEW_FILE_VERSION}`);
+        if (version === undefined || version === null) {
+            issue("formatVersion", `missing; read as ${VIEW_FILE_VERSION}`);
+        } else if (version !== VIEW_FILE_VERSION) {
+            const n = typeof version === "number" ? version : typeof version === "string" && version.trim() !== "" ? Number(version) : NaN;
+            return n > VIEW_FILE_VERSION
+                ? fail("newerFormat", `format version ${JSON.stringify(version)} is newer than ${VIEW_FILE_VERSION}`)
+                : fail("notView", `format version ${JSON.stringify(version)} is not ${VIEW_FILE_VERSION}`);
         }
         view = own(doc, "view");
         read.name = plainText(own(doc, "name"), VIEW_FILE_LIMITS.name);
@@ -318,7 +322,7 @@ function readSource(raw, issue) {
             }
             source.fields = [];
             fields.slice(0, VIEW_FILE_LIMITS.fields).forEach((f, i) => {
-                const fieldName = typeof own(f, "name") === "string" ? own(f, "name").slice(0, VIEW_FILE_LIMITS.name) : "";
+                const fieldName = plainText(own(f, "name"), VIEW_FILE_LIMITS.name);
                 const type = own(f, "type");
                 if (!fieldName) {
                     issue(`source.fields[${i}]`, "no name");

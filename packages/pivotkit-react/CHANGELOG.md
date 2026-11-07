@@ -155,8 +155,13 @@ First release.
   place in the toolbar or in "More" depends on the width only) open and fold them, and a drag opens
   them while it lasts. A fold waits while a menu or popover is open, and a focus in the zones moves to
   the folded line. Labels `layout`, `showLayout` and `layoutEmpty`.
-- The result keeps a least height (240 px, 280 px narrow): a report whose box is lower than it needs
-  grows past it (an inline `min-height`), so the page scrolls.
+- The result keeps a least height (240 px, 280 px narrow): a report without `height` that needs more
+  grows past its 640 px (an inline `min-height`), so the page scrolls; with a `height` it stays inside
+  and its table scrolls. The prop `grow` ("on", "off") decides it either way.
+- The menus' panels load on demand (`dist/menus.js`, `dist/chunks/`); a failed load says so in the
+  menu with Try again, and the next try imports again.
+- A link in the page's address made for other data asks before it opens (Load anyway, Cancel, Switch),
+  as a pasted view file does; the load check takes the focus when it appears.
 - The `label` prop names the report's region landmark (default `labels.report`); several reports on
   one page need one name each.
 - A limit of pivotkit-core in place of the result says which one and what to change: too many

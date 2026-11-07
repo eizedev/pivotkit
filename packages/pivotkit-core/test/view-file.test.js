@@ -110,6 +110,13 @@ test("a newer format version or view version is refused, never read as an older 
     const newerView = fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: 1, view: { ...view, version: VIEW_VERSION + 1 } });
     assert.equal(newerView.failed, "newerView");
     assert.equal(fromViewFile({ ...view, version: VIEW_VERSION + 1 }).failed, "newerView");
+    // a format version that is not the integer 1 is never read as 1
+    for (const v of [2.5, "2", 1.5, "1.5"]) {
+        assert.equal(fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: v, view }).failed, "newerFormat", JSON.stringify(v));
+    }
+    for (const v of [0, -1, "1", "one", true, {}]) {
+        assert.equal(fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: v, view }).failed, "notView", JSON.stringify(v));
+    }
 });
 
 test("what cannot be a view says why; nothing throws", () => {
@@ -155,6 +162,8 @@ test("names, descriptions and the source are plain text, capped; a broken envelo
     const capped = fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: 1, source: { fields: Array.from({ length: VIEW_FILE_LIMITS.fields + 5 }, (_, i) => ({ name: `f${i}`, type: "string" })) }, view });
     assert.equal(capped.source?.fields?.length, VIEW_FILE_LIMITS.fields);
     assert.equal(fromViewFile({ format: VIEW_FILE_FORMAT, view }).issues[0].path, "formatVersion");
+    // field names are plain text too
+    assert.equal(fromViewFile({ format: VIEW_FILE_FORMAT, formatVersion: 1, source: { fields: [{ name: "a\u0000\nb", type: "string" }] }, view }).source?.fields?.[0].name, "a b");
 });
 
 test("with the data it says whether the view fits: same source, every field there with its type", () => {

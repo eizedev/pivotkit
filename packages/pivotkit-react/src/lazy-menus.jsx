@@ -1,7 +1,9 @@
 /*
  * The menus' panels (menus.js) on demand: loadMenus() imports them once (the report calls it after its
  * first render, so they are there before a menu opens); MenuPanel shows one, or a short "Loading…"
- * while they still load, and then moves the focus into the panel as the popover would have done.
+ * while they still load, and then moves the focus into the panel as the popover would have done. A
+ * failed load (offline for a moment, a host that did not deploy dist/menus.js and dist/chunks/) is not
+ * kept: the panel says so with "Try again", which imports once more.
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -12,22 +14,42 @@ let pending = null;
 /** @type {typeof import("./menus.js") | null} */
 let loaded = null;
 
-/** The menus' panels, imported once. */
+/** The menus' panels, imported once; a failed import is forgotten, so the next call tries again. */
 export function loadMenus() {
-    pending ??= import("./menus.js").then((m) => {
-        loaded = m;
-        return m;
-    });
+    pending ??= import("./menus.js").then(
+        (m) => {
+            loaded = m;
+            return m;
+        },
+        (error) => {
+            pending = null;
+            throw error;
+        }
+    );
     return pending;
+}
+
+/** The first option (or the element marked to take the focus) of the popover around `el`. */
+function focusFirst(el) {
+    const popover = el.closest(".pk-popover");
+    const now = activeIn(el);
+    if (popover && (now === popover || !now || !popover.contains(now))) {
+        const first = /** @type {HTMLElement | null} */ (popover.querySelector("[data-autofocus], [data-pk-option]:not([disabled]), button:not([disabled])"));
+        first?.focus({ preventScroll: true });
+    }
 }
 
 /**
  * One panel of menus.js with its props.
- * @param {{ name: "AxisMenu" | "ValueMenu" | "ChartTypePanel" | "OptionsPanel" | "ViewsPanel" | "FilterPopover" | "DrillPanel", loadingText?: string, props: Record<string, any> }} props
- *   `loadingText`: shown while loading; without it nothing is (a popover or panel of its own)
+ * @param {{ name: "AxisMenu" | "ValueMenu" | "ChartTypePanel" | "OptionsPanel" | "ViewsPanel" | "LoadCheck" | "FilterPopover" | "DrillPanel", loadingText?: string, props: Record<string, any> }} props
+ *   `loadingText`: shown while loading; without it nothing is (a popover or panel of its own).
+ *   `props.labels` gives the texts of a failed load
  */
 export function MenuPanel({ name, loadingText, props }) {
     const [mod, setMod] = useState(loaded);
+    const [failed, setFailed] = useState(false);
+    // a new try: the effect below imports again
+    const [attempt, setAttempt] = useState(0);
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
     const late = useRef(false);
     useEffect(() => {
@@ -37,31 +59,50 @@ export function MenuPanel({ name, loadingText, props }) {
         late.current = true;
         let live = true;
         loadMenus().then(
-            (m) => live && setMod(m),
-            () => undefined
+            (m) => {
+                if (live) {
+                    setFailed(false);
+                    setMod(m);
+                }
+            },
+            () => {
+                if (live) {
+                    setFailed(true);
+                }
+            }
         );
         return () => {
             live = false;
         };
-    }, [mod]);
+    }, [mod, attempt]);
     useEffect(() => {
-        // loaded after the popover opened: the focus goes to its first option, as on an open
-        const el = box.current;
-        if (!mod || !late.current || !el) {
-            return;
+        // loaded after the popover opened, or failed: the focus goes into the panel, as on an open
+        if (box.current && ((mod && late.current) || failed)) {
+            focusFirst(box.current);
         }
-        const popover = el.closest(".pk-popover");
-        const now = activeIn(el);
-        if (popover && (now === popover || !now || !popover.contains(now))) {
-            const first = /** @type {HTMLElement | null} */ (popover.querySelector("[data-autofocus], [data-pk-option]:not([disabled])"));
-            first?.focus({ preventScroll: true });
-        }
-    }, [mod]);
+    }, [mod, failed]);
     const Panel = mod ? /** @type {any} */ (mod[name]) : null;
+    const labels = props.labels;
     return (
         <div className="pk-menu-panel" ref={box}>
             {Panel ? (
                 <Panel {...props} />
+            ) : failed && labels ? (
+                <div className="pk-menu-failed" role="alert" data-testid="menu-failed">
+                    <p>{labels.menuFailed}</p>
+                    <button
+                        type="button"
+                        className="pk-btn pk-small-btn"
+                        data-autofocus=""
+                        data-testid="menu-retry"
+                        onClick={() => {
+                            setFailed(false);
+                            setAttempt((n) => n + 1);
+                        }}
+                    >
+                        {labels.tryAgain}
+                    </button>
+                </div>
             ) : loadingText ? (
                 <p className="pk-hint pk-menu-loading" role="status">
                     {loadingText}

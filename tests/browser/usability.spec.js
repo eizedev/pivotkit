@@ -187,8 +187,10 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
     for (const lang of ["en", "de"]) {
         // the playground's report is the window's width less 40 px
         await page.setViewportSize({ width: 690, height: 900 });
-        await page.goto(`?data=tickets&lang=${lang}&height=1000`);
+        // the report's default height: low for its stacked zones, so it starts folded; Layout opens them
+        await page.goto(`?data=tickets&lang=${lang}&height=640`);
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "medium");
+        await page.getByTestId("layout-summary").click();
         const zones = page.locator(".pk-zone");
         await expect.poll(() => zones.evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().x))).size)).toBe(1);
         // every chip and the swap button lie inside their zone, and no text is cut
@@ -210,6 +212,10 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
 test("where the Columns zone is too narrow, the swap button is an icon with its name and a tooltip", async ({ page }) => {
     await page.setViewportSize({ width: 340, height: 900 });
     await page.goto("?data=tickets&lang=de&height=1200");
+    // a phone's stacked zones may need more than the box: opened by hand
+    await page.locator(".pk-zones, [data-testid='layout-summary']").first().waitFor();
+    const line = page.getByTestId("layout-summary");
+    if (await line.count()) await line.click({ timeout: 3000 }).catch(() => undefined);
     const swap = page.getByTestId("swap");
     await expect(swap).toHaveAccessibleName("Zeilen und Spalten tauschen");
     await expect(swap).toHaveAttribute("title", "Zeilen und Spalten tauschen");
@@ -227,12 +233,13 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     await expect(line).toHaveText(/Rows: Team · Columns: Priority · Values: Count of Ticket/);
     await expect(line).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".pk-zone")).toHaveCount(0);
-    // the table keeps the room of its least height (the report grows past its box rather than squeeze it)
+    // more of the table in view than with the zones open (compared below)
     const rowsInView = () => page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => {
         const box = document.querySelector('[data-testid="pivot-table"]').getBoundingClientRect();
         return trs.filter((tr) => tr.getBoundingClientRect().bottom <= box.bottom + 1).length;
     });
-    expect(await rowsInView()).toBeGreaterThanOrEqual(5);
+    const rowsFolded = await rowsInView();
+    expect(rowsFolded).toBeGreaterThanOrEqual(4);
     // a field dragged from the list opens the zones while it is dragged
     const from = await page.locator('.pk-field[data-field="Channel"]').boundingBox();
     await page.mouse.move(from.x + 30, from.y + from.height / 2);
@@ -250,6 +257,7 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     await line.click();
     await expect(page.locator(".pk-zone")).toHaveCount(4);
     await expect(page.locator('[data-zone="filters"]')).toBeFocused();
+    await expect.poll(rowsInView).toBeLessThan(rowsFolded);
     // Layout in the toolbar (or in More) folds them again; the choice holds
     await page.setViewportSize({ width: 1600, height: 800 });
     const layout = page.getByTestId("layout");
@@ -405,6 +413,18 @@ test("Enlarge lets the result fill the report; Escape or the button brings the z
     await expect(page.locator(".pk-panel-slot")).toBeHidden();
     await expect(page.getByTestId("enlarged-fields")).toHaveText("Rows: Team · Columns: Priority · Values: Count of Ticket");
     expect((await result.boundingBox()).height).toBeGreaterThan(before + 100);
+    // Escape closes an open menu of the report first; the result stays enlarged
+    await page.getByTestId("options").click();
+    await expect(page.locator(".pk-popover")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".pk-popover")).toHaveCount(0);
+    await expect(page.locator(".pk-zones")).toBeHidden();
+    // an Escape outside the report (a host's dialog, say) is not the report's
+    await page.getByTestId("pg-theme").focus();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".pk-zones")).toBeHidden();
+    // inside the report it ends Enlarge
+    await enlarge.focus();
     await page.keyboard.press("Escape");
     await expect(page.locator(".pk-zones")).toBeVisible();
     await enlarge.click();
@@ -431,19 +451,35 @@ test("Full screen puts the report on the screen where the browser can", async ({
     await expect(button).toHaveAttribute("aria-pressed", "false");
 });
 
-test("a report lower than it needs grows, so the page scrolls instead of squeezing the result", async ({ page }) => {
+test("without a height of the host's (or with grow on) a report too low for itself grows, so the page scrolls", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("?data=tickets&height=360");
+    await page.goto("?data=tickets&height=360&grow=on");
     const root = page.locator(".pk-root");
     await expect(page.getByTestId("layout-summary")).toBeVisible();
-    await page.waitForTimeout(200);
-    const report = await root.boundingBox();
-    expect(report.height).toBeGreaterThan(360);
+    await expect.poll(async () => (await root.boundingBox()).height).toBeGreaterThan(360);
     const result = await page.locator(".pk-result").boundingBox();
     expect(result.height).toBeGreaterThanOrEqual(239);
-    // the status line is inside the report, not cut off
+    const report = await root.boundingBox();
     const status = await page.locator(".pk-status").boundingBox();
     expect(status.y + status.height).toBeLessThanOrEqual(report.y + report.height + 1);
+});
+
+test("a fixed 420 px card keeps the report inside: nothing is cut, the result scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("?data=tickets&height=420");
+    const root = page.locator(".pk-root");
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(root).toHaveAttribute("data-pk-fit", "contain");
+    await page.waitForTimeout(300);
+    const report = await root.boundingBox();
+    expect(Math.round(report.height)).toBe(420);
+    // the status line and the result lie inside the card; the table scrolls inside the result
+    for (const part of [".pk-status", ".pk-result", ".pk-toolbar"]) {
+        const box = await page.locator(part).boundingBox();
+        expect(box.y + box.height, part).toBeLessThanOrEqual(report.y + report.height + 1);
+    }
+    const table = page.getByTestId("pivot-table");
+    expect(await table.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
 });
 
 test("a narrow report folds its zones earlier and keeps one tip", async ({ page }) => {

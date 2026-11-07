@@ -329,7 +329,8 @@ says what is in them ("Rows: Team · Columns: Priority · Values: Count of Ticke
 shows; a click on the line, or **Layout** in the toolbar, opens them. **Layout** keeps its name and
 shows pressed while the zones are open; in **More** it is an entry with a check. A drag from the field
 list or the table opens them while it lasts. When the report's box is lower than its toolbar, its
-zones, its tips and the least height of the result need, the report grows and the page scrolls,
+zones, its tips and the least height of the result need, a report with a height of the host's (a
+card) stays inside it and its table scrolls; a report without one grows and the page scrolls,
 instead of squeezing the table into a sliver.
 
 ## Keyboard and screen readers

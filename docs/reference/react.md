@@ -33,7 +33,8 @@ Installation and a first example are in [Getting started with React](../getting-
 | `timeZone` | The zone `data` is encoded in; see pivotkit-core.<br><small>Type: `string`; default: `"UTC"`</small> |
 | `labels` | Texts merged over the language's labels, see [Localisation](localisation.md).<br><small>Type: partial labels</small> |
 | `theme` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them.<br><small>Type: `"auto"` or `"light"` or `"dark"`; default: `"auto"`</small> |
-| `height` | The report's height: a number of pixels or a CSS length (`"100%"`, `"calc(100svh - 24px)"`); the table and the field list scroll inside it. A height lower than the report needs (see [Layout](#layout)) lets it grow, so the page scrolls.<br><small>Type: `number` or `string`; default: `640`</small> |
+| `height` | The report's height: a number of pixels or a CSS length (`"100%"`, `"calc(100svh - 24px)"`); the table and the field list scroll inside it. With a height the report stays inside it; without one it grows past its default 640 px when it needs more, so the page scrolls (see [Layout](#layout)).<br><small>Type: `number` or `string`; default: `640`</small> |
+| `grow` | Whether the report grows past its height to keep the result's least height: `"on"` by default without `height`, `"off"` with one (the report stays in its box, the result scrolls). See [Layout](#layout).<br><small>Type: `"on"` or `"off"`</small> |
 | `limits` | pivotkit-core's [limits](../concepts/limits.md#limits). Data over `limits.rows`, or a layout over `limits.work`, `groups`, `pivotCells` or `cells`, shows a message in place of the result that says what to change; a field beyond `limits.axisFields` or `limits.values` is refused with a note, and a saved view with more loads the fields that fit and says so above the result.<br><small>Type: `Partial<Limits>`</small> |
 | `label` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart.<br><small>Type: `string`; default: `labels.report`</small> |
 | `className` | Added to the root element `.pk-root`.<br><small>Type: `string`</small> |
@@ -49,7 +50,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `source` | The data the report shows: its `id` and `name` go into the [view files](view-file.md) and links it shares, and a view made for another `id` asks before it is loaded. See [Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers).<br><small>Type: `{ id, name? }`</small> |
 | `schemaUrl` | The `$schema` of the [view files](view-file.md) the report writes: by default `https://pivotkit.eize.dev/schema/view-file-1.json`, a host's own copy of the schema (it ships as `pivotkit-core/schema/view-file-1.json`), or `null` / `""` to leave it out. Loading a view never depends on it.<br><small>Type: `string` or `null`</small> |
 | `sources` | The other data the host can show: a view made for one of them offers "Switch to “name” and load" (with `onSourceSwitch`).<br><small>Type: `{ id, name? }[]`</small> |
-| `onSourceSwitch` | The user chose to switch to the data a loaded view was made for: show that data and `view` (as the file has it, not normalized) as its start view.<br><small>Type: `({ source, view, name }) => void`</small> |
+| `onSourceSwitch` | The user chose to switch to the data a loaded view was made for: show that data and `view` (as the file has it, not normalized) as its start view. Switching starts the report on that data anew: Undo begins there. The view is untrusted input like any loaded view (it comes from a file or a link): hand it only to a report as its start view, which normalizes it, never run or render anything from it.<br><small>Type: `({ source, view, name }) => void`</small> |
 | `chartOptions` | Plain JSON merged over the ECharts option the report builds (objects key by key, a list entry by entry, an object given for a list into every entry); it wins over the view's chart settings. Functions, values that are not plain JSON, and the ECharts options that are markup or addresses (a string `formatter`, `rich`, `link`, `image`, the tooltip's element) are left out with a console warning. Compared by value. See [Charts](../concepts/charts.md#chartoptions-for-developers).<br><small>Type: `object`</small> |
 | `shareLink` | "Copy link" in the Views menu, and opening a shared link: `true` links to the page's own address without its query string (origin, path, fragment), a string is the base URL as it is. The view is in the URL fragment, `#pivot=` or `#pivot-<storageKey>=`, read after the first render and when only the fragment changes. See [Sharing](../concepts/sharing.md).<br><small>Type: `boolean` or `string`; default: off</small> |
 | `persistView` | `"session"`: the view is kept in `sessionStorage` (`pivotkit:view:<storageKey>`) for this tab and shown again after a reload; read after the first render; a link wins. Reset goes to the start view, which the tab then keeps.<br><small>Type: `"session"`</small> |
@@ -105,6 +106,14 @@ tip dismissed earlier goes right after hydration.
 A host may render the report on every change of its own state: `labels` and `limits` are compared by
 value, `data` by identity or by `dataKey`.
 
+## Files the package loads
+
+`dist/index.js` imports `dist/echarts.js` (on the first chart) and `dist/menus.js` (the menus' panels,
+right after the first render) by relative dynamic import, with the code they share in `dist/chunks/`.
+A bundler follows these imports with no setting. A host that copies files by hand (an import map, a
+folder of assets) deploys the whole `dist/` folder: without `dist/menus.js` and `dist/chunks/` the
+report works, but its menus say "This menu could not be loaded." with **Try again**.
+
 ## Layout
 
 The report adapts to its own width, not the window's: wide (1024 px and more) has the field list on
@@ -133,22 +142,32 @@ report gets lower while a menu or popover is open, the fold waits until it close
 zones moves to the folded line. The user's choice is state of the mounted report: it survives the
 host's renders, and it is not part of the view, so a saved view does not carry it.
 
-The result keeps a least height: 240 px, 280 px in the narrow layout. When the host's box is lower
-than the toolbar, the zones (or their line), the tips, the notes, the result's least height and the
-status line need, the report grows past it (an inline `min-height` on its root, measured after every
-render and when its size changes) and the page scrolls, instead of squeezing the table into a sliver.
-A host that must keep the report inside a fixed box gives the box at least that height, or lets the
-box's container scroll. `height` takes a number of pixels or any CSS length: `"100%"` of a parent
-with a height, `"calc(100svh - 24px)"` for a page that holds one report (the page scrolls to the
-report, the table scrolls inside it). In the narrow layout the zones sit above the table, so a report
-of a fixed 640 px leaves little room for it on a phone: give it more height there.
+The result keeps a least height: 240 px, 280 px in the narrow layout. What happens when the box is
+lower than the toolbar, the zones (or their line), the tips, the notes, the result's least height and
+the status line need depends on whether the host gives a height:
+
+- **Without `height`** (the report's 640 px default) the report grows past its 640 px (an inline
+  `min-height` on its root, measured after every render and when its size changes) and the page
+  scrolls, instead of squeezing the table into a sliver.
+- **With `height`** (a number, `"100%"`, any CSS length) the report stays inside that height: it folds
+  its zones (above), and the table scrolls inside the result, however small it gets. Nothing is cut
+  off: a card of a fixed size, such as a PowerShell Universal card, keeps the whole report.
+- `grow` decides it either way: `"on"` lets a report with a height grow too, `"off"` keeps a report
+  without one inside its 640 px. The element's attribute is `grow`.
+
+`height` takes a number of pixels or any CSS length: `"100%"` of a parent with a height,
+`"calc(100svh - 24px)"` for a page that holds one report (the page scrolls to the report, the table
+scrolls inside it). In the narrow layout the zones sit above the table, so a report of a fixed 640 px
+leaves little room for it on a phone: give it more height there.
 
 **Enlarge** and **Full screen** stand at the top right of the result. Enlarge (`aria-pressed`) lets
 the result fill the report: the field list, the zones, the tips and the notes above the result are
-hidden, the toolbar stays, and one line names the fields; Escape (a layer like a menu: the newest
-closes first) or the button restores it. Full screen calls the Fullscreen API on the report's root
+hidden, the toolbar stays, and one line names the fields; Escape inside the report or the button
+restores it. An open menu, the field drawer, a filter or the drill-down closes first on Escape; an
+Escape elsewhere on the page (a host's own dialog) is not the report's. Full screen calls the Fullscreen API on the report's root
 (in pivotkit-element the root inside the shadow root; the report reads its state from its own root's
-`fullscreenElement`); Escape leaves it. It is shown only where `document.fullscreenEnabled` and
+`fullscreenElement`); Escape leaves it: the browser keeps that key for itself in full screen, so it
+leaves full screen before an open menu would close (close a menu with a click outside it there). It is shown only where `document.fullscreenEnabled` and
 `requestFullscreen` exist, read after the first render (not, for example, in Safari on an iPhone).
 Neither is part of the view.
 

@@ -277,16 +277,24 @@ function SaveView({ labels, onSave, close }) {
 
 /**
  * Before a view for other data is applied: what does not fit, and the choices (load it anyway, let
- * the host switch to its data and load it there, or cancel). Names from the file are text only.
- * @param {{ check: { lines: string[], load: () => void, switchTo?: { name: string, run: () => void } }, labels: any, onCancel: () => void, close: () => void }} props
+ * the host switch to its data and load it there, or cancel). Names from the file are text only. It
+ * takes the focus when it appears (it replaces the form the focus was in), unless `quiet` (a link at
+ * the page's load: the focus stays where the page put it).
+ * @param {{ check: { lines: string[], load: () => void, switchTo?: { name: string, run: () => void } }, labels: any, onCancel: () => void, close: () => void, title?: string, quiet?: boolean }} props
  */
-function LoadCheck({ check, labels, onCancel, close }) {
+export function LoadCheck({ check, labels, onCancel, close, title, quiet = false }) {
     const titleId = useId();
+    const first = useRef(/** @type {HTMLButtonElement | null} */ (null));
+    useEffect(() => {
+        if (!quiet) {
+            first.current?.focus({ preventScroll: true });
+        }
+    }, [quiet]);
     return (
         <div className="pk-load-check" role="group" aria-labelledby={titleId} data-testid="load-check">
             <p id={titleId} className="pk-load-check-title">
                 <Icon name="info" size={16} />
-                <span>{labels.loadCheckTitle}</span>
+                <span>{title ?? labels.loadCheckTitle}</span>
             </p>
             <ul className="pk-load-check-lines">
                 {check.lines.map((line, i) => (
@@ -295,17 +303,18 @@ function LoadCheck({ check, labels, onCancel, close }) {
             </ul>
             <div className="pk-load-check-actions">
                 {check.switchTo ? (
-                    <button type="button" className="pk-btn pk-primary" data-autofocus="" data-testid="load-switch" onClick={() => { close(); check.switchTo?.run(); }}>
+                    <button ref={first} type="button" className="pk-btn pk-primary" data-autofocus="" data-testid="load-switch" onClick={() => { close(); check.switchTo?.run(); }}>
                         {fill(labels.switchAndLoad, { source: check.switchTo.name })}
                     </button>
                 ) : null}
-                <button type="button" className={check.switchTo ? "pk-btn" : "pk-btn pk-primary"} data-autofocus={check.switchTo ? undefined : ""} data-testid="load-anyway" onClick={() => { close(); check.load(); }}>
+                <button ref={check.switchTo ? undefined : first} type="button" className={check.switchTo ? "pk-btn" : "pk-btn pk-primary"} data-autofocus={check.switchTo ? undefined : ""} data-testid="load-anyway" onClick={() => { close(); check.load(); }}>
                     {labels.loadAnyway}
                 </button>
                 <button type="button" className="pk-btn" data-testid="load-cancel" onClick={onCancel}>
                     {labels.cancel}
                 </button>
             </div>
+            {check.switchTo ? <p className="pk-hint">{labels.switchStartsFresh}</p> : null}
         </div>
     );
 }

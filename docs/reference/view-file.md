@@ -14,7 +14,10 @@ it with `toViewFile` and `fromViewFile`.
 Its JSON Schema is published at `https://pivotkit.eize.dev/schema/view-file-1.json`
 ([view-file-1.json](../schema/view-file-1.json)) and ships in pivotkit-core as
 `pivotkit-core/schema/view-file-1.json` (the same bytes), so a host or an editor can use it without
-the website. A file names it in `$schema`; reading never depends on that key.
+the website. A file names it in `$schema`; reading never depends on that key. The schema describes the
+envelope (its keys, types and limits) and only the `version` of the view inside it: the view itself
+is checked by `normalize()` against the data, which says what it leaves out. The repository's tests
+validate real exports against the schema with a JSON Schema 2020-12 validator.
 
 ## An example
 
@@ -95,7 +98,9 @@ The functions are listed in the [pivotkit-core reference](core.md#view-files).
   `view.version`: the file is never read as an older one, since saving it again would drop what the
   newer version added. pivotkit-react says "This view comes from a newer version of pivotkit and
   cannot be read here. Update pivotkit to open it."
-- A missing or wrong `formatVersion` is read as 1 and reported; a `createdAt` that is no date, a
+- `formatVersion` is the integer 1. Any other value is refused, never read as 1: one above 1 (`2`,
+  `2.5`, `"2"`) as a newer version, any other (`0`, `"1"`, `true`) as no view file. A missing one is
+  read as 1 and reported; a `createdAt` that is no date, a
   `source.fields` entry without a name or with an unknown type are left out and reported
   (`fromViewFile`'s `issues`).
 - The text is capped before it is parsed (1,000,000 characters), names and ids at 256 characters,

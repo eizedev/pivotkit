@@ -368,6 +368,9 @@ export const en = {
     loadingReport: "Loading the report…",
     // a menu whose panel is still loading (on a slow connection, right after the page opened)
     loadingMenu: "Loading…",
+    // a menu whose panel could not be loaded (offline, or the host did not deploy dist/chunks/)
+    menuFailed: "This menu could not be loaded.",
+    tryAgain: "Try again",
     // chart display (the chart type menu)
     chartDisplay: "Display",
     valueLabels: "Value labels",
@@ -416,6 +419,9 @@ export const en = {
     loadCheckChanged: "Fields of another type here: {fields}.",
     loadAnyway: "Load anyway",
     switchAndLoad: "Switch to “{source}” and load",
+    switchStartsFresh: "Switching shows the other data with this view; Undo starts there.",
+    // a link in the page's address for other data: asked before it is opened
+    linkCheckTitle: "The link's view may not fit this data",
     viewMissingFields: "fields this data does not have ({fields})",
     viewOtherIssue: "{count} other setting",
     viewOtherIssues: "{count} other settings",
@@ -821,6 +827,8 @@ export const de = {
     dropToRemove: "Zum Entfernen hier ablegen",
     loadingReport: "Bericht wird geladen…",
     loadingMenu: "Wird geladen…",
+    menuFailed: "Dieses Menü konnte nicht geladen werden.",
+    tryAgain: "Erneut versuchen",
     chartDisplay: "Darstellung",
     valueLabels: "Wertbeschriftung",
     valueLabelNames: { auto: "Automatisch", off: "Aus", value: "Wert", percent: "Prozent", both: "Wert und Prozent" },
@@ -864,6 +872,8 @@ export const de = {
     loadCheckChanged: "Felder mit anderem Typ hier: {fields}.",
     loadAnyway: "Trotzdem laden",
     switchAndLoad: "Zu „{source}“ wechseln und laden",
+    switchStartsFresh: "Der Wechsel zeigt die anderen Daten mit dieser Ansicht; Rückgängig beginnt dort.",
+    linkCheckTitle: "Die Ansicht des Links passt vielleicht nicht zu diesen Daten",
     viewMissingFields: "Felder, die diese Daten nicht haben ({fields})",
     viewOtherIssue: "{count} weitere Einstellung",
     viewOtherIssues: "{count} weitere Einstellungen",

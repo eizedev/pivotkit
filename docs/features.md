@@ -41,7 +41,8 @@ version is [What pivotkit does](overview.md).
 - Toolbar buttons that do not fit move into More, Reset and Redo first; Table or Chart, Undo and Export always stay; which buttons are in More depends on the width only ([guide](guide.md#the-parts)).
 - A low report (below 600 px, a narrow one below 820 px) folds its zones into one line that says what is in them and shows at most one tip; Layout opens them ([layout](reference/react.md#layout)).
 - Layout keeps its name and its place; it shows pressed while the zones are open (`aria-pressed`), and in More it is an entry with a check ([guide](guide.md#small-screens)).
-- A report whose box is lower than its toolbar, zones, tips and the result's least height need grows, so the page scrolls; the result is never squeezed below 240 px (280 px narrow) ([layout](reference/react.md#layout)).
+- A report without a height of the host's, lower than its toolbar, zones, tips and the result's least height (240 px, 280 px narrow) need, grows so the page scrolls; with a height (a card) it stays inside and the table scrolls; `grow` / `grow` decides it either way ([layout](reference/react.md#layout)).
+- A menu whose code could not be loaded (offline, `dist/chunks/` not deployed) says so with Try again ([files](reference/react.md#files-the-package-loads)).
 - Enlarge, at the top right of the result: the result fills the report, the field list, zones, tips and notes step aside, one line names the fields; Escape or the button brings them back; not part of the view ([guide](guide.md#more-room-for-the-result)).
 - Full screen, next to it: the whole report on the screen (Fullscreen API, also in the web component's shadow root); Escape leaves it; not offered where the browser cannot ([guide](guide.md#more-room-for-the-result)).
 - Below 640 px of the report's own width the field list is a drawer opened with Fields in the toolbar, and menus open as sheets from the bottom ([layout](reference/react.md#layout)).
@@ -128,6 +129,7 @@ version is [What pivotkit does](overview.md).
 - A downloaded view is named `<name>.pivotkit.json` after the view's name, else the data's name, else `fileName` ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - The Share section says that a shared view holds the values chosen in its filters ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - A view made for other data (another `source.id`, fields missing or of another type) asks before it loads: Load anyway, Cancel, or Switch to its data and load (`sources`, `onSourceSwitch`) ([sharing](concepts/sharing.md#before-a-view-for-other-data-is-loaded)).
+- A link in the page's address made for other data asks the same before it opens (Load anyway, Cancel, Switch), above the result; the check takes the focus when it replaces the Load view form ([sharing](concepts/sharing.md#before-a-view-for-other-data-is-loaded)).
 - A view file of a newer format or view version is refused with "Update pivotkit to open it." ([view file format](reference/view-file.md#reading-a-view-file)).
 - An in-browser check of a view file on the documentation site, with the real pivotkit-core and no upload ([view file format](reference/view-file.md#check-a-view-file)).
 - Load view refuses a text of more than 1,000,000 characters or a file of more than 1,000,000 bytes: "This is too large for a view." ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).

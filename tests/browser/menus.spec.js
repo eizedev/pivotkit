@@ -384,6 +384,7 @@ test.describe("long menus and explanations", () => {
         await expect(page.locator('[data-testid^="setting-info-"]')).toHaveCount(0);
         await expect(page.getByTestId("total-rowSubtotals-reason")).toBeVisible();
         await page.keyboard.press("Escape");
+        await expect(page.locator(".pk-popover")).toHaveCount(0);
         await page.getByTestId("export").click();
         await expect(page.getByTestId("setting-info-exportXlsx")).toHaveCount(0);
         await page.keyboard.press("Escape");
@@ -391,7 +392,9 @@ test.describe("long menus and explanations", () => {
         await page.getByTestId("options").click();
         await page.getByTestId("show-setting-info").focus();
         await page.getByTestId("show-setting-info").press("Space");
+        await expect(page.getByTestId("show-setting-info")).toBeChecked();
         await page.keyboard.press("Escape");
+        await expect(page.locator(".pk-popover")).toHaveCount(0);
         await page.getByTestId("export").click();
         await expect(page.getByTestId("setting-info-exportCsv")).toBeVisible();
         await expect(page.getByTestId("export-csv")).toHaveText("CSV file (.csv)");

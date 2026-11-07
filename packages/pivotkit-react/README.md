@@ -93,7 +93,8 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
 | `labels` | partial labels | | Texts merged over the language's labels, see below. |
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
-| `height` | `number \| string` | `640` | The report's height, pixels or a CSS length; the table and the field list scroll inside it. A height lower than the report needs lets it grow, so the page scrolls (see Layout). |
+| `height` | `number \| string` | `640` | The report's height, pixels or a CSS length; the table and the field list scroll inside it. With a height the report stays inside it; without one it grows past 640 px when it needs more (see Layout). |
+| `grow` | `"on" \| "off"` | by `height` | Grow past the height to keep the result's least height: `"on"` without `height`, `"off"` with it. |
 | `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.work`, `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`). A field beyond `limits.axisFields` or `limits.values` is refused with a note (`zoneFull`); a saved view with more loads the fields that fit and says so above the result (`viewTrimmed`). |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
@@ -216,10 +217,10 @@ the compact layout: the zones fold into one line that says what is in them ("Row
 Priority · Values: Count of Ticket"), so the table keeps its room, and at most one tip shows. A click
 on that line, or Layout, opens them; Layout folds them again and keeps its text and its place. The
 user's choice is state of the mounted report, not part of the view. The result keeps a least height
-(240 px, 280 px narrow): when the host's box is lower than the report needs, the report grows past it
-and the page scrolls. `height` takes pixels or a CSS length (`"100%"`, `"calc(100svh - 24px)"`); a
-host that must keep the report in a fixed box gives the box enough height or lets its container
-scroll. Details: [Layout](https://pivotkit.eize.dev/reference/react/#layout).
+(240 px, 280 px narrow): without a `height` the report grows past its 640 px when it needs more and the
+page scrolls; with a `height` (pixels or a CSS length, `"100%"`, `"calc(100svh - 24px)"`) it stays
+inside it and the table scrolls; `grow` decides it either way. `dist/menus.js` and `dist/chunks/` load
+by relative dynamic import: a host that copies files by hand deploys the whole `dist/` folder. Details: [Layout](https://pivotkit.eize.dev/reference/react/#layout).
 
 ## Theming
 

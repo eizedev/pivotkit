@@ -265,8 +265,12 @@ function Report(props) {
         sources,
         onSourceSwitch,
         schemaUrl,
+        grow: growProp,
         loading = false
     } = props;
+    // past its box only without a height of the host's (or when the host asks for it): a card with a
+    // height keeps the report inside, its result scrolls
+    const grow = growProp === "on" || (growProp !== "off" && props.height === undefined);
     // the data the view is made for (the host's source), for the view files and the check before a load
     const sourceId = typeof sourceProp?.id === "string" && sourceProp.id ? sourceProp.id : undefined;
     const sourceName = typeof sourceProp?.name === "string" && sourceProp.name ? sourceProp.name : undefined;
@@ -409,7 +413,9 @@ function Report(props) {
     const [opening, setOpening] = useState(false);
     const appliedLink = useRef(/** @type {string | null} */ (null));
     // commit() is defined further down: the ref gets it after the render
-    const latest = useRef({ history, encoded, limits, labels, announce, commit: /** @type {any} */ (null), sourceId, loaded: /** @type {any} */ (null) });
+    const latest = useRef({ history, encoded, limits, labels, announce, commit: /** @type {any} */ (null), sourceId, loaded: /** @type {any} */ (null), sources, onSourceSwitch });
+    // a link for other data, waiting for the user's choice (Load anyway, Cancel, Switch)
+    const [linkCheck, setLinkCheck] = useState(/** @type {null | { lines: string[], quiet: boolean, load: () => void, switchTo?: { name: string, run: () => void } }} */ (null));
     /**
      * Opens the view of a link text; the result waits while the link module loads. At load the link is
      * where the report starts (a new history); a link opened later in the tab (only the fragment
@@ -419,7 +425,7 @@ function Report(props) {
         appliedLink.current = text;
         const now = linkNow();
         const apply = (m) => {
-            const { history: h, encoded: enc, limits: lim, labels: l, announce: say, sourceId: id, loaded: done } = latest.current;
+            const { history: h, encoded: enc, limits: lim, labels: l, announce: say, sourceId: id, loaded: done, sources: list, onSourceSwitch: switchTo } = latest.current;
             const decoded = m.decodeViewLink(text);
             // a link carries a view file (its link profile) or, made before it, a bare view
             const loaded = decoded.view ? viewFromObject(decoded.view, enc, { limits: lim, sourceId: id }) : null;
@@ -427,12 +433,30 @@ function Report(props) {
                 say(loaded?.failed === "newer" ? l.viewFailed.newer : l.viewFailed.badLink, { tone: "error" });
                 return;
             }
-            if (asStep) {
-                done(loaded, { link: true });
-            } else {
-                h.restore(loaded.view);
-                done(loaded, { link: true, restored: true });
+            const open = () => {
+                if (asStep) {
+                    done(loaded, { link: true });
+                } else {
+                    h.restore(/** @type {object} */ (loaded.view));
+                    done(loaded, { link: true, restored: true });
+                }
+            };
+            // a link made for other data asks first, as a pasted view does
+            const check = loadCheck(loaded, l, Array.isArray(list) ? list : []);
+            if (!check) {
+                open();
+                return;
             }
+            const target = check.switchTo;
+            setLinkCheck({
+                lines: check.lines,
+                quiet: !asStep,
+                load: open,
+                switchTo:
+                    target && typeof switchTo === "function"
+                        ? { name: target.name, run: () => switchTo({ source: { id: target.id, name: target.name }, view: /** @type {Record<string, unknown>} */ (loaded.file?.view ?? loaded.view), name: loaded.file?.name || undefined }) }
+                        : undefined
+            });
         };
         if (now) {
             apply(now);
@@ -542,7 +566,7 @@ function Report(props) {
     );
 
     useEffect(() => {
-        latest.current = { history, encoded, limits, labels, announce, commit, sourceId, loaded: applyLoaded };
+        latest.current = { history, encoded, limits, labels, announce, commit, sourceId, loaded: applyLoaded, sources, onSourceSwitch };
     });
 
     // the pivot, once per view
@@ -607,7 +631,7 @@ function Report(props) {
     }, []);
     // the report's least height: it grows past a host box too low for it (use-big-result.js)
     const mainRef = useRef(/** @type {HTMLDivElement | null} */ (null));
-    const fit = useFitHeight(root, mainRef);
+    const fit = useFitHeight(root, mainRef, grow);
     const big = useBigResult(root);
     // size class from the report's own width; the height class from its border box, measured before
     // the first paint, so a low report never shows its zones open for a frame. A box lower than the
@@ -867,6 +891,13 @@ function Report(props) {
 
     const onKeyDown = (e) => {
         const target = /** @type {HTMLElement} */ (e.target);
+        // Escape ends Enlarge: only inside the report (never a host dialog's key), only once no menu,
+        // drawer, filter or drill-down of the report is open (those close first, on their own Escape)
+        if (e.key === "Escape" && big.enlarged && !e.defaultPrevented && !layerOpen(layer) && !drawerOpen && !drill && !filterTarget) {
+            e.preventDefault();
+            big.setEnlarged(false);
+            return;
+        }
         if (target.closest("input, textarea, select, [contenteditable]")) {
             return;
         }
@@ -993,6 +1024,11 @@ function Report(props) {
         }
     };
 
+    // a link not opened: the same link given again (the fragment set once more) asks again
+    const cancelLink = () => {
+        appliedLink.current = null;
+        setLinkCheck(null);
+    };
     // the area above the result: what a loaded view left out, then what normalize() dropped from the view shown
     const notes = [...leftOut.map((text) => ({ path: "", text })), ...(result && !empty ? result.issues.slice(0, 20).map((i) => ({ path: i.path, text: i.message })) : [])];
     const notesKey = JSON.stringify(notes);
@@ -1008,6 +1044,7 @@ function Report(props) {
             data-pk-size={size}
             data-pk-layout={layoutFolded ? "compact" : undefined}
             data-pk-enlarged={big.enlarged ? "" : undefined}
+            data-pk-fit={grow ? undefined : "contain"}
             lang={labels.lang}
             // a named region, not <main>: the host's page has its own main landmark around the report
             role="region"
@@ -1110,6 +1147,11 @@ function Report(props) {
                                 explain={zoneSwitch.on}
                                 showInfo={fieldSwitch.on}
                             />
+                            {linkCheck ? (
+                                <div className="pk-link-check" data-testid="link-check">
+                                    <MenuPanel name="LoadCheck" props={{ check: linkCheck, labels, title: labels.linkCheckTitle, quiet: linkCheck.quiet, close: () => setLinkCheck(null), onCancel: cancelLink }} />
+                                </div>
+                            ) : null}
                             {notes.length > 0 && issuesDismissed !== notesKey ? (
                                 // what a loaded view left out and what the view asks for that this data has not:
                                 // it stays (the status note goes by itself) until it is dismissed

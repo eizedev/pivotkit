@@ -112,7 +112,7 @@ test("share-link: present is the page's address, a value a base URL, false off; 
 });
 
 test("field-info, zone-info and setting-info: on or off decide, anything else leaves it to the user", () => {
-    for (const attr of ["field-info", "zone-info", "setting-info"]) {
+    for (const attr of ["field-info", "zone-info", "setting-info", "grow"]) {
         assert.equal(fromAttribute(def(attr), " OFF "), "off");
         assert.equal(fromAttribute(def(attr), "on"), "on");
         assert.equal(fromAttribute(def(attr), "maybe"), undefined);

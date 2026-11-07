@@ -338,6 +338,17 @@ export class PivotReportElement extends Base {
         this.#write("schema-url", value);
     }
 
+    /**
+     * "on": the report grows past its height to keep the result's least height (the page scrolls);
+     * "off": it stays inside its height and the result scrolls. Unset: "on" without a height attribute.
+     */
+    get grow() {
+        return /** @type {"on" | "off" | undefined} */ (this.#read("grow"));
+    }
+    set grow(value) {
+        this.#write("grow", value);
+    }
+
     /** The name of the data shown, for people ("Sales 2026"); with source-id. */
     get sourceName() {
         return /** @type {string | undefined} */ (this.#read("source-name"));
@@ -584,6 +595,7 @@ export class PivotReportElement extends Base {
             source: this.sourceId ? { id: this.sourceId, name: this.sourceName } : undefined,
             sources: Array.isArray(v.sources) ? v.sources : undefined,
             schemaUrl: this.schemaUrl,
+            grow: this.grow,
             onSourceSwitch: this.#onSourceSwitch
         };
     }

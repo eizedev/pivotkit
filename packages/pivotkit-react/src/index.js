@@ -88,7 +88,11 @@
  * @property {string} [timeZone]  the zone `data` is encoded in (default "UTC"); see pivotkit-core
  * @property {PartialLabels} [labels]  partial labels merged over the locale's language (en, de)
  * @property {"auto" | "light" | "dark"} [theme]  "auto" follows the nearest data-theme above the report, then the system
- * @property {number | string} [height]  the report's height (default 640 px)
+ * @property {number | string} [height]  the report's height (default 640 px). Without it the report
+ *   grows past 640 px when its toolbar, zones and tips leave the result less than its least height
+ *   (the page scrolls); with it the report stays inside that height and its result scrolls
+ * @property {"on" | "off"} [grow]  whether the report grows past its height to keep the result's
+ *   least height: "on" by default without `height`, "off" with it
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [label]  the name of the report's region landmark (default the labels' `report`);
  *   several reports on one page each need their own

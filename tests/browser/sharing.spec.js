@@ -2,6 +2,8 @@
 // the skeleton, and the help switches. Every test here fails without its feature.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
+import { toViewFile } from "pivotkit-core";
+import { encodeViewLink } from "pivotkit-core/link";
 import { chips, expect, test, toolbar } from "./fixtures.js";
 
 /** A switch of a menu (its checkbox is drawn as a track): by keyboard, as a person reaches it. */
@@ -369,4 +371,63 @@ test.describe("the view file check of the documentation site", () => {
         await page.getByTestId("vf-check").click();
         await expect(out).toContainText("Valid");
     });
+});
+
+test.describe("a link for other data and a load check by keyboard", () => {
+    test("a link made for another data set asks before it opens: Cancel keeps the start, Load anyway opens it", async ({ page }) => {
+        const view = { rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] };
+        const link = encodeViewLink(toViewFile(view, { source: { id: "weather" } }, { link: true }));
+        await page.goto(`?data=sales#pivot-playground=${link}`);
+        const check = page.getByTestId("link-check");
+        await expect(check).toContainText("It was made for “Weather of 14 cities, 2023-2025”.");
+        // not opened yet: the start view stays
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+        await check.getByTestId("load-cancel").click();
+        await expect(check).toHaveCount(0);
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+        // the same in the same tab (only the fragment changes): Load anyway opens it as a step
+        await page.evaluate(() => {
+            location.hash = "";
+        });
+        await page.evaluate((text) => {
+            location.hash = `pivot-playground=${text}`;
+        }, link);
+        await expect(page.getByTestId("link-check")).toBeVisible();
+        await page.getByTestId("link-check").getByTestId("load-anyway").click();
+        await expect.poll(() => chips(page, "rows")).toEqual([]);
+        await expect(page.getByTestId("view-issues")).toContainText("“City”");
+    });
+
+    test("the load check takes the focus when it replaces the form", async ({ page, browserName }) => {
+        await page.goto("?data=sales");
+        await toolbar(page, "views");
+        await page.getByTestId("load-view").click();
+        await page.getByTestId("load-view-text").fill(JSON.stringify({ format: "pivotkit-view", formatVersion: 1, source: { id: "weather" }, view: { rows: ["City"] } }));
+        await page.getByTestId("load-view-apply").click();
+        // the form the focus was in is gone: the check's first choice has it
+        await expect(page.getByTestId("load-switch")).toBeFocused();
+        // Safari's Tab skips buttons unless the user turns that on
+        if (browserName !== "webkit") {
+            await page.keyboard.press("Tab");
+            await expect(page.getByTestId("load-anyway")).toBeFocused();
+        }
+    });
+});
+
+// a host that does not deploy the menus' chunk, or a connection that drops: the panel says so and tries again
+plain("a menu whose code cannot be loaded says so and loads on Try again", async ({ page }) => {
+    let blocked = true;
+    await page.route(/\/chunks\/menus-[^/]+\.js$/, (route) => (blocked ? route.abort() : route.continue()));
+    await page.goto("?data=sales");
+    await page.getByTestId("options").click();
+    const failed = page.getByTestId("menu-failed");
+    await expect(failed).toContainText("This menu could not be loaded.");
+    await expect(page.getByTestId("menu-retry")).toBeFocused();
+    blocked = false;
+    await page.getByTestId("menu-retry").click();
+    await expect(page.getByTestId("show-tips")).toBeVisible();
+    // loaded once, every menu has it
+    await page.keyboard.press("Escape");
+    await page.getByTestId("chip-menu-Region").click();
+    await expect(page.getByTestId("open-filter")).toBeVisible();
 });

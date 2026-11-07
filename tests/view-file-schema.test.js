@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import { Validator } from "@cfworker/json-schema";
 import { VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, encode, normalize, toViewFile } from "pivotkit-core";
 
 const file = new URL("../packages/pivotkit-core/schema/view-file-1.json", import.meta.url);
@@ -48,4 +49,36 @@ test("every key of a written view file is described by the schema, the required 
     for (const f of file.source.fields) {
         assert.ok(schema.properties.source.properties.fields.items.properties.type.enum.includes(f.type), f.type);
     }
+});
+
+// the schema checks the envelope (the view inside it is normalize()'s, which says what it drops):
+// real exports pass a JSON Schema 2020-12 validator, broken envelopes do not
+test("real exports validate against the schema (JSON Schema 2020-12), broken envelopes do not", () => {
+    const validator = new Validator(schema, "2020-12", false);
+    const data = encode([{ Region: "North", Units: 3, Date: "2026-01-01", Ok: true }]);
+    const view = normalize({ rows: ["Region", "Ok"], cols: ["Date"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Region", type: "exclude", items: ["South"] }] }, data).view;
+    const files = [
+        toViewFile(view, { name: "Units", description: "d", createdAt: new Date(Date.UTC(2026, 10, 7)), generator: { name: "pivotkit-react", version: "0.1.0" }, source: { id: "s", name: "S" }, data }),
+        toViewFile(view),
+        toViewFile(view, { schemaUrl: null }),
+        toViewFile(view, { source: { id: "s" } }, { link: true })
+    ];
+    for (const file of files) {
+        const result = validator.validate(JSON.parse(JSON.stringify(file)));
+        assert.equal(result.valid, true, JSON.stringify(result.errors.slice(0, 3)));
+    }
+    const good = JSON.parse(JSON.stringify(files[0]));
+    for (const broken of [
+        { ...good, format: "other" },
+        { ...good, formatVersion: 2 },
+        { ...good, name: "x".repeat(VIEW_FILE_LIMITS.name + 1) },
+        { ...good, createdAt: "yesterday" },
+        { ...good, source: { fields: [{ name: "A", type: "money" }] } },
+        { ...good, view: [] },
+        (({ view: _view, ...rest }) => rest)(good)
+    ]) {
+        assert.equal(validator.validate(broken).valid, false, JSON.stringify(broken).slice(0, 120));
+    }
+    // an unknown key is fine: the envelope is open
+    assert.equal(validator.validate({ ...good, later: 1 }).valid, true);
 });

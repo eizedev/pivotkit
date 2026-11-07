@@ -5,6 +5,6 @@
  */
 
 export { AxisMenu, ValueMenu } from "./chip-menus.jsx";
-export { ChartTypePanel, OptionsPanel, ViewsPanel } from "./toolbar-panels.jsx";
+export { ChartTypePanel, LoadCheck, OptionsPanel, ViewsPanel } from "./toolbar-panels.jsx";
 export { FilterPopover } from "./filter.jsx";
 export { DrillPanel } from "./drill-panel.jsx";

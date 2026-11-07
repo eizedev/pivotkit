@@ -71,8 +71,10 @@ function writeView(view, sourceId) {
     const hash = [kept, text ? `${LINK_PARAM}=${text}` : ""].filter(Boolean).join("&");
     history.replaceState(history.state, "", `${location.pathname}${location.search}${hash ? `#${hash}` : ""}`);
 }
-// ?height=480: the report at a fixed height in px, as a host card gives it (else the window's height)
+// ?height=480: the report at a fixed height in px, as a host card gives it (else the window's height);
+// ?grow=on lets it grow past that height when it needs more (the default of a report without a height)
 const fixedHeight = /^\d{3,4}$/.test(params.get("height") ?? "") ? Number(params.get("height")) : null;
+const grow = params.get("grow") === "on" ? "on" : undefined;
 
 function stored(key, fallback) {
     try {
@@ -279,6 +281,7 @@ function App() {
                 onCellClick={(c) => setLastClick({ row: c.row, col: c.col, count: c.count })}
                 locale={lang === "de" ? "de-DE" : "en-US"}
                 height={fixedHeight ?? "calc(100vh - var(--pg-head-h))"}
+                grow={grow}
                 className={fixedHeight ? "pg-fixed" : undefined}
                 fileName={`pivotkit-${dataset}`}
             />

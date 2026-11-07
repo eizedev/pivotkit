@@ -45,11 +45,18 @@ fields this data does not have or has with another type, the panel asks before a
 data does not have: “City”.", "Fields of another type here: “Units”."), and the choices **Load
 anyway**, **Cancel** (back to the form) and, when the host can show that data (its `sources` and
 `onSourceSwitch`), **Switch to “Weather” and load**: the host shows the other data and the view on it.
-Names from the file are shown as text only.
+Names from the file are shown as text only. The check takes the focus when it appears.
+
+A link does the same: one in the page's address made for another source, or using fields this data
+does not have, opens only after the same question, shown above the result ("The link's view may not
+fit this data"): **Load anyway**, **Cancel** (the report keeps its start view; the same link given
+again asks again) and **Switch to … and load** where the host allows. A link at the page's load does
+not take the focus; one opened later in the tab is a step Undo takes back once loaded.
 
 ### After the load
 
-The load is one step that Undo takes back. A note in the status line says it was loaded, with Undo,
+The load is one step that Undo takes back. Switching to other data and loading there starts the report
+on that data anew (a new history: Undo begins there); the check says so under its button. A note in the status line says it was loaded, with Undo,
 and goes after a few seconds: "View loaded", or "View loaded; some parts did not fit this data" (a
 warning, not an error). What was left out stays in the collapsible area above the result, "Some parts
 of the view were not used", until it is dismissed with its × or another view is loaded ("fields this
@@ -63,7 +70,9 @@ stay in the status line until they are closed.
 links the report shares, and a view made for another id asks before it is loaded. `sources` lists the
 other data the host can show; with `onSourceSwitch` the check offers to switch to one of them and gets
 `{ source, view, name }`: the view as the file has it (made for that data, not normalized here), to
-pass as the start view of the report on it.
+pass as the start view of the report on it. That view is untrusted input like any loaded view (it
+comes from a file or a link): hand it only to a report, which normalizes it, and never run or render
+anything from it.
 
 ```jsx
 <PivotReport

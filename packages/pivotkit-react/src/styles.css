@@ -1535,10 +1535,12 @@
 }
 
 .pk-result {
+    /* the result's least height: the report grows to keep it (use-big-result.js), or folds its zones */
+    --pk-result-least: 240px;
     position: relative;
     display: flex;
     flex: 1;
-    min-height: 240px;
+    min-height: var(--pk-result-least);
     overflow: hidden;
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
@@ -2316,7 +2318,13 @@
 }
 
 .pk-root[data-pk-size="narrow"] .pk-result {
-    min-height: 280px;
+    --pk-result-least: 280px;
+}
+
+/* a height of the host's (a card): the report stays in its box, the result scrolls inside it */
+.pk-root[data-pk-fit="contain"],
+.pk-root[data-pk-fit="contain"] .pk-result {
+    min-height: 0;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-drill {
@@ -2726,4 +2734,22 @@
 
 .pk-menu-loading {
     padding: 8px;
+}
+
+/* a menu that could not be loaded: what happened and "Try again" */
+.pk-menu-failed {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    color: var(--pk-danger);
+}
+
+/* a link for other data, above the result until the user decides */
+.pk-link-check {
+    border: 1px solid var(--pk-accent);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface-2);
+    padding: 4px;
 }

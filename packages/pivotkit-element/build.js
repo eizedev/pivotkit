@@ -120,7 +120,7 @@ async function licenses(metafile) {
  * link 7 (6.7 measured). The menus' panels (the chip menus, chart type, Options, Views, the filter
  * and the drill-down) load on demand, right after the report's first render (pivotkit-react's
  * menus.js, issue #34): with the view files, the explanations, Enlarge and Full screen the first load
- * is 150.4 measured, the menus 9.2 (budget 11).
+ * is 151.2 measured, the menus 9.3 (budget 11).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 11 };

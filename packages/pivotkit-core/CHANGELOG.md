@@ -15,6 +15,7 @@ First release.
 - The view file's JSON Schema ships in the package: `pivotkit-core/schema/view-file-1.json` (the same
   bytes the site publishes at https://pivotkit.eize.dev/schema/view-file-1.json); `toViewFile`'s
   `meta.schemaUrl` writes another `$schema` (a host's own copy) or, `null`, none.
+  `formatVersion` must be the integer 1: any other value is refused, never read as 1.
 - The view file: `toViewFile(view, meta, { link })`, `fromViewFile(input, { data, sourceId })`,
   `viewFileText`, `viewFileName`, `viewFileFields` and `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`,
   `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS`: a view with its name, description, source (id, name, the
