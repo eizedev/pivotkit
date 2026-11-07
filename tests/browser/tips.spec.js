@@ -112,7 +112,7 @@ test("after several changes the tip offers to save the view as a template", asyn
     await page.getByTestId("swap").click();
     await expect(page.getByTestId("tip-saveTemplate")).toBeVisible();
     await page.getByTestId("tip-action-saveTemplate").click();
-    await expect(page.getByTestId("template-name")).toBeVisible();
+    await expect(page.getByTestId("saved-view-name")).toBeVisible();
 });
 
 test("after the first drag: Undo and the menus", async ({ page }) => {

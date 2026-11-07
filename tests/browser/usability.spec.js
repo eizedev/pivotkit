@@ -78,10 +78,19 @@ test("a chip on a phone keeps its badges whole and a few characters of the field
     // the chips with the longest badges of the end-of-life templates: "Top 10" and a sort, "15 of 45"
     for (const [preset, field] of [[1, "Product"], [0, "EOL date (Year)"]]) {
         for (const [width, lang] of [[390, "en"], [320, "en"], [390, "de"], [320, "de"]]) {
-            await page.setViewportSize({ width, height: 844 });
-            await page.goto(`?data=endoflife&preset=${preset}&lang=${lang}`);
+            // a report high enough for its stacked zones open, in a window that holds it (no page
+            // scrollbar takes width from the chips)
+            await page.setViewportSize({ width, height: 1600 });
+            await page.goto(`?data=endoflife&preset=${preset}&lang=${lang}&height=1200`);
+            // the stacked zones of a phone need more room than some of these reports have: opened by hand
+            await page.locator(".pk-zones, [data-testid='layout-summary']").first().waitFor();
+            const line = page.getByTestId("layout-summary");
+            // it may open by itself while the report measures itself: then the click is not needed
+            if (await line.count()) await line.click({ timeout: 3000 }).catch(() => undefined);
+            await expect(page.locator(".pk-zone").first()).toBeVisible();
             const text = page.locator(`[data-zone="rows"] .pk-chip[data-chip="${field}"] .pk-chip-label .pk-btn-text`);
-            const box = await text.evaluate((el) => {
+            // measured once the layout has settled (the report measures its least height after the first render)
+            const measure = () => text.evaluate((el) => {
                 const t = el.getBoundingClientRect();
                 const chip = el.closest(".pk-chip").getBoundingClientRect();
                 const badges = [...el.querySelectorAll(".pk-badge-text")];
@@ -93,7 +102,7 @@ test("a chip on a phone keeps its badges whole and a few characters of the field
                     name: name.clientWidth >= 20 && (name.scrollWidth <= name.clientWidth || getComputedStyle(name).textOverflow === "ellipsis")
                 };
             });
-            expect(box, `preset ${preset}, ${width} px, ${lang}`).toEqual({ badges: true, inChip: true, name: true });
+            await expect.poll(measure, { message: `preset ${preset}, ${width} px, ${lang}` }).toEqual({ badges: true, inChip: true, name: true });
         }
     }
 });
@@ -178,7 +187,7 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
     for (const lang of ["en", "de"]) {
         // the playground's report is the window's width less 40 px
         await page.setViewportSize({ width: 690, height: 900 });
-        await page.goto(`?data=tickets&lang=${lang}&height=640`);
+        await page.goto(`?data=tickets&lang=${lang}&height=1000`);
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "medium");
         const zones = page.locator(".pk-zone");
         await expect.poll(() => zones.evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().x))).size)).toBe(1);
@@ -200,7 +209,7 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
 
 test("where the Columns zone is too narrow, the swap button is an icon with its name and a tooltip", async ({ page }) => {
     await page.setViewportSize({ width: 340, height: 900 });
-    await page.goto("?data=tickets&lang=de&height=700");
+    await page.goto("?data=tickets&lang=de&height=1200");
     const swap = page.getByTestId("swap");
     await expect(swap).toHaveAccessibleName("Zeilen und Spalten tauschen");
     await expect(swap).toHaveAttribute("title", "Zeilen und Spalten tauschen");
@@ -218,12 +227,12 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     await expect(line).toHaveText(/Rows: Team · Columns: Priority · Values: Count of Ticket/);
     await expect(line).toHaveAttribute("aria-expanded", "false");
     await expect(page.locator(".pk-zone")).toHaveCount(0);
-    // more of the table in view than with the zones open
-    const rowsFolded = await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => {
+    // the table keeps the room of its least height (the report grows past its box rather than squeeze it)
+    const rowsInView = () => page.locator('[data-testid="pivot-table"] tbody tr[data-r]').evaluateAll((trs) => {
         const box = document.querySelector('[data-testid="pivot-table"]').getBoundingClientRect();
         return trs.filter((tr) => tr.getBoundingClientRect().bottom <= box.bottom + 1).length;
     });
-    expect(rowsFolded).toBeGreaterThanOrEqual(6);
+    expect(await rowsInView()).toBeGreaterThanOrEqual(5);
     // a field dragged from the list opens the zones while it is dragged
     const from = await page.locator('.pk-field[data-field="Channel"]').boundingBox();
     await page.mouse.move(from.x + 30, from.y + from.height / 2);
@@ -244,27 +253,51 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     // Layout in the toolbar (or in More) folds them again; the choice holds
     await page.setViewportSize({ width: 1600, height: 800 });
     const layout = page.getByTestId("layout");
-    await expect(layout).toHaveAttribute("aria-expanded", "true");
+    await expect(layout).toHaveAttribute("aria-pressed", "true");
     // from the keyboard (WebKit does not focus a button on a click): the focus stays on the button
     await layout.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("layout-summary")).toBeVisible();
-    await expect(layout).toHaveAttribute("aria-expanded", "false");
+    await expect(layout).toHaveAttribute("aria-pressed", "false");
     await expect(layout).toBeFocused();
 });
 
-test("folded, Layout stays a button of the toolbar, also where the rest moves into More", async ({ page }) => {
-    await page.setViewportSize({ width: 1000, height: 800 });
-    await page.goto("?data=tickets&height=520");
-    await expect(page.getByTestId("layout-summary")).toBeVisible();
-    await expect(page.getByTestId("more")).toBeVisible();
-    await expect(page.getByTestId("layout")).toBeVisible();
-    await expect(page.getByTestId("layout")).toHaveAttribute("aria-expanded", "false");
+test("Layout keeps its text and its place: pressed or not, it never moves into More by itself", async ({ page }) => {
+    for (const width of [1600, 1000]) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto("?data=tickets&height=700");
+        const where = async () => ((await page.getByTestId("layout").count()) ? "toolbar" : "more");
+        const before = await where();
+        const flip = async () => {
+            if (before === "toolbar") {
+                await page.getByTestId("layout").click();
+            } else {
+                await page.getByTestId("more").click();
+                await page.getByTestId("more-layout").click();
+            }
+        };
+        await flip();
+        await expect(page.getByTestId("layout-summary")).toBeVisible();
+        expect(await where(), `at ${width} px`).toBe(before);
+        if (before === "toolbar") {
+            await expect(page.getByTestId("layout")).toHaveText("Layout");
+            await expect(page.getByTestId("layout")).toHaveAttribute("aria-pressed", "false");
+        } else {
+            // in More it is the same entry, checked or not
+            await page.getByTestId("more").click();
+            await expect(page.getByTestId("more-layout")).toHaveText("Layout");
+            await expect(page.getByTestId("more-layout")).toHaveAttribute("aria-checked", "false");
+            await page.keyboard.press("Escape");
+        }
+        await flip();
+        await expect(page.locator(".pk-zone")).toHaveCount(4);
+        expect(await where()).toBe(before);
+    }
 });
 
 test("a report that gets lower while a chip menu is open folds after the menu closes; the focus goes to the line", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("?data=tickets&height=640");
+    await page.goto("?data=tickets&height=720");
     const root = page.locator(".pk-root");
     await page.getByTestId("chip-menu-Team").click();
     const menu = page.locator(".pk-popover");
@@ -282,7 +315,7 @@ test("a report that gets lower while a chip menu is open folds after the menu cl
 });
 
 test("a tall report starts with its zones open", async ({ page }) => {
-    await page.goto("?data=tickets&height=640");
+    await page.goto("?data=tickets&height=720");
     await expect(page.locator(".pk-zone")).toHaveCount(4);
     await expect(page.getByTestId("layout-summary")).toHaveCount(0);
 });
@@ -356,4 +389,66 @@ test("chart tooltips show labels from the data as text: category, series and sli
     await expect.poll(() => chips(page, "cols")).toEqual(["Label"]);
     expect(await hoverUntil(across, "<img src=x onerror")).toBe(true);
     await markupShown();
+});
+
+test("Enlarge lets the result fill the report; Escape or the button brings the zones back", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("?data=tickets");
+    const result = page.locator(".pk-result");
+    const before = (await result.boundingBox()).height;
+    const enlarge = page.getByTestId("enlarge");
+    await expect(enlarge).toHaveAttribute("aria-pressed", "false");
+    await enlarge.click();
+    await expect(enlarge).toHaveAttribute("aria-pressed", "true");
+    await expect(enlarge).toHaveText("Enlarge");
+    await expect(page.locator(".pk-zones")).toBeHidden();
+    await expect(page.locator(".pk-panel-slot")).toBeHidden();
+    await expect(page.getByTestId("enlarged-fields")).toHaveText("Rows: Team · Columns: Priority · Values: Count of Ticket");
+    expect((await result.boundingBox()).height).toBeGreaterThan(before + 100);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".pk-zones")).toBeVisible();
+    await enlarge.click();
+    await enlarge.click();
+    await expect(page.locator(".pk-zones")).toBeVisible();
+    // not part of the view: the address keeps no trace of it
+    expect(page.url()).not.toContain("enlarge");
+});
+
+test("Full screen puts the report on the screen where the browser can", async ({ page, browserName }) => {
+    await page.goto("?data=tickets");
+    const can = await page.evaluate(() => document.fullscreenEnabled && typeof HTMLElement.prototype.requestFullscreen === "function");
+    const button = page.getByTestId("full-screen");
+    if (!can) {
+        await expect(button).toHaveCount(0);
+        return;
+    }
+    test.skip(browserName === "webkit", "WebKit in the test container grants no full screen (headless)");
+    await button.click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.classList.contains("pk-root") ?? false)).toBe(true);
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await button.click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+    await expect(button).toHaveAttribute("aria-pressed", "false");
+});
+
+test("a report lower than it needs grows, so the page scrolls instead of squeezing the result", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("?data=tickets&height=360");
+    const root = page.locator(".pk-root");
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await page.waitForTimeout(200);
+    const report = await root.boundingBox();
+    expect(report.height).toBeGreaterThan(360);
+    const result = await page.locator(".pk-result").boundingBox();
+    expect(result.height).toBeGreaterThanOrEqual(239);
+    // the status line is inside the report, not cut off
+    const status = await page.locator(".pk-status").boundingBox();
+    expect(status.y + status.height).toBeLessThanOrEqual(report.y + report.height + 1);
+});
+
+test("a narrow report folds its zones earlier and keeps one tip", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 700 });
+    await page.goto("?data=tickets&height=700");
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    expect(await page.locator(".pk-tip").count()).toBeLessThanOrEqual(1);
 });

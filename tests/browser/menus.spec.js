@@ -67,6 +67,8 @@ test.describe("clearing text fields", () => {
     test("a value's name: × gives the default name back at once, as one undo step", async ({ page }) => {
         await page.goto("?data=sales");
         await page.getByTestId("chip-menu-Sum of Revenue").click();
+        // Name is a folded section of the menu (remembered open from here on)
+        await page.getByTestId("section-name").click();
         await page.getByTestId("value-name").fill("Money");
         await page.getByTestId("value-name").press("Enter");
         await expect.poll(() => chips(page, "values")).toEqual(["Money"]);
@@ -101,8 +103,8 @@ test.describe("clearing text fields", () => {
 
     test("Escape in a menu's field empties it first; the next Escape closes the menu", async ({ page }) => {
         await page.goto("?data=sales");
-        await toolbar(page, "templates");
-        const name = page.getByTestId("template-name");
+        await toolbar(page, "views");
+        const name = page.getByTestId("saved-view-name");
         await name.fill("Mine");
         await name.press("Escape");
         await expect(name).toHaveValue("");
@@ -315,9 +317,86 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         // the playground writes the view into its address on every change
         const conditions = async () => {
             const text = new URL(page.url()).hash.match(/pivot-playground=([^&]+)/)?.[1] ?? "";
-            const { view: shown } = decodeViewLink(text);
+            // the link carries a view file's link profile: the view is inside it
+            const shown = /** @type {any} */ (decodeViewLink(text).view)?.view;
             return (shown?.filters ?? []).filter((f) => f.type === "value").map((f) => [f.by.field, f.op, f.value]);
         };
         await expect.poll(conditions).toEqual([["Revenue", ">", 2], ["Units", "<", 1e12]]);
+    });
+});
+
+test.describe("long menus and explanations", () => {
+    test("sections fold, the frequent ones open; the choice is remembered with the tips", async ({ page }) => {
+        await page.goto("?data=sales");
+        await page.getByTestId("chip-menu-Sum of Revenue").click();
+        // Summarize by and Show as open; Number format folded, its options hidden
+        await expect(page.getByTestId("section-summarize")).toHaveAttribute("aria-expanded", "true");
+        await expect(page.getByTestId("section-showAs")).toHaveAttribute("aria-expanded", "true");
+        await expect(page.getByTestId("section-format")).toHaveAttribute("aria-expanded", "false");
+        await expect(page.getByTestId("format-currency")).toBeHidden();
+        await page.getByTestId("section-format").click();
+        await expect(page.getByTestId("format-currency")).toBeVisible();
+        // the rarely used formats sit behind "More formats"
+        await expect(page.getByTestId("format-bytes")).toBeHidden();
+        await page.keyboard.press("Escape");
+        // remembered (the playground's storageKey): open again after a reload
+        await page.reload();
+        await page.getByTestId("chip-menu-Sum of Revenue").click();
+        await expect(page.getByTestId("section-format")).toHaveAttribute("aria-expanded", "true");
+    });
+
+    test("the wheel over a menu never scrolls the table or the page behind it", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 520 });
+        await page.goto("?data=countries&height=1200");
+        await page.getByTestId("options").click();
+        const menu = page.locator(".pk-popover");
+        await expect(menu).toBeVisible();
+        const before = await page.evaluate(() => window.scrollY);
+        const box = await menu.boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        // far past the end of the menu's own scroll
+        for (let i = 0; i < 6; i++) {
+            await page.mouse.wheel(0, 600);
+        }
+        await page.waitForTimeout(300);
+        expect(await page.evaluate(() => window.scrollY)).toBe(before);
+        await expect(menu).toBeVisible();
+    });
+
+    test("an i explains a setting; Show explanations hides them all; a switch that changes nothing says why", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await page.getByTestId("options").click();
+        // one row field, one column field: subtotals would change nothing
+        await expect(page.getByTestId("total-rowSubtotals")).toBeDisabled();
+        await expect(page.getByTestId("total-rowSubtotals-reason")).toHaveText("Needs two or more fields in Rows.");
+        await expect(page.getByTestId("total-colSubtotals-reason")).toHaveText("Needs two or more fields in Columns.");
+        await expect(page.getByTestId("total-grandTotalRow")).toBeEnabled();
+        await expect(page.getByTestId("total-grandTotalRow-reason")).toHaveCount(0);
+        // the i: a description on focus, named after its setting
+        const info = page.getByTestId("setting-info-rowSubtotals");
+        await expect(info).toHaveAccessibleName("About Row subtotals");
+        await info.focus();
+        await expect(page.locator(".pk-info-pop")).toContainText("a total row under each group");
+        // Show explanations off: no i anywhere, the reason stays (it is state)
+        const show = page.getByTestId("show-setting-info");
+        await show.focus();
+        await show.press("Space");
+        await expect(page.locator('[data-testid^="setting-info-"]')).toHaveCount(0);
+        await expect(page.getByTestId("total-rowSubtotals-reason")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await page.getByTestId("export").click();
+        await expect(page.getByTestId("setting-info-exportXlsx")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        // back on: the export formats explain themselves with an i, one line each
+        await page.getByTestId("options").click();
+        await page.getByTestId("show-setting-info").focus();
+        await page.getByTestId("show-setting-info").press("Space");
+        await page.keyboard.press("Escape");
+        await page.getByTestId("export").click();
+        await expect(page.getByTestId("setting-info-exportCsv")).toBeVisible();
+        await expect(page.getByTestId("export-csv")).toHaveText("CSV file (.csv)");
+        // the image needs the chart: disabled, with the reason
+        await expect(page.getByTestId("export-png")).toBeDisabled();
+        await expect(page.getByTestId("export-png")).toContainText("Switch to Chart first.");
     });
 });

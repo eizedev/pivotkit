@@ -50,7 +50,7 @@ export async function tableRows(page) {
 
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "reset", "options", "templates", "chart-type").
+ * all buttons. `testId` is the button's ("redo", "reset", "options", "views", "chart-type").
  */
 export async function toolbar(page, testId) {
     const own = page.getByTestId(testId);

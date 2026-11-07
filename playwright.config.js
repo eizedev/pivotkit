@@ -3,6 +3,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.PLAYGROUND_PORT ?? 4173);
+const DESKTOP = { width: 1280, height: 900 };
 
 export default defineConfig({
     testDir: "tests/browser",
@@ -17,10 +18,12 @@ export default defineConfig({
         trace: "retain-on-failure",
         acceptDownloads: true
     },
+    // a desktop window with room for the report's open zones (the playground's report is the window
+    // less its header); the tests of low and narrow reports set their own size
     projects: [
-        { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-        { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-        { name: "webkit", use: { ...devices["Desktop Safari"] } }
+        { name: "chromium", use: { ...devices["Desktop Chrome"], viewport: DESKTOP } },
+        { name: "firefox", use: { ...devices["Desktop Firefox"], viewport: DESKTOP } },
+        { name: "webkit", use: { ...devices["Desktop Safari"], viewport: DESKTOP } }
     ],
     webServer: {
         command: `node examples/playground/serve.js ${port}`,

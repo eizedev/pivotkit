@@ -563,7 +563,9 @@ test.describe("what the real data showed (#21 to #26)", () => {
         expect(cell).toBe(shown.replace(/\s/g, "").replace("−", "-"));
         // the XLSX keeps every decimal
         await page.getByTestId("export").click();
-        await expect(page.getByTestId("export-xlsx")).toContainText("Jede Zahl mit allen Nachkommastellen");
+        // its "i" says so: on hover, the explanation of the format
+        await page.getByTestId("setting-info-exportXlsx").hover();
+        await expect(page.locator(".pk-info-pop")).toContainText("Jede Zahl mit allen Nachkommastellen");
         const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
         const full = (await readSheet(await readFile(await xlsx.path()))).find((r) => r[0] === "High income")[2];
         expect(full.toFixed(3)).toBe((Number(cell.replace("%", "").replace(",", ".")) / 100).toFixed(3));

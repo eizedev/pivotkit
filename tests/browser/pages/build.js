@@ -1,7 +1,7 @@
 // Builds the test pages into examples/playground/dist/pages/, next to the playground the browser
 // tests serve:
 //
-// - host.html: pivotkit-react's own dist/index.js (and the dist/echarts.js it loads), not bundled, with React, ReactDOM, dnd-kit,
+// - host.html: pivotkit-react's own dist/index.js (and the dist/echarts.js and menus.js it loads), not bundled, with React, ReactDOM, dnd-kit,
 //   pivotkit-core and ECharts as separate ES modules from an import map, as a host page that provides
 //   React itself (PowerShell Universal) loads it. The page renders again every 200 ms with a new copy
 //   of the rows and a controlled view.
@@ -83,9 +83,12 @@ await esbuild.build({
     chunkNames: "chunks/[name]-[hash]",
     plugins: [reactShims]
 });
-// the package as it ships: dist/index.js, the echarts.js it loads next to it, dist/styles.css, not rebuilt
+// the package as it ships: dist/index.js, the echarts.js and menus.js it loads next to it with the
+// chunks they share (dist/chunks/), dist/styles.css, not rebuilt
 await copyFile(`${root}packages/pivotkit-react/dist/index.js`, `${out}pivotkit-react.js`);
 await copyFile(`${root}packages/pivotkit-react/dist/echarts.js`, `${out}echarts.js`);
+await copyFile(`${root}packages/pivotkit-react/dist/menus.js`, `${out}menus.js`);
+await cp(`${root}packages/pivotkit-react/dist/chunks/`, `${out}chunks/`, { recursive: true });
 await copyFile(`${root}packages/pivotkit-react/dist/styles.css`, `${out}pivotkit-react.css`);
 // the host page's own code: every package left to the import map
 await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { host: "host.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "pivotkit-react", "react/jsx-runtime"] });

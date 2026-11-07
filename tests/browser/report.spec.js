@@ -56,6 +56,8 @@ test.describe("building a report", () => {
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
 
         await page.getByTestId("chip-menu-Region").click();
+        // Move is a folded section of the menu
+        await page.getByTestId("section-move").click();
         await page.getByTestId("move-cols").click();
         await expect.poll(() => chips(page, "cols")).toEqual(["Region"]);
     });
@@ -102,6 +104,7 @@ test.describe("building a report", () => {
         await expect(page.locator('[data-testid="pivot-table"] thead')).toContainText("% of grand total of Revenue");
         expect((await tableRows(page)).at(-1).at(-1)).toBe("100.0%");
         await page.getByTestId("chip-menu-% of grand total of Revenue").click();
+        await page.getByTestId("section-highlight").click();
         await page.getByTestId("cond-colorScale").click();
         await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
     });
@@ -211,43 +214,43 @@ test.describe("filter, table and chart", () => {
     test("templates: save, load, and delete only what the host allows, after asking", async ({ page }) => {
         await page.goto("?data=tickets");
         await page.getByRole("button", { name: "Remove Priority" }).click();
-        await toolbar(page, "templates");
-        await page.getByTestId("template-name").fill("Teams only");
+        await toolbar(page, "views");
+        await page.getByTestId("saved-view-name").fill("Teams only");
         await page.getByRole("button", { name: "Save", exact: true }).click();
         // "saved" comes when the host's promise is kept
-        await expect(page.locator(".pk-toasts")).toContainText("Template “Teams only” saved");
-        await toolbar(page, "templates");
+        await expect(page.locator(".pk-toasts")).toContainText("View “Teams only” saved");
+        await toolbar(page, "views");
         // a preset of the host has no delete button
         await expect(page.getByRole("button", { name: "Delete Open work per team (chart)" })).toHaveCount(0);
-        await page.getByTestId("template-Open work per team (chart)").click();
+        await page.getByTestId("saved-view-Open work per team (chart)").click();
         await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
-        await toolbar(page, "templates");
-        await page.getByTestId("template-Teams only").click();
+        await toolbar(page, "views");
+        await page.getByTestId("saved-view-Teams only").click();
         await expect.poll(() => chips(page, "cols")).toEqual([]);
-        await toolbar(page, "templates");
+        await toolbar(page, "views");
         await page.getByRole("button", { name: "Delete Teams only" }).click();
         // asked in place, no window.confirm (a dialog would fail the test through the console check)
         await expect(page.getByText("Delete “Teams only”?")).toBeVisible();
         await page.getByTestId("confirm-delete").click();
-        await expect(page.getByTestId("template-Teams only")).toHaveCount(0);
-        await expect(page.locator(".pk-toasts")).toContainText("Template “Teams only” deleted");
+        await expect(page.getByTestId("saved-view-Teams only")).toHaveCount(0);
+        await expect(page.locator(".pk-toasts")).toContainText("View “Teams only” deleted");
     });
 
     test("templates with the same name: every entry is shown, a delete asks for that entry only", async ({ page }) => {
         await page.goto("?data=tickets");
         const preset = "Tickets per team and priority";
-        await toolbar(page, "templates");
-        await page.getByTestId("template-name").fill(preset);
+        await toolbar(page, "views");
+        await page.getByTestId("saved-view-name").fill(preset);
         await page.getByRole("button", { name: "Save", exact: true }).click();
-        await expect(page.locator(".pk-toasts")).toContainText(`Template “${preset}” saved`);
-        await toolbar(page, "templates");
+        await expect(page.locator(".pk-toasts")).toContainText(`View “${preset}” saved`);
+        await toolbar(page, "views");
         // the host's preset and the user's template of the same name, one delete button (the saved one)
-        await expect(page.getByTestId(`template-${preset}`)).toHaveCount(2);
+        await expect(page.getByTestId(`saved-view-${preset}`)).toHaveCount(2);
         await page.getByRole("button", { name: `Delete ${preset}` }).click();
         await expect(page.getByTestId("confirm-delete")).toHaveCount(1);
-        await expect(page.getByTestId(`template-${preset}`)).toHaveCount(1);
+        await expect(page.getByTestId(`saved-view-${preset}`)).toHaveCount(1);
         await page.getByTestId("confirm-delete").click();
-        await expect(page.getByTestId(`template-${preset}`)).toHaveCount(1);
+        await expect(page.getByTestId(`saved-view-${preset}`)).toHaveCount(1);
         await expect(page.getByRole("button", { name: `Delete ${preset}` })).toHaveCount(0);
     });
 });
@@ -295,6 +298,8 @@ test.describe("theme, language and layout", () => {
         await page.goto("?data=sales");
         await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
         await expect(page.locator(".pk-panel")).toBeHidden();
+        // a phone's report starts with its zones folded into one line; opened, they stack
+        await page.getByTestId("layout-summary").click();
         const boxes = await page.locator(".pk-zone").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().x));
         expect(new Set(boxes.map(Math.round)).size).toBe(1);
         await page.getByTestId("show-fields").click();

@@ -76,11 +76,28 @@ test.describe("keyboard and focus", () => {
         await expect(panel).toBeHidden();
     });
 
-    test("a menu closes with Tab, a popover when the focus leaves it, both with Escape from outside", async ({ page }) => {
+    test("a menu closes with Tab, a popover when the focus leaves it, both with Escape from outside", async ({ page, browserName }) => {
         await page.goto("?data=sales");
+        // a field's menu in the field list is a menu: Tab leaves it
+        await page.getByTestId("field-menu-Region").click();
+        await expect(page.locator(".pk-popover [data-pk-option]").first()).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(page.locator(".pk-popover")).toHaveCount(0);
+        await expect(page.getByTestId("field-menu-Region")).toBeFocused();
+        // Export is a dialog (Tab reaches the "i" of each format): Escape closes it
         await page.getByTestId("export").click();
         await expect(page.getByTestId("export-xlsx")).toBeFocused();
-        await page.keyboard.press("Tab");
+        if (browserName === "webkit") {
+            // Safari's Tab skips buttons unless the user turns that on: the "i" is focused directly
+            await page.getByTestId("setting-info-exportXlsx").focus();
+        } else {
+            await page.keyboard.press("Tab");
+        }
+        await expect(page.getByTestId("setting-info-exportXlsx")).toBeFocused();
+        // the first Escape closes the explanation the focus opened, the next the dialog
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".pk-info-pop")).toHaveCount(0);
+        await page.keyboard.press("Escape");
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await expect(page.getByTestId("export")).toBeFocused();
         await page.getByTestId("chip-menu-Region").click();

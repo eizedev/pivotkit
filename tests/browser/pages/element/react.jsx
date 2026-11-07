@@ -39,7 +39,7 @@ function Host() {
             <button type="button" data-testid="host-button" onClick={() => setCount((n) => n + 100)}>
                 Host button
             </button>
-            <pivot-report ref={report} height="560" theme="light" {...props19} />
+            <pivot-report ref={report} height="720" theme="light" {...props19} />
         </>
     );
 }

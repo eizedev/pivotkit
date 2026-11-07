@@ -45,7 +45,7 @@ test.describe("two elements on one page", () => {
         await expect(page.locator("#tickets .pk-root")).toHaveAttribute("data-pk-theme", "dark");
         await expect(page.locator("#tickets")).toHaveAttribute("data-pk-theme", "dark");
         await expect(page.locator("#sales .pk-root")).toHaveAttribute("data-pk-theme", "light");
-        await expect(page.locator("#sales .pk-root")).toHaveCSS("height", "560px");
+        await expect(page.locator("#sales .pk-root")).toHaveCSS("height", "720px");
         expect(await zone(page, "#sales", "rows")).toEqual(["Region", "Country"]);
         expect(await zone(page, "#tickets", "rows")).toEqual(["Team"]);
     });
@@ -87,30 +87,30 @@ test.describe("two elements on one page", () => {
     test("templates: save and delete wait for the page's promise; a rejected one shows its message", async ({ page }) => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");
-        await tool(sales, "templates");
-        await sales.getByTestId("template-name").fill("Mine");
+        await tool(sales, "views");
+        await sales.getByTestId("saved-view-name").fill("Mine");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
-        await expect(sales.locator(".pk-toasts")).toContainText("Template “Mine” saved");
+        await expect(sales.locator(".pk-toasts")).toContainText("View “Mine” saved");
         const [save] = await events(page, "pivot-template-save");
         expect(save.detail.name).toBe("Mine");
         expect(save.detail.view.rows).toEqual(["Region", "Country"]);
-        await tool(sales, "templates");
-        await sales.getByTestId("template-name").fill("fail");
+        await tool(sales, "views");
+        await sales.getByTestId("saved-view-name").fill("fail");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("the server said no");
-        await tool(sales, "templates");
+        await tool(sales, "views");
         await sales.getByRole("button", { name: "Delete Mine" }).click();
         await sales.getByTestId("confirm-delete").click();
-        await expect(sales.locator(".pk-toasts")).toContainText("Template “Mine” deleted");
-        await tool(sales, "templates");
-        await expect(sales.getByTestId("template-Mine")).toHaveCount(0);
+        await expect(sales.locator(".pk-toasts")).toContainText("View “Mine” deleted");
+        await tool(sales, "views");
+        await expect(sales.getByTestId("saved-view-Mine")).toHaveCount(0);
         expect((await events(page, "pivot-template-delete"))[0].detail.name).toBe("Mine");
         // the other element has no save-templates: its Templates menu offers no save
         await page.keyboard.press("Escape");
         const tickets = page.locator("#tickets");
-        await tool(tickets, "templates");
+        await tool(tickets, "views");
         await expect(tickets.locator(".pk-popover")).toHaveCount(1);
-        await expect(tickets.getByTestId("template-name")).toHaveCount(0);
+        await expect(tickets.getByTestId("saved-view-name")).toHaveCount(0);
     });
 
     test("export: the page sees every file; preventDefault() keeps it from the download", async ({ page }) => {
@@ -141,11 +141,11 @@ test.describe("lifecycle", () => {
         await expect(page.locator("#early .pk-root")).toBeVisible();
         expect(await page.evaluate(() => [window.__definedBefore, window.__definedAfter])).toEqual([false, true]);
         await expect(page.locator("#early .pk-root")).toHaveAttribute("data-pk-theme", "dark");
-        await expect(page.locator("#early .pk-root")).toHaveCSS("height", "600px");
+        await expect(page.locator("#early .pk-root")).toHaveCSS("height", "720px");
         expect(await zone(page, "#early", "rows")).toEqual(["Channel"]);
         // the setters run: the reflected attributes are there
         await expect(page.locator("#early")).toHaveAttribute("theme", "dark");
-        await expect(page.locator("#early")).toHaveAttribute("height", "600");
+        await expect(page.locator("#early")).toHaveAttribute("height", "720");
     });
 
     test("a start view set after the element is in the page starts the report on it; the same one again changes nothing", async ({ page }) => {
@@ -492,8 +492,8 @@ test("the element example renders, and its theme switch themes the report", asyn
     await page.locator("pivot-report").getByRole("button", { name: "Remove Country" }).click();
     await expect(page.locator("#last-event")).toHaveText("View: rows Region; 1 value(s).");
     // the chart template groups the dates by month: the categories read "Jan 2025", not "Jan 1, 2025"
-    await tool(page.locator("pivot-report"), "templates");
-    await page.locator("pivot-report").getByTestId("template-Units per month (chart)").click();
+    await tool(page.locator("pivot-report"), "views");
+    await page.locator("pivot-report").getByTestId("saved-view-Units per month (chart)").click();
     const summary = page.locator('pivot-report [data-testid="chart-summary"]');
     await expect(summary).toContainText(/\b[A-Z][a-z]{2} 202[56]\b/);
     await expect(summary).not.toContainText(/[A-Z][a-z]{2} \d{1,2}, 202/);
