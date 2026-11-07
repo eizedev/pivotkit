@@ -36,7 +36,8 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ field: string, type: string, items?: any[], op?: string, value?: any, value2?: number,
  *   count?: number, bottom?: boolean, by?: ValueRef }} FilterSpec
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
- * @typedef {{ field: string, by: "label" | "value", order: "asc" | "desc", value?: ValueRef }} SortSpec
+ * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
+ *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
  * @property {number} version
@@ -322,6 +323,31 @@ function filtersSection(raw, view, ctx) {
     });
 }
 
+const SORT_BY = Object.freeze(["label", "value", "custom"]);
+
+/** The items of a custom sort order: converted to the field's type, each once, at most `limits.items`. */
+function customItems(items, f, path, ctx) {
+    if (!Array.isArray(items)) {
+        ctx.issue(path, "a custom order needs a list of items");
+        return null;
+    }
+    if (items.length > ctx.limits.items) {
+        ctx.issue(path, `more than ${ctx.limits.items} items`);
+    }
+    const seen = new Set();
+    const out = [];
+    for (const item of items.slice(0, ctx.limits.items)) {
+        const converted = itemFor(f.type, item);
+        if (converted === undefined) {
+            ctx.issue(path, `item ${JSON.stringify(item)} does not fit the ${f.type} field`);
+        } else if (!seen.has(converted)) {
+            seen.add(converted);
+            out.push(converted);
+        }
+    }
+    return out;
+}
+
 /** Sort, one entry per field. */
 function sortSection(raw, view, ctx) {
     const seen = new Set();
@@ -330,8 +356,15 @@ function sortSection(raw, view, ctx) {
         if (!f || seen.has(f.name)) {
             return ctx.issue(path, f ? `"${f.name}" is sorted twice` : `unknown field ${JSON.stringify(get(s, "field"))}`);
         }
-        const by = oneOf(get(s, "by"), ["label", "value"], "label");
+        const by = oneOf(get(s, "by"), SORT_BY, "label");
         const spec = { field: f.name, by, order: oneOf(get(s, "order"), ["asc", "desc"], "asc") };
+        if (by === "custom") {
+            const items = customItems(get(s, "items"), f, `${path}.items`, ctx);
+            if (!items) {
+                return;
+            }
+            spec.items = items;
+        }
         if (by === "value") {
             const ref = get(s, "value") === undefined ? ctx.defaultRef(view) : ctx.valueRef(get(s, "value"), `${path}.value`);
             if (!ref) {

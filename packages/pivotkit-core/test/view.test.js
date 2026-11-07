@@ -246,3 +246,18 @@ test("fuzz: normalize never throws, its output is valid and normalizes to itself
         assert.doesNotThrow(() => toGrid(computePivot(data, input)));
     }
 });
+
+test("a custom sort order: listed items first in their order, the rest by label, blank last", () => {
+    const sorted = (sort) => {
+        const r = computePivot(data, { rows: ["Region"], values: [{ agg: "count" }], sort: [{ field: "Region", ...sort }] });
+        return r.rowRoot.children.map((n) => n.key);
+    };
+    assert.deepEqual(sorted({ by: "custom", items: ["West", "North"] }), ["West", "North", "South", null]);
+    assert.deepEqual(sorted({ by: "custom", order: "desc", items: ["West", "North"] }), ["North", "West", "South", null]);
+    // an item the data does not have is kept in the view and changes nothing
+    assert.deepEqual(sorted({ by: "custom", items: ["Nowhere", "South"] }), ["South", "North", "West", null]);
+    const n = normalize({ rows: ["Units"], sort: [{ field: "Units", by: "custom", items: [5, "3", "x", 5] }] }, data);
+    assert.deepEqual(n.view.sort, [{ field: "Units", by: "custom", order: "asc", items: [5, 3] }]);
+    assert.deepEqual(n.issues.map((i) => i.path), ["sort[0].items"]);
+    assert.deepEqual(validate({ rows: ["Region"], sort: [{ field: "Region", by: "custom" }] }, data).errors.map((e) => e.path), ["sort[0].items"]);
+});

@@ -12,6 +12,7 @@
  */
 
 import { expect } from "./errors.js";
+import { parseFormat } from "./format.js";
 import { isGrid } from "./grid.js";
 import { numberFormat } from "./intl.js";
 import { DEFAULT_LOCALE, MS_PER_DAY, pad, optionsOf } from "./util.js";
@@ -62,8 +63,24 @@ function plainNumber(v, mark) {
 }
 
 /**
- * The grid as CSV text. Values are written as plain numbers with the locale's decimal mark, dates as
- * ISO dates; labels of merged row headers are repeated on every row so each line stands on its own.
+ * A value cell's number: a percent as the table shows it, in percent with a "%" ("-2.56435492186162%",
+ * which spreadsheets read back as the fraction), any other number plain.
+ * @param {number} v
+ * @param {string | undefined} format  the cell's format
+ * @param {string} mark  decimal mark
+ */
+function numberText(v, format, mark) {
+    const name = parseFormat(format)?.name;
+    if (name === "percent") {
+        return `${plainNumber(v * 100, mark)}%`;
+    }
+    return name === "percent100" ? `${plainNumber(v, mark)}%` : plainNumber(v, mark);
+}
+
+/**
+ * The grid as CSV text. Values are written as plain numbers with the locale's decimal mark (a percent
+ * with "%", in the unit the table shows), dates as ISO dates; labels of merged row headers are
+ * repeated on every row so each line stands on its own.
  * @param {import("./grid.js").Grid} grid  from toGrid(); its locale decides the separator and decimal mark
  * @param {{ separator?: string, repeatLabels?: boolean }} [options]
  * @returns {string}
@@ -105,7 +122,7 @@ export function toCsv(grid, options) {
                     return "";
                 }
                 if (source.kind === "value" && typeof source.value === "number" && Number.isFinite(source.value)) {
-                    return source.valueType === "date" ? isoOf(source.value) : plainNumber(source.value, mark);
+                    return source.valueType === "date" ? isoOf(source.value) : numberText(source.value, source.format, mark);
                 }
                 return quote(source.text);
             })

@@ -58,6 +58,7 @@ import { normalize } from "./view.js";
  * @property {Int32Array} colLeafOf
  * @property {(row: PivotNode, col: PivotNode, valueIndex: number) => number | string | null} value  raw aggregate
  * @property {(row: PivotNode, col: PivotNode, valueIndex: number) => number | string | null} display  after show-as
+ * @property {(row: PivotNode, col: PivotNode) => boolean} hasRows  whether any source row is behind a cell
  * @property {(axis: "rows" | "cols", node: PivotNode, labels?: Partial<import("./labels.js").Labels>) => string} label
  */
 
@@ -150,8 +151,9 @@ function indexCells(rows, rowTree, colTree, maxCells) {
 }
 
 /**
- * Aggregates every measure over the cells; the value of a cell is read once, on demand.
- * @returns {(rowNode: PivotNode, colNode: PivotNode, measure: number) => number | string | null}
+ * Aggregates every measure over the cells; the value of a cell is read once, on demand. `has` tells
+ * whether any row is behind a cell.
+ * @returns {{ value: (rowNode: PivotNode, colNode: PivotNode, measure: number) => number | string | null, has: (rowNode: PivotNode, colNode: PivotNode) => boolean }}
  */
 function aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, maxCells) {
     const nCol = colTree.nodes.length;
@@ -169,7 +171,9 @@ function aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree
     }
     const UNSET = Symbol("unset");
     const memo = measures.map(() => new Array(nCells).fill(UNSET));
-    return (rowNode, colNode, m) => {
+    // without rows the grand total cell exists anyway (indexCells), but nothing is behind it
+    const has = (rowNode, colNode) => rows.length > 0 && cellIndex.has(rowNode.id * nCol + colNode.id);
+    const value = (rowNode, colNode, m) => {
         const cell = cellIndex.get(rowNode.id * nCol + colNode.id);
         if (cell === undefined) {
             return null;
@@ -180,9 +184,10 @@ function aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree
         }
         return v;
     };
+    return { value, has };
 }
 
-/** Sorts the children of every node: by label (natural order, blank last) or by a value, per field. */
+/** Sorts the children of every node: by label (natural order, blank last), by a value or in a custom order, per field. */
 function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
     const walk = (node) => {
         if (node.children.length === 0) {
@@ -203,7 +208,19 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
             }
             return (ra - rb) * dir;
         };
-        if (spec.by === "value") {
+        if (spec.by === "custom") {
+            // listed items first in the list's order, the rest after them by label; blank last
+            const place = new Map(spec.items.map((item, i) => [item, i]));
+            const listed = (n) => (place.has(n.key) ? place.get(n.key) : Infinity);
+            node.children.sort((a, b) => {
+                const pa = listed(a);
+                const pb = listed(b);
+                if (pa === Infinity && pb === Infinity) {
+                    return byLabel(a, b);
+                }
+                return pa === pb ? 0 : pa === Infinity ? 1 : pb === Infinity ? -1 : (pa - pb) * dir;
+            });
+        } else if (spec.by === "value") {
             const vals = new Map(node.children.map((c) => [c, valueOfNode(c, spec.value)]));
             node.children.sort((a, b) => {
                 const va = vals.get(a);
@@ -301,7 +318,7 @@ export function computePivot(data, viewInput, options) {
     const rowTree = { ...buildTree(rowColumns, rows, { max: limits.groups, used: 0 }), depth: rowColumns.length };
     const colTree = { ...buildTree(colColumns, rows, { max: limits.groups, used: rowTree.nodes.length }), depth: colColumns.length };
 
-    const measureValue = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, limits.pivotCells);
+    const { value: measureValue, has: hasRows } = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, limits.pivotCells);
     const num = (v) => (typeof v === "number" ? v : null);
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));
@@ -357,6 +374,7 @@ export function computePivot(data, viewInput, options) {
         colLeafOf: colTree.leafOf,
         value,
         display,
+        hasRows,
         label: (axis, node, labels = DEFAULT_LABELS) => {
             if (!node.parent) {
                 return labels.grandTotal ?? DEFAULT_LABELS.grandTotal;

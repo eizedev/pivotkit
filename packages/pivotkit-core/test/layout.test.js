@@ -45,6 +45,18 @@ test("column subtotals and the grand total column, with merged headers", () => {
     assert.ok(g.merges.some((m) => m.row === 0 && m.col === 1 && m.colSpan === 8));
 });
 
+test("a single value's name is one header cell over all of its columns", () => {
+    const g = toGrid(computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] }), { locale: "en-US" });
+    const names = g.rows[g.headerRows - 1];
+    assert.deepEqual(names.map((c) => (c ? c.text : null)), ["Region", "Sum of Units", null, null]);
+    assert.equal(names[1].colSpan, 3);
+    assert.equal(names[1].valueIndex, 0);
+    assert.ok(g.merges.some((m) => m.row === g.headerRows - 1 && m.col === 1 && m.colSpan === 3));
+    // two values keep a name per column
+    const two = toGrid(computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }, { agg: "count" }] }), { locale: "en-US" });
+    assert.deepEqual(two.rows[1].slice(1, 3).map((c) => c.text), ["Sum of Units", "Count"]);
+});
+
 test("a collapsed group shows its total in one row", () => {
     const view = { ...base, collapsed: { rows: [["South"], [null]] } };
     const g = toGrid(computePivot(data, view), { locale: "en-US" });

@@ -3,7 +3,7 @@
  * labels, subtotals and grand totals, formatted text next to the raw value, toggles for collapsing
  * groups and conditional-formatting ratios. The layout is Excel's tabular form: one header column
  * per row field, one header row per column field (its name in the corner), then a header row with
- * the value names and the row field names.
+ * the value names and the row field names. A single value's name is one cell over all its columns.
  *
  * The UI renders rows[r][c]; a null entry is covered by a merged cell above or to the left of it.
  */
@@ -31,6 +31,8 @@ import { decimalsOf, hexToRgb, resolveLocale, optionsOf } from "./util.js";
  * @property {any[]} [rowPath]
  * @property {any[]} [colPath]
  * @property {number} [valueIndex]
+ * @property {boolean} [hasRows]  value cells: whether any source row is behind the cell (a blank
+ *   cell of a combination without data has none; nothing to drill into)
  * @property {{ axis: "rows" | "cols", path: any[], collapsed: boolean }} [toggle]
  * @property {{ scale?: number, bar?: number, color: string | null }} [style]  conditional formatting
  */
@@ -284,19 +286,26 @@ function headerRows(g) {
             }
         }
     }
+    // one value: its name once, over all of its columns, instead of in each of them
+    const single = view.values.length === 1;
     g.dataColumns.forEach(({ line, vi }, j) => {
         const c = k + j;
         for (let level = 0; level < view.cols.length; level++) {
             header[level][c] = labelCell(g, "cols", line, level);
         }
-        header[h - 1][c] = {
+        /** @type {LabelCell} */
+        const cell = {
             text: vi >= 0 ? g.names[vi] : "",
             value: null,
             kind: "colHeader",
-            total: totalOf(line.kind),
+            total: single ? 0 : totalOf(line.kind),
             valueIndex: vi >= 0 ? vi : undefined,
-            colPath: line.node.path
+            colPath: single ? [] : line.node.path
         };
+        if (single) {
+            cell.mergeKey = "value";
+        }
+        header[h - 1][c] = cell;
     });
     return header;
 }
@@ -314,8 +323,9 @@ function bodyRows(g, rowLines) {
         }
         g.dataColumns.forEach(({ line: col, vi }, j) => {
             const total = /** @type {0 | 1 | 2} */ (Math.max(totalOf(kind), totalOf(col.kind)));
+            const hasRows = result.hasRows(node, col.node);
             if (vi < 0) {
-                row[k + j] = { text: "", value: null, kind: "value", total, rowPath: node.path, colPath: col.node.path };
+                row[k + j] = { text: "", value: null, kind: "value", total, rowPath: node.path, colPath: col.node.path, hasRows };
                 return;
             }
             const v = result.display(node, col.node, vi);
@@ -328,7 +338,8 @@ function bodyRows(g, rowLines) {
                 format: g.formats[vi],
                 rowPath: node.path,
                 colPath: col.node.path,
-                valueIndex: vi
+                valueIndex: vi,
+                hasRows
             };
         });
         return row;
