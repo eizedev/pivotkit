@@ -11,7 +11,7 @@ pivotkit's code is MIT licensed; these data files are not code and keep the lice
 
 | File | Rows | Source | Licence | Attribution |
 | --- | --- | --- | --- | --- |
-| `weather.json` | 15,344 | [Open-Meteo](https://open-meteo.com/) Historical Weather API (ERA5 and other reanalysis models, "best match") | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | "Weather data by Open-Meteo.com", linked to open-meteo.com, next to the data |
+| `weather.json` | 15,344 | [Open-Meteo](https://open-meteo.com/) Historical Weather API ("best match": ECMWF IFS, ERA5, ERA5-Land) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | "Weather data by Open-Meteo.com", linked to open-meteo.com, next to the data, and the Copernicus attribution below |
 | `countries.json` | 4,340 | [World Bank](https://data.worldbank.org/), World Development Indicators | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | "World Bank, World Development Indicators" |
 | `earthquakes.json` | 8,559 | [U.S. Geological Survey](https://earthquake.usgs.gov/), ANSS Comprehensive Earthquake Catalog (ComCat) | U.S. public domain | "U.S. Geological Survey" (credit asked for, not required) |
 | `nobel.json` | 1,036 | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), api.nobelprize.org 2.1 | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | "Nobel Prize Outreach, api.nobelprize.org" (citing the source is encouraged) |
@@ -51,6 +51,25 @@ an index into `dicts`; `unpack()` in `sources.js` turns it back into an array of
   one city are about 80). The script waits 10 seconds between cities.
 - Licence: [CC BY 4.0](https://open-meteo.com/en/licence); the attribution is shown next to the data
   in the playground's header.
+- Underlying data: Open-Meteo's "best match" combines ECMWF IFS, ERA5 and ERA5-Land
+  ([documentation](https://open-meteo.com/en/docs/historical-weather-api)). ERA5 and ERA5-Land come
+  from the Copernicus Climate Change Service (C3S), licensed
+  [CC BY 4.0](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels) in the
+  Climate Data Store since 2 July 2025; ECMWF's open data is CC BY 4.0 as well
+  ([ECMWF open data](https://www.ecmwf.int/en/forecasts/datasets/open-data)). The Climate Data Store
+  asks users to attribute the Copernicus programme with this text, which the playground shows under
+  the Open-Meteo credit and the documentation repeats:
+
+  > Contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land),
+  > and ECMWF IFS data. Neither the European Commission nor ECMWF is responsible for any use that may
+  > be made of the Copernicus information or data it contains.
+
+  The years are those of the two catalogue entries the Climate Data Store gives for its citation:
+  Copernicus Climate Change Service (2023): ERA5 hourly data on single levels from 1940 to present,
+  C3S Climate Data Store (CDS), DOI [10.24381/cds.adbb2d47](https://doi.org/10.24381/cds.adbb2d47);
+  Copernicus Climate Change Service (2019): ERA5-Land hourly data from 1950 to present, C3S CDS, DOI
+  [10.24381/cds.e2161bac](https://doi.org/10.24381/cds.e2161bac). Accessed through Open-Meteo on
+  2026-11-07.
 - The free API is for non-commercial use only. This snapshot was fetched once for the documentation of
   an open-source project without ads; if you query Open-Meteo from a commercial product, you need
   their commercial plan.

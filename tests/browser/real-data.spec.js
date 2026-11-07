@@ -275,7 +275,11 @@ test("each real data set names its source and licence next to the data", async (
         await open(page, `data=${data}`);
         await expect(page.getByTestId("pg-source")).toContainText(text);
         await expect(page.getByTestId("pg-source").getByRole("link", { name: licence })).toBeVisible();
+        // the weather data also credits the Copernicus programme (ERA5, ERA5-Land), as the Climate Data Store asks
+        await expect(page.getByTestId("pg-credit")).toHaveCount(data === "weather" ? 1 : 0);
     }
+    await open(page, "data=weather");
+    await expect(page.getByTestId("pg-credit")).toContainText("Contains modified Copernicus Climate Change Service information");
 });
 
 test("at 390 px the page does not scroll sideways with a real data set", async ({ page }) => {

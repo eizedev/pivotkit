@@ -8,7 +8,9 @@
 Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), templates as
 JSON, native Excel export; as a JavaScript core, a React component and a web component.
 
-![The pivot report: field list, the Filters, Columns, Rows and Values zones, and a table of revenue by region, country and category with subtotals](docs/assets/screenshots/report-light.png)
+![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
+
+<sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
 
 | | |
 | --- | --- |
@@ -92,3 +94,7 @@ Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
 ## License
 
 [MIT](LICENSE). Charts are drawn with [Apache ECharts](https://echarts.apache.org/) (Apache-2.0).
+The images in `assets/` and `docs/assets/icon.svg` (icon, header, social preview) are made in
+[eizedev/brand](https://github.com/eizedev/brand) and licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The playground's real data sets keep the
+licences of their sources, listed in [examples/playground/data/SOURCES.md](examples/playground/data/SOURCES.md).

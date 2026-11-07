@@ -116,7 +116,7 @@ function App() {
     const ms = (k) => (timings[k] === undefined ? "–" : `${timings[k].toFixed(1)} ms`);
 
     return (
-        <div className="pg">
+        <div className={source?.credit ? "pg pg-has-credit" : "pg"}>
             <header className="pg-head">
                 <div className="pg-title">
                     <img className="pg-logo" src="./icon.svg" alt="" width="34" height="34" />
@@ -125,6 +125,7 @@ function App() {
                         {source ? (
                             <p data-testid="pg-source">
                                 Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>. Pick a question under Start, then change it.
+                                {source.credit ? <small className="pg-credit" data-testid="pg-credit">{source.credit}</small> : null}
                             </p>
                         ) : (
                             <p>Generated data with a fixed seed. Drag fields, click values, export.</p>

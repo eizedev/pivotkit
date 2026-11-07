@@ -154,7 +154,15 @@ export const REAL = {
     weather: {
         label: "Weather of 14 cities, 2023-2025",
         load: () => import("../data/weather.json").then((m) => unpack(m.default)),
-        source: { text: "Weather data by Open-Meteo.com", href: "https://open-meteo.com/", licence: "CC BY 4.0", licenceHref: "https://creativecommons.org/licenses/by/4.0/" },
+        source: {
+            text: "Weather data by Open-Meteo.com",
+            href: "https://open-meteo.com/",
+            licence: "CC BY 4.0",
+            licenceHref: "https://creativecommons.org/licenses/by/4.0/",
+            // Open-Meteo's "best match" combines ECMWF IFS, ERA5 and ERA5-Land; the Copernicus Climate
+            // Data Store asks for this attribution of ERA5 and ERA5-Land (see ../data/SOURCES.md)
+            credit: "Contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains."
+        },
         // temperatures and sunshine are averaged when they are added to Values; rain days add up
         fieldDefaults: {
             "Max °C": { agg: "average", format: "number:1" },

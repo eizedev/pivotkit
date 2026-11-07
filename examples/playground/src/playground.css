@@ -89,6 +89,18 @@ body {
     text-underline-offset: 2px;
 }
 
+.pg-credit {
+    display: block;
+    max-width: 90ch;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+/* the header is taller by the credit line of the weather data */
+.pg-has-credit {
+    --pg-head-h: 172px;
+}
+
 .pg-loading {
     display: grid;
     place-items: center;
@@ -151,7 +163,8 @@ body {
 }
 
 @media (max-width: 640px) {
-    :root {
+    :root,
+    .pg-has-credit {
         --pg-head-h: 236px;
     }
 

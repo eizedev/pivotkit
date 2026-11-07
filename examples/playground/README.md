@@ -5,7 +5,7 @@ the sources), each with four templates phrased as questions:
 
 | `?data=` | What | Source, licence |
 | --- | --- | --- |
-| `weather` | Daily weather of 14 cities, 2023-2025 | Weather data by [Open-Meteo.com](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| `weather` | Daily weather of 14 cities, 2023-2025 | Weather data by [Open-Meteo.com](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([SOURCES.md](data/SOURCES.md)) |
 | `countries` | Population, GDP and CO2 per country, 2005-2024 | [World Bank](https://data.worldbank.org/), World Development Indicators, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | `earthquakes` | Earthquakes of magnitude 4.5 and more, 2025 | [U.S. Geological Survey](https://earthquake.usgs.gov/), public domain |
 | `nobel` | Nobel Prize laureates, 1901-2026 | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
