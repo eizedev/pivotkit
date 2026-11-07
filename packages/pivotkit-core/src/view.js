@@ -20,7 +20,9 @@ import { canonicalLocale, finite, get, isPlainObject, optionsOf } from "./util.j
 
 export const VIEW_VERSION = 1;
 
-export const CHART_TYPES = Object.freeze(["bar", "line", "area", "pie", "heatmap"]);
+export const CHART_TYPES = Object.freeze(["bar", "line", "area", "pie", "donut", "heatmap"]);
+/** The chart types drawn as slices of a circle: a pie, and a donut (a ring). */
+export const SLICE_CHART_TYPES = Object.freeze(["pie", "donut"]);
 export const DISPLAY_MODES = Object.freeze(["table", "chart"]);
 export const CONDITIONAL_TYPES = Object.freeze(["colorScale", "dataBar"]);
 /**
@@ -28,6 +30,11 @@ export const CONDITIONAL_TYPES = Object.freeze(["colorScale", "dataBar"]);
  * its numbers, the others nothing), "off", "value", and for a pie "percent" (its share) or "both".
  */
 export const CHART_VALUE_LABELS = Object.freeze(["auto", "off", "value", "percent", "both"]);
+/**
+ * Where a pie or a donut writes its value labels: "outside" next to each slice with its name and a
+ * line, "inside" on the slice (the value or share only; the legend names the slices).
+ */
+export const CHART_LABEL_POSITIONS = Object.freeze(["outside", "inside"]);
 /** Where the legend goes: "auto" above the chart when it has more than one series (a pie always). */
 export const CHART_LEGENDS = Object.freeze(["auto", "bottom", "right", "off"]);
 /**
@@ -55,8 +62,9 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
- *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string }} ChartSpec  the chart
- *   type and how it is drawn: value labels (CHART_VALUE_LABELS), legend (CHART_LEGENDS), a title over the
+ *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string, labelPosition: string }} ChartSpec  the chart
+ *   type and how it is drawn: value labels (CHART_VALUE_LABELS) and, on a pie or donut, where they go
+ *   (CHART_LABEL_POSITIONS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
  *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
@@ -93,7 +101,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto" },
+        chart: { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" },
         formatting: { locale: null, timeZone: null }
     };
 }
@@ -461,7 +469,8 @@ function displaySection(raw, view, ctx) {
             title: title === undefined || title === null ? null : ctx.text(title),
             smooth: bool(get(chart, "smooth"), false),
             axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
-            groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto")
+            groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto"),
+            labelPosition: own("labelPosition", CHART_LABEL_POSITIONS, "outside")
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`);

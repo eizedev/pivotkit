@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pivotkit.eize.dev/schema/view-file-1.json",
+  "title": "pivotkit view file, format version 1",
+  "description": "A pivotkit view (the report's layout as JSON) with what a person and another pivotkit need to know about it. Readers ignore keys they do not know; a newer formatVersion or view.version is refused. See https://pivotkit.eize.dev/reference/view-file/",
+  "type": "object",
+  "required": ["format", "formatVersion", "view"],
+  "properties": {
+    "$schema": {
+      "description": "This schema's address.",
+      "type": "string"
+    },
+    "format": {
+      "description": "Marks a view file; a document without it is read as a bare view.",
+      "const": "pivotkit-view"
+    },
+    "formatVersion": {
+      "description": "The version of this envelope. A reader refuses a newer one.",
+      "const": 1
+    },
+    "name": {
+      "description": "What the view shows, for people. Plain text, at most 256 characters.",
+      "type": "string",
+      "maxLength": 256
+    },
+    "description": {
+      "description": "More about the view, for people. Plain text, at most 2,000 characters; left out when empty.",
+      "type": "string",
+      "maxLength": 2000
+    },
+    "createdAt": {
+      "description": "When the file was written, in UTC (ISO 8601). Optional: a file without it is the same bytes on every export.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "description": "The program that wrote the file.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 256 },
+        "version": { "type": "string", "maxLength": 256 }
+      },
+      "required": ["name"]
+    },
+    "source": {
+      "description": "The data the view was made for.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The host's stable name of the data (\"sales\").",
+          "type": "string",
+          "maxLength": 256
+        },
+        "name": {
+          "description": "The data's name for people.",
+          "type": "string",
+          "maxLength": 256
+        },
+        "fields": {
+          "description": "The fields of the data the view uses (rows, columns, values, filters, sort; a grouping as its source field), with their types.",
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+              "type": { "enum": ["string", "number", "date", "boolean", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "extensions": {
+      "description": "Reserved for hosts: their own data under a key of their own (a domain or a package name). pivotkit ignores it.",
+      "type": "object"
+    },
+    "view": {
+      "description": "The view itself, with its own version (pivotkit-core's View). Every reader passes it through normalize() against its data.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

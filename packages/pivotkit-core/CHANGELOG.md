@@ -12,14 +12,23 @@ First release.
 
 ### Added
 
+- The view file: `toViewFile(view, meta, { link })`, `fromViewFile(input, { data, sourceId })`,
+  `viewFileText`, `viewFileName`, `viewFileFields` and `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`,
+  `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS`: a view with its name, description, source (id, name, the
+  fields it uses with their types), generator and an optional `createdAt` as one JSON document
+  (`"format": "pivotkit-view"`, `formatVersion` 1, canonical key order, `<slug>.pivotkit.json`), its
+  link profile, and a reader that never throws, ignores unknown keys, refuses a newer format or view
+  version, caps sizes, reads own properties only, keeps names as plain text and says whether a view
+  fits the data. The JSON Schema is published at https://pivotkit.eize.dev/schema/view-file-1.json.
 - `pivotkit-core/link`: `encodeViewLink(view)` and `decodeViewLink(text)`, a view as a short link
   text (`1.` and its JSON deflated with fflate, base64url) and back; decoding never throws, caps the
   text (`LINK_LIMITS.text`, 32,000 characters) and the inflated view (`LINK_LIMITS.json`, 1,000,000)
   while inflating (1 KiB of input at a time, it stops at the cap), an empty payload is damaged, and returns `{ view, issues }` for `normalize()`.
 - The view's chart has display settings: `valueLabels` (`auto`, `off`, `value`, `percent`, `both`),
   `legend` (`auto`, `bottom`, `right`, `off`), `title`, `smooth`, `axisLabels` (`auto`, `all`, `nth`)
-  and `groupLabels` (`auto`, `on`, `off`), normalized against fixed lists (`CATALOG.chartValueLabels`,
-  `chartLegends`, `chartAxisLabels`, `chartGroupLabels`); `toEChartsOption()` draws them (title, legend placement and
+  `groupLabels` (`auto`, `on`, `off`) and `labelPosition` (`outside`, `inside`: where a pie or a donut
+  writes its labels), normalized against fixed lists (`CATALOG.chartValueLabels`,
+  `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`); `toEChartsOption()` draws them (title, legend placement and
   room, value labels, smooth lines, and with two or more row fields a second category axis with the
   outer field's items as group labels), and `toSeries()` gives `categoryLevels`.
 - `fieldDefaultsFromSchema(schema, { schema })`: display names, descriptions, https links, column
@@ -58,7 +67,8 @@ First release.
   formatting; a single value's name is one header cell over all of its columns. Number ranges whose
   bounds are all whole numbers between -9,999 and 9,999 (years) are labelled without thousands
   separators ("1900 – 1910").
-- `toSeries()` and `toEChartsOption()` for bar, stacked bar, line, area, pie and heatmap; a heatmap's
+- `toSeries()` and `toEChartsOption()` for bar, stacked bar, line, area, pie (a whole circle,
+  `DEFAULT_THEME.pieRadius`), donut (a ring, `donutRadius`, chart type `"donut"`) and heatmap; a heatmap's
   empty cells show the background (no split areas, which ECharts paints light grey in every theme)
   and its x axis names every column.
 - `pivotkit-core/export` with `toXlsx()`, `toCsv()` and `toCsvBytes()`: workbook with typed cells,

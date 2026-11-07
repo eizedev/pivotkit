@@ -263,14 +263,15 @@ test("a custom sort order: listed items first in their order, the rest by label,
 });
 
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
-    assert.deepEqual(emptyView().chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto" });
-    const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true };
-    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto" });
+    assert.deepEqual(emptyView().chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" });
+    const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside" };
+    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
+    assert.equal(norm({ chart: { type: "donut" } }).chart.type, "donut");
     assert.deepEqual(validate({ chart }, data), { valid: true, errors: [] });
     // unknown settings fall back to their defaults and are reported
-    const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes" } }, data);
+    const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes", labelPosition: "above" } }, data);
     assert.deepEqual(bad.view.chart, emptyView().chart);
-    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.title"]);
+    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.labelPosition", "chart.title"]);
     assert.equal(norm({ chart: { title: "x".repeat(300) } }).chart.title, null);
     assert.equal(norm({ chart: { title: "   " } }).chart.title, null);
     // a view of before these settings reads with their defaults

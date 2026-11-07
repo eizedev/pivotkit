@@ -1,6 +1,6 @@
 /*
  * Chart data from a pivot: categories from the row keys, one series per column key and value, and a
- * plain Apache ECharts option for bar, stacked bar, line, area, pie and heatmap. The core does not
+ * plain Apache ECharts option for bar, stacked bar, line, area, pie, donut and heatmap. The core does not
  * import ECharts; the UI passes the option to its own ECharts instance. Subtotals and grand totals
  * are not plotted; collapsed groups are plotted as one category.
  */
@@ -14,6 +14,7 @@ import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
 import { resolveLocale, optionsOf } from "./util.js";
+import { SLICE_CHART_TYPES } from "./view.js";
 
 /**
  * Chart data: one category per plotted row line, one series per column line and value. Dense like
@@ -98,7 +99,8 @@ export function toSeries(result, options) {
  * @property {string} [backgroundColor]   default transparent
  * @property {string} [fontFamily]
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
- * @property {[string, string]} [pieRadius]       inner and outer radius, default a ring (35%, 70%)
+ * @property {[string, string]} [pieRadius]       inner and outer radius of a pie, default a circle (0%, 70%)
+ * @property {[string, string]} [donutRadius]     inner and outer radius of a donut, default a ring (42%, 70%)
  */
 
 /** Room (px) the title takes above the chart. */
@@ -222,27 +224,30 @@ export function toEChartsOption(result, options) {
     // the title over the chart, and the legend where the view puts it, with the room they take
     const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: 16, fontWeight: 600 } } } : {};
     const titleRoom = title.title ? TITLE_ROOM : 0;
-    const { legend, room } = legendOf(chart.legend, chart.type === "pie" || s.series.length > 1, titleRoom, textStyle);
+    const { legend, room } = legendOf(chart.legend, SLICE_CHART_TYPES.includes(chart.type) || s.series.length > 1, titleRoom, textStyle);
     const legendPart = legend ? { legend } : {};
     // what is written next to the marks: "percent" and "both" are a pie's; the other types write the value
     const labels = chart.valueLabels === "off" || chart.valueLabels === "value" || chart.valueLabels === "percent" || chart.valueLabels === "both" ? chart.valueLabels : "auto";
 
-    if (chart.type === "pie") {
+    if (SLICE_CHART_TYPES.includes(chart.type)) {
         const vi = first ? first.valueIndex : 0;
         const data = s.categories
             .map((name, i) => ({ name, value: s.totals[vi] ? s.totals[vi][i] : null }))
             .filter((d) => typeof d.value === "number" && d.value > 0);
         const percent = (p) => `${formatterFor("number:1", locale)(p.percent)} %`;
+        const inside = chart.labelPosition === "inside";
+        // outside: the slice's name with what is chosen, on a line to the slice; inside: only the
+        // number on the slice (the legend names the slices), the share when nothing is chosen
+        const part = { value: (p) => fmt(p.value), percent, both: (p) => `${fmt(p.value)} (${percent(p)})` };
         const pieLabel =
             labels === "off"
                 ? { show: false }
-                : labels === "value"
-                  ? { formatter: (p) => `${p.name}: ${fmt(p.value)}` }
-                  : labels === "percent"
-                    ? { formatter: (p) => `${p.name}: ${percent(p)}` }
-                    : labels === "both"
-                      ? { formatter: (p) => `${p.name}: ${fmt(p.value)} (${percent(p)})` }
-                      : {};
+                : inside
+                  ? { position: "inside", formatter: part[labels === "auto" ? "percent" : labels] }
+                  : labels === "auto"
+                    ? {}
+                    : { formatter: (p) => `${p.name}: ${part[labels](p)}` };
+        const radius = chart.type === "donut" ? (theme.donutRadius ?? DEFAULT_THEME.donutRadius) : (theme.pieRadius ?? DEFAULT_THEME.pieRadius);
         return {
             ...base,
             ...title,
@@ -252,12 +257,15 @@ export function toEChartsOption(result, options) {
                 {
                     type: "pie",
                     name: first ? first.name : "",
-                    radius: [...(theme.pieRadius ?? DEFAULT_THEME.pieRadius)],
+                    radius: [...radius],
                     top: titleRoom + room.top,
                     ...(room.bottom ? { bottom: room.bottom } : {}),
                     ...(room.right ? { right: room.right } : {}),
                     data,
-                    label: { color: theme.textColor, ...pieLabel }
+                    // on the slices: a label only where the slice is wide enough for it
+                    ...(inside ? { minShowLabelAngle: 12, labelLine: { show: false } } : {}),
+                    // inside, ECharts picks a colour that reads on each slice
+                    label: { ...(inside ? {} : { color: theme.textColor }), ...pieLabel }
                 }
             ]
         };

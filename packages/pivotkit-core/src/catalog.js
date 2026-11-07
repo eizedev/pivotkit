@@ -9,7 +9,7 @@ import { COLUMN_TYPES } from "./encode.js";
 import { FILTER_TYPES, LABEL_OPS, VALUE_OPS } from "./filters.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
-import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
+import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
 
 export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
@@ -34,6 +34,8 @@ export const CATALOG = Object.freeze({
     chartLegends: CHART_LEGENDS,
     chartAxisLabels: CHART_AXIS_LABELS,
     chartGroupLabels: CHART_GROUP_LABELS,
+    /** where a pie or a donut writes its value labels */
+    chartLabelPositions: CHART_LABEL_POSITIONS,
     displayModes: DISPLAY_MODES,
     conditionalTypes: CONDITIONAL_TYPES
 });

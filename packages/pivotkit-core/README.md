@@ -26,7 +26,7 @@ const data = encode([
     { region: "South", product: "B", units: 7, date: "2026-02-14" }
 ]);
 
-// the view is the report as JSON: save it as a template, send it to the browser, undo it
+// the view is the report as JSON: save it, send it to the browser, undo it
 const input = {
     rows: ["Region"],
     cols: ["Month"],
@@ -59,8 +59,9 @@ Every function takes its required inputs first and all optional settings in one 
 | `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
 | `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
 | `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios; `hasRows` on each value cell (false: a blank cell with no source row behind it, nothing to drill into). One value's name is a single header cell over all of its columns, as in Excel. |
-| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap, with the view's display settings: title, legend, value labels, smooth lines, and the outer row field as group labels on a second category axis (`toSeries` gives `categoryLevels` for it). ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
-| `encodeViewLink(view)`, `decodeViewLink(text)`, `LINK_LIMITS` | From `pivotkit-core/link`: a view as a short link text (`1.` and its JSON deflated with fflate, base64url) and back. Decoding never throws, caps the text (32,000 characters) and the inflated view (1,000,000) and returns `{ view, issues }`; the view is user input for `normalize`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
+| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie, donut and heatmap, with the view's display settings: title, legend, value labels (a pie's or a donut's outside or inside the slices), smooth lines, and the outer row field as group labels on a second category axis (`toSeries` gives `categoryLevels` for it). ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
+| `toViewFile(view, { name, description, createdAt, generator, source, data }, { link })`, `fromViewFile(input, { data, sourceId })`, `viewFileText(file)`, `viewFileName(name)`, `viewFileFields(view)`, `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | The view file: a view with its name, its source and the fields it uses as one versioned JSON document (canonical key order, `<slug>.pivotkit.json`), and its link profile; reading never throws, ignores unknown keys, refuses a newer format or view version, caps sizes and reads own properties only, and with `data` says whether the view fits it. [View file format](https://pivotkit.eize.dev/reference/view-file/). |
+| `encodeViewLink(view)`, `decodeViewLink(text)`, `LINK_LIMITS` | From `pivotkit-core/link`: a view (or a view file's link profile) as a short link text (`1.` and its JSON deflated with fflate, base64url) and back. Decoding never throws, caps the text (32,000 characters) and the inflated view (1,000,000) and returns `{ view, issues }`; the view is user input for `normalize`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
 | `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { separator, repeatLabels, bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars; `sheetName` default `"Pivot"`, made valid for Excel: 31 characters, no `\ / ? * [ ] :`) and CSV (the grid's locale decides separator, `;` where the decimal mark is a comma, and decimal mark; `repeatLabels` default `true` repeats a row label on every row it spans; formula-injection guard). `toCsvBytes` writes UTF-8 with a byte order mark unless `bom` is `false`. |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views. |
 | `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
@@ -186,8 +187,9 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
     chart: {
-        type: "bar", stacked: false, horizontal: false,        // bar line area pie heatmap
-        valueLabels: "auto",                                   // auto off value percent both (percent, both: pie)
+        type: "bar", stacked: false, horizontal: false,        // bar line area pie donut heatmap
+        valueLabels: "auto",                                   // auto off value percent both (percent, both: pie, donut)
+        labelPosition: "outside",                              // outside inside: where a pie or donut writes them
         legend: "auto",                                        // auto bottom right off
         title: null, smooth: false,                            // a title over the chart; smooth lines
         axisLabels: "auto",                                    // auto all nth: the category axis labels

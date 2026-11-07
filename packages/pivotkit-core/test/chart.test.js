@@ -44,6 +44,17 @@ test("line and area", () => {
     assert.equal(area.series[0].stack, "total");
 });
 
+test("a pie is a whole circle, a donut a ring; both use the row totals and a legend", () => {
+    const pie = toEChartsOption(r, { chart: { type: "pie" } }).series[0];
+    const donut = toEChartsOption(r, { chart: { type: "donut" } });
+    assert.deepEqual(pie.radius, ["0%", "70%"]);
+    assert.equal(donut.series[0].type, "pie");
+    assert.deepEqual(donut.series[0].radius, ["42%", "70%"]);
+    assert.deepEqual(donut.series[0].data, pie.data);
+    assert.ok(donut.legend);
+    assert.deepEqual(toEChartsOption(r, { chart: { type: "donut" }, theme: { donutRadius: ["50%", "60%"] } }).series[0].radius, ["50%", "60%"]);
+});
+
 test("pie uses the row totals and drops empty slices", () => {
     const pie = toEChartsOption(r, { chart: { type: "pie" } });
     assert.equal(pie.series[0].type, "pie");
@@ -137,6 +148,15 @@ test("value labels: the value on bars and lines, value and share on a pie, numbe
     assert.equal(pie("value").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10");
     assert.equal(pie("percent").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 35.7 %");
     assert.equal(pie("both").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10 (35.7 %)");
+    // on the slices: the number only (the legend names the slices); the share when nothing is chosen
+    const inside = (valueLabels) => toEChartsOption(r, { chart: { type: "pie", valueLabels, labelPosition: "inside" } }).series[0];
+    assert.equal(inside("auto").label.position, "inside");
+    assert.equal(inside("auto").label.formatter({ name: "North", value: 10, percent: 35.7 }), "35.7 %");
+    assert.equal(inside("value").label.formatter({ name: "North", value: 10, percent: 35.7 }), "10");
+    assert.equal(inside("both").label.formatter({ name: "North", value: 10, percent: 35.7 }), "10 (35.7 %)");
+    assert.equal(inside("off").label.show, false);
+    assert.equal(inside("value").labelLine.show, false);
+    assert.equal(pie("value").position, undefined);
     assert.equal(toEChartsOption(r, { chart: { type: "heatmap" } }).series[0].label.show, true);
     assert.equal(toEChartsOption(r, { chart: { type: "heatmap", valueLabels: "off" } }).series[0].label.show, false);
 });

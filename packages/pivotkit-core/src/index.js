@@ -9,6 +9,7 @@
  *   const option = toEChartsOption(result);          // for an Apache ECharts instance
  *   const unit = suggestDateUnit(data, "Created");     // "day", "yearMonth", ... from the span of a date field
  *   const { defaults, issues } = fieldDefaultsFromSchema(openapi, { schema: "Release" }); // names, descriptions, types
+ *   const file = toViewFile(view, { name, source: { id }, data }); // the view file; fromViewFile reads one
  *   // import { toXlsx, toCsv } from "pivotkit-core/export"
  *
  * Conventions: required inputs first (the subject leads), everything optional in one trailing options
@@ -39,6 +40,10 @@
  * @typedef {import("./labels.js").Labels} Labels
  * @typedef {import("./schema.js").SchemaFieldDefaults} SchemaFieldDefaults
  * @typedef {import("./errors.js").PivotkitErrorCode} PivotkitErrorCode
+ * @typedef {import("./view-file.js").ViewFileMeta} ViewFileMeta
+ * @typedef {import("./view-file.js").ViewFileRead} ViewFileRead
+ * @typedef {import("./view-file.js").ViewFileCompatibility} ViewFileCompatibility
+ * @typedef {import("./view-file.js").ViewFileSource} ViewFileSource
  */
 
 export { encode } from "./encode.js";
@@ -58,3 +63,4 @@ export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { LIMITS } from "./limits.js";
 export { PivotkitError } from "./errors.js";
+export { toViewFile, fromViewFile, viewFileText, viewFileName, viewFileFields, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, VIEW_FILE_SCHEMA, VIEW_FILE_LIMITS } from "./view-file.js";
