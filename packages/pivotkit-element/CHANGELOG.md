@@ -12,6 +12,10 @@ First release.
 
 ### Added
 
+- Attributes `tips` ("on", "off" or a comma-separated list of tip ids) and `storage-key`, the property
+  `dismissedTips` and the event `pivot-tip-dismiss` (`{ id, dismissed }`), as pivotkit-react's tips
+  props; `fieldDefaults` takes `label`, `description`, `href` and `type`.
+
 - `<pivot-report>`: pivotkit-react's `<PivotReport>` as a custom element in an open shadow root, with
   its own React 18.3.1, ReactDOM, pivotkit-react, pivotkit-core and @dnd-kit in the bundle; ECharts
   (bar, line, pie and heatmap only) and the XLSX/CSV export are chunks loaded on first use.

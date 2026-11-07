@@ -12,6 +12,20 @@ First release.
 
 ### Added
 
+- Tips above the result, from one table (`tips.js`): a filter that leaves nothing (with "Remove
+  filter"), top N, the chart's category cap, what 100 % is for a percentage, dates on Columns and many
+  series in a chart (with "Swap rows and columns"), a text field in Values, an ungrouped date with
+  many columns (with "Group by"), many columns (swap), Rows without Values, Undo after the first drag,
+  saving after five changes (opens Templates), the empty report and how to open a value. At most two
+  at a time (one in a narrow or low report), in the flow above the result, each with an x; Options has
+  "Show tips", "Show dismissed tips again" and the keyboard shortcuts. Props `tips` ("on", "off" or ids),
+  `storageKey` (localStorage per report), `dismissedTips` and `onTipDismiss`.
+- `fieldDefaults[field].label`, `.description`, `.href` and `.type`: a display name everywhere a field
+  name shows (chips, headers, value names, drill-down, chart, CSV and XLSX; views keep the names), an
+  "i" with the description on hover, focus and tap ("Learn more" for an https link), the description
+  at the top of the chip menu and on table and drill-down headers, field search by label and
+  description, and the column type for encode. A field without them looks as before.
+
 - `<PivotReport>`: field list with search, type icons, quick add and a menu per field; Rows, Columns,
   Values and Filters zones with chips that are dragged, reordered and removed and say what is set on
   them ("3 of 4", "Top 5", the sort); chip menus for sort, date grouping, number ranges, top N,
@@ -28,7 +42,7 @@ First release.
   data bars, keyboard navigation, drill-down panel and `onCellClick`; virtual scrolling from 300 rows.
 - Chart with Apache ECharts (a peer dependency, loaded on first use): bars, stacked and horizontal
   bars, lines, area, pie, heatmap, themed from the `--pk-*` tokens, with a text alternative, at most 50
-  categories, hints for many series and dates on Columns, and "Swap rows and columns"; a stacked area
+  categories, tips for many series and dates on Columns, and "Swap rows and columns"; a stacked area
   or line chart is named "Area" or "Lines" in the toolbar and the picker.
 - Filter popover with values and row counts, search, select all or none and a text condition.
 - Undo, redo and reset; templates (load, save, delete of templates marked `deletable` after an in-page

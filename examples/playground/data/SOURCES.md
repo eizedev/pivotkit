@@ -16,6 +16,7 @@ pivotkit's code is MIT licensed; these data files are not code and keep the lice
 | `earthquakes.json` | 8,559 | [U.S. Geological Survey](https://earthquake.usgs.gov/), ANSS Comprehensive Earthquake Catalog (ComCat) | U.S. public domain | "U.S. Geological Survey" (credit asked for, not required) |
 | `nobel.json` | 1,036 | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), api.nobelprize.org 2.1 | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | "Nobel Prize Outreach, api.nobelprize.org" (citing the source is encouraged) |
 | `endoflife.json` | 9,374 | [endoflife.date](https://endoflife.date/), API v1 (schema 1.2.1) | [MIT](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE) | "endoflife.date" with the copyright notice "Copyright 2020 endoflife.date contributors" and the MIT licence text (below) |
+| `endoflife-openapi.json` | (4 schemas) | the `ProductVersion`, `ProductRelease`, `ProductSummary` and `UnknownProperties` schemas of [endoflife.date's OpenAPI document](https://endoflife.date/docs/api/v1/openapi.yml), version 1.2.1, converted from YAML to JSON | [MIT](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE) | as `endoflife.json` |
 
 Fetched on 2026-11-07 (the `fetched` key of each file). The terms below were read on that day; they
 can change, so read them again before you fetch.
@@ -146,6 +147,16 @@ an index into `dicts`; `unpack()` in `sources.js` turns it back into an array of
   be Yes with a blank "EOL date" (551 cycles: EOL, date not recorded). The API decides "EOL" and
   "Maintained" on the day it generates the response (`generated_at`, 2026-11-07 for this snapshot),
   and "Days to EOL" counts from that day; a cycle whose end of life is that day is not yet EOL.
+
+## Field descriptions (`src/descriptions.js`)
+
+The playground describes the fields of the real data sets (`fieldDefaults` `description` and `href`):
+quoted from Open-Meteo's variable list, the World Bank's indicator notes (`sourceNote` of
+`https://api.worldbank.org/v2/indicator/<code>?format=json`) and, through pivotkit-core's
+`fieldDefaultsFromSchema`, `endoflife-openapi.json`; the other descriptions say how `sources.js`
+made the field. `endoflife-openapi.json` is not fetched by `npm run docs:data`: it is the four row
+schemas of the YAML document above, converted once with
+`uvx --from pyyaml python -c '...'` (yaml.safe_load, then json.dump of `components.schemas`).
 
 ## Fetching again
 

@@ -12,6 +12,13 @@ First release.
 
 ### Added
 
+- `fieldDefaultsFromSchema(schema, { schema })`: display names, descriptions, https links, column
+  types and item orders of a row's fields from a JSON Schema or an OpenAPI 3 / Swagger 2 document
+  (`title`, `description`, `externalDocs.url`, `type` and `format`, `enum`); local `$ref`s only,
+  `allOf` merged, nothing fetched or run, every size capped (`SCHEMA_CAPS`).
+- `labels.fields` and `fieldLabel(field, labels)`: display names of fields in the grid's corner
+  headers, the value names, the chart's series names and the exports; views keep the field names.
+
 - `suggestDateUnit(data, field)`: the date grouping for a date field from the span of its values (day,
   month, quarter or year), so a UI can group a date as soon as it is placed.
 - `toSeries()` and `toEChartsOption()` take `maxCategories`; `toSeries()` reports `categoryCount`;
