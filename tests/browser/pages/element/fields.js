@@ -29,5 +29,5 @@ document.addEventListener("pivot-tip-dismiss", (e) => window.__tipEvents.push({ 
 for (const el of document.querySelectorAll("pivot-report")) {
     el.data = DATASETS.sales.make(2000);
     el.defaultView = DATASETS.sales.presets[0].view;
-    el.fieldDefaults = fieldDefaultsFromSchema(openapi, { schema: "Sale" });
+    el.fieldDefaults = fieldDefaultsFromSchema(openapi, { schema: "Sale" }).defaults;
 }

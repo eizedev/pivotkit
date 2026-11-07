@@ -12,19 +12,24 @@ First release.
 
 ### Added
 
-- Tips above the result, from one table (`tips.js`): a filter that leaves nothing (with "Remove
-  filter"), top N, the chart's category cap, what 100 % is for a percentage, dates on Columns and many
+- Notices and tips above the result, from one table (`tips.js`). Notices, always shown and not
+  dismissible: a filter that leaves nothing (with "Remove filter"), top N, the chart's category cap.
+  Tips: what 100 % is for a percentage, dates on Columns and many
   series in a chart (with "Swap rows and columns"), a text field in Values, an ungrouped date with
   many columns (with "Group by"), many columns (swap), Rows without Values, Undo after the first drag,
   saving after five changes (opens Templates), the empty report and how to open a value. At most two
   at a time (one in a narrow or low report), in the flow above the result, each with an x; Options has
   "Show tips", "Show dismissed tips again" and the keyboard shortcuts. Props `tips` ("on", "off" or ids),
-  `storageKey` (localStorage per report), `dismissedTips` and `onTipDismiss`.
+  `storageKey` (localStorage per report, read after the first render so server rendering and
+  hydration match), `dismissedTips` and `onTipDismiss`. The texts are `labels.tips`; the earlier keys
+  `topNote`, `bottomNote`, `noValuesHint`, `cellHint`, `emptyHint`, `chartManySeries`,
+  `chartDatesOnColumns` and `chartCapped` still apply as aliases of their tip.
 - `fieldDefaults[field].label`, `.description`, `.href` and `.type`: a display name everywhere a field
   name shows (chips, headers, value names, drill-down, chart, CSV and XLSX; views keep the names), an
   "i" with the description on hover, focus and tap ("Learn more" for an https link), the description
   at the top of the chip menu and on table and drill-down headers, field search by label and
-  description, and the column type for encode. A field without them looks as before.
+  description, and the column type for encode. A label two fields share, or another field's name,
+  gets the field's name in parentheses. A field without them looks as before.
 
 - `<PivotReport>`: field list with search, type icons, quick add and a menu per field; Rows, Columns,
   Values and Filters zones with chips that are dragged, reordered and removed and say what is set on

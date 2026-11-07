@@ -4,26 +4,48 @@
 import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test("at most two tips; x dismisses one by keyboard, the focus goes to the next; a reload remembers it", async ({ page }) => {
-    await page.goto("?data=countries&preset=0");
+    await page.goto("?data=sales");
+    await page.getByTestId("field-menu-Product").click();
+    await page.getByRole("menuitem", { name: "Add to Values" }).click();
     const tips = page.getByTestId("tips").locator(".pk-tip");
     await expect(tips).toHaveCount(2);
-    await expect(tips.nth(0)).toHaveAttribute("data-tip", "top");
+    await expect(tips.nth(0)).toHaveAttribute("data-tip", "textValue");
     await expect(tips.nth(1)).toHaveAttribute("data-tip", "cells");
     // a screen reader hears them through the polite region that is always there
     await expect(page.getByTestId("tips-live")).toHaveAttribute("aria-live", "polite");
-    await expect(page.getByTestId("tips-live")).toContainText("shows the top 3 only");
-    const x = tips.nth(0).getByRole("button", { name: "Dismiss tip" });
-    await x.focus();
+    await expect(page.getByTestId("tips-live")).toContainText("Product is text");
+    await tips.nth(0).getByRole("button", { name: "Dismiss tip" }).focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("tip-top")).toHaveCount(0);
+    await expect(page.getByTestId("tip-textValue")).toHaveCount(0);
     await expect(page.getByTestId("tip-cells").getByRole("button", { name: "Dismiss tip" })).toBeFocused();
     // the table is not covered: the tips sit above it
     const last = await page.getByTestId("tips").boundingBox();
     const table = await page.getByTestId("pivot-table").boundingBox();
     expect(last.y + last.height).toBeLessThanOrEqual(table.y);
     await page.reload();
+    await page.getByTestId("field-menu-Product").click();
+    await page.getByRole("menuitem", { name: "Add to Values" }).click();
     await expect(page.getByTestId("tip-cells")).toBeVisible();
-    await expect(page.getByTestId("tip-top")).toHaveCount(0);
+    await expect(page.getByTestId("tip-textValue")).toHaveCount(0);
+});
+
+test("a notice that the result is cut stays: no x, with tips off, and next to a tip on a phone", async ({ page }) => {
+    await page.goto("?data=countries&preset=0");
+    const top = page.getByTestId("tip-top");
+    await expect(top).toContainText("Country shows the top 3 only");
+    await expect(top).toHaveAttribute("data-kind", "notice");
+    await expect(top.getByRole("button", { name: "Dismiss tip" })).toHaveCount(0);
+    await toolbar(page, "options");
+    const sw = page.getByTestId("show-tips");
+    await sw.focus();
+    await page.keyboard.press("Space");
+    await expect(sw).not.toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("tip-cells")).toHaveCount(0);
+    await expect(top).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("?data=countries&preset=0");
+    await expect(top).toBeVisible();
 });
 
 test("Options: Show tips off hides every tip, Show dismissed tips again brings them back", async ({ page }) => {

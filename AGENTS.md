@@ -141,7 +141,10 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   display only, views keep field names. A schema is data: local `$ref`s only, nothing fetched, sizes
   capped (`SCHEMA_CAPS` in `schema.js`).
 - Tips are rows of `TIPS` (`tips.js`): a pure condition, a text in every language, an optional
-  action; at most `TIP_LIMIT` show, in the flow above the result, never over it.
+  action; at most `TIP_LIMIT` show, in the flow above the result, never over it. A row that says the
+  result is cut or empty is a `kind: "notice"`: always shown, not dismissible, outside the limit and
+  the tips settings. Browser storage is read after the first render (`useSyncExternalStore` with a
+  server snapshot), so server rendering and hydration match.
 - Browser tests fail on any console error or warning (`tests/browser/fixtures.js`).
 - pivotkit-element: the shadow root is the boundary. No style of the page reaches in and none of
   the report's out, except the `--pk-*` tokens set on the element (declared on `:host` by

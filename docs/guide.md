@@ -146,7 +146,8 @@ Short tips above the result say what the report shows and what you can do next: 
 what the totals mean, what 100 % is for a percentage, that a text field in Values is counted, that a
 date makes a column per day (with a button to group it by month), that a filter leaves nothing (with
 **Remove filter**), or that the view could be saved as a template. At most two show at a time, the
-most important first, and never over the table.
+most important first, and never over the table. The notes that say the result is cut or empty (a top
+5, the first 50 categories of a chart, a filter that leaves nothing) always stay; they have no x.
 
 - The **x** of a tip (Tab reaches it) hides that tip; the report remembers it.
 - **Options** has **Show tips**, to switch them all off and on, and **Show dismissed tips again**.

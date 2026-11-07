@@ -14,9 +14,9 @@ const USGS = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php";
 const NOBEL = "https://www.nobelprize.org/about/developer-zone-2/";
 
 const ENDOFLIFE_DOCS = "https://endoflife.date/docs/api/v1/";
-const release = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductRelease" });
-const product = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductSummary" });
-const version = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductVersion" });
+const release = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductRelease" }).defaults;
+const product = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductSummary" }).defaults;
+const version = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductVersion" }).defaults;
 /** A field of the API's schema as the description of a column of data/sources.js (endoflifeRows). */
 const fromApi = (entry, more = "") => ({ description: `${entry.description}${more}`, href: ENDOFLIFE_DOCS });
 

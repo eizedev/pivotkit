@@ -57,10 +57,13 @@ pivotkit-react's `fieldDefaults`: `title` becomes `label`, `description` stays `
 `properties`, or an array of rows), or an OpenAPI 3 / Swagger 2 document with `options.schema`, the
 name of a schema in `components.schemas` (or `definitions`) or a local `$ref`
 (`"#/components/schemas/Release"`). Only references inside the document are followed, `allOf` parts
-are merged, a nullable `anyOf`/`oneOf` is read as its one schema. Nothing is fetched or run; texts are
-plain and capped (label 120, description 1,000 characters, 1,000 fields and enum entries, 32 levels
-of `$ref`). A property with nothing to say is left out. Throws `INVALID_ARGUMENT` for input that is no
-schema. See [Field descriptions and names](../concepts/fields.md).
+are merged, a nullable `anyOf`/`oneOf` is read as its one schema, each `$ref` target is read once.
+Nothing is fetched or run; texts are plain (no control, bidi or zero-width characters) and capped
+(label 120, description 1,000 characters, 1,000 fields and enum entries, 32 levels of `$ref`, 20,000
+schema objects). A property with nothing to say is left out. Returns `{ defaults, issues }`:
+`defaults` is the `fieldDefaults` object, `issues` (`{ path, message }[]`) what could not be read (a
+reference outside the document or not local, a cycle, a cap reached), as `normalize()` reports a
+view's. Throws `INVALID_ARGUMENT` for input that is no schema at all. See [Field descriptions and names](../concepts/fields.md).
 
 ## Views
 

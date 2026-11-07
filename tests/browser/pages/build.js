@@ -7,6 +7,8 @@
 //   of the rows and a controlled view.
 // - shadow.html: the report inside a shadow root with its stylesheet linked there, as the web
 //   component mounts it.
+// - hydrate.html: the report rendered to HTML with react-dom/server and hydrated, with dismissed tips
+//   in localStorage.
 // - element-*.html: pages of the web component pivotkit-element (sources in element/), which loads
 //   from dist/packages/pivotkit-element/dist/ as it ships (npm run build -w pivotkit-element first):
 //   two elements, properties set before the definition, the package loaded twice, a strict CSP,
@@ -88,7 +90,7 @@ await copyFile(`${root}packages/pivotkit-react/dist/styles.css`, `${out}pivotkit
 // the host page's own code: every package left to the import map
 await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { host: "host.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "pivotkit-react", "react/jsx-runtime"] });
 // the shadow root page bundles its React like any app
-await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { shadow: "shadow.jsx" }, outdir: out, jsx: "automatic", alias: { react: real.react.replace(/index\.js$/, ""), "react-dom": real["react-dom"].replace(/index\.js$/, "") } });
+await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { shadow: "shadow.jsx", hydrate: "hydrate.jsx" }, outdir: out, jsx: "automatic", alias: { react: real.react.replace(/index\.js$/, ""), "react-dom": real["react-dom"].replace(/index\.js$/, "") } });
 
 const importMap = { imports: { ...Object.fromEntries(Object.entries(VENDOR).map(([spec, name]) => [spec, `./vendor/${name}.js`])), "react/jsx-runtime": "./jsx-runtime.js", "pivotkit-react": "./pivotkit-react.js" } };
 // the automatic JSX runtime of the host page, on the host's React
@@ -96,6 +98,7 @@ await writeFile(`${out}jsx-runtime.js`, 'import React from "react";\nexport cons
 const page = (title, body) => `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1" />\n<title>${title}</title>\n${body}\n</head>\n<body><div id="app"></div></body>\n</html>\n`;
 await writeFile(`${out}host.html`, page("pivotkit host page", `<link rel="stylesheet" href="./pivotkit-react.css" />\n<script type="importmap">${JSON.stringify(importMap)}</script>\n<script type="module" src="./host.js"></script>`));
 await writeFile(`${out}shadow.html`, page("pivotkit in a shadow root", '<script type="module" src="./shadow.js"></script>'));
+await writeFile(`${out}hydrate.html`, page("pivotkit rendered on a server and hydrated", '<link rel="stylesheet" href="./pivotkit-react.css" />\n<script type="module" src="./hydrate.js"></script>'));
 
 // the web component as it ships, the example next to it, and the element's test pages
 const playground = `${root}examples/playground/dist/`;

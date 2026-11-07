@@ -8,7 +8,7 @@
  *   const grid = toGrid(result);                     // table cells with merges and formatted text
  *   const option = toEChartsOption(result);          // for an Apache ECharts instance
  *   const unit = suggestDateUnit(data, "Created");     // "day", "yearMonth", ... from the span of a date field
- *   const defaults = fieldDefaultsFromSchema(openapi, { schema: "Release" }); // names, descriptions, types
+ *   const { defaults, issues } = fieldDefaultsFromSchema(openapi, { schema: "Release" }); // names, descriptions, types
  *   // import { toXlsx, toCsv } from "pivotkit-core/export"
  *
  * Conventions: required inputs first (the subject leads), everything optional in one trailing options

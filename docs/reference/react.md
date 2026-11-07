@@ -40,7 +40,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `fileName` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced.<br><small>Type: `string`; default: `"pivot"`</small> |
 | `onExport` | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say).<br><small>Type: `({ kind, fileName, blob }) => unknown`</small> |
 | `tips` | The [tips](#tips) above the result: `"on"`, `"off"` (none, and no switch in Options), or the ids of the tips allowed, as an array or a comma-separated text.<br><small>Type: `"on"` or `"off"` or `string` or `string[]`; default: `"on"`</small> |
-| `storageKey` | Remembers the dismissed tips in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
+| `storageKey` | Remembers the dismissed tips in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again. Read after the first render, so server rendering and hydration match.<br><small>Type: `string`</small> |
 | `dismissedTips` | Dismissed tip ids from the host's own storage; `"*"` means the user switched all tips off. A new list (by value) replaces the report's.<br><small>Type: `string[]`</small> |
 | `onTipDismiss` | Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), on or "Show dismissed tips again" (`id` `null`), with the whole list to store and pass back as `dismissedTips`.<br><small>Type: `({ id, dismissed }) => void`</small> |
 
@@ -50,30 +50,37 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 
 ## Tips
 
-The report shows short tips above the table or the chart, in the flow (never over it), at most two at
-a time and one in a narrow or low report, the most important first. Each has an x that dismisses it
+The report shows short notes above the table or the chart, in the flow (never over it), the most
+important first. Three are **notices**: they say that the result is cut or empty, so they always show,
+have no x, count against no limit and stay with `tips="off"` and "Show tips" off. The others are
+**tips**: at most two at a time and one in a narrow or low report; each has an x that dismisses it
 (Tab reaches it; the focus then goes to the next tip). Options has "Show tips" and "Show dismissed
-tips again", and a help section with the keyboard shortcuts. A screen reader hears a new tip through a
-polite live region. The tips, in the order they are shown, and when:
+tips again", and a help section with the keyboard shortcuts. A screen reader hears new notes through a
+polite live region. In the order they are shown, and when:
 
-| Id | Shown when | Button |
-| --- | --- | --- |
-| `filterEmpty` | The filters leave no row of the data. | Remove filter |
-| `top` | A field on Rows or Columns shows its top or bottom N: totals and percentages cover those items only. | |
-| `chartCapped` | The chart draws the first 50 of more categories. | |
-| `showAs` | A value is shown as a percentage: what 100 % is for that calculation. | |
-| `chartDates` | Lines or areas with the dates on Columns (and none on Rows). | Swap rows and columns |
-| `chartSeries` | Bars, lines or areas with more than 8 series. | Swap rows and columns |
-| `textValue` | A text or yes/no field in Values without a name of its own: it is counted. | |
-| `dateUngrouped` | An ungrouped date on Columns with more than 12 columns, or on Rows with more than 60 rows. | Group by (the date's span: month, quarter, year) |
-| `manyColumns` | A table with more than 20 columns and fewer rows than columns. | Swap rows and columns |
-| `values` | Rows or Columns without a value. | |
-| `afterDrag` | After the first drag, for three more changes: Undo and the menus. | |
-| `saveTemplate` | After five changes of the view, when `onSaveTemplate` is set. | Save as template (opens Templates) |
-| `menus` | The empty report, before the first drag. | |
-| `cells` | A table with values, until a value was opened once. | |
+| Id | Kind | Shown when | Button |
+| --- | --- | --- | --- |
+| `filterEmpty` | notice | The filters leave no row of the data. | Remove filter |
+| `top` | notice | A field on Rows or Columns shows its top or bottom N: totals and percentages cover those items only. | |
+| `chartCapped` | notice | The chart draws the first 50 of more categories. | |
+| `showAs` | tip | A value is shown as a percentage: what 100 % is for that calculation. | |
+| `chartDates` | tip | Lines or areas with the dates on Columns (and none on Rows). | Swap rows and columns |
+| `chartSeries` | tip | Bars, lines or areas with more than 8 series. | Swap rows and columns |
+| `textValue` | tip | A text or yes/no field in Values without a name of its own: it is counted. | |
+| `dateUngrouped` | tip | An ungrouped date on Columns with more than 12 columns, or on Rows with more than 60 rows. | Group by (the date's span: month, quarter, year) |
+| `manyColumns` | tip | A table with more than 20 columns and fewer rows than columns. | Swap rows and columns |
+| `values` | tip | Rows or Columns without a value. | |
+| `afterDrag` | tip | After the first drag, for three more changes: Undo and the menus. | |
+| `saveTemplate` | tip | After five changes of the view, when `onSaveTemplate` is set. | Save as template (opens Templates) |
+| `menus` | tip | The empty report, before the first drag. | |
+| `cells` | tip | A table with values, until a value was opened once. | |
 
-The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)).
+The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)). The ids in
+`tips`, `dismissedTips` and `onTipDismiss` are those of the tips; notices are not switched off.
+
+The stored dismissals (`storageKey`) are read after the first render, also when the report is
+rendered on a server and hydrated: the server and the first client render show the same tips, and a
+tip dismissed earlier goes right after hydration.
 
 ## Controlled and uncontrolled
 

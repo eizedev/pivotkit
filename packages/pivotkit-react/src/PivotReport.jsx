@@ -5,7 +5,7 @@
  * view; the grid only for the table.
  */
 
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { computePivot, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES } from "./chart-types.js";
@@ -22,7 +22,7 @@ import { useIsoLayoutEffect } from "./iso.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
-import { ALL_TIPS, TIP_LIMIT, activeTips, allowedTips, cleanDismissed, readDismissed, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
+import { ALL_TIPS, TIP_LIMIT, activeTips, allowedTips, cleanDismissed, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
 import { useExport } from "./use-export.js";
@@ -179,11 +179,7 @@ export function PivotReport(props) {
     const defaultsKey = JSON.stringify(fieldDefaults ?? null);
     // what the host says about its fields: display names, descriptions, links; nothing changes without it
     const info = useMemo(() => fieldInfoOf(JSON.parse(defaultsKey)), [defaultsKey]);
-    const labels = useMemo(() => {
-        const base = resolveLabels(locale, JSON.parse(labelsKey));
-        const fields = displayNames(info);
-        return fields ? { ...base, core: { ...base.core, fields } } : base;
-    }, [locale, labelsKey, info]);
+    const baseLabels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
     const typesKey = JSON.stringify(typesOf(fieldDefaults));
     const limitsKey = JSON.stringify(limitsProp ?? null);
     const limits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
@@ -237,6 +233,12 @@ export function PivotReport(props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [encodedProp, dataIdentity, timeZone, limits, typesKey]);
     const encoded = source.encoded;
+    // the display names (labels.fields), told apart where two fields would look the same
+    const fieldNamesKey = encoded.schema.fields.map((f) => f.name).join("\u0000");
+    const labels = useMemo(() => {
+        const fields = displayNames(info, fieldNamesKey ? fieldNamesKey.split("\u0000") : []);
+        return fields ? { ...baseLabels, core: { ...baseLabels.core, fields } } : baseLabels;
+    }, [baseLabels, info, fieldNamesKey]);
 
     // the host's custom orders (fieldDefaults.order), compared by value: every view shown sorts by them
     const ordersKey = JSON.stringify(
@@ -568,16 +570,22 @@ export function PivotReport(props) {
     const allowedKey = JSON.stringify(allowedTips(tipsProp));
     const allowed = useMemo(() => JSON.parse(allowedKey), [allowedKey]);
     const dismissedKey = JSON.stringify(cleanDismissed(dismissedTips));
-    const [dismissed, setDismissed] = useState(() => cleanDismissed([...JSON.parse(dismissedKey), ...readDismissed(storageKey, localStore())]));
+    // what this report holds (from the host, or dismissed here) and what is stored under storageKey;
+    // the storage is read after hydration: on the server and in the first render nothing is stored,
+    // so the markup of both is the same (useSyncExternalStore's server snapshot)
+    const [own, setOwn] = useState(() => cleanDismissed(JSON.parse(dismissedKey)));
     const [lastDismissedKey, setLastDismissedKey] = useState(dismissedKey);
     if (dismissedKey !== lastDismissedKey) {
         // the host passed other dismissed tips: they replace the list (the host stores it itself)
         setLastDismissedKey(dismissedKey);
-        setDismissed(JSON.parse(dismissedKey));
+        setOwn(JSON.parse(dismissedKey));
     }
+    const subscribe = useCallback((callback) => subscribeStored(storageKey, callback), [storageKey]);
+    const storedRaw = useSyncExternalStore(subscribe, () => readStored(storageKey, localStore()), () => null);
+    const dismissed = useMemo(() => cleanDismissed([...own, ...parseStored(storedRaw)]), [own, storedRaw]);
     const changeDismissed = useCallback(
         (next, id) => {
-            setDismissed(next);
+            setOwn(next);
             writeDismissed(storageKey, localStore(), next);
             onTipDismiss?.({ id, dismissed: next });
         },
@@ -590,6 +598,7 @@ export function PivotReport(props) {
         id: t.id,
         params: t.params,
         icon: t.entry.icon ?? "info",
+        notice: t.entry.kind === "notice",
         action: t.entry.action ?? "",
         text: tipText(t.id, t.params, labels, locale),
         actionText: tipActionText(t.entry, t.params, labels)

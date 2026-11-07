@@ -42,7 +42,7 @@ export function fieldInfoOf(fieldDefaults) {
     if (Object.keys(properties).length === 0) {
         return map;
     }
-    const clean = fieldDefaultsFromSchema({ properties });
+    const clean = fieldDefaultsFromSchema({ properties }).defaults;
     for (const name of Object.keys(clean)) {
         const { label, description, href } = clean[name];
         const info = {};
@@ -64,16 +64,31 @@ export function fieldInfoOf(fieldDefaults) {
 }
 
 /**
- * The display names for pivotkit-core's labels (`labels.fields`), or null when no field has one.
+ * The display names for pivotkit-core's labels (`labels.fields`), or null when no field has one. A
+ * label that two fields share, or that is another field's own name, gets the field's name in
+ * parentheses ("Name (product_name)"), so no two fields look the same anywhere.
  * @param {Map<string, FieldInfo>} info
+ * @param {readonly string[]} [fieldNames]  the data's column names, in their own spelling
  * @returns {Record<string, string> | null}
  */
-export function displayNames(info) {
+export function displayNames(info, fieldNames = []) {
+    const spelling = new Map(fieldNames.map((n) => [String(n).toLowerCase(), String(n)]));
+    const uses = new Map();
+    for (const entry of info.values()) {
+        if (entry.label) {
+            const l = entry.label.toLowerCase();
+            uses.set(l, (uses.get(l) ?? 0) + 1);
+        }
+    }
     const out = {};
     for (const [key, entry] of info) {
-        if (entry.label) {
-            Object.defineProperty(out, key, { value: entry.label, enumerable: true });
+        if (!entry.label) {
+            continue;
         }
+        const l = entry.label.toLowerCase();
+        const clash = uses.get(l) > 1 || (spelling.has(l) && l !== key);
+        const value = clash ? `${entry.label} (${spelling.get(key) ?? key})` : entry.label;
+        Object.defineProperty(out, key, { value, enumerable: true });
     }
     return Object.keys(out).length ? out : null;
 }

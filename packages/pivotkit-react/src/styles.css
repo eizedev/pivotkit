@@ -1908,6 +1908,10 @@
     animation: pk-fade-in var(--pk-duration) ease-out;
 }
 
+.pk-tip.pk-notice {
+    padding-right: 0.8em;
+}
+
 .pk-tip > .pk-icon {
     flex: none;
 }
@@ -1963,10 +1967,6 @@
     min-width: 0;
     max-width: min(320px, calc(100vw - 16px));
     padding: 8px 10px;
-}
-
-.pk-popover.pk-info-pop:not([role="dialog"]) {
-    pointer-events: none;
 }
 
 .pk-field-desc {

@@ -21,11 +21,12 @@ const OPTION = "[data-pk-option]:not([disabled])";
 /**
  * @param {{ open: boolean, anchor: React.RefObject<HTMLElement>, onClose: () => void, label?: string,
  *   role?: "menu" | "dialog" | "tooltip", align?: "start" | "end", className?: string, id?: string,
- *   passive?: boolean, children: React.ReactNode }} props
+ *   passive?: boolean, onPointerEnter?: (e: React.PointerEvent) => void, onPointerLeave?: (e: React.PointerEvent) => void,
+ *   children: React.ReactNode }} props
  *   `passive`: shown on hover or focus of its button (a description): the focus stays where it is,
  *   never a bottom sheet
  */
-export function Popover({ open, anchor, onClose, label, role = "dialog", align = "start", className, id, passive = false, children }) {
+export function Popover({ open, anchor, onClose, label, role = "dialog", align = "start", className, id, passive = false, onPointerEnter, onPointerLeave, children }) {
     const { layer, size } = useContext(LayerContext);
     const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
@@ -142,6 +143,8 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 style={style}
                 onKeyDown={onKeyDown}
                 onBlur={sheet || passive ? undefined : onBlur}
+                onPointerEnter={onPointerEnter}
+                onPointerLeave={onPointerLeave}
                 // a click on text inside keeps the focus here, not on the report around it
                 tabIndex={passive ? undefined : -1}
             >

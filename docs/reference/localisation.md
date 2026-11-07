@@ -56,7 +56,9 @@ report.labels = { zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" }
 
 A language with more forms adds them (`few`, `many`); a missing form falls back to `other`.
 
-The tips are `labels.tips` (one text per tip id; `labels.tips.showAs` one per percentage
+The tips are `labels.tips` (one text per tip id; a text under an earlier key, `topNote`,
+`bottomNote`, `noValuesHint`, `cellHint`, `emptyHint`, `chartManySeries`, `chartDatesOnColumns` or
+`chartCapped`, still applies unless `labels.tips` has the tip's own entry; `labels.tips.showAs` one per percentage
 calculation), their buttons `labels.tipActions`, the keyboard shortcuts of the help section
 `labels.shortcuts` and `labels.keys`.
 

@@ -15,6 +15,10 @@ name and say what the field means, through `fieldDefaults`:
 | `href` | An https link to more about the field, shown as **Learn more** with the description (`target="_blank"`, `rel="noopener noreferrer"`). Any other link is dropped. |
 | `type` | The column type the field is read as: `"number"`, `"date"`, `"string"` or `"boolean"` (pivotkit-core's `encode` `types`), for numbers that arrive as text, say. |
 
+A label that two fields share, or that is another field's own name, gets the field's name in
+parentheses ("Name (product_name)"), so no two fields look the same in the list, on chips, in headers
+or in exported files.
+
 A field without them looks and works as it does without `fieldDefaults`: no **i**, no extra text,
 its own name. A label is display only: views and templates always hold the field's own name, so a
 template saved with German labels opens with English ones too. A date or number grouping gets its name
@@ -73,18 +77,19 @@ const openapi = {
     }
 };
 
-const defaults = fieldDefaultsFromSchema(openapi, { schema: "Item" });
+const { defaults, issues } = fieldDefaultsFromSchema(openapi, { schema: "Item" });
 // {
 //   name: { label: "Name" },
 //   status: { label: "Status", description: "Where the item is in its life.", order: ["planned", "active", "retired"] },
 //   units: { label: "Units in stock", href: "https://example.org/docs/units", type: "number" },
 //   released: { label: "Release date", description: "The day the item was first sold.", type: "date" }
 // }
+// issues: [] (what could not be read: a reference outside the document, a cycle, a cap)
 
 <PivotReport data={items} fieldDefaults={defaults} />;
 ```
 
-Add a field's aggregator or format by merging: `{ ...defaults, units: { ...defaults.units, agg: "sum" } }`.
+Add a field's aggregator or format by merging: `{ ...defaults, units: { ...defaults.units, agg: "sum" } }`. Show `issues` to whoever maintains the schema, or log them.
 
 What it reads, and what it does not:
 
@@ -92,10 +97,15 @@ What it reads, and what it does not:
   skipped. `allOf` parts are merged; a nullable `anyOf` or `oneOf` (one schema and `null`) is read as
   that schema; `type: ["integer", "null"]` as `integer`.
 - The schema is data: nothing in it is run. Its sizes are capped: 1,000 fields, 1,000 enum entries,
-  32 levels of references and a bounded number of schema objects per call, so a hostile document
-  cannot ask for unbounded work.
-- A property with nothing to say is left out. Input that is no schema throws a `PivotkitError`
-  (`INVALID_ARGUMENT`) with what is missing.
+  32 levels of references and 20,000 schema objects per call, so a hostile document cannot ask for
+  unbounded work.
+- A property with nothing to say is left out. What it cannot read never throws and is never cut
+  silently: `issues` lists it (`{ path, message }`, as `normalize()` does for a view) - a reference
+  that is not in the document or not local, a cycle, a cap that was reached. Each `$ref` target is
+  read once and reused, so a large document whose schemas share parts is read whole. Input that is no
+  schema at all throws a `PivotkitError` (`INVALID_ARGUMENT`) with what is missing.
+- Bidi controls and zero-width characters are removed from titles and descriptions, so a text cannot
+  be made to read as another one.
 
 The playground's "Software end of life" data set describes its fields this way, from the
 endoflife.date API's own OpenAPI document.
@@ -108,7 +118,7 @@ endoflife.date API's own OpenAPI document.
 import { fieldDefaultsFromSchema } from "pivotkit-core";
 
 const report = document.querySelector("pivot-report");
-report.fieldDefaults = fieldDefaultsFromSchema(await (await fetch("/api/openapi.json")).json(), { schema: "Release" });
+report.fieldDefaults = fieldDefaultsFromSchema(await (await fetch("/api/openapi.json")).json(), { schema: "Release" }).defaults;
 ```
 
 The page fetches the document itself; pivotkit never does.

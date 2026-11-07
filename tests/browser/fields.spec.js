@@ -34,7 +34,13 @@ test.describe("descriptions of the real data", () => {
         await info.hover();
         const pop = page.locator(".pk-info-pop");
         await expect(pop).toContainText("midyear estimates");
-        await expect(pop.locator("a")).toHaveCount(0);
+        await expect(info).toHaveAccessibleDescription(/midyear estimates/);
+        // the pointer moves from the i onto the description: it stays, and its link can be clicked
+        const link0 = pop.locator("a");
+        const lb = await link0.boundingBox();
+        await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2, { steps: 8 });
+        await page.waitForTimeout(400);
+        await expect(link0).toBeVisible();
         await page.mouse.move(5, 5);
         await expect(pop).toHaveCount(0);
         // keyboard: focus shows it, Enter opens it as a dialog with the link, Escape back to the i

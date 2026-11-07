@@ -97,3 +97,16 @@ test.describe("inside a shadow root", () => {
         await expect.poll(() => chips(page, "filters")).toEqual(["Channel"]);
     });
 });
+
+test.describe("server rendering", () => {
+    test("hydration with dismissed tips in localStorage: no mismatch, the stored dismissal applies after it", async ({ page }) => {
+        await page.addInitScript(() => localStorage.setItem("pivotkit:tips:hydrate", JSON.stringify(["cells"])));
+        await page.goto("pages/hydrate.html");
+        await expect(page.locator(".pk-root")).toBeVisible();
+        // the server knows no storage: its markup shows the tip, as the first client render does
+        expect(await page.evaluate(() => window.__serverTips)).toEqual(["cells"]);
+        // after hydration the stored dismissal is read
+        await expect(page.getByTestId("tip-cells")).toHaveCount(0);
+        await expect(page.getByTestId("cell-hint")).toHaveCount(1);
+    });
+});

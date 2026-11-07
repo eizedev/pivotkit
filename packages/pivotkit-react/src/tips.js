@@ -1,9 +1,11 @@
 /*
  * The tips above the result, the one table they are defined in: when each one shows (a pure function
  * of the report's state, tipContext), its text (labels.tips, labels.tipActions) and the action its
- * button runs. At most TIP_LIMIT show at a time, the most important first; each can be dismissed, and
- * a host can allow some or none (the `tips` prop). A new tip is one entry here, its text in every
- * language and, for a button, its action in PivotReport.
+ * button runs. A "notice" says that the result is cut or empty (top N, the chart's category cap, a
+ * filter that leaves nothing): it always shows, cannot be dismissed and counts against no limit. The
+ * other entries are tips: at most TIP_LIMIT at a time, the most important first, each can be
+ * dismissed, and a host can allow some or none (the `tips` prop). A new entry is one row here, its
+ * text in every language and, for a button, its action in PivotReport.
  */
 
 import { fieldLabel, suggestDateUnit } from "pivotkit-core";
@@ -57,6 +59,7 @@ const PERCENT_SHOW_AS = Object.freeze(["percentOfGrandTotal", "percentOfRowTotal
  * @property {(ctx: TipContext) => Record<string, any> | null} when  null: not now; else the
  *   placeholders of its text (and `action` data)
  * @property {string} [action]  the action of its button: a key of labels.tipActions and of PivotReport's actions
+ * @property {"notice"} [kind]  a notice: always shown, not dismissible, outside the tips' limit
  * @property {string} [icon]
  */
 
@@ -75,6 +78,7 @@ export const TIPS = Object.freeze([
     {
         // a filter that leaves nothing: say so instead of an empty table
         id: "filterEmpty",
+        kind: "notice",
         icon: "filter",
         action: "removeFilters",
         when: (ctx) => (!ctx.failed && !ctx.empty && ctx.dataRows > 0 && ctx.matched === 0 && ctx.view.filters.some((f) => isFiltered(ctx.view, f.field)) ? {} : null)
@@ -82,6 +86,7 @@ export const TIPS = Object.freeze([
     {
         // top N changes what totals mean
         id: "top",
+        kind: "notice",
         icon: "top",
         when: (ctx) => {
             if (ctx.failed || ctx.empty) {
@@ -98,6 +103,7 @@ export const TIPS = Object.freeze([
     },
     {
         id: "chartCapped",
+        kind: "notice",
         when: (ctx) => (chart(ctx) && seriesOf(ctx).categoryCount > seriesOf(ctx).categories.length ? { shown: seriesOf(ctx).categories.length, total: seriesOf(ctx).categoryCount } : null)
     },
     {
@@ -195,7 +201,10 @@ export const TIPS = Object.freeze([
 ]);
 
 /** Every tip id, for a host's `tips` list and for stored dismissals. */
-export const TIP_IDS = Object.freeze(TIPS.map((t) => t.id));
+export const TIP_IDS = Object.freeze(TIPS.filter((t) => t.kind !== "notice").map((t) => t.id));
+
+/** The notices: shown whenever they hold, whatever the tips settings are. */
+export const NOTICE_IDS = Object.freeze(TIPS.filter((t) => t.kind === "notice").map((t) => t.id));
 
 /** The dismissal that switches every tip off ("Show tips" in Options). */
 export const ALL_TIPS = "*";
@@ -243,28 +252,26 @@ export function tipContext({ view, result, encoded, failed, empty, typeOf, field
 }
 
 /**
- * The tips to show now: those whose condition holds, allowed by the host and not dismissed, at most
- * `limit`, the most important first.
+ * What to show now, the most important first: every notice whose condition holds, then the tips
+ * whose condition holds, allowed by the host and not dismissed, at most `limit` of them.
  * @param {TipContext} ctx
  * @param {{ allowed: "on" | "off" | readonly string[], dismissed: ReadonlySet<string> | readonly string[], limit?: number }} options
  * @returns {Array<{ id: string, params: Record<string, any>, entry: TipEntry }>}
  */
 export function activeTips(ctx, { allowed, dismissed, limit = TIP_LIMIT }) {
     const gone = new Set(dismissed);
-    if (allowed === "off" || gone.has(ALL_TIPS)) {
-        return [];
-    }
+    const tipsOff = allowed === "off" || gone.has(ALL_TIPS);
     const out = [];
+    let tips = 0;
     for (const entry of TIPS) {
-        if (out.length >= limit) {
-            break;
-        }
-        if ((Array.isArray(allowed) && !allowed.includes(entry.id)) || gone.has(entry.id)) {
+        const notice = entry.kind === "notice";
+        if (!notice && (tipsOff || tips >= limit || (Array.isArray(allowed) && !allowed.includes(entry.id)) || gone.has(entry.id))) {
             continue;
         }
         const params = entry.when(ctx);
         if (params) {
             out.push({ id: entry.id, params, entry });
+            tips += notice ? 0 : 1;
         }
     }
     return out;
@@ -333,25 +340,81 @@ export function cleanDismissed(value) {
 export const storageName = (key) => `pivotkit:tips:${key}`;
 
 /**
- * The dismissed tips stored for a report, or [] (no key, no storage, blocked, broken JSON).
+ * The stored text of a report's dismissed tips, or null (no key, no storage, blocked). A text, so a
+ * React store snapshot of it compares by value.
  * @param {string | undefined} key
  * @param {Pick<Storage, "getItem"> | null | undefined} storage
+ * @returns {string | null}
  */
-export function readDismissed(key, storage) {
+export function readStored(key, storage) {
     if (!key || !storage) {
+        return null;
+    }
+    try {
+        return storage.getItem(storageName(key));
+    } catch {
+        return null;
+    }
+}
+
+/** The dismissed ids of a stored text: [] for nothing or broken JSON. @param {string | null} raw */
+export function parseStored(raw) {
+    if (!raw) {
         return [];
     }
     try {
-        const raw = storage.getItem(storageName(key));
-        return raw ? cleanDismissed(JSON.parse(raw)) : [];
+        return cleanDismissed(JSON.parse(raw));
     } catch {
         return [];
     }
 }
 
 /**
- * Stores the dismissed tips of a report; nothing without a key or storage, and quietly when the
- * browser refuses (private mode, quota).
+ * The dismissed tips stored for a report, or [] (no key, no storage, blocked, broken JSON).
+ * @param {string | undefined} key
+ * @param {Pick<Storage, "getItem"> | null | undefined} storage
+ */
+export function readDismissed(key, storage) {
+    return parseStored(readStored(key, storage));
+}
+
+/** Who listens to the stored tips of a key in this page (the reports with that storageKey). */
+const listeners = new Map();
+
+/**
+ * Listens to the stored tips of a key: a write in this page (writeDismissed) or in another tab of
+ * the same site (the storage event). For useSyncExternalStore, so the report reads the storage only
+ * after hydration (its server snapshot is "nothing stored").
+ * @param {string | undefined} key
+ * @param {() => void} callback
+ * @returns {() => void}  stops listening
+ */
+export function subscribeStored(key, callback) {
+    if (!key) {
+        return () => {};
+    }
+    const set = listeners.get(key) ?? new Set();
+    set.add(callback);
+    listeners.set(key, set);
+    const onStorage = (e) => {
+        if (e.key === null || e.key === storageName(key)) {
+            callback();
+        }
+    };
+    const win = typeof window !== "undefined" ? window : null;
+    win?.addEventListener("storage", onStorage);
+    return () => {
+        set.delete(callback);
+        if (set.size === 0) {
+            listeners.delete(key);
+        }
+        win?.removeEventListener("storage", onStorage);
+    };
+}
+
+/**
+ * Stores the dismissed tips of a report and tells the reports of the page that use the key; nothing
+ * without a key or storage, and quietly when the browser refuses (private mode, quota).
  * @param {string | undefined} key
  * @param {Pick<Storage, "setItem" | "removeItem"> | null | undefined} storage
  * @param {readonly string[]} dismissed
@@ -368,6 +431,9 @@ export function writeDismissed(key, storage, dismissed) {
         }
     } catch {
         // storage blocked or full: the tips stay dismissed until the page is loaded again
+    }
+    for (const callback of [...(listeners.get(key) ?? [])]) {
+        callback();
     }
 }
 

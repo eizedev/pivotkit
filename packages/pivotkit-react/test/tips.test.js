@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { MANY_SERIES, MAX_CATEGORIES } from "../src/chart-types.js";
 import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-info.js";
-import { LABELS } from "../src/labels.js";
+import { LABELS, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
 import {
-    ALL_TIPS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
+    ALL_TIPS, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
 } from "../src/tips.js";
 
 const en = LABELS.en;
@@ -123,13 +123,23 @@ test("tips: Undo after the first drag, saving after several changes", () => {
 test("tips: at most TIP_LIMIT, the most important first; allowed, dismissed and switched off", () => {
     const ctx = contextOf(SALES, { rows: ["Rep"], values: [{ field: "Rep", agg: "count", showAs: { type: "percentOfGrandTotal" } }], filters: [{ field: "Rep", type: "top", count: 2 }] });
     assert.deepEqual(holding(ctx), ["top", "showAs", "textValue", "cells"]);
-    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [] }).map((t) => t.id), ["top", "showAs"]);
     assert.equal(TIP_LIMIT, 2);
-    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["top"] }).map((t) => t.id), ["showAs", "textValue"]);
-    assert.deepEqual(activeTips(ctx, { allowed: ["cells", "textValue"], dismissed: [] }).map((t) => t.id), ["textValue", "cells"]);
-    assert.deepEqual(activeTips(ctx, { allowed: "off", dismissed: [] }), []);
-    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [ALL_TIPS] }), []);
-    assert.deepEqual(activeTips({ ...ctx, failed: true }, { allowed: "on", dismissed: [] }), [], "an error shows no tips");
+    // "top" is a notice: it counts against no limit
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [] }).map((t) => t.id), ["top", "showAs", "textValue"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [], limit: 1 }).map((t) => t.id), ["top", "showAs"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs"] }).map((t) => t.id), ["top", "textValue", "cells"]);
+    assert.deepEqual(activeTips(ctx, { allowed: ["cells", "textValue"], dismissed: [] }).map((t) => t.id), ["top", "textValue", "cells"]);
+    assert.deepEqual(activeTips({ ...ctx, failed: true }, { allowed: "on", dismissed: [] }), [], "an error shows nothing");
+});
+
+test("notices (the result is cut or empty) stay: with tips off, all dismissed, at the narrow limit", () => {
+    assert.deepEqual(NOTICE_IDS, ["filterEmpty", "top", "chartCapped"]);
+    assert.ok(NOTICE_IDS.every((id) => !TIP_IDS.includes(id)), "a notice is not a tip id a host or a user can switch off");
+    const ctx = contextOf(SALES, { rows: ["Rep"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Rep", type: "top", count: 2 }] });
+    for (const options of [{ allowed: "off", dismissed: [] }, { allowed: "on", dismissed: [ALL_TIPS] }, { allowed: ["cells"], dismissed: ["cells"] }, { allowed: "on", dismissed: ["top"], limit: 0 }]) {
+        assert.deepEqual(activeTips(ctx, /** @type {any} */ (options)).map((t) => t.id), ["top"], JSON.stringify(options));
+    }
+    assert.deepEqual(cleanDismissed(["top", "cells"]), ["cells"], "a notice cannot be stored as dismissed");
 });
 
 test("tips: the host's tips prop and attribute, dismissed ids, storage that fails", () => {
@@ -137,15 +147,22 @@ test("tips: the host's tips prop and attribute, dismissed ids, storage that fail
     assert.equal(allowedTips("on"), "on");
     assert.equal(allowedTips(""), "on");
     assert.equal(allowedTips("off"), "off");
-    assert.deepEqual(allowedTips("top, cells,nope"), ["top", "cells"]);
+    assert.deepEqual(allowedTips("values, cells,nope,top"), ["values", "cells"]);
     assert.deepEqual(allowedTips(["values", 3, "constructor"]), ["values"]);
-    assert.deepEqual(cleanDismissed(["top", "top", "*", "__proto__", 1]), ["top", "*"]);
+    assert.deepEqual(cleanDismissed(["cells", "cells", "*", "__proto__", 1]), ["cells", "*"]);
     assert.deepEqual(cleanDismissed("top"), []);
     const store = new Map();
     const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
-    writeDismissed("sales", storage, ["top"]);
-    assert.equal(store.get(storageName("sales")), '["top"]');
-    assert.deepEqual(readDismissed("sales", storage), ["top"]);
+    let told = 0;
+    const stop = subscribeStored("sales", () => told++);
+    writeDismissed("sales", storage, ["cells"]);
+    assert.equal(store.get(storageName("sales")), '["cells"]');
+    assert.deepEqual(readDismissed("sales", storage), ["cells"]);
+    assert.equal(told, 1, "a write tells the reports with that key");
+    stop();
+    writeDismissed("sales", storage, ["cells", "values"]);
+    assert.equal(told, 1);
+    writeDismissed("sales", storage, ["cells"]);
     assert.deepEqual(readDismissed("other", storage), [], "every report has its own key");
     writeDismissed(undefined, storage, ["cells"]);
     assert.equal(store.size, 1, "no key: nothing stored");
@@ -155,7 +172,20 @@ test("tips: the host's tips prop and attribute, dismissed ids, storage that fail
     assert.deepEqual(readDismissed("bad", storage), []);
     const blocked = { getItem: () => { throw new Error("SecurityError"); }, setItem: () => { throw new Error("QuotaExceeded"); }, removeItem: () => { throw new Error("x"); } };
     assert.deepEqual(readDismissed("sales", blocked), []);
-    assert.doesNotThrow(() => writeDismissed("sales", blocked, ["top"]));
+    assert.doesNotThrow(() => writeDismissed("sales", blocked, ["cells"]));
+});
+
+test("display names: a label that two fields share, or another field's name, gets the field's name", () => {
+    const info = fieldInfoOf({ a: { label: "Same" }, b: { label: "same" }, c: { label: "d" }, e: { label: "Unique" } });
+    assert.deepEqual({ ...displayNames(info, ["a", "b", "c", "d", "e"]) }, { a: "Same (a)", b: "same (b)", c: "d (c)", e: "Unique" });
+    assert.deepEqual({ ...displayNames(fieldInfoOf({ Units: { label: "units" } }), ["Units"]) }, { units: "units" }, "its own name in other case is no clash");
+});
+
+test("labels: a host's text under an earlier key of a tip still applies", () => {
+    const l = resolveLabels("en", { topNote: "Only {count} of {field}.", cellHint: "Click.", tips: { cells: "Own." } });
+    assert.equal(l.tips.top, "Only {count} of {field}.");
+    assert.equal(l.tips.cells, "Own.", "the tip's own entry wins");
+    assert.equal(resolveLabels("de", { emptyHint: 3 }).tips.menus, LABELS.de.tips.menus, "a wrong type is ignored");
 });
 
 test("field descriptions: cleaned like a schema; nothing without fieldDefaults", () => {

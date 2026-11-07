@@ -5,6 +5,9 @@ import { toCsv } from "../src/export.js";
 import { SCHEMA_CAPS } from "../src/schema.js";
 import { SALES } from "./fixtures.js";
 
+/** The defaults alone, for the tests that do not look at the issues. */
+const fd = (...args) => fieldDefaultsFromSchema(...args).defaults;
+
 // An OpenAPI 3.1 document shaped like a real product API (made up): a list endpoint, a row schema
 // built with allOf and $ref, nullable fields written both ways, enums, formats, extensions.
 const OPENAPI = {
@@ -52,7 +55,7 @@ const OPENAPI = {
 };
 
 test("fieldDefaultsFromSchema: an OpenAPI schema by name gives labels, descriptions, types, orders and links", () => {
-    const d = fieldDefaultsFromSchema(OPENAPI, { schema: "Item" });
+    const d = fd(OPENAPI, { schema: "Item" });
     assert.deepEqual(Object.keys(d), ["id", "created", "name", "status", "units", "price", "released", "vendor"], "a property without anything to say is left out");
     assert.deepEqual(d.id, { description: "Identifier of the item." });
     assert.deepEqual(d.created, { label: "Created", description: "When the item was recorded, in UTC.", type: "date" });
@@ -62,16 +65,16 @@ test("fieldDefaultsFromSchema: an OpenAPI schema by name gives labels, descripti
     assert.equal(d.released.type, "date");
     assert.deepEqual(d.vendor, { label: "Vendor" }, "a link that is not https is dropped");
     // the same schema by a local $ref, and as the row schema itself
-    assert.deepEqual(fieldDefaultsFromSchema(OPENAPI, { schema: "#/components/schemas/Item" }), d);
-    assert.deepEqual(fieldDefaultsFromSchema({ components: OPENAPI.components }, { schema: "Item" }), d, "options.schema without an openapi key");
+    assert.deepEqual(fd(OPENAPI, { schema: "#/components/schemas/Item" }), d);
+    assert.deepEqual(fd({ components: OPENAPI.components }, { schema: "Item" }), d, "options.schema without an openapi key");
 });
 
 test("fieldDefaultsFromSchema: a plain JSON Schema of a row, or an array of rows", () => {
     const row = { type: "object", properties: { Region: { title: "Sales region", description: "Where it was sold." }, Units: { type: "integer" } } };
     const want = { Region: { label: "Sales region", description: "Where it was sold." }, Units: { type: "number" } };
-    assert.deepEqual(fieldDefaultsFromSchema(row), want);
-    assert.deepEqual(fieldDefaultsFromSchema({ type: "array", items: row }), want);
-    assert.deepEqual(fieldDefaultsFromSchema({ swagger: "2.0", definitions: { Row: row } }, { schema: "Row" }), want, "Swagger 2 definitions");
+    assert.deepEqual(fd(row), want);
+    assert.deepEqual(fd({ type: "array", items: row }), want);
+    assert.deepEqual(fd({ swagger: "2.0", definitions: { Row: row } }, { schema: "Row" }), want, "Swagger 2 definitions");
 });
 
 test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and never runs", () => {
@@ -82,10 +85,10 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     assert.throws(() => fieldDefaultsFromSchema(OPENAPI, { schema: "Missing" }), PivotkitError);
     assert.throws(() => fieldDefaultsFromSchema({ type: "object" }), /properties/);
     // remote references are not fetched
-    assert.deepEqual(fieldDefaultsFromSchema({ properties: { a: { $ref: "https://example.org/a.json" }, b: { title: "B" } } }), { b: { label: "B" } });
+    assert.deepEqual(fd({ properties: { a: { $ref: "https://example.org/a.json" }, b: { title: "B" } } }), { b: { label: "B" } });
     // a reference cycle ends
     const cycle = { components: { schemas: { A: { $ref: "#/components/schemas/B" }, B: { $ref: "#/components/schemas/A" } } }, properties: { x: { $ref: "#/components/schemas/A" }, y: { title: "Y" } } };
-    assert.deepEqual(fieldDefaultsFromSchema(cycle), { y: { label: "Y" } });
+    assert.deepEqual(fd(cycle), { y: { label: "Y" } });
     // a fan-out of allOf over allOf stops after SCHEMA_CAPS.steps schema objects, not after 1000^n
     const wide = Array.from({ length: 1000 }, () => ({ $ref: "#/$defs/L1" }));
     const fan = { $defs: { L1: { allOf: wide.map(() => ({ $ref: "#/$defs/L2" })) }, L2: { allOf: wide.map(() => ({ $ref: "#/$defs/L3" })) }, L3: { allOf: wide } }, properties: { a: { allOf: wide, title: "A" } } };
@@ -95,7 +98,7 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     // texts are plain and capped; a property named __proto__ is a field like any other
     const long = "x".repeat(SCHEMA_CAPS.description + 50);
     const proto = JSON.parse('{"properties":{"__proto__":{"title":"Proto"},"t":{"title":"<b>bold</b>\\u0000\\u2028line","description":"' + long + '"}}}');
-    const d = fieldDefaultsFromSchema(proto);
+    const d = fd(proto);
     assert.equal(Object.getPrototypeOf(d), Object.prototype);
     assert.deepEqual(Object.keys(d), ["__proto__", "t"]);
     assert.equal(d.t.label, "<b>bold</b> line", "kept as text, never parsed as markup");
@@ -103,9 +106,37 @@ test("fieldDefaultsFromSchema: bad input throws, hostile input is capped and nev
     assert.ok(d.t.description.endsWith("…"));
     assert.equal(({}).polluted, undefined);
     // enums keep primitive values only, capped
-    const e = fieldDefaultsFromSchema({ properties: { s: { enum: ["a", { x: 1 }, null, 2, ...Array.from({ length: 2000 }, (_, i) => `v${i}`)] } } });
+    const e = fd({ properties: { s: { enum: ["a", { x: 1 }, null, 2, ...Array.from({ length: 2000 }, (_, i) => `v${i}`)] } } });
     assert.equal(e.s.order.length, SCHEMA_CAPS.order - 1);
     assert.deepEqual(e.s.order.slice(0, 3), ["a", null, 2]);
+});
+
+test("fieldDefaultsFromSchema: a $ref is read once; what cannot be read is an issue, never a silent cut", () => {
+    // 1,000 fields that all use the same shared parts: every field is read
+    // (about 50 schema objects per field without reuse: 50,000, over SCHEMA_CAPS.steps)
+    const bases = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`Base${i}`, { allOf: [{ $ref: "#/$defs/Leaf" }, { properties: { [`b${i}`]: { type: "string" } } }] }]));
+    const shared = { $defs: { ...bases, Leaf: { properties: { by: { type: "string" } } }, Audit: { allOf: Object.keys(bases).map((b) => ({ $ref: `#/$defs/${b}` })) } } };
+    const properties = Object.fromEntries(Array.from({ length: 1000 }, (_, i) => [`f${i}`, { allOf: [{ $ref: "#/$defs/Audit" }, { title: `Field ${i}` }] }]));
+    const big = fieldDefaultsFromSchema({ ...shared, properties });
+    assert.equal(Object.keys(big.defaults).length, 1000);
+    assert.equal(big.defaults.f999.label, "Field 999");
+    assert.deepEqual(big.issues, []);
+    // a remote reference, a missing one and a cycle are named
+    const cycle = { $defs: { A: { $ref: "#/$defs/B" }, B: { $ref: "#/$defs/A" } }, properties: { r: { $ref: "https://example.org/a.json" }, m: { $ref: "#/$defs/Nope" }, c: { $ref: "#/$defs/A" }, ok: { title: "OK" } } };
+    const { defaults, issues } = fieldDefaultsFromSchema(cycle);
+    assert.deepEqual(defaults, { ok: { label: "OK" } });
+    assert.deepEqual(issues.map((i) => i.path), ["properties.r", "properties.m", "#/$defs/B"]);
+    assert.match(issues[0].message, /not local; not fetched/);
+    assert.match(issues[2].message, /refers to itself/);
+    // more fields than the cap: the first are read, and the cut is said
+    const many = fieldDefaultsFromSchema({ properties: Object.fromEntries(Array.from({ length: SCHEMA_CAPS.fields + 5 }, (_, i) => [`p${i}`, { title: "T" }])) });
+    assert.equal(Object.keys(many.defaults).length, SCHEMA_CAPS.fields);
+    assert.match(many.issues[0].message, /more than 1000/);
+});
+
+test("fieldDefaultsFromSchema: bidi controls and zero-width characters are removed", () => {
+    const d = fd({ properties: { a: { title: "\u202eevil\u200b", description: "a\u2066b\u2069c\ufeff" } } });
+    assert.deepEqual(d.a, { label: "evil", description: "abc" });
 });
 
 test("fieldLabel: own entries only, case-insensitive, the name without one", () => {

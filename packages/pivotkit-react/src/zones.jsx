@@ -152,7 +152,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                     }
                 </MenuButton>
             )}
-            {info ? <InfoButton info={info} name={info.label ?? text} labels={labels} className="pk-chip-info" /> : null}
+            {info ? <InfoButton info={info} name={fieldLabel(sourceOf(view, field), labels.core)} labels={labels} className="pk-chip-info" /> : null}
             <button type="button" className="pk-chip-x" onClick={remove} aria-label={fill(labels.removeField, { field: text })} title={fill(labels.removeField, { field: text })}>
                 <Icon name="x" size={14} />
             </button>

@@ -630,7 +630,7 @@ export const de = {
         },
         chartDates: "Die Daten liegen in Spalten, so wird jedes Datum eine eigene Linie. Zeilen und Spalten tauschen, um die Daten entlang der Achse zu zeichnen.",
         chartSeries: "{count} Reihen sind schwer zu unterscheiden. Zeilen und Spalten tauschen oder Spalten auf weniger Einträge filtern.",
-        textValue: "{field} ist Text, darum zählt Werte seine Einträge. Für Summen ein Zahlenfeld verwenden.",
+        textValue: "{field} ist Text, darum werden seine Einträge gezählt. Für Summen ein Zahlenfeld verwenden.",
         dateUngrouped: "{field} macht für jedes Datum eine Zeile oder Spalte. Nach {unit} gruppiert ist es leichter zu lesen.",
         manyColumns: "{count} Spalten nebeneinander sind schwer zu lesen. Zeilen und Spalten tauschen, um sie untereinander aufzulisten.",
         values: "Eine Zahl in Werte ziehen, um neben den Beschriftungen Summen oder Anzahlen zu sehen.",
@@ -788,6 +788,38 @@ function merge(base, over) {
 }
 
 /**
+ * Labels that became tips (labels.tips) under their earlier names: a host's text for one of them
+ * still applies, unless the host also gives the tip's own entry.
+ */
+const LEGACY_TIPS = Object.freeze({
+    topNote: "top",
+    bottomNote: "bottom",
+    noValuesHint: "values",
+    cellHint: "cells",
+    emptyHint: "menus",
+    chartManySeries: "chartSeries",
+    chartDatesOnColumns: "chartDates",
+    chartCapped: "chartCapped"
+});
+
+/** A host's labels with the earlier names of tip texts moved to labels.tips. */
+function withLegacyTips(custom) {
+    if (!isObject(custom)) {
+        return custom;
+    }
+    const moved = {};
+    for (const [old, id] of Object.entries(LEGACY_TIPS)) {
+        if (Object.hasOwn(custom, old) && typeof custom[old] === "string") {
+            moved[id] = custom[old];
+        }
+    }
+    if (Object.keys(moved).length === 0) {
+        return custom;
+    }
+    return { ...custom, tips: { ...moved, ...(isObject(custom.tips) ? custom.tips : {}) } };
+}
+
+/**
  * The labels for a locale: the language of the locale picks en or de (default en), the host's
  * partial labels are merged over them.
  * @param {string | undefined} locale
@@ -797,5 +829,5 @@ function merge(base, over) {
 export function resolveLabels(locale, custom) {
     const lang = typeof locale === "string" ? locale.toLowerCase().split(/[-_]/)[0] : "en";
     const base = Object.hasOwn(LABELS, lang) ? LABELS[lang] : en;
-    return /** @type {UiLabels} */ (merge(base, custom));
+    return /** @type {UiLabels} */ (merge(base, withLegacyTips(custom)));
 }
