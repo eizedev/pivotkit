@@ -122,4 +122,7 @@ test("the built package imports in Node without a DOM and defines nothing there"
     assert.equal(mod.define("my-report"), undefined);
     const bare = await import("../dist/element.js");
     assert.equal(bare.PivotReportElement, mod.PivotReportElement);
+    // the entry without the definition has the same exports
+    assert.deepEqual(Object.keys(bare).sort(), Object.keys(mod).sort());
+    assert.equal(bare.EVENTS, mod.EVENTS);
 });

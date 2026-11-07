@@ -17,6 +17,9 @@ import { EVENTS, emit, request } from "./events.js";
 import { ATTRIBUTES, OBJECT_PROPS, fromAttribute, localeOf, toAttribute } from "./props.js";
 import { adoptStyles } from "./styles.js";
 
+// the event names, so this entry has the same exports as the one that defines the tag
+export { EVENTS };
+
 /**
  * A view of pivotkit-core (the report template): plain JSON with field names only, normalized against
  * the data by the report; anything unknown is dropped. The full type is pivotkit-core's `View`.

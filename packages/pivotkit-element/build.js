@@ -2,7 +2,7 @@
 // ReactDOM, pivotkit-react, pivotkit-core and @dnd-kit, so a page needs no bundler, no import map and
 // no React of its own.
 //
-// - dist/index.js defines <pivot-report>; dist/element.js only exports the class and define().
+// - dist/index.js defines <pivot-report>; dist/element.js has the same exports and defines nothing.
 // - ECharts and the XLSX/CSV export (pivotkit-core/export with fflate) are loaded on first use, from
 //   chunks next to the entry (dist/chunks/), as pivotkit-react's dynamic imports ask for them. The
 //   chart chunks hold only the parts of ECharts pivotkit-react's dist/echarts.js imports by name.

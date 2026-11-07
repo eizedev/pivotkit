@@ -26,7 +26,6 @@ import { define } from "./element.js";
  * @typedef {import("./global.js").PivotReportEventMap} PivotReportEventMap
  */
 
-export { PivotReportElement, TAG, define } from "./element.js";
-export { EVENTS } from "./events.js";
+export { EVENTS, PivotReportElement, TAG, define } from "./element.js";
 
 define();
