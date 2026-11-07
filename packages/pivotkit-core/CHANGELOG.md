@@ -48,19 +48,20 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   number formats that show cells as the grid does, merged headers, bold totals, frozen panes, column
   widths and native colour scales and data bars; CSV with the grid locale's separator and a guard
   against formula injection.
-- `LIMITS` and `options.limits`: besides the view limits, `rows` for `encode()`, `groups` and
-  `pivotCells` for the key trees and the cells of `computePivot()` (counted while they grow), `cells`
-  for the dense `toGrid()` and `toSeries()` (counted before allocating) and `cacheEntries` for the
-  bounded cache of derived columns and sort orders. The defaults are sized for a browser tab: `rows`
-  1,000,000, `groups` 500,000, `pivotCells` 2,000,000, `cells` 2,000,000, `cacheEntries` 16, and 8
-  fields per axis (`axisFields`); the core README says what each one counts and why.
+- `LIMITS` and `options.limits`: besides the view limits, `rows` for `encode()`; `work` for the cell
+  updates of `computePivot()` (computed before it starts, a median or unique count 10 times) and
+  `groups` and `pivotCells` for its key trees and cells (counted while they grow); `cells` for the
+  dense `toGrid()` and `toSeries()` (counted before allocating) and `cacheEntries` for the bounded
+  cache of derived columns and sort orders. The defaults are sized for a browser tab: `rows`
+  1,000,000, `work` 100,000,000, `groups` 500,000, `pivotCells` 2,000,000, `cells` 2,000,000,
+  `cacheEntries` 16, 8 fields per axis (`axisFields`) and 16 values (`values`); the core README says
+  what each one counts and why. `AGGREGATORS` entries say `keepsValues` when they store a value per
+  row.
 - `PivotkitError` with the codes `INVALID_ARGUMENT`, `INVALID_OPTION` and `LIMIT_EXCEEDED`.
 - `CATALOG` and `aggregatorsFor()` for a UI's menus; `DEFAULT_LABELS`, `DEFAULT_THEME`.
 - `createHistory()` for undo, redo and reset; generated TypeScript declarations; a benchmark script.
 
 ### Changed
-
-Breaking changes against the phase 1 code on `main` (never published):
 
 - The package exports about 20 documented entry points; helpers such as `encodeColumn`, `makeEncoded`,
   `toWallMs`, `groupBy`, `derivedColumn`, `isoWeek`, `ranksOf`, `labelOf`, `naturalCompare`,
@@ -104,7 +105,9 @@ Breaking changes against the phase 1 code on `main` (never published):
   `toGrid()` allocate gigabytes or crash the process.
 - `computePivot()` honours `options.limits` for its own work: a view of many fields with many distinct
   values on both axes used to build millions of nodes and cells (gigabytes) before `toGrid()` refused
-  it; it throws `LIMIT_EXCEEDED` (`groups` or `pivotCells`) within a fraction of a second now.
+  it; it throws `LIMIT_EXCEEDED` (`groups` or `pivotCells`) within a fraction of a second now. Many
+  fields with few values and many medians or unique counts passed those limits and ran out of memory;
+  `work` refuses them before any work.
 - Numeric text is recognised in linear time: a long run of digits followed by another character took
   quadratic time in `encode()` (half a second for 40,000 digits), also without `inferNumbers`, since
   `detected` checks every text column. Text longer than 100 characters is no number.

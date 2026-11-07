@@ -19,7 +19,7 @@ import { checkLimit, expect } from "./errors.js";
 import { isEncoded } from "./encode.js";
 import { applyFilters } from "./filters.js";
 import { DEFAULT_LABELS, labelOf, ranksOf } from "./labels.js";
-import { resolveLimits } from "./limits.js";
+import { KEEPS_VALUES_WEIGHT, resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
 import { buildTree, groupBy } from "./tree.js";
 import { resolveLocale, optionsOf } from "./util.js";
@@ -231,8 +231,9 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
  * @param {unknown} viewInput  a view; normalized here, so it may come straight from a user
  * @param {{ locale?: string, limits?: Partial<import("./limits.js").Limits> }} [options]  locale: used
  *   when the view names none (natural sort, label filters, labels); default "en-US". limits: the view
- *   limits for normalize(), `groups` for the nodes of both key trees and `pivotCells` for the cells,
- *   each counted while it grows; more throws a PivotkitError (LIMIT_EXCEEDED)
+ *   limits for normalize(), `work` for the cell updates (computed before the trees are built),
+ *   `groups` for the nodes of both key trees and `pivotCells` for the cells (each counted while it
+ *   grows); more throws a PivotkitError (LIMIT_EXCEEDED)
  * @returns {PivotResult}
  */
 export function computePivot(data, viewInput, options) {
@@ -272,11 +273,6 @@ export function computePivot(data, viewInput, options) {
     }
     rows = applyFilters(ctx, rows);
 
-    const rowColumns = view.rows.map(columnOf);
-    const colColumns = view.cols.map(columnOf);
-    const rowTree = { ...buildTree(rowColumns, rows, { max: limits.groups, used: 0 }), depth: rowColumns.length };
-    const colTree = { ...buildTree(colColumns, rows, { max: limits.groups, used: rowTree.nodes.length }), depth: colColumns.length };
-
     // Measures: the visible values plus references used only for sorting, each computed once.
     const measureIndex = new Map();
     const measures = [];
@@ -294,6 +290,16 @@ export function computePivot(data, viewInput, options) {
             addMeasure(s.value);
         }
     }
+
+    // Every row updates (row depth + 1) x (column depth + 1) cells per measure, known exactly before
+    // the trees are built or anything is aggregated.
+    const weight = measures.reduce((w, m) => w + (aggregatorOf(m.agg).keepsValues ? KEEPS_VALUES_WEIGHT : 1), 0);
+    checkLimit("work", rows.length * (view.rows.length + 1) * (view.cols.length + 1) * weight, limits.work, "cell updates");
+
+    const rowColumns = view.rows.map(columnOf);
+    const colColumns = view.cols.map(columnOf);
+    const rowTree = { ...buildTree(rowColumns, rows, { max: limits.groups, used: 0 }), depth: rowColumns.length };
+    const colTree = { ...buildTree(colColumns, rows, { max: limits.groups, used: rowTree.nodes.length }), depth: colColumns.length };
 
     const measureValue = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, limits.pivotCells);
     const num = (v) => (typeof v === "number" ? v : null);

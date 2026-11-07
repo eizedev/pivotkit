@@ -98,10 +98,12 @@ throws `LIMIT_EXCEEDED`:
 | `rows` | 1,000,000 | rows `encode` accepts | before any column is built |
 | `groups` | 500,000 | nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals | the distinct leaves of an axis before its first node is made, then each node before it is made |
 | `pivotCells` | 2,000,000 | cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included | a lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored |
+| `work` | 100,000,000 | cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell | exactly, after the filters and before the key trees are built |
 | `cells` | 2,000,000 | cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`) | before the grid or the series is built |
 | `cacheEntries` | 16 | derived columns and sort orders kept per data set (least recently used go first) | on each new entry |
 | `axisFields` | 8 | fields per axis (rows, columns); more are dropped as an issue | in `normalize` |
-| `json`, `name`, `values`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | see `LIMITS` | the size of a view and its parts; more is dropped as an issue | in `normalize` |
+| `values` | 16 | values of a view; more are dropped as an issue | in `normalize` |
+| `json`, `name`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | see `LIMITS` | the size of a view and its parts; more is dropped as an issue | in `normalize` |
 
 `error.details.value` is the count when the limit was hit: for a limit counted while it grows, the
 first count above `max`, not the total. `groups` must stay at or below 2^27 (134,217,728): cell keys
@@ -119,15 +121,25 @@ The defaults are sized for a browser tab and the about 100,000 rows the engine i
   than `cells` allows does not render either.
 - `pivotCells`: 100,000 rows that are all distinct pairs on three row and two column fields make
   1.2 million; a view of many fields with many values each is refused within a fraction of a second.
-  At the defaults the largest pivot measured (495,000 rows, one row and one column field of 240,000
-  values each) took 2.6 s and grew the process memory (RSS) by about 1 GB in Node 26 on arm64.
+  At the defaults the largest pivots measured (495,000 rows, one row and one column field of 240,000
+  values each, with and without "show values as") took 0.8 to 2.6 s and grew the process memory (RSS)
+  by up to about 1.5 GB in Node 26 on arm64.
+- `work`: measured per cell update in Node 26 on arm64, a sum takes about 2.5 ns and no memory beyond
+  its cells; a median 9 to 11 ns and 10 to 18 bytes; a unique count of distinct values 65 to 80 ns
+  and 28 to 42 bytes. 100 million updates of a sum take a fraction of a second; the weight of 10
+  keeps the entries of medians and unique counts at 10 million, about 400 MB at most. 100,000 rows
+  on three row and two column fields with five values make 6 million.
+- `values`: each value is a column per column item; more than 16 side by side cannot be read, and
+  `work` bounds what they cost.
 - `cacheEntries`: a derived column takes 12 bytes per row, so 16 entries of a million rows stay at
   about 200 MB.
 
 Not counted: the data itself (the host's rows and the encoded columns, rows x columns; `rows` caps
-the rows, the number of columns is not limited), and the time a large pivot takes. A host that takes
+the rows, the number of columns is not limited), "show values as" and sorting after the
+aggregation (they grow with the cells, which `pivotCells` bounds), and the time a pivot within the
+limits takes. A host that takes
 data or views from untrusted users and wants less lowers the limits, for example
-`{ rows: 200_000, groups: 100_000, pivotCells: 500_000, cells: 500_000 }`.
+`{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
 
 XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a larger grid throws
 `LIMIT_EXCEEDED`), 32,767 characters per cell (longer text is cut).

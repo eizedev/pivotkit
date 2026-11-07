@@ -95,8 +95,9 @@ function makeNode(id, depth, code, key, parent) {
  */
 export function buildTree(columns, rows, limit = { max: Infinity, used: 0 }) {
     const { groupOf, paths } = groupBy(columns, rows);
-    // every group is a leaf of its own, so the tree has at least as many nodes besides the root
-    checkLimit("groups", limit.used + 1 + paths.length, limit.max, "groups");
+    // every group is a leaf of its own, so the tree has at least as many nodes, plus the root above
+    // them; without fields the root is the one leaf
+    checkLimit("groups", limit.used + paths.length + (columns.length > 0 ? 1 : 0), limit.max, "groups");
     const root = makeNode(0, 0, -2, null, null);
     const nodes = [root];
     // every child of the tree in one map, keyed by its parent and its code: a map per node would

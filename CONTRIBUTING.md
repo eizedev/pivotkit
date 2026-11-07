@@ -43,7 +43,7 @@ The vocabulary of a view lives in tables, so a new name is one entry plus its te
 
 | Feature | Table | Also |
 | --- | --- | --- |
-| Aggregator | `AGGREGATORS` in `src/aggregators.js` (kernel, result type, `numeric`, `dates`, `additive`) | its label in `DEFAULT_LABELS.aggregators` (`src/labels.js`) |
+| Aggregator | `AGGREGATORS` in `src/aggregators.js` (kernel, result type, `numeric`, `dates`, `additive`, `keepsValues` when it stores a value per row, which counts heavier against `limits.work`) | its label in `DEFAULT_LABELS.aggregators` (`src/labels.js`) |
 | Date grouping or bin unit | `DERIVED` in `src/derive.js` (source type, result type, value, label) | |
 | Filter type | `FILTERS` in `src/filters.js` (stage, `normalize`, `allowed` or `keep`) | |
 | "Show values as" | `SHOW_AS` in `src/show-as.js` (default format, `alongAxis`, `additive`, `compute`) | |
