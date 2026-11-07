@@ -57,8 +57,8 @@ years), the average of "Mean °C" coloured from cold to warm.
 - Read it: Cairo (11.1 hours a day), Mexico City (10.8) and Dubai (10.7). A note above the table says
   that the Grand Total covers these three cities only.
 - Try this: open the menu of "City", set **Count** under Top to 5 and press **Apply**. Cape Town and Rome follow.
-- Try this: drag "Date" to Columns. The report groups the dates by quarter on its own ("Date
-  (Quarter)") since they span three years; the chip's menu switches to months or years.
+- Try this: drag "Date" to Columns. The report groups the dates by quarter on its own ("Date by
+  quarter") since they span three years; the chip's menu switches to months or years.
 
 **How many rain days per season? (2025)** Cities on rows, seasons on columns, the sum of "Rain day",
 filtered to 2025 with the derived field "Year".
@@ -352,7 +352,7 @@ and "Days to EOL" are blank, and 551 of them are EOL all the same, the date was 
 ![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife.png)
 
 **How many release cycles reach end of life per year? (chart)** "EOL date" grouped by year (the
-derived field "EOL date (Year)"), counted, filtered to 2016 to 2030, as bars.
+derived field "EOL date by year"), counted, filtered to 2016 to 2030, as bars.
 
 - Read it: 2026 has the most, 1,047 release cycles; 2025 follows with 1,008. The later years are
   not complete: 737 supported cycles have no end date yet.

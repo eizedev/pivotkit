@@ -20,12 +20,12 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - Dates are grouped as soon as they are placed, numbers go into ranges ([dates](concepts/dates.md)).
 - Filter a field by its values, a text condition, a value condition ("Sum of Revenue > 1,000") or its top N; the menu says what a filter keeps ([filters](concepts/filters.md)).
 - Click a number to see the rows behind it ([drill-down](guide.md#the-rows-behind-a-number)).
-- Switch to bars, lines, area, pie, donut or heatmap, with value labels, legend, title and group labels ([charts](concepts/charts.md)).
+- Switch to a chart: the type follows the data (lines over dates, else bars) until you pick bars, lines, area, pie, donut or heatmap, with value labels, legend, title and group labels ([charts](concepts/charts.md)).
 - Undo and redo every step; Reset goes back to the start ([guide](guide.md#undo-saved-views-and-export)).
 - Save the report under Views, or share it as a link, as JSON or as a view file; a view for other data asks first ([sharing](concepts/sharing.md)).
 - Enlarge the result or put the report on the full screen ([guide](guide.md#more-room-for-the-result)).
 - Export the table to Excel or CSV and the chart to PNG ([export](guide.md#undo-saved-views-and-export)).
-- Tips say what the report shows and what to do next; an "i" explains each zone, field and setting that needs it, and long menus fold their sections ([tips](guide.md#tips), [menus](guide.md#menus-that-are-long)).
+- Tips, one at a time, say what the report shows and what to do next; an "i" explains each zone, field and setting that needs it, and long menus fold their sections ([tips](guide.md#tips), [menus](guide.md#menus-that-are-long)).
 - Every text field in a menu has an × that empties it ([guide](guide.md#menus-and-text-fields)).
 - Works with a keyboard and a screen reader, from a phone to a wide screen ([keyboard](guide.md#keyboard-and-screen-readers)).
 - In English and German, light and dark ([localisation](reference/localisation.md), [theming](reference/theming.md)).

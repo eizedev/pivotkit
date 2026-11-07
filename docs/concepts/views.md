@@ -47,7 +47,7 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
     chart: {
-        type: "bar", stacked: false, horizontal: false,        // bar line area pie donut heatmap
+        type: "auto", stacked: false, horizontal: false,       // auto (the default: the data decides) bar line area pie donut heatmap
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
         smooth: false, axisLabels: "auto", groupLabels: "auto",
         labelPosition: "outside"                               // pie and donut: "outside" or "inside"
@@ -96,7 +96,7 @@ reports. The UI normalizes every view it gets.
 The report's **Views** menu lists what you pass in `templates` (`{ name, view, deletable? }`) under
 **Saved views** and offers the first three in the empty state. With `onSaveTemplate` (or
 `save-templates` on the element) people save the current view under a name; your code stores it and
-passes the new list back. Entries marked `deletable` get a delete button with a confirmation. Names
+passes the new list back. The menu stays open after a save, with the name field empty again. Entries marked `deletable` get a delete button with a confirmation. Names
 need not be unique. The menu's second section, **Share**, copies or downloads the view as a
 [view file](../reference/view-file.md) and loads one ([sharing](sharing.md)).
 

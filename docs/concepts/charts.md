@@ -11,6 +11,29 @@ value. At most 50 categories are drawn, with a note. A click on a bar, a point o
 the rows behind it, as in the table. The chart has a text alternative (type, values, counts, highest
 and lowest value); its name includes the title when it has one ("Chart: Revenue by region").
 
+## The chart type
+
+Until a type is picked, the chart type is **Automatic** (`chart.type: "auto"`, also for a view
+without a type): the data decides.
+
+- A date, or a grouping of one ("Created by month"), on Rows: **lines**, the dates along the axis.
+- Dates on Columns only: **lines** too, with rows and columns swapped for the chart alone, so the
+  dates run along the axis and each item of Rows is a line; the table keeps its layout and the view
+  is not changed. A click on a point opens its rows as in the table.
+- Anything else: **bars**.
+
+The button next to Table and Chart shows the type ("Automatic", "Bars"; for a screen reader "Chart
+type: Bars"), and "Automatic" in its menu says what it draws now ("Now: Lines"). A type the user
+picks stays. When that type is not lines over dates (bars, a pie), a tip offers **Show as lines over
+time**, which goes back to Automatic in one step Undo takes back. A pie or a donut of more than about
+7 slices gets a tip with **Switch to Bars**; a pie with a field on Columns says that it adds the
+columns up into one slice per row. A heatmap's colour scale writes its ends in the value's number
+format.
+
+For developers: pivotkit-core's `autoChartType(view, data)` says what "auto" stands for (`"line"`
+with a date on Rows, else `"bar"`) and `toEChartsOption()` draws it; the swap for dates on Columns is
+the UI's (pivotkit-react computes the chart from the swapped view).
+
 ## Display settings (for the people who use the report)
 
 The chart type menu has a **Display** section under the chart types (both sections fold, see

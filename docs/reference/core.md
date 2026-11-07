@@ -163,6 +163,16 @@ line, area, pie, donut and heatmap. ECharts itself is not imported.
 | `maxCategories` | both | Plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut. |
 | `series` | `toEChartsOption` | The `toSeries` result of the same result and options, when the caller has it already. |
 
+`chart.type` `"auto"` (the view's default) is drawn as `autoChartType(view, data)` says: `"line"`
+when a date or a grouping of one is on Rows, else `"bar"`. A pie's share is written as the locale
+writes a percentage; a heatmap's colour scale (`visualMap.formatter`) in the value's number format.
+
+### `autoChartType(view, data)`
+
+What the chart type `"auto"` stands for, for a normalized view and its data: `"line"` when a field on
+Rows is a date or a grouping of one, else `"bar"`. A date on Columns alone gives `"bar"`; a UI that
+wants lines there swaps rows and columns for the chart (pivotkit-react does).
+
 `toSeries` gives `categories` (the whole path of each category, "Asia / Japan"), `categoryLevels`
 (its label per level, `["Asia", "Japan"]`), `categoryPaths`, `series` and `totals`. The view's display
 settings are part of the option: a `title`, the legend where `chart.legend` puts it (and room for

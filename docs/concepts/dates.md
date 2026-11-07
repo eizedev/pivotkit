@@ -11,8 +11,8 @@ then go on rows or columns like any other field.
 
 ```json
 {
-    "rows": ["Created (Month)"],
-    "derived": [{ "name": "Created (Month)", "field": "Created", "by": "yearMonth" }]
+    "rows": ["Created by month"],
+    "derived": [{ "name": "Created by month", "field": "Created", "by": "yearMonth" }]
 }
 ```
 
@@ -48,7 +48,7 @@ weeks are the same in every locale, since Intl has no names for them.
 
 In the UI a date is grouped as soon as it is put on rows or columns, by the span of its values: up to
 62 days by day, up to two years by month, up to six years by quarter, longer by year. The chip says so
-("Created (Month)"), and its menu changes the unit or takes the grouping off. `suggestDateUnit(data,
+("Created by month"), and its menu changes the unit or takes the grouping off. `suggestDateUnit(data,
 field)` in pivotkit-core makes the same choice.
 
 ## Number ranges

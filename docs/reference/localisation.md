@@ -23,7 +23,7 @@ Two settings decide how a report reads:
 | English | every locale not listed below | `LABELS.en` |
 | German | `de`, `de-DE`, `de-AT`, `de-CH`, ... | `LABELS.de` |
 
-`LABELS` is exported by pivotkit-react (`import { LABELS } from "pivotkit-react"`); its keys are the
+`LABELS` is exported by pivotkit-react's subpath `pivotkit-react/labels` (`import { LABELS } from "pivotkit-react/labels"`; a subpath of its own, so the report's first load does not carry the menus' texts); its keys are the
 reference for every text. The report's `lang` attribute follows the labels, so screen readers use the
 right voice.
 
@@ -72,7 +72,7 @@ There is no registry of languages: another language is a whole labels object wit
 passed as `labels`, next to the `locale` for its numbers and dates.
 
 ```jsx
-import { LABELS } from "pivotkit-react";
+import { LABELS } from "pivotkit-react/labels";
 
 const fr = { ...LABELS.en, lang: "fr", zones: { ...LABELS.en.zones, rows: "Lignes", cols: "Colonnes" } /* ... */ };
 

@@ -27,7 +27,7 @@ builds depend on it.
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
-  focus and Escape helpers; `labels.js` the texts (en, de); `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
+  focus and Escape helpers; `labels.js` the texts of the first load (en, de), `menu-labels.js` those only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `all-labels.js` both as `LABELS`, the subpath export `pivotkit-react/labels`; `overflow.js` which toolbar buttons go into "More" (a fixed priority and the room each takes, not the texts); `rove.js` the arrow keys of the field list (one Tab stop); `chart-types.js` also `chartPlan`, what an automatic chart (`chart.type: "auto"`) draws; `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package and the contrast of the tokens);
   `test/types/` is a TypeScript consumer.
 - `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow
@@ -144,7 +144,7 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   display only, views keep field names. A schema is data: local `$ref`s only, nothing fetched, sizes
   capped (`SCHEMA_CAPS` in `schema.js`).
 - Tips are rows of `TIPS` (`tips.js`): a pure condition, a text in every language, an optional
-  action; at most `TIP_LIMIT` show, in the flow above the result, never over it. A row that says the
+  action; at most `TIP_LIMIT` (one) show, the next queued by priority, in the flow above the result, never over it. A row that says the
   result is cut or empty is a `kind: "notice"`: always shown, not dismissible, outside the limit and
   the tips settings. Browser storage is read after the first render (`useSyncExternalStore` with a
   server snapshot), so server rendering and hydration match.

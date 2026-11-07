@@ -31,6 +31,7 @@ version is [What pivotkit does](overview.md).
 - Sort by label; "Largest … first" and "Smallest … first" for each value that gives a number, so with several values the user picks the one that orders the items; "Custom order" when the host gives a field its order of items ([filters](concepts/filters.md#sorting)).
 - Swap rows and columns sits above Columns; it drops its text where the zone is narrow ([React reference](reference/react.md#layout)). It swaps the fields, the collapsed groups and the direction of calculations (% of row total to % of column total, along Rows to along Columns) ([guide](guide.md#the-table)).
 - The field search finds names, display names and descriptions; its × and Escape empty it ([guide](guide.md#menus-and-text-fields)).
+- A long field name takes two lines in the field list, with the whole name on hover ([guide](guide.md#adding-fields)).
 
 ## Toolbar and layout
 
@@ -38,16 +39,18 @@ version is [What pivotkit does](overview.md).
 - An entry that would do nothing is greyed out: Undo and Redo without a step, Reset at the start view, the PNG export without a drawn chart, "Show dismissed tips again" without a dismissed tip, Expand and Collapse all when nothing changes, a total that changes nothing in the layout, Save and Load without text ([guide](guide.md#undo-saved-views-and-export)).
 - A greyed-out entry whose reason is not obvious says why in a short line under it, only while it is greyed out ("Switch to Chart first.", "Needs two or more fields in Rows.") ([guide](guide.md#undo-saved-views-and-export)).
 - Options, Help, Keyboard shortcuts lists the keys ([guide](guide.md#tips)).
-- Toolbar buttons that do not fit move into More, Reset and Redo first; Table or Chart, Undo and Export always stay; which buttons are in More depends on the width only ([guide](guide.md#the-parts)).
+- Toolbar buttons that do not fit move into More by a fixed priority, Reset first, then Layout, Views, Options, the chart type; by the report's width, not the length of the texts, so English and German show the same buttons; Table or Chart, Undo with Redo next to it and Export always stay ([guide](guide.md#small-screens)).
 - A low report (below 600 px, a narrow one below 820 px) folds its zones into one line that says what is in them and shows at most one tip; Layout opens them ([layout](reference/react.md#layout)).
 - Layout keeps its name and its place; it shows pressed while the zones are open (`aria-pressed`), and in More it is an entry with a check ([guide](guide.md#small-screens)).
 - A report without a height of the host's, lower than its toolbar, zones, tips and the result's least height (240 px, 280 px narrow) need, grows so the page scrolls; with a height (a card) it stays inside and the table scrolls; `grow` / `grow` decides it either way ([layout](reference/react.md#layout)).
 - A menu whose code could not be loaded (offline, `dist/chunks/` not deployed) says so with Try again ([files](reference/react.md#files-the-package-loads)).
 - Enlarge, at the top right of the result: the result fills the report, the field list, zones, tips and notes step aside, one line names the fields; Escape or the button brings them back; not part of the view ([guide](guide.md#more-room-for-the-result)).
+- While enlarged the button reads Reduce (Verkleinern), pressed (`aria-pressed`) ([guide](guide.md#more-room-for-the-result)).
 - Full screen, next to it: the whole report on the screen (Fullscreen API, also in the web component's shadow root); Escape leaves it; not offered where the browser cannot ([guide](guide.md#more-room-for-the-result)).
 - Below 640 px of the report's own width the field list is a drawer opened with Fields in the toolbar, and menus open as sheets from the bottom ([layout](reference/react.md#layout)).
+- On a phone More and every menu are a sheet at the bottom of the window, at most 82 % of its height, scrolling inside: every entry is reachable ([guide](guide.md#small-screens)).
 - The drawer closes with its x ("Close field list"), Escape or a tap beside it, and by itself after a field is added from it, its "Filter…" opens or a drag starts ([guide](guide.md#small-screens)).
-- Status messages under the result: at most two, each for 6 seconds, longer while the pointer or the focus is on it; errors stay until closed ([guide](guide.md#status-messages)).
+- Status messages at the bottom edge of the part of the report on screen (under the result, or at the bottom of the window when the report reaches past it): at most two, each for 6 seconds, longer while the pointer or the focus is on it; errors stay until closed ([guide](guide.md#status-messages)).
 - A loaded view is a note with Undo ("View loaded", "Opened the view from the link"); with parts left out it is a warning ("View loaded; some parts did not fit this data") that goes like any note ([guide](guide.md#status-messages)).
 - "Some parts of the view were not used: N" above the result, for a saved view, link or file that names what the data lacks; it opens to up to 20 parts (in words, or with their path and why) and stays until dismissed with its x or another view is loaded ([guide](guide.md#parts-of-a-view-that-were-not-used)).
 - The wheel over a menu stays in it: the table and the page behind never scroll; a menu is never higher than the window ([guide](guide.md#menus-that-are-long)).
@@ -68,7 +71,7 @@ version is [What pivotkit does](overview.md).
 
 ## Filters
 
-- Values with row counts, search, Select all, Select none, Only; a text condition ([filters](concepts/filters.md)).
+- Values with row counts, search, Select all, Select none, Only; a condition on the labels by the field's type: "Text condition" for text, "Condition on the label" for a number, none for a date or a grouping of one and a yes/no field ([filters](concepts/filters.md)).
 - At most 300 values listed, then "300 of 1,045 values; search to find more"; Select all and Select none act on what the search finds; "N selected" at the top ([filters](concepts/filters.md#filters-in-the-ui)).
 - The values left out are stored (`exclude`), so values new in later data show; every value ticked removes the filter ([filters](concepts/filters.md#filters-in-the-ui)).
 - A value condition, "Value filter…" in a row or column field's menu: a value, an operator (equals to not between) and one or two numbers; the chip and the menu show it as "Sum of Revenue > 1,000"; Clear removes it ([filters](concepts/filters.md#filters-in-the-ui)).
@@ -84,10 +87,12 @@ version is [What pivotkit does](overview.md).
 ## Dates
 
 - A date is grouped as it is placed, by the span of its values ([dates](concepts/dates.md)).
+- A grouping is named in words: "Created by month", in German "Erstellt nach Monat" ([dates](concepts/dates.md)).
 - Along the time line or across years; numbers into ranges with "Starting at", whose × empties it ([dates](concepts/dates.md)).
 
 ## Chart
 
+- Automatic (the default until the user picks a type): lines when a date is on Rows, lines with the dates along the axis when they are on Columns (swapped for the chart alone), else bars; the menu's "Automatic" says what it draws now ([charts](concepts/charts.md#the-chart-type)).
 - Bars, stacked bars, horizontal bars, lines, area, pie (a whole circle), donut (a ring), heatmap; a click opens the rows behind a mark ([charts](concepts/charts.md)).
 - Display: value labels, legend, title, smooth lines, axis labels, group labels, kept in the view ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
 - A pie or a donut writes its labels outside (name and number on a line to the slice) or inside (the number on the slice, in a colour that reads on it; the legend names the slices); not offered while value labels are off ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
@@ -95,6 +100,8 @@ version is [What pivotkit does](overview.md).
 - Two fields in Rows: the outer field's items as group labels under the axis, with separators; automatic ones only where the chart has room (not on a phone), On forces them ([charts](concepts/charts.md)).
 - A title wider than the chart ends in "…", on screen and in the PNG ([charts](concepts/charts.md)).
 - A tip suggests bars for lines over categories without an order, with Switch to Bars ([charts](concepts/charts.md)).
+- A chosen type over dates gets a tip with "Show as lines over time"; a pie or donut of more than 7 slices one with "Switch to Bars"; a pie with a field on Columns says that it adds up the columns ([charts](concepts/charts.md#the-chart-type)).
+- A heatmap's colour scale writes its ends in the value's number format; a pie's share is written as the language writes percentages ("35.7%", "35,7 %") ([charts](concepts/charts.md)).
 - `chartOptions` for developers: plain JSON merged over the option, the host wins; markup, addresses and text templates (a string `formatter`, `rich`, `link`, `image`) are left out ([charts](concepts/charts.md#chartoptions-for-developers)).
 - At most 50 categories, with a notice; a text alternative for screen readers ([charts](concepts/charts.md)).
 - The tooltip: the category's whole name and a line per series with its colour and formatted value; a pie's slice; a heatmap's row, column and value; plain text, never HTML ([charts](concepts/charts.md)).
@@ -105,6 +112,7 @@ version is [What pivotkit does](overview.md).
 - A total that would change nothing is greyed out with what it needs: the grand total row a field in Rows, the grand total column one in Columns, subtotals two or more fields on their axis ([guide](guide.md#the-table)).
 - Expand all and Collapse all (the groups of Rows) are offered only when they change something, say why not ("Nothing is collapsed.", "Needs two or more fields in Rows.", "Every group is collapsed already."), and report "5 groups collapsed" ([guide](guide.md#the-table)).
 - Headers and row labels stay in place; the body is virtual from 300 rows ([layout](reference/react.md#layout)).
+- Row labels wrap between words and keep at least 5.5em on a phone, so a common word is never cut; a longer one breaks at a hyphenation point ([layout](reference/react.md#layout)).
 - Headers drag into a zone ([guide](guide.md#the-table)).
 
 ## Drill-down
@@ -143,25 +151,27 @@ version is [What pivotkit does](overview.md).
 ## Saved views
 
 - The host's `templates`, under Saved views in the Views menu: load, save under a name (up to 120 characters, Enter saves), delete with a confirmation; the host stores them ([views](concepts/views.md#saved-views-in-the-ui)).
+- After Save the Views menu stays open with the new entry, the name field empty and Copy link one click away ([views](concepts/views.md)).
 - The name field has an ×; Escape in it empties it first, then closes the menu ([guide](guide.md#menus-and-text-fields)).
 
 ## Tips
 
-- At most two, the most important first, dismissible and remembered per `storageKey` ([tips](reference/react.md#tips)).
+- One at a time, the most important first; the next waits until it is followed or dismissed; dismissible and remembered per `storageKey`; the tip to save goes after a save ([tips](reference/react.md#tips)).
 - Notices for a cut or empty result always show ([tips](reference/react.md#tips)).
 
 ## Field descriptions
 
 - Labels, descriptions and links per field, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
-- Options, Help, "Show field descriptions" hides every "i" of a field; screen readers keep the text; `fieldInfo` decides it for the host ([React props](reference/react.md#props)).
+- Options, Help, "Show explanations" hides every "i": of a field, a zone and a setting; screen readers keep the text; `fieldInfo`, `zoneInfo` and `settingInfo` decide one kind each for the host ([React props](reference/react.md#props)).
 
 ## Accessibility
 
 - Every action by keyboard and by a menu; drag and drop is never the only way ([guide](guide.md#keyboard-and-screen-readers)).
 - Menus: arrow keys, Home and End; the table: arrow keys, Enter or Space opens a value ([guide](guide.md#keyboard-and-screen-readers)).
+- The field list is one stop of the Tab order: up and down between fields, left and right to a field's grip, "i" and menu, Shift+F10 opens its menu, Enter adds it; "Skip to the toolbar" before it; listed under Keyboard shortcuts ([guide](guide.md#keyboard-and-screen-readers)).
 - While a report layer is open, Escape closes the newest one, also with the focus on the host page; a host dialog keeps its Escape with `preventDefault()` ([React reference](reference/react.md#escape-and-the-host-page)).
 - Focus kept or moved on purpose; the × of a text field keeps the focus in it ([guide](guide.md#menus-and-text-fields)).
-- Text of at least 14 px, controls of at least 24 x 24 px, contrast checked in both themes ([theming](reference/theming.md)).
+- Text of at least 14 px, controls of at least 24 x 24 px, 44 px for the small ones on a touch screen (`--pk-target-touch`), contrast checked in both themes ([theming](reference/theming.md)).
 - The skeleton is one status message ("Loading the report…", announced once); reduced motion stops its shimmer ([React props](reference/react.md#props)).
 
 ## Theming

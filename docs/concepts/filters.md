@@ -86,7 +86,10 @@ The filter of a field ("Filter…" in its menu, or a click on a chip in Filters)
   longer list says "300 of 1,045 values; search to find more", and the search finds the others.
 - **Select all** and **Select none** act on the values the search finds (all of them, also those past
   the first 300), **Only** next to a value keeps that one alone.
-- A text condition (`label` filter): is, is not, contains, does not contain, begins with, ends with.
+- A condition on the labels (`label` filter): is, is not, contains, does not contain, begins with,
+  ends with; for a text field it is "Text condition", for a number "Condition on the label" (the
+  number as the table writes it). A date (or a grouping of one) and a yes/no field have none: their
+  items are chosen in the list; a condition a loaded view brings still shows, so it can be removed.
 - **Remove filter** at its top while the field is filtered.
 
 The values you tick are a draft until **Apply**. The report stores the values you did **not** tick as

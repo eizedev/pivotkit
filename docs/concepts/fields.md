@@ -11,7 +11,7 @@ name and say what the field means, through `fieldDefaults`:
 | Entry | What the report does with it |
 | --- | --- |
 | `label` | The name shown for the field: in the field list, on chips, in the table's headers, in value names ("Sum of Net revenue"), in the drill-down, in the chart and in the exported files. At most 120 characters. |
-| `description` | Plain text, at most 1,000 characters: an **i** next to the field in the list and on its chips (in a narrow report only in the list: a chip keeps its room) shows it on hover, focus and tap; it is at the top of the chip's menu, on the field's table and drill-down headers (tooltip and `aria-description`), and the field search finds it. Options, Help, "Show field descriptions" hides the **i** and the header tooltips (screen readers keep the text); the `fieldInfo` prop (`field-info` attribute) decides it for the user. |
+| `description` | Plain text, at most 1,000 characters: an **i** next to the field in the list and on its chips (in a narrow report only in the list: a chip keeps its room) shows it on hover, focus and tap; it is at the top of the chip's menu, on the field's table and drill-down headers (tooltip and `aria-description`), and the field search finds it. Options, Help, "Show explanations" hides the **i** and the header tooltips (screen readers keep the text); the `fieldInfo` prop (`field-info` attribute) decides it for the user. |
 | `href` | An https link to more about the field, shown as **Learn more** with the description (`target="_blank"`, `rel="noopener noreferrer"`). Any other link is dropped. |
 | `type` | The column type the field is read as: `"number"`, `"date"`, `"string"` or `"boolean"` (pivotkit-core's `encode` `types`), for numbers that arrive as text, say. |
 
@@ -22,7 +22,7 @@ or in exported files.
 A field without them looks and works as it does without `fieldDefaults`: no **i**, no extra text,
 its own name. A label is display only: views and templates always hold the field's own name, so a
 template saved with German labels opens with English ones too. A date or number grouping gets its name
-from the label when it is made ("Release date (Month)") and keeps it, like a value's own name.
+from the label when it is made ("Release date by month") and keeps it, like a value's own name.
 
 ```jsx
 <PivotReport
