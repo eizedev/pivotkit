@@ -80,8 +80,8 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, no switch in Options) or the tip ids allowed, comma-separated. |
 | `storageKey` | `storage-key` | `string` | | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; one key per element on a page. |
-| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-fieldInfo"`, `"-zoneInfo"`, `"-settingInfo"`: those help switches off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
-| `fieldInfo`, `zoneInfo`, `settingInfo` | `field-info`, `zone-info`, `setting-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining; unset, the user switches them in Options, Help. |
+| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
+| `fieldInfo`, `zoneInfo`, `settingInfo` | `field-info`, `zone-info`, `setting-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining, one kind each; unset, the user's one switch "Show explanations" in Options, Help decides. |
 | `sourceId`, `sourceName` | `source-id`, `source-name` | `string` | | The data shown: it goes into the shared [view files](https://pivotkit.eize.dev/reference/view-file/) and links, and a view made for another source asks before it loads. |
 | `sources` | | `{ id, name? }[]` | | The other data the page can show: a view made for one of them offers "Switch to “name” and load" (`pivot-source-switch`). |
 | `chartOptions` | | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. |
@@ -238,14 +238,15 @@ its chunks. A page script that sets the properties must be a file (or carry a no
 What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
 gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
 update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
-(about 10 % above these numbers):
+(a few per cent above these numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 5 | 461 KiB | 148 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 463 KiB | 151 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
 | On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 20 KiB | 9 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
+| Right after the first render (the menus' panels and the texts only they show) | 1 | 45 KiB | 13 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

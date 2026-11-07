@@ -120,10 +120,13 @@ async function licenses(metafile) {
  * link 7 (6.7 measured). The menus' panels (the chip menus, chart type, Options, Views, the filter
  * and the drill-down) load on demand, right after the report's first render (pivotkit-react's
  * menus.js, issue #34): with the view files, the explanations, Enlarge and Full screen the first load
- * is 151.2 measured, the menus 9.3 (budget 11).
+ * is 151.2 measured, the menus 9.3 (budget 11). The texts only the menus show load with them
+ * (pivotkit-react's menu-labels.js), which made room in the first load for the automatic chart type,
+ * the field list's keys and the touch targets: first load 150.6 measured, the menus 12.9, their budget
+ * raised to 14 for the texts moved there.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 11 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 14 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
