@@ -83,6 +83,9 @@ here are internal and may change in any release.
   programmer error throws a `PivotkitError` with a `code`: `INVALID_ARGUMENT` (for example
   `computePivot(null)`), `INVALID_OPTION` (an unknown locale or time zone in the options) or
   `LIMIT_EXCEEDED` (see below; `error.details` has `{ limit, value, max }`).
+- Issues (`normalize`, `result.issues`, `data.issues`) and error messages quote the view and the
+  data: field names, items, column spellings. Both come from users, so show them as text (React's
+  `{text}`, `textContent`), never as HTML.
 
 ### Limits
 

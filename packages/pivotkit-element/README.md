@@ -119,7 +119,10 @@ a new history.
 ## Events
 
 Every event is a `CustomEvent` that bubbles and is composed: a listener on the element, on a parent
-or on the document gets it, with `event.target` the element.
+or on the document gets it, with `event.target` the element. So does every other script on the page:
+the details carry the view and, for `pivot-cell-click`, the page's own row objects behind the cell.
+A page that shows data some of its scripts must not read keeps those scripts off the page, as it
+would for the data itself.
 
 | Event | `detail` | What |
 | --- | --- | --- |
