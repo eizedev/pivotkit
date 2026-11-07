@@ -323,6 +323,39 @@ test("100,000 rows: the table body is virtualized and scrolls", async ({ page })
     test.info().annotations.push({ type: "timings", description: JSON.stringify(timings) });
 });
 
+test("virtual table: a cut row label is shown whole in the status line, for a focused value or a tapped label", async ({ page }) => {
+    await page.goto("?data=endoflife&empty");
+    for (const field of ["Product", "Cycle"]) {
+        await page.getByTestId(`field-menu-${field}`).click();
+        await page.getByRole("menuitem", { name: "Add to Rows" }).click();
+    }
+    await page.getByTestId("field-menu-Support years").click();
+    await page.getByRole("menuitem", { name: "Add to Values" }).click();
+    const wrap = page.getByTestId("pivot-table");
+    await expect(wrap.locator("table.pk-virtual")).toBeAttached();
+    // a phone: the label columns share 40 % of the width
+    await page.setViewportSize({ width: 390, height: 844 });
+    await wrap.scrollIntoViewIfNeeded();
+    // the sticky offsets follow the narrower label columns: no gap between Product and Cycle
+    await expect.poll(() => wrap.locator("thead tr:last-child").evaluate((tr) => Math.round(tr.children[1].getBoundingClientRect().left - tr.children[0].getBoundingClientRect().right))).toBe(0);
+    // a label the column cuts to one line (a long product name)
+    const labels = wrap.locator("tbody th.pk-rowHeader");
+    const cutAt = await labels.locator(".pk-th-text").evaluateAll((els) => els.findIndex((el) => el.scrollWidth > el.clientWidth));
+    expect(cutAt).toBeGreaterThanOrEqual(0);
+    const cut = labels.nth(cutAt);
+    const name = (await cut.textContent()).trim();
+    await expect(page.getByTestId("row-label")).toHaveCount(0);
+    await cut.click();
+    await expect(page.getByTestId("row-label")).toContainText(`Row: ${name} / `);
+    // a value reached with the arrow keys names its row: product and cycle
+    const tr = wrap.locator('tbody tr[data-r="4"]');
+    const cycle = (await tr.locator("th").last().textContent()).trim();
+    // the table's one focus stop is its first value
+    await wrap.locator('tbody tr[data-r="0"] td').first().focus();
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId("row-label")).toHaveText(new RegExp(` / ${cycle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+});
+
 test("a popover opens at its button also inside a transformed ancestor (a containing block for fixed elements)", async ({ page }) => {
     // no opening animation: the place is measured once
     await page.emulateMedia({ reducedMotion: "reduce" });

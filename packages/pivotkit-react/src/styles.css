@@ -1375,6 +1375,13 @@
     font-size: var(--pk-small);
 }
 
+/* the whole row label of the focused value in a virtual table, whose labels are cut to one line */
+.pk-row-label {
+    min-width: 0;
+    color: var(--pk-text);
+    overflow-wrap: anywhere;
+}
+
 .pk-message {
     display: flex;
     gap: 0.8em;
@@ -1479,8 +1486,9 @@
 
 /* A long row label wraps instead of pushing every value out of view on a phone: the row label
    columns (and the field names above them) share at most 40 % of the main area's width, each at
-   least 4.5em, and a value's name wraps beyond 30 %. A virtual table needs rows of one height, so
-   there a row label is cut with an ellipsis and its full text is the cell's title. */
+   least 4.5em, and a value's name wraps beyond 30 %. A virtual table needs rows of one height (2.45em,
+   too low for two lines of 1.45), so there a row label is cut with an ellipsis; its full text is the
+   cell's title and, for a tapped label or a focused value, the status line (table.jsx: onRowLabel). */
 /* width: max-content keeps a label on one line when the table is merely wider than the report (its
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
@@ -1499,7 +1507,8 @@
     overflow-wrap: break-word;
 }
 
-.pk-table.pk-virtual tbody th.pk-rowHeader .pk-th-text {
+/* tr: as specific as the wrapping rule above, which the :is() list makes (0,4,3), and later */
+.pk-table.pk-virtual tbody tr th.pk-rowHeader .pk-th-text {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;

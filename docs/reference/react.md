@@ -65,7 +65,9 @@ columns" shows its icon only, with its name for screen readers and as a tooltip,
 Columns zone is too narrow for the text. Only the table scrolls sideways. The row label columns share
 at most 40 % of the main area (each at least 4.5em) and a value's name wraps beyond 30 %, so a long
 label wraps and a phone still shows values next to two levels of row labels; from 300 rows on, where
-rows have one height, a row label is cut with an ellipsis and its full text is the cell's title.
+rows have one height (too low for two lines), a row label is cut with an ellipsis: its full text is
+the cell's title, and the status line under the table shows the whole row label ("Row: Linux /
+24.04") of a tapped label or of the value the focus is on.
 
 Below 540 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`, the border box, measured before the
 first paint) the report starts in the compact layout: the zones fold into one line that says what is in them ("Rows: Team · Columns: Priority ·

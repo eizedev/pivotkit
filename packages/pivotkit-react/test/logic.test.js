@@ -5,7 +5,7 @@ import { decodeRow, drillRows, drillTable } from "../src/drill.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { fromOrigin, placePopover } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
-import { sliceRows, windowOf } from "../src/virtual.js";
+import { rowLabelOf, sliceRows, windowOf } from "../src/virtual.js";
 
 test("theme: an explicit theme wins, then <html data-theme>, then the system", () => {
     assert.equal(resolveTheme("dark", "light", false), "dark");
@@ -53,6 +53,19 @@ test("a merged row label that starts above the window is drawn in its first row,
     assert.equal(slice[1].cells[0].cell.text, "A3", "the second row has no label of its own in column 0");
     const whole = sliceRows(grid, 0, 10);
     assert.equal(whole[0].cells[0].rowSpan, 5);
+});
+
+test("the whole row label of a body row: merged levels read from above, a sideways span once", () => {
+    const rows = [];
+    for (const g of ["A", "B"]) for (let i = 0; i < 3; i++) rows.push({ G: g, I: `${g}${i}`, V: i });
+    const grid = toGrid(computePivot(encode(rows), { rows: ["G", "I"], values: [{ field: "V", agg: "sum" }] }));
+    const label = (r) => rowLabelOf(grid, r);
+    const body = grid.rows.slice(grid.headerRows).map((_, r) => label(r));
+    // A0 A1 A2, the subtotal of A, B0 ..., the grand total spanning both columns
+    assert.equal(body[0], "A / A0");
+    assert.equal(body[2], "A / A2");
+    assert.ok(body.includes("B / B1"));
+    assert.equal(body.at(-1), "Grand Total");
 });
 
 test("popover placement: below, above when there is no room, inside the viewport", () => {

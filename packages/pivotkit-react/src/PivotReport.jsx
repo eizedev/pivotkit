@@ -179,6 +179,8 @@ export function PivotReport(props) {
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement } | null} */ (null));
     const [drill, setDrill] = useState(/** @type {{ title: string, count: number, columns: Array<{ name: string, numeric: boolean }>, rows: string[][] } | null} */ (null));
     const [hinted, setHinted] = useState(false);
+    // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
+    const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
     const [chartReady, setChartReady] = useState(false);
     const hintId = useId();
@@ -649,11 +651,16 @@ export function PivotReport(props) {
                                         onPoint={(p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
                                 ) : null}
                             </section>
                             <div className="pk-status">
                                 <span data-testid="row-count">{result ? plural(labels.rowsCount, result.rows.length, { lang: labels.lang, locale }) : ""}</span>
+                                {rowLabel && showTable ? (
+                                    <span className="pk-row-label" data-testid="row-label">
+                                        {fill(labels.rowLabel, { label: rowLabel })}
+                                    </span>
+                                ) : null}
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>

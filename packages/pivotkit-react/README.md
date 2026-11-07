@@ -134,8 +134,8 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   is a single header over all of its columns, as in Excel. From 300 body rows on only the visible rows
   are rendered. The table is as wide as its columns; the row label columns share at most 40 % of the
   report's main area (each at least 4.5em) and a value's name wraps beyond 30 %, so a long label wraps
-  and a phone still shows values next to it (from 300 rows on, where rows have one height, it is cut with an ellipsis and its full text is
-  the cell's title).
+  and a phone still shows values next to it (from 300 rows on, where rows have one height, it is cut with an ellipsis: its full text is
+  the cell's title, and the status line shows the whole row label of a tapped label or of the focused value).
 - Chart: bars, stacked bars, horizontal bars, lines, area, pie, heatmap ("Chart type: Bars" in the
   toolbar); a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap
@@ -155,7 +155,8 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   drill-down, the narrow field drawer and bottom sheets keep the focus inside and give it back. A chip
   or field handle picks it up with Space; Left and Right move it within a zone, Up and Down to the zone
   above or below, with its position announced ("Region is over Rows, position 2 of 3"); Space drops,
-  Escape cancels. The table's values move with the arrow keys and open with Enter; the table has a
+  Escape cancels. The table's values move with the arrow keys and open with Enter, an empty one included
+  (a screen reader hears "No rows" or "No value", `labels.emptyCell`, `labels.emptyValue`); the table has a
   name and a described hint. The chart canvas has a text alternative (type, values, counts, highest
   and lowest value). The report's `lang` follows its labels. The report is a region landmark named
   by `labels.report` ("Pivot report"), not a `<main>`, so it fits inside the host page's own main

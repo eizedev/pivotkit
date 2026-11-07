@@ -224,6 +224,9 @@ export const en = {
     // a count in words: one form per Intl.PluralRules category of the language ("one", "other", ...)
     rowsCount: { one: "{count} row", other: "{count} rows" },
     tableName: "Pivot table",
+    emptyCell: "No rows",
+    emptyValue: "No value",
+    rowLabel: "Row: {label}",
     cellHint: "Click a value, or press Enter on it, to see the rows behind it. The arrow keys move between values.",
     // chart
     chartSummary: "{type}: {values} by {categories}.",
@@ -517,6 +520,9 @@ export const de = {
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
     rowsCount: { one: "{count} Zeile", other: "{count} Zeilen" },
     tableName: "Pivot-Tabelle",
+    emptyCell: "Keine Zeilen",
+    emptyValue: "Kein Wert",
+    rowLabel: "Zeile: {label}",
     cellHint: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen. Die Pfeiltasten wechseln zwischen den Werten.",
     chartSummary: "{type}: {values} nach {categories}.",
     chartCounts: "{categories}, {series}.",

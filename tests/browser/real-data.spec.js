@@ -98,8 +98,9 @@ test.describe("countries", () => {
         await open(page, "data=countries&preset=2");
         const hi = (y) => total(year(y).filter((x) => x["Income group"] === "High income"), "GDP (US$)");
         const r = await row(page, "High income");
-        // 2019 has no year before it in the report: blank
+        // 2019 has no year before it in the report: blank, "No value" for a screen reader (there are rows)
         expect(r[1]).toBe("");
+        await expect(page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^High income/ }).locator("td").first()).toHaveText("No value");
         expect(r[2]).toBe(pct(hi(2020) / hi(2019) - 1));
         expect(r[6]).toBe(pct(hi(2024) / hi(2023) - 1));
     });
@@ -442,7 +443,10 @@ test.describe("what the real data showed (#21 to #26)", () => {
         // Russia had no quake of 7 or more without a tsunami flag: that cell is blank
         expect(strong.filter((x) => x["Tsunami flag"] === "No")).toHaveLength(0);
         const blank = russia.locator("td").nth(0);
-        await expect(blank).toHaveText("");
+        // blank on screen; a screen reader hears why (a visually hidden text)
+        expect((await row(page, "Russia"))[1]).toBe("");
+        await expect(blank).toHaveText("No rows");
+        await expect(blank.locator(".pk-sr")).toHaveText("No rows");
         await expect(blank).not.toHaveClass(/pk-clickable/);
         await blank.click();
         await blank.focus();

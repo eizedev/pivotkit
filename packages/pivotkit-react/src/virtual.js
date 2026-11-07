@@ -54,3 +54,25 @@ export function sliceRows(grid, start, end) {
     }
     return out;
 }
+
+/**
+ * The whole row label of body row `r`, every level joined with " / " ("Linux / Ubuntu"): in the
+ * virtual table a label is cut to one line, and this is how a focused value or a tapped label shows it
+ * in full. A level merged down from a row above is read there; the empty rest of a label spanning
+ * sideways is skipped.
+ * @param {import("pivotkit-core").Grid} grid
+ * @param {number} r  body row index
+ */
+export function rowLabelOf(grid, r) {
+    const row = grid.headerRows + r;
+    const texts = [];
+    for (let c = 0; c < grid.rowHeaderColumns; c++) {
+        const own = grid.rows[row]?.[c];
+        const merge = own ? null : grid.merges.find((m) => m.row <= row && row < m.row + m.rowSpan && m.col <= c && c < m.col + m.colSpan);
+        const cell = own ?? (merge && merge.col === c ? grid.rows[merge.row][merge.col] : null);
+        if (cell && cell.text) {
+            texts.push(cell.text);
+        }
+    }
+    return texts.join(" / ");
+}

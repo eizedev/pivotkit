@@ -145,7 +145,11 @@ A drag from the field list or the table opens them while it lasts.
 - A chip or a field handle is picked up with **Space**. **Left** and **Right** move it within a zone,
   **Up** and **Down** to the zone above or below; its position is announced ("Region is over Rows,
   position 2 of 3"). **Space** drops it, **Escape** cancels.
-- In the table the arrow keys move between values and **Enter** opens the rows behind one.
+- In the table the arrow keys move between values and **Enter** opens the rows behind one. An empty
+  cell is a stop too; a screen reader hears "No rows" (nothing behind it) or "No value" (rows
+  without a number).
+- From 300 rows on a row label is cut to one line; the status line under the table shows the whole
+  label of the row the focus is on, or of a label you tap.
 - The chart has a text alternative: type, values, counts, highest and lowest value.
 - The drill-down, the field drawer and the bottom sheets keep the focus inside while open and give it
   back when they close.
