@@ -22,7 +22,7 @@ builds depend on it.
   One module per concern: `PivotReport.jsx` wires the parts and defines `commit()`, which it passes to
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
-  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `dnd.jsx` is the
+  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
@@ -94,8 +94,14 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
 - A view (report template) is user input: it holds names only. Field names, aggregators, formats and
   colours are resolved against fixed lists or the data's schema; never evaluate a string from a view
   as code, never use it as an object key without an own-property check. A view cannot run code, but
-  it can ask for a lot of work: anything dense (rows x columns) counts its size against `LIMITS`
-  before allocating and throws `PivotkitError` (`LIMIT_EXCEEDED`).
+  it can ask for a lot of work: whatever grows with the view counts against `LIMITS` before it is
+  allocated, or while it grows, and throws `PivotkitError` (`LIMIT_EXCEEDED`): `encode` the rows
+  (`rows`), `computePivot` its cell updates before it starts (`work`: rows x (row fields + 1) x
+  (column fields + 1) x measures, an aggregator with `keepsValues` counted `KEEPS_VALUES_WEIGHT` times),
+  the nodes of both key trees (`groups`) and the aggregated cells (`pivotCells`), `toGrid` and
+  `toSeries` the dense rows x columns (`cells`). A new structure that
+  grows with the data or the view gets a limit too; the core README ("Limits") says what each one
+  counts and why its default is what it is.
 - Error model: a bad view never throws (normalize reports issues); a programmer error or a limit
   throws `PivotkitError` with a code.
 - API convention: required inputs first, every optional setting in one trailing options object.

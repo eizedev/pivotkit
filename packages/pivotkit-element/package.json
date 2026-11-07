@@ -49,9 +49,6 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
     "build": "node build.js",
     "size": "node build.js --size",

@@ -8,7 +8,7 @@
  * nothing yet is { type: "exclude", items: [] }.
  */
 
-import { aggregatorsFor, isFormat } from "pivotkit-core";
+import { LIMITS, aggregatorsFor, isFormat } from "pivotkit-core";
 import { CHART_TYPES } from "./chart-types.js";
 
 /** @typedef {"rows" | "cols" | "values" | "filters"} Zone */
@@ -87,6 +87,26 @@ function resetCollapsed(view, before) {
  * @property {string | null} [dateUnit]  a date grouping to place instead of the raw date (rows, columns, filters)
  * @property {string} [groupName]  the name of that grouping's derived field
  */
+
+/**
+ * The first zone of a view with more entries than pivotkit-core keeps (Rows and Columns:
+ * `limits.axisFields`, Values: `limits.values`), with that maximum; null when every zone fits.
+ * normalize() would drop the rest without a word, so the UI refuses such a step or says what it left
+ * out.
+ * @param {any} view
+ * @param {Partial<import("pivotkit-core").Limits> | undefined} limits  the host's, over LIMITS
+ * @returns {{ zone: "rows" | "cols" | "values", max: number } | null}
+ */
+export function zoneOverLimit(view, limits) {
+    const limit = (name) => (limits && Number.isInteger(limits[name]) && limits[name] > 0 ? limits[name] : LIMITS[name]);
+    for (const [zone, name] of /** @type {const} */ ([["rows", "axisFields"], ["cols", "axisFields"], ["values", "values"]])) {
+        const list = view && Array.isArray(view[zone]) ? view[zone] : [];
+        if (list.length > limit(name)) {
+            return { zone, max: limit(name) };
+        }
+    }
+    return null;
+}
 
 /**
  * Places a field in a zone at an index (default the end). On an axis the field leaves the other axis

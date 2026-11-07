@@ -106,7 +106,7 @@ test("limits: huge lists are cut, huge views refused", () => {
     assert.equal(n.filters[0].items.length, 100_000);
     assert.deepEqual(norm({ rows: ["Region"], pad: "x".repeat(6_000_000) }, data), emptyView());
     const many = norm({ values: new Array(1000).fill({ agg: "count" }) }, data);
-    assert.equal(many.values.length, 64);
+    assert.equal(many.values.length, 16);
 });
 
 test("filter, sort and collapsed entries are checked against the field types", () => {

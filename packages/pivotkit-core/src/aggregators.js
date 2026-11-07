@@ -21,6 +21,8 @@
  * @property {boolean} [dates]        a numeric aggregator that also makes sense on dates
  * @property {boolean} [additive]     values of groups add up to the value of their union, so running
  *   totals make sense (sum, count); not true for average, median, countUnique, ...
+ * @property {boolean} [keepsValues]  keeps a value per source row and cell (a list or a set), so its
+ *   memory grows with the rows, not only with the cells; counts heavier against `limits.work`
  * @property {(columnType: string) => ResultType} resultType
  * @property {(column: import("./encode.js").Column | null, cells: number, ranks: Int32Array | null, labelOf: (code: number) => string) => Kernel} create
  */
@@ -201,6 +203,7 @@ export const AGGREGATORS = Object.freeze({
     count: { numeric: false, additive: true, resultType: numberResult, create: count },
     countUnique: {
         numeric: false,
+        keepsValues: true,
         resultType: numberResult,
         create: (column, cells) => {
             const u = uniqueSets(column, cells);
@@ -209,6 +212,7 @@ export const AGGREGATORS = Object.freeze({
     },
     listUnique: {
         numeric: false,
+        keepsValues: true,
         resultType: textResult,
         create: (column, cells, ranks, labelOf) => {
             const u = uniqueSets(column, cells);
@@ -226,7 +230,7 @@ export const AGGREGATORS = Object.freeze({
     },
     sum: { numeric: true, additive: true, resultType: numberResult, create: sum },
     average: { numeric: true, dates: true, resultType: dateOrNumber, create: average },
-    median: { numeric: true, dates: true, resultType: dateOrNumber, create: median },
+    median: { numeric: true, dates: true, keepsValues: true, resultType: dateOrNumber, create: median },
     min: { numeric: true, dates: true, resultType: dateOrNumber, create: extreme(-1) },
     max: { numeric: true, dates: true, resultType: dateOrNumber, create: extreme(1) },
     stdev: { numeric: true, resultType: numberResult, create: variance(true, true) },

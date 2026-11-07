@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { PivotkitError, computePivot, encode, findNode, suggestDateUnit, toGrid, viewFields } from "pivotkit-core";
+import { computePivot, encode, findNode, suggestDateUnit, toGrid, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { groupingName, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
@@ -15,7 +15,7 @@ import { DrillPanel } from "./drill-panel.jsx";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { fill, hostFailure, messageOf, plural, resolveLabels } from "./labels.js";
+import { errorText, fill, hostFailure, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
@@ -25,7 +25,7 @@ import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { useViewHistory } from "./use-view-history.js";
 import {
-    addField, filterZoneFields, filtersOf, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed
+    addField, filterZoneFields, filtersOf, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones } from "./zones.jsx";
 
@@ -250,12 +250,18 @@ export function PivotReport(props) {
     const commit = useCallback(
         /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] */
         (next, note = { step: "change" }) => {
+            // a field beyond the limit of its zone would vanish in normalize(): refuse the step and say so
+            const over = note.step === "template" ? null : zoneOverLimit(next, limits);
+            if (over) {
+                announce(fill(labels.zoneFull, { zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
+                return;
+            }
             if (!history.commit(next, stepText(note)) || !note.removed) {
                 return;
             }
             announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
         },
-        [history, stepText, labels, announce]
+        [history, stepText, labels, announce, limits, locale]
     );
 
     // the pivot, once per view
@@ -412,8 +418,13 @@ export function PivotReport(props) {
         (t) => {
             commit(t.view, { step: "template", name: t.name });
             announce(fill(labels.toastLoaded, { name: t.name }));
+            // a template made with other limits loads with the fields that fit; say what was left out
+            const over = zoneOverLimit(t.view, limits);
+            if (over) {
+                announce(fill(labels.templateTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
+            }
         },
-        [commit, labels, announce]
+        [commit, labels, announce, limits, locale]
     );
     // the host's callbacks may return a promise: the note comes when it is kept
     const saveTemplate = onSaveTemplate
@@ -458,7 +469,6 @@ export function PivotReport(props) {
         }
     };
 
-    const tooLarge = error instanceof PivotkitError && error.code === "LIMIT_EXCEEDED" ? /** @type {{ value: number, max: number }} */ (error.details) : null;
     const layerValue = useMemo(() => ({ layer, size }), [layer, size]);
     const renderOverlay = (src) => (
         <div className="pk-chip pk-overlay">
@@ -602,7 +612,7 @@ export function PivotReport(props) {
                                 {error ? (
                                     <div className="pk-message pk-error" role="alert">
                                         <Icon name="info" />
-                                        <p>{tooLarge ? fill(labels.tooLarge, { value: Number(tooLarge.value).toLocaleString(locale), max: Number(tooLarge.max).toLocaleString(locale) }) : fill(labels.error, { message: messageOf(error) })}</p>
+                                        <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
                                     <EmptyState labels={labels} templates={templates} onTemplate={loadTemplate} />

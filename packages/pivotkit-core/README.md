@@ -7,7 +7,7 @@ with subtotals and totals, "show values as", filters, date grouping and number b
 headers for any table renderer, chart options for Apache ECharts, and XLSX and CSV export. Excel's
 PivotTable is the reference for how things behave.
 
-Status: in development, not published to npm yet. ES modules for Node 22 or later; the sources use only
+Version 0.1.0: `npm install pivotkit-core`. ES modules for Node 22 or later; the sources use only
 what browsers and Node share (no `process`, no `Buffer`), and the browser tests of the playground run
 them in Chromium, Firefox and WebKit through pivotkit-react. The only dependency is
 [fflate](https://github.com/101arrowz/fflate) (MIT) for the XLSX zip, and only the
@@ -85,17 +85,63 @@ here are internal and may change in any release.
   programmer error throws a `PivotkitError` with a `code`: `INVALID_ARGUMENT` (for example
   `computePivot(null)`), `INVALID_OPTION` (an unknown locale or time zone in the options) or
   `LIMIT_EXCEEDED` (see below; `error.details` has `{ limit, value, max }`).
+- Issues (`normalize`, `result.issues`, `data.issues`) and error messages quote the view and the
+  data: field names, items, column spellings. Both come from users, so show them as text (React's
+  `{text}`, `textContent`), never as HTML.
 
 ### Limits
 
-`LIMITS` holds the defaults; every function that takes `options.limits` merges it over them.
+`LIMITS` holds the defaults; every function that takes `options.limits` merges it over them. Each
+resource limit is counted before the memory it guards is allocated, or while it grows, and more
+throws `LIMIT_EXCEEDED`:
 
-| Limit | Default | Guards |
-| --- | --- | --- |
-| `rows` | 10,000,000 | rows `encode` accepts |
-| `cells` | 2,000,000 | cells of a grid and data points of a chart. Both are dense (rows x columns), so two fields with many distinct values each would otherwise allocate gigabytes; the size is counted before anything is allocated. |
-| `cacheEntries` | 64 | derived columns and sort orders kept per data set (least recently used go first) |
-| `json`, `name`, `axisFields`, `values`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | see `LIMITS` | the size of a view and its parts |
+| Limit | Default | Counts | When |
+| --- | --- | --- | --- |
+| `rows` | 1,000,000 | rows `encode` accepts | before any column is built |
+| `groups` | 500,000 | nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals | the distinct leaves of an axis before its first node is made, then each node before it is made |
+| `pivotCells` | 2,000,000 | cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included | a lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored |
+| `work` | 100,000,000 | cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell | exactly, after the filters and before the key trees are built |
+| `cells` | 2,000,000 | cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`) | before the grid or the series is built |
+| `cacheEntries` | 16 | derived columns and sort orders kept per data set (least recently used go first) | on each new entry |
+| `axisFields` | 8 | fields per axis (rows, columns); more are dropped as an issue | in `normalize` |
+| `values` | 16 | values of a view; more are dropped as an issue | in `normalize` |
+| `json`, `name`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | see `LIMITS` | the size of a view and its parts; more is dropped as an issue | in `normalize` |
+
+`error.details.value` is the count when the limit was hit: for a limit counted while it grows, the
+first count above `max`, not the total. `groups` must stay at or below 2^27 (134,217,728): cell keys
+are row node id x column count + column node id and stay exact in a double only up to there (a
+larger value is `INVALID_OPTION`).
+
+The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for:
+
+- `rows`: the encoded columns take about 4 to 12 bytes per row and column, the host's row objects
+  more; a million rows is ten times the design size.
+- `axisFields`: each row updates (row fields + 1) x (column fields + 1) cells per value, 81 at 8 x 8
+  and 1,089 at 32 x 32; a report nested deeper than eight levels per axis is hard to read anyway.
+- `groups`: a key tree keeps about 400 bytes per node (measured in Node 26 on arm64; other engines
+  differ), so the trees stay at about 200 MB. A table shows at most one row per row node, and more
+  than `cells` allows does not render either.
+- `pivotCells`: 100,000 rows that are all distinct pairs on three row and two column fields make
+  1.2 million; a view of many fields with many values each is refused within a fraction of a second.
+  At the defaults the largest pivots measured (495,000 rows, one row and one column field of 240,000
+  values each, with and without "show values as") took 0.8 to 2.6 s and grew the process memory (RSS)
+  by up to about 1.5 GB in Node 26 on arm64.
+- `work`: measured per cell update in Node 26 on arm64, a sum takes about 2.5 ns and no memory beyond
+  its cells; a median 9 to 11 ns and 10 to 18 bytes; a unique count of distinct values 65 to 80 ns
+  and 28 to 42 bytes. 100 million updates of a sum take a fraction of a second; the weight of 10
+  keeps the entries of medians and unique counts at 10 million, about 400 MB at most. 100,000 rows
+  on three row and two column fields with five values make 6 million.
+- `values`: each value is a column per column item; more than 16 side by side cannot be read, and
+  `work` bounds what they cost.
+- `cacheEntries`: a derived column takes 12 bytes per row, so 16 entries of a million rows stay at
+  about 200 MB.
+
+Not counted: the data itself (the host's rows and the encoded columns, rows x columns; `rows` caps
+the rows, the number of columns is not limited), "show values as" and sorting after the
+aggregation (they grow with the cells, which `pivotCells` bounds), and the time a pivot within the
+limits takes. A host that takes
+data or views from untrusted users and wants less lowers the limits, for example
+`{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
 
 XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a larger grid throws
 `LIMIT_EXCEEDED`), 32,767 characters per cell (longer text is cut).

@@ -59,7 +59,16 @@ import { MS_PER_DAY, createCache, optionsOf } from "./util.js";
 export const COLUMN_TYPES = Object.freeze(["string", "number", "boolean", "date"]);
 
 // Numeric text in the plain form a CSV or a form field gives: no hex, no "Infinity", no blanks.
-const NUMERIC_TEXT = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
+// Unambiguous (each digit can match one way only), so a failed match takes linear time.
+const NUMERIC_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+// Longer text is no number: a double holds 17 significant digits, and the data may come from a user.
+const MAX_NUMERIC_TEXT = 100;
+
+/** True for numeric text (leading and trailing blanks ignored). */
+function isNumericText(v) {
+    const t = v.trim();
+    return t.length <= MAX_NUMERIC_TEXT && NUMERIC_TEXT.test(t);
+}
 const MAX_ISSUES = 100;
 
 const isBlank = (v) => v === null || v === undefined || v === "" || typeof v === "function" || typeof v === "symbol";
@@ -77,7 +86,7 @@ function classify(v, inferNumbers) {
             if (isIsoDate(v)) {
                 return "date";
             }
-            return inferNumbers && NUMERIC_TEXT.test(v.trim()) ? "number" : "string";
+            return inferNumbers && isNumericText(v) ? "number" : "string";
         case "bigint":
             return "number";
         default:
@@ -132,7 +141,7 @@ function toNumberValue(v) {
     if (typeof v === "boolean") {
         return v ? 1 : 0;
     }
-    if (typeof v === "string" && NUMERIC_TEXT.test(v.trim())) {
+    if (typeof v === "string" && isNumericText(v)) {
         const n = Number(v.trim());
         return Number.isFinite(n) ? n : NaN;
     }

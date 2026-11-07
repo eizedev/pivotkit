@@ -1,7 +1,7 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the element, its properties and its events as a TypeScript user sees them.
 import { EVENTS, PivotReportElement, define, type CellClick, type ExportFile, type PivotReportEventMap, type PivotView, type Template } from "pivotkit-element";
-import { define as defineOnly } from "pivotkit-element/element";
+import { EVENTS as EVENTS_ONLY, define as defineOnly } from "pivotkit-element/element";
 
 const el: PivotReportElement = document.createElement("pivot-report");
 const found: PivotReportElement | null = document.querySelector("pivot-report");
@@ -40,5 +40,6 @@ document.addEventListener("pivot-export", (e) => {
 });
 
 const eventName: keyof PivotReportEventMap = EVENTS.viewChange;
+const sameEventName: keyof PivotReportEventMap = EVENTS_ONLY.viewChange;
 const ctor: CustomElementConstructor | undefined = define("my-report") ?? defineOnly("other-report");
-export { el, found, eventName, ctor };
+export { el, found, eventName, sameEventName, ctor };

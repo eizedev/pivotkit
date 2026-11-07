@@ -1,8 +1,12 @@
 /*
  * Limits against hostile or accidental huge input. The view limits cap what normalize() accepts from a
- * view; the resource limits cap memory: `rows` in encode(), `cells` in toGrid() and toSeries(), which
- * are dense (rows x columns) and would otherwise allocate gigabytes for two high-cardinality fields.
- * Every function that takes `options.limits` merges it over these defaults.
+ * view; the resource limits cap memory and time: `rows` in encode(); `groups` and `pivotCells` in
+ * computePivot(), counted while the key trees and the cell index grow, and `work`, its cell updates,
+ * computed exactly before the aggregation starts; `cells` in toGrid() and
+ * toSeries(), which are dense (rows x columns) and would otherwise allocate gigabytes for two
+ * high-cardinality fields; `cacheEntries` per encoded data set. The defaults are sized for a browser
+ * tab and the about 100,000 rows the engine is designed for (the core README, "Limits", has the
+ * numbers behind them). Every function that takes `options.limits` merges it over these defaults.
  */
 
 import { PivotkitError } from "./errors.js";
@@ -11,8 +15,8 @@ export const LIMITS = Object.freeze({
     // view
     json: 5_000_000, // characters of the serialized view
     name: 256,
-    axisFields: 32,
-    values: 64,
+    axisFields: 8, // fields per axis: each level adds subtotals to every row's work (see pivotCells)
+    values: 16, // value fields: each is a column per column item; the work limit bounds what they cost
     filters: 128,
     items: 100_000,
     derived: 64,
@@ -20,10 +24,29 @@ export const LIMITS = Object.freeze({
     collapsed: 10_000,
     topCount: 1_000_000,
     // resources
-    rows: 10_000_000, // source rows encode() accepts
+    rows: 1_000_000, // source rows encode() accepts
+    groups: 500_000, // nodes of the row and column key trees together (leaves, subtotals, grand totals)
+    pivotCells: 2_000_000, // aggregated cells of computePivot(): per distinct (row leaf, column leaf) pair, (row depth + 1) x (column depth + 1)
+    work: 100_000_000, // cell updates of computePivot(): filtered rows x (row depth + 1) x (column depth + 1) x measures, KEEPS_VALUES_WEIGHT each for median, countUnique, listUnique
     cells: 2_000_000, // cells of a grid (toGrid) or data points of a chart (toSeries)
-    cacheEntries: 64 // derived columns and sort orders kept per encoded data set (least recently used go)
+    cacheEntries: 16 // derived columns and sort orders kept per encoded data set (least recently used go)
 });
+
+/**
+ * Highest value a host may set, where a larger one would break the engine rather than only cost
+ * memory: cell keys are row node id x column count + column node id, exact in a double only while
+ * (groups / 2)^2 stays below 2^53.
+ */
+const CEILINGS = Object.freeze({ groups: 2 ** 27 });
+
+/**
+ * How much heavier a cell update of an aggregator that keeps a value per row (median, countUnique,
+ * listUnique: `keepsValues` in AGGREGATORS) counts against `work`: it stores an entry (a number in a
+ * list, a code in a set) where the others add to a number. Measured per update (Node 26, arm64):
+ * sum 2.5 ns and no memory beyond its cells; median 9 to 11 ns and 10 to 18 bytes; countUnique of
+ * distinct values 65 to 80 ns and 28 to 42 bytes.
+ */
+export const KEEPS_VALUES_WEIGHT = 10;
 
 /** @typedef {{ [K in keyof typeof LIMITS]: number }} Limits */
 
@@ -49,6 +72,9 @@ export function resolveLimits(options) {
         }
         if (!Number.isInteger(value) || value < 1) {
             throw new PivotkitError("INVALID_OPTION", `limits.${key} must be a whole number of 1 or more`);
+        }
+        if (Object.hasOwn(CEILINGS, key) && value > CEILINGS[key]) {
+            throw new PivotkitError("INVALID_OPTION", `limits.${key} must be at most ${CEILINGS[key]}`);
         }
         out[key] = value;
     }

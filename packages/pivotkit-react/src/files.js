@@ -16,8 +16,18 @@ const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/i;
  */
 export function safeFileName(name) {
     const text = typeof name === "string" ? name : "";
-    const cleaned = text.replace(UNSAFE, "-").replace(/^[\s.-]+|[\s.]+$/g, "").slice(0, 120);
+    // cut first, then trim, so the name never ends in a dot or a space (Windows drops them)
+    const cleaned = trimEnd(text.replace(UNSAFE, "-").replace(/^[\s.-]+/, "").slice(0, 120));
     return cleaned && !RESERVED.test(cleaned) ? cleaned : "pivot";
+}
+
+/** The text without trailing dots and white space; a loop, since /[\s.]+$/ backtracks quadratically. */
+function trimEnd(text) {
+    let end = text.length;
+    while (end > 0 && (text[end - 1] === "." || /\s/.test(text[end - 1]))) {
+        end--;
+    }
+    return text.slice(0, end);
 }
 
 /**

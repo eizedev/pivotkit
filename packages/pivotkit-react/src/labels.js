@@ -6,7 +6,7 @@
  * {name} placeholders are filled by fill().
  */
 
-import { DEFAULT_LABELS } from "pivotkit-core";
+import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
 
 /** @typedef {typeof en} UiLabels */
 
@@ -208,6 +208,12 @@ export const en = {
     noValuesHint: "Add a number to Values to see sums or counts next to the labels.",
     error: "The report cannot be shown: {message}",
     tooLarge: "This layout makes {value} cells, more than the limit of {max}. Move a field with many values to Filters, or filter it.",
+    tooManyGroups: "This layout makes more than {max} groups of rows and columns. Remove a field with many values from Rows or Columns, or filter it.",
+    tooManyCells: "This layout makes more than {max} cells with its subtotals. Remove a field from Rows or Columns, or filter it.",
+    tooManyRows: "The data has {value} rows, more than the limit of {max}.",
+    tooMuchWork: "This layout needs {value} cell updates, more than the limit of {max}. Remove a field from Rows or Columns, or a value such as a median or a unique count.",
+    zoneFull: "{zone} holds at most {max} fields. Remove one first.",
+    templateTrimmed: "“{name}” has more than {max} fields in {zone}; the report shows the first {max}.",
     issues: "Some parts of the view were not used:",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
@@ -492,6 +498,12 @@ export const de = {
     noValuesHint: "Eine Zahl in Werte ziehen, um neben den Beschriftungen Summen oder Anzahlen zu sehen.",
     error: "Der Bericht kann nicht angezeigt werden: {message}",
     tooLarge: "Diese Anordnung ergibt {value} Zellen, mehr als die Grenze von {max}. Ein Feld mit vielen Werten nach Filter verschieben oder filtern.",
+    tooManyGroups: "Diese Anordnung ergibt mehr als {max} Gruppen in Zeilen und Spalten. Ein Feld mit vielen Werten aus Zeilen oder Spalten entfernen oder filtern.",
+    tooManyCells: "Diese Anordnung ergibt mit ihren Teilergebnissen mehr als {max} Zellen. Ein Feld aus Zeilen oder Spalten entfernen oder filtern.",
+    tooManyRows: "Die Daten haben {value} Zeilen, mehr als die Grenze von {max}.",
+    tooMuchWork: "Diese Anordnung braucht {value} Zellberechnungen, mehr als die Grenze von {max}. Ein Feld aus Zeilen oder Spalten entfernen oder einen Wert wie Median oder Anzahl eindeutiger Werte.",
+    zoneFull: "{zone} nimmt höchstens {max} Felder auf. Zuerst eines entfernen.",
+    templateTrimmed: "„{name}“ hat mehr als {max} Felder in {zone}; der Bericht zeigt die ersten {max}.",
     issues: "Einige Teile der Ansicht wurden nicht verwendet:",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
@@ -571,6 +583,26 @@ export const LABELS = Object.freeze({ en, de });
 /** The message of a thrown value, for a note. */
 export function messageOf(error) {
     return error instanceof Error ? error.message : String(error);
+}
+
+/** The text per limit of pivotkit-core that the report can run into while it shows data. */
+const LIMIT_TEXTS = Object.freeze({ cells: "tooLarge", groups: "tooManyGroups", pivotCells: "tooManyCells", work: "tooMuchWork", rows: "tooManyRows" });
+
+/**
+ * The note in place of the result when it cannot be shown: a limit of pivotkit-core in words with
+ * what to change, else `labels.error` with the error's message.
+ * @param {unknown} error
+ * @param {UiLabels} labels
+ * @param {string} locale  for the numbers
+ */
+export function errorText(error, labels, locale) {
+    const limit = error instanceof PivotkitError && error.code === "LIMIT_EXCEEDED" ? String(error.details.limit) : "";
+    if (limit && Object.hasOwn(LIMIT_TEXTS, limit)) {
+        const details = /** @type {PivotkitError} */ (error).details;
+        const number = (n) => Number(n).toLocaleString(locale);
+        return fill(labels[LIMIT_TEXTS[limit]], { value: number(details.value), max: number(details.max) });
+    }
+    return fill(labels.error, { message: messageOf(error) });
 }
 
 /**

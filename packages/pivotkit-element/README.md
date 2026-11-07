@@ -9,7 +9,8 @@ and @dnd-kit, and renders into an open shadow root. Everything the React compone
 drag and drop, table and chart, filters, drill-down, undo, templates, export) works the same; the
 [pivotkit-react README](../pivotkit-react/README.md#what-the-user-can-do) describes it.
 
-Status: in development, not published to npm yet. Try it in the [example](../../examples/element/).
+Version 0.1.0: `npm install pivotkit-element`, or serve its `dist/` directory as below. Try it in the
+[example](../../examples/element/).
 
 ## Use
 
@@ -66,7 +67,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. |
 | `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is). |
 | `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
-| `limits` | | `Partial<Limits>` | | pivotkit-core's limits. |
+| `limits` | | `Partial<Limits>` | | pivotkit-core's limits; a layout or data over them shows a message in place of the result. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
 | `theme` | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
 | `height` | `height` | `number \| string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). |
@@ -121,7 +122,10 @@ a new history.
 ## Events
 
 Every event is a `CustomEvent` that bubbles and is composed: a listener on the element, on a parent
-or on the document gets it, with `event.target` the element.
+or on the document gets it, with `event.target` the element. So does every other script on the page:
+the details carry the view and, for `pivot-cell-click`, the page's own row objects behind the cell.
+A page that shows data some of its scripts must not read keeps those scripts off the page, as it
+would for the data itself.
 
 | Event | `detail` | What |
 | --- | --- | --- |
@@ -201,6 +205,9 @@ default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect
 - The report renders and is styled: the constructed stylesheet is not blocked by `style-src 'self'`,
   and the inline styles React sets (through `element.style`, the CSSOM) are not blocked either.
 - The chart works: ECharts loads from its chunk and draws on a canvas; nothing needs `'unsafe-eval'`.
+  Its tooltip shows on hover without a violation: pivotkit-react builds it as DOM nodes with styles
+  set through the CSSOM and the data's texts as `textContent`, instead of ECharts' default HTML string
+  with inline `style` attributes (which `style-src-attr` would refuse).
 - The XLSX and PNG exports download (a blob URL on an `<a download>`; no `fetch` of `data:`); CSV
   takes the same path as XLSX.
 - No violation is reported (`securitypolicyviolation`) and nothing is logged; the test checks that the
@@ -221,7 +228,7 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 386 KiB | 124 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 390 KiB | 125 KiB |
 | On the first chart (ECharts with bar, line, pie, heatmap, the components they use and the canvas renderer) | 1 | 592 KiB | 200 KiB |
 | On the first XLSX or CSV export (pivotkit-core's export with fflate) | 1 | 17 KiB | 8 KiB |
 

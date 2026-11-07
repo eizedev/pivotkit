@@ -83,6 +83,16 @@ test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", 
     assert.deepEqual([...own.indices], [0, 2]);
 });
 
+test("drill-down: a column named __proto__ is rebuilt as an own value, not as the prototype", () => {
+    const data = encode(JSON.parse('[{ "__proto__": "x", "constructor": "y", "Units": 1 }]'));
+    const row = decodeRow(data, 0);
+    assert.ok(Object.hasOwn(row, "__proto__"));
+    assert.equal(Object.getOwnPropertyDescriptor(row, "__proto__")?.value, "x");
+    assert.equal(Object.getPrototypeOf(row), Object.prototype);
+    assert.deepEqual(Object.keys(row), ["__proto__", "constructor", "Units"]);
+    assert.equal(JSON.stringify(row), '{"__proto__":"x","constructor":"y","Units":1}');
+});
+
 test("drill-down table: dates as the table shows them, numbers in the locale, the host's formats", () => {
     const rows = [
         { "Ticket number": 40072, Opened: "2026-01-05", Seen: "2026-02-14T10:30:00Z", Revenue: 1234.5, Hours: 3.5, Done: true, Team: "Network" },

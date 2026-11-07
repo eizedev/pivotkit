@@ -2,12 +2,13 @@
 // screen reader hears, the chart's text alternative and hints, file names and labels from a host.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toSeries } from "pivotkit-core";
+import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "../src/chart-summary.js";
+import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
 import { MANY_SERIES, MAX_CATEGORIES, pieLabelRoom } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
-import { LABELS, plural, resolveLabels } from "../src/labels.js";
+import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
 
@@ -134,6 +135,12 @@ test("value names: plain aggregator words, show-as renames the value", () => {
 
 test("file names: no path, no reserved characters or names", () => {
     assert.equal(safeFileName("report"), "report");
+    assert.equal(safeFileName(" .report. . "), "report");
+    // trailing dots and spaces are trimmed in linear time (a regex for them backtracked quadratically)
+    const t0 = performance.now();
+    assert.equal(safeFileName(`a${". ".repeat(200_000)}x`), `a${". ".repeat(200_000)}x`.slice(0, 120).replace(/[\s.]+$/, ""));
+    assert.equal(safeFileName(`a${". ".repeat(200_000)}`), "a");
+    assert.ok(performance.now() - t0 < 200, `${Math.round(performance.now() - t0)} ms`);
     assert.equal(safeFileName("../../etc/passwd"), "etc-passwd");
     assert.equal(safeFileName("C:\\\\temp\\\\x"), "C-temp-x");
     assert.equal(safeFileName('a<b>c:"d|e?*'), "a-b-c-d-e-");
@@ -201,4 +208,65 @@ test("count labels written the old way keep working: one text for every count, n
     assert.equal(plural(l.rowsCount, 1, { lang: "de", locale: "de-DE" }), "1 Datensätze");
     const r = computePivot(encode([{ R: "A", V: 1 }, { R: "B", V: 2 }]), { rows: ["R"], values: [{ field: "V", agg: "sum" }] });
     assert.match(chartSummary(toSeries(r), { type: "bar", rows: ["R"], valueNames: ["Summe von V"], labels: l, locale: "de-DE" }), /\. 2 Kategorien, 1 Reihen\./);
+});
+
+test("a limit of the core is a message in words with what to change, any other error its message", () => {
+    const data = encode(Array.from({ length: 40 }, (_, i) => ({ A: `a${i}`, B: `b${i}` })));
+    const refused = (limits, view = { rows: ["A"], cols: ["B"] }) => {
+        try {
+            toGrid(computePivot(data, view, { limits }), { limits });
+        } catch (e) {
+            return e;
+        }
+        throw new Error("no limit was hit");
+    };
+    assert.equal(errorText(refused({ groups: 50 }), en, "en-US"), fill(en.tooManyGroups, { max: "50" }));
+    assert.equal(errorText(refused({ pivotCells: 100 }), LABELS.de, "de-DE"), fill(LABELS.de.tooManyCells, { max: "100" }));
+    // 40 rows x 2 x 2 x 1 count
+    assert.equal(errorText(refused({ work: 100 }, { rows: ["A"], cols: ["B"], values: [{ agg: "count" }] }), en, "en-US"), fill(en.tooMuchWork, { value: "160", max: "100" }));
+    // (2 header rows + 41 body rows) x (1 label column + 41 columns)
+    assert.equal(errorText(refused({ cells: 1000 }), en, "en-US"), "This layout makes 1,806 cells, more than the limit of 1,000. Move a field with many values to Filters, or filter it.");
+    let rows;
+    try {
+        encode([{}, {}, {}], { limits: { rows: 2 } });
+    } catch (e) {
+        rows = e;
+    }
+    assert.equal(errorText(rows, en, "en-US"), "The data has 3 rows, more than the limit of 2.");
+    assert.equal(errorText(new Error("boom"), en, "en-US"), "The report cannot be shown: boom");
+    for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows", "tooMuchWork", "zoneFull", "templateTrimmed"]) {
+        assert.equal(typeof LABELS.de[key], "string", key);
+    }
+});
+
+test("chart tooltips: a title and a line per series or slice, values in the core's format", () => {
+    const fmt = (v) => (typeof v === "number" ? `${v.toFixed(1)} u` : "");
+    // trigger "axis" (bar, line, area): the category, then each series
+    assert.deepEqual(
+        tooltipContent([{ axisValueLabel: "North", name: "North", seriesName: "2025", value: 3, color: "#123456" }, { name: "North", seriesName: "2026", value: null, color: { type: "linear" } }], { valueFormatter: fmt }),
+        { title: "North", lines: [{ color: "#123456", name: "2025", value: "3.0 u" }, { color: null, name: "2026", value: "" }] }
+    );
+    // pie: the value's name, then the slice
+    assert.deepEqual(tooltipContent({ seriesType: "pie", seriesName: "Sum of Units", name: "<b>x</b>", value: 2, color: "#abc" }, { valueFormatter: fmt }), {
+        title: "Sum of Units",
+        lines: [{ color: "#abc", name: "<b>x</b>", value: "2.0 u" }]
+    });
+    // heatmap: the row and the column of the cell
+    assert.deepEqual(tooltipContent({ seriesType: "heatmap", seriesName: "Count", value: [1, 0, 5], color: "#000" }, { valueFormatter: fmt, xNames: ["2025", "2026"], yNames: ["North"] }), {
+        title: "Count",
+        lines: [{ color: "#000", name: "North, 2026", value: "5.0 u" }]
+    });
+});
+
+test("chart tooltips are nodes with texts and CSSOM styles, never markup", () => {
+    /** a document with just what the formatter uses */
+    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
+    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const box = /** @type {any} */ (tooltipFormatter(doc, {})({ seriesName: "<img src=x onerror=alert(1)>", name: "<script>", value: 1, color: "red" }));
+    assert.equal(box.children[0].textContent, "<img src=x onerror=alert(1)>");
+    const [marker, name, value] = box.children[1].children;
+    assert.equal(marker.style.backgroundColor, "red");
+    assert.equal(name.textContent, "<script>");
+    assert.equal(value.textContent, "1");
+    assert.equal(JSON.stringify(box).includes("innerHTML"), false);
 });

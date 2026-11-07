@@ -7,7 +7,7 @@ zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every fi
 (Apache ECharts), filters with value counts, drill-down to the rows behind a value, undo and redo,
 templates as JSON, and Excel, CSV and PNG export. The engine is [pivotkit-core](../pivotkit-core/).
 
-Status: in development, not published to npm yet. Try it in the [playground](../../examples/playground/).
+Version 0.1.0. Try it in the [playground](../../examples/playground/).
 
 ## Install
 
@@ -92,7 +92,7 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `labels` | partial labels | | Texts merged over the language's labels, see below. |
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
 | `height` | `number \| string` | `640` | The report's height; the table and the field list scroll inside it. |
-| `limits` | `Partial<Limits>` | | pivotkit-core's limits. A layout over `limits.cells` shows a message instead of the table. |
+| `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.work`, `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`). A field beyond `limits.axisFields` or `limits.values` is refused with a note (`zoneFull`); a template with more loads the fields that fit and says so (`templateTrimmed`). |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
@@ -132,7 +132,9 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 - Chart: bars, stacked bars, horizontal bars, lines, area, pie, heatmap ("Chart type: Bars" in the
   toolbar); a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap
-  rows and columns" (also above the Columns zone).
+  rows and columns" (also above the Columns zone). The tooltip is built as DOM nodes with the data's
+  texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
+  `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
   Reset to the start view, Layout (the zones folded into one line or open), Options, Templates,
   Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when the report is
