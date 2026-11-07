@@ -8,8 +8,22 @@ const root = new URL("./dist/", import.meta.url).pathname;
 const port = Number(process.argv[2] ?? process.env.PORT ?? 4173);
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png" };
 
-createServer(async (req, res) => {
-    const path = normalize(decodeURIComponent(new URL(req.url, "http://x").pathname)).replace(/^(\.\.[/\\])+/, "");
+/** The decoded path of a request; null when its percent-encoding is malformed. */
+function pathOf(url) {
+    try {
+        return decodeURIComponent(new URL(url, "http://x").pathname);
+    } catch {
+        return null;
+    }
+}
+
+const server = createServer(async (req, res) => {
+    const decoded = pathOf(req.url);
+    if (decoded === null) {
+        res.writeHead(400, { "content-type": "text/plain" }).end("bad request");
+        return;
+    }
+    const path = normalize(decoded).replace(/^(\.\.[/\\])+/, "");
     const file = join(root, path.endsWith("/") ? `${path}index.html` : path);
     if (!file.startsWith(root)) {
         res.writeHead(403).end();
@@ -22,4 +36,6 @@ createServer(async (req, res) => {
     } catch {
         res.writeHead(404, { "content-type": "text/plain" }).end("not found");
     }
-}).listen(port, "127.0.0.1", () => console.log(`playground on http://127.0.0.1:${port}/`));
+});
+// port 0 picks a free one; the address printed is the one listened on
+server.listen(port, "127.0.0.1", () => console.log(`playground on http://127.0.0.1:${server.address().port}/`));
