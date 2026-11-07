@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, findNode } from "../src/index.js";
+import { computePivot, encode, findNode, validate } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -63,6 +63,21 @@ test("value conditions", () => {
     assert.deepEqual(keep("between", 8, 5), ["South", null]);
     assert.deepEqual(keep("notBetween", 5, 8), ["North", "West"]);
     assert.deepEqual(keep("<=", 4), ["West"]);
+});
+
+test("value conditions by a chosen value, also one that is not shown; a measure without numbers is refused", () => {
+    // Units summed: North 10, South 8, West 4, blank 6; the highest price: North 20, South 30, West 11, blank 9
+    const maxPrice = { field: "Price", agg: "max" };
+    const view = (by, value) => ({ rows: ["Region"], values: [sumUnits, maxPrice], filters: [{ field: "Region", type: "value", op: ">", value, by }] });
+    assert.deepEqual(regions(computePivot(data, view(sumUnits, 9))), ["North"]);
+    assert.deepEqual(regions(computePivot(data, view(maxPrice, 15))), ["North", "South"]);
+    // without "by" the first value counts
+    const first = { ...view(maxPrice, 9).filters[0], by: undefined };
+    assert.deepEqual(regions(computePivot(data, { ...view(maxPrice, 9), filters: [first] })), ["North"]);
+    // a measure the view does not show
+    assert.deepEqual(regions(computePivot(data, { ...view(maxPrice, 15), values: [sumUnits] })), ["North", "South"]);
+    const listed = validate({ rows: ["Region"], filters: [{ field: "Region", type: "value", op: ">", value: 1, by: { field: "Rep", agg: "listUnique" } }] }, data);
+    assert.deepEqual(listed.errors.map((e) => e.path), ["filters[0].by"]);
 });
 
 test("filters combine: items first, then value filters from the outer level in", () => {

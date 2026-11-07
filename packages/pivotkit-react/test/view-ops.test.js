@@ -4,9 +4,10 @@ import { computePivot, encode, normalize } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
-    binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding
+    binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding,
+    setValueFilter, measureChoices, numericResult, sameRef
 } from "../src/view-ops.js";
-import { filterText } from "../src/names.js";
+import { filterText, refLabel, valueConditionText } from "../src/names.js";
 import { LABELS } from "../src/labels.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
@@ -308,14 +309,63 @@ test("Remove filter takes the item list and the text condition, keeps Top N and 
     assert.deepEqual(filterZoneFields(removeFilters(z, "Product")), ["Product"]);
 });
 
-test("the menu says what a filter keeps: shown of total, the condition, by value", () => {
+test("the menu says what a filter keeps: shown of total, the text condition, the value condition", () => {
     const labels = LABELS.en;
-    let v = norm({ rows: ["Region"] });
+    let v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
     assert.equal(filterText(v, "Region", null, labels, "en-US"), null);
     v = setLabelFilter(v, "Region", { op: "contains", value: "or" });
     assert.equal(filterText(v, "Region", { summary: { shown: 15, total: 1045 } }, labels, "en-US"), "Filter: 15 of 1,045, contains “or”");
     assert.equal(filterText(v, "region", null, LABELS.de, "de-DE"), "Filter: enthält “or”");
-    assert.equal(filterText({ filters: [{ field: "Region", type: "value", op: "gt", value: 1 }] }, "Region", null, labels, "en-US"), "Filter: by value");
+    v = norm(setValueFilter(v, "Region", { by: { field: "Units", agg: "sum" }, op: ">", value: 1000 }));
+    assert.equal(filterText(v, "Region", null, labels, "en-US"), "Filter: Sum of Units > 1,000, contains “or”");
+    assert.equal(filterText(v, "Region", null, LABELS.de, "de-DE"), "Filter: Summe von Units > 1.000, enthält “or”");
+});
+
+test("a value condition: set, changed, removed; it keeps the field's other filters and names its value", () => {
+    const units = { field: "Units", agg: "sum" };
+    let v = norm({ rows: ["Region"], values: [units, { field: "Units", agg: "max", label: "Biggest" }] });
+    v = setItemFilter(v, "Region", ["North", "South"], ["North", "South", "West"]);
+    v = setValueFilter(v, "Region", { by: units, op: ">=", value: 3 });
+    const checked = normalize(v, data);
+    assert.deepEqual(checked.issues, []);
+    assert.deepEqual(checked.view.filters.map((f) => f.type).sort(), ["exclude", "value"]);
+    // what the engine keeps: North 3, South 7; West is excluded by the item filter
+    const r = computePivot(data, v);
+    assert.deepEqual(r.rowRoot.children.map((n) => n.key), ["North", "South"]);
+    // between takes a second number; a new condition replaces the old one
+    v = setValueFilter(v, "Region", { by: { field: "Units", agg: "max" }, op: "between", value: 2, value2: 5 });
+    assert.deepEqual(v.filters.filter((f) => f.type === "value"), [{ field: "Region", type: "value", by: { field: "Units", agg: "max" }, op: "between", value: 2, value2: 5 }]);
+    assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["North"]);
+    assert.equal(valueConditionText(v, v.filters.find((f) => f.type === "value"), LABELS.en, "en-US"), "Biggest between 2 and 5");
+    assert.equal(valueConditionText(v, { op: "!=", value: 0.5 }, LABELS.de, "de-DE"), "Summe von Units ≠ 0,5");
+    assert.equal(hasFilter(v, "Region"), true);
+    // Remove filter takes it with the item filter; Clear takes it alone
+    assert.deepEqual(removeFilters(v, "Region").filters, []);
+    assert.deepEqual(setValueFilter(v, "Region", null).filters.map((f) => f.type), ["exclude"]);
+});
+
+test("the measures to sort, rank and filter by: each value that gives numbers, once, the row count without one", () => {
+    const typeOf = (f) => data.column(f)?.type;
+    const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }, { field: "Units", agg: "sum", showAs: { type: "percentOfGrandTotal" } }, { field: "Region", agg: "listUnique" }, { field: "Date", agg: "max" }, { field: "Region", agg: "count" }] });
+    assert.deepEqual(measureChoices(v, typeOf), [{ field: "Units", agg: "sum" }, { field: "Region", agg: "count" }]);
+    assert.deepEqual(measureChoices(norm({ rows: ["Region"] }), typeOf), [{ field: null, agg: "count" }]);
+    assert.equal(numericResult({ agg: "first" }, "string"), false);
+    assert.equal(numericResult({ agg: "first" }, "number"), true);
+    assert.equal(sameRef({ field: "units", agg: "sum" }, { field: "Units", agg: "sum" }), true);
+    assert.equal(sameRef({ field: null, agg: "count" }, { field: "Units", agg: "count" }), false);
+    // the name of a measure is the value's, without its "show as"
+    assert.equal(refLabel(v, { field: "units", agg: "sum" }, LABELS.en), "Sum of Units");
+    assert.equal(refLabel(v, { field: null, agg: "count" }, LABELS.en), LABELS.en.core.countRows);
+});
+
+test("sort by a chosen value and top N by a chosen value reach the engine", () => {
+    const v0 = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }, { field: "Units", agg: "min" }] });
+    const minUnits = { field: "Units", agg: "min" };
+    const sorted = setSort(v0, "Region", { by: "value", order: "asc", value: minUnits });
+    assert.deepEqual(normalize(sorted, data).view.sort, [{ field: "Region", by: "value", order: "asc", value: minUnits }]);
+    const top = setTopFilter(v0, "Region", { count: 1, bottom: true, by: minUnits });
+    assert.deepEqual(normalize(top, data).view.filters, [{ field: "Region", type: "top", count: 1, bottom: true, by: minUnits }]);
+    assert.deepEqual(computePivot(data, top).rowRoot.children.map((n) => n.key), ["West"]);
 });
 
 test("expand all and collapse all are offered only when they change something, and say why not", () => {

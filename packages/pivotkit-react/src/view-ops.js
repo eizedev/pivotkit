@@ -481,6 +481,57 @@ export function setTopFilter(view, field, top) {
 }
 
 /**
+ * A value condition on a field ({ by, op, value, value2 }, pivotkit-core's `value` filter: "Sum of
+ * Revenue greater than 1000"), or null to remove it. The field keeps its other filters.
+ * @param {any} view
+ * @param {string} field
+ * @param {{ by: { field: string | null, agg: string }, op: string, value: number, value2?: number } | null} condition
+ */
+export function setValueFilter(view, field, condition) {
+    if (!condition) {
+        return replaceFilters(view, field, ["value"], []);
+    }
+    const { by, op, value, value2 } = condition;
+    const between = op === "between" || op === "notBetween";
+    return replaceFilters(view, field, ["value"], [{ field, type: "value", by: { field: by.field, agg: by.agg }, op, value, ...(between ? { value2 } : {}) }]);
+}
+
+/**
+ * True when a value gives a number for each cell, so it can be shown as a share, formatted, highlighted,
+ * sorted by and filtered by: not a list of distinct values, not the first or last entry of a text,
+ * not an average, median, minimum or maximum of dates.
+ * @param {{ agg: string }} spec
+ * @param {string} type  the column type of the value's field ("number" for a row count)
+ */
+export function numericResult(spec, type) {
+    return spec.agg !== "listUnique" && !(["first", "last"].includes(spec.agg) && type !== "number") && !(type === "date" && ["average", "median", "min", "max"].includes(spec.agg));
+}
+
+/** True when two value references ({ field, agg }) name the same measure. */
+export function sameRef(a, b) {
+    return Boolean(a && b) && a.agg === b.agg && (a.field === null || b.field === null ? a.field === b.field : same(a.field, b.field));
+}
+
+/**
+ * The measures a field on an axis can be sorted, ranked and filtered by: each value of the view that
+ * gives a number, once per field and aggregator, in the view's order; the row count without one. The
+ * first one is the default, as pivotkit-core's.
+ * @param {any} view
+ * @param {(field: string) => string | undefined} typeOf  the column type of a field
+ * @returns {Array<{ field: string | null, agg: string }>}
+ */
+export function measureChoices(view, typeOf) {
+    const out = [];
+    for (const v of view.values) {
+        const ref = { field: v.field ?? null, agg: v.agg };
+        if (numericResult(v, v.field ? typeOf(v.field) ?? "string" : "number") && !out.some((r) => sameRef(r, ref))) {
+            out.push(ref);
+        }
+    }
+    return out.length ? out : [{ field: null, agg: "count" }];
+}
+
+/**
  * Removes what the filter of a field keeps out: its item list, its text condition and a value
  * condition; Top N has its own control and stays. A field in the Filters zone stays there, unfiltered.
  */

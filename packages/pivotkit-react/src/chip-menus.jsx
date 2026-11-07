@@ -1,6 +1,7 @@
 /*
- * The menus of the chips. A field on Rows or Columns: sort, date grouping, number ranges, top N,
- * filter, move. A value: how it is summarized (the common aggregators first, the statistics folded
+ * The menus of the chips. A field on Rows or Columns: sort (by label, or largest or smallest first by
+ * any value that gives numbers), date grouping, number ranges, top N (by a chosen value), filter with a
+ * value condition, move. A value: how it is summarized (the common aggregators first, the statistics folded
  * away), what it is shown as, number format, highlight, name, move. The entries come from
  * pivotkit-core's CATALOG; Remove is pinned to the foot of the menu so it is never scrolled away.
  */
@@ -10,9 +11,9 @@ import { CATALOG, aggregatorsFor, fieldLabel, isFormat } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { FieldDescription } from "./info.jsx";
 import { fill } from "./labels.js";
-import { filterText, groupingName, valueLabel } from "./names.js";
+import { filterText, groupingName, refLabel, valueLabel } from "./names.js";
 import { Option, Section } from "./popover.jsx";
-import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, moveField, removeFilters, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
 
 /** The formats the value menu offers; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "integer", "currency", "percent", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
@@ -79,13 +80,41 @@ function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
     );
 }
 
-function TopForm({ top, labels, firstName, onApply }) {
+/**
+ * The measure a top N or a value condition goes by: a select when the view has several values that
+ * give numbers, else the one name. `index` is the position in `choices`.
+ * @param {{ choices: Array<{ field: string | null, agg: string }>, names: string[], index: number,
+ *   onChange: (index: number) => void, label: string, prefix?: string, testId: string }} props
+ */
+function MeasurePick({ choices, names, index, onChange, label, prefix, testId }) {
+    if (choices.length < 2) {
+        return <span className="pk-muted pk-by">{prefix ? `${prefix} ${names[0]}` : names[0]}</span>;
+    }
+    return (
+        <label className="pk-field-label pk-by-pick">
+            {prefix ? <span className="pk-muted">{prefix}</span> : <span className="pk-sr">{label}</span>}
+            <select value={index} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} data-testid={testId}>
+                {choices.map((c, i) => (
+                    <option key={`${c.field}:${c.agg}`} value={i}>
+                        {names[i]}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+/** The index of a reference in the choices; the first (the default) when it is not there. */
+const choiceIndex = (choices, ref) => Math.max(0, choices.findIndex((c) => sameRef(c, ref)));
+
+function TopForm({ top, labels, choices, names, onApply }) {
     const [count, setCount] = useState(String(top?.count ?? 10));
     const [bottom, setBottom] = useState(Boolean(top?.bottom));
+    const [by, setBy] = useState(() => choiceIndex(choices, top?.by));
     const n = Number(count);
     const ok = Number.isInteger(n) && n > 0;
     return (
-        <form className="pk-inline-form" onSubmit={(e) => { e.preventDefault(); if (ok) onApply({ count: n, bottom }); }}>
+        <form className="pk-inline-form" onSubmit={(e) => { e.preventDefault(); if (ok) onApply({ count: n, bottom, by: choices[by] }); }}>
             <div className="pk-segmented pk-small" role="group" aria-label={labels.topN}>
                 <button type="button" aria-pressed={!bottom} onClick={() => setBottom(false)}>{labels.top}</button>
                 <button type="button" aria-pressed={bottom} onClick={() => setBottom(true)}>{labels.bottom}</button>
@@ -94,9 +123,62 @@ function TopForm({ top, labels, firstName, onApply }) {
                 <span className="pk-sr">{labels.topCount}</span>
                 <input type="number" min="1" step="1" value={count} onChange={(e) => setCount(e.target.value)} aria-label={labels.topCount} data-testid="top-count" />
             </label>
-            <span className="pk-muted pk-by">{fill(labels.by, { value: firstName })}</span>
+            <MeasurePick choices={choices} names={names} index={by} onChange={setBy} label={labels.topBy} prefix={labels.topBy} testId="top-by" />
             <button type="submit" className="pk-btn pk-primary" disabled={!ok}>{labels.apply}</button>
             {top ? <button type="button" className="pk-btn" onClick={() => onApply(null)}>{labels.clear}</button> : null}
+        </form>
+    );
+}
+
+/** A number typed into a form: a finite number, or null for an empty or wrong entry. */
+const typedNumber = (text) => (text.trim() === "" ? null : Number.isFinite(Number(text)) ? Number(text) : null);
+
+/**
+ * A value condition on a field ("Sum of Revenue greater than 1000"): the value it goes by, an operator
+ * of pivotkit-core's CATALOG.valueOps and one number, or two for between.
+ */
+function ValueFilterForm({ condition, labels, choices, names, onApply }) {
+    const [by, setBy] = useState(() => choiceIndex(choices, condition?.by));
+    const [op, setOp] = useState(condition?.op ?? ">");
+    const [first, setFirst] = useState(condition ? String(condition.value) : "");
+    const [second, setSecond] = useState(condition?.value2 !== undefined ? String(condition.value2) : "");
+    const between = op === "between" || op === "notBetween";
+    const a = typedNumber(first);
+    const b = typedNumber(second);
+    const ok = a !== null && (!between || b !== null);
+    return (
+        <form
+            className="pk-inline-form pk-value-filter"
+            onSubmit={(e) => {
+                e.preventDefault();
+                if (ok) {
+                    onApply({ by: choices[by], op, value: /** @type {number} */ (a), ...(between ? { value2: /** @type {number} */ (b) } : {}) });
+                }
+            }}
+        >
+            <MeasurePick choices={choices} names={names} index={by} onChange={setBy} label={labels.valueFilterBy} testId="value-filter-by" />
+            <label className="pk-field-label">
+                <span className="pk-sr">{labels.valueFilterOp}</span>
+                <select value={op} onChange={(e) => setOp(e.target.value)} aria-label={labels.valueFilterOp} data-testid="value-filter-op">
+                    {CATALOG.valueOps.map((o) => (
+                        <option key={o} value={o}>
+                            {labels.valueOps[o] ?? o}
+                        </option>
+                    ))}
+                </select>
+            </label>
+            <label className="pk-field-label pk-narrow-input">
+                <span className="pk-sr">{labels.valueFilterNumber}</span>
+                <input type="number" inputMode="decimal" step="any" value={first} onChange={(e) => setFirst(e.target.value)} aria-label={labels.valueFilterNumber} data-testid="value-filter-number" />
+            </label>
+            {between ? (
+                <label className="pk-field-label pk-narrow-input">
+                    <span className="pk-muted">{labels.valueFilterTo}</span>
+                    <input type="number" inputMode="decimal" step="any" value={second} onChange={(e) => setSecond(e.target.value)} aria-label={`${labels.valueFilterTo} ${labels.valueFilterNumber}`} data-testid="value-filter-number2" />
+                </label>
+            ) : null}
+            <button type="submit" className="pk-btn pk-primary" disabled={!ok} data-testid="value-filter-apply">{labels.apply}</button>
+            {condition ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="value-filter-clear">{labels.clear}</button> : null}
         </form>
     );
 }
@@ -133,18 +215,19 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     const sourceType = types.get(source.toLowerCase());
     const grouping = groupingOf(view, field);
     const sort = sortOf(view, field);
-    const firstValue = view.values[0] ?? null;
-    const firstRef = firstValue ? { field: firstValue.field, agg: firstValue.agg } : { field: null, agg: "count" };
-    const firstName = firstValue ? valueLabel(firstValue, labels) : labels.core.countRows;
+    // the values a sort, a top N or a value condition can go by; the first is the default
+    const choices = measureChoices(view, (f) => types.get(f.toLowerCase()));
+    const names = choices.map((c) => refLabel(view, c, labels));
     const top = filtersOf(view, field, ["top"])[0];
-    const isSort = (by, order) => (sort ? sort.by === by && sort.order === order : by === "label" && order === "asc");
+    const condition = filtersOf(view, field, ["value"])[0];
+    const isSort = (by, order, ref) => (sort ? sort.by === by && sort.order === order && (by !== "value" || sameRef(sort.value, ref)) : by === "label" && order === "asc");
     // the custom order of the view, else the host's for the field (fieldDefaults.order); a grouped
     // field has items of its own
     const hostOrder = source === field ? defaultsOf?.(source)?.order : undefined;
     const customItems = sort?.by === "custom" ? sort.items : Array.isArray(hostOrder) && hostOrder.length > 0 ? hostOrder : null;
-    const doSort = (by, order) => {
+    const doSort = (by, order, ref) => {
         close();
-        const spec = by === "value" ? { by, order, value: firstRef } : by === "custom" ? { by, order, items: [...customItems] } : { by, order };
+        const spec = by === "value" ? { by, order, value: ref } : by === "custom" ? { by, order, items: [...customItems] } : { by, order };
         // A to Z is the default without an entry; a field with the host's order keeps it as an entry, or
         // the host's order would come back (withHostOrders)
         commit(setSort(view, field, by === "label" && order === "asc" && !(Array.isArray(hostOrder) && hostOrder.length > 0) ? null : spec), { step: "sort", field: name });
@@ -167,8 +250,13 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                 <Section title={labels.sort}>
                     <Option checked={isSort("label", "asc")} icon="sortAsc" onSelect={() => doSort("label", "asc")}>{sourceType === "date" ? labels.sortOldest : labels.sortLabelAsc}</Option>
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
-                    <Option checked={isSort("value", "desc")} icon="sortDesc" onSelect={() => doSort("value", "desc")}>{fill(labels.sortValueDesc, { value: firstName })}</Option>
-                    <Option checked={isSort("value", "asc")} icon="sortAsc" onSelect={() => doSort("value", "asc")}>{fill(labels.sortValueAsc, { value: firstName })}</Option>
+                    {/* by each value that gives numbers, largest and smallest first */}
+                    {choices.map((c, i) => (
+                        <React.Fragment key={`${c.field}:${c.agg}`}>
+                            <Option checked={isSort("value", "desc", c)} icon="sortDesc" onSelect={() => doSort("value", "desc", c)} testId={`sort-value-desc-${i}`}>{fill(labels.sortValueDesc, { value: names[i] })}</Option>
+                            <Option checked={isSort("value", "asc", c)} icon="sortAsc" onSelect={() => doSort("value", "asc", c)} testId={`sort-value-asc-${i}`}>{fill(labels.sortValueAsc, { value: names[i] })}</Option>
+                        </React.Fragment>
+                    ))}
                     {customItems ? <Option checked={isSort("custom", "asc")} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
                     {customItems ? <Option checked={isSort("custom", "desc")} icon="sortDesc" onSelect={() => doSort("custom", "desc")} testId="sort-custom-desc">{labels.sortCustomDesc}</Option> : null}
                 </Section>
@@ -187,7 +275,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     </Section>
                 ) : null}
                 <Section title={labels.topN}>
-                    <TopForm top={top} labels={labels} firstName={firstName} onApply={(t) => { close(); commit(setTopFilter(view, field, t ? { ...t, by: firstRef } : null), { step: "top", field: name }); }} />
+                    <TopForm top={top} labels={labels} choices={choices} names={names} onApply={(t) => { close(); commit(setTopFilter(view, field, t), { step: "top", field: name }); }} />
                 </Section>
                 <Section title={labels.zones.filters}>
                     {/* a filter says what it keeps, in the accent colour, and can go right below */}
@@ -205,6 +293,10 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                             {labels.filter}
                         </Option>
                     )}
+                    {/* a condition on a value of the field's items: "Sum of Revenue greater than 1000" */}
+                    <More title={labels.valueFilter} open={Boolean(condition)}>
+                        <ValueFilterForm condition={condition} labels={labels} choices={choices} names={names} onApply={(c) => { close(); commit(setValueFilter(view, field, c), { step: "filter", field: name }); }} />
+                    </More>
                 </Section>
                 <MoveSection view={view} zone={zone} index={index} count={view[zone].length} labels={labels} commit={commit} close={close} text={name} type={sourceType} />
             </div>
@@ -221,7 +313,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
     const common = CATALOG.commonAggregators.filter((a) => aggs.includes(a));
     const rare = aggs.filter((a) => !CATALOG.commonAggregators.includes(a));
     const otherShowAs = CATALOG.showAs.filter((s) => !COMMON_SHOW_AS.includes(s));
-    const numeric = !["listUnique"].includes(spec.agg) && !(["first", "last"].includes(spec.agg) && type !== "number") && !(type === "date" && ["average", "median", "min", "max"].includes(spec.agg));
+    const numeric = numericResult(spec, type);
     const name = valueLabel(spec, labels);
     const set = (patch) => {
         close();

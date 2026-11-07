@@ -27,6 +27,42 @@ export function valueLabel(spec, labels) {
     return fill(core.showAsName, { showAs, value: spec.field && spec.agg === "sum" ? fieldLabel(spec.field, core) : base });
 }
 
+/**
+ * The name of a measure a sort, a top N or a value condition goes by ({ field, agg }): the name of the
+ * view's value for it ("Sum of Revenue", or the name the user gave it), without a "show as"
+ * calculation, since the raw result is what is compared.
+ * @param {any} view
+ * @param {{ field: string | null, agg: string } | null | undefined} ref
+ * @param {import("./labels.js").UiLabels} labels
+ */
+export function refLabel(view, ref, labels) {
+    if (!ref) {
+        return labels.core.countRows;
+    }
+    const sameField = (v) => (ref.field === null || v.field === null || v.field === undefined ? (v.field ?? null) === ref.field : v.field.toLowerCase() === ref.field.toLowerCase());
+    const spec = (view.values ?? []).find((v) => v.agg === ref.agg && sameField(v));
+    return valueLabel({ ...(spec ?? ref), showAs: null }, labels);
+}
+
+/** The signs of the comparisons in a value condition's short text; between has words. */
+const OP_SIGNS = Object.freeze({ "=": "=", "!=": "≠", ">": ">", ">=": "≥", "<": "<", "<=": "≤" });
+
+/**
+ * A value condition in short: "Sum of Revenue > 1,000", "Sum of Revenue between 5 and 8".
+ * @param {any} view
+ * @param {{ by?: { field: string | null, agg: string }, op: string, value: number, value2?: number }} f  a `value` filter
+ * @param {import("./labels.js").UiLabels} labels
+ * @param {string} locale
+ */
+export function valueConditionText(view, f, labels, locale) {
+    const number = (x) => (typeof x === "number" ? x.toLocaleString(locale, { maximumFractionDigits: 6 }) : "");
+    const value = refLabel(view, f.by ?? (view.values?.[0] ? { field: view.values[0].field ?? null, agg: view.values[0].agg } : null), labels);
+    if (f.op === "between" || f.op === "notBetween") {
+        return fill(labels.valueConditions[f.op], { value, from: number(f.value), to: number(f.value2) });
+    }
+    return fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op, number: number(f.value) });
+}
+
 /** The name of a derived field for a grouping, in the labels' language. */
 export function groupingName(source, unit, labels, size) {
     return unit === "bin" ? fill(labels.binsName, { field: source, size }) : fill(labels.derivedName, { field: source, unit: labels.units[unit] ?? unit });
@@ -71,7 +107,7 @@ export function layoutSummary(entries, labels) {
 
 /**
  * What the filter of a field keeps, for its menu: "Filter: 15 of 45", "Filter: contains “abc”",
- * "Filter: by value"; null without a filter.
+ * "Filter: Sum of Revenue > 1,000"; null without a filter.
  * @param {any} view
  * @param {string} field
  * @param {{ summary: { shown: number, total: number } | null } | null | undefined} state  the chip's state (zones.jsx)
@@ -89,7 +125,7 @@ export function filterText(view, field, state, labels, locale) {
             const op = Object.hasOwn(labels.labelOps, f.op) ? labels.labelOps[f.op] : f.op;
             parts.push(`${op} “${f.value}”`);
         } else if (f.type === "value") {
-            parts.push(labels.filterByValue);
+            parts.push(valueConditionText(view, f, labels, locale));
         }
     }
     return parts.length ? fill(labels.filterIs, { filter: parts.join(", ") }) : null;

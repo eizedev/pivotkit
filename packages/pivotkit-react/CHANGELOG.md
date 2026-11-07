@@ -12,6 +12,13 @@ First release.
 
 ### Added
 
+- Sort by value and Top N by any value that gives numbers: the sort section lists "Largest … first"
+  and "Smallest … first" for each such value, Top N has a "by" select; the first value is the
+  default. A value condition on a row or column field ("Value filter…" in the Filters section of its
+  menu: a value, an operator of `CATALOG.valueOps` and a number, two for between), pivotkit-core's
+  `value` filter, shown on the chip and in the menu as "Sum of Revenue > 1,000"; Clear removes it,
+  Remove filter too. Labels `topBy`, `valueFilter`, `valueFilterBy`, `valueFilterOp`,
+  `valueFilterNumber`, `valueFilterTo`, `valueOps` and `valueConditions`.
 - Chart display settings in the chart type menu ("Display"): value labels, legend, title, smooth
   lines, axis labels (all straight when they fit, slanted, else every n-th with a note; long names cut
   with "…", whole in the tooltip), long titles cut with "…", and group labels under the axis for two

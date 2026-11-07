@@ -1,6 +1,7 @@
 // What the menus say and do: a filter in words with "Remove filter", the clear × of text fields,
 // "Filter…" for a field not placed yet, the sentence on filtering in the Values menu, Expand and
-// Collapse all only when they change something, the grip of a field. Every test fails without its feature.
+// Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
+// chosen value. Every test fails without its feature.
 import { chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
@@ -170,5 +171,104 @@ test.describe("menus explain themselves", () => {
         await page.getByRole("button", { name: "Remove Country" }).click();
         await toolbar(page, "options");
         await expect(page.getByTestId("collapse-all")).toContainText("Needs two or more fields in Rows.");
+    });
+});
+
+test.describe("sort, top N and value conditions by a chosen value", () => {
+    /** Region in Rows, Units and Revenue in Values; the body rows without the grand total, as [region, units, revenue]. */
+    async function twoValues(page) {
+        await page.goto("?data=sales&empty");
+        for (const field of ["Region", "Units", "Revenue"]) {
+            await page.locator(`.pk-field[data-field="${field}"] .pk-field-name`).click();
+        }
+        await expect.poll(() => chips(page, "values")).toEqual(["Sum of Units", "Sum of Revenue"]);
+    }
+    const number = (text) => Number(text.replace(/[^\d.-]/g, ""));
+    async function regionRows(page) {
+        return (await tableRows(page)).filter((r) => r[0] !== "Grand Total").map((r) => [r[0], number(r[1]), number(r[2])]);
+    }
+
+    test("the sort menu offers every value; Top N ranks by the value chosen", async ({ page }) => {
+        await twoValues(page);
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByTestId("sort-value-desc-0")).toHaveText("Largest Sum of Units first");
+        await expect(page.getByTestId("sort-value-desc-1")).toHaveText("Largest Sum of Revenue first");
+        await expect(page.getByTestId("sort-value-asc-1")).toHaveText("Smallest Sum of Revenue first");
+        await page.getByTestId("sort-value-asc-1").click();
+        await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName("Region, sorted Smallest Sum of Revenue first");
+        const rows = await regionRows(page);
+        const revenues = rows.map((r) => r[2]);
+        expect(revenues).toEqual([...revenues].sort((a, b) => a - b));
+        // the menu marks the value it sorts by
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByTestId("sort-value-asc-1")).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByTestId("sort-value-asc-0")).toHaveAttribute("aria-pressed", "false");
+        // bottom 1 by revenue keeps the region with the least revenue
+        await expect(page.getByTestId("top-by")).toHaveValue("0");
+        await page.getByRole("button", { name: "Bottom", exact: true }).click();
+        await page.getByTestId("top-count").fill("1");
+        await page.getByTestId("top-by").selectOption({ label: "Sum of Revenue" });
+        await page.getByRole("button", { name: "Apply" }).first().click();
+        await expect.poll(async () => (await regionRows(page)).map((r) => r[0])).toEqual([rows[0][0]]);
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByTestId("top-by")).toHaveValue("1");
+    });
+
+    test("a value condition: set in the chip menu, shown on the chip, edited and cleared", async ({ page }) => {
+        await twoValues(page);
+        const rows = await regionRows(page);
+        const least = [...rows].sort((a, b) => a[2] - b[2])[0];
+        const limit = Math.floor(least[2]) + 1;
+        const shown = limit.toLocaleString("en-US");
+        await page.getByTestId("chip-menu-Region").click();
+        await page.getByText("Value filter…").click();
+        await page.getByTestId("value-filter-by").selectOption({ label: "Sum of Revenue" });
+        await expect(page.getByTestId("value-filter-op")).toHaveValue(">");
+        await expect(page.getByTestId("value-filter-apply")).toBeDisabled();
+        await page.getByTestId("value-filter-number").fill(String(limit));
+        await page.getByTestId("value-filter-apply").click();
+        const badge = page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="condition-badge"]');
+        await expect(badge).toHaveText(`Sum of Revenue > ${shown}`);
+        await expect.poll(async () => (await regionRows(page)).map((r) => r[0]).sort()).toEqual(rows.map((r) => r[0]).filter((r) => r !== least[0]).sort());
+        await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName(`Region, Sum of Revenue > ${shown}`);
+        // the menu says it in words and opens the form with it
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByTestId("open-filter")).toHaveText(`Filter: Sum of Revenue > ${shown}`);
+        await expect(page.getByTestId("value-filter-number")).toHaveValue(String(limit));
+        await page.getByTestId("value-filter-op").selectOption("<");
+        await page.getByTestId("value-filter-apply").click();
+        await expect.poll(async () => (await regionRows(page)).map((r) => r[0])).toEqual([least[0]]);
+        await expect(badge).toHaveText(`Sum of Revenue < ${shown}`);
+        // between takes two numbers
+        await page.getByTestId("chip-menu-Region").click();
+        await page.getByTestId("value-filter-op").selectOption("between");
+        await expect(page.getByTestId("value-filter-apply")).toBeDisabled();
+        await page.getByTestId("value-filter-number2").fill("0");
+        await page.getByTestId("value-filter-apply").click();
+        await expect(badge).toHaveText(`Sum of Revenue between ${shown} and 0`);
+        // Clear takes it away; Undo brings it back
+        await page.getByTestId("chip-menu-Region").click();
+        await page.getByTestId("value-filter-clear").click();
+        await expect(badge).toHaveCount(0);
+        await expect.poll(async () => (await regionRows(page)).length).toBe(rows.length);
+        await page.getByTestId("undo").click();
+        await expect(badge).toHaveText(`Sum of Revenue between ${shown} and 0`);
+        // Remove filter takes it too
+        await page.getByTestId("chip-menu-Region").click();
+        await page.getByTestId("remove-filter").click();
+        await expect(badge).toHaveCount(0);
+    });
+
+    test("the value condition in German", async ({ page }) => {
+        await page.goto("?data=sales&empty&lang=de");
+        for (const field of ["Region", "Revenue"]) {
+            await page.locator(`.pk-field[data-field="${field}"] .pk-field-name`).click();
+        }
+        await page.getByTestId("chip-menu-Region").click();
+        await page.getByText("Wertfilter…").click();
+        await page.getByTestId("value-filter-op").selectOption({ label: "größer oder gleich" });
+        await page.getByTestId("value-filter-number").fill("1000.5");
+        await page.getByTestId("value-filter-apply").click();
+        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="condition-badge"]')).toHaveText("Summe von Revenue ≥ 1.000,5");
     });
 });

@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { AxisMenu, ValueMenu, ZONE_ICON } from "./chip-menus.jsx";
-import { layoutSummary, valueLabel } from "./names.js";
+import { layoutSummary, refLabel, valueConditionText, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -19,8 +19,8 @@ import { MenuButton } from "./popover.jsx";
 import { ZONES, filterZoneFields, filtersOf, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
 
 /**
- * What is set on a field: its item filter as "shown of total" (null without one), its top N and its
- * sort, for the chip's badges and its accessible name.
+ * What is set on a field: its item filter as "shown of total" (null without one), its top N, its value
+ * condition and its sort, for the chip's badges and its accessible name.
  * @param {any} view
  * @param {string} field
  * @param {import("pivotkit-core").Encoded} encoded
@@ -38,12 +38,16 @@ function fieldState(view, field, encoded, locale) {
         }
     }
     const top = filtersOf(view, field, ["top"])[0] ?? null;
-    const other = filtersOf(view, field, ["label", "value"]).length > 0;
-    return { summary, top, other, sort: sortOf(view, field) };
+    const condition = filtersOf(view, field, ["value"])[0] ?? null;
+    const other = filtersOf(view, field, ["label"]).length > 0;
+    return { summary, top, condition, other, sort: sortOf(view, field) };
 }
 
-/** What is set on a chip in words, for its accessible name: "filtered 3 of 4, Top 5, sorted A to Z". */
-function stateWords(state, labels, locale, firstValue) {
+/**
+ * What is set on a chip in words, for its accessible name: "filtered 3 of 4, Top 5, Sum of Revenue >
+ * 1,000, sorted A to Z".
+ */
+function stateWords(state, view, labels, locale) {
     if (!state) {
         return "";
     }
@@ -56,17 +60,20 @@ function stateWords(state, labels, locale, firstValue) {
     if (state.top) {
         words.push(fill(state.top.bottom ? labels.bottomBadge : labels.topBadge, { count: state.top.count.toLocaleString(locale) }));
     }
+    if (state.condition) {
+        words.push(valueConditionText(view, state.condition, labels, locale));
+    }
     if (state.sort) {
         const desc = state.sort.order === "desc";
         const order = state.sort.by === "value"
-            ? fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: firstValue })
+            ? fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: refLabel(view, state.sort.value, labels) })
             : state.sort.by === "custom" ? (desc ? labels.sortCustomDesc : labels.sortCustom) : desc ? labels.sortLabelDesc : labels.sortLabelAsc;
         words.push(fill(labels.stateSorted, { order }));
     }
     return words.join(", ");
 }
 
-function Badges({ state, labels, locale }) {
+function Badges({ state, view, labels, locale }) {
     const parts = [];
     if (state.summary) {
         const text = fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) });
@@ -85,6 +92,16 @@ function Badges({ state, labels, locale }) {
             <span key="top" className="pk-chip-badge pk-badge-text" data-testid="top-badge">
                 <Icon name="top" size={12} />
                 {text}
+            </span>
+        );
+    }
+    if (state.condition) {
+        // a long condition ends in "…" (the whole of it is in the chip's name and its title)
+        const text = valueConditionText(view, state.condition, labels, locale);
+        parts.push(
+            <span key="condition" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="condition-badge" title={text}>
+                <Icon name="filter" size={12} />
+                <span className="pk-badge-cut">{text}</span>
             </span>
         );
     }
@@ -109,8 +126,8 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
         chipRef.current = el;
         setNodeRef(el);
     };
-    const badges = state ? <Badges state={state} labels={labels} locale={locale} /> : null;
-    const words = stateWords(state, labels, locale, view.values[0] ? valueLabel(view.values[0], labels) : labels.core.countRows);
+    const badges = state ? <Badges state={state} view={view} labels={labels} locale={locale} /> : null;
+    const words = stateWords(state, view, labels, locale);
     const name = words ? `${text}, ${words}` : undefined;
     const remove = () => onRemove(zone, index, text);
     return (

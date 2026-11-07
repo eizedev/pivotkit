@@ -961,6 +961,18 @@
     gap: 0.35em;
 }
 
+/* a value condition on a chip: at most this wide, the rest an ellipsis */
+.pk-badge-condition {
+    max-width: 12em;
+}
+
+.pk-badge-cut {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .pk-badge-text {
     display: inline-flex;
     align-items: center;
@@ -1094,6 +1106,7 @@
 
 .pk-inline-form input[type="text"],
 .pk-inline-form input[type="number"],
+.pk-inline-form select,
 .pk-condition select,
 .pk-condition input {
     flex: 1;
@@ -1106,7 +1119,7 @@
     color: var(--pk-text);
 }
 
-.pk-inline-form input:focus,
+.pk-inline-form :is(input, select):focus,
 .pk-condition :is(select, input):focus {
     outline: none;
     border-color: var(--pk-accent);
@@ -1156,6 +1169,24 @@
 
 .pk-by {
     font-size: var(--pk-small);
+}
+
+/* the value a top N or a value condition goes by, when there are several: a line of its own */
+.pk-by-pick {
+    flex-basis: 100%;
+}
+
+.pk-by-pick select {
+    min-width: 0;
+}
+
+/* a value condition: the value, then the operator and the number(s) */
+.pk-value-filter .pk-field-label:not(.pk-narrow-input, .pk-by-pick) {
+    flex: 1 1 10em;
+}
+
+.pk-value-filter .pk-narrow-input {
+    flex: 1 1 7em;
 }
 
 .pk-template {
