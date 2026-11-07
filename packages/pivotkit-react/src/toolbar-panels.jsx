@@ -8,6 +8,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { VIEW_FILE_LIMITS } from "pivotkit-core";
 import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
+import { activeIn } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Option } from "./popover.jsx";
@@ -267,9 +268,20 @@ function SaveView({ labels, onSave }) {
             onSubmit={(e) => {
                 e.preventDefault();
                 if (name.trim()) {
-                    onSave(name.trim());
+                    const saved = onSave(name.trim());
                     setName("");
                     field.current?.focus({ preventScroll: true });
+                    // the host's new list renders the menu again: the field keeps the focus after it,
+                    // unless the user went on to another field
+                    Promise.resolve(saved).then(() =>
+                        requestAnimationFrame(() => {
+                            const el = field.current;
+                            const now = el ? activeIn(el) : null;
+                            if (el && el.isConnected && now !== el && !(now instanceof HTMLInputElement || now instanceof HTMLTextAreaElement)) {
+                                el.focus({ preventScroll: true });
+                            }
+                        })
+                    );
                 }
             }}
         >
