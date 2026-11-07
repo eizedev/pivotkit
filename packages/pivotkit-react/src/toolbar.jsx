@@ -302,8 +302,8 @@ export function Toolbar(props) {
             <MenuButton label={labels.exportLabel} icon="download" text={labels.exportLabel} align="end" testId="export">
                 {(close) => (
                     <>
-                        <Option inMenu icon="file" onSelect={() => { close(); onExport("xlsx"); }} testId="export-xlsx">{labels.exportXlsx}</Option>
-                        <Option inMenu icon="file" onSelect={() => { close(); onExport("csv"); }} testId="export-csv">{labels.exportCsv}</Option>
+                        <Option inMenu icon="file" onSelect={() => { close(); onExport("xlsx"); }} testId="export-xlsx" hint={labels.exportXlsxHint}>{labels.exportXlsx}</Option>
+                        <Option inMenu icon="file" onSelect={() => { close(); onExport("csv"); }} testId="export-csv" hint={labels.exportCsvHint}>{labels.exportCsv}</Option>
                         <Option inMenu icon="image" disabled={!chartReady} onSelect={() => { close(); onExport("png"); }} testId="export-png">{labels.exportPng}</Option>
                     </>
                 )}

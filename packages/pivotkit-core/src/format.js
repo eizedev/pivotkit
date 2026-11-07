@@ -82,6 +82,31 @@ export function parseFormat(spec) {
     return { name, arg, decimals: WITH_DECIMALS.has(name) && arg !== undefined ? Number(arg) : undefined };
 }
 
+/**
+ * The decimals a format shows at most, in the unit it shows (percent: of the percentage), for writing
+ * a number as the table shows it; null for a format whose text is not a plain rounded number
+ * (compact, bytes, duration, dates, text).
+ * @param {string | null | undefined} spec
+ * @param {string} locale  for a currency's own decimals
+ * @returns {number | null}
+ */
+export function formatDecimals(spec, locale) {
+    const f = parseFormat(spec) || { name: "number", arg: undefined, decimals: undefined };
+    switch (f.name) {
+        case "integer":
+            return 0;
+        case "number":
+            return f.decimals ?? 2;
+        case "percent":
+        case "percent100":
+            return f.decimals ?? 1;
+        case "currency":
+            return numberFormat(locale, { style: "currency", currency: (f.arg || "EUR").toUpperCase() }).resolvedOptions().maximumFractionDigits ?? 2;
+        default:
+            return null;
+    }
+}
+
 /** True when the string is a format name this module knows. */
 export function isFormat(spec) {
     return parseFormat(spec) !== null;

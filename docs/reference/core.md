@@ -106,6 +106,7 @@ size, counted before anything is allocated).
 | `merges` | `{ row, col, rowSpan, colSpan }[]`. |
 | `dataColumns`, `bodyRows` | Per value column its `colPath`, `valueIndex` and `total`; per body row its `rowPath`, `total` and `collapsed`. |
 | `formats`, `valueNames`, `conditional` | Per value. |
+| `showAs` | Per value its "show values as" type, or `null`. |
 | `locale`, `timeZone` | What the texts are formatted in; the exports use them too. |
 
 A `GridCell` has `text` (formatted), `value` (raw), `kind` (`"corner"`, `"colHeader"`, `"rowHeader"`,
@@ -135,7 +136,7 @@ line, area, pie and heatmap. ECharts itself is not imported.
 | Function | What |
 | --- | --- |
 | `toXlsx(grid, { sheetName, theme })` | An Excel workbook: typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars. `theme`: `{ colorScale, dataBar }` for conditional formats whose view names no colours.<br><small>Returns `Uint8Array`</small> |
-| `toCsv(grid, { separator, repeatLabels })` | CSV. The grid's locale decides the separator and the decimal mark; numbers keep 15 significant digits, a value shown as a percent is written in percent with a `%` (`-2.56435492186162%`); text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
+| `toCsv(grid, { separator, repeatLabels })` | CSV. The grid's locale decides the separator and the decimal mark; numbers keep 15 significant digits; a percent and a "show values as" value are written as the table shows them, rounded to the decimals of their format, a percent in percent with a `%` (`-2.6%`; the XLSX keeps their full precision); text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
 | `toCsvBytes(grid, { separator, repeatLabels, bom })` | The same as UTF-8 bytes, with a byte order mark when `bom` is set.<br><small>Returns `Uint8Array`</small> |
 
 What the files contain, and where Excel's number formats cannot follow the grid, is in

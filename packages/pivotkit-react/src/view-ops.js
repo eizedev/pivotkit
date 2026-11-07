@@ -252,7 +252,7 @@ const unitOf = (agg) => (COUNTING.has(agg) ? "count" : "field");
  * for the field (fieldDefaults) when its aggregator has that unit; else none, the automatic one.
  * @param {any} view
  * @param {number} index
- * @param {object} patch
+ * @param {{ agg?: string, format?: string | null, label?: string | null, showAs?: object | null, conditional?: object | null }} patch
  * @param {{ defaults?: { agg?: string, format?: string } }} [options]  `defaults`: the host's
  *   settings for the value's field
  */
@@ -416,7 +416,7 @@ export function withHostOrders(view, orderOf) {
     }
     const next = clone(view);
     for (const { field, order } of added) {
-        next.sort.push({ field, by: "custom", order: "asc", items: [...order] });
+        next.sort.push({ field, by: "custom", order: "asc", items: [.../** @type {unknown[]} */ (order)] });
     }
     return next;
 }

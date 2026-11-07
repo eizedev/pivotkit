@@ -120,8 +120,9 @@ Columns, a hint offers **Swap rows and columns** (also above the Columns zone).
 - **Templates** loads a saved report. When the application allows it, "Save current view" saves yours
   under a name, and your own templates can be deleted.
 - **Export** downloads the table as **Excel** (XLSX) or **CSV**, or the chart as **PNG**. The Excel
-  file keeps the number formats, the merged headers, the bold totals and the highlighting. The CSV
-  writes percentages in percent ("-2.56435492186162%"), so they read as in the table.
+  file keeps every number with all its decimals, the number formats, the merged headers, the bold
+  totals and the highlighting. The CSV writes percentages and "show values as" calculations as the
+  table shows them ("-2.6%"); other numbers keep all their decimals. The export menu says so too.
 
 Notes such as "Undone: Region removed" or "Exported pivot.xlsx" appear in the status line under the
 table; errors stay until you close them.

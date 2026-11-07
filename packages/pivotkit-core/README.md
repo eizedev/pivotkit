@@ -226,11 +226,12 @@ comes last unless it is listed (`null`).
 - CSV: text a spreadsheet would run as a formula gets a leading `'`: text starting with a tab or a
   carriage return, text whose first visible character (after spaces, line breaks and control
   characters) is `=` or `@`, and text starting with `+` or `-` unless it is a plain number (`-5%`) or a
-  number range like the bin label `-10 – 0`. Numbers keep 15 significant digits. A value the table
-  shows as a percent (`percent`, `percent100`, the "show values as" percentages) is written in
-  percent with a `%`, as the table shows it but with full precision (`-2.56435492186162%`), so a
-  reader sees percent and a spreadsheet reads it back as the fraction. The XLSX keeps the fraction
-  with a percent number format.
+  number range like the bin label `-10 – 0`. Numbers keep 15 significant digits. A percent (the
+  `percent` and `percent100` formats) and every "show values as" value are written as the table
+  shows them: rounded to the decimals of the value's format, a percent in percent with a `%`
+  (`-2.6%`), so a reader sees what the table showed and a spreadsheet reads a percent back as the
+  fraction. `grid.showAs` says which values are calculations. The XLSX keeps their full precision,
+  a percent as the fraction with a percent number format.
 
 ## Development
 

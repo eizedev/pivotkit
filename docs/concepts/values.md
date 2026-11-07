@@ -122,7 +122,7 @@ with Excel's thousands scaling, and the locale's date order. Where Excel cannot 
 - Number labels (a year on rows) stay numbers.
 
 CSV uses the grid's locale for the separator and the decimal mark and keeps 15 significant digits.
-A value the table shows as a percent (the `percent` and `percent100` formats, the "show values as"
-percentages) is written in percent with a `%`, at full precision: the table's "-2.6 %" becomes
-`-2.56435492186162%`, which spreadsheets read back as the fraction. The XLSX keeps the fraction with
-a percent number format.
+A percent (the `percent` and `percent100` formats) and every "show values as" value (a share, a
+difference, a running total, a rank) are written as the table shows them, rounded to the decimals of
+their format: the table's "-2.6 %" becomes `-2.6%`, which spreadsheets read back as the fraction.
+The XLSX keeps their full precision, a percent as the fraction with a percent number format.
