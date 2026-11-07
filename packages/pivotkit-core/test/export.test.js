@@ -238,3 +238,15 @@ test("CSV: bin labels and negative numbers as text are not altered; the grid loc
     assert.equal(toCsv(de).split("\r\n")[1], "a;1,5");
     assert.equal(toCsv(de, { separator: "\t" }).split("\r\n")[1], "a\t1,5");
 });
+
+test("CSV writes a percent as the table shows it, in percent with full precision", () => {
+    const view = { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }, { field: "v", agg: "sum", format: "percent100" }, { field: "v", agg: "sum" }] };
+    const rows = [{ k: "a", v: 1 }, { k: "b", v: 2 }];
+    const en = toCsv(gridOf(rows, view)).split("\r\n");
+    assert.equal(en[1], "a,33.3333333333333%,1%,1");
+    assert.equal(en[3], "Grand Total,100%,3%,3");
+    const de = toCsv(gridOf(rows, view, "de-DE")).split("\r\n");
+    assert.equal(de[1], "a;33,3333333333333%;1%;1");
+    // a fraction times 100 keeps 15 significant digits, without binary noise
+    assert.equal(toCsv(gridOf([{ k: "a", v: 7 }, { k: "b", v: 93 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }] })).split("\r\n")[1], "a,7%");
+});
