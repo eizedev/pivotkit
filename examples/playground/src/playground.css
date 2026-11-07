@@ -61,9 +61,11 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
 }
 
 .pg-logo {
+    flex: none;
     width: 34px;
     height: 34px;
     border-radius: 9px;
@@ -84,13 +86,32 @@ body {
     font-size: 0.9rem;
 }
 
+.pg-title a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.pg-loading {
+    display: grid;
+    place-items: center;
+    min-height: 320px;
+    border: 1px solid var(--pg-line);
+    border-radius: 8px;
+    background: var(--pg-card);
+    color: var(--pg-muted);
+}
+
 .pg-controls {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .pg-controls label {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -100,6 +121,7 @@ body {
 }
 
 .pg-controls select {
+    max-width: 100%;
     height: 34px;
     padding: 0 8px;
     border: 1px solid var(--pg-line);

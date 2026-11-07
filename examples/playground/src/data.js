@@ -1,5 +1,9 @@
-// Made-up data for the playground, generated from a fixed seed: the same rows on every machine and in
-// every test run. Three data sets: IT tickets, sales, and assets per source system. No real names.
+// The data sets of the playground. Four are real public data, read from the snapshots in ../data/
+// (fetched once by `npm run docs:data`, see ../data/SOURCES.md): daily weather, countries, earthquakes
+// and Nobel laureates, each with templates phrased as the questions they answer. Three are made up,
+// generated from a fixed seed (the same rows on every machine and in every test run) in any size for
+// the tests and the benchmarks: IT tickets, sales, and assets per source system. No real names.
+import { unpack } from "../data/sources.js";
 
 /** A small, fast seeded random generator (mulberry32). */
 export function random(seed) {
@@ -142,9 +146,224 @@ export function assets(n, seed = 23) {
     return rows;
 }
 
+/**
+ * The real data sets: `load()` reads the snapshot (its own chunk, loaded when it is picked), `source`
+ * is the attribution the page shows next to the data, as the licences ask.
+ */
+export const REAL = {
+    weather: {
+        label: "Weather of 14 cities, 2023-2025",
+        load: () => import("../data/weather.json").then((m) => unpack(m.default)),
+        source: { text: "Weather data by Open-Meteo.com", href: "https://open-meteo.com/", licence: "CC BY 4.0", licenceHref: "https://creativecommons.org/licenses/by/4.0/" },
+        // temperatures and sunshine are averaged when they are added to Values; rain days add up
+        fieldDefaults: {
+            "Max °C": { agg: "average", format: "number:1" },
+            "Min °C": { agg: "average", format: "number:1" },
+            "Mean °C": { agg: "average", format: "number:1" },
+            "Sunshine h": { agg: "average", format: "number:1" },
+            "Rain mm": { agg: "sum", format: "number:0" },
+            "Rain day": { agg: "sum" }
+        },
+        presets: [
+            {
+                name: "How warm is each city, month by month?",
+                view: {
+                    rows: ["City"],
+                    cols: ["Date (Month)"],
+                    derived: [{ name: "Date (Month)", field: "Date", by: "month" }],
+                    values: [{ field: "Mean °C", agg: "average", format: "number:1", conditional: { type: "colorScale", colors: ["#5a8dee", "#f4f4f4", "#e8554e"] } }],
+                    totals: { grandTotalRow: false }
+                }
+            },
+            {
+                name: "Which city is the sunniest? (top 3)",
+                view: {
+                    rows: ["City"],
+                    values: [{ field: "Sunshine h", agg: "average", format: "number:1", label: "Sunshine hours per day" }],
+                    filters: [{ field: "City", type: "top", count: 3, by: { field: "Sunshine h", agg: "average" } }],
+                    sort: [{ field: "City", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "How many rain days per season? (2025)",
+                view: {
+                    rows: ["City"],
+                    cols: ["Season"],
+                    derived: [{ name: "Year", field: "Date", by: "year" }],
+                    values: [{ field: "Rain day", agg: "sum", label: "Rain days", conditional: { type: "dataBar" } }],
+                    filters: [{ field: "Year", type: "include", items: [2025] }],
+                    sort: [{ field: "City", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "Was 2025 warmer than 2023 in Berlin? (chart)",
+                view: {
+                    rows: ["Date (Month)"],
+                    cols: ["Date (Year)"],
+                    derived: [{ name: "Date (Month)", field: "Date", by: "month" }, { name: "Date (Year)", field: "Date", by: "year" }],
+                    values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
+                    filters: [{ field: "City", type: "include", items: ["Berlin"] }],
+                    display: "chart",
+                    chart: { type: "line" }
+                }
+            }
+        ]
+    },
+    countries: {
+        label: "Countries: population, GDP, CO2, 2005-2024",
+        load: () => import("../data/countries.json").then((m) => unpack(m.default)),
+        source: { text: "World Bank, World Development Indicators", href: "https://data.worldbank.org/", licence: "CC BY 4.0", licenceHref: "https://creativecommons.org/licenses/by/4.0/" },
+        fieldDefaults: {
+            Population: { format: "integer" },
+            "GDP (US$)": { format: "compact" },
+            "CO2 (Mt)": { format: "number:0" },
+            Year: { drillFormat: "text" }
+        },
+        presets: [
+            {
+                name: "Where do most people live? Region, then country (2024)",
+                view: {
+                    rows: ["Region", "Country"],
+                    values: [{ field: "Population", agg: "sum", format: "compact" }],
+                    filters: [{ field: "Year", type: "include", items: [2024] }, { field: "Country", type: "top", count: 3, by: { field: "Population", agg: "sum" } }],
+                    sort: [{ field: "Region", by: "value", order: "desc" }, { field: "Country", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "What share of the world's CO2 comes from each region?",
+                view: {
+                    rows: ["Region"],
+                    cols: ["Year"],
+                    values: [{ field: "CO2 (Mt)", agg: "sum", label: "Share of CO2", showAs: { type: "percentOfColumnTotal" } }],
+                    filters: [{ field: "Year", type: "include", items: [2005, 2010, 2015, 2020, 2024] }],
+                    sort: [{ field: "Region", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "How much did GDP change from the year before?",
+                view: {
+                    rows: ["Income group"],
+                    cols: ["Year"],
+                    values: [{ field: "GDP (US$)", agg: "sum", label: "GDP change", showAs: { type: "percentDifferenceFromPrevious", axis: "cols" } }],
+                    filters: [{ field: "Year", type: "include", items: [2019, 2020, 2021, 2022, 2023, 2024] }],
+                    totals: { grandTotalColumn: false }
+                }
+            },
+            {
+                name: "How has population grown per income group? (chart)",
+                view: {
+                    rows: ["Year"],
+                    cols: ["Income group"],
+                    values: [{ field: "Population", agg: "sum", format: "compact" }],
+                    display: "chart",
+                    chart: { type: "bar", stacked: true }
+                }
+            }
+        ]
+    },
+    earthquakes: {
+        label: "Earthquakes of magnitude 4.5+, 2025",
+        load: () => import("../data/earthquakes.json").then((m) => unpack(m.default)),
+        source: { text: "U.S. Geological Survey, ANSS Comprehensive Catalog", href: "https://earthquake.usgs.gov/earthquakes/search/", licence: "public domain", licenceHref: "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits" },
+        fieldDefaults: {
+            Magnitude: { agg: "max", format: "number:1" },
+            "Depth km": { agg: "average", format: "number:0" }
+        },
+        presets: [
+            {
+                name: "How strong were the quakes? (magnitude ranges)",
+                view: {
+                    rows: ["Magnitude (by 0.5)"],
+                    derived: [{ name: "Magnitude (by 0.5)", field: "Magnitude", by: "bin", size: 0.5, origin: 4.5 }],
+                    values: [{ field: "Time", agg: "count", label: "Quakes" }, { field: "Time", agg: "count", label: "Share", showAs: { type: "percentOfGrandTotal" } }]
+                }
+            },
+            {
+                name: "Which regions shook most often? (top 10)",
+                view: {
+                    rows: ["Region"],
+                    values: [{ field: "Time", agg: "count", label: "Quakes", conditional: { type: "dataBar" } }, { field: "Magnitude", agg: "max", format: "number:1" }],
+                    filters: [{ field: "Region", type: "top", count: 10, by: { field: "Time", agg: "count" } }],
+                    sort: [{ field: "Region", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "Where were the quakes of 7 and more? Click a count for the quakes",
+                view: {
+                    rows: ["Region"],
+                    cols: ["Tsunami flag"],
+                    values: [{ field: "Time", agg: "count", label: "Quakes" }],
+                    filters: [{ field: "Magnitude (by 1)", type: "include", items: [7, 8] }],
+                    derived: [{ name: "Magnitude (by 1)", field: "Magnitude", by: "bin", size: 1, origin: 0 }],
+                    sort: [{ field: "Region", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "Did some months shake more than others? (chart)",
+                view: {
+                    rows: ["Time (Month)"],
+                    derived: [{ name: "Time (Month)", field: "Time", by: "yearMonth" }],
+                    values: [{ field: "Time", agg: "count", label: "Quakes" }],
+                    display: "chart",
+                    chart: { type: "bar" }
+                }
+            }
+        ]
+    },
+    nobel: {
+        label: "Nobel Prize laureates, 1901-2026",
+        load: () => import("../data/nobel.json").then((m) => unpack(m.default)),
+        source: { text: "Nobel Prize Outreach, api.nobelprize.org", href: "https://www.nobelprize.org/about/developer-zone-2/", licence: "CC0", licenceHref: "https://creativecommons.org/publicdomain/zero/1.0/" },
+        fieldDefaults: { Year: { drillFormat: "text" }, "Age at award": { agg: "average", format: "number:0" } },
+        presets: [
+            {
+                name: "How many laureates per category and decade?",
+                view: {
+                    rows: ["Category"],
+                    cols: ["Year (by 10)"],
+                    derived: [{ name: "Year (by 10)", field: "Year", by: "bin", size: 10, origin: 1900 }],
+                    values: [{ field: "Laureate", agg: "count", label: "Laureates" }]
+                }
+            },
+            {
+                name: "The same, decades down: swap rows and columns (chart)",
+                view: {
+                    rows: ["Year (by 10)"],
+                    cols: ["Category"],
+                    derived: [{ name: "Year (by 10)", field: "Year", by: "bin", size: 10, origin: 1900 }],
+                    values: [{ field: "Laureate", agg: "count", label: "Laureates" }],
+                    display: "chart",
+                    chart: { type: "bar", stacked: true }
+                }
+            },
+            {
+                name: "What share of laureates are women, per category?",
+                view: {
+                    rows: ["Category"],
+                    cols: ["Gender"],
+                    values: [{ field: "Laureate", agg: "count", label: "Laureates", showAs: { type: "percentOfRowTotal" } }],
+                    filters: [{ field: "Type", type: "include", items: ["Person"] }],
+                    sort: [{ field: "Category", by: "label", order: "asc" }]
+                }
+            },
+            {
+                name: "Which countries have the most laureates? (top 10)",
+                view: {
+                    rows: ["Country"],
+                    values: [{ field: "Laureate", agg: "count", label: "Laureates" }, { field: "Age at award", agg: "average", format: "number:0" }],
+                    filters: [{ field: "Country", type: "top", count: 10, by: { field: "Laureate", agg: "count" } }],
+                    sort: [{ field: "Country", by: "value", order: "desc" }]
+                }
+            }
+        ]
+    }
+};
+
 /** The data sets of the playground with their start presets. */
 export const DATASETS = {
+    ...REAL,
     tickets: {
+        label: "IT tickets",
         make: tickets,
         // a duration is averaged, not summed, when it is added to Values
         fieldDefaults: { "Lead hours": { agg: "average", format: "duration:h" } },
@@ -177,6 +396,7 @@ export const DATASETS = {
         ]
     },
     sales: {
+        label: "Sales",
         make: sales,
         presets: [
             {
@@ -206,6 +426,7 @@ export const DATASETS = {
         ]
     },
     assets: {
+        label: "Assets per source system",
         make: assets,
         fieldDefaults: { "Inventory number": { drillFormat: "text" }, Cost: { format: "currency:EUR" } },
         presets: [

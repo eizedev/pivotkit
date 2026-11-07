@@ -23,7 +23,8 @@
     "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node tests/browser/pages/build.js",
     "test:browser": "npm run build:playground && playwright test",
     "docs:demo": "npm run build:playground && node scripts/docs-demo.js",
-    "docs:screenshots": "npm run build:playground && node scripts/docs-screenshots.js"
+    "docs:screenshots": "npm run build:playground && node scripts/docs-screenshots.js",
+    "docs:data": "node scripts/docs-data.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

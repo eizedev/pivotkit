@@ -43,8 +43,12 @@ builds depend on it.
   are copied into `types/` by `types.js`; only the public declarations ship (`files`). `npm run size`
   fails above `SIZE_BUDGET_KIB` in `build.js`.
   `test/` runs the pure modules, the build and a Node import with `node --test`.
-- `examples/playground/` - the playground: generated data with a fixed seed, built by esbuild into
-  static files (`dist/`), served by `serve.js`.
+- `examples/playground/` - the playground: four real public data sets and three generated ones (fixed
+  seed, any size, for tests and benchmarks), built by esbuild into static files (`dist/`), served by
+  `serve.js`. The real data are committed snapshots in `data/` (`weather`, `countries`,
+  `earthquakes`, `nobel`), each loaded as its own chunk; `data/sources.js` holds the requests and the
+  mapping from response to rows (used by `scripts/docs-data.js` and shown on the docs page
+  `learn.md`), `data/SOURCES.md` the licences and attribution. The page never calls the sources.
 - `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run
   build:playground` copies it to `examples/playground/dist/examples/element/`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
@@ -78,6 +82,7 @@ npm run playground                  # playground with rebuilds on http://localho
 npm run test:browser                # build the playground, the element and the test pages, Playwright in three browsers (as CI)
 PLAYGROUND_PORT=4195 npm run test:browser   # on another port, when 4173 is taken
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix tests/react19 first)
+npm run docs:data                   # fetch the real data sets once more into examples/playground/data/ (network)
 npm run docs:demo                   # build the playground and copy it into docs/playground/ (the live demo)
 npm run docs:screenshots            # build the playground and take docs/assets/screenshots/ again
 curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
@@ -145,7 +150,8 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
 - Add a runtime dependency to `pivotkit-core`, or bundle React or ECharts into `pivotkit-react`
   (pivotkit-element is the package that bundles them).
 - Add a UI framework or an animation library to `pivotkit-react`; it has its own CSS.
-- Put secrets, host names or real data into code, examples or tests.
+- Put secrets, host names or real data into code, examples or tests; the one exception is the public
+  data of `examples/playground/data/`, with its licence and attribution in `SOURCES.md`.
 
 ## Exceptions to the repository standards
 
