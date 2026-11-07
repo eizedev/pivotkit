@@ -23,6 +23,19 @@ updates:
     groups:
       eslint:
         patterns: ["eslint", "@eslint/*", "globals"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+    ignore:
+      # React 18 on purpose: the floor pivotkit-react supports and what PowerShell Universal ships;
+      # React 19 is tested through tests/react19
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "npm"
     # React 19 for the browser tests: its own lock file, outside the workspaces
     directory: "/tests/react19"
@@ -33,3 +46,7 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "build(deps)"
+    groups:
+      # react and react-dom must have the same version
+      react:
+        patterns: ["react", "react-dom"]
