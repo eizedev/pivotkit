@@ -24,6 +24,7 @@ nav = [
   { "Using the report" = "guide.md" },
   { "Concepts" = [
     { "Views and saved views" = "concepts/views.md" },
+    { "Templates and shared views" = "concepts/templates.md" },
     { "Values: aggregators, show as, formats" = "concepts/values.md" },
     { "Dates and number ranges" = "concepts/dates.md" },
     { "Filters, top N and sorting" = "concepts/filters.md" },

@@ -1,17 +1,19 @@
 ---
 title: pivotkit-core reference
-description: Every public function, constant and type of pivotkit-core and pivotkit-core/export, with their options.
+description: Every public function, constant and type of pivotkit-core and its entry points pivotkit-core/export, /link and /templates, with their options.
 ---
 
 # pivotkit-core reference
 
-Two entry points: `pivotkit-core` (the engine) and `pivotkit-core/export` (XLSX and CSV, the only
-importer of fflate). Every function takes its required inputs first and all optional settings in one
+Four entry points: `pivotkit-core` (the engine), `pivotkit-core/export` (XLSX and CSV) and
+`pivotkit-core/link` (a view in a link), the only importers of fflate, and `pivotkit-core/templates`
+(a list of templates). Every function takes its required inputs first and all optional settings in one
 options object last. Modules not listed here are internal and may change in any release.
 
 ```js
 import { encode, normalize, computePivot, toGrid, toEChartsOption } from "pivotkit-core";
 import { toXlsx, toCsv, toCsvBytes } from "pivotkit-core/export";
+import { parseTemplates, templatesFromSchema } from "pivotkit-core/templates";
 import type { PivotResult, Grid, View, Encoded } from "pivotkit-core";   // TypeScript
 ```
 
@@ -196,6 +198,20 @@ which `fromViewFile` reads (a bare view too). See [Sharing](../concepts/sharing.
 | `encodeViewLink(view)` | The text of a link to a view. Throws `PivotkitError` `LIMIT_EXCEEDED` (`details.limit` `"link"`) when the text would be longer than `LINK_LIMITS.text`; `INVALID_ARGUMENT` for a non-object.<br><small>Returns `string`</small> |
 | `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why (empty, too long, not a pivotkit link, damaged, too large, no JSON object). Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
 | `LINK_LIMITS` | `{ text: 32000, json: 1000000 }`: the characters of a link text, and of the view inflated (enforced while inflating: 1 KiB of input at a time, it stops at the cap). |
+
+### Templates: `pivotkit-core/templates` { #templates }
+
+A list of named views (shared views, a person's own) and the templates an OpenAPI document or a JSON
+Schema carries in the extension `x-pivotkit-views` (pivotkit's own convention, not part of either
+standard). A separate entry point: a UI loads it only where it reads templates (pivotkit-react with
+its menus). See [Templates and shared views](../concepts/templates.md).
+
+| Name | What |
+| --- | --- |
+| `parseTemplates(input)` | A list (or its JSON text) of view files, templates `{ name, view }` and bare views with a `name`, read with `fromViewFile`. Never throws. An entry without a name or a usable view, of a newer format or view version, or that is no JSON is left out with an issue (path `[i]`); names and descriptions are plain text (control, bidi and zero-width characters go), at most 256 characters. The text and the number of entries are capped before they are read (`TEMPLATE_LIMITS`); entries given as objects count as their JSON. The views are as parsed, not normalized.<br><small>Returns `{ templates: [{ name, view, description?, source? }], issues }`</small> |
+| `templatesFromSchema(doc, { schema })` | The templates of `x-pivotkit-views` on the schema `schema` names (a schema of `components.schemas` or `definitions`, or a local `$ref`), else on the document's root, read by `parseTemplates`. Only local references are followed (the list may be one too), as deep as `SCHEMA_CAPS.depth`; nothing is fetched. No extension: no templates, no issue. A document that is no object, or a schema name it lacks, throws `PivotkitError` `INVALID_ARGUMENT`; issues have the path `x-pivotkit-views[i]`.<br><small>Returns `{ templates, issues }`</small> |
+| `TEMPLATE_LIMITS` | `{ count: 500, text: 5000000 }`: templates read from one list, and characters of its JSON. |
+| `TEMPLATES_EXTENSION` | `"x-pivotkit-views"`. |
 
 ### Export: `pivotkit-core/export`
 

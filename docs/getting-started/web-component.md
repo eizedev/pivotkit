@@ -67,8 +67,8 @@ The [example page](../demo.md#the-web-component-example) shows all of it; its so
 
 ## Save views on a server
 
-With `save-templates` the Views menu offers "Save current view" under Saved views. The element asks the page with
-a `pivot-template-save` event and waits for the answer you pass to `respondWith()`:
+With `save-templates` the Views menu offers "Save current view" under My views. The element asks the page with
+a `pivot-template-save` event (`detail`: `name`, `view`, `scope: "user"`) and waits for the answer you pass to `respondWith()`:
 
 ```js
 report.saveTemplates = true;
@@ -82,7 +82,9 @@ report.addEventListener("pivot-template-save", (e) => {
 ```
 
 Call `respondWith()` in the listener itself, not after an `await`. The report shows "Saved" when the
-promise resolves and the error's message when it rejects.
+promise resolves and the error's message when it rejects. Shared views, publishing with
+`can-publish` (`pivot-template-publish`) and keeping the user's views in the browser instead
+(`template-store="browser"`) are in [Templates and shared views](../concepts/templates.md).
 
 ## PHP and other server-rendered pages
 

@@ -41,8 +41,10 @@ supported.
 | `dataKey` |  | The identity of `data`: a new array with the same key is not encoded again.<br><small>Type: `string` or `number`</small> |
 | `view` | `view` (JSON) | Controlled: the view to show, see below.<br><small>Type: view</small> |
 | `defaultView` | `default-view` (JSON) | Uncontrolled: the start view, see below.<br><small>Type: view; default: empty</small> |
-| `templates` |  | The saved views of the Views menu; the first three are also offered in the empty state.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
-| `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event.<br><small>Type: `boolean`; default: `false`</small> |
+| `templates` |  | The templates of the Views menu in two groups by `scope`, "Shared views" and "My views" (without `scope` a `deletable` entry is the user's own); a `view` or a view file in `file`; the first three are also offered in the empty state. See [Templates and shared views](../concepts/templates.md).<br><small>Type: `{ name?, view?, file?, scope?, deletable? }[]`; default: `[]`</small> |
+| `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event. It wins over `template-store`.<br><small>Type: `boolean`; default: `false`</small> |
+| `templateStore` | `template-store` | `"browser"`: the element keeps the user's own views in `localStorage` under `pivotkit:views:<storage-key>`, per data (`source-id`): only this browser and device, lost when the site's data is cleared; at most 100 views. No event is sent for its saves and deletes.<br><small>Type: `"browser"`; default: off</small> |
+| `canPublish` | `can-publish` (boolean) | Offers "Publish as shared view" on the user's views; a publish is a `pivot-template-publish` event.<br><small>Type: `boolean`; default: `false`</small> |
 | `fieldDefaults` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md).<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`</small> |
 | `labels` |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`).<br><small>Type: partial labels</small> |
 | `limits` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react.<br><small>Type: `Partial<Limits>`</small> |
@@ -55,7 +57,7 @@ supported.
 | `drillDown` | `drill-down` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off.<br><small>Type: `boolean`; default: `true`</small> |
 | `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
 | `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
-| `storageKey` | `storage-key` | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
+| `storageKey` | `storage-key` | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too.<br><small>Type: `string`</small> |
 | `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded.<br><small>Type: `string[]`</small> |
 | `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user's "Show explanations" in Options, Help decides. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
 | `zoneInfo` | `zone-info` | The same for the "i" next to the zone titles.<br><small>Type: `"on"` or `"off"`</small> |
@@ -121,18 +123,19 @@ or on the document gets it, with `event.target` the element.
 | --- | --- |
 | `pivot-view-change` | Every change of the view, normalized.<br><small>`detail`: `{ view }`</small> |
 | `pivot-cell-click` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects).<br><small>`detail`: `{ row, col, value, valueIndex, text, count, rows }`</small> |
-| `pivot-template-save` | "Save current view" (with `save-templates`).<br><small>`detail`: `{ name, view, respondWith }`</small> |
-| `pivot-template-delete` | Delete of a saved view marked `deletable`, after the user confirmed in the menu.<br><small>`detail`: `{ name, respondWith }`</small> |
+| `pivot-template-save` | "Save current view" (with `save-templates`); `scope` is `"user"`.<br><small>`detail`: `{ name, view, scope, respondWith }`</small> |
+| `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group (`"shared"` or `"user"`). Not sent for a view of the browser store.<br><small>`detail`: `{ name, scope, respondWith }`</small> |
+| `pivot-template-publish` | "Publish as shared view" on one of the user's views (with `can-publish`), after the user confirmed: add it to the shared views and set `templates`.<br><small>`detail`: `{ name, view, respondWith }`</small> |
 | `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view` (as the file has it, not normalized). Switching starts the report anew: Undo begins there. The view is untrusted input like any loaded view (it comes from a file or a link): hand it only to a report as its start view, which normalizes it, never run or render anything from it.<br><small>`detail`: `{ source, view, name }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
-listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)
+listener itself (later throws `InvalidStateError`). The report shows "Saved" or "Published" (or removes the entry)
 when the promise resolves, and an error with its message when it rejects (a rejection without a
 message shows "The server could not save the view.", `labels.toastSaveRejected`). Without `respondWith` (no
 listener, or `respondWith` after an `await`) the action counts as done at once and the element logs a
-console warning, since the user is told "saved" or "deleted" either way. The page then sets
+console warning, since the user is told "saved", "deleted" or "published" either way. The page then sets
 `templates` to the new list.
 
 When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" note: the

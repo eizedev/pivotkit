@@ -109,6 +109,19 @@ const SHOTS = [
         open: (page) => toolbar(page, "views")
     },
     {
+        // Shared views (the presets and the views of the OpenAPI document) and My views with one saved
+        name: "views-menu",
+        query: "data=endoflife&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await toolbar(page, "views");
+            await page.getByTestId("saved-view-name").fill("Supported cycles of my products");
+            await page.getByTestId("saved-view-name").press("Enter");
+            await page.locator(".pk-toast").first().waitFor();
+            await page.getByTestId("saved-view-name").blur();
+        }
+    },
+    {
         name: "filter-state",
         query: "data=sales&theme=light",
         size: WIDE,

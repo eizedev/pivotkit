@@ -12,7 +12,10 @@ daily weather of 14 cities, population, GDP and CO2 per country, the earthquakes
 Nobel Prize laureates and the end-of-life dates of 489 software products - and three generated ones: IT tickets, sales and assets per source system.
 Each real data set starts with a template phrased as a question; [Learn with real data](learn.md)
 walks through all of them with tasks to try. Drag fields, open the menus on the chips, click a value,
-switch to the chart, export. Views you save stay in this browser.
+switch to the chart, export. The Views menu lists the shared views (the questions, and for
+endoflife.date the views of its OpenAPI document, a demo extension); views you save stay in this browser
+(`templateStore="browser"`), and the playground lets you publish one as a shared view, kept in this
+browser too ([Templates and shared views](concepts/templates.md)).
 
 <p><a class="md-button md-button--primary" href="playground/" target="_blank" rel="noopener">Open the playground full screen</a> <a class="md-button" href="playground/examples/element/" target="_blank" rel="noopener">Open the web component example</a></p>
 

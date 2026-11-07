@@ -130,7 +130,7 @@ version is [What pivotkit does](overview.md).
 
 ## Sharing
 
-- The Views menu: Saved views and Share ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
+- The Views menu: Shared views, My views and Share ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - Copy link (with `shareLink`), Copy view as JSON, Download view (.pivotkit.json), Load view… from text, a link or a file ([sharing](concepts/sharing.md)).
 - What is shared is a view file: the view with its name, the data it was made for (`source`) and the fields it uses, in a documented, versioned format with a JSON Schema ([view file format](reference/view-file.md)).
 - The JSON Schema ships in pivotkit-core (`pivotkit-core/schema/view-file-1.json`) and is published on this site; `$schema` points to it, to a host's own copy (`schemaUrl` / `schema-url`) or is left out ([view file format](reference/view-file.md#the-fields)).
@@ -150,7 +150,16 @@ version is [What pivotkit does](overview.md).
 
 ## Saved views
 
-- The host's `templates`, under Saved views in the Views menu: load, save under a name (up to 120 characters, Enter saves), delete with a confirmation; the host stores them ([views](concepts/views.md#saved-views-in-the-ui)).
+- The host's `templates` in two groups of the Views menu, Shared views and My views (`scope`; without it a `deletable` entry is the user's own); a group without entries is not shown ([templates](concepts/templates.md)).
+- An entry is a view or a view file (`file`, its object or text; the entry's name defaults to the file's) ([templates](concepts/templates.md#what-a-template-is)).
+- Load with one click, save under a name (up to 120 characters, Enter saves), delete with a confirmation in place ([views](concepts/views.md#saved-views-in-the-ui)).
+- A shared view nobody here may change has an "i": "Only admins can change shared views." (hidden with Show explanations off) ([templates](concepts/templates.md)).
+- "Publish as shared view" on each of the user's views with `canPublish` / `can-publish`, after a confirmation in place; `onPublishTemplate` (event `pivot-template-publish`) ([templates](concepts/templates.md#your-application-keeps-them-callbacks)).
+- `onSaveTemplate` and `onDeleteTemplate` get the scope (`{ scope }`; the element's events `detail.scope`) ([templates](concepts/templates.md#your-application-keeps-them-callbacks)).
+- After a delete, a publish or Cancel the focus goes back to the entry in that place ([templates](concepts/templates.md)).
+- `templateStore="browser"` / `template-store="browser"`: My views in the browser's localStorage per `storageKey`, per data (`source`), at most 100 views and 500,000 characters, read after hydration; the menu says they are only in this browser; `onSaveTemplate` wins ([templates](concepts/templates.md#the-browser-keeps-my-views-templatestorebrowser)).
+- pivotkit-core/templates: `parseTemplates` reads a list of templates, capped, names plain text; `templatesFromSchema` reads the extension `x-pivotkit-views` of an OpenAPI document or JSON Schema (pivotkit's own convention) ([templates](concepts/templates.md#templates-in-an-openapi-document-x-pivotkit-views)).
+- The playground lists the views of the endoflife.date OpenAPI document (a demo extension of its copy) under Shared views and keeps My views in the browser ([templates](concepts/templates.md#templates-in-an-openapi-document-x-pivotkit-views)).
 - After Save the Views menu stays open with the new entry, the name field empty and Copy link one click away ([views](concepts/views.md)).
 - The name field has an ×; Escape in it empties it first, then closes the menu ([guide](guide.md#menus-and-text-fields)).
 
@@ -206,7 +215,7 @@ Every setting of a host, as the React prop and the element's attribute (objects 
 
 - Data: `data`, `dataKey` (property), `encoded` (React only), `timeZone` / `time-zone`, `limits` (property).
 - The view: `view` / `view` (JSON) controlled with `onViewChange` (event `pivot-view-change`), `defaultView` / `default-view` (JSON) uncontrolled.
-- Saved views: `templates` (property), `onSaveTemplate` / `save-templates` (event `pivot-template-save`), `onDeleteTemplate` (event `pivot-template-delete`).
+- Saved views: `templates` (property), `onSaveTemplate` / `save-templates` (event `pivot-template-save`), `onDeleteTemplate` (event `pivot-template-delete`), `onPublishTemplate` (event `pivot-template-publish`) with `canPublish` / `can-publish`, `templateStore` / `template-store`.
 - Source of the data: `source` / `source-id` and `source-name`, `sources` (property), `onSourceSwitch` (event `pivot-source-switch`); the view files' `$schema`: `schemaUrl` / `schema-url`.
 - Fields: `fieldDefaults` (property): `agg`, `format`, `drillFormat` (the drill-down's format), `order`, `label`, `description`, `href` (the "Learn more" link), `type`.
 - Drill-down: `drillDown` / `drill-down`, `drillDownLimit` / `drill-down-limit`, `onCellClick` (event `pivot-cell-click`).

@@ -212,10 +212,14 @@ Two buttons at the top right of the result give it more room; neither is part of
 
 - **Undo** (Ctrl+Z, on a Mac Cmd+Z) and **Redo** (Ctrl+Shift+Z or Ctrl+Y, Cmd+Shift+Z) step through
   every change. **Reset** goes back to the start view, as one step you can undo.
-- **Views** has two sections. **Saved views** loads a saved report; when the application allows it,
+- **Views** lists the saved reports in two groups. **Shared views** are the same for everyone who uses
+  the report; an "i" next to one says that only admins can change it. **My views** are your own:
   "Save current view" saves yours under a name (up to 120 characters; Enter saves; the menu stays
-  open with the new entry, so **Copy link** is one click away), and your own saved
-  views can be deleted, after a confirmation. **Share** copies a link (when the application allows
+  open with the new entry, so **Copy link** is one click away), and your own views can be deleted,
+  after a confirmation. When the application allows it, the arrow next to one of your views
+  publishes it as a shared view, after a confirmation. When the report keeps your views in the
+  browser, the menu says so: they are only in this browser on this device, and gone when the site's
+  data is cleared. **Share** copies a link (when the application allows
   links) or the view as JSON, downloads it as a file (`.pivotkit.json`), and **Load view…** opens one
   from pasted text or a file; a view made for other data asks first. A line there says that a shared
   view holds the values chosen in its filters: [Sharing and keeping a view](concepts/sharing.md).

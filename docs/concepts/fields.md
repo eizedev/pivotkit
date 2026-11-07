@@ -110,6 +110,10 @@ What it reads, and what it does not:
 The playground's "Software end of life" data set describes its fields this way, from the
 endoflife.date API's own OpenAPI document.
 
+The same document can carry shared views for its data in pivotkit's extension `x-pivotkit-views`,
+read by `templatesFromSchema` from `pivotkit-core/templates`: see
+[Templates and shared views](templates.md#templates-in-an-openapi-document-x-pivotkit-views).
+
 ## In the web component
 
 `fieldDefaults` is a property of `<pivot-report>`:

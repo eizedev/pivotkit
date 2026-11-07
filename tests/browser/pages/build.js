@@ -64,6 +64,8 @@ const VENDOR = {
     "@dnd-kit/sortable": "dnd-kit-sortable",
     "pivotkit-core": "pivotkit-core",
     "pivotkit-core/export": "pivotkit-core-export",
+    "pivotkit-core/link": "pivotkit-core-link",
+    "pivotkit-core/templates": "pivotkit-core-templates",
     "echarts/core": "echarts-core",
     "echarts/charts": "echarts-charts",
     "echarts/components": "echarts-components",

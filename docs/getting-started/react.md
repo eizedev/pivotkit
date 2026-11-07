@@ -75,7 +75,7 @@ export function TicketReport({ rows, saved, saveTemplate, deleteTemplate }) {
             onViewChange={setView}
             templates={[...presets, ...saved.map((t) => ({ ...t, deletable: true }))]}
             onSaveTemplate={(name, v) => saveTemplate({ name, view: v })}
-            onDeleteTemplate={(name) => deleteTemplate(name)}
+            onDeleteTemplate={(name, { scope }) => deleteTemplate(name, scope)}
             fieldDefaults={{ "Lead hours": { agg: "average", format: "duration:h" } }}
             onCellClick={({ row, col, count }) => console.log(row, col, count)}
             locale="de-DE"
@@ -90,8 +90,11 @@ const presets = [
 
 - `dataKey` tells the report when the data is new. An app that builds a new array on every render
   passes a key, and the rows are encoded again only when it changes.
-- `templates` fill the saved views of the Views menu; `onSaveTemplate` adds "Save current view". Both callbacks may
-  return a promise: the report shows "Saved" when it resolves and an error when it rejects.
+- `templates` fill the Views menu, in two groups: Shared views (the presets) and My views (the
+  `deletable` ones); `onSaveTemplate` adds "Save current view". Both callbacks may return a promise:
+  the report shows "Saved" when it resolves and an error when it rejects. Without a server,
+  `templateStore="browser"` keeps the user's views in the browser; shared views, publishing and
+  views from an OpenAPI document are in [Templates and shared views](../concepts/templates.md).
 - `fieldDefaults` set the aggregator and format a field gets when someone adds it to Values, and
   the custom order of its items (`order`) on Rows or Columns.
 - `onCellClick` gets every click on a value or a chart point, with the rows behind it.
@@ -104,7 +107,8 @@ All props are listed in the [pivotkit-react reference](../reference/react.md).
 ## Bundlers and import maps
 
 `dist/index.js` is an ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
-`pivotkit-core/export`, `@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
+`pivotkit-core/export`, `pivotkit-core/link`, `pivotkit-core/templates` (with the menus),
+`@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
 `./echarts.js` next to it, which imports `echarts/core`, `echarts/charts`, `echarts/components` and
 `echarts/renderers` by name, so a bundler keeps only the four chart types the report draws. Any
 bundler that understands ES modules resolves them. A page without a bundler maps each bare name to a

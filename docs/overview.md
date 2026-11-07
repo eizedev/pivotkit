@@ -22,7 +22,7 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - Click a number to see the rows behind it ([drill-down](guide.md#the-rows-behind-a-number)).
 - Switch to a chart: the type follows the data (lines over dates, else bars) until you pick bars, lines, area, pie, donut or heatmap, with value labels, legend, title and group labels ([charts](concepts/charts.md)).
 - Undo and redo every step; Reset goes back to the start ([guide](guide.md#undo-saved-views-and-export)).
-- Save the report under Views, or share it as a link, as JSON or as a view file; a view for other data asks first ([sharing](concepts/sharing.md)).
+- Pick a shared view or one of your own under Views, save yours, publish it for everyone where allowed ([templates](concepts/templates.md)), or share it as a link, as JSON or as a view file; a view for other data asks first ([sharing](concepts/sharing.md)).
 - Enlarge the result or put the report on the full screen ([guide](guide.md#more-room-for-the-result)).
 - Export the table to Excel or CSV and the chart to PNG ([export](guide.md#undo-saved-views-and-export)).
 - Tips, one at a time, say what the report shows and what to do next; an "i" explains each zone, field and setting that needs it, and long menus fold their sections ([tips](guide.md#tips), [menus](guide.md#menus-that-are-long)).
@@ -45,6 +45,7 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
 - `chartOptions` merges plain JSON over the ECharts option, for what the menus do not offer ([charts](concepts/charts.md#chartoptions-for-developers)).
 - `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it ([sharing](concepts/sharing.md)).
+- Templates in two groups, shared views and my views, kept by the host's callbacks or by the browser (`templateStore`), also from an OpenAPI document's `x-pivotkit-views` ([templates](concepts/templates.md)).
 - `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
 - Every file passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).

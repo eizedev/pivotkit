@@ -1,5 +1,8 @@
 // The pivotkit playground: <PivotReport> with real public data (snapshots) and generated data, presets
-// per data set (the real ones with field descriptions), a language and a theme switch, templates kept in the browser, and the engine timings of the last change. The report
+// per data set (the real ones with field descriptions), a language and a theme switch, the shared
+// views (the presets, and for endoflife.date the views of its OpenAPI document), the user's own views
+// in the browser store (templateStore="browser"), views published as shared ones (the playground lets
+// everyone publish, kept in this browser too: it has no server), and the engine timings of the last change. The report
 // is controlled (view + onViewChange) and the page renders again on every timing, as a host like
 // PowerShell Universal does: undo must survive that. The address is the share link: the data set and
 // the start template in the query (?data=weather&start=<slug of the template's name>; these two are the
@@ -16,6 +19,7 @@ import "pivotkit-react/styles.css";
 import "./playground.css";
 import { DATASETS, REAL } from "./data.js";
 import { withDescriptions } from "./descriptions.js";
+import { sharedViews } from "./shared-views.js";
 
 const SIZES = [2000, 4000, 100000];
 // every data set as a source the report can switch to (a view made for one names it)
@@ -89,7 +93,7 @@ function store(key, value) {
     try {
         localStorage.setItem(key, JSON.stringify(value));
     } catch {
-        // private mode or storage switched off: templates last for this page only
+        // private mode or storage switched off: published views last for this page only
     }
 }
 
@@ -153,14 +157,16 @@ function App() {
     const [preset, setPreset] = useState(() => startOf(DATASETS[dataset].presets));
     // a view loaded for another data set ("Switch to … and load"): the report starts on it there
     const [switched, setSwitched] = useState(null);
-    const [saved, setSaved] = useState(() => stored(`pivotkit-templates-${dataset}`, []));
+    // views published as shared ones: a host keeps them on its server, the playground in this browser
+    const [published, setPublished] = useState(() => stored(`pivotkit-published-${dataset}`, []));
     const [lastClick, setLastClick] = useState(null);
     const timings = useTimings();
 
     const { rows, fetched } = useRows(dataset, size);
     const { presets, source } = DATASETS[dataset];
-    // the host decides what can be deleted: the user's own templates, not the presets
-    const templates = useMemo(() => [...presets, ...saved.map((t) => ({ ...t, deletable: true }))], [presets, saved]);
+    // the host decides what can be deleted: the published views (the playground's user is its admin),
+    // not the presets; the user's own views are the report's browser store
+    const templates = useMemo(() => [...sharedViews(dataset, presets), ...published.map((t) => ({ ...t, scope: "shared", deletable: true }))], [dataset, presets, published]);
     const start = switched?.dataset === dataset ? switched.view : preset >= 0 ? presets[preset].view : undefined;
     // the address says which data and template the report starts from, in words (the view stays)
     const startName = preset >= 0 ? slug(presets[preset].name) : "empty";
@@ -179,18 +185,21 @@ function App() {
         else document.documentElement.setAttribute("data-theme", theme);
     }, [theme]);
 
-    // asynchronous, as a host that stores templates on a server: the report waits for the promise
-    const saveTemplate = async (name, view) => {
+    // asynchronous, as a host that keeps shared views on a server: the report waits for the promise
+    const publishTemplate = async (name, view) => {
         await later(30);
-        const next = [...saved.filter((t) => t.name !== name), { name, view }];
-        setSaved(next);
-        store(`pivotkit-templates-${dataset}`, next);
+        const next = [...published.filter((t) => t.name !== name), { name, view }];
+        setPublished(next);
+        store(`pivotkit-published-${dataset}`, next);
     };
-    const deleteTemplate = async (name) => {
+    // only published views are the host's to delete (the browser store deletes the user's own)
+    const deleteTemplate = async (name, { scope }) => {
         await later(30);
-        const next = saved.filter((t) => t.name !== name);
-        setSaved(next);
-        store(`pivotkit-templates-${dataset}`, next);
+        if (scope === "shared") {
+            const next = published.filter((t) => t.name !== name);
+            setPublished(next);
+            store(`pivotkit-published-${dataset}`, next);
+        }
     };
     const ms = (k) => (timings[k] === undefined ? "–" : `${timings[k].toFixed(1)} ms`);
 
@@ -215,7 +224,7 @@ function App() {
                 <div className="pg-controls">
                     <label>
                         Data
-                        <select value={dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSwitched(null); setSaved(stored(`pivotkit-templates-${e.target.value}`, [])); }} data-testid="pg-dataset">
+                        <select value={dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSwitched(null); setPublished(stored(`pivotkit-published-${e.target.value}`, [])); }} data-testid="pg-dataset">
                             <optgroup label="Real data">
                                 {Object.keys(REAL).map((k) => <option key={k} value={k}>{DATASETS[k].label}</option>)}
                             </optgroup>
@@ -267,14 +276,16 @@ function App() {
                     setSwitched((old) => ({ dataset: to.id, view, n: (old?.n ?? 0) + 1 }));
                     setDataset(to.id);
                     setPreset(-1);
-                    setSaved(stored(`pivotkit-templates-${to.id}`, []));
+                    setPublished(stored(`pivotkit-published-${to.id}`, []));
                 }}
                 start={start}
                 data={rows ?? []}
                 loading={!rows}
                 templates={templates}
-                onSaveTemplate={saveTemplate}
+                templateStore="browser"
                 onDeleteTemplate={deleteTemplate}
+                canPublish
+                onPublishTemplate={publishTemplate}
                 fieldDefaults={withDescriptions(DATASETS[dataset].fieldDefaults, dataset)}
                 storageKey={STORAGE_KEY}
                 shareLink={shareUrl}
