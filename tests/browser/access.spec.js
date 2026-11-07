@@ -147,7 +147,8 @@ test.describe("names, roles and sizes", () => {
         await expect(field("Priority")).toHaveAccessibleDescription("");
         await field("Priority").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Team", "Priority"]);
-        await expect(page.getByTestId("undo")).toBeEnabled();
+        // the click is not lost in silence: the status line says why nothing moved
+        await expect(page.locator(".pk-toasts")).toContainText("Priority is already in Rows");
     });
 
     test("every control is at least 24 by 24 px (WCAG 2.5.8), wide and narrow", async ({ page }) => {

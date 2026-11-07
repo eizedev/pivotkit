@@ -92,12 +92,12 @@ test("drill-down table: dates as the table shows them, numbers in the locale, th
     const plain = drillTable(encoded, [0, 1], { locale: "en-US", labels: LABELS.en.core });
     assert.deepEqual(plain.columns.map((c) => [c.name, c.numeric]), [["Ticket number", true], ["Opened", false], ["Seen", false], ["Revenue", true], ["Hours", true], ["Done", false], ["Team", false]]);
     // an ISO date is a date, not its ISO text; a time is read on the data's wall clock (Berlin, +1 h)
-    assert.deepEqual(plain.rows[0], ["40,072", "Jan 5, 2026", "Feb 14, 2026, 11:30 AM", "1,234.5", "3.5", "true", "Network"]);
-    assert.deepEqual(plain.rows[1], ["40,073", "", "Feb 15, 2026, 9:00 AM", "", "0.25", "false", "<b>x</b>"]);
+    assert.deepEqual(plain.rows[0], ["40,072", "Jan 5, 2026", "Feb 14, 2026, 11:30 AM", "1,234.5", "3.5", "Yes", "Network"]);
+    assert.deepEqual(plain.rows[1], ["40,073", "", "Feb 15, 2026, 9:00 AM", "", "0.25", "No", "<b>x</b>"]);
     // the host says how: an identifier as it is, a duration, a currency; German words and digits
     const formats = { "ticket number": "text", hours: "duration:h", revenue: "currency:EUR", seen: "date", team: "integer" };
     const de = drillTable(encoded, [0], { locale: "de-DE", labels: LABELS.de.core, formatOf: (name) => formats[name.toLowerCase()] });
-    assert.deepEqual(de.rows[0], ["40072", "05.01.2026", "14.02.2026", "1.234,50\u00a0€", "3 h 30 min", "wahr", "Network"]);
+    assert.deepEqual(de.rows[0], ["40072", "05.01.2026", "14.02.2026", "1.234,50\u00a0€", "3 h 30 min", "Ja", "Network"]);
     assert.equal(de.columns[0].numeric, false, "an identifier shown as text is not right-aligned");
     // a format that does not fit, or is no format, is ignored
     const odd = drillTable(encoded, [0], { locale: "en-US", labels: LABELS.en.core, formatOf: (name) => (name === "Opened" ? "currency:EUR" : name === "Revenue" ? "date" : "=cmd()") });

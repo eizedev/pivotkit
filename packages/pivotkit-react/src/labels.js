@@ -17,6 +17,9 @@ export const en = {
     report: "Pivot report",
     core: /** @type {import("pivotkit-core").Labels} */ ({
         ...DEFAULT_LABELS,
+        // a yes/no field in the table, the filter list and the drill-down: words, not true/false
+        true: "Yes",
+        false: "No",
         aggregators: {
             count: "Count",
             countUnique: "Distinct count",
@@ -47,6 +50,8 @@ export const en = {
     noFieldMatch: "No field matches “{query}”.",
     fieldMenu: "Options for {field}",
     addTo: "Add to {zone}",
+    // a click on a field that is in its zone already: said in the status line
+    alreadyIn: "{field} is already in {zone}",
     move: "Move",
     moveTo: "Move to {zone}",
     dragHandle: "Drag {field}",
@@ -288,8 +293,8 @@ export const de = {
         values: "Werte",
         valueName: "{agg} von {field}",
         countRows: "Anzahl",
-        true: "wahr",
-        false: "falsch",
+        true: "Ja",
+        false: "Nein",
         aggregators: {
             count: "Anzahl",
             countUnique: "Anzahl verschiedener Werte",
@@ -334,6 +339,7 @@ export const de = {
     noFieldMatch: "Kein Feld passt zu „{query}“.",
     fieldMenu: "Optionen für {field}",
     addTo: "Zu {zone} hinzufügen",
+    alreadyIn: "{field} ist bereits in {zone}",
     move: "Verschieben",
     moveTo: "Nach {zone} verschieben",
     dragHandle: "{field} ziehen",
@@ -588,6 +594,9 @@ export function fill(template, values) {
 /** The categories of Intl.PluralRules: the keys a count label may have. */
 const PLURAL_CATEGORIES = Object.freeze(["zero", "one", "two", "few", "many", "other"]);
 
+/** True for a count label: an object of plural forms with at least `other`. */
+const isPluralForms = (v) => v !== null && typeof v === "object" && !Array.isArray(v) && Object.hasOwn(v, "other") && Object.keys(v).every((k) => PLURAL_CATEGORIES.includes(k));
+
 /**
  * A count in words: the form of `forms` for the plural category of `count` in the labels' language
  * (Intl.PluralRules), `other` when that form is missing, with {count} filled in the locale's digits.
@@ -620,14 +629,17 @@ function merge(base, over) {
     }
     const out = { ...base };
     // a count label takes every plural form a language has, also those English lacks ("few", "many")
-    const keys = Object.hasOwn(base, "other") && Object.keys(base).every((k) => PLURAL_CATEGORIES.includes(k)) ? PLURAL_CATEGORIES : Object.keys(base);
+    const keys = isPluralForms(base) ? PLURAL_CATEGORIES : Object.keys(base);
     for (const key of keys) {
         if (!Object.hasOwn(over, key)) {
             continue;
         }
         const was = base[key] ?? "";
         const now = over[key];
-        if (isObject(was)) {
+        if (isPluralForms(was) && typeof now === "string") {
+            // a count written as one text (the form before plural forms): that text for every count
+            out[key] = { other: now };
+        } else if (isObject(was)) {
             out[key] = merge(was, now);
         } else if (Array.isArray(was)) {
             out[key] = isTextList(now) && now.length > 0 ? now : was;

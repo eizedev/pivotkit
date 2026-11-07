@@ -78,6 +78,8 @@
  * @property {"auto" | "light" | "dark"} [theme]  "auto" follows the nearest data-theme above the report, then the system
  * @property {number | string} [height]  the report's height (default 640 px)
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
+ * @property {string} [label]  the name of the report's region landmark (default the labels' `report`);
+ *   several reports on one page each need their own
  * @property {string} [className]
  * @property {string} [fileName]  name of exported files without extension (default "pivot"); made safe
  * @property {(file: ExportFile) => unknown} [onExport]  every exported file before its download;

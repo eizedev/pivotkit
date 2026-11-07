@@ -203,6 +203,14 @@ export class PivotReportElement extends Base {
         this.#write("file-name", value);
     }
 
+    /** The name of the report's region landmark (default the labels' `report`, "Pivot report"). */
+    get label() {
+        return /** @type {string | undefined} */ (this.#read("label"));
+    }
+    set label(value) {
+        this.#write("label", value);
+    }
+
     /** The panel with the rows behind a clicked value (default true; attribute drill-down="false"). */
     get drillDown() {
         return /** @type {boolean} */ (this.#read("drill-down"));
@@ -411,7 +419,8 @@ export class PivotReportElement extends Base {
             theme: this.theme,
             height: this.height,
             limits: v.limits,
-            fileName: this.fileName
+            fileName: this.fileName,
+            label: this.label
         };
     }
 

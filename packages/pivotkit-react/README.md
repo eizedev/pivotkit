@@ -91,6 +91,7 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
 | `height` | `number \| string` | `640` | The report's height; the table and the field list scroll inside it. |
 | `limits` | `Partial<Limits>` | | pivotkit-core's limits. A layout over `limits.cells` shows a message instead of the table. |
+| `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
 | `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
@@ -103,8 +104,8 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 
 - Fields: search the list; drag a field into a zone (the lists and the page scroll while dragging, the
   dragged field is drawn above everything); click a field to add it (numbers to Values, the rest to
-  Rows; a field in Columns or Filters moves to Rows, one in Rows stays, and the field's description
-  says which); or use its menu "Add to Rows / Columns / Values / Filters". A date is grouped as soon as it
+  Rows; a field in Columns or Filters moves to Rows, one in Rows stays and the status line says
+  so, and the field's description says which); or use its menu "Add to Rows / Columns / Values / Filters". A date is grouped as soon as it
   is placed, by the span of its values: up to 62 days by day, up to two years by month ("Jan 2025"),
   up to six years by quarter, longer by year; the chip says so ("Created (Month)").
 - Chips: drag to reorder or to another zone, drag back to the field list or press x to remove (a note
@@ -121,7 +122,7 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   only: ..."), what to do next when nothing is in Values, and how to open a value.
 - Drill-down: a click on a value opens a panel with the rows behind it, formatted as the table
   formats them: dates as dates (with the time when the column has times), numbers in the locale,
-  yes/no in words, and a field's `fieldDefaults` format.
+  yes/no fields as "Yes" and "No" (`labels.core.true`, `false`), and a field's `fieldDefaults` format.
 - Table: sticky header and row labels, groups expand and collapse, subtotals and grand totals on and
   off (Options), a click on a value opens its rows. Field names and value names in the header can be
   dragged into a zone with the mouse; the chips' menus do the same from the keyboard. From 300 body
@@ -164,11 +165,14 @@ area: the narrow layout, and a medium one such as a half-width card of 650 px). 
 columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the
 Columns zone is too narrow for the text. Only the table scrolls sideways.
 
-Below 540 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`) the report starts in the compact
-layout: the zones fold into one line that says what is in them ("Rows: Team · Columns: Priority ·
+Below 540 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`, the border box, measured before the
+first paint) the report starts in the compact layout: the zones fold into one line that says what is in them ("Rows: Team · Columns: Priority ·
 Values: Count of Ticket"), so the table keeps its room. A click on that line, or Layout in the
-toolbar, opens them; Layout folds them again. A drag from the field list or the table opens them
-while it lasts, so a field can still be dropped. The user's choice is state of the mounted report: it
+toolbar, opens them; Layout folds them again, and stays in the toolbar (not in "More") while they
+are folded. The line only shows what is placed: to change a chip, open the zones first. A drag from
+the field list or the table opens them while it lasts, so a field can still be dropped. When the
+report gets lower while a menu or popover is open, the fold waits until it closes; a focus in the
+zones moves to the folded line. The user's choice is state of the mounted report: it
 survives the host's renders, and it is not part of the view, so a template does not carry it. In the narrow layout the zones sit above the table, so a report of a fixed
 640 px leaves little room for it on a phone: give it more height there, for example
 `height="calc(100svh - 24px)"` (the page scrolls to the report, the table scrolls inside it).

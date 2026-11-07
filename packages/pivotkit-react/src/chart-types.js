@@ -43,3 +43,13 @@ export function chartTypeOf(chart) {
 export const MANY_SERIES = 8;
 /** Categories a chart draws at most; the rest are left out with a note. */
 export const MAX_CATEGORIES = 50;
+
+/**
+ * Room (px) above and below a pie for the labels outside it, for a chart `height` px high: 5 % of the
+ * height, at most 24 px. The pie's radius is a share of its box, so in a low box the top and bottom
+ * labels would reach past the canvas; a tall box keeps nearly all of its pie.
+ * @param {number} height
+ */
+export function pieLabelRoom(height) {
+    return Math.round(Math.min(24, Math.max(0, height) * 0.05));
+}

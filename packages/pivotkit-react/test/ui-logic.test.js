@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "../src/chart-summary.js";
-import { MANY_SERIES, MAX_CATEGORIES } from "../src/chart-types.js";
+import { MANY_SERIES, MAX_CATEGORIES, pieLabelRoom } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, plural, resolveLabels } from "../src/labels.js";
@@ -186,4 +186,19 @@ test("the compact layout's one line names every zone with fields, rows first", (
         { zone: "filters", title: "Filters", fields: "Status" }
     ]);
     assert.deepEqual(layoutSummary({ filters: [], cols: [], rows: [], values: [] }, LABELS.de), []);
+});
+
+test("a pie's room for its labels follows the chart's height, at most 24 px", () => {
+    assert.equal(pieLabelRoom(200), 10);
+    assert.equal(pieLabelRoom(480), 24);
+    assert.equal(pieLabelRoom(900), 24);
+    assert.equal(pieLabelRoom(-5), 0);
+});
+
+test("count labels written the old way keep working: one text for every count, nouns not doubled", () => {
+    const l = resolveLabels("de", { rowsCount: "{count} Datensätze", chartCounts: "{categories} Kategorien, {series} Reihen." });
+    assert.deepEqual(l.rowsCount, { other: "{count} Datensätze" });
+    assert.equal(plural(l.rowsCount, 1, { lang: "de", locale: "de-DE" }), "1 Datensätze");
+    const r = computePivot(encode([{ R: "A", V: 1 }, { R: "B", V: 2 }]), { rows: ["R"], values: [{ field: "V", agg: "sum" }] });
+    assert.match(chartSummary(toSeries(r), { type: "bar", rows: ["R"], valueNames: ["Summe von V"], labels: l, locale: "de-DE" }), /\. 2 Kategorien, 1 Reihen\./);
 });

@@ -74,3 +74,8 @@ test("the locale: the locale attribute, then the element's lang, then the report
     assert.equal(localeOf(" ", ""), undefined);
     assert.equal(localeOf(undefined, null), undefined);
 });
+
+test("label names the report's region and is reflected", () => {
+    assert.deepEqual(def("label"), { attr: "label", prop: "label", kind: "string" });
+    assert.equal(toAttribute(def("label"), "Tickets"), "Tickets");
+});

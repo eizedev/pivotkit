@@ -215,11 +215,11 @@ export function zoneEntries(view, types, labels) {
 }
 
 /** The folded zones: one line with what is in them, a button that opens them. */
-function ZoneSummary({ entries, labels, id, onShow }) {
+function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
     const parts = layoutSummary(entries, labels);
     const text = parts.length ? parts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
     return (
-        <button type="button" id={id} className="pk-zones-summary" aria-expanded="false" aria-label={`${labels.showLayout}: ${text}`} title={labels.showLayout} onClick={onShow} data-testid="layout-summary">
+        <button ref={buttonRef} type="button" id={id} className="pk-zones-summary" aria-expanded="false" aria-label={`${labels.showLayout}: ${text}`} title={labels.showLayout} onClick={onShow} data-testid="layout-summary">
             <Icon name="chevronRight" size={16} />
             <span className="pk-zones-summary-text">
                 {parts.length
@@ -246,6 +246,9 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
     const showing = useRef(false);
+    // whether the focus is in the zones: when they fold, it moves to the line instead of getting lost
+    const focusInside = useRef(false);
+    const summary = useRef(/** @type {HTMLButtonElement | null} */ (null));
     // the state of every field chip, once per view (a filter summary counts the field's values)
     const states = useMemo(() => {
         const map = new Map();
@@ -280,6 +283,10 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
             showing.current = false;
             /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector("[data-zone]"))?.focus({ preventScroll: true });
         }
+        if (folded && focusInside.current) {
+            focusInside.current = false;
+            summary.current?.focus({ preventScroll: true });
+        }
     }, [folded]);
     if (folded && !dragging) {
         return (
@@ -287,6 +294,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                 entries={entries}
                 labels={labels}
                 id={id}
+                buttonRef={summary}
                 onShow={() => {
                     showing.current = true;
                     onShow();
@@ -295,7 +303,20 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
         );
     }
     return (
-        <div className="pk-zones" ref={root} id={id}>
+        <div
+            className="pk-zones"
+            ref={root}
+            id={id}
+            onFocus={() => {
+                focusInside.current = true;
+            }}
+            onBlur={(e) => {
+                // a removed element blurs without a target: that keeps the flag, as the fold needs
+                if (e.relatedTarget && !e.currentTarget.contains(/** @type {Node} */ (e.relatedTarget))) {
+                    focusInside.current = false;
+                }
+            }}
+        >
             {ZONES.map((zone) => (
                 <Zone
                     key={zone}

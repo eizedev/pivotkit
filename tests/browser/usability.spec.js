@@ -229,6 +229,34 @@ test("a low report (520 px) folds its zones into one line; Layout and the line o
     await expect(layout).toBeFocused();
 });
 
+test("folded, Layout stays a button of the toolbar, also where the rest moves into More", async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await page.goto("?data=tickets&height=520");
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("more")).toBeVisible();
+    await expect(page.getByTestId("layout")).toBeVisible();
+    await expect(page.getByTestId("layout")).toHaveAttribute("aria-expanded", "false");
+});
+
+test("a report that gets lower while a chip menu is open folds after the menu closes; the focus goes to the line", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("?data=tickets&height=640");
+    const root = page.locator(".pk-root");
+    await page.getByTestId("chip-menu-Team").click();
+    const menu = page.locator(".pk-popover");
+    await expect(menu).toBeVisible();
+    // the host makes the report lower (a card resized); React does not touch the style again
+    await root.evaluate((el) => {
+        el.style.height = "500px";
+    });
+    await page.waitForTimeout(400);
+    await expect(menu).toBeVisible();
+    await expect(page.locator(".pk-zone")).toHaveCount(4);
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("layout-summary")).toBeVisible();
+    await expect(page.getByTestId("layout-summary")).toBeFocused();
+});
+
 test("a tall report starts with its zones open", async ({ page }) => {
     await page.goto("?data=tickets&height=640");
     await expect(page.locator(".pk-zone")).toHaveCount(4);

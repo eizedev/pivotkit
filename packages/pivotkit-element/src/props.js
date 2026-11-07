@@ -23,6 +23,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "height", prop: "height", kind: "height" },
     { attr: "time-zone", prop: "timeZone", kind: "string" },
     { attr: "file-name", prop: "fileName", kind: "string" },
+    { attr: "label", prop: "label", kind: "string" },
     { attr: "drill-down", prop: "drillDown", kind: "on-unless-false" },
     { attr: "drill-down-limit", prop: "drillDownLimit", kind: "number" },
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },

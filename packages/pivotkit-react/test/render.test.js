@@ -79,3 +79,12 @@ test("the report is a named region, never a main landmark inside the host's page
     const de = render({ data: rows, view: { rows: ["Region"] }, locale: "de-DE" }).html;
     assert.match(de, /aria-label="Pivot-Bericht"/);
 });
+
+test("a report takes its own region name; yes/no fields read Yes and No", () => {
+    const { html } = render({ data: [{ Done: true, N: 1 }, { Done: false, N: 2 }], view: { rows: ["Done"], values: [{ field: "N", agg: "sum" }] }, label: "Tickets per team" });
+    assert.match(html, /role="region"[^>]*aria-label="Tickets per team"/);
+    assert.match(html, />Yes</);
+    assert.match(html, />No</);
+    const de = render({ data: [{ Done: true, N: 1 }], view: { rows: ["Done"], values: [{ field: "N", agg: "sum" }] }, locale: "de-DE" }).html;
+    assert.match(de, />Ja</);
+});

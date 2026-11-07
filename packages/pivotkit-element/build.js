@@ -112,7 +112,7 @@ async function licenses(metafile) {
 
 /**
  * The most a page may load per group, gzip, in KiB: about 10 % over what was measured when the budget
- * was set (initial 121.4, chart 200.3, export 7.7 on one Mac). `--size` fails above it; raise it on purpose,
+ * was set (initial 123.5, chart 200.3, export 7.7, one measurement on one Mac). `--size` fails above it; raise it on purpose,
  * with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 134, chart: 221, export: 9 };

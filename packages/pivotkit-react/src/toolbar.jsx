@@ -150,12 +150,19 @@ function TemplatesPanel({ templates, labels, onLoad, onSave, onDelete, close }) 
  * How many entries of OVERFLOW_ORDER are in "More": raised until the toolbar fits in one line,
  * measured again from none when the toolbar gets wider.
  * @param {React.RefObject<HTMLElement | null>} ref
- * @param {string} key  changes when the texts change (another language)
+ * @param {string} key  changes when the buttons change (another language, the zones folded or open):
+ *   then it is measured again from none
+ * @param {number} max  how many entries can move
  */
-function useOverflow(ref, key) {
+function useOverflow(ref, key, max) {
     const [level, setLevel] = useState(0);
     const width = useRef(0);
     const [measure, setMeasure] = useState(0);
+    const [lastKey, setLastKey] = useState(key);
+    if (key !== lastKey) {
+        setLastKey(key);
+        setLevel(0);
+    }
     useIsoLayoutEffect(() => {
         const el = ref.current;
         if (!el || typeof ResizeObserver !== "function") {
@@ -175,10 +182,10 @@ function useOverflow(ref, key) {
     }, [ref]);
     useIsoLayoutEffect(() => {
         const el = ref.current;
-        if (el && el.scrollWidth > el.clientWidth + 1 && level < OVERFLOW_ORDER.length) {
+        if (el && el.scrollWidth > el.clientWidth + 1 && level < max) {
             setLevel(level + 1);
         }
-    }, [ref, level, measure, key]);
+    }, [ref, level, measure, key, max]);
     return level;
 }
 
@@ -190,8 +197,10 @@ export function Toolbar(props) {
     const bar = useRef(/** @type {HTMLDivElement | null} */ (null));
     const more = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const [panel, setPanel] = useState(/** @type {"options" | "templates" | null} */ (null));
-    const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}`);
-    const hidden = new Set(OVERFLOW_ORDER.slice(0, level));
+    // while the zones are folded, Layout stays in the toolbar: it is the way back to them
+    const order = layoutFolded ? OVERFLOW_ORDER.filter((id) => id !== "layout") : OVERFLOW_ORDER;
+    const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}:${layoutFolded}`, order.length);
+    const hidden = new Set(order.slice(0, level));
     // a panel opened from "More" closes when its own button is back in the toolbar
     if (panel && !hidden.has(panel)) {
         setPanel(null);
@@ -267,7 +276,7 @@ export function Toolbar(props) {
     const ORDER = Object.keys(actions);
     const buttons = (place) => ORDER.filter((id) => actions[id].place === place && !hidden.has(id)).map((id) => actions[id].button());
     return (
-        <div className={`pk-toolbar${level >= OVERFLOW_ORDER.length ? " pk-wrap" : ""}`} role="toolbar" aria-label={labels.toolbar} ref={bar} data-overflow={level}>
+        <div className={`pk-toolbar${level >= order.length ? " pk-wrap" : ""}`} role="toolbar" aria-label={labels.toolbar} ref={bar} data-overflow={level}>
             {size === "narrow" ? (
                 <button type="button" className="pk-btn" onClick={onShowFields} data-testid="show-fields" data-pk-opener="fields">
                     <Icon name="panel" />

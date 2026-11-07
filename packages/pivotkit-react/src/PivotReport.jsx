@@ -16,6 +16,7 @@ import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { fill, hostFailure, messageOf, plural, resolveLabels } from "./labels.js";
+import { useIsoLayoutEffect } from "./iso.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
@@ -33,8 +34,11 @@ export function sizeOf(width) {
     return width < 640 ? "narrow" : width < 1024 ? "medium" : "wide";
 }
 
-/** Below this height (px) the report starts with its zones folded into one line, the compact layout. */
+/** Below this height (px, border box) the report starts with its zones folded into one line, the compact layout. */
 export const COMPACT_HEIGHT = 540;
+
+/** True while a popover or menu of the report is open in its layer (the layer also holds a probe). */
+const layerOpen = (layer) => Boolean(layer && [...layer.children].some((c) => !c.classList.contains("pk-origin")));
 
 /** A performance measure for the browser's performance timeline ("pivotkit:computePivot"). */
 function measured(name, fn) {
@@ -150,7 +154,8 @@ export function PivotReport(props) {
         className,
         fileName = "pivot",
         fieldDefaults,
-        onExport
+        onExport,
+        label
     } = props;
 
     // props a host may rebuild on every render, compared by value
@@ -162,6 +167,9 @@ export function PivotReport(props) {
     const themeName = useResolvedTheme(theme, root);
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));
     const [size, setSize] = useState("wide");
+    // the measured height class, and the one the layout follows: a change waits while a popover is
+    // open, so a resize never pulls the zones (and a chip menu's anchor) from under the user
+    const [measuredShort, setMeasuredShort] = useState(false);
     const [short, setShort] = useState(false);
     // the user's choice of the compact layout (Layout in the toolbar, the folded line); null: by height
     const [folded, setFolded] = useState(/** @type {boolean | null} */ (null));
@@ -293,19 +301,45 @@ export function PivotReport(props) {
         return map;
     }, [view]);
 
-    // size class from the report's own width
-    useEffect(() => {
+    // size class from the report's own width; the height class from its border box, measured before
+    // the first paint, so a low report never shows its zones open for a frame
+    useIsoLayoutEffect(() => {
         const el = root.current;
-        if (!el || typeof ResizeObserver !== "function") {
+        if (!el) {
+            return undefined;
+        }
+        const first = el.getBoundingClientRect().height < COMPACT_HEIGHT;
+        setMeasuredShort(first);
+        setShort(first);
+        if (typeof ResizeObserver !== "function") {
             return undefined;
         }
         const ro = new ResizeObserver(([entry]) => {
             setSize(sizeOf(entry.contentRect.width));
-            setShort(entry.contentRect.height < COMPACT_HEIGHT);
+            const height = entry.borderBoxSize?.[0]?.blockSize ?? el.getBoundingClientRect().height;
+            setMeasuredShort(height < COMPACT_HEIGHT);
         });
         ro.observe(el);
         return () => ro.disconnect();
     }, []);
+    useEffect(() => {
+        if (measuredShort === short) {
+            return undefined;
+        }
+        const apply = () => {
+            if (!layerOpen(layer)) {
+                setShort(measuredShort);
+            }
+        };
+        apply();
+        if (!layer || typeof MutationObserver !== "function") {
+            return undefined;
+        }
+        // a popover is open: apply when it closes
+        const mo = new MutationObserver(apply);
+        mo.observe(layer, { childList: true });
+        return () => mo.disconnect();
+    }, [measuredShort, short, layer]);
     const drawerOpen = drawer && size === "narrow";
     const panelRef = useRef(/** @type {HTMLDivElement | null} */ (null));
     useEffect(() => {
@@ -462,7 +496,7 @@ export function PivotReport(props) {
             lang={labels.lang}
             // a named region, not <main>: the host's page has its own main landmark around the report
             role="region"
-            aria-label={labels.report}
+            aria-label={label || labels.report}
             style={{ height }}
             // a click anywhere in the report focuses it, so the undo and redo shortcuts work
             tabIndex={-1}
@@ -491,6 +525,7 @@ export function PivotReport(props) {
                                         setDrawer(false);
                                     }
                                 }}
+                                onNote={(text) => announce(text)}
                                 drawer={size === "narrow"}
                                 open={drawerOpen}
                                 onClose={() => setDrawer(false)}

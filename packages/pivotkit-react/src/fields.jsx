@@ -15,7 +15,7 @@ import { ZONES } from "./view-ops.js";
 
 const ZONE_ICON = { rows: "rows", cols: "cols", values: "sigma", filters: "filter" };
 
-function FieldItem({ field, labels, zones, onAdd }) {
+function FieldItem({ field, labels, zones, onAdd, onNote }) {
     const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: field.name });
     const typeLabel = labels.types[field.type] ?? field.type;
     // what a click does, said where it is said: the title and the accessible description
@@ -35,6 +35,8 @@ function FieldItem({ field, labels, zones, onAdd }) {
                 onClick={() => {
                     if (action.kind) {
                         onAdd(field.name, action.zone);
+                    } else {
+                        onNote(fill(labels.alreadyIn, { field: field.name, zone: labels.zones[action.zone] }));
                     }
                 }}
                 // no title without an action: it would become the description
@@ -76,9 +78,9 @@ function FieldItem({ field, labels, zones, onAdd }) {
 
 /**
  * @param {{ fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, labels: import("./labels.js").UiLabels,
- *   onAdd: (field: string, zone: string) => void, drawer: boolean, open: boolean, onClose: () => void }} props
+ *   onAdd: (field: string, zone: string) => void, onNote: (text: string) => void, drawer: boolean, open: boolean, onClose: () => void }} props
  */
-export function FieldPanel({ fields, placed, labels, onAdd, drawer, open, onClose }) {
+export function FieldPanel({ fields, placed, labels, onAdd, onNote, drawer, open, onClose }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
@@ -119,7 +121,7 @@ export function FieldPanel({ fields, placed, labels, onAdd, drawer, open, onClos
             </label>
             <ul className="pk-field-list">
                 {shown.map((f) => (
-                    <FieldItem key={f.name} field={f} labels={labels} zones={placed.get(f.name.toLowerCase()) ?? []} onAdd={onAdd} />
+                    <FieldItem key={f.name} field={f} labels={labels} zones={placed.get(f.name.toLowerCase()) ?? []} onAdd={onAdd} onNote={onNote} />
                 ))}
             </ul>
             {shown.length === 0 ? <p className="pk-hint">{fields.length ? fill(labels.noFieldMatch, { query }) : labels.emptyFields}</p> : null}
