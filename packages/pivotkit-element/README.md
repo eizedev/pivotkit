@@ -79,7 +79,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
-| `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
+| `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, no switch in Options) or the tip ids allowed, comma-separated. |
 | `storageKey` | `storage-key` | `string` | | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; one key per element on a page. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too. |
 | `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
@@ -149,7 +149,7 @@ would for the data itself.
 | `pivot-template-save` | `{ name, view, scope, respondWith }` | "Save current view" (with `save-templates`); `scope` is `"user"`. |
 | `pivot-template-delete` | `{ name, scope, respondWith }` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group. Not sent for a view of the browser store. |
 | `pivot-template-publish` | `{ name, view, respondWith }` | "Publish as shared view" on one of the user's views (with `can-publish`), after the user confirmed. |
-| `pivot-export` | `{ kind, fileName, blob }` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say). |
+| `pivot-export` | `{ kind, fileName, blob, text, rows }` | Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). |
 | `pivot-tip-dismiss` | `{ id, dismissed }` | A tip dismissed (`id`), all tips off (`"*"`) or back on (`null`), with every dismissed id, for a page that stores them and sets `dismissedTips`. |
 | `pivot-source-switch` | `{ source, view, name }` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view`. |
 
@@ -161,8 +161,8 @@ listener, or `respondWith` after an `await`) the action counts as done at once a
 console warning, since the user is told "saved", "deleted" or "published" either way. The page then sets
 `templates` to the new list.
 
-When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" note: the
-page that kept the file says itself what became of it.
+When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" or
+"Copied" note: the page that kept the file or the text says itself what became of it.
 
 ```js
 report.saveTemplates = true;
@@ -248,9 +248,9 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 | --- | ---: | ---: | ---: |
 | First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 464 KiB | 151 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
-| On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 20 KiB | 9 KiB |
+| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
-| Right after the first render (the menus' panels and the texts only they show) | 1 | 48 KiB | 14 KiB |
+| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the texts only they show) | 1 | 56 KiB | 16 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

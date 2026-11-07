@@ -172,8 +172,32 @@ Click a value (or move to it with the arrow keys and press Enter) and a panel sh
 formatted as the table formats them: dates as dates, numbers in your language, yes/no fields as "Yes"
 and "No". It covers the report while it is open: the focus stays in it, and Escape, its close button
 or a click beside it closes it and returns to the value. The panel lists up to 1,000 rows by default;
-with more behind the value its title line says "Showing the first 1,000 of 4,210 rows". A blank cell
-with no rows behind it opens nothing.
+with more behind the value its title line says "Showing the first 1,000 of 4,210 rows" (the
+application can raise the limit, `drillDownLimit`). A blank cell with no rows behind it opens nothing.
+
+Each column is as wide as its content; a long text wraps inside its column, so the panel scrolls
+sideways less. **Enlarge** lets the panel fill the whole report; **Reduce** or Escape brings it back
+to its size (a second Escape closes it), and the focus stays on the button. On a narrow report the
+panel fills it already and has no Enlarge.
+
+![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](assets/screenshots/drill-export.png)
+
+Its **Export** menu copies or downloads the rows it shows:
+
+- **Copy**: the rows as the panel shows them (dates and numbers in your language), tab-separated
+  with a header row. Pasted into Excel, Numbers or Google Sheets they land in columns, and a
+  spreadsheet in the same language reads the numbers and dates back as numbers and dates. An **i**
+  says so.
+- **Copy as JSON**: the rows as objects with the data's field names and raw values (numbers as
+  numbers, dates as ISO dates, blank `null`), for a program.
+- **Download CSV** and **Download Excel**: the rows with the headers the panel shows, each value
+  formatted as in the panel (a field's format, numbers with up to 6 decimals, dates as their day);
+  the Excel file keeps numbers and dates as numbers and freezes the header row. Files and sheet are
+  named after the cell: `Central – Jul 2026.csv`.
+
+With more rows behind the value than the panel shows, every export holds the rows shown: the menu
+says "Holds the first 1,000 of 4,212 rows, as shown here.", and the note after it "Copied 1,000 of
+4,212 rows". Text a spreadsheet would run as a formula gets a leading `'`, as in every export.
 
 ## The chart
 
@@ -243,6 +267,19 @@ Two buttons at the top right of the result give it more room; neither is part of
   background colour. The files are named after the application's `fileName` ("pivot" when it gives
   none): `pivot.xlsx`, `pivot.csv`, `pivot.png`; a downloaded view is `<name>.pivotkit.json`, after
   the view's or the data's name.
+- **Export, Copy table** puts the table on the clipboard as it is shown: headers, labels and totals,
+  every number as the table writes it ("1,234.5", "35.7%"), tab-separated, a row label repeated on
+  every row it spans. Pasted into Excel, Numbers or Google Sheets it lands in columns; a spreadsheet in
+  the same language reads the numbers back as numbers. A label a spreadsheet would run as a formula
+  (it starts with `=`, `@`, or `+` or `-` and is no number) gets a leading `'`, as in the CSV. **Copy data as JSON** copies the table's data
+  for a program: the header texts above each value column, and per row its labels and its values with
+  all their decimals, a percentage of "Show values as" as the fraction (0.25 for 25%), a collapsed
+  group marked as such (the shape is in [pivotkit-core's `toJson`](reference/core.md)). It is not the
+  view: Views, **Copy view as JSON** copies how the report is built, not its numbers. Where the page
+  does not allow copying (an address without https, a frame without the permission) a note says so:
+  "This page does not allow copying. Download a file instead."
+
+![The Export menu: Excel workbook, CSV file and chart image under Download; Copy table and Copy data as JSON under Copy](assets/screenshots/export-menu.png)
 
 A button or menu entry that would do nothing is greyed out; where the reason is not obvious, a short
 line under it says why, only while it is greyed out:

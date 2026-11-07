@@ -29,6 +29,9 @@ export function loadMenus() {
     return pending;
 }
 
+/** The menus' module at once when it is loaded, else null. */
+export const menusNow = () => loaded;
+
 /** The first option (or the element marked to take the focus) of the popover around `el`. */
 function focusFirst(el) {
     const popover = el.closest(".pk-popover");
@@ -41,7 +44,7 @@ function focusFirst(el) {
 
 /**
  * One panel of menus.js with its props.
- * @param {{ name: "AxisMenu" | "ValueMenu" | "ChartTypePanel" | "OptionsPanel" | "ViewsPanel" | "LoadCheck" | "FilterPopover" | "DrillPanel", loadingText?: string, props: Record<string, any> }} props
+ * @param {{ name: "AxisMenu" | "ValueMenu" | "ChartTypePanel" | "OptionsPanel" | "ViewsPanel" | "ExportPanel" | "LoadCheck" | "FilterPopover" | "DrillPanel", loadingText?: string, props: Record<string, any> }} props
  *   `loadingText`: shown while loading; without it nothing is (a popover or panel of its own).
  *   `props.labels` gives the texts of a failed load
  */

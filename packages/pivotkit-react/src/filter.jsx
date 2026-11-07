@@ -106,6 +106,8 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                     {labels.selectNone}
                 </button>
             </div>
+            {/* the middle scrolls when the window is low; the head and Apply stay in view */}
+            <div className="pk-filter-body">
             <ul className="pk-values" role="list">
                 {shown.map((i) => {
                     const k = keyOf(i.value);
@@ -155,6 +157,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                 ) : null}
             </fieldset>
             ) : null}
+            </div>
             <div className="pk-popover-foot">
                 <button type="button" className="pk-btn" onClick={close}>
                     {labels.cancel}
@@ -175,7 +178,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
 export function FilterPopover({ target, onClose, view, encoded, locale, labels, commit }) {
     const anchor = useMemo(() => ({ current: target ? target.anchor : null }), [target]);
     return (
-        <Popover open={Boolean(target)} anchor={anchor} onClose={onClose} label={target ? fill(labels.filterTitle, { field: fieldLabel(target.field, labels.core) }) : ""} className="pk-filter-popover">
+        <Popover open={Boolean(target)} anchor={anchor} onClose={onClose} label={target ? fill(labels.filterTitle, { field: fieldLabel(target.field, labels.core) }) : ""} className="pk-filter-popover" fill>
             {target ? <FilterBody key={target.field} view={view} base={target.base} field={target.field} encoded={encoded} locale={locale} labels={labels} commit={commit} close={onClose} /> : null}
         </Popover>
     );

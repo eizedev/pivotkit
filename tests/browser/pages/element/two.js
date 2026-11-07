@@ -59,9 +59,10 @@ sales.addEventListener("pivot-template-delete", (e) => {
 // the CSV goes to the page instead of a download
 window.__kept = [];
 sales.addEventListener("pivot-export", (e) => {
-    if (e.detail.kind === "csv") {
+    // a CSV and a copy of the table: the page keeps them (no download, nothing on the clipboard)
+    if (e.detail.kind === "csv" || e.detail.kind === "copy-table") {
         e.preventDefault();
-        e.detail.blob.text().then((text) => window.__kept.push({ name: e.detail.fileName, text }));
+        e.detail.blob.text().then((text) => window.__kept.push({ name: e.detail.fileName, text, given: e.detail.text }));
     }
 });
 

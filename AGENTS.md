@@ -10,7 +10,7 @@ builds depend on it.
 
 - `packages/pivotkit-core/` - the engine, built: plain JavaScript ES modules with JSDoc types, no UI,
   no framework. `src/` (one module per concern), `test/` (`node --test`, `test/types/` a TypeScript
-  consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV),
+  consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV, TSV and JSON of a grid; `rows.js`: CSV and XLSX of source rows),
   `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`, with the capped inflate of
   `src/inflate.js`), the two that import fflate, and `src/templates.js` (`parseTemplates`, a list of
   named views; `templatesFromSchema`, pivotkit's extension `x-pivotkit-views` of an OpenAPI document);
@@ -29,7 +29,7 @@ builds depend on it.
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
-  focus and Escape helpers; `labels.js` the texts of the first load (en, de), `menu-labels.js` those only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `all-labels.js` both as `LABELS`, the subpath export `pivotkit-react/labels`; `overflow.js` which toolbar buttons go into "More" (a fixed priority and the room each takes, not the texts); `rove.js` the arrow keys of the field list (one Tab stop); `chart-types.js` also `chartPlan`, what an automatic chart (`chart.type: "auto"`) draws; `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
+  focus and Escape helpers; `labels.js` the texts of the first load (en, de), `menu-labels.js` those only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `all-labels.js` both as `LABELS`, the subpath export `pivotkit-react/labels`; `overflow.js` which toolbar buttons go into "More" (a fixed priority and the room each takes, not the texts); `rove.js` the arrow keys of the field list (one Tab stop); `use-export.js` the Export menu's entry point, `export-run.js` its work and `drill-export.js` the drill-down panel's exports (both load with the menus and start loading pivotkit-core/export when a menu that copies opens, so a copy happens in the click; every file and copy passes `onExport` first); `place.js` where a popover goes (next to its anchor; with `fill`, the filter and the chip menus, against the window's edge when it fits on neither side); `chart-types.js` also `chartPlan`, what an automatic chart (`chart.type: "auto"`) draws; `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package and the contrast of the tokens);
   `test/types/` is a TypeScript consumer.
 - `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow
@@ -128,7 +128,7 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   before: prefer a small own wrapper over a wrapper package.
 - Exports must be safe to open: CSV text that a spreadsheet would run as a formula gets a leading `'`
   (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace and control
-  characters, or `+` `-` unless the text is a plain number or a number range); XLSX writes text as
+  characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
   inline strings, never as formulas.
 - Designed for up to about 100,000 rows: typed arrays, no per-row objects in hot loops. Run the
   benchmark before and after engine changes and compare with the baseline in the package README.

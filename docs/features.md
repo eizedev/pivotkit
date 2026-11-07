@@ -46,7 +46,7 @@ version is [What pivotkit does](overview.md).
 - A menu whose code could not be loaded (offline, `dist/chunks/` not deployed) says so with Try again ([files](reference/react.md#files-the-package-loads)).
 - « next to "Fields" collapses the field list to a rail of about 40 px ("Fields" upright and a search button, `aria-expanded`); the rail opens it, its search button opens it with the focus in the search field; the focus stays on the button in the place of the one pressed; a chip dropped on the rail leaves the report, and while one is dragged the rail reads "Drop here to remove" (announced); remembered with the tips (`storageKey`); `fieldList` / `field-list` (`"open"`, `"collapsed"`; another value is ignored with a console warning) starts it so, over the stored choice; not on a narrow report (the drawer); Enlarge hides the rail too ([guide](guide.md#more-room-for-the-result)).
 - Enlarge, at the top right of the result: the result fills the report, the field list, zones, tips and notes step aside, one line names the fields; Escape or the button brings them back; not part of the view ([guide](guide.md#more-room-for-the-result)).
-- While enlarged the button reads Reduce (Verkleinern), pressed (`aria-pressed`) ([guide](guide.md#more-room-for-the-result)).
+- While enlarged the button reads Reduce (Verkleinern) and is highlighted; its name says what a click does, so it is no toggle button (no `aria-pressed`); the drill-down's Enlarge works the same ([guide](guide.md#more-room-for-the-result)).
 - Full screen, next to it: the whole report on the screen (Fullscreen API, also in the web component's shadow root); Escape leaves it; not offered where the browser cannot ([guide](guide.md#more-room-for-the-result)).
 - Below 640 px of the report's own width the field list is a drawer opened with Fields in the toolbar, and menus open as sheets from the bottom ([layout](reference/react.md#layout)).
 - On a phone More and every menu are a sheet at the bottom of the window, at most 82 % of its height, scrolling inside: every entry is reachable ([guide](guide.md#small-screens)).
@@ -121,13 +121,17 @@ version is [What pivotkit does](overview.md).
 - Click, Enter or Space on a value: the rows behind it, formatted as the table, up to `drillDownLimit`; with more, "Showing the first 1,000 of 4,210 rows" ([guide](guide.md#the-rows-behind-a-number)).
 - The panel is modal: the focus stays in it; Escape, its close button or a click beside it closes it and returns to the value ([guide](guide.md#the-rows-behind-a-number)).
 - `onCellClick` gives the host the cell and its rows ([React props](reference/react.md#props)).
+- Columns as wide as their content, a long text wraps inside its column ([guide](guide.md#the-rows-behind-a-number)).
+- Enlarge fills the report with the panel; Reduce or Escape brings it back, a second Escape closes it; the focus stays on the button; not on a narrow report, not part of the view ([guide](guide.md#the-rows-behind-a-number)).
+- Export menu: Copy (tab-separated as the panel shows it, with a header row), Copy as JSON (field names, raw values), Download CSV, Download Excel, named after the cell ("Central – Jul 2026"); with a cut list each holds the rows shown and says so ("Copied 1,000 of 4,212 rows") ([guide](guide.md#the-rows-behind-a-number)).
 
 ## Export
 
 - Excel with formats, merged headers and highlighting; CSV safe against formulas; the chart as PNG with what is drawn ([guide](guide.md#undo-saved-views-and-export), [security](security.md)).
-- Every file passes `onExport` first (`xlsx`, `csv`, `png`, and `json` for a downloaded view file) ([React props](reference/react.md#props)).
+- Copy table (the table as shown, tab-separated, headers and totals) and Copy data as JSON (labels and raw values) put the table on the clipboard; where the page does not allow copying a note says so ([guide](guide.md#undo-saved-views-and-export)).
+- Every file and every copy passes `onExport` first (`xlsx`, `csv`, `png`, `json` for a downloaded view file, `copy-table`, `copy-json`, and the drill-down's `drill-copy`, `drill-json`, `drill-csv`, `drill-xlsx`) ([React props](reference/react.md#props)).
 - The CSV is UTF-8 with a byte order mark; the XLSX sheet is named after `fileName` (valid for Excel, at most 31 characters); the PNG is at twice the screen's resolution on the report's background colour ([guide](guide.md#undo-saved-views-and-export)).
-- The export menu explains Excel and CSV with an "i" each; the chart image says "Switch to Chart first." while the table is shown ([guide](guide.md#undo-saved-views-and-export)).
+- The export menu explains Excel, CSV, Copy table and Copy data as JSON with an "i" each; the chart image says "Switch to Chart first." while the table is shown ([guide](guide.md#undo-saved-views-and-export)).
 
 ## Sharing
 

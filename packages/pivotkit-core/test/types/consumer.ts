@@ -1,7 +1,7 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the public API as a TypeScript user sees it.
 import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, normalize, PivotkitError, toEChartsOption, toGrid, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
-import { toCsv, toXlsx } from "pivotkit-core/export";
+import { rowsToCsv, rowsToXlsx, toCsv, toJson, toTsv, toXlsx } from "pivotkit-core/export";
 import { parseTemplates, templatesFromSchema, TEMPLATE_LIMITS, TEMPLATES_EXTENSION } from "pivotkit-core/templates";
 
 const data = encode([{ Region: "North", Units: 3 }], { timeZone: "UTC", inferNumbers: true });
@@ -17,4 +17,7 @@ const shown: string = fieldLabel("Units", { fields: { Units: defaults.Units?.lab
 const read = parseTemplates([{ name: "By region", view: { rows: ["Region"] } }]);
 const firstName: string | undefined = read.templates[0]?.name;
 const fromSchema = templatesFromSchema({ [TEMPLATES_EXTENSION]: [] }, {});
-export const all = [firstName, read.issues.length, fromSchema.templates.length, TEMPLATE_LIMITS.count, issues.length, bytes.length, csv.length, option, code, grid.locale, shown, schemaIssues.length];
+const rowsCsv: string = rowsToCsv(data, [0], { columns: ["Units"], formats: { Units: "integer" }, labels: { fields: { Units: "Units sold" } } });
+const rowsBytes: Uint8Array = rowsToXlsx(data, new Int32Array([0]), { sheetName: "Rows", locale: "de-DE" });
+const pasted: string = toTsv(grid) + toTsv([["a", "b"]]) + toJson(grid, { space: 0 });
+export const all = [firstName, read.issues.length, fromSchema.templates.length, TEMPLATE_LIMITS.count, issues.length, bytes.length, csv.length, rowsCsv.length, rowsBytes.length, pasted.length, option, code, grid.locale, shown, schemaIssues.length];

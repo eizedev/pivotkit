@@ -260,7 +260,8 @@
 }
 
 .pk-btn[aria-expanded="true"],
-.pk-btn.pk-pressable[aria-pressed="true"] {
+.pk-btn.pk-pressable[aria-pressed="true"],
+.pk-btn.pk-pressable[data-pk-on] {
     background: var(--pk-accent-soft);
     border-color: var(--pk-accent);
 }
@@ -1092,8 +1093,11 @@
     font-weight: 600;
 }
 
+/* the filter: a column like a chip menu's, its middle (the values and the condition) scrolls when the
+   window is low, the head and Apply and Cancel stay in view */
 .pk-filter-popover {
     width: 340px;
+    overflow: hidden;
 }
 
 /* at the bottom of the window, not of the report (which can reach past the window): every entry is
@@ -1459,10 +1463,39 @@
 
 .pk-filter {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 8px;
-    padding: 6px;
     min-height: 0;
+    padding: 6px 2px;
+}
+
+/* room for the focus ring (2px outline, 2px offset) inside the scrolling middle; the rest lines up */
+.pk-filter > * {
+    flex: none;
+    margin-inline: 4px;
+}
+
+.pk-filter > .pk-filter-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    margin-inline: 0;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.pk-filter-body > * {
+    flex: none;
+}
+
+/* the list of values gives way first; the middle scrolls only below its least height */
+.pk-filter-body > .pk-values {
+    flex: 0 1 auto;
+    min-height: 4.5em;
 }
 
 .pk-popover-head {
@@ -2091,13 +2124,35 @@
     background: var(--pk-scrim-light);
 }
 
+/* Enlarge: the panel fills the report */
+.pk-drill.pk-drill-big {
+    left: 0;
+    width: 100%;
+    border-left: 0;
+}
+
 .pk-drill-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1em;
+    gap: 8px 1em;
     padding: 16px 16px 12px;
     border-bottom: 1px solid var(--pk-border);
+}
+
+.pk-drill-heading {
+    flex: 1 1 14em;
+    min-width: 0;
+}
+
+.pk-drill-actions {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
 }
 
 .pk-drill-head h2 {
@@ -2142,6 +2197,18 @@
 
 .pk-drill-table .pk-num {
     text-align: right;
+}
+
+/* a long text wraps: its column is as wide as the content needs, up to this width */
+.pk-drill-text {
+    min-width: 10em;
+    max-width: 22em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.pk-drill-big .pk-drill-text {
+    max-width: 40em;
 }
 
 /* toasts: at the bottom edge of the report's visible part: under the table when the report's end is

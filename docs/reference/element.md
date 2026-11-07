@@ -55,7 +55,7 @@ supported.
 | `fileName` | `file-name` | Name of exported files, without the extension; made safe.<br><small>Type: `string`; default: `"pivot"`</small> |
 | `label` | `label` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`).<br><small>Type: `string`; default: `labels.report`</small> |
 | `drillDown` | `drill-down` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off.<br><small>Type: `boolean`; default: `true`</small> |
-| `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
+| `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows").<br><small>Type: `number`; default: `1000`</small> |
 | `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
 | `storageKey` | `storage-key` | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too.<br><small>Type: `string`</small> |
 | `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded.<br><small>Type: `string[]`</small> |
@@ -127,7 +127,7 @@ or on the document gets it, with `event.target` the element.
 | `pivot-template-save` | "Save current view" (with `save-templates`); `scope` is `"user"`.<br><small>`detail`: `{ name, view, scope, respondWith }`</small> |
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group (`"shared"` or `"user"`). Not sent for a view of the browser store.<br><small>`detail`: `{ name, scope, respondWith }`</small> |
 | `pivot-template-publish` | "Publish as shared view" on one of the user's views (with `can-publish`), after the user confirmed: add it to the shared views and set `templates`.<br><small>`detail`: `{ name, view, respondWith }`</small> |
-| `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
+| `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view` (as the file has it, not normalized). Switching starts the report anew: Undo begins there. The view is untrusted input like any loaded view (it comes from a file or a link): hand it only to a report as its start view, which normalizes it, never run or render anything from it.<br><small>`detail`: `{ source, view, name }`</small> |
 
@@ -139,8 +139,8 @@ listener, or `respondWith` after an `await`) the action counts as done at once a
 console warning, since the user is told "saved", "deleted" or "published" either way. The page then sets
 `templates` to the new list.
 
-When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" note: the
-page that kept the file says itself what became of it.
+When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" or
+"Copied" note: the page that kept the file or the text says itself what became of it.
 
 ```js
 report.saveTemplates = true;

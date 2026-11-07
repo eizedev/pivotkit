@@ -67,10 +67,15 @@ export { EVENTS };
  */
 
 /**
- * @typedef {object} ExportFile  the detail of pivot-export
- * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view file (Views, "Download view")
- * @property {string} fileName  with the extension ("pivot.xlsx")
+ * @typedef {object} ExportFile  the detail of pivot-export: a file before its download, or a text
+ *   before it goes on the clipboard
+ * @property {"xlsx" | "csv" | "png" | "json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ *   "json": the view file (Views, "Download view"); "copy-table", "copy-json": Export → Copy table,
+ *   Copy data as JSON; "drill-*": the drill-down panel's Export menu
+ * @property {string} fileName  with the extension ("pivot.xlsx"); for a copy the name it would have as a file
  * @property {Blob} blob
+ * @property {string} [text]  a copy's text
+ * @property {{ shown: number, count: number }} [rows]  a drill-down export: the rows it holds and the rows behind the value
  */
 
 /**
@@ -681,7 +686,7 @@ export class PivotReportElement extends Base {
         emit(this, EVENTS.sourceSwitch, request);
     };
 
-    /** false (no download) when a listener called preventDefault() @param {ExportFile} file */
+    /** false (no download, no copy) when a listener called preventDefault() @param {ExportFile} file */
     #onExport = (file) => emit(this, EVENTS.export, file, { cancelable: true });
 }
 

@@ -249,7 +249,7 @@ const quote = (text) => text.replace(/[^ :/-]+/g, (run) => `"${run.replace(/"/g,
 const fraction = (n) => (n > 0 ? "." + "0".repeat(n) : "");
 
 /** Decimals a value shows with "up to max decimals": 2.50 -> 1. */
-function shownDecimals(v, max) {
+export function shownDecimals(v, max) {
     if (!Number.isFinite(v) || Math.abs(v) >= 1e21) {
         return 0;
     }

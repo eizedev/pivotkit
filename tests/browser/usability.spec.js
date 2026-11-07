@@ -400,9 +400,11 @@ test("Enlarge lets the result fill the report; Escape or the button brings the z
     const result = page.locator(".pk-result");
     const before = (await result.boundingBox()).height;
     const enlarge = page.getByTestId("enlarge");
-    await expect(enlarge).toHaveAttribute("aria-pressed", "false");
+    // a name that changes with the state: no toggle (aria-pressed), the highlight shows it
+    await expect(enlarge).not.toHaveAttribute("aria-pressed");
+    await expect(enlarge).toHaveText("Enlarge");
     await enlarge.click();
-    await expect(enlarge).toHaveAttribute("aria-pressed", "true");
+    await expect(enlarge).toHaveAttribute("data-pk-on", "");
     // the button says what a click does now
     await expect(enlarge).toHaveText("Reduce");
     await expect(page.locator(".pk-zones")).toBeHidden();

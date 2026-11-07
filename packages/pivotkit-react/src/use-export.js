@@ -1,66 +1,33 @@
 /*
- * Export of the report: the table as an Excel workbook or a CSV file (pivotkit-core/export, loaded on
- * first use), the chart as a PNG image. The file name is the host's fileName made safe (files.js).
- * The host's onExport sees every file before the download and may take it over by returning false.
+ * Export of the report from its Export menu: the work is in export-run.js, which loads with the menus
+ * (menus.js), so the first load of a page stays small; the menus are there before a menu opens.
+ *
+ * A copy must reach the clipboard inside the click: Safari refuses a write after an await. So when the
+ * menus and the export module are loaded (the Export menu and the drill-down start loading the export
+ * when they open), the whole way from the click to navigator.clipboard.writeText runs without an
+ * await. Only when a module is still loading is there a wait first; if the browser then refuses the
+ * copy, the note says so ("This page does not allow copying. Download a file instead.").
  */
 
-import { toGrid } from "pivotkit-core";
-import { dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
+import { loadMenus, menusNow } from "./lazy-menus.jsx";
 import { fill, messageOf } from "./labels.js";
 
-const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
 /**
- * Hands the file to the host's onExport, then downloads it unless onExport returned false.
- * @returns {boolean} whether the report downloaded it
- * @param {Blob} blob
- * @param {{ kind: "xlsx" | "csv" | "png", file: string, doc: Document, onExport?: (file: { kind: "xlsx" | "csv" | "png" | "json", fileName: string, blob: Blob }) => unknown }} options
+ * @param {import("./export-run.js").ExportContext} context
+ * @returns {(kind: "xlsx" | "csv" | "png" | "copy-table" | "copy-json") => Promise<void>}
  */
-function deliver(blob, { kind, file, doc, onExport }) {
-    if (onExport?.({ kind, fileName: file, blob }) === false) {
-        return false;
-    }
-    saveBlob(blob, file, doc);
-    return true;
-}
-
-/**
- * @param {{ fileName: string, result: import("pivotkit-core").PivotResult | null, locale: string,
- *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
- *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
- *   onExport?: (file: { kind: "xlsx" | "csv" | "png" | "json", fileName: string, blob: Blob }) => unknown }} options
- * @returns {(kind: "xlsx" | "csv" | "png") => Promise<void>}
- */
-export function useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport }) {
+export function useExport(context) {
     return async (kind) => {
-        const base = safeFileName(fileName);
-        const file = `${base}.${kind}`;
-        const doc = root.current?.ownerDocument ?? document;
         try {
-            /** @type {boolean} */
-            let downloaded;
-            if (kind === "png") {
-                const surface = root.current ? getComputedStyle(root.current).getPropertyValue("--pk-surface").trim() : "";
-                const url = chartRef.current?.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: surface || undefined });
-                if (!url) {
-                    return;
-                }
-                downloaded = deliver(dataUrlToBlob(url), { kind, file, doc, onExport });
-            } else {
-                if (!result) {
-                    return;
-                }
-                const { toXlsx, toCsvBytes } = await import("pivotkit-core/export");
-                const grid = toGrid(result, { locale, labels: labels.core, limits });
-                const bytes = kind === "xlsx" ? toXlsx(grid, { sheetName: base }) : toCsvBytes(grid, { bom: true });
-                downloaded = deliver(new Blob([/** @type {BlobPart} */ (bytes)], { type: kind === "xlsx" ? XLSX_TYPE : "text/csv;charset=utf-8" }), { kind, file, doc, onExport });
-            }
-            // the host that kept the file says itself what became of it
-            if (downloaded) {
-                announce(fill(labels.toastExported, { file }));
-            }
+            // loaded: no await before the copy (see above)
+            const menus = menusNow() ?? (await loadMenus());
+            await menus.runExport(kind, context);
         } catch (e) {
-            announce(fill(labels.toastExportFailed, { message: messageOf(e) }), { tone: "error" });
+            // the menus could not load (runExport says itself what went wrong in an export)
+            context.announce(fill(context.labels.toastExportFailed, { message: messageOf(e) }), { tone: "error" });
         }
     };
 }
+
+/** Starts loading the export module when a menu that copies opens: a copy right in the click is allowed everywhere. */
+export const prepareExporters = () => void loadMenus().then((m) => m.prepareExporters(), () => undefined);

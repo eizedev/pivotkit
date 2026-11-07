@@ -42,6 +42,27 @@ First release.
   `onSaveTemplate` wins. The texts of save and delete (`toastSaved`, `toastDeleted`,
   `toastSaveFailed`, `toastDeleteFailed`, `toastSaveRejected`, `toastDeleteRejected`) load with the
   menus, as does the browser store with pivotkit-core/templates, so the first load stays small.
+- The drill-down panel: Enlarge fills the report with it (Reduce or Escape brings it back, a second
+  Escape closes it; the focus stays on the button; not on a narrow report, not part of the view),
+  columns as wide as their content with a long text wrapping, and an Export menu: Copy (the rows as
+  shown, tab-separated with a header row, for a spreadsheet), Copy as JSON (field names and raw
+  values), Download CSV and Download Excel (pivotkit-core's rows exporters, the panel's formats, named
+  after the cell: "Central – Jul 2026"). With more rows behind the value than `drillDownLimit`, every
+  export holds the rows shown, and the menu and the note say so ("Copied 1,000 of 4,212 rows").
+- Export, Copy table (the table as shown, tab-separated, headers and totals) and Copy data as JSON
+  (pivotkit-core's `toJson`: header texts, labels and raw values; not the view, which Views, Copy view
+  as JSON copies); a page that does not allow copying gets a note. `onExport` gets every copy too:
+  kinds `copy-table`, `copy-json`, `drill-copy`, `drill-json`, `drill-csv`, `drill-xlsx`, with `text`
+  for a copy and `rows: { shown, count }` for a drill-down export; returning false keeps it from the
+  clipboard or the download. The Export menu and its texts load with the menus; the export module
+  starts loading when the Export menu or the drill-down opens, so a copy happens in the click.
+- The filter and the chip menus (a scrolling middle, a foot that stays in view) may cover their anchor
+  when they fit neither below nor above it: placed against the window's edge, as tall as the window
+  allows (`fill` of the popover); every other popover stays next to its anchor and scrolls. The
+  filter is a column with a scrolling middle (values and condition, the list of values giving way
+  first), its head and Apply and Cancel always in view.
+- Enlarge of the result and of the drill-down: the name says what a click does (Enlarge, Reduce), so
+  the button is no toggle (no `aria-pressed`); the highlight shows the state.
 - Sort by value and Top N by any value that gives numbers: the sort section lists "Largest … first"
   and "Smallest … first" for each such value, Top N has a "by" select; the first value is the
   default. A value condition on a row or column field ("Value filter…" in the Filters section of its

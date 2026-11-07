@@ -81,6 +81,28 @@ const SHOTS = [
             await page.getByTestId("drill-panel").waitFor();
         }
     },
+    {
+        // the drill-down enlarged, its Export menu open
+        name: "drill-export",
+        query: "data=tickets&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.locator('[data-testid="pivot-table"] td.pk-clickable').last().click();
+            await page.getByTestId("drill-panel").waitFor();
+            await page.getByTestId("drill-enlarge").click();
+            await page.getByTestId("drill-export").click();
+            await page.getByTestId("drill-copy").waitFor();
+        }
+    },
+    {
+        name: "export-menu",
+        query: "data=tickets&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("export").click();
+            await page.getByTestId("export-copy-table").waitFor();
+        }
+    },
     { name: "chart", query: "data=sales&preset=1&theme=dark", size: WIDE },
     {
         // the report as a host gives it on a phone: its own height, the page scrolled to it
