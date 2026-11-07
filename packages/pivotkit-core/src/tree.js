@@ -99,16 +99,19 @@ export function buildTree(columns, rows, limit = { max: Infinity, used: 0 }) {
     checkLimit("groups", limit.used + 1 + paths.length, limit.max, "groups");
     const root = makeNode(0, 0, -2, null, null);
     const nodes = [root];
-    // children by code, per inner node (leaves get none)
-    /** @type {Array<Map<number, PivotNode>>} */
-    const childMaps = [];
+    // every child of the tree in one map, keyed by its parent and its code: a map per node would
+    // cost more than the node itself. A number while parent id x radix stays exact, else a string.
+    const radix = Math.max(1, ...columns.map((c) => c.dict.length + 1));
+    const numericKeys = (Number.isFinite(limit.max) ? limit.max : rows.length * columns.length + 1) * radix < 2 ** 53;
+    /** @type {Map<number | string, PivotNode>} */
+    const childOf = new Map();
     const leafOfGroup = new Array(paths.length);
     paths.forEach((path, g) => {
         let node = root;
         for (let level = 0; level < path.length; level++) {
             const code = path[level];
-            const map = (childMaps[node.id] ??= new Map());
-            let child = map.get(code);
+            const slot = numericKeys ? node.id * radix + code + 1 : `${node.id},${code}`;
+            let child = childOf.get(slot);
             if (child === undefined) {
                 if (limit.used + nodes.length >= limit.max) {
                     checkLimit("groups", limit.used + nodes.length + 1, limit.max, "groups");
@@ -116,7 +119,7 @@ export function buildTree(columns, rows, limit = { max: Infinity, used: 0 }) {
                 const key = code === -1 ? null : columns[level].dict[code];
                 child = makeNode(nodes.length, level + 1, code, key, node);
                 nodes.push(child);
-                map.set(code, child);
+                childOf.set(slot, child);
                 node.children.push(child);
             }
             node = child;

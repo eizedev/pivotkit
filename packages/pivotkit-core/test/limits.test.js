@@ -50,9 +50,12 @@ test("a hostile view of many high-cardinality fields is refused quickly, with bo
     const before = process.memoryUsage().heapUsed;
     const t0 = performance.now();
     // without the limits this builds 800,000 nodes and 4 million cells (gigabytes) and returns
-    assert.throws(() => computePivot(data, view), isError("LIMIT_EXCEEDED"));
+    assert.throws(() => computePivot(data, view), isError("LIMIT_EXCEEDED", "groups"));
     assert.ok(performance.now() - t0 < 3000, `${Math.round(performance.now() - t0)} ms`);
-    assert.ok(process.memoryUsage().heapUsed - before < 300e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
+    // up to the 500,000 nodes the limit allows (about 200 MB of trees) plus what the build leaves to
+    // the garbage collector, which runs when it likes (about 260 MB in Node 26, 350 MB measured in CI
+    // with coverage before the trees shared one child map)
+    assert.ok(process.memoryUsage().heapUsed - before < 400e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
 });
 
 test("computePivot counts groups and cells against options.limits", () => {
