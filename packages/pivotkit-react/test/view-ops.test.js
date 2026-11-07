@@ -5,7 +5,7 @@ import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
     binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding,
-    setValueFilter, measureChoices, numericResult, sameRef
+    setValueFilter, measureChoices, numericResult, sameRef, withMeasure
 } from "../src/view-ops.js";
 import { filterText, refLabel, valueConditionText } from "../src/names.js";
 import { LABELS } from "../src/labels.js";
@@ -342,6 +342,48 @@ test("a value condition: set, changed, removed; it keeps the field's other filte
     // Remove filter takes it with the item filter; Clear takes it alone
     assert.deepEqual(removeFilters(v, "Region").filters, []);
     assert.deepEqual(setValueFilter(v, "Region", null).filters.map((f) => f.type), ["exclude"]);
+});
+
+test("editing one value condition or top N keeps the field's other ones of that type", () => {
+    const units = { field: "Units", agg: "sum" };
+    const v = norm({
+        rows: ["Region"],
+        values: [units],
+        filters: [
+            { field: "Region", type: "value", op: ">", value: 1, by: units },
+            { field: "Region", type: "value", op: "<", value: 9, by: units },
+            { field: "Region", type: "top", count: 2, by: units },
+            { field: "Region", type: "top", count: 1, bottom: true, by: units }
+        ]
+    });
+    const [first, second] = v.filters.filter((f) => f.type === "value");
+    const edited = setValueFilter(v, "Region", { by: units, op: ">=", value: 2 }, first);
+    assert.deepEqual(edited.filters.filter((f) => f.type === "value").map((f) => [f.op, f.value]), [[">=", 2], ["<", 9]]);
+    const cleared = setValueFilter(v, "Region", null, first);
+    assert.deepEqual(cleared.filters.filter((f) => f.type === "value"), [second]);
+    const [top] = v.filters.filter((f) => f.type === "top");
+    const topEdited = setTopFilter(v, "Region", { count: 5, bottom: false, by: units }, top);
+    assert.deepEqual(topEdited.filters.filter((f) => f.type === "top").map((f) => [f.count, f.bottom]), [[5, false], [1, true]]);
+    // a new one, without a previous entry, goes after the field's filters
+    const added = setValueFilter(norm({ rows: ["Region"], values: [units] }), "Region", { by: units, op: ">", value: 0 }, undefined);
+    assert.equal(added.filters.length, 1);
+    // the last filter of a field in the Filters zone leaves it there, filtering nothing
+    let z = addField(norm({ values: [units] }), "Product", "filters");
+    z = norm(setValueFilter(z, "Product", { by: units, op: ">", value: 0 }));
+    assert.deepEqual(setValueFilter(z, "Product", null, z.filters.find((f) => f.type === "value")).filters, [{ field: "Product", type: "exclude", items: [] }]);
+});
+
+test("a measure the view no longer shows stays a choice, so applying again keeps it", () => {
+    const choices = [{ field: "Units", agg: "sum" }];
+    assert.equal(withMeasure(choices, { field: "units", agg: "sum" }), choices);
+    assert.deepEqual(withMeasure(choices, { field: "Units", agg: "max" }), [...choices, { field: "Units", agg: "max" }]);
+    assert.equal(withMeasure(choices, null), choices);
+});
+
+test("between is written with the smaller number first, as the engine compares", () => {
+    const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
+    assert.equal(valueConditionText(v, { op: "between", value: 10, value2: 2 }, LABELS.en, "en-US"), "Sum of Units between 2 and 10");
+    assert.equal(valueConditionText(v, { op: "notBetween", value: 1000.5, value2: -3 }, LABELS.de, "de-DE"), "Summe von Units nicht zwischen -3 und 1.000,5");
 });
 
 test("the measures to sort, rank and filter by: each value that gives numbers, once, the row count without one", () => {

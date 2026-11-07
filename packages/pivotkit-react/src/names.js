@@ -58,7 +58,9 @@ export function valueConditionText(view, f, labels, locale) {
     const number = (x) => (typeof x === "number" ? x.toLocaleString(locale, { maximumFractionDigits: 6 }) : "");
     const value = refLabel(view, f.by ?? (view.values?.[0] ? { field: view.values[0].field ?? null, agg: view.values[0].agg } : null), labels);
     if (f.op === "between" || f.op === "notBetween") {
-        return fill(labels.valueConditions[f.op], { value, from: number(f.value), to: number(f.value2) });
+        // the engine compares with the smaller number first; so does the text
+        const [from, to] = typeof f.value2 === "number" && f.value2 < f.value ? [f.value2, f.value] : [f.value, f.value2];
+        return fill(labels.valueConditions[f.op], { value, from: number(from), to: number(to) });
     }
     return fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op, number: number(f.value) });
 }

@@ -11,9 +11,10 @@ import { CATALOG, aggregatorsFor, fieldLabel, isFormat } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { FieldDescription } from "./info.jsx";
 import { fill } from "./labels.js";
+import { numberText, parseNumber } from "./numbers.js";
 import { filterText, groupingName, refLabel, valueLabel } from "./names.js";
 import { Option, Section } from "./popover.jsx";
-import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
 
 /** The formats the value menu offers; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "integer", "currency", "percent", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
@@ -32,43 +33,99 @@ function More({ title, open, children }) {
 }
 
 /**
+ * A number typed into a menu, read in the report's locale (numbers.js). `kind` says what it must be:
+ * "number" any number, "size" above 0, "count" a whole number of 1 or more. The problem shows while
+ * the text is not such a number, and for an empty required field once Apply was pressed.
+ * @param {string} text
+ * @param {{ kind?: "number" | "size" | "count", required?: boolean, tried?: boolean, labels: any, locale: string }} options
+ * @returns {{ value: number | null, problem: string | null }}
+ */
+function readNumber(text, { kind = "number", required = true, tried = false, labels, locale }) {
+    const value = parseNumber(text, locale);
+    const ok = value !== null && (kind === "number" || (kind === "size" ? value > 0 : Number.isInteger(value) && value >= 1));
+    const say = () => (kind === "count" ? labels.countInvalid : fill(kind === "size" ? labels.sizeInvalid : labels.numberInvalid, { example: (kind === "size" ? 0.5 : 1234.5).toLocaleString(locale) }));
+    if (text.trim() === "") {
+        return { value: null, problem: required && tried ? say() : null };
+    }
+    return ok ? { value, problem: null } : { value: null, problem: say() };
+}
+
+/**
+ * The text field of a number: a text input for the locale's own way of writing numbers (a number
+ * input would read "1.000,5" by the browser's rules, not the report's), its problem under it.
+ * @param {{ value: string, onChange: (text: string) => void, problem: string | null, label: string,
+ *   testId: string, className?: string, shown?: string, shownClass?: string }} props
+ */
+function NumberField({ value, onChange, problem, label, testId, className = "pk-field-label", shown, shownClass }) {
+    const id = useId();
+    return (
+        <>
+            <label className={className}>
+                {shown ? <span className={shownClass}>{shown}</span> : <span className="pk-sr">{label}</span>}
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    aria-label={label}
+                    aria-invalid={problem ? true : undefined}
+                    aria-describedby={problem ? id : undefined}
+                    data-testid={testId}
+                />
+            </label>
+            {problem ? (
+                <p id={id} className="pk-form-problem" data-testid={`${testId}-problem`}>
+                    {problem}
+                </p>
+            ) : null}
+        </>
+    );
+}
+
+/**
  * Number ranges: their size and where they start (Excel's "Starting at"). An empty start is 0, as its placeholder says; a start whose ranges
  * could not hold the field's numbers (`range`, see binProblem) is refused with a note under the input.
  */
 function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
-    const [size, setSize] = useState(String(grouping?.size ?? ""));
-    const [start, setStart] = useState(String(grouping?.origin ?? ""));
+    const [size, setSize] = useState(numberText(grouping?.size, locale));
+    const [start, setStart] = useState(numberText(grouping?.origin, locale));
+    const [tried, setTried] = useState(false);
     const problemId = useId();
-    const n = Number(size);
-    const s = start.trim() === "" ? 0 : Number(start);
-    const sizeOk = size.trim() !== "" && Number.isFinite(n) && n > 0;
-    const far = sizeOk && Number.isFinite(s) && binProblem(n, s, range) === "far";
-    const ok = sizeOk && Number.isFinite(s) && !far;
+    const sized = readNumber(size, { kind: "size", tried, labels, locale });
+    const started = readNumber(start, { required: false, labels, locale });
+    const n = sized.value;
+    const s = start.trim() === "" ? 0 : started.value;
+    const far = n !== null && s !== null && binProblem(n, s, range) === "far";
     const number = (x) => x.toLocaleString(locale, { maximumFractionDigits: 6 });
     return (
         <form
             className="pk-inline-form pk-bin-form"
             onSubmit={(e) => {
                 e.preventDefault();
-                if (ok) {
+                setTried(true);
+                if (n !== null && s !== null && !far) {
                     onApply(n, s);
                 }
             }}
         >
-            <label className="pk-field-label">
-                <span>{labels.binSize}</span>
-                <input type="number" inputMode="decimal" step="any" value={size} onChange={(e) => setSize(e.target.value)} data-testid="bin-size" />
-            </label>
+            <NumberField value={size} onChange={setSize} problem={sized.problem} label={labels.binSize} shown={labels.binSize} testId="bin-size" />
             <label className="pk-field-label">
                 <span>{labels.binStart}</span>
-                <ClearInput type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={setStart} clearLabel={labels.clearText} data-testid="bin-start" aria-invalid={far || undefined} aria-describedby={far ? problemId : undefined} />
+                <ClearInput type="text" inputMode="decimal" autoComplete="off" spellCheck={false} value={start} placeholder="0" onChange={setStart} clearLabel={labels.clearText} data-testid="bin-start" aria-invalid={far || started.problem ? true : undefined} aria-describedby={far || started.problem ? problemId : undefined} />
             </label>
-            {far && range ? (
+            {started.problem ? (
+                <p id={problemId} className="pk-form-problem" data-testid="bin-start-problem">
+                    {started.problem}
+                </p>
+            ) : far && range && s !== null && n !== null ? (
                 <p id={problemId} className="pk-form-problem" data-testid="bin-problem">
                     {fill(labels.binStartFar, { start: number(s), min: number(range.min), max: number(range.max) })}
                 </p>
             ) : null}
-            <button type="submit" className="pk-btn pk-primary" disabled={!ok}>
+            {/* a start the ranges cannot hold has its note; Apply waits for another start */}
+            <button type="submit" className="pk-btn pk-primary" disabled={far}>
                 {labels.apply}
             </button>
             {onClear ? (
@@ -107,52 +164,57 @@ function MeasurePick({ choices, names, index, onChange, label, prefix, testId })
 /** The index of a reference in the choices; the first (the default) when it is not there. */
 const choiceIndex = (choices, ref) => Math.max(0, choices.findIndex((c) => sameRef(c, ref)));
 
-function TopForm({ top, labels, choices, names, onApply }) {
-    const [count, setCount] = useState(String(top?.count ?? 10));
+function TopForm({ top, labels, choices, names, onApply, locale }) {
+    const [count, setCount] = useState(numberText(top?.count ?? 10, locale));
     const [bottom, setBottom] = useState(Boolean(top?.bottom));
     const [by, setBy] = useState(() => choiceIndex(choices, top?.by));
-    const n = Number(count);
-    const ok = Number.isInteger(n) && n > 0;
+    const [tried, setTried] = useState(false);
+    const counted = readNumber(count, { kind: "count", tried, labels, locale });
     return (
-        <form className="pk-inline-form" onSubmit={(e) => { e.preventDefault(); if (ok) onApply({ count: n, bottom, by: choices[by] }); }}>
+        <form
+            className="pk-inline-form"
+            onSubmit={(e) => {
+                e.preventDefault();
+                setTried(true);
+                if (counted.value !== null) {
+                    onApply({ count: counted.value, bottom, by: choices[by] });
+                }
+            }}
+        >
             <div className="pk-segmented pk-small" role="group" aria-label={labels.topN}>
                 <button type="button" aria-pressed={!bottom} onClick={() => setBottom(false)}>{labels.top}</button>
                 <button type="button" aria-pressed={bottom} onClick={() => setBottom(true)}>{labels.bottom}</button>
             </div>
-            <label className="pk-field-label pk-narrow-input">
-                <span className="pk-sr">{labels.topCount}</span>
-                <input type="number" min="1" step="1" value={count} onChange={(e) => setCount(e.target.value)} aria-label={labels.topCount} data-testid="top-count" />
-            </label>
+            <NumberField value={count} onChange={setCount} problem={counted.problem} label={labels.topCount} testId="top-count" className="pk-field-label pk-narrow-input" />
             <MeasurePick choices={choices} names={names} index={by} onChange={setBy} label={labels.topBy} prefix={labels.topBy} testId="top-by" />
-            <button type="submit" className="pk-btn pk-primary" disabled={!ok}>{labels.apply}</button>
+            <button type="submit" className="pk-btn pk-primary">{labels.apply}</button>
             {top ? <button type="button" className="pk-btn" onClick={() => onApply(null)}>{labels.clear}</button> : null}
         </form>
     );
 }
 
-/** A number typed into a form: a finite number, or null for an empty or wrong entry. */
-const typedNumber = (text) => (text.trim() === "" ? null : Number.isFinite(Number(text)) ? Number(text) : null);
-
 /**
  * A value condition on a field ("Sum of Revenue greater than 1000"): the value it goes by, an operator
  * of pivotkit-core's CATALOG.valueOps and one number, or two for between.
  */
-function ValueFilterForm({ condition, labels, choices, names, onApply }) {
+function ValueFilterForm({ condition, labels, choices, names, onApply, locale }) {
     const [by, setBy] = useState(() => choiceIndex(choices, condition?.by));
     const [op, setOp] = useState(condition?.op ?? ">");
-    const [first, setFirst] = useState(condition ? String(condition.value) : "");
-    const [second, setSecond] = useState(condition?.value2 !== undefined ? String(condition.value2) : "");
+    const [first, setFirst] = useState(numberText(condition?.value, locale));
+    const [second, setSecond] = useState(numberText(condition?.value2, locale));
+    const [tried, setTried] = useState(false);
     const between = op === "between" || op === "notBetween";
-    const a = typedNumber(first);
-    const b = typedNumber(second);
-    const ok = a !== null && (!between || b !== null);
+    const a = readNumber(first, { tried, labels, locale });
+    const b = readNumber(second, { tried, labels, locale });
+    const ok = a.value !== null && (!between || b.value !== null);
     return (
         <form
             className="pk-inline-form pk-value-filter"
             onSubmit={(e) => {
                 e.preventDefault();
+                setTried(true);
                 if (ok) {
-                    onApply({ by: choices[by], op, value: /** @type {number} */ (a), ...(between ? { value2: /** @type {number} */ (b) } : {}) });
+                    onApply({ by: choices[by], op, value: /** @type {number} */ (a.value), ...(between ? { value2: /** @type {number} */ (b.value) } : {}) });
                 }
             }}
         >
@@ -167,17 +229,11 @@ function ValueFilterForm({ condition, labels, choices, names, onApply }) {
                     ))}
                 </select>
             </label>
-            <label className="pk-field-label pk-narrow-input">
-                <span className="pk-sr">{labels.valueFilterNumber}</span>
-                <input type="number" inputMode="decimal" step="any" value={first} onChange={(e) => setFirst(e.target.value)} aria-label={labels.valueFilterNumber} data-testid="value-filter-number" />
-            </label>
+            <NumberField value={first} onChange={setFirst} problem={a.problem} label={labels.valueFilterNumber} testId="value-filter-number" className="pk-field-label pk-narrow-input" />
             {between ? (
-                <label className="pk-field-label pk-narrow-input">
-                    <span className="pk-muted">{labels.valueFilterTo}</span>
-                    <input type="number" inputMode="decimal" step="any" value={second} onChange={(e) => setSecond(e.target.value)} aria-label={`${labels.valueFilterTo} ${labels.valueFilterNumber}`} data-testid="value-filter-number2" />
-                </label>
+                <NumberField value={second} onChange={setSecond} problem={b.problem} label={`${labels.valueFilterTo} ${labels.valueFilterNumber}`} shown={labels.valueFilterTo} shownClass="pk-muted" testId="value-filter-number2" className="pk-field-label pk-narrow-input" />
             ) : null}
-            <button type="submit" className="pk-btn pk-primary" disabled={!ok} data-testid="value-filter-apply">{labels.apply}</button>
+            <button type="submit" className="pk-btn pk-primary" data-testid="value-filter-apply">{labels.apply}</button>
             {condition ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="value-filter-clear">{labels.clear}</button> : null}
         </form>
     );
@@ -216,10 +272,17 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     const grouping = groupingOf(view, field);
     const sort = sortOf(view, field);
     // the values a sort, a top N or a value condition can go by; the first is the default
-    const choices = measureChoices(view, (f) => types.get(f.toLowerCase()));
-    const names = choices.map((c) => refLabel(view, c, labels));
+    const shown = measureChoices(view, (f) => types.get(f.toLowerCase()));
     const top = filtersOf(view, field, ["top"])[0];
     const condition = filtersOf(view, field, ["value"])[0];
+    // a measure that is not among the values any more stays a choice of what goes by it
+    const pick = (ref) => {
+        const list = withMeasure(shown, ref);
+        return { choices: list, names: list.map((c) => refLabel(view, c, labels)) };
+    };
+    const { choices, names } = pick(sort?.by === "value" ? sort.value : null);
+    const topPick = pick(top?.by);
+    const conditionPick = pick(condition?.by);
     const isSort = (by, order, ref) => (sort ? sort.by === by && sort.order === order && (by !== "value" || sameRef(sort.value, ref)) : by === "label" && order === "asc");
     // the custom order of the view, else the host's for the field (fieldDefaults.order); a grouped
     // field has items of its own
@@ -275,7 +338,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     </Section>
                 ) : null}
                 <Section title={labels.topN}>
-                    <TopForm top={top} labels={labels} choices={choices} names={names} onApply={(t) => { close(); commit(setTopFilter(view, field, t), { step: "top", field: name }); }} />
+                    <TopForm top={top} labels={labels} choices={topPick.choices} names={topPick.names} locale={locale} onApply={(t) => { close(); commit(setTopFilter(view, field, t, top), { step: "top", field: name }); }} />
                 </Section>
                 <Section title={labels.zones.filters}>
                     {/* a filter says what it keeps, in the accent colour, and can go right below */}
@@ -295,7 +358,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     )}
                     {/* a condition on a value of the field's items: "Sum of Revenue greater than 1000" */}
                     <More title={labels.valueFilter} open={Boolean(condition)}>
-                        <ValueFilterForm condition={condition} labels={labels} choices={choices} names={names} onApply={(c) => { close(); commit(setValueFilter(view, field, c), { step: "filter", field: name }); }} />
+                        <ValueFilterForm condition={condition} labels={labels} choices={conditionPick.choices} names={conditionPick.names} locale={locale} onApply={(c) => { close(); commit(setValueFilter(view, field, c, condition), { step: "filter", field: name }); }} />
                     </More>
                 </Section>
                 <MoveSection view={view} zone={zone} index={index} count={view[zone].length} labels={labels} commit={commit} close={close} text={name} type={sourceType} />

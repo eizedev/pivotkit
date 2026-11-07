@@ -96,11 +96,23 @@ ticked, the field has no item filter at all.
 A **value condition** (`value` filter) is in the menu of a row or column field, under **Value
 filter…**: the value it compares (a select when the view has several values that give numbers, the
 first one chosen), an operator (equals, does not equal, greater than, greater than or equal to, less
-than, less than or equal to, between, not between) and a number, two for between. Apply sets it,
-**Clear** removes it, and changing it replaces it; it is one undo step either way. The chip shows it in
+than, less than or equal to, between, not between) and a number, two for between. The number is
+compared with the value's aggregated result as the engine computes it - the sum, the count, the
+average - not with a "show values as" percentage and not with what its format shows: for "Revenue as
+% of grand total", 0.25 is no condition on 25 %, 1000 is one on the sum of revenue. Between keeps
+the items from the smaller to the larger number, in whatever order they were typed, and the chip
+writes the smaller one first. Apply sets it, **Clear** removes it, and changing it replaces it; it is
+one undo step either way. A view may hold more than one value condition or top N for a field (from a
+link, say): the menu edits the first one and leaves the others as they are. A condition whose value
+is no longer among the report's values keeps it: the form offers it next to the values, chosen. The chip shows it in
 short, "Sum of Revenue > 1,000" (a long one ends in "…"; its whole text is in the chip's name for screen
 readers and in its tooltip), and so does the menu: "Filter: Sum of Revenue > 1,000". **Remove filter**
 in the menu removes it together with the item list and the text condition; Top N stays.
+
+Numbers are typed as the report's language writes them: "1.000,5" or "1000,5" in German, "1,000.5"
+in English; a plain number with a point ("1000.5") is read in every language. Something else is no
+number, and the field says so under it ("Enter a number, such as 1,234.5.") instead of guessing;
+the same goes for the count of Top N and the size and start of number ranges.
 
 **Show only the top items** in the same menu is the `top` filter: Top or Bottom, a count, and "by" the
 value it ranks by (a select when the view has several values that give numbers; the first value is

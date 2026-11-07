@@ -447,6 +447,35 @@ function replaceFilters(view, field, types, entries) {
 }
 
 /**
+ * Replaces one filter of a field, `previous` (a filter of the view, matched by its content), with
+ * `entry`, or removes it when `entry` is null; without `previous` the entry is added after the field's
+ * other filters. The field's other filters, also others of the same type, stay as they are.
+ */
+function replaceFilter(view, field, previous, entry) {
+    const next = clone(view);
+    const key = previous ? JSON.stringify(previous) : null;
+    const at = key === null ? -1 : next.filters.findIndex((f) => same(f.field, field) && JSON.stringify(f) === key);
+    if (at === -1) {
+        if (!entry) {
+            return next;
+        }
+        const last = next.filters.map((f) => same(f.field, field)).lastIndexOf(true);
+        next.filters.splice(last + 1, 0, entry);
+        return next;
+    }
+    if (entry) {
+        next.filters[at] = entry;
+    } else {
+        next.filters.splice(at, 1);
+        // a field in the Filters zone stays there with an empty filter when its last filter goes
+        if (!axisOf(next, field) && filterZoneFields(view).some((f) => same(f, field)) && !next.filters.some((f) => same(f.field, field))) {
+            next.filters.splice(at, 0, { field, type: "exclude", items: [] });
+        }
+    }
+    return next;
+}
+
+/**
  * The item filter of a field from the selected values: everything selected removes it; otherwise the
  * values not selected are excluded, so values that appear in newer data are shown, as in Excel.
  * @param {any} view
@@ -475,25 +504,41 @@ export function setLabelFilter(view, field, condition) {
     return replaceFilters(view, field, ["label"], condition && condition.value !== "" ? [{ field, type: "label", op: condition.op, value: condition.value }] : []);
 }
 
-/** Top or bottom N items of a field by a value ({ count, bottom, by }), or null to remove it. */
-export function setTopFilter(view, field, top) {
-    return replaceFilters(view, field, ["top"], top ? [{ field, type: "top", count: top.count, bottom: Boolean(top.bottom), ...(top.by ? { by: top.by } : {}) }] : []);
+/**
+ * Top or bottom N items of a field by a value ({ count, bottom, by }), or null to remove it. `previous`
+ * is the top filter being edited (the view's own entry); without it the field's top filters are
+ * replaced. Another top filter of the field (a view may hold two) stays.
+ */
+export function setTopFilter(view, field, top, previous) {
+    const entry = top ? { field, type: "top", count: top.count, bottom: Boolean(top.bottom), ...(top.by ? { by: top.by } : {}) } : null;
+    if (previous) {
+        return replaceFilter(view, field, previous, entry);
+    }
+    return replaceFilters(view, field, ["top"], entry ? [entry] : []);
 }
 
 /**
  * A value condition on a field ({ by, op, value, value2 }, pivotkit-core's `value` filter: "Sum of
- * Revenue greater than 1000"), or null to remove it. The field keeps its other filters.
+ * Revenue greater than 1000"), or null to remove it. `previous` is the condition being edited (the
+ * view's own entry): only that one is replaced or removed; without it every value condition of the
+ * field is. The field keeps its other filters.
  * @param {any} view
  * @param {string} field
  * @param {{ by: { field: string | null, agg: string }, op: string, value: number, value2?: number } | null} condition
+ * @param {object} [previous]
  */
-export function setValueFilter(view, field, condition) {
-    if (!condition) {
-        return replaceFilters(view, field, ["value"], []);
+export function setValueFilter(view, field, condition, previous) {
+    /** @type {object | null} */
+    let entry = null;
+    if (condition) {
+        const { by, op, value, value2 } = condition;
+        const between = op === "between" || op === "notBetween";
+        entry = { field, type: "value", by: { field: by.field, agg: by.agg }, op, value, ...(between ? { value2 } : {}) };
     }
-    const { by, op, value, value2 } = condition;
-    const between = op === "between" || op === "notBetween";
-    return replaceFilters(view, field, ["value"], [{ field, type: "value", by: { field: by.field, agg: by.agg }, op, value, ...(between ? { value2 } : {}) }]);
+    if (previous) {
+        return replaceFilter(view, field, previous, entry);
+    }
+    return replaceFilters(view, field, ["value"], entry ? [entry] : []);
 }
 
 /**
@@ -505,6 +550,17 @@ export function setValueFilter(view, field, condition) {
  */
 export function numericResult(spec, type) {
     return spec.agg !== "listUnique" && !(["first", "last"].includes(spec.agg) && type !== "number") && !(type === "date" && ["average", "median", "min", "max"].includes(spec.agg));
+}
+
+/**
+ * The measures to choose from with `ref` among them: a sort, a top N or a condition may go by a
+ * measure the view no longer shows (its value was removed); it stays a choice, so applying the form
+ * again keeps it.
+ * @param {Array<{ field: string | null, agg: string }>} choices
+ * @param {{ field: string | null, agg: string } | null | undefined} ref
+ */
+export function withMeasure(choices, ref) {
+    return ref && !choices.some((c) => sameRef(c, ref)) ? [...choices, { field: ref.field ?? null, agg: ref.agg }] : choices;
 }
 
 /** True when two value references ({ field, agg }) name the same measure. */

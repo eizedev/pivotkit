@@ -399,6 +399,9 @@ export const en = {
     },
     // filters
     filterIs: "Filter: {filter}",
+    numberInvalid: "Enter a number, such as {example}.",
+    countInvalid: "Enter a whole number of 1 or more.",
+    sizeInvalid: "Enter a number above 0, such as {example}.",
     valueFilter: "Value filter…",
     valueFilterBy: "Value",
     valueFilterOp: "Condition",
@@ -808,6 +811,9 @@ export const de = {
         file: "Die Datei konnte nicht gelesen werden."
     },
     filterIs: "Filter: {filter}",
+    numberInvalid: "Eine Zahl eingeben, etwa {example}.",
+    countInvalid: "Eine ganze Zahl ab 1 eingeben.",
+    sizeInvalid: "Eine Zahl über 0 eingeben, etwa {example}.",
     valueFilter: "Wertfilter…",
     valueFilterBy: "Wert",
     valueFilterOp: "Bedingung",

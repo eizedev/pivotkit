@@ -17,7 +17,11 @@ First release.
   default. A value condition on a row or column field ("Value filter…" in the Filters section of its
   menu: a value, an operator of `CATALOG.valueOps` and a number, two for between), pivotkit-core's
   `value` filter, shown on the chip and in the menu as "Sum of Revenue > 1,000"; Clear removes it,
-  Remove filter too. Labels `topBy`, `valueFilter`, `valueFilterBy`, `valueFilterOp`,
+  Remove filter too; editing changes only the condition (or top N) being edited, and a measure no
+  longer among the values stays a choice. Numbers in the menus (value condition, Top N, number
+  ranges) are text fields read in the report's locale ("1.000,5" in German, a plain "1000.5"
+  everywhere), with a note under a field that holds no number. Labels `numberInvalid`,
+  `countInvalid`, `sizeInvalid`, `topBy`, `valueFilter`, `valueFilterBy`, `valueFilterOp`,
   `valueFilterNumber`, `valueFilterTo`, `valueOps` and `valueConditions`.
 - Chart display settings in the chart type menu ("Display"): value labels, legend, title, smooth
   lines, axis labels (all straight when they fit, slanted, else every n-th with a note; long names cut

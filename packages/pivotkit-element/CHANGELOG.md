@@ -15,8 +15,8 @@ First release.
 - Attributes `share-link`, `persist-view`, `loading`, `field-info` and `zone-info`, and the property
   `chartOptions`, as pivotkit-react's props; `pivot-export` also for a downloaded view (`kind`
   `"json"`). pivotkit-core's link module is a chunk of its own, loaded on the first link; the size
-  budget of the first load is 152 KiB (149.5 measured with the chart display settings, sharing, the
-  skeleton, the menu changes and the value conditions).
+  budget of the first load is 152 KiB (150.7 measured with the chart display settings, sharing, the
+  skeleton, the menu changes, the value conditions and locale number entry).
 - Attributes `tips` ("on", "off" or a comma-separated list of tip ids) and `storage-key`, the property
   `dismissedTips` and the event `pivot-tip-dismiss` (`{ id, dismissed }`), as pivotkit-react's tips
   props; `fieldDefaults` takes `label`, `description`, `href` and `type`.

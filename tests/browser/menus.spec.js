@@ -2,6 +2,7 @@
 // "Filter…" for a field not placed yet, the sentence on filtering in the Values menu, Expand and
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
+import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
@@ -224,8 +225,15 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await page.getByText("Value filter…").click();
         await page.getByTestId("value-filter-by").selectOption({ label: "Sum of Revenue" });
         await expect(page.getByTestId("value-filter-op")).toHaveValue(">");
-        await expect(page.getByTestId("value-filter-apply")).toBeDisabled();
+        // Apply without a number, or with text that is none, says what is missing
+        await page.getByTestId("value-filter-apply").click();
+        await expect(page.getByTestId("value-filter-number-problem")).toHaveText("Enter a number, such as 1,234.5.");
+        await expect(page.getByTestId("value-filter-number")).toHaveAttribute("aria-invalid", "true");
+        await page.getByTestId("value-filter-number").fill("1000,5");
+        await expect(page.getByTestId("value-filter-number-problem")).toHaveText("Enter a number, such as 1,234.5.");
+        await expect(page.getByTestId("value-filter-number")).toHaveAttribute("aria-describedby", /.+/);
         await page.getByTestId("value-filter-number").fill(String(limit));
+        await expect(page.getByTestId("value-filter-number-problem")).toHaveCount(0);
         await page.getByTestId("value-filter-apply").click();
         const badge = page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="condition-badge"]');
         await expect(badge).toHaveText(`Sum of Revenue > ${shown}`);
@@ -242,17 +250,19 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         // between takes two numbers
         await page.getByTestId("chip-menu-Region").click();
         await page.getByTestId("value-filter-op").selectOption("between");
-        await expect(page.getByTestId("value-filter-apply")).toBeDisabled();
+        await page.getByTestId("value-filter-apply").click();
+        await expect(page.getByTestId("value-filter-number2-problem")).toBeVisible();
         await page.getByTestId("value-filter-number2").fill("0");
         await page.getByTestId("value-filter-apply").click();
-        await expect(badge).toHaveText(`Sum of Revenue between ${shown} and 0`);
+        // the smaller number first, as the engine compares
+        await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
         // Clear takes it away; Undo brings it back
         await page.getByTestId("chip-menu-Region").click();
         await page.getByTestId("value-filter-clear").click();
         await expect(badge).toHaveCount(0);
         await expect.poll(async () => (await regionRows(page)).length).toBe(rows.length);
         await page.getByTestId("undo").click();
-        await expect(badge).toHaveText(`Sum of Revenue between ${shown} and 0`);
+        await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
         // Remove filter takes it too
         await page.getByTestId("chip-menu-Region").click();
         await page.getByTestId("remove-filter").click();
@@ -267,8 +277,47 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await page.getByTestId("chip-menu-Region").click();
         await page.getByText("Wertfilter…").click();
         await page.getByTestId("value-filter-op").selectOption({ label: "größer oder gleich" });
-        await page.getByTestId("value-filter-number").fill("1000.5");
+        // typed as Germans write it, key by key
+        await page.getByTestId("value-filter-number").pressSequentially("1.000,5");
         await page.getByTestId("value-filter-apply").click();
-        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="condition-badge"]')).toHaveText("Summe von Revenue ≥ 1.000,5");
+        const badge = page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="condition-badge"]');
+        await expect(badge).toHaveText("Summe von Revenue ≥ 1.000,5");
+        // the form shows it back in German; a plain point number reads too, an English grouping does not
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByTestId("value-filter-number")).toHaveValue("1000,5");
+        await page.getByTestId("value-filter-number").fill("1,000.5");
+        await expect(page.getByTestId("value-filter-number-problem")).toHaveText("Eine Zahl eingeben, etwa 1.234,5.");
+        await page.getByTestId("value-filter-number").fill("2500.25");
+        await page.getByTestId("value-filter-apply").click();
+        await expect(badge).toHaveText("Summe von Revenue ≥ 2.500,25");
+        // Top N says what a count must be
+        await page.getByTestId("chip-menu-Region").click();
+        await page.getByTestId("top-count").fill("0");
+        await expect(page.getByTestId("top-count-problem")).toHaveText("Eine ganze Zahl ab 1 eingeben.");
+    });
+
+    test("editing the value condition keeps a second one, and a measure no longer shown stays chosen", async ({ page }) => {
+        const view = {
+            rows: ["Region"],
+            values: [{ field: "Units", agg: "sum" }],
+            filters: [
+                { field: "Region", type: "value", op: ">", value: 1, by: { field: "Revenue", agg: "sum" } },
+                { field: "Region", type: "value", op: "<", value: 1e12, by: { field: "Units", agg: "sum" } }
+            ]
+        };
+        await page.goto(`?data=sales&empty#pivot-playground=${encodeViewLink(view)}`);
+        await page.getByTestId("chip-menu-Region").click();
+        // Revenue is no value of the view any more: it is still the chosen measure
+        await expect(page.getByTestId("value-filter-by")).toHaveValue("1");
+        await expect(page.getByTestId("value-filter-by").locator("option:checked")).toHaveText("Sum of Revenue");
+        await page.getByTestId("value-filter-number").fill("2");
+        await page.getByTestId("value-filter-apply").click();
+        // the playground writes the view into its address on every change
+        const conditions = async () => {
+            const text = new URL(page.url()).hash.match(/pivot-playground=([^&]+)/)?.[1] ?? "";
+            const { view: shown } = decodeViewLink(text);
+            return (shown?.filters ?? []).filter((f) => f.type === "value").map((f) => [f.by.field, f.op, f.value]);
+        };
+        await expect.poll(conditions).toEqual([["Revenue", ">", 2], ["Units", "<", 1e12]]);
     });
 });

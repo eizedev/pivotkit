@@ -67,6 +67,8 @@ version is [What pivotkit does](overview.md).
 - The × of the text condition removes it at once; the values chosen stay a draft ([guide](guide.md#filters)).
 - "Filter…" of a field not placed opens its filter at once; Apply places it in Filters, Cancel changes nothing ([guide](guide.md#filters)).
 - A field keeps its filter when it moves between Filters, Rows and Columns ([filters](concepts/filters.md)).
+- Numbers in the menus (value condition, Top N, ranges) are typed as the report's language writes them ("1.000,5" in German), a plain "1000.5" everywhere; anything else gets a note under the field ([filters](concepts/filters.md#filters-in-the-ui)).
+- A value condition compares the raw aggregated value, not a "show as" percentage; between writes the smaller number first ([filters](concepts/filters.md#filters-in-the-ui)).
 - Top or bottom N by a value the user picks (the first one by default), with a notice what it does to totals ([filters](concepts/filters.md#filters-in-the-ui)).
 
 ## Dates
