@@ -2,12 +2,12 @@
 // screen reader hears, the chart's text alternative and hints, file names and labels from a host.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toSeries } from "pivotkit-core";
+import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "../src/chart-summary.js";
 import { MANY_SERIES, MAX_CATEGORIES, pieLabelRoom } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
-import { LABELS, plural, resolveLabels } from "../src/labels.js";
+import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
 
@@ -201,4 +201,31 @@ test("count labels written the old way keep working: one text for every count, n
     assert.equal(plural(l.rowsCount, 1, { lang: "de", locale: "de-DE" }), "1 Datensätze");
     const r = computePivot(encode([{ R: "A", V: 1 }, { R: "B", V: 2 }]), { rows: ["R"], values: [{ field: "V", agg: "sum" }] });
     assert.match(chartSummary(toSeries(r), { type: "bar", rows: ["R"], valueNames: ["Summe von V"], labels: l, locale: "de-DE" }), /\. 2 Kategorien, 1 Reihen\./);
+});
+
+test("a limit of the core is a message in words with what to change, any other error its message", () => {
+    const data = encode(Array.from({ length: 40 }, (_, i) => ({ A: `a${i}`, B: `b${i}` })));
+    const refused = (limits, view = { rows: ["A"], cols: ["B"] }) => {
+        try {
+            toGrid(computePivot(data, view, { limits }), { limits });
+        } catch (e) {
+            return e;
+        }
+        throw new Error("no limit was hit");
+    };
+    assert.equal(errorText(refused({ groups: 50 }), en, "en-US"), fill(en.tooManyGroups, { max: "50" }));
+    assert.equal(errorText(refused({ pivotCells: 100 }), LABELS.de, "de-DE"), fill(LABELS.de.tooManyCells, { max: "100" }));
+    // (2 header rows + 41 body rows) x (1 label column + 41 columns)
+    assert.equal(errorText(refused({ cells: 1000 }), en, "en-US"), "This layout makes 1,806 cells, more than the limit of 1,000. Move a field with many values to Filters, or filter it.");
+    let rows;
+    try {
+        encode([{}, {}, {}], { limits: { rows: 2 } });
+    } catch (e) {
+        rows = e;
+    }
+    assert.equal(errorText(rows, en, "en-US"), "The data has 3 rows, more than the limit of 2.");
+    assert.equal(errorText(new Error("boom"), en, "en-US"), "The report cannot be shown: boom");
+    for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows"]) {
+        assert.equal(typeof LABELS.de[key], "string", key);
+    }
 });

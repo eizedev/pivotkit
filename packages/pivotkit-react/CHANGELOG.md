@@ -51,6 +51,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   zones moves to the folded line. Labels `layout`, `showLayout`, `hideLayout` and `layoutEmpty`.
 - The `label` prop names the report's region landmark (default `labels.report`); several reports on
   one page need one name each.
+- A limit of pivotkit-core in place of the result says which one and what to change: too many
+  rows in the data (`tooManyRows`), too many groups (`tooManyGroups`) or cells with subtotals
+  (`tooManyCells`) in the layout, besides the dense grid's `tooLarge`.
 
 ### Changed
 

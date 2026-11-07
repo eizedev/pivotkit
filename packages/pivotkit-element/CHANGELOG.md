@@ -44,3 +44,5 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   zones stack by their own width, a compact layout below 540 px of height, charts inside their box,
   formatted drill-down rows, plural forms, and a note for a template save the page rejects without a
   message. The first load is 123.5 KiB gzip.
+- pivotkit-core's limits for `computePivot()` and its lower defaults are in the bundle, with a
+  message per limit in place of the result.

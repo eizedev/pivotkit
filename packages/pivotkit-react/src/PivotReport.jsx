@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { PivotkitError, computePivot, encode, findNode, suggestDateUnit, toGrid, viewFields } from "pivotkit-core";
+import { computePivot, encode, findNode, suggestDateUnit, toGrid, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { groupingName, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
@@ -15,7 +15,7 @@ import { DrillPanel } from "./drill-panel.jsx";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { fill, hostFailure, messageOf, plural, resolveLabels } from "./labels.js";
+import { errorText, fill, hostFailure, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { LayerContext } from "./popover.jsx";
 import { PivotTable } from "./table.jsx";
@@ -458,7 +458,6 @@ export function PivotReport(props) {
         }
     };
 
-    const tooLarge = error instanceof PivotkitError && error.code === "LIMIT_EXCEEDED" ? /** @type {{ value: number, max: number }} */ (error.details) : null;
     const layerValue = useMemo(() => ({ layer, size }), [layer, size]);
     const renderOverlay = (src) => (
         <div className="pk-chip pk-overlay">
@@ -602,7 +601,7 @@ export function PivotReport(props) {
                                 {error ? (
                                     <div className="pk-message pk-error" role="alert">
                                         <Icon name="info" />
-                                        <p>{tooLarge ? fill(labels.tooLarge, { value: Number(tooLarge.value).toLocaleString(locale), max: Number(tooLarge.max).toLocaleString(locale) }) : fill(labels.error, { message: messageOf(error) })}</p>
+                                        <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
                                     <EmptyState labels={labels} templates={templates} onTemplate={loadTemplate} />

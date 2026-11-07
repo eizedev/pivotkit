@@ -64,7 +64,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. |
 | `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is). |
 | `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
-| `limits` | | `Partial<Limits>` | | pivotkit-core's limits. |
+| `limits` | | `Partial<Limits>` | | pivotkit-core's limits; a layout or data over them shows a message in place of the result. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
 | `theme` | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
 | `height` | `height` | `number \| string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). |
