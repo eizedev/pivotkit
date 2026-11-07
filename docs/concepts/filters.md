@@ -50,7 +50,8 @@ table ("Country shows the top 5 only: ...").
 ```json
 "sort": [
     { "field": "Region", "by": "label", "order": "asc" },
-    { "field": "Country", "by": "value", "order": "desc", "value": { "field": "Sales", "agg": "sum" } }
+    { "field": "Country", "by": "value", "order": "desc", "value": { "field": "Sales", "agg": "sum" } },
+    { "field": "Season", "by": "custom", "items": ["Spring", "Summer", "Autumn", "Winter"] }
 ]
 ```
 
@@ -60,9 +61,16 @@ Each field on rows or columns is sorted on its own:
   "Item 10"), numbers and dates by value. This is the default. Blank sorts last.
 - `by: "value"` sorts by an aggregated value, `value` naming which one (default: the view's first).
   Items are sorted within their parent group.
+- `by: "custom"` sorts in an order of your own, like Excel's custom lists: the `items` (named as
+  filter items name them) first, in their order, then the field's other items by label. `order:
+  "desc"` reverses both. Blank sorts last unless it is listed (`null`).
 
 In the UI the menu of a row or column field offers "A to Z", "Z to A" (or "Oldest first", "Newest
-first" for dates) and "Largest first", "Smallest first" for each value.
+first" for dates) and "Largest first", "Smallest first" for each value. "Custom order" is offered when
+the view has a custom sort for the field or the host gives the field an order: `fieldDefaults:
+{ Season: { order: ["Spring", "Summer", "Autumn", "Winter"] } }`. A field with such an order is
+sorted in it as soon as it is placed on Rows or Columns, as a `custom` sort in the view, so a saved
+template keeps it.
 
 ## Filters in the UI
 

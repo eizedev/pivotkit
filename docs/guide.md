@@ -46,9 +46,11 @@ the sort.
 - Drag it back to the field list, or press its **x**, to remove it. A note under the table offers Undo.
 - Open its **menu** (the arrow) for everything else.
 
-The menu of a **row or column field** has sort (by label or by a value), date grouping (along the
-time line: year, quarter, month, week, day; or across years: quarter, month, week of the year,
-weekday, hour), number ranges, top or bottom N, filter, and move. Remove is always at the foot.
+The menu of a **row or column field** has sort (by label or by a value, and "Custom order" when the
+field has one, such as the seasons in the order of the year), date grouping (along the time line:
+year, quarter, month, week, day; or across years: quarter, month, week of the year, weekday, hour),
+number ranges (their size and where they start, "Starting at"; a new size keeps the start), top or
+bottom N, filter, and move. Remove is always at the foot.
 
 ## Values
 
@@ -86,7 +88,9 @@ say what it does to totals and percentages ("Country shows the top 5 only: ...")
 - Groups expand and collapse with the arrow next to them; Options has "Expand all" and "Collapse all".
 - Subtotals and grand totals are switched on and off in **Options**.
 - Field names and value names in the header can be dragged into a zone.
-- The table is as wide as its columns and scrolls sideways when it is wider than the report.
+- With one value, its name stands once over all of its columns.
+- The table is as wide as its columns and scrolls sideways when it is wider than the report. Long
+  row labels wrap, so on a phone numbers stay in view next to them.
 
 ## The rows behind a number
 
@@ -94,7 +98,8 @@ say what it does to totals and percentages ("Country shows the top 5 only: ...")
 
 Click a value (or move to it with the arrow keys and press Enter) and a panel shows the rows behind it,
 formatted as the table formats them: dates as dates, numbers in your language, yes/no fields as "Yes"
-and "No". Escape closes it and returns to the value. The panel lists up to 1,000 rows by default.
+and "No". Escape closes it and returns to the value. The panel lists up to 1,000 rows by default. A
+blank cell with no rows behind it opens nothing.
 
 ## The chart
 
@@ -114,7 +119,8 @@ Columns, a hint offers **Swap rows and columns** (also above the Columns zone).
 - **Templates** loads a saved report. When the application allows it, "Save current view" saves yours
   under a name, and your own templates can be deleted.
 - **Export** downloads the table as **Excel** (XLSX) or **CSV**, or the chart as **PNG**. The Excel
-  file keeps the number formats, the merged headers, the bold totals and the highlighting.
+  file keeps the number formats, the merged headers, the bold totals and the highlighting. The CSV
+  writes percentages in percent ("-2.56435492186162%"), so they read as in the table.
 
 Notes such as "Undone: Region removed" or "Exported pivot.xlsx" appear in the status line under the
 table; errors stay until you close them.

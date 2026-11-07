@@ -92,7 +92,8 @@ const presets = [
   passes a key, and the rows are encoded again only when it changes.
 - `templates` fill the Templates menu; `onSaveTemplate` adds "Save current view". Both callbacks may
   return a promise: the report shows "Saved" when it resolves and an error when it rejects.
-- `fieldDefaults` set the aggregator and format a field gets when someone adds it to Values.
+- `fieldDefaults` set the aggregator and format a field gets when someone adds it to Values, and
+  the custom order of its items (`order`) on Rows or Columns.
 - `onCellClick` gets every click on a value or a chart point, with the rows behind it.
 - `locale` sets numbers, dates and sorting, and the language of the labels (`de-*` is German).
 

@@ -25,8 +25,8 @@ Installation and a first example are in [Getting started with React](../getting-
 | `templates` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
 | `onSaveTemplate` | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`).<br><small>Type: `(name, view) => unknown`</small> |
 | `onDeleteTemplate` | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message).<br><small>Type: `(name) => unknown`</small> |
-| `fieldDefaults` | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time.<br><small>Type: `{ [field]: { agg?, format?, drillFormat? } }`</small> |
-| `onCellClick` | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them.<br><small>Type: `({ row, col, value, valueIndex, text, count, rows }) => void`</small> |
+| `fieldDefaults` | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and its menu offers it as "Custom order"; items not listed follow by label.<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order? } }`</small> |
+| `onCellClick` | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. A blank cell with no rows behind it is not clickable and does not call it.<br><small>Type: `({ row, col, value, valueIndex, text, count, rows }) => void`</small> |
 | `drillDown` | The panel with the rows behind a clicked value.<br><small>Type: `boolean`; default: `true`</small> |
 | `drillDownLimit` | Rows passed to the panel and to `onCellClick`.<br><small>Type: `number`; default: `1000`</small> |
 | `locale` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German.<br><small>Type: `string`; default: `"en-US"`</small> |
@@ -62,7 +62,10 @@ field list as a drawer from the toolbar and shows menus as bottom sheets. The zo
 each, whenever the area next to the field list is narrower than 640 px (a container query on that
 area: the narrow layout, and a medium one such as a half-width card of 650 px). "Swap rows and
 columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the
-Columns zone is too narrow for the text. Only the table scrolls sideways.
+Columns zone is too narrow for the text. Only the table scrolls sideways. The row label columns share
+at most 40 % of the main area (each at least 4.5em) and a value's name wraps beyond 30 %, so a long
+label wraps and a phone still shows values next to two levels of row labels; from 300 rows on, where
+rows have one height, a row label is cut with an ellipsis and its full text is the cell's title.
 
 Below 540 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`, the border box, measured before the
 first paint) the report starts in the compact layout: the zones fold into one line that says what is in them ("Rows: Team · Columns: Priority ·

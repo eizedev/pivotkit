@@ -88,7 +88,9 @@ A view is JSON and cannot carry functions, so a value names its format:
 
 A value without a format gets the same decimals in every cell of its column: those of the source
 values (at most 2) for a sum, minimum, maximum, first or last; 2 for an average, a median or a spread;
-none for a count; one for a percentage calculation. All formatting follows the
+none for a count; one for a percentage calculation. So a sum of fractions keeps two decimals also
+where it adds up to a whole number ("118.00" next to "2.33"): the column lines up, as Excel's `0.00`
+does; `number` (up to 2 decimals) shows "118". All formatting follows the
 [locale](limits.md#locale), never the machine's.
 
 ## Highlighting
@@ -118,3 +120,7 @@ with Excel's thousands scaling, and the locale's date order. Where Excel cannot 
 - Number labels (a year on rows) stay numbers.
 
 CSV uses the grid's locale for the separator and the decimal mark and keeps 15 significant digits.
+A value the table shows as a percent (the `percent` and `percent100` formats, the "show values as"
+percentages) is written in percent with a `%`, at full precision: the table's "-2.6 %" becomes
+`-2.56435492186162%`, which spreadsheets read back as the fraction. The XLSX keeps the fraction with
+a percent number format.

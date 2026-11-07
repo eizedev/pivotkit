@@ -60,7 +60,12 @@ field)` in pivotkit-core makes the same choice.
 `size` is the width of a range and `origin` where the ranges start. A range includes its lower bound
 and excludes the upper one, computed in the decimals of `size` and `origin`, so 0.3 lands in
 "0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused. In the UI, "Group numbers into ranges" in the menu of
-a number field on rows or columns sets them; the chip then reads "Amount (by 100)".
+a number field on rows or columns sets them, the size and "Starting at" (Excel's name for `origin`);
+the chip then reads "Amount (by 100)". A new size keeps the start.
+
+Range labels use the locale's thousands separators ("10,000 – 20,000"), except when every range of
+the field has whole-number bounds between -9,999 and 9,999: ranges of years, ages or scores read
+"1900 – 1910", as a year on an axis reads "1960".
 
 ## Dates and time zones
 

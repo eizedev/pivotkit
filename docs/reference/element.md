@@ -43,7 +43,7 @@ supported.
 | `defaultView` | `default-view` (JSON) | Uncontrolled: the start view, see below.<br><small>Type: view; default: empty</small> |
 | `templates` |  | The Templates menu; the first three are also offered in the empty state.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
 | `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event.<br><small>Type: `boolean`; default: `false`</small> |
-| `fieldDefaults` |  | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is).<br><small>Type: `{ [field]: { agg?, format?, drillFormat? } }`</small> |
+| `fieldDefaults` |  | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns, offered as "Custom order" in its menu.<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order? } }`</small> |
 | `labels` |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`).<br><small>Type: partial labels</small> |
 | `limits` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react.<br><small>Type: `Partial<Limits>`</small> |
 | `locale` | `locale` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not.<br><small>Type: `string`; default: `"en-US"`</small> |

@@ -81,6 +81,7 @@ The `PivotResult` has, among others:
 | `rowRoot`, `colRoot`, `rowNodes`, `colNodes` | The key trees and their nodes. |
 | `value(row, col, i)` | The raw aggregate of value `i` at a row and column node. |
 | `display(row, col, i)` | The same after "show values as". |
+| `hasRows(row, col)` | Whether any source row is behind a cell (a blank cell of a combination without data has none). |
 | `label(axis, node, labels?)` | A node's label as the table shows it. |
 
 ### Drill-down
@@ -109,8 +110,10 @@ size, counted before anything is allocated).
 
 A `GridCell` has `text` (formatted), `value` (raw), `kind` (`"corner"`, `"colHeader"`, `"rowHeader"`,
 `"value"`), `total` (0 none, 1 subtotal, 2 grand total), and where they apply `rowSpan`, `colSpan`,
-`valueType`, `format`, `field`, `rowPath`, `colPath`, `valueIndex`, `toggle` (`{ axis, path, collapsed }`)
-and `style` (`{ scale, bar, color }` for colour scales and data bars).
+`valueType`, `format`, `field`, `rowPath`, `colPath`, `valueIndex`, `toggle` (`{ axis, path, collapsed }`),
+`style` (`{ scale, bar, color }` for colour scales and data bars) and, on value cells, `hasRows`
+(`false`: no source row behind the cell, nothing to drill into). With one value, its name is a single
+header cell over all of its columns, as in Excel.
 
 ### `toSeries(result, options?)` and `toEChartsOption(result, options?)`
 
@@ -132,7 +135,7 @@ line, area, pie and heatmap. ECharts itself is not imported.
 | Function | What |
 | --- | --- |
 | `toXlsx(grid, { sheetName, theme })` | An Excel workbook: typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars. `theme`: `{ colorScale, dataBar }` for conditional formats whose view names no colours.<br><small>Returns `Uint8Array`</small> |
-| `toCsv(grid, { separator, repeatLabels })` | CSV. The grid's locale decides the separator and the decimal mark; text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
+| `toCsv(grid, { separator, repeatLabels })` | CSV. The grid's locale decides the separator and the decimal mark; numbers keep 15 significant digits, a value shown as a percent is written in percent with a `%` (`-2.56435492186162%`); text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
 | `toCsvBytes(grid, { separator, repeatLabels, bom })` | The same as UTF-8 bytes, with a byte order mark when `bom` is set.<br><small>Returns `Uint8Array`</small> |
 
 What the files contain, and where Excel's number formats cannot follow the grid, is in

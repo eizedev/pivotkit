@@ -39,7 +39,10 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
         { name: "Year", field: "OrderDate", by: "year" },
         { name: "Band", field: "Amount", by: "bin", size: 100, origin: 0 }
     ],
-    sort: [{ field: "Country", by: "value", order: "desc", value: { field: "Sales", agg: "sum" } }],
+    sort: [
+        { field: "Country", by: "value", order: "desc", value: { field: "Sales", agg: "sum" } },
+        { field: "Season", by: "custom", items: ["Spring", "Summer", "Autumn", "Winter"] }
+    ],
     totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
@@ -60,7 +63,7 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 | `values` | What is computed in the cells: field, aggregator, format, label, "show as", highlighting. | [Values](values.md) |
 | `filters` | Item lists, text conditions, top N, value conditions. | [Filters](filters.md) |
 | `derived` | New fields from a date (year, month, ...) or a number (ranges). | [Dates and number ranges](dates.md) |
-| `sort` | Per field: by label or by a value, ascending or descending. | [Sorting](filters.md#sorting) |
+| `sort` | Per field: by label, by a value or in a custom order, ascending or descending. | [Sorting](filters.md#sorting) |
 | `totals` | Grand total row and column, row and column subtotals; all on by default. | |
 | `collapsed` | Key paths of collapsed groups per axis. | |
 | `display`, `chart` | Table or chart, and the chart's type, stacking and direction. | |

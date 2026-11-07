@@ -66,6 +66,9 @@ filtered to 2025 with the derived field "Year".
   75 fall in its winter (38). Mumbai has none in winter and 90 in its summer monsoon.
 - Try this: open the menu of "Rain days" and pick **Show as: % of row total**. Each row now
   adds up to 100 %: the share of a city's rain days per season.
+- Try this: open the menu of "Season" and pick **Custom order**. The seasons follow the year:
+  Spring, Summer, Autumn, Winter, instead of the alphabet. The playground gives "Season" this order
+  (`fieldDefaults`), as Excel's custom lists do.
 
 **Was 2025 warmer than 2023 in Berlin? (chart)** One line per year, filtered to Berlin.
 
@@ -211,8 +214,9 @@ events in oceanic regions; it does not say that a tsunami happened.
 and the count again as **% of grand total**.
 
 - Read it: three in four quakes (75.1 %) are between 4.5 and 5; one is between 8.5 and 9.
-- Try this: open the menu of "Magnitude (by 0.5)" and set **Range size** to 1. The ranges become
-  4 – 5, 5 – 6 and so on; 4 – 5 holds the same 6,430 quakes, as none is below 4.5.
+- Try this: open the menu of "Magnitude (by 0.5)" and set **Range size** to 1. The ranges keep their
+  start: 4.5 – 5.5, 5.5 – 6.5 and so on. Set **Starting at** to 4 for 4 – 5, 5 – 6: 4 – 5 holds the
+  same 6,430 quakes, as none is below 4.5.
 - Try this: switch to **Chart**. A bar per range; the tall first bar is the 4.5 to 5 range.
 
 **Which regions shook most often? (top 10)** The count of quakes per region, the largest
