@@ -90,7 +90,7 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `labels` | partial labels | | Texts merged over the language's labels, see below. |
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
 | `height` | `number \| string` | `640` | The report's height; the table and the field list scroll inside it. |
-| `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooManyGroups`, `tooManyCells`, `tooLarge`). |
+| `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.work`, `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`). A field beyond `limits.axisFields` or `limits.values` is refused with a note (`zoneFull`); a template with more loads the fields that fit and says so (`templateTrimmed`). |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |

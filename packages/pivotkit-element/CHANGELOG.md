@@ -45,14 +45,14 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - pivotkit-react's fixes ship in the bundle: the report is a named region instead of a `<main>`,
   zones stack by their own width, a compact layout below 540 px of height, charts inside their box,
   formatted drill-down rows, plural forms, and a note for a template save the page rejects without a
-  message. The first load is 124.4 KiB gzip.
+  message. The first load is 125.0 KiB gzip.
 - The chart's tooltip works under a strict Content-Security-Policy (`style-src 'self'`): pivotkit-react
   builds it without inline `style` attributes. The CSP browser test hovers the chart.
 - `pivotkit-element/element` exports `EVENTS` too, as the README said: the same exports as the main
   entry.
 - `engines` is gone: the package runs in the browser.
 - pivotkit-core's limits for `computePivot()` and its lower defaults are in the bundle, with a
-  message per limit in place of the result.
+  message per limit in place of the result, and a note when a zone is full.
 
 [Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.1.0...HEAD
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-element@0.1.0

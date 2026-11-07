@@ -216,6 +216,8 @@ test("a limit of the core is a message in words with what to change, any other e
     };
     assert.equal(errorText(refused({ groups: 50 }), en, "en-US"), fill(en.tooManyGroups, { max: "50" }));
     assert.equal(errorText(refused({ pivotCells: 100 }), LABELS.de, "de-DE"), fill(LABELS.de.tooManyCells, { max: "100" }));
+    // 40 rows x 2 x 2 x 1 count
+    assert.equal(errorText(refused({ work: 100 }, { rows: ["A"], cols: ["B"], values: [{ agg: "count" }] }), en, "en-US"), fill(en.tooMuchWork, { value: "160", max: "100" }));
     // (2 header rows + 41 body rows) x (1 label column + 41 columns)
     assert.equal(errorText(refused({ cells: 1000 }), en, "en-US"), "This layout makes 1,806 cells, more than the limit of 1,000. Move a field with many values to Filters, or filter it.");
     let rows;
@@ -226,7 +228,7 @@ test("a limit of the core is a message in words with what to change, any other e
     }
     assert.equal(errorText(rows, en, "en-US"), "The data has 3 rows, more than the limit of 2.");
     assert.equal(errorText(new Error("boom"), en, "en-US"), "The report cannot be shown: boom");
-    for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows"]) {
+    for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows", "tooMuchWork", "zoneFull", "templateTrimmed"]) {
         assert.equal(typeof LABELS.de[key], "string", key);
     }
 });

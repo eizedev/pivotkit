@@ -25,7 +25,7 @@ import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { useViewHistory } from "./use-view-history.js";
 import {
-    addField, filterZoneFields, filtersOf, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed
+    addField, filterZoneFields, filtersOf, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones } from "./zones.jsx";
 
@@ -250,12 +250,18 @@ export function PivotReport(props) {
     const commit = useCallback(
         /** @param {object} next @param {{ step: string, removed?: boolean, field?: string, zone?: string, name?: string, display?: string, type?: string }} [note] */
         (next, note = { step: "change" }) => {
+            // a field beyond the limit of its zone would vanish in normalize(): refuse the step and say so
+            const over = note.step === "template" ? null : zoneOverLimit(next, limits);
+            if (over) {
+                announce(fill(labels.zoneFull, { zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
+                return;
+            }
             if (!history.commit(next, stepText(note)) || !note.removed) {
                 return;
             }
             announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
         },
-        [history, stepText, labels, announce]
+        [history, stepText, labels, announce, limits, locale]
     );
 
     // the pivot, once per view
@@ -412,8 +418,13 @@ export function PivotReport(props) {
         (t) => {
             commit(t.view, { step: "template", name: t.name });
             announce(fill(labels.toastLoaded, { name: t.name }));
+            // a template made with other limits loads with the fields that fit; say what was left out
+            const over = zoneOverLimit(t.view, limits);
+            if (over) {
+                announce(fill(labels.templateTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), { tone: "error" });
+            }
         },
-        [commit, labels, announce]
+        [commit, labels, announce, limits, locale]
     );
     // the host's callbacks may return a promise: the note comes when it is kept
     const saveTemplate = onSaveTemplate

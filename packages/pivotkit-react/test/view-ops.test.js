@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { computePivot, encode, normalize } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
-    selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue
+    selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
+    zoneOverLimit
 } from "../src/view-ops.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
@@ -180,4 +181,21 @@ test("swapping rows and columns takes collapsed groups and calculations along", 
     assert.deepEqual(s.values.map((x) => x.showAs), [{ type: "runningTotal", axis: "cols" }, { type: "percentOfColumnTotal", axis: "cols" }]);
     assert.deepEqual(normalize(s, data).issues, []);
     assert.deepEqual(swapAxes(s).values.map((x) => x.showAs.type), ["runningTotal", "percentOfRowTotal"]);
+});
+
+test("a ninth field on an axis is over the limit the core keeps; the UI refuses it instead of losing it", () => {
+    const wide = encode([Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`F${i}`, i]))]);
+    let view = normalize({}, wide).view;
+    for (let i = 0; i < 8; i++) {
+        view = addField(view, `F${i}`, "rows");
+    }
+    assert.equal(zoneOverLimit(view, undefined), null);
+    const ninth = addField(view, "F8", "rows");
+    assert.deepEqual(zoneOverLimit(ninth, undefined), { zone: "rows", max: 8 });
+    // normalize would keep eight and drop the ninth without a word in the UI
+    assert.equal(normalize(ninth, wide).view.rows.length, 8);
+    assert.deepEqual(zoneOverLimit({ rows: [], cols: ["a", "b", "c"], values: [] }, { axisFields: 2 }), { zone: "cols", max: 2 });
+    const values = { rows: [], cols: [], values: Array.from({ length: 17 }, () => ({ agg: "count" })) };
+    assert.deepEqual(zoneOverLimit(values, {}), { zone: "values", max: 16 });
+    assert.equal(zoneOverLimit(values, { values: 20 }), null);
 });

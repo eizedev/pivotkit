@@ -211,6 +211,9 @@ export const en = {
     tooManyGroups: "This layout makes more than {max} groups of rows and columns. Remove a field with many values from Rows or Columns, or filter it.",
     tooManyCells: "This layout makes more than {max} cells with its subtotals. Remove a field from Rows or Columns, or filter it.",
     tooManyRows: "The data has {value} rows, more than the limit of {max}.",
+    tooMuchWork: "This layout needs {value} cell updates, more than the limit of {max}. Remove a field from Rows or Columns, or a value such as a median or a unique count.",
+    zoneFull: "{zone} holds at most {max} fields. Remove one first.",
+    templateTrimmed: "“{name}” has more than {max} fields in {zone}; the report shows the first {max}.",
     issues: "Some parts of the view were not used:",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
@@ -498,6 +501,9 @@ export const de = {
     tooManyGroups: "Diese Anordnung ergibt mehr als {max} Gruppen in Zeilen und Spalten. Ein Feld mit vielen Werten aus Zeilen oder Spalten entfernen oder filtern.",
     tooManyCells: "Diese Anordnung ergibt mit ihren Teilergebnissen mehr als {max} Zellen. Ein Feld aus Zeilen oder Spalten entfernen oder filtern.",
     tooManyRows: "Die Daten haben {value} Zeilen, mehr als die Grenze von {max}.",
+    tooMuchWork: "Diese Anordnung braucht {value} Zellberechnungen, mehr als die Grenze von {max}. Ein Feld aus Zeilen oder Spalten entfernen oder einen Wert wie Median oder Anzahl eindeutiger Werte.",
+    zoneFull: "{zone} nimmt höchstens {max} Felder auf. Zuerst eines entfernen.",
+    templateTrimmed: "„{name}“ hat mehr als {max} Felder in {zone}; der Bericht zeigt die ersten {max}.",
     issues: "Einige Teile der Ansicht wurden nicht verwendet:",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
@@ -580,7 +586,7 @@ export function messageOf(error) {
 }
 
 /** The text per limit of pivotkit-core that the report can run into while it shows data. */
-const LIMIT_TEXTS = Object.freeze({ cells: "tooLarge", groups: "tooManyGroups", pivotCells: "tooManyCells", rows: "tooManyRows" });
+const LIMIT_TEXTS = Object.freeze({ cells: "tooLarge", groups: "tooManyGroups", pivotCells: "tooManyCells", work: "tooMuchWork", rows: "tooManyRows" });
 
 /**
  * The note in place of the result when it cannot be shown: a limit of pivotkit-core in words with

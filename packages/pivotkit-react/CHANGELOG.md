@@ -54,8 +54,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The `label` prop names the report's region landmark (default `labels.report`); several reports on
   one page need one name each.
 - A limit of pivotkit-core in place of the result says which one and what to change: too many
-  rows in the data (`tooManyRows`), too many groups (`tooManyGroups`) or cells with subtotals
-  (`tooManyCells`) in the layout, besides the dense grid's `tooLarge`.
+  rows in the data (`tooManyRows`), too many cell updates (`tooMuchWork`), groups (`tooManyGroups`) or
+  cells with subtotals (`tooManyCells`) in the layout, besides the dense grid's `tooLarge`.
+- A field beyond pivotkit-core's limit of its zone (8 per axis, 16 values) is refused with a note
+  (`zoneFull`) instead of vanishing; a template with more loads the fields that fit and says so
+  (`templateTrimmed`).
 
 ### Changed
 
