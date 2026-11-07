@@ -12,6 +12,14 @@ First release.
 
 ### Added
 
+- `pivotkit-core/export` exports source rows and copies the grid: `rowsToCsv`, `rowsToCsvBytes` and
+  `rowsToXlsx` write rows of the data (a drill-down's rows behind a value, by their positions from
+  `cellRows`) with a header of display names, each value as a drill-down panel shows it (the field's
+  format, up to 6 decimals, the date's day), through the grid's writers (formula guard, typed cells,
+  frozen header); rows x columns count against `limits.cells`. `toTsv(grid)` is the grid as the table
+  shows it, tab-separated for the clipboard (also `toTsv(rows)` for rows of display texts), and
+  `toJson(grid)` the grid's data as JSON (`rowHeaders`, `columns`, `rows` with labels and raw values).
+
 - The view file's JSON Schema ships in the package: `pivotkit-core/schema/view-file-1.json` (the same
   bytes the site publishes at https://pivotkit.eize.dev/schema/view-file-1.json); `toViewFile`'s
   `meta.schemaUrl` writes another `$schema` (a host's own copy) or, `null`, none.
