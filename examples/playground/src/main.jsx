@@ -119,7 +119,7 @@ function App() {
         <div className="pg">
             <header className="pg-head">
                 <div className="pg-title">
-                    <span className="pg-logo" aria-hidden="true" />
+                    <img className="pg-logo" src="./icon.svg" alt="" width="34" height="34" />
                     <div>
                         <h1>pivotkit playground</h1>
                         {source ? (

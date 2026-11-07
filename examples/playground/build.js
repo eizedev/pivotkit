@@ -39,6 +39,8 @@ const options = {
 
 await mkdir(`${here}dist`, { recursive: true });
 await copyFile(`${here}index.html`, `${here}dist/index.html`);
+// the brand icon (made in eizedev/brand, assets/ of the repository) as logo and favicon
+await copyFile(`${here}../../assets/icon.svg`, `${here}dist/icon.svg`);
 if (serve) {
     const pkg = await esbuild.context(packageOptions);
     await pkg.watch();
