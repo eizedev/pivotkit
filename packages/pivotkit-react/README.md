@@ -129,9 +129,9 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   off (Options), a click on a value opens its rows. Field names and value names in the header can be
   dragged into a zone with the mouse; the chips' menus do the same from the keyboard. One value's name
   is a single header over all of its columns, as in Excel. From 300 body rows on only the visible rows
-  are rendered. The table is as wide as its columns; the row label columns share at most half of the
-  report's main area (each at least 5em), so a long label wraps and a phone still shows values next
-  to it (from 300 rows on, where rows have one height, it is cut with an ellipsis and its full text is
+  are rendered. The table is as wide as its columns; the row label columns share at most 40 % of the
+  report's main area (each at least 4.5em) and a value's name wraps beyond 30 %, so a long label wraps
+  and a phone still shows values next to it (from 300 rows on, where rows have one height, it is cut with an ellipsis and its full text is
   the cell's title).
 - Chart: bars, stacked bars, horizontal bars, lines, area, pie, heatmap ("Chart type: Bars" in the
   toolbar); a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are

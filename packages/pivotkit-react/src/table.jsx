@@ -282,7 +282,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const width = grid.columnCount;
     return (
         <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? (e) => setScroll({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight }) : undefined} data-testid="pivot-table">
-            {/* --pk-row-cols: the row label columns share at most half of the width (styles.css) */}
+            {/* --pk-row-cols: the row label columns share at most 40 % of the width (styles.css) */}
             <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
                     {grid.rows.slice(0, grid.headerRows).map((row, r) => (
