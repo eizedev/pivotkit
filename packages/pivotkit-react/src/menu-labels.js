@@ -1,0 +1,312 @@
+/*
+ * The texts only the menus show (the chip menus, the chart type, Options, Views, the filter and the
+ * drill-down), in English and German. They load with the menus (menus.js), so the first load of a
+ * page stays small; menuLabels() adds them to the report's labels, with a host's text for one of
+ * them (the `labels` prop, kept aside by resolveLabels) over the default, as for any other label.
+ */
+
+import { MENU_TEXTS, mergeLabels } from "./labels.js";
+
+/** @typedef {typeof en} MenuTexts */
+
+export const en = {
+    moveLeft: "Move left",
+    moveRight: "Move right",
+    remove: "Remove",
+    // the hint of "Automatic" in the chart type menu: the type it draws for this view
+    chartAutoNow: "Now: {type}",
+    savedViews: "Saved views",
+    noViews: "No saved views yet.",
+    deleteView: "Delete {name}",
+    deleteConfirm: "Delete “{name}”?",
+    deleteAction: "Delete",
+    saveView: "Save current view",
+    viewName: "Name of the view",
+    save: "Save",
+    cancel: "Cancel",
+    expandAll: "Expand all",
+    collapseAll: "Collapse all",
+    // chip menus
+    aggregation: "Summarize by",
+    moreStatistics: "More statistics",
+    showAsNone: "The value itself",
+    moreCalculations: "More calculations",
+    showAsNames: {
+        percentOfGrandTotal: "% of grand total",
+        percentOfRowTotal: "% of row total",
+        percentOfColumnTotal: "% of column total",
+        percentOfParentRow: "% of parent row",
+        percentOfParentColumn: "% of parent column",
+        differenceFromPrevious: "Difference from previous",
+        percentDifferenceFromPrevious: "% difference from previous",
+        runningTotal: "Running total",
+        percentRunningTotal: "% running total",
+        rankAscending: "Rank, smallest first",
+        rankDescending: "Rank, largest first"
+    },
+    along: "Along",
+    format: "Number format",
+    formatAuto: "Automatic",
+    formats: {
+        number: "Number",
+        "number:0": "Number, no decimals",
+        "number:2": "Number, 2 decimals",
+        integer: "Whole number",
+        currency: "Currency",
+        percent: "Percent",
+        compact: "Compact (1.2K)",
+        bytes: "Bytes (KB, MB)",
+        "duration:h": "Duration from hours",
+        "duration:s": "Duration from seconds"
+    },
+    conditional: "Highlight",
+    conditionalNone: "None",
+    colorScale: "Colour scale",
+    dataBar: "Data bars",
+    rename: "Name",
+    sortOldest: "Oldest first",
+    sortNewest: "Newest first",
+    groupBy: "Group dates by",
+    groupNone: "No grouping (every date and time)",
+    groupTimeline: "Along the time line",
+    groupCyclic: "Compare periods across years",
+    unitHints: {
+        year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan 2025", yearWeek: "2025-W03", day: "Jan 15, 2025",
+        quarter: "Q1 of every year", month: "Jan of every year", week: "W03 of every year", weekday: "Mon to Sun", hour: "00:00 to 23:00",
+        bin: ""
+    },
+    bins: "Group numbers into ranges",
+    binSize: "Range size",
+    binStart: "Starting at",
+    binStartFar: "Ranges from {start} cannot hold this field's values ({min} to {max}): every row would be blank. Pick a start closer to them.",
+    apply: "Apply",
+    clear: "Clear",
+    topN: "Show only the top items",
+    topCount: "Count",
+    bottom: "Bottom",
+    topBy: "by",
+    searchValues: "Search values",
+    selectAll: "Select all",
+    selectNone: "Select none",
+    onlyThis: "Only",
+    valuesShown: "{shown} of {total} values; search to find more",
+    conditionNumber: "Condition on the label",
+    conditionNone: "No condition",
+    conditionValue: "Text",
+    selected: "{count} selected",
+    // drill-down
+    drillTitle: "Rows behind this value",
+    drillCount: { one: "{count} row", other: "{count} rows" },
+    drillShown: "Showing the first {shown} of {count} rows",
+    showTips: "Show tips",
+    // the "i" of the settings, the zones and the field descriptions
+    showSettingInfo: "Show explanations",
+    resetTips: "Show dismissed tips again",
+    help: "Help",
+    shortcutsTitle: "Keyboard shortcuts",
+    // the keys of the shortcuts; "Mod" is Ctrl, or ⌘ on a Mac
+    keys: { Mod: "Ctrl", Shift: "Shift", "Arrow keys": "Arrow keys", Enter: "Enter", Space: "Space", Escape: "Escape", F10: "F10" },
+    valueLabels: "Value labels",
+    valueLabelNames: { auto: "Automatic", off: "Off", value: "Value", percent: "Percent", both: "Value and percent" },
+    legend: "Legend",
+    legendNames: { auto: "Automatic", bottom: "Bottom", right: "Right", off: "Off" },
+    chartTitle: "Title",
+    chartTitleNone: "No title",
+    smoothLines: "Smooth lines",
+    labelPosition: "Labels",
+    labelPositionNames: { outside: "Outside", inside: "Inside" },
+    axisLabels: "Axis labels",
+    axisLabelNames: { auto: "Automatic", all: "All (slanted)", nth: "Every n-th" },
+    groupLabels: "Group labels under the axis",
+    groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
+    defaultName: "Use the default name",
+    // sharing a view (the Views menu)
+    share: "Share",
+    copyLink: "Copy link",
+    copyJson: "Copy view as JSON",
+    downloadView: "Download view (.pivotkit.json)",
+    // said where a view leaves the report as a file, as JSON or as a link
+    sharePrivacy: "A view holds the names of fields and, in its filters, the values chosen there: share it only where those may be seen.",
+    loadView: "Load view…",
+    loadViewHint: "Paste a view file, a view as JSON or a link, or choose a .pivotkit.json file.",
+    loadViewText: "View as JSON or link",
+    chooseFile: "Choose file…",
+    load: "Load",
+    // before a view for other data is loaded: what does not fit, and the choices
+    loadCheckTitle: "This view may not fit this data",
+    loadAnyway: "Load anyway",
+    switchAndLoad: "Switch to “{source}” and load",
+    switchStartsFresh: "Switching shows the other data with this view; Undo starts there.",
+    numberInvalid: "Enter a number, such as {example}.",
+    countInvalid: "Enter a whole number of 1 or more.",
+    sizeInvalid: "Enter a number above 0, such as {example}.",
+    valueFilter: "Value filter…",
+    valueFilterBy: "Value",
+    valueFilterOp: "Condition",
+    valueFilterNumber: "Number",
+    valueFilterTo: "and",
+    valueOps: { "=": "equals", "!=": "does not equal", ">": "greater than", ">=": "greater than or equal to", "<": "less than", "<=": "less than or equal to", between: "between", notBetween: "not between" },
+    removeFilter: "Remove filter",
+    valuesFilterHint: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters.",
+    // collapsible sections of the menus
+    moreFormats: "More formats"
+};
+
+/** @type {MenuTexts} */
+export const de = {
+    moveLeft: "Nach links",
+    moveRight: "Nach rechts",
+    remove: "Entfernen",
+    chartAutoNow: "Jetzt: {type}",
+    savedViews: "Gespeicherte Ansichten",
+    noViews: "Noch keine gespeicherten Ansichten.",
+    deleteView: "{name} löschen",
+    deleteConfirm: "„{name}“ löschen?",
+    deleteAction: "Löschen",
+    saveView: "Aktuelle Ansicht speichern",
+    viewName: "Name der Ansicht",
+    save: "Speichern",
+    cancel: "Abbrechen",
+    expandAll: "Alle aufklappen",
+    collapseAll: "Alle zuklappen",
+    aggregation: "Zusammenfassen mit",
+    moreStatistics: "Weitere Statistiken",
+    showAsNone: "Der Wert selbst",
+    moreCalculations: "Weitere Berechnungen",
+    showAsNames: {
+        percentOfGrandTotal: "% des Gesamtergebnisses",
+        percentOfRowTotal: "% der Zeilensumme",
+        percentOfColumnTotal: "% der Spaltensumme",
+        percentOfParentRow: "% der übergeordneten Zeile",
+        percentOfParentColumn: "% der übergeordneten Spalte",
+        differenceFromPrevious: "Differenz zum vorherigen",
+        percentDifferenceFromPrevious: "% Differenz zum vorherigen",
+        runningTotal: "Laufende Summe",
+        percentRunningTotal: "% laufende Summe",
+        rankAscending: "Rang, kleinster zuerst",
+        rankDescending: "Rang, größter zuerst"
+    },
+    along: "Entlang",
+    format: "Zahlenformat",
+    formatAuto: "Automatisch",
+    formats: {
+        number: "Zahl",
+        "number:0": "Zahl ohne Nachkommastellen",
+        "number:2": "Zahl mit 2 Nachkommastellen",
+        integer: "Ganze Zahl",
+        currency: "Währung",
+        percent: "Prozent",
+        compact: "Kompakt (1,2 Tsd.)",
+        bytes: "Bytes (KB, MB)",
+        "duration:h": "Dauer aus Stunden",
+        "duration:s": "Dauer aus Sekunden"
+    },
+    conditional: "Hervorheben",
+    conditionalNone: "Keine",
+    colorScale: "Farbskala",
+    dataBar: "Datenbalken",
+    rename: "Name",
+    sortOldest: "Älteste zuerst",
+    sortNewest: "Neueste zuerst",
+    groupBy: "Datum gruppieren nach",
+    groupNone: "Keine Gruppierung (jedes Datum mit Uhrzeit)",
+    groupTimeline: "Entlang der Zeitachse",
+    groupCyclic: "Zeiträume über Jahre vergleichen",
+    unitHints: {
+        year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan. 2025", yearWeek: "2025-W03", day: "15.01.2025",
+        quarter: "Q1 jedes Jahres", month: "Jan. jedes Jahres", week: "W03 jedes Jahres", weekday: "Mo. bis So.", hour: "00:00 bis 23:00",
+        bin: ""
+    },
+    bins: "Zahlen in Bereiche gruppieren",
+    binSize: "Bereichsgröße",
+    binStart: "Beginnt bei",
+    binStartFar: "Bereiche ab {start} können die Werte dieses Felds ({min} bis {max}) nicht fassen: Jede Zeile wäre leer. Einen Beginn näher an den Werten wählen.",
+    apply: "Anwenden",
+    clear: "Löschen",
+    topN: "Nur die obersten Einträge zeigen",
+    topCount: "Anzahl",
+    bottom: "Unterste",
+    topBy: "nach",
+    searchValues: "Werte suchen",
+    selectAll: "Alle auswählen",
+    selectNone: "Keine auswählen",
+    onlyThis: "Nur",
+    valuesShown: "{shown} von {total} Werten; suchen, um weitere zu finden",
+    conditionNumber: "Bedingung für die Beschriftung",
+    conditionNone: "Keine Bedingung",
+    conditionValue: "Text",
+    selected: "{count} ausgewählt",
+    drillTitle: "Zeilen hinter diesem Wert",
+    drillCount: { one: "{count} Zeile", other: "{count} Zeilen" },
+    drillShown: "Die ersten {shown} von {count} Zeilen",
+    showTips: "Tipps zeigen",
+    showSettingInfo: "Erklärungen zeigen",
+    resetTips: "Ausgeblendete Tipps wieder zeigen",
+    help: "Hilfe",
+    shortcutsTitle: "Tastenkürzel",
+    keys: { Mod: "Strg", Shift: "Umschalt", "Arrow keys": "Pfeiltasten", Enter: "Eingabe", Space: "Leertaste", Escape: "Esc", F10: "F10" },
+    valueLabels: "Wertbeschriftung",
+    valueLabelNames: { auto: "Automatisch", off: "Aus", value: "Wert", percent: "Prozent", both: "Wert und Prozent" },
+    legend: "Legende",
+    legendNames: { auto: "Automatisch", bottom: "Unten", right: "Rechts", off: "Aus" },
+    chartTitle: "Titel",
+    chartTitleNone: "Kein Titel",
+    smoothLines: "Geglättete Linien",
+    labelPosition: "Beschriftung",
+    labelPositionNames: { outside: "Außen", inside: "Innen" },
+    axisLabels: "Achsenbeschriftung",
+    axisLabelNames: { auto: "Automatisch", all: "Alle (schräg)", nth: "Jede n-te" },
+    groupLabels: "Gruppen unter der Achse",
+    groupLabelNames: { auto: "Automatisch", on: "Ein", off: "Aus" },
+    defaultName: "Standardnamen verwenden",
+    share: "Teilen",
+    copyLink: "Link kopieren",
+    copyJson: "Ansicht als JSON kopieren",
+    downloadView: "Ansicht herunterladen (.pivotkit.json)",
+    sharePrivacy: "Eine Ansicht enthält die Namen der Felder und in ihren Filtern die dort gewählten Werte: Nur dort teilen, wo diese gesehen werden dürfen.",
+    loadView: "Ansicht laden…",
+    loadViewHint: "Eine Ansichtsdatei, eine Ansicht als JSON oder einen Link einfügen oder eine .pivotkit.json-Datei wählen.",
+    loadViewText: "Ansicht als JSON oder Link",
+    chooseFile: "Datei wählen…",
+    load: "Laden",
+    loadCheckTitle: "Diese Ansicht passt vielleicht nicht zu diesen Daten",
+    loadAnyway: "Trotzdem laden",
+    switchAndLoad: "Zu „{source}“ wechseln und laden",
+    switchStartsFresh: "Der Wechsel zeigt die anderen Daten mit dieser Ansicht; Rückgängig beginnt dort.",
+    numberInvalid: "Eine Zahl eingeben, etwa {example}.",
+    countInvalid: "Eine ganze Zahl ab 1 eingeben.",
+    sizeInvalid: "Eine Zahl über 0 eingeben, etwa {example}.",
+    valueFilter: "Wertfilter…",
+    valueFilterBy: "Wert",
+    valueFilterOp: "Bedingung",
+    valueFilterNumber: "Zahl",
+    valueFilterTo: "und",
+    valueOps: { "=": "gleich", "!=": "ungleich", ">": "größer als", ">=": "größer oder gleich", "<": "kleiner als", "<=": "kleiner oder gleich", between: "zwischen", notBetween: "nicht zwischen" },
+    removeFilter: "Filter entfernen",
+    valuesFilterHint: "Werte werden hier nicht gefiltert: Ein Feld in Zeilen oder Spalten über sein Menü filtern oder ein Feld in Filter ziehen.",
+    moreFormats: "Weitere Formate"
+};
+
+/** @type {Readonly<{ en: MenuTexts, de: MenuTexts }>} */
+export const MENU_LABELS = /* @__PURE__ */ Object.freeze({ en, de });
+
+/** Labels and the menus' texts merged once per labels object. */
+const done = /* @__PURE__ */ new WeakMap();
+
+/**
+ * The report's labels with the menus' texts of their language (English for a language of a host's
+ * own), a host's own texts for them applied.
+ * @param {import("./labels.js").UiLabels} labels
+ * @returns {import("./labels.js").UiLabels}
+ */
+export function menuLabels(labels) {
+    const known = done.get(labels);
+    if (known) {
+        return known;
+    }
+    const base = Object.hasOwn(MENU_LABELS, labels.lang) ? MENU_LABELS[labels.lang] : en;
+    // a host's texts (kept aside by resolveLabels) over the defaults, checked as every label is
+    const out = /** @type {import("./labels.js").UiLabels} */ ({ ...labels, ...mergeLabels(base, /** @type {any} */ (labels)[MENU_TEXTS]) });
+    done.set(labels, out);
+    return out;
+}

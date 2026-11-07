@@ -741,3 +741,17 @@ export function swapAxes(view) {
 export function isEmptyView(view) {
     return view.rows.length === 0 && view.cols.length === 0 && view.values.length === 0;
 }
+
+/**
+ * The condition on a field's labels its type offers: "text" for text, "number" for a number (on the
+ * label as shown), none for a date (or a grouping of one) and a yes/no field, whose items the list
+ * above chooses.
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {any} view
+ * @param {string} field
+ * @returns {"text" | "number" | null}
+ */
+export function conditionKind(encoded, view, field) {
+    const type = encoded.column(sourceOf(view, field))?.type ?? "string";
+    return type === "date" || type === "boolean" ? null : type === "number" ? "number" : "text";
+}

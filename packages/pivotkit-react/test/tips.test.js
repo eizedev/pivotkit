@@ -3,12 +3,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
-import { MANY_SERIES, MAX_CATEGORIES } from "../src/chart-types.js";
+import { MANY_SERIES, MAX_CATEGORIES, chartPlan } from "../src/chart-types.js";
 import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-info.js";
 import { LABELS, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
+import { swapAxes } from "../src/view-ops.js";
 import {
-    ALL_TIPS, NO_FIELD_INFO, NO_SETTING_INFO, NO_ZONE_INFO, SWITCHES, helpSwitch, keptOnReset, sectionOpen, withSection, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
+    ALL_TIPS, NO_EXPLANATIONS, SWITCHES, helpSwitch, keptOnReset, sectionOpen, withSection, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
 } from "../src/tips.js";
 
 const en = LABELS.en;
@@ -24,8 +25,11 @@ function contextOf(rows, view, state = {}) {
         return types.get((spec ? spec.field : field).toLowerCase()) ?? "string";
     };
     const empty = v.rows.length === 0 && v.cols.length === 0 && v.values.length === 0;
-    const series = v.display === "chart" && v.values.length ? toSeries(result, { maxCategories: MAX_CATEGORIES }) : null;
-    return tipContext({ view: v, result, encoded, failed: false, empty, typeOf, series, tableShown: v.display === "table" && !empty, ...state });
+    // the chart draws what chartPlan says, from a pivot with rows and columns swapped where it says so
+    const plan = chartPlan(v, encoded);
+    const drawn = plan.swap ? computePivot(encoded, swapAxes(v)) : result;
+    const series = v.display === "chart" && v.values.length ? toSeries(drawn, { maxCategories: MAX_CATEGORIES }) : null;
+    return tipContext({ view: v, result, encoded, failed: false, empty, typeOf, series, tableShown: v.display === "table" && !empty, chartPlan: plan, ...state });
 }
 
 /** The ids of the tips that hold, without a limit. */
@@ -73,7 +77,9 @@ test("tips: top N, a filter that leaves nothing, a percentage, a text in Values"
     assert.ok(!holding(contextOf([], { rows: ["Rep"] })).includes("filterEmpty"), "no data is no filter problem");
     const pct = contextOf(SALES, { rows: ["Rep"], values: [{ field: "Units", agg: "sum", showAs: { type: "percentOfColumnTotal" } }] });
     assert.deepEqual(activeTips(pct, { allowed: "on", dismissed: [] })[0].params, { type: "percentOfColumnTotal" });
-    assert.match(tipText("showAs", { type: "percentOfColumnTotal" }, en, "en-US"), /^100 % is the total of each column/);
+    assert.match(tipText("showAs", { type: "percentOfColumnTotal" }, en, "en-US"), /^100% is the total of each column/);
+    // the percent sign as the language writes it: no space in English, a space in German
+    assert.match(tipText("showAs", { type: "percentOfColumnTotal" }, LABELS.de, "de-DE"), /^100 % ist die Summe/);
     assert.ok(!holding(contextOf(SALES, { rows: ["Rep"], values: [{ field: "Units", agg: "sum", showAs: { type: "rankDescending" } }] })).includes("showAs"), "a rank is no percentage");
     const text = contextOf(SALES, { rows: ["Region"], values: [{ field: "Rep", agg: "count" }] });
     assert.deepEqual(activeTips(text, { allowed: "on", dismissed: [] })[0], { id: "textValue", params: { field: "Rep" }, entry: TIPS.find((t) => t.id === "textValue") });
@@ -102,13 +108,51 @@ test("tips: charts with many series, dates on Columns, capped categories, and th
     const bars = contextOf(rows, { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "bar" } });
     assert.deepEqual(holding(bars), ["chartSeries"]);
     const pie = contextOf(rows, { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "pie" } });
-    assert.deepEqual(holding(pie), [], "a pie has no series to tell apart");
+    // a pie has no series to tell apart; it adds up the columns, and says so
+    assert.deepEqual(holding(pie), ["pieColumns"]);
+    assert.equal(tipText("pieColumns", activeTips(pie, { allowed: "on", dismissed: [] })[0].params, en, "en-US"), "A pie draws one slice per row and adds up the columns (C). Bars show the columns side by side.");
     const lines = contextOf(rows, { rows: ["R"], cols: ["D"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "line" } });
     assert.deepEqual(holding(lines), ["chartDates"], "the dates tip says it, not the series tip too");
     const wide = Array.from({ length: MAX_CATEGORIES + 5 }, (_, i) => ({ K: `k${i}`, V: i }));
     const capped = contextOf(wide, { rows: ["K"], values: [{ field: "V", agg: "sum" }], display: "chart" });
     const tip = activeTips(capped, { allowed: "on", dismissed: [] })[0];
     assert.equal(tipText(tip.id, tip.params, en, "en-US"), `Showing the first ${MAX_CATEGORIES} of ${MAX_CATEGORIES + 5} categories. Add a filter or Top N to choose them.`);
+});
+
+test("tips: an automatic chart draws lines over dates (swapped for the chart alone), a chosen type gets the suggestion", () => {
+    const rows = [];
+    for (const R of ["North", "South"]) for (let m = 1; m <= 6; m++) rows.push({ R, D: `2026-0${m}-10`, V: m });
+    const month = [{ name: "D by month", field: "D", by: "yearMonth" }];
+    const view = (chart, axes) => contextOf(rows, { ...axes, derived: month, values: [{ field: "V", agg: "sum" }], display: "chart", ...(chart ? { chart } : {}) });
+    // dates on Columns, no type chosen: lines with the months along the axis, no tip to swap
+    const auto = view(null, { rows: ["R"], cols: ["D by month"] });
+    assert.deepEqual([auto.chartPlan.name, auto.chartPlan.auto, auto.chartPlan.swap], ["line", true, true]);
+    assert.deepEqual(auto.series.categories.length, 6, "the months are the categories");
+    assert.deepEqual(holding(auto), []);
+    // dates on Rows: lines as they are; no date: bars
+    assert.deepEqual(view(null, { rows: ["D by month"], cols: ["R"] }).chartPlan, { name: "line", auto: true, swap: false, chart: { type: "line", stacked: false, horizontal: false } });
+    assert.equal(contextOf(rows, { rows: ["R"], values: [{ field: "V", agg: "sum" }], display: "chart" }).chartPlan.name, "bar");
+    // a type the user chose: drawn as chosen, with a one-click suggestion first
+    const bars = view({ type: "bar" }, { rows: ["R"], cols: ["D by month"] });
+    assert.deepEqual([bars.chartPlan.name, bars.chartPlan.auto], ["bar", false]);
+    const first = activeTips(bars, { allowed: "on", dismissed: [] })[0];
+    assert.equal(first.id, "chartOverTime");
+    assert.equal(tipText(first.id, first.params, en, "en-US"), "D by month is a date: lines show how the values change over time.");
+    assert.equal(tipActionText(first.entry, first.params, en), "Show as lines over time");
+    assert.equal(first.entry.action, "auto");
+    // lines chosen, or a heatmap (dates in its grid): no suggestion
+    assert.ok(!holding(view({ type: "line" }, { rows: ["D by month"], cols: ["R"] })).includes("chartOverTime"));
+    assert.ok(!holding(view({ type: "heatmap" }, { rows: ["R"], cols: ["D by month"] })).includes("chartOverTime"));
+});
+
+test("tips: a pie of more than about 7 slices suggests bars", () => {
+    const slices = (n) => contextOf(Array.from({ length: n }, (_, i) => ({ K: `k${i}`, V: i + 1 })), { rows: ["K"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "donut" } });
+    assert.ok(!holding(slices(TIP_THRESHOLDS.pieSlices)).includes("pieSlices"), "at the threshold: no tip");
+    const many = activeTips(slices(TIP_THRESHOLDS.pieSlices + 3), { allowed: "on", dismissed: [] })[0];
+    assert.equal(many.id, "pieSlices");
+    assert.equal(many.entry.action, "bars");
+    assert.equal(tipText(many.id, many.params, en, "en-US"), "A pie works for up to about 7 parts; this one has 10. Bars compare them more easily.");
+    assert.equal(tipText(many.id, many.params, LABELS.de, "de-DE"), "Ein Kreis eignet sich für bis zu etwa 7 Teile; dieser hat 10. Balken lassen sich leichter vergleichen.");
 });
 
 test("tips: Undo after the first drag, saving after several changes", () => {
@@ -118,17 +162,24 @@ test("tips: Undo after the first drag, saving after several changes", () => {
     assert.ok(holding(contextOf(SALES, view, { canSave: true, changes: TIP_THRESHOLDS.changesBeforeSave })).includes("saveTemplate"));
     assert.ok(!holding(contextOf(SALES, view, { canSave: true, changes: TIP_THRESHOLDS.changesBeforeSave - 1 })).includes("saveTemplate"));
     assert.ok(!holding(contextOf(SALES, view, { canSave: false, changes: 99 })).includes("saveTemplate"), "only when saving is there");
+    // after a save the tip goes, and comes back after as many changes again
+    const saved = TIP_THRESHOLDS.changesBeforeSave + 2;
+    assert.ok(!holding(contextOf(SALES, view, { canSave: true, changes: saved, savedAt: saved })).includes("saveTemplate"));
+    assert.ok(!holding(contextOf(SALES, view, { canSave: true, changes: saved + TIP_THRESHOLDS.changesBeforeSave - 1, savedAt: saved })).includes("saveTemplate"));
+    assert.ok(holding(contextOf(SALES, view, { canSave: true, changes: saved + TIP_THRESHOLDS.changesBeforeSave, savedAt: saved })).includes("saveTemplate"));
 });
 
 test("tips: at most TIP_LIMIT, the most important first; allowed, dismissed and switched off", () => {
     const ctx = contextOf(SALES, { rows: ["Rep"], values: [{ field: "Rep", agg: "count", showAs: { type: "percentOfGrandTotal" } }], filters: [{ field: "Rep", type: "top", count: 2 }] });
     assert.deepEqual(holding(ctx), ["top", "showAs", "textValue", "cells"]);
-    assert.equal(TIP_LIMIT, 2);
+    // one tip at a time; the next one waits in the queue until the first is dismissed or followed
+    assert.equal(TIP_LIMIT, 1);
     // "top" is a notice: it counts against no limit
-    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [] }).map((t) => t.id), ["top", "showAs", "textValue"]);
-    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [], limit: 1 }).map((t) => t.id), ["top", "showAs"]);
-    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs"] }).map((t) => t.id), ["top", "textValue", "cells"]);
-    assert.deepEqual(activeTips(ctx, { allowed: ["cells", "textValue"], dismissed: [] }).map((t) => t.id), ["top", "textValue", "cells"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [] }).map((t) => t.id), ["top", "showAs"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: [], limit: 2 }).map((t) => t.id), ["top", "showAs", "textValue"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs"] }).map((t) => t.id), ["top", "textValue"]);
+    assert.deepEqual(activeTips(ctx, { allowed: "on", dismissed: ["showAs", "textValue"] }).map((t) => t.id), ["top", "cells"]);
+    assert.deepEqual(activeTips(ctx, { allowed: ["cells", "textValue"], dismissed: [] }).map((t) => t.id), ["top", "textValue"]);
     assert.deepEqual(activeTips({ ...ctx, failed: true }, { allowed: "on", dismissed: [] }), [], "an error shows nothing");
 });
 
@@ -233,15 +284,17 @@ test("tips: a line or an area over categories without an order suggests bars; da
 });
 
 test("help switches: the host's on or off decides, else the user's list; Show dismissed tips again keeps them", () => {
-    assert.deepEqual(helpSwitch(undefined, [], NO_FIELD_INFO), { on: true, user: true });
-    assert.deepEqual(helpSwitch(undefined, [NO_FIELD_INFO], NO_FIELD_INFO), { on: false, user: true });
-    assert.deepEqual(helpSwitch("on", [NO_FIELD_INFO], NO_FIELD_INFO), { on: true, user: false });
-    assert.deepEqual(helpSwitch("off", [], NO_ZONE_INFO), { on: false, user: false });
-    assert.deepEqual(cleanDismissed([NO_FIELD_INFO, NO_ZONE_INFO, "nope", ALL_TIPS, NO_ZONE_INFO]), [NO_FIELD_INFO, NO_ZONE_INFO, ALL_TIPS]);
-    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, NO_SETTING_INFO]);
-    assert.deepEqual(helpSwitch(undefined, [NO_SETTING_INFO], NO_SETTING_INFO), { on: false, user: true });
+    // one switch of the user's, "Show explanations", for the "i" of settings, zones and fields
+    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_EXPLANATIONS]);
+    assert.deepEqual(helpSwitch(undefined, []), { on: true, user: true });
+    assert.deepEqual(helpSwitch(undefined, [NO_EXPLANATIONS]), { on: false, user: true });
+    // a host's prop decides its kind, whatever the switch says
+    assert.deepEqual(helpSwitch("on", [NO_EXPLANATIONS]), { on: true, user: false });
+    assert.deepEqual(helpSwitch("off", []), { on: false, user: false });
+    // the earlier separate switches are no entries any more
+    assert.deepEqual(cleanDismissed(["-fieldInfo", "-zoneInfo", "-settingInfo", "nope", ALL_TIPS, NO_EXPLANATIONS, NO_EXPLANATIONS]), [ALL_TIPS, NO_EXPLANATIONS]);
     // "Show dismissed tips again" keeps the switches and the sections' states, takes the tips back
-    assert.deepEqual([ALL_TIPS, NO_SETTING_INFO, "open:format", "values"].filter(keptOnReset), [ALL_TIPS, NO_SETTING_INFO, "open:format"]);
+    assert.deepEqual([ALL_TIPS, NO_EXPLANATIONS, "open:format", "values"].filter(keptOnReset), [ALL_TIPS, NO_EXPLANATIONS, "open:format"]);
 });
 
 test("menu sections: open or folded by default, the user's choice kept in the tips' list only where it differs", () => {

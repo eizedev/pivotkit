@@ -1,7 +1,7 @@
 /*
  * The four zones (Filters, Columns, Rows, Values) with their chips. A chip is dragged to reorder or
  * move it, removed with its x, and its menu (chip-menus.jsx) holds everything else. A chip says what
- * is set on it in words: the grouping in its name ("Created (Month)"), "3 of 4" for a filter,
+ * is set on it in words: the grouping in its name ("Created by month"), "3 of 4" for a filter,
  * "Top 5", the sort; screen readers get the same in its name. After a chip is removed the focus goes
  * to its neighbour, or to the zone. In the compact layout the zones fold into one line that says what
  * is in them; a drag opens them while it lasts, so a field can still be dropped.

@@ -182,8 +182,8 @@ export const REAL = {
                 name: "How warm is each city, month by month?",
                 view: {
                     rows: ["City"],
-                    cols: ["Date (Month)"],
-                    derived: [{ name: "Date (Month)", field: "Date", by: "month" }],
+                    cols: ["Date by month of year"],
+                    derived: [{ name: "Date by month of year", field: "Date", by: "month" }],
                     values: [{ field: "Mean °C", agg: "average", format: "number:1", conditional: { type: "colorScale", colors: ["#5a8dee", "#f4f4f4", "#e8554e"] } }],
                     totals: { grandTotalRow: false }
                 }
@@ -211,9 +211,9 @@ export const REAL = {
             {
                 name: "Was 2025 warmer than 2023 in Berlin? (chart)",
                 view: {
-                    rows: ["Date (Month)"],
-                    cols: ["Date (Year)"],
-                    derived: [{ name: "Date (Month)", field: "Date", by: "month" }, { name: "Date (Year)", field: "Date", by: "year" }],
+                    rows: ["Date by month of year"],
+                    cols: ["Date by year"],
+                    derived: [{ name: "Date by month of year", field: "Date", by: "month" }, { name: "Date by year", field: "Date", by: "year" }],
                     values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
                     filters: [{ field: "City", type: "include", items: ["Berlin"] }],
                     display: "chart",
@@ -314,8 +314,8 @@ export const REAL = {
             {
                 name: "Did some months shake more than others? (chart)",
                 view: {
-                    rows: ["Time (Month)"],
-                    derived: [{ name: "Time (Month)", field: "Time", by: "yearMonth" }],
+                    rows: ["Time by month"],
+                    derived: [{ name: "Time by month", field: "Time", by: "yearMonth" }],
                     values: [{ field: "Time", agg: "count", label: "Quakes" }],
                     display: "chart",
                     chart: { type: "bar" }
@@ -390,10 +390,10 @@ export const REAL = {
             {
                 name: "How many release cycles reach end of life per year? (chart)",
                 view: {
-                    rows: ["EOL date (Year)"],
-                    derived: [{ name: "EOL date (Year)", field: "EOL date", by: "year" }],
+                    rows: ["EOL date by year"],
+                    derived: [{ name: "EOL date by year", field: "EOL date", by: "year" }],
                     values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
-                    filters: [{ field: "EOL date (Year)", type: "include", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030] }],
+                    filters: [{ field: "EOL date by year", type: "include", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030] }],
                     display: "chart",
                     chart: { type: "bar" }
                 }
@@ -432,8 +432,8 @@ export const REAL = {
                 name: "What reaches end of life in the next 12 months? Click a count for the cycles",
                 view: {
                     rows: ["Category", "Product"],
-                    cols: ["EOL date (Quarter)"],
-                    derived: [{ name: "EOL date (Quarter)", field: "EOL date", by: "yearQuarter" }, { name: "Days to EOL (by 365)", field: "Days to EOL", by: "bin", size: 365, origin: 0 }],
+                    cols: ["EOL date by quarter"],
+                    derived: [{ name: "EOL date by quarter", field: "EOL date", by: "yearQuarter" }, { name: "Days to EOL (by 365)", field: "Days to EOL", by: "bin", size: 365, origin: 0 }],
                     values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
                     filters: [{ field: "Days to EOL (by 365)", type: "include", items: [0] }],
                     sort: [{ field: "Category", by: "value", order: "desc" }, { field: "Product", by: "value", order: "desc" }]
@@ -525,9 +525,9 @@ export const DATASETS = {
             {
                 name: "Purchases per year (chart)",
                 view: {
-                    rows: ["Purchased (Year)"],
+                    rows: ["Purchased by year"],
                     cols: ["Source system"],
-                    derived: [{ name: "Purchased (Year)", field: "Purchased", by: "year" }],
+                    derived: [{ name: "Purchased by year", field: "Purchased", by: "year" }],
                     values: [{ field: "Asset", agg: "count" }],
                     display: "chart",
                     chart: { type: "bar", stacked: true }

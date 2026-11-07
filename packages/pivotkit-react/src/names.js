@@ -1,6 +1,6 @@
 /*
  * Names the UI writes for things the core leaves unnamed: a value ("Sum of Revenue", "% of grand
- * total of Revenue") and the derived field of a grouping ("Created (Month)"), in the labels' language;
+ * total of Revenue") and the derived field of a grouping ("Created by month"), in the labels' language;
  * what a click on a field of the field list does, and the zones folded into one line, in words.
  */
 
@@ -65,9 +65,10 @@ export function valueConditionText(view, f, labels, locale) {
     return fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op, number: number(f.value) });
 }
 
-/** The name of a derived field for a grouping, in the labels' language. */
+/** The name of a derived field for a grouping, in the labels' language: "Date by month", "Amount (by 100)". */
 export function groupingName(source, unit, labels, size) {
-    return unit === "bin" ? fill(labels.binsName, { field: source, size }) : fill(labels.derivedName, { field: source, unit: labels.units[unit] ?? unit });
+    const inName = labels.unitInName && Object.hasOwn(labels.unitInName, unit) ? labels.unitInName[unit] : labels.units[unit];
+    return unit === "bin" ? fill(labels.binsName, { field: source, size }) : fill(labels.derivedName, { field: source, unit: inName ?? unit });
 }
 
 

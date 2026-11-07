@@ -283,12 +283,17 @@ test("the range form: the numbers of a field, and a start too far from them", ()
 test("chart display settings change without the type, and stay when the type changes", () => {
     const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
     const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
-    assert.deepEqual(shown.chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
+    // the type stays the view's default: automatic, until the user picks one
+    assert.deepEqual(shown.chart, { type: "auto", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
     // the display mode is the user's: a setting does not switch to the chart
     assert.equal(shown.display, "table");
     const line = setChart(shown, "line");
     assert.deepEqual([line.chart.type, line.chart.title, line.chart.legend, line.chart.smooth], ["line", "Units", "bottom", true]);
     assert.deepEqual(norm(line).chart, line.chart);
+    // "Automatic" again: the data decides once more, the display settings stay
+    const auto = setChart(line, "auto");
+    assert.deepEqual([auto.chart.type, auto.chart.stacked, auto.chart.horizontal, auto.chart.title], ["auto", false, false, "Units"]);
+    assert.deepEqual(norm(auto).chart, auto.chart);
 });
 
 test("Remove filter takes the item list and the text condition, keeps Top N and the field in Filters", () => {

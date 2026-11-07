@@ -23,7 +23,8 @@ export const options = {
     absWorkingDir: new URL(".", import.meta.url).pathname,
     // menus.js: the menus' panels, loaded on demand (lazy-menus.jsx); what it shares with index.js is
     // a chunk of its own (splitting), so both use one copy of each module (one React context each)
-    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", styles: "src/styles.css" },
+    // labels.js (the package's "./labels"): every text, for hosts; not part of the report's first load
+    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", labels: "src/all-labels.js", styles: "src/styles.css" },
     outdir: "dist",
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",

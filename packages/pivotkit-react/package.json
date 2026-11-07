@@ -30,6 +30,10 @@
       "types": "./types/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./labels": {
+      "types": "./types/all-labels.d.ts",
+      "default": "./dist/labels.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },

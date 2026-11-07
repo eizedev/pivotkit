@@ -9,6 +9,7 @@ import { SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
+import { MENU_LABELS } from "../src/menu-labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
 
@@ -97,8 +98,8 @@ test("counts in words take the plural form of the language: 1 series, 1 Reihe", 
     assert.match(chartSummary(s, { type: "bar", rows: ["R"], valueNames: ["Summe von V"], labels: LABELS.de, locale: "de-DE" }), /\. 1 Kategorie, 1 Reihe\./);
     assert.equal(plural(en.rowsCount, 1, { lang: "en", locale: "en-US" }), "1 row");
     assert.equal(plural(en.rowsCount, 1234, { lang: "en", locale: "en-US" }), "1,234 rows");
-    assert.equal(plural(LABELS.de.drillCount, 1, { lang: "de", locale: "de-DE" }), "1 Zeile");
-    assert.equal(plural(LABELS.de.drillCount, 0, { lang: "de", locale: "de-DE" }), "0 Zeilen");
+    assert.equal(plural(MENU_LABELS.de.drillCount, 1, { lang: "de", locale: "de-DE" }), "1 Zeile");
+    assert.equal(plural(MENU_LABELS.de.drillCount, 0, { lang: "de", locale: "de-DE" }), "0 Zeilen");
     // a language with more forms: a host's labels keep "few" and "many", which English does not have
     const pl = resolveLabels("en", { lang: "pl", rowsCount: { one: "{count} wiersz", few: "{count} wiersze", many: "{count} wierszy", other: "{count} wiersza" } });
     assert.equal(plural(pl.rowsCount, 3, { lang: pl.lang, locale: "pl-PL" }), "3 wiersze");
@@ -323,4 +324,68 @@ test("auto group labels need room: a phone-sized chart writes the whole names in
     assert.equal(groupLabelsFit(21, 3, { width: 350, height: 180 }), false, "390 px phone");
     assert.equal(groupLabelsFit(200, 1, { width: 1100, height: 420 }), false, "groups of one category are too narrow");
     assert.equal(groupLabelsFit(21, 3, { width: 900, height: 600, horizontal: true }), true);
+});
+
+test("toolbar: which buttons go into More follows the width and a fixed priority, never the texts", async () => {
+    const { OVERFLOW_ORDER, TOOLBAR_ROOM, overflowLevel } = await import("../src/overflow.js");
+    // Redo stays with Undo: it never moves
+    assert.deepEqual(OVERFLOW_ORDER, ["reset", "layout", "views", "options", "chartType"]);
+    const all = TOOLBAR_ROOM.display + TOOLBAR_ROOM.sep + TOOLBAR_ROOM.undo + TOOLBAR_ROOM.redo + TOOLBAR_ROOM.export + OVERFLOW_ORDER.reduce((n, id) => n + TOOLBAR_ROOM[id], 0);
+    assert.equal(overflowLevel(all, false), 0, "room for every button");
+    assert.equal(overflowLevel(all - 0.1, false), 1, "a little less: Reset goes first");
+    assert.equal(overflowLevel(0, false), OVERFLOW_ORDER.length, "no room: all of them");
+    // a narrow report has the Fields button too: Reset and Layout make room for it and for "More"
+    assert.equal(overflowLevel(all, true), 2);
+    // the level only grows as the toolbar gets narrower
+    let last = 0;
+    for (let w = 140; w >= 0; w -= 0.5) {
+        const level = overflowLevel(w, false);
+        assert.ok(level >= last);
+        last = level;
+    }
+});
+
+test("field list keys: up and down between fields, left and right between a field's controls", async () => {
+    const { SLOTS, opensMenu, roveTarget } = await import("../src/rove.js");
+    assert.deepEqual(SLOTS, ["handle", "name", "info", "menu"]);
+    // row 1 has an "i", the others do not
+    const slotsOf = (row) => (row === 1 ? ["handle", "name", "info", "menu"] : ["handle", "name", "menu"]);
+    assert.deepEqual(roveTarget("ArrowDown", { row: 0, slot: "name" }, 3, slotsOf), { row: 1, slot: "name" });
+    assert.deepEqual(roveTarget("ArrowDown", { row: 2, slot: "name" }, 3, slotsOf), { row: 2, slot: "name" }, "the last field stays");
+    assert.deepEqual(roveTarget("ArrowUp", { row: 0, slot: "menu" }, 3, slotsOf), { row: 0, slot: "menu" });
+    assert.deepEqual(roveTarget("ArrowDown", { row: 0, slot: "menu" }, 3, slotsOf), { row: 1, slot: "menu" }, "the column stays");
+    assert.deepEqual(roveTarget("ArrowDown", { row: 1, slot: "info" }, 3, slotsOf), { row: 2, slot: "name" }, "a field without an i: its name");
+    assert.deepEqual(roveTarget("End", { row: 0, slot: "handle" }, 3, slotsOf), { row: 2, slot: "handle" });
+    assert.deepEqual(roveTarget("Home", { row: 2, slot: "name" }, 3, slotsOf), { row: 0, slot: "name" });
+    assert.deepEqual(roveTarget("ArrowRight", { row: 1, slot: "name" }, 3, slotsOf), { row: 1, slot: "info" });
+    assert.deepEqual(roveTarget("ArrowRight", { row: 0, slot: "name" }, 3, slotsOf), { row: 0, slot: "menu" });
+    assert.deepEqual(roveTarget("ArrowRight", { row: 0, slot: "menu" }, 3, slotsOf), { row: 0, slot: "menu" }, "the last control stays");
+    assert.deepEqual(roveTarget("ArrowLeft", { row: 0, slot: "name" }, 3, slotsOf), { row: 0, slot: "handle" });
+    assert.equal(roveTarget("Enter", { row: 0, slot: "name" }, 3, slotsOf), null, "Enter is the control's own");
+    assert.equal(roveTarget("ArrowDown", { row: 0, slot: "name" }, 0, slotsOf), null);
+    assert.equal(opensMenu({ key: "F10", shiftKey: true }), true);
+    assert.equal(opensMenu({ key: "ContextMenu", shiftKey: false }), true);
+    assert.equal(opensMenu({ key: "F10", shiftKey: false }), false);
+});
+
+test("filter: the condition on the labels by the field's type, none for dates and yes/no", async () => {
+    const { conditionKind } = await import("../src/view-ops.js");
+    const data = encode([{ Region: "North", Units: 3, Day: "2026-01-05", Done: true }]);
+    const view = { derived: [{ name: "Day by month", field: "Day", by: "yearMonth" }, { name: "Units (by 2)", field: "Units", by: "bin", size: 2 }] };
+    assert.equal(conditionKind(data, view, "Region"), "text");
+    assert.equal(conditionKind(data, view, "Units"), "number");
+    assert.equal(conditionKind(data, view, "Units (by 2)"), "number");
+    assert.equal(conditionKind(data, view, "Day"), null);
+    assert.equal(conditionKind(data, view, "Day by month"), null, "a grouping of a date is a date");
+    assert.equal(conditionKind(data, view, "Done"), null);
+});
+
+test("a date grouping is named in words: Date by month, Datum nach Monat", async () => {
+    const { groupingName } = await import("../src/names.js");
+    assert.equal(groupingName("Date", "yearMonth", LABELS.en), "Date by month");
+    assert.equal(groupingName("Date", "month", LABELS.en), "Date by month of year");
+    assert.equal(groupingName("Datum", "yearMonth", LABELS.de), "Datum nach Monat");
+    assert.equal(groupingName("Amount", "bin", LABELS.en, 100), "Amount (by 100)");
+    // a host's labels without unitInName: the unit's own name
+    assert.equal(groupingName("Date", "year", { ...LABELS.en, unitInName: undefined }), "Date by Year");
 });

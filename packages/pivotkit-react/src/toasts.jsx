@@ -1,6 +1,7 @@
 /*
  * Short notes after an action ("Undone: Region removed", "Exported pivot.xlsx"), some with an action
- * button (Undo). They sit in the status line under the table, never over the data, are read out by a
+ * button (Undo). They sit at the bottom edge of the part of the report that is on screen (under the
+ * table, or at the bottom of the window when the report reaches past it), are read out by a
  * polite live region and go away after a few seconds; while the pointer or the focus is on them they
  * stay. Errors stay until they are closed.
  */

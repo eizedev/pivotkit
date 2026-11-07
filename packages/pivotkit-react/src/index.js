@@ -105,7 +105,7 @@
  * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per
  *   report on a page); without it they are remembered until the page is loaded again
  * @property {string[]} [dismissedTips]  dismissed tip ids from the host's own storage ("*": all tips off,
- *   "-fieldInfo", "-zoneInfo" and "-settingInfo": those switches of Options → Help off;
+ *   "-explanations": "Show explanations" of Options → Help off;
  *   "open:<section>" and "closed:<section>": a menu section the user opened or folded)
  * @property {(change: TipDismiss) => void} [onTipDismiss]  every dismissal, "Show tips" and
  *   "Show dismissed tips again", with the whole list, for a host that stores it itself
@@ -119,12 +119,13 @@
  *   URL fragment (`#pivot=`, `#pivot-<storageKey>=` with a storageKey). Off by default
  * @property {"session"} [persistView]  "session": the view is kept in sessionStorage for this tab
  *   (per `storageKey`) and comes back when the page is loaded again
- * @property {"on" | "off"} [fieldInfo]  the "i" of the field descriptions: "on" or "off" decides it
- *   (and Options has no switch for it); without it the user switches it in Options → Help (on by default,
- *   remembered like the tips). Screen readers keep the descriptions either way
+ * @property {"on" | "off"} [fieldInfo]  the "i" of the field descriptions: "on" or "off" decides it,
+ *   whatever the user's "Show explanations" in Options → Help (on by default, remembered like the
+ *   tips) says; without it that switch decides. Screen readers keep the descriptions either way
  * @property {"on" | "off"} [zoneInfo]  the "i" next to the zone titles that explains each zone, as `fieldInfo`
  * @property {"on" | "off"} [settingInfo]  the "i" next to the settings that need explaining (totals,
- *   "Show as", "Along", the export formats, chart labels), as `fieldInfo` ("Show explanations")
+ *   "Show as", "Along", the export formats, chart labels), as `fieldInfo`. Options shows "Show
+ *   explanations" while one of the three is left to the user
  * @property {ViewSource} [source]  the data the report shows: its id and name go into the view files
  *   and links it shares, and a view made for another source asks before it is loaded
  * @property {ViewSource[]} [sources]  the other data the host can show: a view made for one of them
@@ -160,4 +161,3 @@
  */
 
 export { PivotReport } from "./PivotReport.jsx";
-export { LABELS } from "./labels.js";
