@@ -16,8 +16,14 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
    `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`).
    The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
    `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
-4. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
-5. Open a pull request with a short description and what you tested; use Conventional Commits
+4. Describe what people see on the [documentation site](https://pivotkit.eize.dev/) too: its pages are
+   in `docs/`. Preview them with `npm run docs:demo` (the live demo), then
+   `curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css`
+   and `uvx zensical@<version> serve` (the version is in eizedev/brand's
+   `docs-site/requirements.txt`); `zensical build --strict` is what CI runs. A change of the UI takes
+   the screenshots again: `npm run docs:screenshots`.
+5. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
+6. Open a pull request with a short description and what you tested; use Conventional Commits
    (`feat(core): ...`, `fix(react): ...`, `feat(element): ...`).
 
 ## Dependencies

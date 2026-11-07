@@ -1,9 +1,24 @@
-# pivotkit playground
+`<PivotReport>` with real public data and generated data to try in the browser.
 
-`<PivotReport>` with generated data to try in the browser: IT tickets (team, priority, status, created,
-lead hours), sales (region, country, product, month, revenue, units) and assets per source system. The
-rows come from a fixed seed, so every machine and every test run sees the same numbers. Each data set
-has three start presets; templates you save stay in this browser (localStorage).
+Real data (snapshots in [data/](data/), fetched once by `npm run docs:data`; the page calls none of
+the sources), each with four templates phrased as questions:
+
+| `?data=` | What | Source, licence |
+| --- | --- | --- |
+| `weather` | Daily weather of 14 cities, 2023-2025 | Weather data by [Open-Meteo.com](https://open-meteo.com/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([SOURCES.md](data/SOURCES.md)) |
+| `countries` | Population, GDP and CO2 per country, 2005-2024 | [World Bank](https://data.worldbank.org/), World Development Indicators, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| `earthquakes` | Earthquakes of magnitude 4.5 and more, 2025 | [U.S. Geological Survey](https://earthquake.usgs.gov/), public domain |
+| `nobel` | Nobel Prize laureates, 1901-2026 | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+
+[data/SOURCES.md](data/SOURCES.md) has the requests, what was changed and the terms of each source;
+[data/sources.js](data/sources.js) the requests and the mapping from response to rows, which the
+fetch script (`scripts/docs-data.js`) and the documentation's "Learn with real data" page share. The
+page shows the attribution of the picked data set in its header.
+
+Generated data, for the tests and the benchmarks: IT tickets (team, priority, status, created, lead
+hours), sales (region, country, product, month, revenue, units) and assets per source system. The
+rows come from a fixed seed, so every machine and every test run sees the same numbers; each of these
+data sets has three start presets. Templates you save stay in this browser (localStorage).
 
 ```bash
 npm ci
@@ -16,7 +31,8 @@ node examples/playground/serve.js 4173    # serve the static build
 server, for example GitHub Pages or a test container. The build is esbuild only: the package is built
 first and imported as a consumer imports it (`pivotkit-react` and `pivotkit-react/styles.css`).
 
-URL parameters pick the start: `?data=tickets|sales|assets`, `rows=2000|4000|100000`, `preset=0|1|2`,
+URL parameters pick the start: `?data=weather|countries|earthquakes|nobel|tickets|sales|assets`,
+`rows=2000|4000|100000` (generated data only), `preset=0|1|2|3`,
 `empty`, `lang=en|de`, `height=480` (the report at that height in px, as a host's card gives it),
 `theme=light|dark` (sets `<html data-theme>` as PowerShell Universal does;
 without it the report follows the system). The footer shows the engine timings of the last change

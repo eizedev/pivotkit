@@ -15,6 +15,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- README: the link to the license is absolute (GitHub), so it works on the npm page.
 - One value's name is a single header cell over all of its columns instead of being repeated in each
   (#26).
 - CSV: a value shown as a percent is written in percent with a `%` (`-2.56435492186162%`, as the

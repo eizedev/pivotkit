@@ -1,0 +1,59 @@
+name: Docs site
+
+# Builds the documentation site (pivotkit.eize.dev) on every pull request, so it never breaks
+# unnoticed, and publishes it to GitHub Pages from main. `npm run docs:demo` builds the playground and
+# copies it into docs/playground/ (the live demo); then Zensical builds the pages with the shared design
+# of eizedev/brand. Publishing runs only when the repository variable PAGES_ENABLED is "true"
+# (Settings > Pages > Source: GitHub Actions; the custom domain is set there too). GitHub Pages needs the
+# repository to be public on GitHub Free, so until then the build runs and the deploy is skipped.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Install
+        # no install scripts, as in ci.yml
+        run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Live demo
+        run: npm run docs:demo
+      # the shared design and the pinned Zensical version (eizedev/brand, docs-site/); the site lands in site/
+      - uses: eizedev/brand/docs-site@c68d7f551c57943f66f5f68f49856d52c33a1550 # main
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

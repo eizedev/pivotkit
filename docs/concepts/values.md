@@ -1,0 +1,120 @@
+---
+title: "Values: aggregators, show as, formats"
+description: How pivotkit computes the numbers in the cells - aggregators, "show values as" calculations, number formats, colour scales and data bars - and how they reach Excel.
+---
+
+# Values: aggregators, show as, formats
+
+A value in the view says what goes into the cells: a field, an aggregator, and optionally a
+calculation on top ("show values as"), a format, a name and highlighting.
+
+```json
+{
+    "field": "Revenue",
+    "agg": "sum",
+    "format": "currency:EUR",
+    "label": null,
+    "showAs": { "type": "percentOfGrandTotal" },
+    "conditional": { "type": "dataBar" }
+}
+```
+
+Blank values are skipped by every aggregator. A cell with rows but no numbers is 0 for a sum and
+empty for an average, a median, a minimum, a maximum or a variance (Excel shows `#DIV/0!` or 0 there).
+
+A report can hold several values; they appear side by side under every column. The same field can
+appear more than once (the sum and the average of a cost, say).
+
+## Aggregators
+
+| `agg` | Shown as | Fits | Notes |
+| --- | --- | --- | --- |
+| `count` | Count | every field | Rows with a value in the field. |
+| `countUnique` | Count Unique | every field | Distinct values. |
+| `listUnique` | List Unique | every field | The distinct values as text. |
+| `sum` | Sum | numbers | Adds up. |
+| `average` | Average | numbers, dates | |
+| `median` | Median | numbers, dates | |
+| `min`, `max` | Min, Max | numbers, dates | |
+| `stdev`, `stdevp` | StdDev, StdDevP | numbers | Standard deviation of a sample, of a population. |
+| `var`, `varp` | Var, VarP | numbers | Variance of a sample, of a population. |
+| `first`, `last` | First, Last | every field | The value of the first or last row in data order. |
+
+The report's value menu offers sum, count, average, minimum and maximum first and folds the rest
+under "More statistics". A value is named after its aggregator and field ("Sum of Revenue") unless
+the view gives it a `label`. `aggregatorsFor(type)` in pivotkit-core lists what fits a field type, and
+`fieldDefaults` in the UI picks the aggregator a field gets when it is added (an average for a
+duration, say).
+
+## Show values as
+
+A calculation on the aggregated values, with Excel's names:
+
+| `showAs.type` | Shown as | What |
+| --- | --- | --- |
+| `percentOfGrandTotal` | % of grand total | The cell's share of the grand total. |
+| `percentOfRowTotal` | % of row total | The cell's share of its row's total. |
+| `percentOfColumnTotal` | % of column total | The cell's share of its column's total. |
+| `percentOfParentRow` | % of parent row | The share of the group one level up on rows. |
+| `percentOfParentColumn` | % of parent column | The same on columns. |
+| `differenceFromPrevious` | Difference from previous | Minus the previous item along `axis`. |
+| `percentDifferenceFromPrevious` | % difference from previous | The same as a percentage. |
+| `runningTotal` | Running total | Adds up along `axis`. |
+| `percentRunningTotal` | % running total | The running total as a share of the total. |
+| `rankAscending` | Rank (smallest first) | 1 for the smallest. |
+| `rankDescending` | Rank (largest first) | 1 for the largest. |
+
+The last six walk along `axis` (`"rows"` or `"cols"`, Excel's "base field") within each parent group.
+Running totals need an aggregator that adds up (`sum`, `count`); on an average or a median they are
+refused, since a running "total" of averages means nothing. The header then names the calculation:
+"% of grand total of Revenue".
+
+## Formats
+
+A view is JSON and cannot carry functions, so a value names its format:
+
+| Format | Example | What |
+| --- | --- | --- |
+| `number`, `number:2` | 1,234.5 | Up to 2 decimals; with a number (up to 20) exactly that many. |
+| `integer` | 1,235 | Rounded to a whole number. |
+| `currency`, `currency:USD` | €1,234.50 | An ISO 4217 code, default EUR. |
+| `percent`, `percent:0` | 25% | The value is a fraction (0.25); up to 1 decimal by default. |
+| `percent100` | 25% | The value is a percentage already (25). |
+| `compact` | 1.2M | The locale's short form. |
+| `bytes` | 1.5 MB | Powers of 1024. |
+| `duration`, `duration:h` | 2 h 5 min | The value in seconds, or in `ms`, `s`, `min`, `h`, `d`. |
+| `date`, `datetime`, `time` | | A date value. |
+| `text` | 40072 | As it is, without grouping: for identifiers. |
+
+A value without a format gets the same decimals in every cell of its column: those of the source
+values (at most 2) for a sum, minimum, maximum, first or last; 2 for an average, a median or a spread;
+none for a count; one for a percentage calculation. All formatting follows the
+[locale](limits.md#locale), never the machine's.
+
+## Highlighting
+
+`conditional` colours the cells of a value, as Excel's conditional formatting does:
+
+- `{ "type": "colorScale", "colors": ["#f8696b", "#ffeb84", "#63be7b"] }`: two or three colours from
+  low to high. Without `colors` the theme's scale is used (`--pk-scale-low`, `-mid`, `-high` in the
+  UI).
+- `{ "type": "dataBar", "color": "#638ec6" }`: a bar in each cell, its length the cell's place between
+  the smallest and the largest cell of that value.
+
+Totals are not highlighted. The XLSX export writes both as Excel's native conditional formats, so they
+stay live in the workbook.
+
+## Export
+
+The XLSX export writes typed cells with number formats that show them as the grid does: decimals per
+cell for `number`, `percent` and `percent100`, the locale's currency symbol and its place, `compact`
+with Excel's thousands scaling, and the locale's date order. Where Excel cannot follow:
+
+- `bytes` and `duration` are written as plain numbers: Excel cannot divide by 1024 or write
+  "2 h 5 min" in a number format.
+- `compact` in locales that group by ten thousand (Japanese) falls back to `General`.
+- Dates before 1900 are written as text. Dates use Excel's serial numbers, including its 1900 leap
+  year quirk.
+- Number labels (a year on rows) stay numbers.
+
+CSV uses the grid's locale for the separator and the decimal mark and keeps 15 significant digits.

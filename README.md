@@ -1,11 +1,21 @@
-# pivotkit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/header-dark.svg">
+    <img src="assets/header-light.svg" alt="pivotkit" height="90">
+  </picture>
+</p>
 
 Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), templates as
 JSON, native Excel export; as a JavaScript core, a React component and a web component.
 
+![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
+
+<sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
+
 | | |
 | --- | --- |
-| Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) |
+| Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
+| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): getting started, a guide for the people using the report, the API reference, a [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) (weather, countries, earthquakes, Nobel laureates) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
 Version 0.1.0 of each package, on npm.
@@ -74,6 +84,7 @@ npm test
 npm run pack:check               # what npm pack would publish (all three packages)
 npm run bench -w pivotkit-core
 npm run playground               # the playground on http://localhost:5173
+npm run docs:data                # fetch the playground's real data sets again (network)
 npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host pages, shadow root, web component
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (after npm ci --prefix tests/react19)
 ```
@@ -83,3 +94,7 @@ Releasing is described in [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
 ## License
 
 [MIT](LICENSE). Charts are drawn with [Apache ECharts](https://echarts.apache.org/) (Apache-2.0).
+The images in `assets/` and `docs/assets/icon.svg` (icon, header, social preview) are made in
+[eizedev/brand](https://github.com/eizedev/brand) and licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The playground's real data sets keep the
+licences of their sources, listed in [examples/playground/data/SOURCES.md](examples/playground/data/SOURCES.md).

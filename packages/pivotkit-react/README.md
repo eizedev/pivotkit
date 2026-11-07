@@ -1,11 +1,13 @@
 # pivotkit-react
 
+Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/react/) - getting started, every prop, theming, localisation, a [guide for the people using the report](https://pivotkit.eize.dev/guide/) and a [live demo](https://pivotkit.eize.dev/demo/).
+
 The pivot report builder of pivotkit as a React 18/19 component: a searchable field list, four drop
 zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every field, table and chart
 (Apache ECharts), filters with value counts, drill-down to the rows behind a value, undo and redo,
-templates as JSON, and Excel, CSV and PNG export. The engine is [pivotkit-core](../pivotkit-core/).
+templates as JSON, and Excel, CSV and PNG export. The engine is [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme).
 
-Version 0.1.0. Try it in the [playground](../../examples/playground/).
+Version 0.1.0. Try it in the [playground](https://pivotkit.eize.dev/demo/).
 
 ## Install
 
@@ -280,4 +282,4 @@ JSX runtime), and keeps every dependency as an import for the host's bundler.
 
 ## License
 
-[MIT](../../LICENSE)
+[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE)

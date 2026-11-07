@@ -14,9 +14,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- README: links to other packages, the examples and the license are absolute (GitHub, the
+  documentation site), so they work on the npm page.
 - The row label columns share at most 40 % of the report's main area and a value's name wraps
-  beyond 30 %, so long labels wrap and a phone shows values next to nested row labels; from 300 rows on, a label is cut with an ellipsis and
-  its full text is the cell's title (#25).
+  beyond 30 %, so long labels wrap and a phone shows values next to nested row labels; from 300
+  rows on, a label is cut with an ellipsis and its full text is the cell's title (#25).
 - One value's name is shown once over its columns (pivotkit-core) (#26).
 
 ### Fixed

@@ -1,0 +1,291 @@
+// The real data sets of the playground (examples/playground/data/): every template opens and shows
+// the numbers that the snapshot holds. The expected numbers are computed here from the snapshot with
+// plain JavaScript, not with pivotkit, so a wrong aggregation, filter or "show as" fails the test.
+import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { readSheet } from "read-excel-file/node";
+import { chips, expect, tableRows, test } from "./fixtures.js";
+import { unpack } from "../../examples/playground/data/sources.js";
+
+const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
+const weather = load("weather");
+const countries = load("countries");
+const quakes = load("earthquakes");
+const nobel = load("nobel");
+
+const sum = (list) => list.reduce((s, x) => s + x, 0);
+const avg = (list) => sum(list) / list.length;
+const int = (x) => x.toLocaleString("en-US");
+const one = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pct = (x) => `${one(x * 100)}%`;
+
+/** The cells of the table row whose label cells include `label`. */
+async function row(page, label) {
+    const rows = await tableRows(page);
+    const found = rows.find((r) => r.includes(label));
+    expect(found, `a row "${label}" in ${JSON.stringify(rows.map((r) => r.slice(0, 2)))}`).toBeTruthy();
+    return found;
+}
+
+async function open(page, query) {
+    await page.goto(`?${query}`);
+    await expect(page.locator(".pk-root")).toBeVisible();
+}
+
+test.describe("weather", () => {
+    test("how warm each city is, month by month", async ({ page }) => {
+        await open(page, "data=weather&preset=0");
+        const berlin = weather.filter((r) => r.City === "Berlin");
+        const r = await row(page, "Berlin");
+        expect(r[1]).toBe(one(avg(berlin.filter((x) => x.Date.slice(5, 7) === "01").map((x) => x["Mean °C"]))));
+        expect(r[7]).toBe(one(avg(berlin.filter((x) => x.Date.slice(5, 7) === "07").map((x) => x["Mean °C"]))));
+        expect(r.at(-1)).toBe(one(avg(berlin.map((x) => x["Mean °C"]))));
+    });
+
+    test("the sunniest city, top 3", async ({ page }) => {
+        await open(page, "data=weather&preset=1");
+        const ranked = Object.entries(Object.groupBy(weather, (x) => x.City))
+            .map(([city, list]) => [city, avg(list.map((x) => x["Sunshine h"]))])
+            .sort((a, b) => b[1] - a[1]);
+        const rows = await tableRows(page);
+        expect(rows.map((r) => r[0])).toEqual([...ranked.slice(0, 3).map(([c]) => c), "Grand Total"]);
+        expect(rows[0][1]).toBe(one(ranked[0][1]));
+    });
+
+    test("rain days per season in 2025", async ({ page }) => {
+        await open(page, "data=weather&preset=2");
+        const sg = weather.filter((x) => x.City === "Singapore" && x.Date.startsWith("2025"));
+        const r = await row(page, "Singapore");
+        // Autumn, Spring, Summer, Winter, Grand Total
+        expect(r.slice(1)).toEqual([...["Autumn", "Spring", "Summer", "Winter"].map((s) => int(sum(sg.filter((x) => x.Season === s).map((x) => x["Rain day"])))), int(sg.filter((x) => x["Rain mm"] >= 1).length)]);
+    });
+
+    test("Berlin, 2023 to 2025: the chart's table", async ({ page }) => {
+        await open(page, "data=weather&preset=3");
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await page.getByTestId("show-table").click();
+        const jan = weather.filter((x) => x.City === "Berlin" && x.Date.slice(5, 7) === "01");
+        const r = await row(page, "Jan");
+        expect(r.slice(1, 4)).toEqual(["2023", "2024", "2025"].map((y) => one(avg(jan.filter((x) => x.Date.startsWith(y)).map((x) => x["Mean °C"])))));
+    });
+});
+
+test.describe("countries", () => {
+    const year = (y) => countries.filter((x) => x.Year === y);
+    const total = (list, field) => sum(list.map((x) => x[field] ?? 0));
+
+    test("region, then country: the three largest per region in 2024", async ({ page }) => {
+        await open(page, "data=countries&preset=0");
+        const sa = year(2024).filter((x) => x.Region === "South Asia").sort((a, b) => b.Population - a.Population);
+        expect(sa[0].Country).toBe("India");
+        const rows = await tableRows(page);
+        const start = rows.findIndex((r) => r.includes("India"));
+        expect(rows.slice(start, start + 3).map((r) => r.at(-2))).toEqual(sa.slice(0, 3).map((x) => x.Country));
+        await expect(page.getByTestId("note-top")).toContainText("Country shows the top 3 only");
+    });
+
+    test("share of the world's CO2 per region", async ({ page }) => {
+        await open(page, "data=countries&preset=1");
+        const all = total(year(2024), "CO2 (Mt)");
+        const r = await row(page, "East Asia & Pacific");
+        // 2005, 2010, 2015, 2020, 2024
+        expect(r[5]).toBe(pct(total(year(2024).filter((x) => x.Region === "East Asia & Pacific"), "CO2 (Mt)") / all));
+        expect((await row(page, "Grand Total"))[5]).toBe("100.0%");
+    });
+
+    test("GDP change from the year before", async ({ page }) => {
+        await open(page, "data=countries&preset=2");
+        const hi = (y) => total(year(y).filter((x) => x["Income group"] === "High income"), "GDP (US$)");
+        const r = await row(page, "High income");
+        // 2019 has no year before it in the report: blank
+        expect(r[1]).toBe("");
+        expect(r[2]).toBe(pct(hi(2020) / hi(2019) - 1));
+        expect(r[6]).toBe(pct(hi(2024) / hi(2023) - 1));
+    });
+
+    test("population per income group: chart and its table", async ({ page }) => {
+        await open(page, "data=countries&preset=3");
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await expect(page.getByTestId("chart-type")).toContainText("Stacked bars");
+        await page.getByTestId("show-table").click();
+        const r = await row(page, "2024");
+        const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+        expect(r.at(-1)).toBe(compact.format(total(year(2024), "Population")));
+    });
+});
+
+test.describe("earthquakes", () => {
+    test("magnitude ranges", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        const low = quakes.filter((x) => x.Magnitude >= 4.5 && x.Magnitude < 5).length;
+        const r = await row(page, "4.5 – 5");
+        expect(r.slice(1)).toEqual([int(low), pct(low / quakes.length)]);
+        expect(await row(page, "Grand Total")).toEqual(["Grand Total", int(quakes.length), "100.0%"]);
+    });
+
+    test("the regions that shook most often, top 10", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=1");
+        const ranked = Object.entries(Object.groupBy(quakes, (x) => x.Region)).sort((a, b) => b[1].length - a[1].length);
+        const rows = await tableRows(page);
+        expect(rows).toHaveLength(11);
+        expect(rows[0]).toEqual([ranked[0][0], int(ranked[0][1].length), one(Math.max(...ranked[0][1].map((x) => x.Magnitude)))]);
+        expect(rows.at(-1)[1]).toBe(int(sum(ranked.slice(0, 10).map(([, l]) => l.length))));
+    });
+
+    test("quakes of 7 and more: a click shows the single quakes", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=2");
+        const strong = quakes.filter((x) => x.Magnitude >= 7);
+        expect((await row(page, "Grand Total")).at(-1)).toBe(int(strong.length));
+        const russia = strong.filter((x) => x.Region === "Russia" && x["Tsunami flag"] === "Yes");
+        const cell = page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^Russia/ }).locator("td").nth(1);
+        await expect(cell).toHaveText(int(russia.length));
+        await cell.click();
+        await expect(page.getByTestId("drill-count")).toHaveText(`${russia.length} rows`);
+        await expect(page.locator(".pk-drill-table tbody tr")).toHaveCount(russia.length);
+        await expect(page.locator(".pk-drill-table tbody")).toContainText(russia.find((x) => x.Magnitude === Math.max(...russia.map((q) => q.Magnitude))).Place);
+    });
+
+    test("quakes per month: chart and its table", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=3");
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await page.getByTestId("show-table").click();
+        expect((await row(page, "Jul 2025"))[1]).toBe(int(quakes.filter((x) => x.Time.startsWith("2025-07")).length));
+    });
+});
+
+test.describe("Nobel laureates", () => {
+    const people = nobel.filter((x) => x.Type === "Person");
+
+    test("laureates per category and decade", async ({ page }) => {
+        await open(page, "data=nobel&preset=0");
+        const physics = nobel.filter((x) => x.Category === "Physics");
+        const r = await row(page, "Physics");
+        expect(r[1]).toBe(int(physics.filter((x) => x.Year < 1910).length));
+        expect(r.at(-1)).toBe(int(physics.length));
+    });
+
+    test("decades down: the chart, then rows and columns swapped back", async ({ page }) => {
+        await open(page, "data=nobel&preset=1");
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await page.getByTestId("swap").click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Category"]);
+        await page.getByTestId("show-table").click();
+        expect((await row(page, "Chemistry")).at(-1)).toBe(int(nobel.filter((x) => x.Category === "Chemistry").length));
+    });
+
+    test("share of women per category", async ({ page }) => {
+        await open(page, "data=nobel&preset=2");
+        const physics = people.filter((x) => x.Category === "Physics");
+        const r = await row(page, "Physics");
+        // Female, Male, Grand Total
+        expect(r.slice(1)).toEqual([pct(physics.filter((x) => x.Gender === "Female").length / physics.length), pct(physics.filter((x) => x.Gender === "Male").length / physics.length), "100.0%"]);
+    });
+
+    test("the countries with the most laureates, top 10", async ({ page }) => {
+        await open(page, "data=nobel&preset=3");
+        const ranked = Object.entries(Object.groupBy(nobel.filter((x) => x.Country), (x) => x.Country)).sort((a, b) => b[1].length - a[1].length);
+        const rows = await tableRows(page);
+        expect(rows[0].slice(0, 2)).toEqual([ranked[0][0], int(ranked[0][1].length)]);
+        const ages = ranked[0][1].map((x) => x["Age at award"]).filter((x) => x !== null);
+        expect(rows[0][2]).toBe(int(Math.round(avg(ages))));
+    });
+});
+
+// A few "try this" tasks of the documentation's "Learn with real data" page, as a person does them.
+test.describe("learning tasks", () => {
+    test("weather: Max instead of Average; rain days as % of row total", async ({ page }) => {
+        await open(page, "data=weather&preset=0");
+        await page.getByTestId("chip-menu-Average of Mean °C").click();
+        await page.getByTestId("agg-max").click();
+        const jan = weather.filter((x) => x.City === "Reykjavik" && x.Date.slice(5, 7) === "01");
+        expect((await row(page, "Reykjavik"))[1]).toBe(one(Math.max(...jan.map((x) => x["Mean °C"]))));
+
+        await open(page, "data=weather&preset=2");
+        await page.getByTestId("chip-menu-Rain days").click();
+        await page.getByTestId("showas-percentOfRowTotal").click();
+        expect((await row(page, "Singapore")).at(-1)).toBe("100.0%");
+    });
+
+    test("weather: top 5 sunniest cities", async ({ page }) => {
+        await open(page, "data=weather&preset=1");
+        await page.getByTestId("chip-menu-City").click();
+        await page.getByTestId("top-count").fill("5");
+        await page.getByRole("button", { name: "Apply" }).click();
+        const ranked = Object.entries(Object.groupBy(weather, (x) => x.City)).map(([c, l]) => [c, avg(l.map((x) => x["Sunshine h"]))]).sort((a, b) => b[1] - a[1]);
+        expect((await tableRows(page)).map((r) => r[0])).toEqual([...ranked.slice(0, 5).map(([c]) => c), "Grand Total"]);
+    });
+
+    test("countries: clearing the top 3 shows every country of a region", async ({ page }) => {
+        await open(page, "data=countries&preset=0");
+        await page.getByTestId("chip-menu-Country").click();
+        await page.getByRole("button", { name: "Clear" }).click();
+        await expect(page.getByTestId("note-top")).toHaveCount(0);
+        const southAsia = countries.filter((x) => x.Year === 2024 && x.Region === "South Asia");
+        const rows = await tableRows(page);
+        expect(rows.filter((r) => southAsia.some((c) => r.includes(c.Country)))).toHaveLength(southAsia.length);
+    });
+
+    test("earthquakes: ranges of 1, then the depth in ranges of 100", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("bin-size").fill("1");
+        await page.getByTestId("bin-size").press("Enter");
+        expect((await row(page, "Grand Total"))[1]).toBe(int(quakes.length));
+        expect(await tableRows(page)).toHaveLength(6);
+
+        await open(page, "data=earthquakes&preset=1");
+        await page.getByRole("button", { name: "Remove Region" }).click();
+        await page.getByTestId("field-menu-Depth km").click();
+        await page.getByRole("menuitem", { name: "Add to Rows" }).click();
+        await page.getByTestId("chip-menu-Depth km").click();
+        await page.getByTestId("bin-size").fill("100");
+        await page.getByTestId("bin-size").press("Enter");
+        expect((await row(page, "0 – 100"))[1]).toBe(int(quakes.filter((x) => x["Depth km"] < 100).length));
+    });
+
+    test("Nobel: the sum of Share counts prizes, not laureates", async ({ page }) => {
+        await open(page, "data=nobel&preset=0");
+        await page.locator('.pk-field[data-field="Share"] .pk-field-name').click();
+        const physics = nobel.filter((x) => x.Category === "Physics");
+        const prizes = new Set(physics.map((x) => x.Year)).size;
+        expect(Math.round(sum(physics.map((x) => x.Share)))).toBe(prizes);
+        const r = await row(page, "Physics");
+        expect(Number(r.at(-1).replace(/,/g, ""))).toBeCloseTo(prizes, 6);
+    });
+});
+
+test("export of real data: the XLSX holds the numbers, the German CSV the same numbers in German notation", async ({ page }) => {
+    await open(page, "data=weather&preset=1&lang=de");
+    const cairo = avg(weather.filter((x) => x.City === "Cairo").map((x) => x["Sunshine h"]));
+    await page.getByTestId("export").click();
+    const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
+    expect(xlsx.suggestedFilename()).toBe("pivotkit-weather.xlsx");
+    const sheet = await readSheet(await readFile(await xlsx.path()));
+    const line = sheet.find((r) => r[0] === "Cairo");
+    expect(line[1]).toBeCloseTo(cairo, 9);
+    await page.getByTestId("export").click();
+    const [csv] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
+    const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
+    const cells = text.split(/\r?\n/).find((l) => l.startsWith("Cairo;")).split(";");
+    expect(Number(cells[1].replace(",", "."))).toBeCloseTo(cairo, 9);
+});
+
+test("each real data set names its source and licence next to the data", async ({ page }) => {
+    for (const [data, text, licence] of [["weather", "Open-Meteo.com", "CC BY 4.0"], ["countries", "World Bank", "CC BY 4.0"], ["earthquakes", "U.S. Geological Survey", "public domain"], ["nobel", "Nobel Prize Outreach", "CC0"]]) {
+        await open(page, `data=${data}`);
+        await expect(page.getByTestId("pg-source")).toContainText(text);
+        await expect(page.getByTestId("pg-source").getByRole("link", { name: licence })).toBeVisible();
+        // the weather data also credits the Copernicus programme (ERA5, ERA5-Land), as the Climate Data Store asks
+        await expect(page.getByTestId("pg-credit")).toHaveCount(data === "weather" ? 1 : 0);
+    }
+    await open(page, "data=weather");
+    await expect(page.getByTestId("pg-credit")).toContainText("Contains modified Copernicus Climate Change Service information");
+});
+
+test("at 390 px the page does not scroll sideways with a real data set", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const data of ["weather", "countries", "earthquakes", "nobel"]) {
+        await open(page, `data=${data}&theme=dark`);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth), data).toBe(390);
+    }
+});

@@ -1,5 +1,7 @@
 # pivotkit-core
 
+Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/core/) - the API reference, the view and its concepts, and a [guide to the engine](https://pivotkit.eize.dev/getting-started/engine/).
+
 The pivot engine of pivotkit, in plain JavaScript without UI: typed encoding of your rows, pivot tables
 with subtotals and totals, "show values as", filters, date grouping and number bins, a grid with merged
 headers for any table renderer, chart options for Apache ECharts, and XLSX and CSV export. Excel's
@@ -255,4 +257,4 @@ with this version, other machines differ):
 
 ## License
 
-[MIT](../../LICENSE)
+[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE)
