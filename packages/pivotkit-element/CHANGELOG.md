@@ -48,5 +48,6 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   builds it without inline `style` attributes. The CSP browser test hovers the chart.
 - `pivotkit-element/element` exports `EVENTS` too, as the README said: the same exports as the main
   entry.
+- `engines` is gone: the package runs in the browser.
 - pivotkit-core's limits for `computePivot()` and its lower defaults are in the bundle, with a
   message per limit in place of the result.
