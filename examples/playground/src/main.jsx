@@ -1,10 +1,15 @@
 // The pivotkit playground: <PivotReport> with real public data (snapshots) and generated data, presets
 // per data set (the real ones with field descriptions), a language and a theme switch, templates kept in the browser, and the engine timings of the last change. The report
 // is controlled (view + onViewChange) and the page renders again on every timing, as a host like
-// PowerShell Universal does: undo must survive that.
+// PowerShell Universal does: undo must survive that. The address is the share link: the data set and
+// the start template in the query (?data=weather&start=<slug of the template's name>; these two are the
+// playground's own), the current view in the fragment (#pivot-playground=..., pivotkit's share format,
+// written on every change and read by the report through shareLink), so a reload keeps the view and
+// "Copy link" copies all three.
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
+import { encodeViewLink } from "pivotkit-core/link";
 import "pivotkit-react/styles.css";
 import "./playground.css";
 import { DATASETS, REAL } from "./data.js";
@@ -12,6 +17,51 @@ import { withDescriptions } from "./descriptions.js";
 
 const SIZES = [2000, 4000, 100000];
 const params = new URLSearchParams(location.search);
+// the report's storageKey; its view is in the fragment under "pivot-<storageKey>" (pivotkit-react's rule)
+const STORAGE_KEY = "playground";
+const LINK_PARAM = `pivot-${STORAGE_KEY}`;
+
+/** A template's name as it stands in the address: "Which teams are slowest?" -> "which-teams-are-slowest". */
+const slug = (name) => name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/**
+ * The start template from the address: start=<slug> (or preset=<n>, the older form), -1 for
+ * "Empty report" (start=empty or empty), else the first.
+ */
+function startOf(presets) {
+    if (params.has("empty") || params.get("start") === "empty") return -1;
+    const bySlug = params.has("start") ? presets.findIndex((p) => slug(p.name) === params.get("start")) : -1;
+    if (bySlug >= 0) return bySlug;
+    const n = Number(params.get("preset") ?? 0) || 0;
+    return Math.max(0, Math.min(presets.length - 1, n));
+}
+
+/** The page's address with other query parameters (null removes one) and, optionally, without the view. */
+function address(query, { keepView = true } = {}) {
+    const url = new URL(location.href);
+    for (const [k, v] of Object.entries(query)) {
+        if (v === null) url.searchParams.delete(k);
+        else url.searchParams.set(k, String(v));
+    }
+    if (!keepView) url.hash = "";
+    return url.toString();
+}
+
+/** Writes the view into the fragment without a new history entry: reload keeps it, the address shares it. */
+function writeView(view) {
+    let text;
+    try {
+        text = encodeViewLink(view);
+    } catch {
+        // too large for a link (long filter lists): the address keeps no view
+        text = null;
+    }
+    const fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
+    if (text) fragment.set(LINK_PARAM, text);
+    else fragment.delete(LINK_PARAM);
+    const hash = fragment.toString();
+    history.replaceState(history.state, "", `${location.pathname}${location.search}${hash ? `#${hash}` : ""}`);
+}
 // ?height=480: the report at a fixed height in px, as a host card gives it (else the window's height)
 const fixedHeight = /^\d{3,4}$/.test(params.get("height") ?? "") ? Number(params.get("height")) : null;
 
@@ -74,10 +124,14 @@ function useRows(dataset, size) {
     return loaded.dataset === dataset ? { rows: loaded.rows, fetched: loaded.fetched } : { rows: null, fetched: null };
 }
 
-/** The report with its view in this page's state, as a host keeps a saved view. */
+/** The report with its view in this page's state, as a host keeps a saved view, and in the address. */
 function Report({ start, ...props }) {
     const [view, setView] = useState(start);
-    return <PivotReport view={view} onViewChange={setView} {...props} />;
+    const change = (next) => {
+        setView(next);
+        writeView(next);
+    };
+    return <PivotReport view={view} onViewChange={change} {...props} />;
 }
 
 function App() {
@@ -85,7 +139,7 @@ function App() {
     const [size, setSize] = useState(SIZES.includes(Number(params.get("rows"))) ? Number(params.get("rows")) : 4000);
     const [lang, setLang] = useState(params.get("lang") === "de" ? "de" : "en");
     const [theme, setTheme] = useState(["light", "dark"].includes(params.get("theme")) ? params.get("theme") : "auto");
-    const [preset, setPreset] = useState(() => (params.has("empty") ? -1 : Math.max(0, Math.min(DATASETS[dataset].presets.length - 1, Number(params.get("preset") ?? 0) || 0))));
+    const [preset, setPreset] = useState(() => startOf(DATASETS[dataset].presets));
     const [saved, setSaved] = useState(() => stored(`pivotkit-templates-${dataset}`, []));
     const [lastClick, setLastClick] = useState(null);
     const timings = useTimings();
@@ -95,6 +149,11 @@ function App() {
     // the host decides what can be deleted: the user's own templates, not the presets
     const templates = useMemo(() => [...presets, ...saved.map((t) => ({ ...t, deletable: true }))], [presets, saved]);
     const start = preset >= 0 ? presets[preset].view : undefined;
+    // the address says which data and template the report starts from, in words (the view stays)
+    useEffect(() => {
+        const startName = preset >= 0 ? slug(presets[preset].name) : "empty";
+        history.replaceState(history.state, "", address({ data: dataset, start: startName, preset: null, empty: null }));
+    }, [dataset, preset, presets]);
 
     useEffect(() => {
         // the host page's theme, as PowerShell Universal sets it; "auto" leaves it to the system
@@ -138,7 +197,7 @@ function App() {
                 <div className="pg-controls">
                     <label>
                         Data
-                        <select value={dataset} onChange={(e) => { setDataset(e.target.value); setPreset(0); setSaved(stored(`pivotkit-templates-${e.target.value}`, [])); }} data-testid="pg-dataset">
+                        <select value={dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSaved(stored(`pivotkit-templates-${e.target.value}`, [])); }} data-testid="pg-dataset">
                             <optgroup label="Real data">
                                 {Object.keys(REAL).map((k) => <option key={k} value={k}>{DATASETS[k].label}</option>)}
                             </optgroup>
@@ -150,14 +209,14 @@ function App() {
                     {DATASETS[dataset].make ? (
                         <label>
                             Rows
-                            <select value={size} onChange={(e) => setSize(Number(e.target.value))} data-testid="pg-size">
+                            <select value={size} onChange={(e) => { history.replaceState(history.state, "", address({ rows: e.target.value }, { keepView: false })); setSize(Number(e.target.value)); }} data-testid="pg-size">
                                 {SIZES.map((s) => <option key={s} value={s}>{s.toLocaleString("en-US")}</option>)}
                             </select>
                         </label>
                     ) : null}
                     <label>
                         Start
-                        <select value={preset} onChange={(e) => setPreset(Number(e.target.value))} data-testid="pg-preset">
+                        <select value={preset} onChange={(e) => { const p = Number(e.target.value); history.replaceState(history.state, "", address({ start: p < 0 ? "empty" : slug(presets[p].name), preset: null, empty: null }, { keepView: false })); setPreset(p); }} data-testid="pg-preset">
                             <option value={-1}>Empty report</option>
                             {presets.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
                         </select>
@@ -179,21 +238,24 @@ function App() {
                     </label>
                 </div>
             </header>
-            {rows ? <Report
+            {/* while a real data set's snapshot loads, the report shows its skeleton (loading) */}
+            <Report
                 key={`${dataset}:${size}:${preset}`}
                 start={start}
-                data={rows}
+                data={rows ?? []}
+                loading={!rows}
                 templates={templates}
                 onSaveTemplate={saveTemplate}
                 onDeleteTemplate={deleteTemplate}
                 fieldDefaults={withDescriptions(DATASETS[dataset].fieldDefaults, dataset)}
-                storageKey="playground"
+                storageKey={STORAGE_KEY}
+                shareLink
                 onCellClick={(c) => setLastClick({ row: c.row, col: c.col, count: c.count })}
                 locale={lang === "de" ? "de-DE" : "en-US"}
                 height={fixedHeight ?? "calc(100vh - var(--pg-head-h))"}
                 className={fixedHeight ? "pg-fixed" : undefined}
                 fileName={`pivotkit-${dataset}`}
-            /> : <div className="pg-loading" data-testid="pg-loading" style={{ height: fixedHeight ?? "calc(100vh - var(--pg-head-h))" }}>Loading the data…</div>}
+            />
             <footer className="pg-foot" aria-live="off">
                 <span data-testid="pg-timings">encode {ms("encode")} · computePivot {ms("computePivot")} · toGrid {ms("toGrid")}</span>
                 <span data-testid="pg-last-click">{lastClick ? `onCellClick: ${JSON.stringify(lastClick.row)} × ${JSON.stringify(lastClick.col)}, ${lastClick.count} rows` : ""}</span>

@@ -8,7 +8,8 @@ test.describe("without descriptions", () => {
     test("a report without labels or descriptions has no i, no extra text, the names as they are", async ({ page }) => {
         await page.goto("?data=sales");
         await expect(page.locator(".pk-root")).toBeVisible();
-        await expect(page.locator(".pk-info")).toHaveCount(0);
+        // no "i" of a field anywhere (the zones' own "i" explains the zones, not a field)
+        await expect(page.locator(".pk-info:not(.pk-zone-info)")).toHaveCount(0);
         await expect(page.locator(".pk-field-desc")).toHaveCount(0);
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
         expect(await chips(page, "values")).toEqual(["Sum of Revenue"]);

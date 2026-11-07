@@ -33,11 +33,14 @@ server, for example GitHub Pages or a test container. The build is esbuild only:
 first and imported as a consumer imports it (`pivotkit-react` and `pivotkit-react/styles.css`).
 
 URL parameters pick the start: `?data=weather|countries|earthquakes|nobel|endoflife|tickets|sales|assets`,
-`rows=2000|4000|100000` (generated data only), `preset=0|1|2|3|4`,
-`empty`, `lang=en|de`, `height=480` (the report at that height in px, as a host's card gives it),
+`start=<the template's name in words>` (as the Start dropdown writes it; `start=empty` or `empty` for an
+empty report; `preset=0|1|2|3|4` by position also works), `rows=2000|4000|100000` (generated data only), `lang=en|de`, `height=480` (the report at that height in px, as a host's card gives it),
 `theme=light|dark` (sets `<html data-theme>` as PowerShell Universal does;
 without it the report follows the system). The footer shows the engine timings of the last change
-and the last `onCellClick`.
+and the last `onCellClick`. The Data and Start dropdowns write `data` and `start` into the address,
+and every change of the report writes its view into the fragment (`#pivot-playground=`, pivotkit's
+share format, read back by the report's `shareLink`), so a reload keeps the report and Copy link in
+Templates copies the whole address.
 
 The report is controlled (`view` + `onViewChange`) and the page renders again on every engine timing,
 as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, the

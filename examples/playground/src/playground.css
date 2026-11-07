@@ -101,15 +101,6 @@ body {
     --pg-head-h: 172px;
 }
 
-.pg-loading {
-    display: grid;
-    place-items: center;
-    min-height: 320px;
-    border: 1px solid var(--pg-line);
-    border-radius: 8px;
-    background: var(--pg-card);
-    color: var(--pg-muted);
-}
 
 .pg-controls {
     display: flex;
