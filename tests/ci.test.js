@@ -101,17 +101,24 @@ test("the React 19 check installs from its own lock file", () => {
     }
 });
 
-// The browser tests run as one job per engine and React version (each well inside its timeout): the
-// matrix covers every Playwright project on React 18 and 19, and each job runs its own project only.
-test("the browser jobs cover every engine on React 18 and 19, one engine per job", () => {
+// The browser tests run as one job per engine (WebKit in shards) and React version, each well inside
+// its timeout: the matrix covers every Playwright project on React 18 and 19, every shard of a project,
+// and each job runs its own project and shard only.
+test("the browser jobs cover every engine and every shard on React 18 and 19", () => {
     const ci = readFileSync(new URL(".github/workflows/ci.yml", root), "utf8");
     const config = readFileSync(new URL("playwright.config.js", root), "utf8");
     const projects = [...config.matchAll(/name: "(\w+)", use: \{ \.\.\.devices/g)].map((m) => m[1]);
     assert.deepEqual(projects, ["chromium", "firefox", "webkit"]);
     const job = ci.slice(ci.indexOf("\n  browser:"));
     assert.match(job, /react: \["18", "19"\]/);
-    assert.match(job, new RegExp(`browser: \\[${projects.map((p) => `"${p}"`).join(", ")}\\]`));
-    assert.match(job, /npx playwright test --project=\$\{\{ matrix\.browser \}\}/);
+    const targets = [...job.matchAll(/- \{ browser: (\w+), shard: (\d+), of: (\d+) \}/g)].map((m) => ({ browser: m[1], shard: Number(m[2]), of: Number(m[3]) }));
+    for (const browser of projects) {
+        const shards = targets.filter((t) => t.browser === browser);
+        assert.ok(shards.length > 0, `${browser} has no job`);
+        assert.deepEqual(shards.map((t) => t.shard), Array.from({ length: shards[0].of }, (_, i) => i + 1), `${browser}: every shard once`);
+        assert.ok(shards.every((t) => t.of === shards.length), `${browser}: shards of one size`);
+    }
+    assert.match(job, /npx playwright test --project=\$\{\{ matrix\.target\.browser \}\} --shard=\$\{\{ matrix\.target\.shard \}\}\/\$\{\{ matrix\.target\.of \}\}/);
     const minutes = Number(/timeout-minutes: (\d+)/.exec(job)?.[1]);
     assert.ok(minutes > 0 && minutes <= 15, `browser job timeout ${minutes} minutes`);
 });
