@@ -84,6 +84,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The chart's tooltip is built as DOM nodes with styles set through the CSSOM: ECharts' default HTML
   string has inline `style` attributes, which a Content-Security-Policy without
   `style-src 'unsafe-inline'` refused on every hover. The data's texts go in as text.
+- Drill-down rows rebuilt from encoded data keep a column named `__proto__` as a value instead of
+  setting the row's prototype.
 - The drill-down showed raw values (ISO date texts, "40,072" for an identifier); it formats each
   column by its type as the table does (dates as dates, numbers in the locale, Yes/No) and
   applies a field's `fieldDefaults` format. The new `fieldDefaults[field].drillFormat` sets the

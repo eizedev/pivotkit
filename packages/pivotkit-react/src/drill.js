@@ -12,6 +12,8 @@ export const DRILL_LIMIT = 1000;
 
 /**
  * One row rebuilt from encoded columns: blank is null, dates are ISO texts of their wall clock.
+ * A plain object for the host; every column is defined as an own property, so a column named
+ * "__proto__" is a value like any other instead of setting the prototype.
  * @param {import("pivotkit-core").Encoded} encoded
  * @param {number} i
  */
@@ -20,7 +22,8 @@ export function decodeRow(encoded, i) {
     for (const column of encoded.columns) {
         const code = column.codes[i];
         const v = code < 0 ? null : column.dict[code];
-        row[column.name] = column.type === "date" && typeof v === "number" ? new Date(v).toISOString().replace(/(T00:00:00)?\.000Z$/, "").replace(/:00$/, "") : v;
+        const value = column.type === "date" && typeof v === "number" ? new Date(v).toISOString().replace(/(T00:00:00)?\.000Z$/, "").replace(/:00$/, "") : v;
+        Object.defineProperty(row, column.name, { value, enumerable: true, writable: true, configurable: true });
     }
     return row;
 }
