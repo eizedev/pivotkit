@@ -5,7 +5,7 @@ zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every fi
 (Apache ECharts), filters with value counts, drill-down to the rows behind a value, undo and redo,
 templates as JSON, and Excel, CSV and PNG export. The engine is [pivotkit-core](../pivotkit-core/).
 
-Status: in development, not published to npm yet. Try it in the [playground](../../examples/playground/).
+Version 0.1.0. Try it in the [playground](../../examples/playground/).
 
 ## Install
 

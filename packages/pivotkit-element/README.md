@@ -7,7 +7,8 @@ and @dnd-kit, and renders into an open shadow root. Everything the React compone
 drag and drop, table and chart, filters, drill-down, undo, templates, export) works the same; the
 [pivotkit-react README](../pivotkit-react/README.md#what-the-user-can-do) describes it.
 
-Status: in development, not published to npm yet. Try it in the [example](../../examples/element/).
+Version 0.1.0: `npm install pivotkit-element`, or serve its `dist/` directory as below. Try it in the
+[example](../../examples/element/).
 
 ## Use
 

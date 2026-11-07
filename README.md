@@ -8,15 +8,15 @@ JSON, native Excel export; as a JavaScript core, a React component and a web com
 | Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
-Status: in development. Nothing is published to npm yet.
+Version 0.1.0 of each package, on npm.
 
 ## Packages
 
-| Package | What | Status |
+| Package | What | Install |
 | --- | --- | --- |
-| [pivotkit-core](packages/pivotkit-core/) | The engine in plain JavaScript, no UI and no framework | in development |
-| [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder: field list, drag and drop, table and chart, filters, templates, export; React and ECharts are provided by the host | in development |
-| [pivotkit-element](packages/pivotkit-element/) | The report builder as the web component `<pivot-report>` with its own React, for Angular, PHP and plain HTML; ECharts loaded on the first chart | in development |
+| [pivotkit-core](packages/pivotkit-core/) | The engine in plain JavaScript, no UI and no framework | `npm install pivotkit-core` |
+| [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder: field list, drag and drop, table and chart, filters, templates, export; React and ECharts are provided by the host | `npm install pivotkit-react react react-dom echarts` |
+| [pivotkit-element](packages/pivotkit-element/) | The report builder as the web component `<pivot-report>` with its own React, for Angular, PHP and plain HTML; ECharts loaded on the first chart | `npm install pivotkit-element` |
 
 ## Example
 
