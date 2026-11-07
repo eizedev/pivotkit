@@ -9,18 +9,20 @@
 import React, { useId, useState } from "react";
 import { CATALOG, aggregatorsFor, fieldLabel, isFormat } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
+import { ZONE_ICON } from "./icons.jsx";
 import { FieldDescription } from "./info.jsx";
 import { fill } from "./labels.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { filterText, groupingName, refLabel, valueLabel } from "./names.js";
-import { Option, Section } from "./popover.jsx";
+import { Option } from "./popover.jsx";
+import { Section, SettingInfo } from "./section.jsx";
 import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
 
-/** The formats the value menu offers; any other format of a view still works. */
-const FORMAT_CHOICES = ["number", "number:0", "number:2", "integer", "currency", "percent", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
+/** The formats the value menu offers first, and those behind "More formats"; any other format of a view still works. */
+const FORMAT_CHOICES = ["number", "number:0", "number:2", "currency", "percent"].filter(isFormat);
+const MORE_FORMATS = ["integer", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
 /** The calculations shown without opening "More calculations". */
 const COMMON_SHOW_AS = CATALOG.showAs.filter((s) => ["percentOfGrandTotal", "percentOfRowTotal", "percentOfColumnTotal"].includes(s));
-export const ZONE_ICON = { rows: "rows", cols: "cols", values: "sigma", filters: "filter" };
 
 /** A folded group of options; open when it holds the current choice. */
 function More({ title, open, children }) {
@@ -242,7 +244,7 @@ function ValueFilterForm({ condition, labels, choices, names, onApply, locale })
 /** Move to another zone and left or right; Remove is the menu's foot (RemoveFoot). */
 function MoveSection({ view, zone, index, count, labels, commit, close, text, type }) {
     return (
-        <Section title={labels.move}>
+        <Section title={labels.move} id="move">
             {ZONES.filter((z) => z !== zone).map((z) => (
                 <Option key={z} icon={ZONE_ICON[z]} onSelect={() => { close(); commit(moveField(view, zone, index, z, undefined, { type }), { step: "moved", field: text, zone: z }); }} testId={`move-${z}`}>
                     {fill(labels.moveTo, { zone: labels.zones[z] })}
@@ -310,7 +312,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         <>
             <div className="pk-menu-body">
                 {info ? <FieldDescription info={info} labels={labels} className="pk-field-desc pk-menu-desc" /> : null}
-                <Section title={labels.sort}>
+                <Section title={labels.sort} id="sort">
                     <Option checked={isSort("label", "asc")} icon="sortAsc" onSelect={() => doSort("label", "asc")}>{sourceType === "date" ? labels.sortOldest : labels.sortLabelAsc}</Option>
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
                     {/* by each value that gives numbers, largest and smallest first */}
@@ -324,7 +326,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     {customItems ? <Option checked={isSort("custom", "desc")} icon="sortDesc" onSelect={() => doSort("custom", "desc")} testId="sort-custom-desc">{labels.sortCustomDesc}</Option> : null}
                 </Section>
                 {sourceType === "date" ? (
-                    <Section title={labels.groupBy}>
+                    <Section title={labels.groupBy} id="groupBy">
                         <div className="pk-subtitle">{labels.groupTimeline}</div>
                         <div className="pk-choice-grid">{CATALOG.timelineUnits.map(unitOption)}</div>
                         <div className="pk-subtitle">{labels.groupCyclic}</div>
@@ -333,14 +335,14 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     </Section>
                 ) : null}
                 {sourceType === "number" ? (
-                    <Section title={labels.bins}>
+                    <Section title={labels.bins} id="bins">
                         <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} range={rangeOf?.(source) ?? null} locale={locale} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
                     </Section>
                 ) : null}
-                <Section title={labels.topN}>
+                <Section title={labels.topN} id="topN">
                     <TopForm top={top} labels={labels} choices={topPick.choices} names={topPick.names} locale={locale} onApply={(t) => { close(); commit(setTopFilter(view, field, t, top), { step: "top", field: name }); }} />
                 </Section>
-                <Section title={labels.zones.filters}>
+                <Section title={labels.zones.filters} id="filters">
                     {/* a filter says what it keeps, in the accent colour, and can go right below */}
                     {hasFilter(view, field) ? (
                         <>
@@ -388,6 +390,11 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
             {labels.core.aggregators[a] ?? a}
         </Option>
     );
+    const formatOption = (f) => (
+        <Option key={f} checked={spec.format === f} onSelect={() => set({ format: f })} testId={`format-${f}`}>
+            {labels.formats[f] ?? f}
+        </Option>
+    );
     const showAsOption = (s) => (
         <Option key={s} checked={spec.showAs?.type === s} onSelect={() => set({ showAs: { type: s, axis: spec.showAs?.axis ?? "rows" } })} testId={`showas-${s}`}>
             {labels.showAsNames[s] ?? s}
@@ -397,7 +404,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
         <>
             <div className="pk-menu-body">
                 {info ? <FieldDescription info={info} labels={labels} className="pk-field-desc pk-menu-desc" /> : null}
-                <Section title={labels.aggregation}>
+                <Section title={labels.aggregation} id="summarize">
                     <div className="pk-choice-grid">{common.map(aggOption)}</div>
                     {rare.length ? (
                         <More title={labels.moreStatistics} open={rare.includes(spec.agg)}>
@@ -406,7 +413,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                     ) : null}
                 </Section>
                 {numeric ? (
-                    <Section title={labels.showAs}>
+                    <Section title={labels.showAs} id="showAs" info="showAs">
                         <div className="pk-choice-grid">
                             <Option checked={!spec.showAs} onSelect={() => set({ showAs: null })} testId="showas-none">{labels.showAsNone}</Option>
                             {COMMON_SHOW_AS.map(showAsOption)}
@@ -415,31 +422,33 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                             <div className="pk-choice-grid">{otherShowAs.map(showAsOption)}</div>
                         </More>
                         {spec.showAs && CATALOG.showAsAlongAxis.includes(spec.showAs.type) ? (
-                            <div className="pk-segmented pk-small" role="group" aria-label={labels.along}>
-                                <span className="pk-muted">{labels.along}</span>
-                                {["rows", "cols"].map((axis) => (
-                                    <button key={axis} type="button" aria-pressed={spec.showAs.axis === axis} onClick={() => set({ showAs: { ...spec.showAs, axis } })}>
-                                        {labels.zones[axis]}
-                                    </button>
-                                ))}
+                            <div className="pk-setting-row">
+                                <div className="pk-segmented pk-small" role="group" aria-label={labels.along}>
+                                    <span className="pk-muted">{labels.along}</span>
+                                    {["rows", "cols"].map((axis) => (
+                                        <button key={axis} type="button" aria-pressed={spec.showAs.axis === axis} onClick={() => set({ showAs: { ...spec.showAs, axis } })}>
+                                            {labels.zones[axis]}
+                                        </button>
+                                    ))}
+                                </div>
+                                <SettingInfo id="along" name={labels.along} />
                             </div>
                         ) : null}
                     </Section>
                 ) : null}
                 {numeric ? (
-                    <Section title={labels.format}>
+                    <Section title={labels.format} id="format">
                         <div className="pk-choice-grid">
                             <Option checked={!spec.format} onSelect={() => set({ format: null })}>{labels.formatAuto}</Option>
-                            {FORMAT_CHOICES.map((f) => (
-                                <Option key={f} checked={spec.format === f} onSelect={() => set({ format: f })} testId={`format-${f}`}>
-                                    {labels.formats[f] ?? f}
-                                </Option>
-                            ))}
+                            {FORMAT_CHOICES.map(formatOption)}
                         </div>
+                        <More title={labels.moreFormats} open={MORE_FORMATS.includes(spec.format ?? "")}>
+                            <div className="pk-choice-grid">{MORE_FORMATS.map(formatOption)}</div>
+                        </More>
                     </Section>
                 ) : null}
                 {numeric ? (
-                    <Section title={labels.conditional}>
+                    <Section title={labels.conditional} id="highlight">
                         <div className="pk-choice-grid">
                             <Option checked={!spec.conditional} onSelect={() => set({ conditional: null })}>{labels.conditionalNone}</Option>
                             {/* no colours: pivotkit-core's DEFAULT_THEME gives them, as in Excel */}
@@ -452,7 +461,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                         </div>
                     </Section>
                 ) : null}
-                <Section title={labels.rename}>
+                <Section title={labels.rename} id="name">
                     <form className="pk-inline-form" onSubmit={(e) => { e.preventDefault(); set({ label: rename.trim() || null }); }}>
                         {/* the × gives the value its default name back at once (one undo step); the default is the placeholder */}
                         <ClearInput
@@ -469,7 +478,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                         <button type="submit" className="pk-btn pk-primary">{labels.apply}</button>
                     </form>
                 </Section>
-                <Section title={labels.zones.filters}>
+                <Section title={labels.zones.filters} id="valueFilters">
                     <p className="pk-hint pk-menu-hint" data-testid="values-filter-hint">{labels.valuesFilterHint}</p>
                 </Section>
                 <MoveSection view={view} zone="values" index={index} count={view.values.length} labels={labels} commit={commit} close={close} text={name} type={type} />

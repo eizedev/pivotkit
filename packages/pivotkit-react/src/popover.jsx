@@ -3,7 +3,8 @@
  * sheet on narrow reports. Escape (wherever the focus is), a click outside and the focus leaving
  * close them, and focus goes back to the button; arrow keys move between the options. A bottom sheet
  * is modal: Tab stays inside. They render into the report's own layer element, so the --pk-* tokens
- * and the theme apply, also inside a shadow root.
+ * and the theme apply, also inside a shadow root. A popover keeps the mouse wheel to itself: what
+ * it cannot scroll further never scrolls the table or the page behind it (wheelStays).
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
@@ -17,6 +18,35 @@ import { fromOrigin, placePopover } from "./place.js";
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
 
 const OPTION = "[data-pk-option]:not([disabled])";
+
+/**
+ * Whether a wheel turn inside a popover may scroll something there: an element on its way from the
+ * target up to the popover that scrolls in that direction and is not at its end. Else the popover
+ * keeps it (preventDefault), so the table or the page behind never scrolls.
+ * @param {EventTarget[]} path  the event's composed path
+ * @param {Element} popover
+ * @param {number} dx
+ * @param {number} dy
+ */
+export function wheelScrollsInside(path, popover, dx, dy) {
+    for (const node of path) {
+        if (!(node instanceof Element)) {
+            continue;
+        }
+        const style = node.ownerDocument.defaultView?.getComputedStyle(node);
+        const scrolls = (overflow) => overflow === "auto" || overflow === "scroll";
+        if (style && scrolls(style.overflowY) && ((dy < 0 && node.scrollTop > 0) || (dy > 0 && node.scrollTop + node.clientHeight < node.scrollHeight - 1))) {
+            return true;
+        }
+        if (style && scrolls(style.overflowX) && ((dx < 0 && node.scrollLeft > 0) || (dx > 0 && node.scrollLeft + node.clientWidth < node.scrollWidth - 1))) {
+            return true;
+        }
+        if (node === popover) {
+            return false;
+        }
+    }
+    return false;
+}
 
 /**
  * @param {{ open: boolean, anchor: React.RefObject<HTMLElement>, onClose: () => void, label?: string,
@@ -76,7 +106,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             return undefined;
         }
         const el = ref.current;
-        const first = el?.querySelector("[data-autofocus]") ?? el?.querySelector(OPTION) ?? el?.querySelector(FOCUSABLE);
+        // the first option that is shown (a folded section's are hidden)
+        const shown = (/** @type {Element} */ o) => o.getClientRects().length > 0;
+        const first = el?.querySelector("[data-autofocus]") ?? [...(el?.querySelectorAll(OPTION) ?? [])].find(shown) ?? [...(el?.querySelectorAll(FOCUSABLE) ?? [])].find(shown);
         // after the placement, so the page does not scroll to a popover still at 0,0
         const t = requestAnimationFrame(() => /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true }));
         const onDown = (e) => {
@@ -86,10 +118,18 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         };
         const doc = el?.ownerDocument ?? document;
         doc.addEventListener("pointerdown", onDown, true);
+        // the wheel stays in the popover (not passive: React's onWheel cannot prevent the scroll)
+        const onWheel = (/** @type {WheelEvent} */ e) => {
+            if (el && !e.ctrlKey && !wheelScrollsInside(e.composedPath(), el, e.deltaX, e.deltaY)) {
+                e.preventDefault();
+            }
+        };
+        el?.addEventListener("wheel", onWheel, { passive: false });
         const button = anchor.current;
         return () => {
             cancelAnimationFrame(t);
             doc.removeEventListener("pointerdown", onDown, true);
+            el?.removeEventListener("wheel", onWheel);
             // focus goes back to the button unless the user moved it somewhere else
             const now = activeIn(button);
             if (button && button.isConnected && (!now || now === doc.body || el?.contains(now) || !now.isConnected)) {
@@ -195,12 +235,15 @@ export function MenuButton({ label, icon, text, showText = true, className, role
 }
 
 /**
- * One option of a menu or of a chip's settings.
+ * One option of a menu or of a chip's settings: one line. `hint` is a short second line that belongs
+ * to the option (a date unit's example); `reason` says why a disabled option does nothing and shows
+ * only while it is disabled (it is state, not an explanation: those go into an "i").
  * @param {{ onSelect: () => void, icon?: string, checked?: boolean, children: React.ReactNode, hint?: React.ReactNode,
- *   inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string }} props
+ *   reason?: React.ReactNode, inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string }} props
  *   `tone`: "accent" for an option that says what is set (a filter)
  */
-export function Option({ onSelect, icon, checked, children, hint, inMenu = false, disabled, danger, tone, testId }) {
+export function Option({ onSelect, icon, checked, children, hint, reason, inMenu = false, disabled, danger, tone, testId }) {
+    const second = disabled && reason ? reason : hint;
     const role = inMenu ? (checked === undefined ? "menuitem" : "menuitemradio") : undefined;
     return (
         <button
@@ -217,21 +260,8 @@ export function Option({ onSelect, icon, checked, children, hint, inMenu = false
             <span className="pk-option-icon">{checked ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">
                 {children}
-                {hint ? <span className="pk-option-hint">{hint}</span> : null}
+                {second ? <span className="pk-option-hint">{second}</span> : null}
             </span>
         </button>
-    );
-}
-
-/** A titled group of options. */
-export function Section({ title, children }) {
-    const id = useId();
-    return (
-        <div className="pk-section" role="group" aria-labelledby={id}>
-            <div className="pk-section-title" id={id}>
-                {title}
-            </div>
-            {children}
-        </div>
     );
 }

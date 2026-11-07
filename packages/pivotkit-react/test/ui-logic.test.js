@@ -221,7 +221,7 @@ test("a limit of the core is a message in words with what to change, any other e
     }
     assert.equal(errorText(rows, en, "en-US"), "The data has 3 rows, more than the limit of 2.");
     assert.equal(errorText(new Error("boom"), en, "en-US"), "The report cannot be shown: boom");
-    for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows", "tooMuchWork", "zoneFull", "templateTrimmed"]) {
+    for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows", "tooMuchWork", "zoneFull", "viewTrimmed"]) {
         assert.equal(typeof LABELS.de[key], "string", key);
     }
 });

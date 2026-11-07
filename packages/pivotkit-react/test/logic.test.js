@@ -133,16 +133,16 @@ test("a popover inside a transformed ancestor is placed from that ancestor's ori
     assert.deepEqual(fromOrigin(place, { top: 200, left: 40 }), { top: 100, left: 80, maxHeight: 400, side: "below" });
 });
 
-test("a host that refuses a template: its own message when it gives one, a plain note when not", () => {
+test("a host that refuses to save a view: its own message when it gives one, a plain note when not", () => {
     const { en, de } = LABELS;
     const save = (e, l = en) => hostFailure(l.toastSaveFailed, l.toastSaveRejected, e);
-    assert.equal(save(new Error("Name taken")), "The template could not be saved: Name taken");
-    assert.equal(save("Quota reached"), "The template could not be saved: Quota reached");
-    assert.equal(save({ message: "Forbidden" }), "The template could not be saved: Forbidden");
+    assert.equal(save(new Error("Name taken")), "The view could not be saved: Name taken");
+    assert.equal(save("Quota reached"), "The view could not be saved: Quota reached");
+    assert.equal(save({ message: "Forbidden" }), "The view could not be saved: Forbidden");
     // nothing to show: no "undefined", no "[object Object]", no dangling colon
     for (const e of [undefined, null, new Error(""), new Error("  "), "", {}, 42, false]) {
-        assert.equal(save(e), "The server could not save the template.", String(e));
+        assert.equal(save(e), "The server could not save the view.", String(e));
     }
-    assert.equal(save(undefined, de), "Der Server konnte die Vorlage nicht speichern.");
-    assert.equal(hostFailure(de.toastDeleteFailed, de.toastDeleteRejected, null), "Der Server konnte die Vorlage nicht löschen.");
+    assert.equal(save(undefined, de), "Der Server konnte die Ansicht nicht speichern.");
+    assert.equal(hostFailure(de.toastDeleteFailed, de.toastDeleteRejected, null), "Der Server konnte die Ansicht nicht löschen.");
 });

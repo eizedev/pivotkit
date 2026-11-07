@@ -8,7 +8,7 @@ import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-i
 import { LABELS, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
 import {
-    ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, SWITCHES, helpSwitch, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
+    ALL_TIPS, NO_FIELD_INFO, NO_SETTING_INFO, NO_ZONE_INFO, SWITCHES, helpSwitch, keptOnReset, sectionOpen, withSection, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
 } from "../src/tips.js";
 
 const en = LABELS.en;
@@ -238,5 +238,25 @@ test("help switches: the host's on or off decides, else the user's list; Show di
     assert.deepEqual(helpSwitch("on", [NO_FIELD_INFO], NO_FIELD_INFO), { on: true, user: false });
     assert.deepEqual(helpSwitch("off", [], NO_ZONE_INFO), { on: false, user: false });
     assert.deepEqual(cleanDismissed([NO_FIELD_INFO, NO_ZONE_INFO, "nope", ALL_TIPS, NO_ZONE_INFO]), [NO_FIELD_INFO, NO_ZONE_INFO, ALL_TIPS]);
-    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO]);
+    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, NO_SETTING_INFO]);
+    assert.deepEqual(helpSwitch(undefined, [NO_SETTING_INFO], NO_SETTING_INFO), { on: false, user: true });
+    // "Show dismissed tips again" keeps the switches and the sections' states, takes the tips back
+    assert.deepEqual([ALL_TIPS, NO_SETTING_INFO, "open:format", "values"].filter(keptOnReset), [ALL_TIPS, NO_SETTING_INFO, "open:format"]);
+});
+
+test("menu sections: open or folded by default, the user's choice kept in the tips' list only where it differs", () => {
+    assert.equal(sectionOpen("summarize", []), true);
+    assert.equal(sectionOpen("format", []), false);
+    const opened = withSection([], "format", true);
+    assert.deepEqual(opened, ["open:format"]);
+    assert.equal(sectionOpen("format", opened), true);
+    // back to its default: no entry
+    assert.deepEqual(withSection(opened, "format", false), []);
+    const folded = withSection(["values"], "summarize", false);
+    assert.deepEqual(folded, ["values", "closed:summarize"]);
+    assert.equal(sectionOpen("summarize", folded), false);
+    // stored entries survive cleaning; unknown sections and shapes do not
+    assert.deepEqual(cleanDismissed(["open:format", "closed:summarize", "open:nothing", "open:", "closed:__proto__"]), ["open:format", "closed:summarize"]);
+    // a section without a default is open
+    assert.equal(sectionOpen("unknown", []), true);
 });

@@ -227,20 +227,76 @@ export const NOTICE_IDS = Object.freeze(TIPS.filter((t) => t.kind === "notice").
 export const ALL_TIPS = "*";
 
 /**
- * The other two switches of Options → Help, kept in the same list (and storage) as the tips: the
- * "i" of the field descriptions off, the "i" of the zone explanations off.
+ * The other switches of Options → Help, kept in the same list (and storage) as the tips: the "i" of
+ * the field descriptions off, the "i" of the zone explanations off.
  */
 export const NO_FIELD_INFO = "-fieldInfo";
 export const NO_ZONE_INFO = "-zoneInfo";
+/** The "i" next to the settings that need explaining off ("Show explanations"). */
+export const NO_SETTING_INFO = "-settingInfo";
 /** Entries of the list that are switches, not dismissed tips: "Show dismissed tips again" keeps them. */
-export const SWITCHES = Object.freeze([ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO]);
+export const SWITCHES = Object.freeze([ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, NO_SETTING_INFO]);
+
+/**
+ * The sections of the menus that fold, and whether each is open until the user folds or opens it:
+ * the frequent ones open, the rest folded. The user's choice is kept in the same list (and storage)
+ * as the tips, as "open:<id>" or "closed:<id>" where it differs from this default.
+ */
+export const SECTIONS = Object.freeze({
+    // a value's menu
+    summarize: true,
+    showAs: true,
+    format: false,
+    highlight: false,
+    name: false,
+    valueFilters: false,
+    move: false,
+    // a field's menu on Rows or Columns
+    sort: true,
+    groupBy: true,
+    bins: true,
+    topN: true,
+    filters: true,
+    // the toolbar's menus
+    totals: true,
+    folding: true,
+    help: true,
+    savedViews: true,
+    share: true,
+    chartType: true,
+    chartDisplay: true
+});
+
+/** Whether a section is open: the user's choice in the list, else its default. */
+export function sectionOpen(id, dismissed) {
+    if (dismissed.includes(`open:${id}`)) {
+        return true;
+    }
+    if (dismissed.includes(`closed:${id}`)) {
+        return false;
+    }
+    return Object.hasOwn(SECTIONS, id) ? SECTIONS[id] : true;
+}
+
+/** The list with a section opened or folded: an entry only where it differs from the default. */
+export function withSection(dismissed, id, open) {
+    const rest = dismissed.filter((d) => d !== `open:${id}` && d !== `closed:${id}`);
+    const def = Object.hasOwn(SECTIONS, id) ? SECTIONS[id] : true;
+    return open === def ? rest : [...rest, `${open ? "open" : "closed"}:${id}`];
+}
+
+/** An entry of the list that is a section's state. */
+const isSection = (id) => /^(open|closed):/.test(id) && Object.hasOwn(SECTIONS, id.slice(id.indexOf(":") + 1));
+
+/** Entries "Show dismissed tips again" keeps: the switches and the sections' states. */
+export const keptOnReset = (id) => SWITCHES.includes(id) || isSection(id);
 
 /**
  * Whether a help switch is on: the host's "on" or "off" forces it (and Options hides the switch),
  * else the user's choice in the list, on by default.
  * @param {unknown} forced  the host's prop
  * @param {readonly string[]} dismissed
- * @param {string} off  NO_FIELD_INFO or NO_ZONE_INFO
+ * @param {string} off  NO_FIELD_INFO, NO_ZONE_INFO or NO_SETTING_INFO
  * @returns {{ on: boolean, user: boolean }}  `user`: the user may switch it
  */
 export function helpSwitch(forced, dismissed, off) {
@@ -374,7 +430,7 @@ export function allowedTips(value) {
 
 /** Dismissed ids from anywhere (storage, a host): known ids and the switches only, once each. */
 export function cleanDismissed(value) {
-    return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && (SWITCHES.includes(id) || TIP_IDS.includes(id))))] : [];
+    return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && (SWITCHES.includes(id) || TIP_IDS.includes(id) || isSection(id))))] : [];
 }
 
 /** The localStorage key of a report's tips: one per `storageKey`, so two reports never share one. */

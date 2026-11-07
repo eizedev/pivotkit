@@ -60,7 +60,7 @@
 
 /**
  * @typedef {object} ExportFile  a file the report made, before it is downloaded
- * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view (Templates, "Download view")
+ * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view file (Views, "Download view")
  * @property {string} fileName  with the extension ("pivot.xlsx"), made safe
  * @property {Blob} blob
  */
@@ -101,7 +101,8 @@
  * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per
  *   report on a page); without it they are remembered until the page is loaded again
  * @property {string[]} [dismissedTips]  dismissed tip ids from the host's own storage ("*": all tips off,
- *   "-fieldInfo" and "-zoneInfo": those switches of Options → Help off)
+ *   "-fieldInfo", "-zoneInfo" and "-settingInfo": those switches of Options → Help off;
+ *   "open:<section>" and "closed:<section>": a menu section the user opened or folded)
  * @property {(change: TipDismiss) => void} [onTipDismiss]  every dismissal, "Show tips" and
  *   "Show dismissed tips again", with the whole list, for a host that stores it itself
  * @property {Record<string, unknown>} [chartOptions]  plain JSON merged over the ECharts option the
@@ -109,7 +110,7 @@
  *   it wins over the view's chart settings. Functions, values that are not plain JSON and the
  *   options that are markup or addresses (a string `formatter`, `rich`, `link`, `image`) are left out
  *   with a console warning
- * @property {boolean | string} [shareLink]  "Copy link" in the Templates menu and opening a shared
+ * @property {boolean | string} [shareLink]  "Copy link" in the Views menu and opening a shared
  *   link: `true` links to the page's own address without its query, a string is the base URL as it is; the view travels in the
  *   URL fragment (`#pivot=`, `#pivot-<storageKey>=` with a storageKey). Off by default
  * @property {"session"} [persistView]  "session": the view is kept in sessionStorage for this tab
@@ -118,8 +119,30 @@
  *   (and Options has no switch for it); without it the user switches it in Options → Help (on by default,
  *   remembered like the tips). Screen readers keep the descriptions either way
  * @property {"on" | "off"} [zoneInfo]  the "i" next to the zone titles that explains each zone, as `fieldInfo`
+ * @property {"on" | "off"} [settingInfo]  the "i" next to the settings that need explaining (totals,
+ *   "Show as", "Along", the export formats, chart labels), as `fieldInfo` ("Show explanations")
+ * @property {ViewSource} [source]  the data the report shows: its id and name go into the view files
+ *   and links it shares, and a view made for another source asks before it is loaded
+ * @property {ViewSource[]} [sources]  the other data the host can show: a view made for one of them
+ *   offers "Switch to <name> and load" (with `onSourceSwitch`)
+ * @property {(request: SourceSwitch) => void} [onSourceSwitch]  the user chose to switch to the data a
+ *   view was made for and load it there: the host shows that data and the view (as its start view)
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
  *   the first data) or covers its result (later loads)
+ */
+
+/**
+ * @typedef {object} ViewSource  the data a view is made for
+ * @property {string} id  stable, as the host names the data ("sales", a table's or an endpoint's name)
+ * @property {string} [name]  shown to people ("Sales 2026")
+ */
+
+/**
+ * @typedef {object} SourceSwitch
+ * @property {ViewSource} source  the data to switch to (an entry of `sources`)
+ * @property {Record<string, unknown>} view  the view as the file has it, not normalized (it is made for
+ *   that data): pass it as the start view of the report on it
+ * @property {string} [name]  the view's name in the file
  */
 
 /**

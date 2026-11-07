@@ -27,17 +27,36 @@ First release.
   lines, axis labels (all straight when they fit, slanted, else every n-th with a note; long names cut
   with "…", whole in the tooltip), long titles cut with "…", and group labels under the axis for two
   or more row fields (automatic: only where the chart has room; on, off); kept in
-  the view, so templates, links and the PNG export show them. A tip suggests bars for lines over
+  the view, so saved views, links and the PNG export show them. A tip suggests bars for lines over
   categories without an order (`chartTrend`, "Switch to Bars").
+- Chart type Donut (a ring; the pie is a whole circle), and "Labels: Outside / Inside" for a pie or a
+  donut (`chart.labelPosition`): inside writes only the number on the slice (the share when
+  Automatic) in a colour that reads on it, the legend names the slices. Labels `chartTypes.donut`,
+  `labelPosition`, `labelPositionNames`.
 - `chartOptions`: plain JSON merged over the ECharts option (lists entry by entry, an object into
   every entry of a list); it wins over the view's settings; functions, values that are not JSON and
   the ECharts options that are markup or addresses (a string `formatter` at any depth, `rich`, `link`,
   `sublink`, `image`, the tooltip's element) are left out with a warning.
-- Sharing in the Templates menu: Copy link (with `shareLink`: `true` or a base URL; the view in the
-  fragment, `#pivot=` or `#pivot-<storageKey>=`, only that entry changed so a hash route stays;
-  `true` links to the page without its query; read after the first render as the start, and on a
-  fragment change as one undoable step), Copy view as JSON, Download view (.json) (`onExport` kind `"json"`), Load view… from
-  pasted JSON, a link or a file; what does not fit the data is named in plain words.
+- The Views menu (labels `views`, `savedViews`, `share`; "Ansichten" in German) with two sections:
+  Saved views (the host's `templates`, "Save current view") and Share: Copy link (with `shareLink`:
+  `true` or a base URL; the view in the fragment, `#pivot=` or `#pivot-<storageKey>=`, only that
+  entry changed so a hash route stays; `true` links to the page without its query; read after the
+  first render as the start, and on a fragment change as one undoable step), Copy view as JSON,
+  Download view (.pivotkit.json) (`onExport` kind `"json"`), Load view… from a pasted view file, JSON,
+  a link or a file, and a line on what a shared view gives away (`sharePrivacy`).
+- Views are shared as pivotkit-core's view file: the envelope with the view's name, its source and
+  the fields it uses, `generator` with this package's version from its `package.json`; a link carries
+  its link profile. A bare view and a link with one still load; a newer format or view version is
+  refused with "Update pivotkit to open it."
+- Props `source` (`{ id, name }`), `sources` and `onSourceSwitch`: a view made for another source, or
+  with fields this data lacks or has with another type, asks before it is loaded (Load anyway,
+  Cancel, "Switch to “…” and load"); labels `loadCheckTitle`, `loadCheckSource`,
+  `loadCheckOtherSource`, `loadCheckMissing`, `loadCheckChanged`, `loadAnyway`, `switchAndLoad`.
+- A loaded view is one undoable step with a note that has Undo and goes by itself ("View loaded",
+  `toastViewLoadedPartly` when parts were left out: a warning, not an error); what was left out stays
+  in the collapsible "Some parts of the view were not used" area above the result until it is
+  dismissed (`dismissIssues`) or another view is loaded; so does a saved view trimmed to the limits
+  (`viewTrimmed`).
 - `persistView="session"`: the view kept per tab in `sessionStorage`; Reset stores the start view.
 - `loading` and a skeleton (toolbar, zones, table rows, `role="status"` announced once, reduced motion
   respected) while the host loads data, while more than 10,000 rows are encoded the first time and
@@ -45,15 +64,30 @@ First release.
 - Filters say what they keep: "Filter: 15 of 45" or the condition in the chip menu, in the accent
   colour, with "Remove filter" right below; "Remove filter" at the top of the filter popover; the ×
   of the text condition removes it at once.
-- One clear "×" for every text field in a menu (field search, value name, "Starting at", template
-  name, filter search and condition, Load view): it empties the field and keeps the focus there,
+- One clear "×" for every text field in a menu (field search, value name, "Starting at", saved
+  view's name, filter search and condition, Load view): it empties the field and keeps the focus there,
   Escape does the same first; a value's name goes back to its default at once, as one undo step.
 - "Filter…" in the field list for a field not placed: its filter opens at once, Apply puts it into
   Filters with the selection.
 - The Values menu says where filtering happens; an "i" next to each zone's title explains it with an
   example; the field list's grip says "Drag into a zone" and opens the field's menu on a click.
-- Options, Help: "Show tips", "Show field descriptions" and "Show zone explanations", remembered
-  with the tips; `fieldInfo` and `zoneInfo` ("on", "off") decide them for the host.
+- Options, Help: "Show tips", "Show field descriptions", "Show zone explanations" and "Show
+  explanations", remembered with the tips; `fieldInfo`, `zoneInfo` and `settingInfo` ("on", "off")
+  decide them for the host.
+- One way to explain a setting: the "i" (hover, focus, tap) next to the totals, Show as, Along, the
+  export formats (the export menu is a dialog), and a pie's Labels and the Group labels; menu rows stay
+  one line (`aboutSetting`, `settingInfo`).
+- An entry that would change nothing is disabled and says why, only while disabled: the grand total
+  row needs a field in Rows, the grand total column one in Columns, subtotals two or more fields on
+  their axis (`needsRowField`, `needsColField`, `needsRowFields`, `needsColFields`), the chart image
+  "Switch to Chart first." (`exportPngNeedsChart`).
+- Long menus: the wheel and the swipe stay in the menu (the table and the page behind never scroll),
+  a menu is never higher than the window; sections fold with their title, the frequent ones open, the
+  user's choice kept with the tips (`"open:<id>"`, `"closed:<id>"` in `dismissedTips`); "More
+  formats" for the rarer number formats.
+- Enlarge and Full screen at the top right of the result: Enlarge lets the result fill the report
+  (Escape or the button restores), Full screen uses the Fullscreen API on the report's root (also in a
+  shadow root) and is offered only where the browser has it; neither is part of the view.
 - Expand all and Collapse all are offered only when they change something, say why not, and report
   what they did ("5 groups collapsed").
 - Notices and tips above the result, from one table (`tips.js`). Notices, always shown and not
@@ -61,7 +95,7 @@ First release.
   Tips: what 100 % is for a percentage, dates on Columns and many
   series in a chart (with "Swap rows and columns"), a text field in Values, an ungrouped date with
   many columns (with "Group by"), many columns (swap), Rows without Values, Undo after the first drag,
-  saving after five changes (opens Templates), the empty report and how to open a value. At most two
+  saving after five changes (opens Views), the empty report and how to open a value. At most two
   at a time (one in a narrow or low report), in the flow above the result, each with an x; Options has
   "Show tips", "Show dismissed tips again" and the keyboard shortcuts. Props `tips` ("on", "off" or ids),
   `storageKey` (localStorage per report, read after the first render so server rendering and
@@ -90,12 +124,12 @@ First release.
   heights), expand and collapse, totals on and off, colour scales and
   data bars, keyboard navigation, drill-down panel and `onCellClick`; virtual scrolling from 300 rows.
 - Chart with Apache ECharts (a peer dependency, loaded on first use): bars, stacked and horizontal
-  bars, lines, area, pie, heatmap, themed from the `--pk-*` tokens, with a text alternative, at most 50
+  bars, lines, area, pie, donut, heatmap, themed from the `--pk-*` tokens, with a text alternative, at most 50
   categories, tips for many series and dates on Columns, and "Swap rows and columns"; a stacked area
   or line chart is named "Area" or "Lines" in the toolbar and the picker.
 - Filter popover with values and row counts, search, select all or none and a text condition.
-- Undo, redo and reset; templates (load, save, delete of templates marked `deletable` after an in-page
-  confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG, with
+- Undo, redo and reset; saved views (the `templates` prop: load, save, delete of entries marked
+  `deletable` after an in-page confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG, with
   `onExport` seeing every file before its download and able to skip it (then without the "Exported"
   note).
 - Popovers and menus open at their button also inside an ancestor with a transform, a filter or
@@ -110,22 +144,25 @@ First release.
   when there is no room; field list as a modal drawer below 640 px.
 - Labels in English and German with plain words; `labels` overrides single texts and ignores entries
   of the wrong type; the report's `lang` follows the labels.
-- Labels `toastSaveRejected` and `toastDeleteRejected` ("The server could not save the template."),
-  shown when the host's template callback throws or rejects without a message; a message the host
+- Labels `toastSaveRejected` and `toastDeleteRejected` ("The server could not save the view."),
+  shown when the host's save or delete callback throws or rejects without a message; a message the host
   gives (an `Error`, a text) is shown instead.
-- Compact layout: below 540 px of height (border box, measured before the first paint) the zones
-  start folded into one line that says what is in them; the line and the Layout button of the
-  toolbar open and fold them, and a drag opens them while it lasts. Layout stays in the toolbar
-  while the zones are folded. A fold waits while a menu or popover is open, and a focus in the
-  zones moves to the folded line. Labels `layout`, `showLayout`, `hideLayout` and `layoutEmpty`.
+- Compact layout: below 600 px of height, 820 px in the narrow layout (border box, measured before
+  the first paint), the zones start folded into one line that says what is in them, and at most one
+  tip shows; the line and the Layout toggle of the toolbar (a stable text with `aria-pressed`; its
+  place in the toolbar or in "More" depends on the width only) open and fold them, and a drag opens
+  them while it lasts. A fold waits while a menu or popover is open, and a focus in the zones moves to
+  the folded line. Labels `layout`, `showLayout` and `layoutEmpty`.
+- The result keeps a least height (240 px, 280 px narrow): a report whose box is lower than it needs
+  grows past it (an inline `min-height`), so the page scrolls.
 - The `label` prop names the report's region landmark (default `labels.report`); several reports on
   one page need one name each.
 - A limit of pivotkit-core in place of the result says which one and what to change: too many
   rows in the data (`tooManyRows`), too many cell updates (`tooMuchWork`), groups (`tooManyGroups`) or
   cells with subtotals (`tooManyCells`) in the layout, besides the dense grid's `tooLarge`.
 - A field beyond pivotkit-core's limit of its zone (8 per axis, 16 values) is refused with a note
-  (`zoneFull`); a template with more loads the fields that fit and says so
-  (`templateTrimmed`).
+  (`zoneFull`); a saved view with more loads the fields that fit and says so above the result
+  (`viewTrimmed`).
 - Number ranges: size and "Starting at" (Excel's origin; empty is 0); a new size keeps the start, and
   a start so far from the field's numbers that every row would be blank is refused with a note.
 - `fieldDefaults[field].order`: the field's custom order of items. A field placed on Rows or Columns

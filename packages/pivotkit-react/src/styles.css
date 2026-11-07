@@ -128,6 +128,9 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    /* until it is measured: then the report sets its own least height inline, what the toolbar, the
+       zones, the tips and the result's least height need (use-big-result.js); a lower host box lets
+       it grow, so the page scrolls */
     min-height: 320px;
     overflow: hidden;
     border: 1px solid var(--pk-border);
@@ -142,6 +145,14 @@
 
 .pk-root:focus {
     outline: none;
+}
+
+/* Full screen (the Fullscreen API on the root): the screen's size, whatever height the host gave */
+.pk-root:fullscreen {
+    width: 100%;
+    height: 100% !important;
+    border: 0;
+    border-radius: 0;
 }
 
 .pk-root *,
@@ -222,7 +233,8 @@
     cursor: default;
 }
 
-.pk-btn[aria-expanded="true"] {
+.pk-btn[aria-expanded="true"],
+.pk-btn.pk-pressable[aria-pressed="true"] {
     background: var(--pk-accent-soft);
     border-color: var(--pk-accent);
 }
@@ -578,6 +590,11 @@
     flex: none;
 }
 
+/* a little tighter than elsewhere: a wide report keeps every button in one line */
+.pk-toolbar .pk-btn {
+    padding-inline: 0.7em;
+}
+
 .pk-sep {
     width: 1px;
     height: 1.6em;
@@ -891,6 +908,8 @@
     max-width: min(380px, calc(100vw - 16px));
     padding: 6px;
     overflow-y: auto;
+    /* its scroll stays here: the end of the list never scrolls the table or the page behind it */
+    overscroll-behavior: contain;
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface-raised);
@@ -1021,11 +1040,74 @@
     padding-top: 6px;
 }
 
+.pk-section-head {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
 .pk-section-title {
     padding: 2px 8px 4px;
     color: var(--pk-muted);
     font-size: var(--pk-small);
     font-weight: 650;
+}
+
+/* a section that folds: its title is the button */
+.pk-section-toggle {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    gap: 0.35em;
+    min-height: var(--pk-target);
+    padding: 2px 6px;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pk-root .pk-section-toggle {
+    color: var(--pk-muted);
+}
+
+.pk-root .pk-section-toggle:hover {
+    background: var(--pk-surface-3);
+    color: var(--pk-text);
+}
+
+.pk-section.pk-folded {
+    padding-bottom: 2px;
+}
+
+.pk-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.pk-section-body[hidden] {
+    display: none;
+}
+
+/* a setting with its "i": one line, the "i" at its end */
+.pk-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.pk-setting-row > .pk-option,
+.pk-setting-row > .pk-switch {
+    flex: 1;
+    min-width: 0;
+}
+
+.pk-subtitle.pk-setting-row {
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 .pk-choice-grid {
@@ -1209,6 +1291,26 @@
     background: var(--pk-surface-3);
 }
 
+.pk-switch-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* a switch that would change nothing here: dimmed, its reason under it */
+.pk-switch.pk-disabled {
+    cursor: default;
+}
+
+.pk-switch.pk-disabled:hover {
+    background: transparent;
+}
+
+.pk-switch.pk-disabled > .pk-switch-track,
+.pk-switch.pk-disabled > .pk-switch-text > :first-child {
+    opacity: 0.45;
+}
+
 .pk-switch input {
     position: absolute;
     opacity: 0;
@@ -1366,11 +1468,26 @@
 /* ---- result ---- */
 
 .pk-issues {
-    padding: 0.5em 0.8em;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 0.3em 0.3em 0.3em 0.8em;
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius-sm);
     background: var(--pk-surface-2);
     font-size: var(--pk-small);
+}
+
+.pk-issues > details {
+    flex: 1;
+    min-width: 0;
+    padding: 0.2em 0;
+}
+
+.pk-issues-x {
+    flex: none;
+    width: var(--pk-target);
+    height: var(--pk-target);
 }
 
 .pk-issues summary {
@@ -1386,11 +1503,42 @@
     padding-left: 1.4em;
 }
 
+/* above the result: Enlarge and Full screen at its right; while enlarged, the fields in one line */
+.pk-result-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin-bottom: -4px;
+}
+
+.pk-result-head .pk-btn.pk-small-btn {
+    height: max(var(--pk-target), 1.9em);
+}
+
+.pk-enlarged-fields {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Enlarge: the result fills the report; the field list, the zones, the tips and the notes step aside */
+.pk-root[data-pk-enlarged] .pk-layout {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.pk-root[data-pk-enlarged] :is(.pk-panel-slot, .pk-zones, .pk-zones-summary, .pk-tips, .pk-issues, .pk-drawer-scrim) {
+    display: none;
+}
+
 .pk-result {
     position: relative;
     display: flex;
     flex: 1;
-    min-height: 200px;
+    min-height: 240px;
     overflow: hidden;
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
@@ -2168,7 +2316,7 @@
 }
 
 .pk-root[data-pk-size="narrow"] .pk-result {
-    min-height: 260px;
+    min-height: 280px;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-drill {
@@ -2525,4 +2673,57 @@
    its menu, which a tap on the chip opens */
 .pk-root[data-pk-size="narrow"] .pk-chip-info {
     display: none;
+}
+
+/* ---- before a view for other data is loaded (the Views menu) ---- */
+
+.pk-load-check {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 2px 6px 4px;
+}
+
+.pk-load-check-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    font-weight: 600;
+}
+
+.pk-load-check-title .pk-icon {
+    color: var(--pk-accent);
+}
+
+.pk-load-check-lines {
+    margin: 0;
+    padding-left: 1.4em;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    overflow-wrap: anywhere;
+}
+
+.pk-load-check-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* a long source name wraps inside its button instead of leaving the panel */
+.pk-load-check-actions .pk-btn {
+    height: auto;
+    min-height: 2.35em;
+    max-width: 100%;
+    padding-block: 0.3em;
+    white-space: normal;
+    text-align: left;
+}
+
+/* a menu's panel (lazy-menus.jsx): its parts stand in the popover as if it were not there */
+.pk-menu-panel {
+    display: contents;
+}
+
+.pk-menu-loading {
+    padding: 8px;
 }

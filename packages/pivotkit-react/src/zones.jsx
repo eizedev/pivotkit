@@ -9,10 +9,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
-import { AxisMenu, ValueMenu, ZONE_ICON } from "./chip-menus.jsx";
+import { MenuPanel } from "./lazy-menus.jsx";
 import { layoutSummary, refLabel, valueConditionText, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
-import { Icon, TYPE_ICON } from "./icons.jsx";
+import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { MenuButton } from "./popover.jsx";
@@ -162,9 +162,9 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                 >
                     {(close) =>
                         zone === "values" ? (
-                            <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} defaultsOf={defaultsOf} info={info} />
+                            <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info }} />
                         ) : (
-                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} defaultsOf={defaultsOf} rangeOf={rangeOf} locale={locale} info={info} state={state} />
+                            <MenuPanel name="AxisMenu" loadingText={labels.loadingMenu} props={{ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove: remove, defaultsOf, rangeOf, locale, info, state }} />
                         )
                     }
                 </MenuButton>

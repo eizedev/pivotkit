@@ -21,8 +21,12 @@ const echartsFile = {
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
     absWorkingDir: new URL(".", import.meta.url).pathname,
-    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", styles: "src/styles.css" },
+    // menus.js: the menus' panels, loaded on demand (lazy-menus.jsx); what it shares with index.js is
+    // a chunk of its own (splitting), so both use one copy of each module (one React context each)
+    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", styles: "src/styles.css" },
     outdir: "dist",
+    splitting: true,
+    chunkNames: "chunks/[name]-[hash]",
     bundle: true,
     format: "esm",
     platform: "browser",
@@ -34,6 +38,8 @@ export const options = {
     jsxFragment: "React.Fragment",
     loader: { ".js": "jsx" },
     legalComments: "none",
+    // the version for the view files' `generator` (src/version.js), from package.json
+    define: { __PIVOTKIT_REACT_VERSION__: JSON.stringify(pkg.version) },
     plugins: [echartsFile],
     logLevel: "warning"
 };

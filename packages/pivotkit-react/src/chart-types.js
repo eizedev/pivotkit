@@ -14,6 +14,7 @@ export const CHART_TYPES = Object.freeze({
     line: { chart: { type: "line", stacked: false, horizontal: false }, icon: "line", axis: true },
     area: { chart: { type: "area", stacked: false, horizontal: false }, icon: "area", axis: true },
     pie: { chart: { type: "pie", stacked: false, horizontal: false }, icon: "pie", axis: false },
+    donut: { chart: { type: "donut", stacked: false, horizontal: false }, icon: "donut", axis: false },
     heatmap: { chart: { type: "heatmap", stacked: false, horizontal: false }, icon: "heatmap", axis: false }
 });
 

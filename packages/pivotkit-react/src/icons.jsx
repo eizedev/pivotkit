@@ -25,6 +25,7 @@ const PATHS = {
     line: "M4 18 9 12l4 3 7-9M4 20h16",
     area: "M4 18 9 11l4 3 7-8v14H4Z",
     pie: "M12 3a9 9 0 1 0 9 9h-9Z M15 3.5A9 9 0 0 1 20.5 9H15Z",
+    donut: "M12 3a9 9 0 1 0 9 9h-4a5 5 0 1 1-5-5Z M14.5 3.4A9 9 0 0 1 20.6 9.5h-4.1a5 5 0 0 0-2-2Z",
     heatmap: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
     download: "M12 4v11M7 10l5 5 5-5M5 20h14",
     bookmark: "M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z",
@@ -51,7 +52,9 @@ const PATHS = {
     link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
     copy: "M8 8h11v12H8zM5 16V4h11",
     upload: "M12 16V5M7 10l5-5 5 5M5 20h14",
-    drag: "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
+    drag: "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3",
+    enlarge: "M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7",
+    fullScreen: "M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"
 };
 
 /**
@@ -67,3 +70,6 @@ export function Icon({ name, size = 16, className }) {
 
 /** The icon of a column type. */
 export const TYPE_ICON = { string: "text", number: "number", date: "date", boolean: "boolean", null: "text" };
+
+/** The icon of each zone. */
+export const ZONE_ICON = { rows: "rows", cols: "cols", values: "sigma", filters: "filter" };

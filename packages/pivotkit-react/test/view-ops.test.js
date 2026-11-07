@@ -4,7 +4,7 @@ import { computePivot, encode, normalize } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
-    binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding,
+    binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding, TOTALS, totalNoEffect,
     setValueFilter, measureChoices, numericResult, sameRef, withMeasure
 } from "../src/view-ops.js";
 import { filterText, refLabel, valueConditionText } from "../src/names.js";
@@ -131,7 +131,7 @@ test("sort, values, collapse, chart", () => {
     assert.deepEqual(toggleCollapsed(v, "rows", ["North"]).collapsed.rows, []);
     assert.deepEqual(reorder(v, "rows", 0, 1).collapsed.rows, [], "collapsed paths belong to the old field order");
     const c = setChart(v, "stacked");
-    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto" }]);
+    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" }]);
     assert.equal(chartTypeOf(c.chart), "stacked");
     assert.equal(isEmptyView(empty), true);
     assert.equal(defaultAgg("date"), "count");
@@ -282,8 +282,8 @@ test("the range form: the numbers of a field, and a start too far from them", ()
 
 test("chart display settings change without the type, and stay when the type changes", () => {
     const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
-    const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto" });
-    assert.deepEqual(shown.chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto" });
+    const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
+    assert.deepEqual(shown.chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
     // the display mode is the user's: a setting does not switch to the chart
     assert.equal(shown.display, "table");
     const line = setChart(shown, "line");
@@ -424,6 +424,19 @@ test("expand all and collapse all are offered only when they change something, a
     }
     assert.deepEqual(rowFolding(all, outer), { canExpand: true, canCollapse: false, collapsed: 3, open: 0, why: { expand: null, collapse: "collapseAllDone" } });
     for (const key of ["expandNothing", "collapseNeedsRows", "collapseAllDone"]) {
+        assert.equal(typeof LABELS.en[key], "string");
+        assert.equal(typeof LABELS.de[key], "string");
+    }
+});
+
+test("a total that would change nothing in the view is named with the reason", () => {
+    const none = norm({ values: [{ field: "Units", agg: "sum" }] });
+    assert.deepEqual(TOTALS.map((k) => totalNoEffect(none, k)), ["needsRowField", "needsColField", "needsRowFields", "needsColFields"]);
+    const one = norm({ rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
+    assert.deepEqual(TOTALS.map((k) => totalNoEffect(one, k)), [null, null, "needsRowFields", "needsColFields"]);
+    const two = norm({ rows: ["Region", "Product"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
+    assert.equal(totalNoEffect(two, "rowSubtotals"), null);
+    for (const key of ["needsRowField", "needsColField", "needsRowFields", "needsColFields"]) {
         assert.equal(typeof LABELS.en[key], "string");
         assert.equal(typeof LABELS.de[key], "string");
     }

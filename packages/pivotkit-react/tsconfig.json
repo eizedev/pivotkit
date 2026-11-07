@@ -20,5 +20,5 @@
     "strict": true,
     "noImplicitAny": false
   },
-  "include": ["src/**/*.js", "src/**/*.jsx"]
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.d.ts"]
 }

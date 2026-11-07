@@ -12,14 +12,13 @@ import { ClearInput } from "./clear-input.jsx";
 import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
 import { fieldMatches } from "./field-info.js";
-import { Icon, TYPE_ICON } from "./icons.jsx";
+import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { fieldAction } from "./names.js";
 import { MenuButton, Option } from "./popover.jsx";
 import { ZONES } from "./view-ops.js";
 
-const ZONE_ICON = { rows: "rows", cols: "cols", values: "sigma", filters: "filter" };
 
 function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, showInfo }) {
     const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: name });

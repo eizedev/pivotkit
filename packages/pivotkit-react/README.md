@@ -7,7 +7,7 @@ What pivotkit does, in short: [overview](https://pivotkit.eize.dev/overview/); e
 The pivot report builder of pivotkit as a React 18/19 component: a searchable field list, four drop
 zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every field, table and chart
 (Apache ECharts), filters with value counts, drill-down to the rows behind a value, undo and redo,
-templates as JSON, and Excel, CSV and PNG export. The engine is [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme).
+saved and shared views as JSON files, and Excel, CSV and PNG export. The engine is [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme).
 
 Version 0.1.0. Try it in the [playground](https://pivotkit.eize.dev/demo/).
 
@@ -69,7 +69,7 @@ export function TicketReport({ rows, saved, saveTemplate, deleteTemplate }) {
 ```
 
 Without a host state, `defaultView={presets[0].view}` starts the report and it keeps the view itself.
-The view is pivotkit-core's view object: plain JSON that is the preset, the saved template and the
+The view is pivotkit-core's view object: plain JSON that is the preset, the saved view and the
 undo step at once. It is user input and is normalized against the data; it cannot run code.
 
 ## Props
@@ -82,9 +82,9 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `view` | view | | Controlled: the view to show. Pass back what `onViewChange` gives; the undo history stays in the report however often the host renders. A view the host changes on its own becomes one undo step. |
 | `defaultView` | view | empty | Uncontrolled: the start view. |
 | `onViewChange` | `(view) => void` | | Every change, as a normalized view. |
-| `templates` | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name. |
-| `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`). |
-| `onDeleteTemplate` | `(name) => unknown` | | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
+| `templates` | `{ name, view, deletable? }[]` | `[]` | The saved views of the Views menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that entry. Names need not be unique: every entry is shown in order (a saved view may have a preset's name), and `onDeleteTemplate` gets the name. |
+| `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). |
+| `onDeleteTemplate` | `(name) => unknown` | | Deletes a saved view marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. Another aggregator picked in the value's menu keeps `format` while the result is in the field's unit (an average to a median), not for a count; a format the user chose stays the same way. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and so is a field on Rows or Columns of a view or template without a sort entry for it; its menu offers "Custom order" and "Custom order, reversed", and "A to Z" stays a sort entry of its own; items not listed follow by label. `label` is the name shown for the field everywhere (chips, headers, value names, drill-down, chart, exports; views keep the field name); `description` (plain text) shows behind an "i" next to the field, in its chip menu and on its headers, with `href` (https) as "Learn more"; `type` is the column type it is read as. A field without them looks as without `fieldDefaults`. pivotkit-core's `fieldDefaultsFromSchema` builds it from a JSON Schema or OpenAPI document. |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. A blank cell with no rows behind it is not clickable. |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
@@ -93,24 +93,27 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
 | `labels` | partial labels | | Texts merged over the language's labels, see below. |
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
-| `height` | `number \| string` | `640` | The report's height; the table and the field list scroll inside it. |
-| `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.work`, `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`). A field beyond `limits.axisFields` or `limits.values` is refused with a note (`zoneFull`); a template with more loads the fields that fit and says so (`templateTrimmed`). |
+| `height` | `number \| string` | `640` | The report's height, pixels or a CSS length; the table and the field list scroll inside it. A height lower than the report needs lets it grow, so the page scrolls (see Layout). |
+| `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.work`, `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`). A field beyond `limits.axisFields` or `limits.values` is refused with a note (`zoneFull`); a saved view with more loads the fields that fit and says so above the result (`viewTrimmed`). |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
 | `tips` | `"on" \| "off" \| string \| string[]` | `"on"` | The tips above the result (at most two at a time, each dismissible): all, none (and no switch in Options), or the tip ids allowed. The ids and when each shows are on the [documentation site](https://pivotkit.eize.dev/reference/react/#tips). |
-| `storageKey` | `string` | | Remembers dismissed tips in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. |
-| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off). |
+| `storageKey` | `string` | | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. |
+| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`, `"-settingInfo"`: those help switches off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
 | `onTipDismiss` | `({ id, dismissed }) => void` | | Every dismissal, "Show tips" off and on, the other help switches, "Show dismissed tips again", with the whole list to store. |
-| `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for "Download view"; the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
-| `fieldInfo`, `zoneInfo` | `"on" \| "off"` | | Decide the "i" of the field descriptions and of the zones; without them the user switches each in Options, Help (on by default, remembered like the tips). Screen readers keep the field descriptions either way. |
+| `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file](https://pivotkit.eize.dev/reference/view-file/) of "Download view", `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
+| `fieldInfo`, `zoneInfo`, `settingInfo` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining ("Show explanations"); without them the user switches each in Options, Help (on by default, remembered like the tips). Screen readers keep the field descriptions either way. |
 | `chartOptions` | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. Functions, values that are not JSON, and options that are markup or addresses (a string `formatter`, `rich`, `link`, `image`) are left out with a warning. [Charts](https://pivotkit.eize.dev/concepts/charts/#chartoptions-for-developers). |
-| `shareLink` | `boolean \| string` | off | "Copy link" in Templates and opening shared links: `true` for the page's address without its query, a string as the base URL. The view is in the fragment, `#pivot=` or `#pivot-<storageKey>=`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
+| `source` | `{ id, name? }` | | The data the report shows: it goes into the view files and links the report shares, and a view made for another `id` asks before it is loaded. [Sharing](https://pivotkit.eize.dev/concepts/sharing/#the-source-of-a-view-for-developers). |
+| `sources` | `{ id, name? }[]` | | The other data the host can show: a view made for one of them offers "Switch to “name” and load". |
+| `onSourceSwitch` | `({ source, view, name }) => void` | | The user chose to switch to that data: show it with `view` (as the file has it) as its start view. |
+| `shareLink` | `boolean \| string` | off | "Copy link" in Views and opening shared links: `true` for the page's address without its query, a string as the base URL. The view is in the fragment, `#pivot=` or `#pivot-<storageKey>=`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
 | `persistView` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storageKey`); a reload shows it again. |
 | `loading` | `boolean` | `false` | The host is loading data: the skeleton before the first data, the result covered on later loads. |
 
 Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
-`ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
+`ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
 `PartialLabels`. The stylesheet is `pivotkit-react/styles.css`.
 
 ## What the user can do
@@ -131,8 +134,13 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   from the field's numbers is refused with a note), top or bottom N by a chosen value, filter with a
   value condition ("Value filter…"), and move. The menu of a value has the aggregator (sum,
   count, average, minimum, maximum; the statistics under "More statistics"), "show as" (the header
-  then says it: "% of grand total of Revenue"), the number format, highlighting (colour scale, data
-  bars), its name, and move; Remove stays at the foot of every menu.
+  then says it: "% of grand total of Revenue"), the number format (the rarer ones under "More
+  formats"), highlighting (colour scale, data bars), its name, and move; Remove stays at the foot of
+  every menu. Menus keep the wheel to themselves (the page behind never scrolls), fold their sections
+  (the frequent ones open, the choice remembered like the tips) and explain a setting with an "i" next
+  to it (totals, Show as, Along, the export formats, the chart's labels), which Options, Help, "Show
+  explanations" hides. An entry that would change nothing is disabled with a short reason under it
+  (a subtotal that needs two fields on its axis, the chart image without the chart).
 - Filters: values with row counts, search, select all or none, "only this value", a text condition
   (contains, begins with, ...). A field in the Filters zone filters the whole report.
 - Tips above the result say what a top N does to totals and percentages ("Country shows the top 5
@@ -155,20 +163,25 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   report's main area (each at least 4.5em) and a value's name wraps beyond 30 %, so a long label wraps
   and a phone still shows values next to it (from 300 rows on, where rows have one height, it is cut with an ellipsis: its full text is
   the cell's title, and the status line shows the whole row label of a tapped label or of the focused value).
-- Chart: bars, stacked bars, horizontal bars, lines, area, pie, heatmap ("Chart type: Bars" in the
-  toolbar); a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
+- Chart: bars, stacked bars, horizontal bars, lines, area, pie, donut, heatmap ("Chart type: Bars" in
+  the toolbar), a pie's or a donut's labels outside or inside the slices; a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap
   rows and columns" (also above the Columns zone). The tooltip is built as DOM nodes with the data's
   texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
   `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
-  Reset to the start view, Layout (the zones folded into one line or open), Options, Templates,
-  Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when the report is
-  too narrow, Reset, Redo, Layout, Templates, Options and the chart type move one by one into a
-  "More" menu.
+  Reset to the start view, Layout (a toggle with `aria-pressed`: the zones open or folded into one
+  line), Options, Views (Saved views and Share: link, JSON, the
+  [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
+  asks first), Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when
+  the report is too narrow, Reset, Redo, Layout, Views, Options and the chart type move one by one
+  into a "More" menu, by the width only.
+- Result: Enlarge (the result fills the report; Escape or the button restores) and Full screen (the
+  Fullscreen API, where the browser has it) at its top right.
 - Notes ("Undone: Region removed", "Exported pivot.xlsx") appear in the status line under the table,
-  stay while the pointer or the focus is on them, and errors stay until closed. Adding a field shows
-  none: the chip is the feedback.
+  stay while the pointer or the focus is on them, and errors stay until closed. A loaded view says so
+  with Undo; what it left out stays above the result until dismissed. Adding a field shows none: the
+  chip is the feedback.
 - Keyboard and screen readers: every control is a button or input of at least 24 x 24 px; menus move
   with the arrow keys and close with Tab or Escape (also when the focus is elsewhere on the page); the
   drill-down, the narrow field drawer and bottom sheets keep the focus inside and give it back. A chip
@@ -197,17 +210,16 @@ area: the narrow layout, and a medium one such as a half-width card of 650 px). 
 columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the
 Columns zone is too narrow for the text. Only the table scrolls sideways.
 
-Below 540 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`, the border box, measured before the
-first paint) the report starts in the compact layout: the zones fold into one line that says what is in them ("Rows: Team · Columns: Priority ·
-Values: Count of Ticket"), so the table keeps its room. A click on that line, or Layout in the
-toolbar, opens them; Layout folds them again, and stays in the toolbar (not in "More") while they
-are folded. The line only shows what is placed: to change a chip, open the zones first. A drag from
-the field list or the table opens them while it lasts, so a field can still be dropped. When the
-report gets lower while a menu or popover is open, the fold waits until it closes; a focus in the
-zones moves to the folded line. The user's choice is state of the mounted report: it
-survives the host's renders, and it is not part of the view, so a template does not carry it. In the narrow layout the zones sit above the table, so a report of a fixed
-640 px leaves little room for it on a phone: give it more height there, for example
-`height="calc(100svh - 24px)"` (the page scrolls to the report, the table scrolls inside it).
+Below 600 px of height (`COMPACT_HEIGHT` in `PivotReport.jsx`), 820 px in the narrow layout
+(`COMPACT_HEIGHT_NARROW`), measured on the border box before the first paint, the report starts in
+the compact layout: the zones fold into one line that says what is in them ("Rows: Team · Columns:
+Priority · Values: Count of Ticket"), so the table keeps its room, and at most one tip shows. A click
+on that line, or Layout, opens them; Layout folds them again and keeps its text and its place. The
+user's choice is state of the mounted report, not part of the view. The result keeps a least height
+(240 px, 280 px narrow): when the host's box is lower than the report needs, the report grows past it
+and the page scrolls. `height` takes pixels or a CSS length (`"100%"`, `"calc(100svh - 24px)"`); a
+host that must keep the report in a fixed box gives the box enough height or lets its container
+scroll. Details: [Layout](https://pivotkit.eize.dev/reference/react/#layout).
 
 ## Theming
 

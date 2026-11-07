@@ -2,11 +2,11 @@
 // JSON, what was left out in plain words, and the host's chartOptions.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { encode } from "pivotkit-core";
+import { encode, toViewFile, viewFileText } from "pivotkit-core";
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { CHART_OPTIONS_CAPS, cleanChartOptions, mergeChartOptions } from "../src/chart-options.js";
 import { LABELS } from "../src/labels.js";
-import { issueLines, linkParam, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
+import { issueLines, linkParam, loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3 },
@@ -79,6 +79,42 @@ test("a loaded view is normalized against the data; a template file gives its vi
     assert.deepEqual(viewFromText("x".repeat(1_000_001), data).failed, "tooLarge");
     // unknown keys (a template's extra fields) are nothing to tell the user
     assert.deepEqual(issueLines([{ path: "name", message: "unknown key" }], LABELS.en), []);
+});
+
+test("a view file loads with its envelope; a newer format asks to update pivotkit", () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    const text = viewFileText(toViewFile(view, { name: "Units", source: { id: "sales" }, data }));
+    const loaded = viewFromText(text, data, { sourceId: "sales" });
+    assert.equal(loaded.failed, null);
+    assert.deepEqual(loaded.view?.rows, ["Region"]);
+    assert.equal(loaded.file?.name, "Units");
+    assert.equal(loaded.file?.compatible?.ok, true);
+    const newer = viewFromText(JSON.stringify({ format: "pivotkit-view", formatVersion: 2, view }), data);
+    assert.equal(newer.failed, "newer");
+    assert.match(LABELS.en.viewFailed.newer, /Update pivotkit/);
+    assert.match(LABELS.de.viewFailed.newer, /Aktualisieren Sie pivotkit/);
+});
+
+test("a view for other data asks first: its source, the fields this data does not have, another type", () => {
+    const view = { rows: ["Region", "Country"], values: [{ field: "Units", agg: "sum" }] };
+    const other = encode([{ Region: "North", Country: "DE", Units: 3 }]);
+    const file = toViewFile(view, { name: "By country", source: { id: "weather", name: "Weather <b>" }, data: other });
+    // the same data: nothing to ask
+    assert.equal(loadCheck(viewFromObject(file, other, { sourceId: "weather" }), LABELS.en), null);
+    // another source, a field missing; the host can switch to it
+    const loaded = viewFromObject(file, data, { sourceId: "sales" });
+    const check = loadCheck(loaded, LABELS.en, [{ id: "weather", name: "Weather" }]);
+    assert.deepEqual(check?.lines, ["It was made for “Weather”.", "Fields this data does not have: “Country”."]);
+    assert.deepEqual(check?.switchTo, { id: "weather", name: "Weather" });
+    // no such source with the host: the file's name for it, as text, and no switch
+    const unknown = loadCheck(loaded, LABELS.en, []);
+    assert.equal(unknown?.lines[0], "It was made for “Weather <b>”.");
+    assert.equal(unknown?.switchTo, null);
+    // a field of another type
+    const typed = encode([{ Region: "North", Country: "DE", Units: "many" }]);
+    assert.deepEqual(loadCheck(viewFromObject(file, typed, { sourceId: "weather" }), LABELS.en)?.lines, ["Fields of another type here: “Units”."]);
+    // in German
+    assert.equal(loadCheck(loaded, LABELS.de, [])?.lines[0], "Sie wurde für „Weather <b>“ gemacht.");
 });
 
 test("a loaded view cannot pollute prototypes", () => {

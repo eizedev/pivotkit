@@ -64,7 +64,7 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
             const room = pieLabelRoom(height);
             const top = (typeof s.top === "number" ? s.top : 0) + room;
             const bottom = (typeof s.bottom === "number" ? s.bottom : 0) + room;
-            return { ...s, top, bottom, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...s.label, color: v("--pk-text") || undefined } };
+            return { ...s, top, bottom, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...s.label, color: s.label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one

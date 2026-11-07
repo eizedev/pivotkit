@@ -88,3 +88,17 @@ test("a report takes its own region name; yes/no fields read Yes and No", () => 
     const de = render({ data: [{ Done: true, N: 1 }], view: { rows: ["Done"], values: [{ field: "N", agg: "sum" }] }, locale: "de-DE" }).html;
     assert.match(de, />Ja</);
 });
+
+test("the built package names its own version as the generator of the view files it writes", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const index = await readFile(new URL("../dist/index.js", import.meta.url), "utf8");
+    const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+    assert.ok(index.includes(JSON.stringify(pkg.version)), "the version of package.json");
+    assert.ok(!index.includes("__PIVOTKIT_REACT_VERSION__"), "build.js replaced the placeholder");
+});
+
+test("a server render offers Enlarge but no Full screen (known in the browser only), and hydration can match", () => {
+    const html = renderToString(React.createElement(PivotReport, { data: [{ Region: "North", Units: 3 }], defaultView: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] } }));
+    assert.match(html, /data-testid="enlarge"/);
+    assert.doesNotMatch(html, /data-testid="full-screen"/);
+});

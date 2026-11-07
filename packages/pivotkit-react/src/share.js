@@ -1,11 +1,12 @@
 /*
  * Sharing a view, without a DOM: the link (pivotkit-core/link, loaded on first use, in the URL
  * fragment under "pivot" or "pivot-<storageKey>"), the view kept per tab (sessionStorage), a view
- * loaded from JSON, and what normalize() left out in plain words. Every view that comes in this way is
+ * loaded from a view file or JSON (pivotkit-core's fromViewFile), what to ask before a view for other
+ * data is applied, and what normalize() left out in plain words. Every view that comes in this way is
  * user input: it goes through normalize() against the data before the report shows it.
  */
 
-import { normalize } from "pivotkit-core";
+import { VIEW_FILE_LIMITS, fromViewFile, normalize } from "pivotkit-core";
 import { fill } from "./labels.js";
 
 /** @type {Promise<typeof import("pivotkit-core/link")> | null} */
@@ -129,8 +130,14 @@ export function writeStoredView(key, storage, view) {
     }
 }
 
-/** The characters a view file or pasted JSON may have: the size of pivotkit-core's view limit is far more than any real view. */
-export const VIEW_TEXT_MAX = 1_000_000;
+/** The characters a view file or pasted JSON may have (pivotkit-core's VIEW_FILE_LIMITS.text). */
+export const VIEW_TEXT_MAX = VIEW_FILE_LIMITS.text;
+
+/** Field names in quotes, the first five, as the report's notes write them. */
+const quoteNames = (names) => {
+    const shown = names.slice(0, 5).map((n) => `“${n.length > 60 ? `${n.slice(0, 59)}…` : n}”`).join(", ");
+    return names.length > 5 ? `${shown} …` : shown;
+};
 
 /** A field name from an issue message ('unknown field "Region"'), or null. */
 const fieldOf = (message) => /^unknown field (".*")$/.exec(message)?.[1];
@@ -168,8 +175,7 @@ export function issueLines(issues, labels) {
     }
     const lines = [];
     if (missing.length) {
-        const shown = missing.slice(0, 5).map((n) => `“${n.length > 60 ? `${n.slice(0, 59)}…` : n}”`).join(", ");
-        lines.push(fill(labels.viewMissingFields, { fields: missing.length > 5 ? `${shown} …` : shown }));
+        lines.push(fill(labels.viewMissingFields, { fields: quoteNames(missing) }));
     }
     if (other) {
         lines.push(fill(other === 1 ? labels.viewOtherIssue : labels.viewOtherIssues, { count: other }));
@@ -178,52 +184,75 @@ export function issueLines(issues, labels) {
 }
 
 /**
- * A view from text someone pasted or a file they chose: JSON of a view (or of a template { name,
- * view }), normalized against the data. `failed` names why nothing could be used: "empty", "tooLarge",
- * "notJson", "notView", "newer".
+ * @typedef {object} LoadedView
+ * @property {import("pivotkit-core").View | null} view  normalized against the data; null when nothing can be used
+ * @property {import("pivotkit-core").Issue[]} issues  what normalize() left out
+ * @property {string | null} failed  why nothing can be used: "empty", "tooLarge", "notJson", "notView", "newer"
+ * @property {import("pivotkit-core").ViewFileRead | null} file  the view file as read (name, source, compatible)
+ */
+
+/** pivotkit-core's reasons, as the texts of labels.viewFailed name them. */
+const FAILED = Object.freeze({ newerFormat: "newer", newerView: "newer" });
+
+/**
+ * A view from text someone pasted or a file they chose: a view file (pivotkit-core's fromViewFile), a
+ * bare view or a template { name, view }, normalized against the data.
  * @param {string} text
  * @param {import("pivotkit-core").Encoded} encoded
- * @param {{ limits?: object }} [options]
- * @returns {{ view: import("pivotkit-core").View | null, issues: import("pivotkit-core").Issue[], failed: string | null }}
+ * @param {{ limits?: object, sourceId?: string }} [options]
+ * @returns {LoadedView}
  */
 export function viewFromText(text, encoded, options = {}) {
-    if (typeof text !== "string" || text.trim() === "") {
-        return { view: null, issues: [], failed: "empty" };
-    }
-    if (text.length > VIEW_TEXT_MAX) {
-        return { view: null, issues: [], failed: "tooLarge" };
-    }
-    let parsed;
-    try {
-        parsed = JSON.parse(text);
-    } catch {
-        // a link pasted here is no JSON: the caller tries it as a link
-        return { view: null, issues: [], failed: "notJson" };
-    }
-    return viewFromObject(parsed, encoded, options);
+    return viewFromObject(text, encoded, options);
 }
 
 /**
- * A parsed view (from JSON or a link), normalized against the data; a template { name, view } gives
- * its view.
- * @param {unknown} parsed
+ * A view from a parsed object (a link's) or a text, read as a view file and normalized against the
+ * data; `file.compatible` says how it fits (the same source by `options.sourceId`, its fields there).
+ * @param {unknown} input
  * @param {import("pivotkit-core").Encoded} encoded
- * @param {{ limits?: object }} [options]
- * @returns {{ view: import("pivotkit-core").View | null, issues: import("pivotkit-core").Issue[], failed: string | null }}
+ * @param {{ limits?: object, sourceId?: string }} [options]
+ * @returns {LoadedView}
  */
-export function viewFromObject(parsed, encoded, options = {}) {
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return { view: null, issues: [], failed: "notView" };
+export function viewFromObject(input, encoded, options = {}) {
+    const file = fromViewFile(input, { data: encoded, sourceId: options.sourceId });
+    if (file.failed || !file.view) {
+        const failed = file.failed ?? "notView";
+        return { view: null, issues: file.issues, failed: Object.hasOwn(FAILED, failed) ? FAILED[failed] : failed, file };
     }
-    const own = (key) => (Object.hasOwn(parsed, key) ? parsed[key] : undefined);
-    const inner = own("view");
-    const candidate = inner !== null && typeof inner === "object" && !Array.isArray(inner) && typeof own("name") === "string" ? inner : parsed;
-    const { view, issues } = normalize(candidate, encoded, options.limits ? { limits: options.limits } : undefined);
+    const { view, issues } = normalize(file.view, encoded, options.limits ? { limits: options.limits } : undefined);
     if (issues.some((i) => i.path === "version")) {
-        return { view: null, issues, failed: "newer" };
+        return { view: null, issues, failed: "newer", file };
     }
-    if (issues.some((i) => i.path === "")) {
-        return { view: null, issues, failed: "notView" };
+    return { view, issues, failed: null, file };
+}
+
+/**
+ * What to ask before a view for other data is applied, or null when it fits: the lines that say why
+ * (the source it was made for, the fields missing, the fields of another type) and, when the host
+ * can switch to that source (`sources`), its entry. Names from the file are plain text.
+ * @param {LoadedView} loaded
+ * @param {import("./labels.js").UiLabels} labels
+ * @param {Array<{ id: string, name?: string }>} [sources]  the sources the host can switch to
+ * @returns {{ lines: string[], switchTo: { id: string, name: string } | null } | null}
+ */
+export function loadCheck(loaded, labels, sources = []) {
+    const fit = loaded.file?.compatible;
+    if (!loaded.view || !fit || fit.ok) {
+        return null;
     }
-    return { view, issues, failed: null };
+    const lines = [];
+    const fileSource = loaded.file?.source;
+    const target = fit.source === "other" && fileSource?.id ? sources.find((s) => s && s.id === fileSource.id) : undefined;
+    if (fit.source === "other") {
+        const name = target?.name || fileSource?.name || fileSource?.id;
+        lines.push(name ? fill(labels.loadCheckSource, { source: name }) : labels.loadCheckOtherSource);
+    }
+    if (fit.missing.length) {
+        lines.push(fill(labels.loadCheckMissing, { fields: quoteNames(fit.missing) }));
+    }
+    if (fit.changed.length) {
+        lines.push(fill(labels.loadCheckChanged, { fields: quoteNames(fit.changed.map((c) => c.name)) }));
+    }
+    return { lines, switchTo: target ? { id: target.id, name: target.name || target.id } : null };
 }

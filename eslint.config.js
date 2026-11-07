@@ -40,6 +40,11 @@ export default [
         languageOptions: { globals: { __PIVOTKIT_ELEMENT_VERSION__: "readonly" } }
     },
     {
+        // the package's version, replaced by build.js (esbuild define)
+        files: ["packages/pivotkit-react/src/**"],
+        languageOptions: { globals: { __PIVOTKIT_REACT_VERSION__: "readonly" } }
+    },
+    {
         files: ["packages/pivotkit-react/src/**", "examples/*/src/**", "tests/browser/pages/**"],
         ...reactHooks.configs.flat["recommended-latest"],
         rules: { ...reactHooks.configs.flat["recommended-latest"].rules, "react-hooks/exhaustive-deps": "error" }

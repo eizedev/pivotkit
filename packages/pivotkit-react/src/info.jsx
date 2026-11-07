@@ -1,5 +1,6 @@
 /*
- * The "i" next to a field that has a description (fieldDefaults): hovering or focusing it shows the
+ * The "i" next to a field that has a description (fieldDefaults), and next to a setting that needs
+ * explaining (section.jsx, SettingInfo): hovering or focusing it shows the
  * description (and stays while the pointer moves onto it, so its "Learn more" link can be clicked), a
  * click or tap opens it as a small dialog whose link Tab reaches. Escape, a click outside and the
  * focus leaving close it. The button is described by the text for screen readers. A field without a
@@ -35,10 +36,11 @@ export function FieldDescription({ info, labels, link = true, className = "pk-fi
 }
 
 /**
- * @param {{ info: { description: string, href?: string }, name: string, labels: import("./labels.js").UiLabels, className?: string, testId?: string }} props
- *   `name`: the field's display name, for the button's name
+ * @param {{ info: { description: string, href?: string }, name: string, labels: import("./labels.js").UiLabels, className?: string, testId?: string, label?: string }} props
+ *   `name`: the field's display name, for the button's name; `label` names the button instead
+ *   ("About Row subtotals" for a setting)
  */
-export function InfoButton({ info, name, labels, className, testId = "field-info" }) {
+export function InfoButton({ info, name, labels, className, testId = "field-info", label: named }) {
     // "peek": on hover or focus, the focus stays on the button; "open": clicked, a dialog
     const [mode, setMode] = useState(/** @type {null | "peek" | "open"} */ (null));
     const ref = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -65,7 +67,7 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
             quiet.current = false;
         });
     }, []);
-    const label = fill(labels.aboutField, { field: name });
+    const label = named ?? fill(labels.aboutField, { field: name });
     return (
         <>
             <button

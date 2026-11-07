@@ -657,6 +657,30 @@ export function setCollapsed(view, axis, paths) {
     return next;
 }
 
+/** The four totals of Options, in their order. */
+export const TOTALS = Object.freeze(["grandTotalRow", "grandTotalColumn", "rowSubtotals", "colSubtotals"]);
+
+/**
+ * Why a total of Options would change nothing in this view, or null when it changes something: a
+ * grand total row needs a field in Rows (without one the only row is the total), a grand total column
+ * one in Columns, subtotals two or more fields on their axis. The key names the text (labels).
+ * @param {any} view
+ * @param {string} key  one of TOTALS
+ * @returns {string | null}
+ */
+export function totalNoEffect(view, key) {
+    if (key === "grandTotalRow") {
+        return view.rows.length >= 1 ? null : "needsRowField";
+    }
+    if (key === "grandTotalColumn") {
+        return view.cols.length >= 1 ? null : "needsColField";
+    }
+    if (key === "rowSubtotals") {
+        return view.rows.length >= 2 ? null : "needsRowFields";
+    }
+    return view.cols.length >= 2 ? null : "needsColFields";
+}
+
 /** Turns one of the totals on or off. */
 export function setTotal(view, key, on) {
     const next = clone(view);
