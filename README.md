@@ -1,11 +1,19 @@
-# pivotkit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/header-dark.svg">
+    <img src="assets/header-light.svg" alt="pivotkit" height="90">
+  </picture>
+</p>
 
 Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), templates as
 JSON, native Excel export; as a JavaScript core, a React component and a web component.
 
+![The pivot report: field list, the Filters, Columns, Rows and Values zones, and a table of revenue by region, country and category with subtotals](docs/assets/screenshots/report-light.png)
+
 | | |
 | --- | --- |
-| Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) |
+| Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
+| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): getting started, a guide for the people using the report, the API reference, a [live demo](https://pivotkit.eize.dev/demo/) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
 Status: in development. Nothing is published to npm yet.
