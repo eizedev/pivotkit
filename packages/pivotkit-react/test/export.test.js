@@ -106,7 +106,7 @@ test("Export → Copy table and Copy data as JSON go to the host's onExport firs
     assert.equal(files[0].text.split("\r\n")[0], "Region\tSum of Units");
     assert.equal(files[0].blob.type, "text/tab-separated-values");
     const json = JSON.parse(files[1].text);
-    assert.deepEqual(json.rows[0], { labels: ["Central"], total: 0, values: [1236.5] });
+    assert.deepEqual(json.rows[0], { labels: ["Central"], total: 0, collapsed: false, values: [1236.5] });
     assert.deepEqual(said, []);
     // without a clipboard (Node) the copy is refused and the note says so
     const refused = [];

@@ -98,9 +98,10 @@ export function DrillPanel({ drill, onClose, labels, locale, exportContext }) {
                                 )}
                             </MenuButton>
                         ) : null}
-                        {/* says what a click does: Enlarge, or Reduce while enlarged (aria-pressed tells the state) */}
+                        {/* as the result's Enlarge: says what a click does, Enlarge or Reduce; a changing name is no
+                            toggle (no aria-pressed), the highlight shows the state (data-pk-on) */}
                         {narrow ? null : (
-                            <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big} onClick={() => setBig((on) => !on)} data-testid="drill-enlarge">
+                            <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big ? "" : undefined} onClick={() => setBig((on) => !on)} data-testid="drill-enlarge">
                                 <Icon name="enlarge" size={14} />
                                 <span className="pk-btn-text">{big ? labels.reduce : labels.enlarge}</span>
                             </button>

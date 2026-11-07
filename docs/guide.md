@@ -256,9 +256,11 @@ Two buttons at the top right of the result give it more room; neither is part of
 - **Export, Copy table** puts the table on the clipboard as it is shown: headers, labels and totals,
   every number as the table writes it ("1,234.5", "35.7%"), tab-separated, a row label repeated on
   every row it spans. Pasted into Excel, Numbers or Google Sheets it lands in columns; a spreadsheet in
-  the same language reads the numbers back as numbers. **Copy data as JSON** copies the table's data
+  the same language reads the numbers back as numbers. A label a spreadsheet would run as a formula
+  (it starts with `=`, `@`, or `+` or `-` and is no number) gets a leading `'`, as in the CSV. **Copy data as JSON** copies the table's data
   for a program: the header texts above each value column, and per row its labels and its values with
-  all their decimals (the shape is in [pivotkit-core's `toJson`](reference/core.md)). It is not the
+  all their decimals, a percentage of "Show values as" as the fraction (0.25 for 25%), a collapsed
+  group marked as such (the shape is in [pivotkit-core's `toJson`](reference/core.md)). It is not the
   view: Views, **Copy view as JSON** copies how the report is built, not its numbers. Where the page
   does not allow copying (an address without https, a frame without the permission) a note says so:
   "This page does not allow copying. Download a file instead."

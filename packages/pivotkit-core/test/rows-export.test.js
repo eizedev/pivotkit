@@ -107,7 +107,7 @@ test("toJson: header texts per value column, labels and raw values per row", () 
     assert.deepEqual(json.columns[0], { labels: ["Ann", "Sum of Units"], value: "Sum of Units", total: 0 });
     assert.equal(json.columns.at(-1).total, 2);
     const northA = json.rows.find((r) => r.labels[0] === "North" && r.labels[1] === "A");
-    assert.deepEqual(northA, { labels: ["North", "A"], total: 0, values: [3, null, 3] });
+    assert.deepEqual(northA, { labels: ["North", "A"], total: 0, collapsed: false, values: [3, null, 3] });
     const grand = json.rows.at(-1);
     assert.equal(grand.total, 2);
     assert.equal(grand.values.length, json.columns.length);
@@ -119,4 +119,37 @@ test("toJson writes dates as ISO dates and text values as they are", () => {
     const json = JSON.parse(toJson(g));
     const north = json.rows.find((r) => r.labels[0] === "North");
     assert.deepEqual(north.values, ["2026-02-03", "Ann"]);
+});
+
+test("toTsv and the CSV guard keep numbers as each locale writes them, negatives and percents too", () => {
+    const nf = (locale, options) => new Intl.NumberFormat(locale, options);
+    for (const locale of ["de-CH", "sv-SE", "de-DE", "en-US"]) {
+        const texts = [
+            nf(locale).format(-1234567.5),
+            nf(locale).format(1234567.5),
+            nf(locale, { style: "percent", maximumFractionDigits: 1 }).format(-0.053),
+            nf(locale, { style: "currency", currency: "EUR" }).format(-1234.5)
+        ];
+        // every one pastes as a number: never a leading '
+        assert.equal(toTsv([texts]), `${texts.join("\t")}\r\n`, locale);
+    }
+    // the group separators of de-CH, the real minus of sv-SE, a space before %
+    assert.equal(toTsv([["-1'234'567.5", "-1’234’567.5", "−1 234,5", "-5,3 %"]]), "-1'234'567.5\t-1’234’567.5\t−1 234,5\t-5,3 %\r\n");
+    // a formula stays guarded, also one that looks like money or a cell
+    assert.equal(toTsv([["=1+1", "-2+3", "-$A$1", "+cmd|x", "-1+cmd|x", "@SUM(1)"]]), "'=1+1\t'-2+3\t'-$A$1\t'+cmd|x\t'-1+cmd|x\t'@SUM(1)\r\n");
+});
+
+test("toJson marks a collapsed group: its labels end in \"\" like a blank leaf, collapsed tells them apart", () => {
+    const g = toGrid(computePivot(sales, { rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }], collapsed: { rows: [["North"]], cols: [] } }));
+    const json = JSON.parse(toJson(g));
+    const north = json.rows.find((r) => r.labels[0] === "North");
+    assert.equal(north.collapsed, true);
+    assert.equal(north.values[0], 10);
+    assert.equal(json.rows.find((r) => r.labels[0] === "South").collapsed, false);
+});
+
+test("toJson writes a \"show values as\" share as the fraction, the table's text aside", () => {
+    const g = toGrid(computePivot(sales, { rows: ["Region"], values: [{ field: "Units", agg: "sum", showAs: { type: "percentOfGrandTotal" } }] }));
+    const north = JSON.parse(toJson(g)).rows.find((r) => r.labels[0] === "North");
+    assert.equal(north.values[0], 0.357142857142857);
 });

@@ -51,12 +51,14 @@ export function wheelScrollsInside(path, popover, dx, dy) {
 /**
  * @param {{ open: boolean, anchor: React.RefObject<HTMLElement>, onClose: () => void, label?: string,
  *   role?: "menu" | "dialog" | "tooltip", align?: "start" | "end", className?: string, id?: string,
- *   passive?: boolean, onPointerEnter?: (e: React.PointerEvent) => void, onPointerLeave?: (e: React.PointerEvent) => void,
+ *   passive?: boolean, fill?: boolean, onPointerEnter?: (e: React.PointerEvent) => void, onPointerLeave?: (e: React.PointerEvent) => void,
  *   children: React.ReactNode }} props
+ *   `fill`: a popover with a scrolling middle and a foot that stays in view (the filter, a chip menu)
+ *   may cover its anchor when it fits on neither side (place.js)
  *   `passive`: shown on hover or focus of its button (a description): the focus stays where it is,
  *   never a bottom sheet
  */
-export function Popover({ open, anchor, onClose, label, role = "dialog", align = "start", className, id, passive = false, onPointerEnter, onPointerLeave, children }) {
+export function Popover({ open, anchor, onClose, label, role = "dialog", align = "start", className, id, passive = false, fill = false, onPointerEnter, onPointerLeave, children }) {
     const { layer, size } = useContext(LayerContext);
     const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
@@ -74,7 +76,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 return;
             }
             const r = a.getBoundingClientRect();
-            const place = placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align);
+            const place = placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align, { fill });
             // the origin of the fixed containing block: not the viewport inside a transformed ancestor
             const probe = layer?.querySelector(".pk-origin");
             setPos(probe ? fromOrigin(place, probe.getBoundingClientRect()) : place);
@@ -92,7 +94,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             window.removeEventListener("resize", place);
             window.removeEventListener("scroll", place, true);
         };
-    }, [open, anchor, align, sheet, layer]);
+    }, [open, anchor, align, sheet, layer, fill]);
 
     useEscapeLayer(open, onClose);
     // the latest onClose without re-running the open effect: a caller's inline arrow is new on
@@ -200,10 +202,10 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
  *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
- *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string }} props
+ *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean }} props
  *   `tabIndex`: -1 where a list moves the focus itself (the field list)
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill }) {
     const [open, setOpen] = useState(false);
     const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const ref = buttonRef ?? own;
@@ -230,7 +232,7 @@ export function MenuButton({ label, icon, text, showText = true, className, role
                 {showText && text ? <span className="pk-btn-text">{text}</span> : null}
                 {showText && text ? <Icon name="chevronDown" size={14} className="pk-caret" /> : null}
             </button>
-            <Popover open={open} anchor={ref} onClose={close} label={label} role={role} align={align} className={popoverClass} id={id}>
+            <Popover open={open} anchor={ref} onClose={close} label={label} role={role} align={align} className={popoverClass} id={id} fill={fill}>
                 {children(close)}
             </Popover>
         </>

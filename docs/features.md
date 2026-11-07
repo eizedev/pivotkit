@@ -45,7 +45,7 @@ version is [What pivotkit does](overview.md).
 - A report without a height of the host's, lower than its toolbar, zones, tips and the result's least height (240 px, 280 px narrow) need, grows so the page scrolls; with a height (a card) it stays inside and the table scrolls; `grow` / `grow` decides it either way ([layout](reference/react.md#layout)).
 - A menu whose code could not be loaded (offline, `dist/chunks/` not deployed) says so with Try again ([files](reference/react.md#files-the-package-loads)).
 - Enlarge, at the top right of the result: the result fills the report, the field list, zones, tips and notes step aside, one line names the fields; Escape or the button brings them back; not part of the view ([guide](guide.md#more-room-for-the-result)).
-- While enlarged the button reads Reduce (Verkleinern), pressed (`aria-pressed`) ([guide](guide.md#more-room-for-the-result)).
+- While enlarged the button reads Reduce (Verkleinern) and is highlighted; its name says what a click does, so it is no toggle button (no `aria-pressed`); the drill-down's Enlarge works the same ([guide](guide.md#more-room-for-the-result)).
 - Full screen, next to it: the whole report on the screen (Fullscreen API, also in the web component's shadow root); Escape leaves it; not offered where the browser cannot ([guide](guide.md#more-room-for-the-result)).
 - Below 640 px of the report's own width the field list is a drawer opened with Fields in the toolbar, and menus open as sheets from the bottom ([layout](reference/react.md#layout)).
 - On a phone More and every menu are a sheet at the bottom of the window, at most 82 % of its height, scrolling inside: every entry is reachable ([guide](guide.md#small-screens)).

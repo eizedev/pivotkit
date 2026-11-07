@@ -4,15 +4,31 @@ import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
 import { expect, test, toolbar } from "./fixtures.js";
 
-/** navigator.clipboard.writeText that keeps what it was given in window.__copied (every browser, no permission). */
+/**
+ * navigator.clipboard.writeText that keeps what it was given in window.__copied (every browser, no
+ * permission), and in window.__inClick whether it was called while the click was being dispatched:
+ * Safari refuses a write after an await, so the copy must happen in the click itself.
+ */
 async function captureClipboard(page) {
     await page.addInitScript(() => {
+        const w = /** @type {any} */ (window);
+        w.__clicking = false;
+        document.addEventListener("click", () => (w.__clicking = true), true);
+        // the last listener of the click's way back up: after the report's own
+        window.addEventListener("click", () => (w.__clicking = false));
         Object.defineProperty(navigator, "clipboard", {
             configurable: true,
-            value: { writeText: async (text) => void (/** @type {any} */ (window).__copied = text) }
+            value: {
+                writeText: async (text) => {
+                    w.__copied = text;
+                    w.__inClick = w.__clicking;
+                }
+            }
         });
     });
 }
+
+const inClick = (page) => page.evaluate(() => /** @type {any} */ (window).__inClick);
 
 const copied = (page) => page.evaluate(() => /** @type {any} */ (window).__copied ?? null);
 
@@ -23,6 +39,7 @@ test.describe("Export menu: copies", () => {
         await toolbar(page, "export");
         await page.getByTestId("export-copy-table").click();
         await expect(page.locator(".pk-toasts")).toContainText("Table copied");
+        expect(await inClick(page)).toBe(true);
         const lines = (await copied(page)).trimEnd().split("\r\n");
         expect(lines[0].split("\t")).toContain("P1 Critical");
         expect(lines.at(-1)).toMatch(/^Grand Total\t.*\t4,000$/);
@@ -68,7 +85,8 @@ test.describe("drill-down panel", () => {
         // by keyboard (Safari does not focus a clicked button)
         await enlarge.focus();
         await page.keyboard.press("Enter");
-        await expect(enlarge).toHaveAttribute("aria-pressed", "true");
+        await expect(enlarge).toHaveAttribute("data-pk-on", "");
+        await expect(enlarge).not.toHaveAttribute("aria-pressed");
         await expect(enlarge).toHaveText("Reduce");
         // the report's inner width (inside its border)
         const inner = await page.locator(".pk-root").evaluate((el) => el.clientWidth);
@@ -76,14 +94,14 @@ test.describe("drill-down panel", () => {
         await expect(enlarge).toBeFocused();
         // Escape: back to its size first, the panel stays open and the focus with the button
         await page.keyboard.press("Escape");
-        await expect(enlarge).toHaveAttribute("aria-pressed", "false");
+        await expect(enlarge).not.toHaveAttribute("data-pk-on");
         await expect(panel).toBeVisible();
         await expect(enlarge).toBeFocused();
         await page.keyboard.press("Escape");
         await expect(panel).toBeHidden();
         // not part of the view: a new panel opens at its size
         await page.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();
-        await expect(page.getByTestId("drill-enlarge")).toHaveAttribute("aria-pressed", "false");
+        await expect(page.getByTestId("drill-enlarge")).toHaveText("Enlarge");
     });
 
     test("a long text wraps inside its column instead of widening it", async ({ page }) => {
@@ -107,6 +125,7 @@ test.describe("drill-down panel", () => {
         await panel.getByTestId("drill-export").click();
         await page.getByTestId("drill-copy").click();
         await expect(page.locator(".pk-toasts")).toContainText(`Copied ${count} rows`);
+        expect(await inClick(page)).toBe(true);
         const lines = (await copied(page)).trimEnd().split("\r\n");
         expect(lines).toHaveLength(count + 1);
         expect(lines[0].split("\t")).toContain("Ticket");

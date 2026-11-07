@@ -6,9 +6,12 @@
  * - text starting with a tab or a carriage return;
  * - text whose first visible character (after spaces, line breaks and control characters, which some
  *   spreadsheets skip) is = or @;
- * - text whose first visible character is + or -, unless the whole text is a plain number ("-5%",
- *   "-1,234.5") or a number range like the bin label "-10 – 0": those are data, and a ' would change
- *   them, while an expression like "-2+3" or "-1+cmd|..." is guarded.
+ * - text whose first visible character is + or -, unless the whole text is a number as a locale
+ *   writes it ("-5%", "-1,234.5", "-1.234,5", "-1'234.5" and "-1’234.5" in de-CH, "-5,3 %", "-€1.50",
+ *   "-1 234,50 €") or a number range like the bin label "-10 – 0": those are data, and a ' would change
+ *   them (a spreadsheet would read text instead of a number), while an expression like "-2+3",
+ *   "-$A$1" or "-1+cmd|..." is guarded. A number with the real minus sign U+2212 (sv-SE) starts with
+ *   no formula character and is never prefixed.
  */
 
 import { expect } from "./errors.js";
@@ -17,8 +20,11 @@ import { isGrid } from "./grid.js";
 import { numberFormat } from "./intl.js";
 import { DEFAULT_LOCALE, MS_PER_DAY, pad, optionsOf } from "./util.js";
 
-const PLAIN_NUMBER = /^[+-]?\d[\d.,\u00a0\u202f ]*%?$/;
-const NUMBER_RANGE = /^[+-]?\d[\d.,\u00a0\u202f]*\s\u2013\s[+-]?\d[\d.,\u00a0\u202f]*$/;
+// a number as a locale writes it: a sign, a currency symbol before or after, digits with the group
+// separators of the locales (. , ' ’ and the spaces), a percent sign after an optional space
+const NUMBER = String.raw`[+\-\u2212]?\p{Sc}?\d[\d.,'\u2019\u00a0\u202f ]*(?:[\u00a0\u202f ]?(?:%|\p{Sc}))?`;
+const PLAIN_NUMBER = new RegExp(`^${NUMBER}$`, "u");
+const NUMBER_RANGE = new RegExp(`^${NUMBER}\\s\u2013\\s${NUMBER}$`, "u");
 
 /**
  * The CSV separator Excel expects for a locale: ";" where the decimal mark is ",".
@@ -215,13 +221,14 @@ function jsonValue(cell) {
  *
  *   { "rowHeaders": ["Region", "Product"],
  *     "columns": [{ "labels": ["Ann", "Sum of Units"], "value": "Sum of Units", "total": 0 }, ...],
- *     "rows": [{ "labels": ["North", "A"], "total": 0, "values": [12, null, ...] }, ...] }
+ *     "rows": [{ "labels": ["North", "A"], "total": 0, "collapsed": false, "values": [12, null, ...] }, ...] }
  *
  * `rowHeaders` names the row label columns, `columns` describes each value column (the header texts
  * above it, the value's name, 0 none, 1 subtotal, 2 grand total), `rows` holds each body row's labels
- * (a label repeated on every row it spans; "" beside a subtotal's label) and its values in the order
- * of `columns`: numbers with full precision (15 significant digits), dates as ISO dates of their wall
- * clock, text as it is, a blank cell null.
+ * (a label repeated on every row it spans; "" beside a subtotal's label and beside a collapsed group,
+ * which has `collapsed: true` and its group's totals as values) and its values in the order of
+ * `columns`: numbers with full precision (15 significant digits), a "show values as" share as the
+ * fraction (0.25 for 25%), dates as ISO dates of their wall clock, text as it is, a blank cell null.
  * @param {import("./grid.js").Grid} grid  from toGrid()
  * @param {{ space?: number }} [options]  `space`: indentation of the text, default 2
  * @returns {string}
@@ -261,7 +268,7 @@ export function toJson(grid, options) {
         }),
         rows: grid.bodyRows.map((row, i) => {
             const line = cells[grid.headerRows + i];
-            return { labels: line.slice(0, k).map(text), total: row.total, values: line.slice(k).map(jsonValue) };
+            return { labels: line.slice(0, k).map(text), total: row.total, collapsed: row.collapsed, values: line.slice(k).map(jsonValue) };
         })
     };
     return JSON.stringify(data, null, options.space ?? 2);

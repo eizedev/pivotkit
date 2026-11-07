@@ -26,9 +26,13 @@ First release.
   for a copy and `rows: { shown, count }` for a drill-down export; returning false keeps it from the
   clipboard or the download. The Export menu and its texts load with the menus; the export module
   starts loading when the Export menu or the drill-down opens, so a copy happens in the click.
-- Popovers fit the window: one that fits neither below nor above its anchor is placed against the
-  window's edge, as tall as the window allows; the filter's list of values shrinks and scrolls and
-  Apply and Cancel stay at its foot.
+- The filter and the chip menus (a scrolling middle, a foot that stays in view) may cover their anchor
+  when they fit neither below nor above it: placed against the window's edge, as tall as the window
+  allows (`fill` of the popover); every other popover stays next to its anchor and scrolls. The
+  filter is a column with a scrolling middle (values and condition, the list of values giving way
+  first), its head and Apply and Cancel always in view.
+- Enlarge of the result and of the drill-down: the name says what a click does (Enlarge, Reduce), so
+  the button is no toggle (no `aria-pressed`); the highlight shows the state.
 
 - Sort by value and Top N by any value that gives numbers: the sort section lists "Largest … first"
   and "Smallest … first" for each such value, Top N has a "by" select; the first value is the

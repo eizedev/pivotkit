@@ -158,6 +158,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                     name={name}
                     role="dialog"
                     popoverClass="pk-chip-menu"
+                    fill
                     testId={`chip-menu-${text}`}
                 >
                     {(close) =>

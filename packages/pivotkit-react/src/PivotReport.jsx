@@ -1226,9 +1226,10 @@ function Report(props) {
                                     </p>
                                 ) : null}
                                 <span className="pk-grow" />
-                                <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big.enlarged} onClick={big.toggleEnlarged} data-testid="enlarge">
+                                <button type="button" className="pk-btn pk-pressable pk-small-btn" data-pk-on={big.enlarged ? "" : undefined} onClick={big.toggleEnlarged} data-testid="enlarge">
                                     <Icon name="enlarge" size={14} />
-                                    {/* says what a click does: Enlarge, or Reduce while enlarged (aria-pressed tells the state) */}
+                                    {/* says what a click does: Enlarge, or Reduce while enlarged; a changing name is no
+                                        toggle (no aria-pressed), the highlight shows the state (data-pk-on) */}
                                     <span className="pk-btn-text">{big.enlarged ? labels.reduce : labels.enlarge}</span>
                                 </button>
                                 {big.fullOk ? (

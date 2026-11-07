@@ -259,7 +259,8 @@
 }
 
 .pk-btn[aria-expanded="true"],
-.pk-btn.pk-pressable[aria-pressed="true"] {
+.pk-btn.pk-pressable[aria-pressed="true"],
+.pk-btn.pk-pressable[data-pk-on] {
     background: var(--pk-accent-soft);
     border-color: var(--pk-accent);
 }
@@ -1057,8 +1058,8 @@
     font-weight: 600;
 }
 
-/* the filter: the list of values shrinks and scrolls when the window is low, Apply and Cancel stay at
-   the foot (the form scrolls as a last resort, its foot sticks) */
+/* the filter: a column like a chip menu's, its middle (the values and the condition) scrolls when the
+   window is low, the head and Apply and Cancel stay in view */
 .pk-filter-popover {
     width: 340px;
     overflow: hidden;
@@ -1425,27 +1426,36 @@
     flex: 1 1 auto;
     flex-direction: column;
     gap: 8px;
-    padding: 6px;
     min-height: 0;
+    padding: 6px 2px;
+}
+
+/* room for the focus ring (2px outline, 2px offset) inside the scrolling middle; the rest lines up */
+.pk-filter > * {
+    flex: none;
+    margin-inline: 4px;
+}
+
+.pk-filter > .pk-filter-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    margin-inline: 0;
+    padding: 4px;
     overflow-y: auto;
     overscroll-behavior: contain;
 }
 
-.pk-filter > * {
+.pk-filter-body > * {
     flex: none;
 }
 
-.pk-filter > .pk-values {
+/* the list of values gives way first; the middle scrolls only below its least height */
+.pk-filter-body > .pk-values {
     flex: 0 1 auto;
     min-height: 4.5em;
-}
-
-.pk-filter > .pk-popover-foot {
-    position: sticky;
-    bottom: -6px;
-    margin-bottom: -6px;
-    padding: 6px 0;
-    background: var(--pk-surface-raised);
 }
 
 .pk-popover-head {

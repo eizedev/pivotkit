@@ -29,6 +29,9 @@ export function loadMenus() {
     return pending;
 }
 
+/** The menus' module at once when it is loaded, else null. */
+export const menusNow = () => loaded;
+
 /** The first option (or the element marked to take the focus) of the popover around `el`. */
 function focusFirst(el) {
     const popover = el.closest(".pk-popover");

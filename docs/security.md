@@ -50,7 +50,7 @@ reference depth and the number of schema objects it reads.
 
 - **CSV**: text that a spreadsheet would run as a formula gets a leading `'`: text starting with a tab
   or a carriage return, text whose first visible character (after spaces, line breaks and control
-  characters) is `=` or `@`, and text starting with `+` or `-` unless it is a plain number (`-5%`) or a
+  characters) is `=` or `@`, and text starting with `+` or `-` unless it is a number as a locale writes it (`-5%`, `-1.234,5`, `-1’234.5`, `-5,3 %`, `-€1.50`) or a
   number range such as the bin label `-10 – 0`.
 - **Copies** (Copy table, the drill-down's Copy): the same guard on every cell, since a spreadsheet
   runs a pasted formula too. Copy as JSON writes values, never markup or code.

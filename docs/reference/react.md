@@ -173,7 +173,7 @@ the status line need depends on whether the host gives a height:
 scrolls inside it). In the narrow layout the zones sit above the table, so a report of a fixed 640 px
 leaves little room for it on a phone: give it more height there.
 
-**Enlarge** and **Full screen** stand at the top right of the result. Enlarge (`aria-pressed`) lets
+**Enlarge** and **Full screen** stand at the top right of the result. Enlarge (its name says what a click does: Enlarge or Reduce, no `aria-pressed`) lets
 the result fill the report: the field list, the zones, the tips and the notes above the result are
 hidden, the toolbar stays, and one line names the fields; Escape inside the report or the button
 restores it. An open menu, the field drawer, a filter or the drill-down closes first on Escape; an
