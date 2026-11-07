@@ -37,6 +37,53 @@ test("the cell limit is configurable and names itself in the error", () => {
     assert.equal(LIMITS.cells, 2_000_000);
 });
 
+/** n rows of 16 text fields with n distinct values each, every row a combination of its own. */
+function wide(n) {
+    return encode(Array.from({ length: n }, (_, i) => Object.fromEntries(Array.from({ length: 16 }, (_, j) => [`f${j}`, `v${(i * (j + 7)) % n}`]))));
+}
+
+test("a hostile view of many high-cardinality fields is refused quickly, with bounded memory", () => {
+    const data = wide(50_000);
+    const fields = Array.from({ length: 16 }, (_, j) => `f${j}`);
+    const view = { rows: fields.slice(0, 8), cols: fields.slice(8), values: [{ agg: "count" }] };
+    globalThis.gc?.();
+    const before = process.memoryUsage().heapUsed;
+    const t0 = performance.now();
+    // without the limits this builds 800,000 nodes and 4 million cells (gigabytes) and returns
+    assert.throws(() => computePivot(data, view), isError("LIMIT_EXCEEDED"));
+    assert.ok(performance.now() - t0 < 3000, `${Math.round(performance.now() - t0)} ms`);
+    assert.ok(process.memoryUsage().heapUsed - before < 300e6, `${Math.round((process.memoryUsage().heapUsed - before) / 1e6)} MB`);
+});
+
+test("computePivot counts groups and cells against options.limits", () => {
+    const data = square(30);
+    const view = { rows: ["A"], cols: ["W"], values: [{ agg: "count" }] };
+    // 31 row nodes + 31 column nodes; 30 (row leaf, column leaf) pairs of 2 x 2 cells each
+    assert.throws(() => computePivot(data, view, { limits: { groups: 61 } }), (e) => {
+        assert.ok(isError("LIMIT_EXCEEDED", "groups")(e));
+        assert.match(e.message, /limits\.groups/);
+        return true;
+    });
+    assert.doesNotThrow(() => computePivot(data, view, { limits: { groups: 62 } }));
+    assert.throws(() => computePivot(data, view, { limits: { pivotCells: 119 } }), isError("LIMIT_EXCEEDED", "pivotCells"));
+    assert.doesNotThrow(() => computePivot(data, view, { limits: { pivotCells: 120 } }));
+    // the row tree alone already exceeds the limit: refused before the column tree is built
+    assert.throws(() => computePivot(data, { rows: ["A"] }, { limits: { groups: 30 } }), isError("LIMIT_EXCEEDED", "groups"));
+});
+
+test("the default limits fit a browser tab", () => {
+    assert.equal(LIMITS.rows, 1_000_000);
+    assert.equal(LIMITS.groups, 500_000);
+    assert.equal(LIMITS.pivotCells, 2_000_000);
+    assert.equal(LIMITS.cacheEntries, 16);
+    assert.equal(LIMITS.axisFields, 8);
+    // cell keys (row node id x column count + column node id) stay exact under the highest groups limit
+    const half = 2 ** 27 / 2;
+    assert.ok(half * half + half < Number.MAX_SAFE_INTEGER);
+    assert.throws(() => computePivot(square(2), {}, { limits: { groups: 2 ** 27 + 1 } }), isError("INVALID_OPTION"));
+    assert.doesNotThrow(() => computePivot(square(2), {}, { limits: { groups: 2 ** 27 } }));
+});
+
 test("invalid limits are a programmer error", () => {
     const result = computePivot(square(2), { rows: ["A"] });
     for (const limits of [{ cells: 0 }, { cells: 1.5 }, { cells: "10" }, { nope: 1 }, "x"]) {

@@ -3,6 +3,7 @@
  * are subtotals, leaves the deepest keys.
  */
 
+import { checkLimit } from "./errors.js";
 import { optionsOf } from "./util.js";
 
 /**
@@ -83,28 +84,38 @@ function makeNode(id, depth, code, key, parent) {
 }
 
 /**
- * Builds the key tree of an axis.
+ * Builds the key tree of an axis. Nodes count against `limit.max` together with `limit.used` (the
+ * nodes of the other axis), checked before each node is made: a view of many high-cardinality fields
+ * throws LIMIT_EXCEEDED ("groups") instead of filling the memory.
  * @param {import("./encode.js").Column[]} columns
  * @param {Int32Array} rows
- * @returns {{ root: PivotNode, nodes: PivotNode[], leafOf: Int32Array }}  leafOf: leaf node id per row position
+ * @param {{ max: number, used: number }} [limit]
+ * @returns {{ root: PivotNode, nodes: PivotNode[], leafOf: Int32Array, leafCount: number }}  leafOf:
+ *   leaf node id per row position; leafCount: the distinct leaves
  */
-export function buildTree(columns, rows) {
+export function buildTree(columns, rows, limit = { max: Infinity, used: 0 }) {
     const { groupOf, paths } = groupBy(columns, rows);
+    // every group is a leaf of its own, so the tree has at least as many nodes besides the root
+    checkLimit("groups", limit.used + 1 + paths.length, limit.max, "groups");
     const root = makeNode(0, 0, -2, null, null);
     const nodes = [root];
-    const childMaps = [new Map()];
+    // children by code, per inner node (leaves get none)
+    /** @type {Array<Map<number, PivotNode>>} */
+    const childMaps = [];
     const leafOfGroup = new Array(paths.length);
     paths.forEach((path, g) => {
         let node = root;
         for (let level = 0; level < path.length; level++) {
             const code = path[level];
-            const map = childMaps[node.id];
+            const map = (childMaps[node.id] ??= new Map());
             let child = map.get(code);
             if (child === undefined) {
+                if (limit.used + nodes.length >= limit.max) {
+                    checkLimit("groups", limit.used + nodes.length + 1, limit.max, "groups");
+                }
                 const key = code === -1 ? null : columns[level].dict[code];
                 child = makeNode(nodes.length, level + 1, code, key, node);
                 nodes.push(child);
-                childMaps.push(new Map());
                 map.set(code, child);
                 node.children.push(child);
             }
@@ -116,7 +127,7 @@ export function buildTree(columns, rows) {
     for (let i = 0; i < rows.length; i++) {
         leafOf[i] = leafOfGroup[groupOf[i]].id;
     }
-    return { root, nodes, leafOf };
+    return { root, nodes, leafOf, leafCount: paths.length };
 }
 
 const sameKey = (a, b) => a === b || (a === null && b === null) || (typeof a === "number" && typeof b === "number" && Number.isNaN(a) && Number.isNaN(b));

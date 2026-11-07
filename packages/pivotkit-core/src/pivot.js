@@ -8,14 +8,18 @@
  * medians below it). Each source row contributes to the cells of all its ancestors, which is
  * (row depth + 1) x (column depth + 1) updates per row and value. Cells exist only where rows are, so
  * a pivot of two high-cardinality fields stays small here; the dense grid is limited in toGrid().
+ * Many high-cardinality fields on both axes still make many nodes and cells: the trees count their
+ * nodes against `limits.groups` and the cell index its cells against `limits.pivotCells` while they
+ * grow, so such a view throws LIMIT_EXCEEDED before it fills the memory.
  */
 
 import { aggregatorOf } from "./aggregators.js";
 import { derivedColumn } from "./derive.js";
-import { expect } from "./errors.js";
+import { checkLimit, expect } from "./errors.js";
 import { isEncoded } from "./encode.js";
 import { applyFilters } from "./filters.js";
 import { DEFAULT_LABELS, labelOf, ranksOf } from "./labels.js";
+import { resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
 import { buildTree, groupBy } from "./tree.js";
 import { resolveLocale, optionsOf } from "./util.js";
@@ -84,10 +88,17 @@ function kernelFor(encoded, ref, column, cells, locale) {
 
 /**
  * Cells: every (row ancestor, column ancestor) pair of every (row leaf, column leaf) pair present.
- * @returns {{ cellIndex: Map<number, number>, pairOf: Int32Array, pairCells: Int32Array[] }}
+ * Every leaf of an axis is at the same depth, so each pair has `perPair` = (row depth + 1) x
+ * (column depth + 1) cell references, stored flat (pair p at p x perPair). They count against
+ * `maxCells` before they are stored; the distinct cells are at most as many. Keys are
+ * row node id x column count + column node id, exact while `limits.groups` keeps below its ceiling.
+ * @returns {{ cellIndex: Map<number, number>, pairOf: Int32Array, cells: number[], perPair: number }}
  */
-function indexCells(rows, rowTree, colTree) {
+function indexCells(rows, rowTree, colTree, maxCells) {
     const nCol = colTree.nodes.length;
+    const perPair = (rowTree.depth + 1) * (colTree.depth + 1);
+    // every leaf is in at least one pair: a lower bound before anything is stored
+    checkLimit("pivotCells", Math.max(rowTree.leafCount, colTree.leafCount) * perPair, maxCells, "pivot cells");
     const ancestors = (node) => {
         const list = [];
         for (let n = node; n; n = n.parent) {
@@ -99,7 +110,8 @@ function indexCells(rows, rowTree, colTree) {
     const colAnc = new Map();
     const pairOf = new Int32Array(rows.length);
     const pairIndex = new Map();
-    const pairCells = [];
+    /** @type {number[]} */
+    const cells = [];
     const cellIndex = new Map();
     for (let i = 0; i < rows.length; i++) {
         const rl = rowTree.leafOf[i];
@@ -107,30 +119,26 @@ function indexCells(rows, rowTree, colTree) {
         const pk = rl * nCol + cl;
         let p = pairIndex.get(pk);
         if (p === undefined) {
-            p = pairCells.length;
+            p = pairIndex.size;
             pairIndex.set(pk, p);
+            checkLimit("pivotCells", cells.length + perPair, maxCells, "pivot cells");
             if (!rowAnc.has(rl)) {
                 rowAnc.set(rl, ancestors(rowTree.nodes[rl]));
             }
             if (!colAnc.has(cl)) {
                 colAnc.set(cl, ancestors(colTree.nodes[cl]));
             }
-            const ra = rowAnc.get(rl);
-            const ca = colAnc.get(cl);
-            const cells = new Int32Array(ra.length * ca.length);
-            let k = 0;
-            for (const r of ra) {
-                for (const c of ca) {
+            for (const r of rowAnc.get(rl)) {
+                for (const c of colAnc.get(cl)) {
                     const ck = r * nCol + c;
                     let cell = cellIndex.get(ck);
                     if (cell === undefined) {
                         cell = cellIndex.size;
                         cellIndex.set(ck, cell);
                     }
-                    cells[k++] = cell;
+                    cells.push(cell);
                 }
             }
-            pairCells.push(cells);
         }
         pairOf[i] = p;
     }
@@ -138,23 +146,23 @@ function indexCells(rows, rowTree, colTree) {
         // an empty grand total cell still exists, so totals show 0 counts instead of nothing
         cellIndex.set(0, 0);
     }
-    return { cellIndex, pairOf, pairCells };
+    return { cellIndex, pairOf, cells, perPair };
 }
 
 /**
  * Aggregates every measure over the cells; the value of a cell is read once, on demand.
  * @returns {(rowNode: PivotNode, colNode: PivotNode, measure: number) => number | string | null}
  */
-function aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree) {
+function aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, maxCells) {
     const nCol = colTree.nodes.length;
-    const { cellIndex, pairOf, pairCells } = indexCells(rows, rowTree, colTree);
+    const { cellIndex, pairOf, cells, perPair } = indexCells(rows, rowTree, colTree, maxCells);
     const nCells = cellIndex.size;
     const kernels = measures.map((m) => kernelFor(data, m, m.field ? columnOf(m.field) : null, nCells, locale));
     for (const kernel of kernels) {
         for (let i = 0; i < rows.length; i++) {
-            const cells = pairCells[pairOf[i]];
+            const start = pairOf[i] * perPair;
             const r = rows[i];
-            for (let k = 0; k < cells.length; k++) {
+            for (let k = start; k < start + perPair; k++) {
                 kernel.add(cells[k], r);
             }
         }
@@ -222,12 +230,15 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
  * @param {import("./encode.js").Encoded} data  from encode()
  * @param {unknown} viewInput  a view; normalized here, so it may come straight from a user
  * @param {{ locale?: string, limits?: Partial<import("./limits.js").Limits> }} [options]  locale: used
- *   when the view names none (natural sort, label filters, labels); default "en-US"
+ *   when the view names none (natural sort, label filters, labels); default "en-US". limits: the view
+ *   limits for normalize(), `groups` for the nodes of both key trees and `pivotCells` for the cells,
+ *   each counted while it grows; more throws a PivotkitError (LIMIT_EXCEEDED)
  * @returns {PivotResult}
  */
 export function computePivot(data, viewInput, options) {
     options = optionsOf(options, "computePivot");
     expect(isEncoded(data), "computePivot(data, view): data must come from encode()");
+    const limits = resolveLimits(options);
     const { view, issues } = normalize(viewInput, data, options);
     const locale = resolveLocale(view.formatting.locale, options.locale);
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
@@ -263,8 +274,8 @@ export function computePivot(data, viewInput, options) {
 
     const rowColumns = view.rows.map(columnOf);
     const colColumns = view.cols.map(columnOf);
-    const rowTree = buildTree(rowColumns, rows);
-    const colTree = buildTree(colColumns, rows);
+    const rowTree = { ...buildTree(rowColumns, rows, { max: limits.groups, used: 0 }), depth: rowColumns.length };
+    const colTree = { ...buildTree(colColumns, rows, { max: limits.groups, used: rowTree.nodes.length }), depth: colColumns.length };
 
     // Measures: the visible values plus references used only for sorting, each computed once.
     const measureIndex = new Map();
@@ -284,7 +295,7 @@ export function computePivot(data, viewInput, options) {
         }
     }
 
-    const measureValue = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree);
+    const measureValue = aggregateCells(data, measures, columnOf, locale, rows, rowTree, colTree, limits.pivotCells);
     const num = (v) => (typeof v === "number" ? v : null);
 
     const sortOf = new Map(view.sort.map((s) => [s.field, s]));

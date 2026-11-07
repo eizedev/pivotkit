@@ -6,14 +6,16 @@ The packages in this repository (`pivotkit-core`, `pivotkit-react`, `pivotkit-el
 (report template) and the data can come from users; anything that lets a view run code, read data it
 should not, or makes an exported CSV or XLSX file dangerous to open is in scope.
 
-A view cannot run code, but it decides how much work the engine does. Resource use is bounded by the
-limits in `LIMITS` (pivotkit-core README, "Limits"): the size of a view, the rows `encode` accepts,
-and the cells of the dense grid and chart, which are counted before anything is allocated. A host that
-takes views or data from untrusted users should keep these limits, or lower them, and catch
-`PivotkitError`. A way to exhaust memory or CPU within the default limits, or around them, is in
-scope. Vulnerabilities in a
-dependency (for example Apache ECharts or fflate) belong to that project; tell us too if a package
-ships an affected version.
+A view cannot run code, but it decides how much work the engine does. The limits in `LIMITS`
+(pivotkit-core README, "Limits") bound it: the size of a view, the rows `encode` accepts, the nodes
+of the key trees and the cells `computePivot` aggregates, and the cells of the dense grid and chart.
+Each is counted before the memory it guards is allocated, or while it grows. The defaults are sized
+for a browser tab: a pivot at the defaults can still take seconds and around a gigabyte of memory,
+and the data itself (rows x columns) is the host's to bound, since only its rows are limited. A host
+that takes views or data from untrusted users should lower the limits to what its reports need and
+catch `PivotkitError`. A way to exhaust memory or CPU around the limits, or far beyond what the
+README says the defaults allow, is in scope. Vulnerabilities in a dependency (for example Apache
+ECharts or fflate) belong to that project; tell us too if a package ships an affected version.
 
 ## Reporting a vulnerability
 

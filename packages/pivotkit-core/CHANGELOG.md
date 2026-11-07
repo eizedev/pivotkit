@@ -46,9 +46,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   number formats that show cells as the grid does, merged headers, bold totals, frozen panes, column
   widths and native colour scales and data bars; CSV with the grid locale's separator and a guard
   against formula injection.
-- `LIMITS` and `options.limits`: besides the view limits, `rows` for `encode()`, `cells` for the dense
-  `toGrid()` and `toSeries()` (counted before allocating) and `cacheEntries` for the bounded cache of
-  derived columns and sort orders.
+- `LIMITS` and `options.limits`: besides the view limits, `rows` for `encode()`, `groups` and
+  `pivotCells` for the key trees and the cells of `computePivot()` (counted while they grow), `cells`
+  for the dense `toGrid()` and `toSeries()` (counted before allocating) and `cacheEntries` for the
+  bounded cache of derived columns and sort orders. The defaults are sized for a browser tab: `rows`
+  1,000,000, `groups` 500,000, `pivotCells` 2,000,000, `cells` 2,000,000, `cacheEntries` 16, and 8
+  fields per axis (`axisFields`); the core README says what each one counts and why.
 - `PivotkitError` with the codes `INVALID_ARGUMENT`, `INVALID_OPTION` and `LIMIT_EXCEEDED`.
 - `CATALOG` and `aggregatorsFor()` for a UI's menus; `DEFAULT_LABELS`, `DEFAULT_THEME`.
 - `createHistory()` for undo, redo and reset; generated TypeScript declarations; a benchmark script.
@@ -97,3 +100,6 @@ Breaking changes against the phase 1 code on `main` (never published):
 - Numbers that round to zero no longer show as `-0`.
 - A view's resource use is bounded: two fields with thousands of distinct values each used to make
   `toGrid()` allocate gigabytes or crash the process.
+- `computePivot()` honours `options.limits` for its own work: a view of many fields with many distinct
+  values on both axes used to build millions of nodes and cells (gigabytes) before `toGrid()` refused
+  it; it throws `LIMIT_EXCEEDED` (`groups` or `pivotCells`) within a fraction of a second now.

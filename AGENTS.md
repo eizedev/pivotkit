@@ -77,8 +77,12 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix
 - A view (report template) is user input: it holds names only. Field names, aggregators, formats and
   colours are resolved against fixed lists or the data's schema; never evaluate a string from a view
   as code, never use it as an object key without an own-property check. A view cannot run code, but
-  it can ask for a lot of work: anything dense (rows x columns) counts its size against `LIMITS`
-  before allocating and throws `PivotkitError` (`LIMIT_EXCEEDED`).
+  it can ask for a lot of work: whatever grows with the view counts against `LIMITS` before it is
+  allocated, or while it grows, and throws `PivotkitError` (`LIMIT_EXCEEDED`): `encode` the rows
+  (`rows`), `computePivot` the nodes of both key trees (`groups`) and the aggregated cells
+  (`pivotCells`), `toGrid` and `toSeries` the dense rows x columns (`cells`). A new structure that
+  grows with the data or the view gets a limit too; the core README ("Limits") says what each one
+  counts and why its default is what it is.
 - Error model: a bad view never throws (normalize reports issues); a programmer error or a limit
   throws `PivotkitError` with a code.
 - API convention: required inputs first, every optional setting in one trailing options object.
