@@ -65,7 +65,7 @@ export { EVENTS };
 
 /**
  * @typedef {object} ExportFile  the detail of pivot-export
- * @property {"xlsx" | "csv" | "png"} kind
+ * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view (Templates, "Download view")
  * @property {string} fileName  with the extension ("pivot.xlsx")
  * @property {Blob} blob
  */
@@ -265,6 +265,46 @@ export class PivotReportElement extends Base {
         this.#write("storage-key", value);
     }
 
+    /** "Copy link" and shared links: true for the page's address, or a base URL (attribute share-link). */
+    get shareLink() {
+        return /** @type {boolean | string | undefined} */ (this.#read("share-link"));
+    }
+    set shareLink(value) {
+        this.#write("share-link", value);
+    }
+
+    /** "session": the view is kept for this tab (sessionStorage, per storage-key). */
+    get persistView() {
+        return /** @type {"session" | undefined} */ (this.#read("persist-view"));
+    }
+    set persistView(value) {
+        this.#write("persist-view", value);
+    }
+
+    /** "on" or "off" decides the "i" of the field descriptions; unset, the user switches it in Options. */
+    get fieldInfo() {
+        return /** @type {"on" | "off" | undefined} */ (this.#read("field-info"));
+    }
+    set fieldInfo(value) {
+        this.#write("field-info", value);
+    }
+
+    /** "on" or "off" decides the "i" next to the zone titles; unset, the user switches it in Options. */
+    get zoneInfo() {
+        return /** @type {"on" | "off" | undefined} */ (this.#read("zone-info"));
+    }
+    set zoneInfo(value) {
+        this.#write("zone-info", value);
+    }
+
+    /** The page is loading the data: the report shows its skeleton (attribute loading). */
+    get loading() {
+        return /** @type {boolean} */ (this.#read("loading"));
+    }
+    set loading(value) {
+        this.#write("loading", value);
+    }
+
     // ---- views: properties, also set by the JSON attributes view and default-view ----
 
     /** Controlled: the view to show; set it again from every pivot-view-change. Undefined: uncontrolled. */
@@ -335,6 +375,17 @@ export class PivotReportElement extends Base {
     }
     set dismissedTips(value) {
         this.#set("dismissedTips", value);
+    }
+
+    /**
+     * Plain JSON merged over the chart's ECharts option (a font size, axis names); it wins over the
+     * view's chart settings. Functions and values that are not JSON are left out.
+     */
+    get chartOptions() {
+        return /** @type {Record<string, unknown> | undefined} */ (this.#values.chartOptions);
+    }
+    set chartOptions(value) {
+        this.#set("chartOptions", value);
     }
 
     /** pivotkit-core's limits (rows, cells, ...). */
@@ -462,7 +513,13 @@ export class PivotReportElement extends Base {
             tips: this.tips,
             storageKey: this.storageKey,
             dismissedTips: Array.isArray(v.dismissedTips) ? v.dismissedTips : undefined,
-            onTipDismiss: this.#onTipDismiss
+            onTipDismiss: this.#onTipDismiss,
+            chartOptions: v.chartOptions,
+            shareLink: this.shareLink,
+            persistView: this.persistView,
+            loading: this.loading,
+            fieldInfo: this.fieldInfo,
+            zoneInfo: this.zoneInfo
         };
     }
 

@@ -78,7 +78,12 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, no switch in Options) or the tip ids allowed, comma-separated. |
 | `storageKey` | `storage-key` | `string` | | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; one key per element on a page. |
-| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off). |
+| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off). |
+| `fieldInfo`, `zoneInfo` | `field-info`, `zone-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions and of the zones; unset, the user switches them in Options, Help. |
+| `chartOptions` | | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. |
+| `shareLink` | `share-link` | `boolean \| string` | off | "Copy link" and shared links: the attribute alone for the page's address, a value as base URL. |
+| `persistView` | `persist-view` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storage-key`). |
+| `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the report shows its skeleton. |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -232,9 +237,10 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 390 KiB | 125 KiB |
-| On the first chart (ECharts with bar, line, pie, heatmap, the components they use and the canvas renderer) | 1 | 592 KiB | 200 KiB |
-| On the first XLSX or CSV export (pivotkit-core's export with fflate) | 1 | 17 KiB | 8 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 5 | 461 KiB | 148 KiB |
+| On the first chart (ECharts with bar, line, pie, heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
+| On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 20 KiB | 9 KiB |
+| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

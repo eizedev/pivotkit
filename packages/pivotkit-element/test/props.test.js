@@ -87,3 +87,30 @@ test("tips and storage-key are text attributes; the tip list is read by the repo
     assert.equal(toAttribute(def("storage-key"), "sales"), "sales");
     assert.ok(OBJECT_PROPS.includes("dismissedTips"), "a list is a property");
 });
+
+test("share-link: present is the page's address, a value a base URL, false off; persist-view only session; loading a flag", () => {
+    assert.equal(fromAttribute(def("share-link"), null), undefined);
+    assert.equal(fromAttribute(def("share-link"), ""), true);
+    assert.equal(fromAttribute(def("share-link"), "true"), true);
+    assert.equal(fromAttribute(def("share-link"), " FALSE "), undefined);
+    assert.equal(fromAttribute(def("share-link"), " https://example.com/report "), "https://example.com/report");
+    assert.equal(toAttribute(def("share-link"), true), "");
+    assert.equal(toAttribute(def("share-link"), "https://example.com/r"), "https://example.com/r");
+    assert.equal(toAttribute(def("share-link"), false), null);
+    assert.equal(fromAttribute(def("persist-view"), "session"), "session");
+    assert.equal(fromAttribute(def("persist-view"), "local"), undefined);
+    assert.equal(fromAttribute(def("persist-view"), null), undefined);
+    assert.equal(fromAttribute(def("loading"), ""), true);
+    assert.equal(fromAttribute(def("loading"), null), false);
+    assert.ok(OBJECT_PROPS.includes("chartOptions"), "an object is a property");
+});
+
+test("field-info and zone-info: on or off decide, anything else leaves it to the user", () => {
+    for (const attr of ["field-info", "zone-info"]) {
+        assert.equal(fromAttribute(def(attr), " OFF "), "off");
+        assert.equal(fromAttribute(def(attr), "on"), "on");
+        assert.equal(fromAttribute(def(attr), "maybe"), undefined);
+        assert.equal(fromAttribute(def(attr), null), undefined);
+        assert.equal(toAttribute(def(attr), "off"), "off");
+    }
+});

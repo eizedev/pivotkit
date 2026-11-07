@@ -8,7 +8,7 @@ import type { DetailedHTMLProps, HTMLAttributes } from "react";
 import type { PivotReportElement } from "./element.js";
 import type { PivotReportEventMap } from "./global.js";
 
-type Settable = "data" | "dataKey" | "view" | "defaultView" | "templates" | "labels" | "fieldDefaults" | "limits" | "locale" | "theme" | "height" | "timeZone" | "fileName" | "label" | "drillDown" | "drillDownLimit" | "saveTemplates" | "tips" | "storageKey" | "dismissedTips";
+type Settable = "data" | "dataKey" | "view" | "defaultView" | "templates" | "labels" | "fieldDefaults" | "limits" | "locale" | "theme" | "height" | "timeZone" | "fileName" | "label" | "drillDown" | "drillDownLimit" | "saveTemplates" | "tips" | "storageKey" | "dismissedTips" | "chartOptions" | "shareLink" | "persistView" | "loading" | "fieldInfo" | "zoneInfo";
 
 /** The props of <pivot-report> in JSX. */
 export type PivotReportJsxProps = DetailedHTMLProps<HTMLAttributes<PivotReportElement>, PivotReportElement> &

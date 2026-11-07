@@ -6,13 +6,14 @@
  * - "string", "number", "theme", "height": the attribute is the property's storage (reflected), as
  *   with a native element: setting the property sets the attribute, null or undefined removes it.
  * - "flag": a boolean attribute (present = true). "on-unless-false": true unless the attribute is
- *   "false" (drill-down defaults to on).
+ *   "false" (drill-down defaults to on). "flag-or-url": present = true, a value other than "" and
+ *   "true" is a URL ("false" turns it off).
  * - "json": the attribute is parsed into the property (a view); setting the property does not write
  *   the attribute back, since a view is an object.
  */
 
 /**
- * @typedef {"string" | "number" | "theme" | "height" | "flag" | "on-unless-false" | "json"} AttributeKind
+ * @typedef {"string" | "number" | "theme" | "height" | "flag" | "on-unless-false" | "flag-or-url" | "session" | "on-off" | "json"} AttributeKind
  * @typedef {{ attr: string, prop: string, kind: AttributeKind }} AttributeDef
  */
 
@@ -29,12 +30,17 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },
     { attr: "tips", prop: "tips", kind: "string" },
     { attr: "storage-key", prop: "storageKey", kind: "string" },
+    { attr: "share-link", prop: "shareLink", kind: "flag-or-url" },
+    { attr: "persist-view", prop: "persistView", kind: "session" },
+    { attr: "loading", prop: "loading", kind: "flag" },
+    { attr: "field-info", prop: "fieldInfo", kind: "on-off" },
+    { attr: "zone-info", prop: "zoneInfo", kind: "on-off" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);
 
 /** Properties without an attribute: objects and arrays a host sets from script. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips"]);
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips", "chartOptions"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 
@@ -50,6 +56,19 @@ export function fromAttribute(def, value) {
             return value !== null;
         case "on-unless-false":
             return value === null || value.trim().toLowerCase() !== "false";
+        case "flag-or-url": {
+            const text = value?.trim() ?? null;
+            if (text === null || text.toLowerCase() === "false") {
+                return undefined;
+            }
+            return text === "" || text.toLowerCase() === "true" ? true : text;
+        }
+        case "on-off": {
+            const v = value?.trim().toLowerCase();
+            return v === "on" || v === "off" ? v : undefined;
+        }
+        case "session":
+            return value?.trim().toLowerCase() === "session" ? "session" : undefined;
         case "theme": {
             const theme = value?.trim().toLowerCase();
             return theme && THEMES.has(theme) ? theme : "auto";
@@ -85,6 +104,8 @@ export function toAttribute(def, value) {
             return value ? "" : null;
         case "on-unless-false":
             return value === false ? "false" : null;
+        case "flag-or-url":
+            return value === true ? "" : typeof value === "string" && value.trim() ? value.trim() : null;
         case "number":
         case "height":
             return value === null || value === undefined || value === "" ? null : String(value);

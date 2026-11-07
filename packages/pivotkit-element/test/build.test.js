@@ -94,6 +94,10 @@ test("a page loads React, the report and the core first; ECharts and the export 
     assert.ok(inputsOf(groups.chart).some((i) => i.includes("echarts/lib/chart/bar/")));
     assert.ok(!inputsOf(groups.chart).some((i) => i.includes("echarts/lib/chart/sankey/")), "chart types the report does not draw are bundled");
     assert.ok(inputsOf(groups.export).some((i) => i.includes("fflate/")));
+    // a view in a link: pivotkit-core/link with fflate, also only on demand
+    assert.ok(inputsOf(groups.link).some((i) => i.includes("pivotkit-core/src/link.js")));
+    assert.ok(inputsOf(groups.link).some((i) => i.includes("fflate/")));
+    assert.ok(!initial.some((i) => i.includes("pivotkit-core/src/link.js")), "the link module is in the first load");
 });
 
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {

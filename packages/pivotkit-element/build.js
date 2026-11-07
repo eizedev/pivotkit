@@ -113,14 +113,18 @@ async function licenses(metafile) {
 /**
  * The most a page may load per group, gzip, in KiB: about 10 % over what was measured when the budget
  * was set (initial 123.5, chart 200.3, export 7.7, one measurement on one Mac); the initial load was
- * raised to 138 for the tips and the field descriptions (134.8 measured with them). `--size` fails
- * above it; raise it on purpose, with the reason in the commit.
+ * raised to 138 for the tips and the field descriptions (134.8 measured with them), and to 152 for the
+ * chart's display settings with axis and group labels, sharing a view, the skeleton, the clear
+ * buttons, the zone explanations, the help switches and the filter states (147.5 measured with them). Since a view can be shared as a link, fflate is a chunk
+ * of its own that the export and the link share: export 10 (9.1 measured), link 7 (6.3 measured).
+ * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 138, chart: 221, export: 9 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
- * each group of dynamic imports with what they add ("chart": ECharts, "export": XLSX and CSV).
+ * each group of dynamic imports with what they add ("chart": ECharts, "export": XLSX and CSV, "link":
+ * a view in a link, pivotkit-core/link with fflate's deflate and inflate).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -142,9 +146,9 @@ export function loadGroups(metafile) {
     };
     const initial = closure(["dist/index.js"]);
     const dynamic = [...initial].flatMap((f) => (metafile.outputs[f]?.imports ?? []).filter((i) => i.kind === "dynamic-import").map((i) => i.path));
-    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : "export");
+    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : "export");
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export"]) {
+    for (const name of ["chart", "export", "link"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }
