@@ -9,11 +9,14 @@
  * The text is the view's JSON compressed with raw DEFLATE (fflate) and written in base64url, which
  * needs no escaping in a URL. "1." in front names this format, so a later one can be told apart.
  * Decoding is size-capped twice: the text (LINK_LIMITS.text) before anything is decoded, and the
- * inflated JSON (LINK_LIMITS.json) while it is inflated, so a crafted link cannot make a large
- * allocation. The decoded view is still user input: pass it through normalize() against the data.
+ * inflated JSON (LINK_LIMITS.json) while it is inflated: the compressed bytes go in in small slices
+ * and inflating stops at the first slice that passes the cap, so a crafted link (a deflate bomb) can
+ * neither make a large allocation nor keep the inflater busy. The decoded view is still user input:
+ * pass it through normalize() against the data.
  */
 
-import { deflateSync, inflateSync, strFromU8, strToU8 } from "fflate";
+import { deflateSync, strFromU8, strToU8 } from "fflate";
+import { inflateCapped } from "./inflate.js";
 import { PivotkitError, expect } from "./errors.js";
 import { isPlainObject } from "./util.js";
 
@@ -87,15 +90,17 @@ export function decodeViewLink(text) {
     if (!t.startsWith(PREFIX) || !BASE64URL.test(t.slice(PREFIX.length))) {
         return fail("not a pivotkit view link");
     }
+    const payload = t.slice(PREFIX.length);
+    if (payload === "") {
+        return fail("the link is damaged");
+    }
     let json;
     try {
-        // one byte more than allowed: inflateSync stops at the end of `out`, so a full buffer means
-        // the view is larger than the limit (the rest is never inflated)
-        const out = inflateSync(fromBase64Url(t.slice(PREFIX.length)), { out: new Uint8Array(LINK_LIMITS.json + 1) });
-        if (out.length > LINK_LIMITS.json) {
+        const out = inflateCapped(fromBase64Url(payload), LINK_LIMITS.json);
+        if (out.bytes === null) {
             return fail(`view larger than ${LINK_LIMITS.json} characters`);
         }
-        json = strFromU8(out);
+        json = strFromU8(out.bytes);
     } catch {
         return fail("the link is damaged");
     }

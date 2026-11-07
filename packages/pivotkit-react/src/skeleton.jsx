@@ -2,8 +2,8 @@
  * The report while it waits: for the host's data (`loading`), for a large data set to be encoded and
  * its first result computed, for a shared view to be read. Grey shapes where the toolbar, the zones and
  * a few table rows will be, in the theme's tokens; their shimmer runs through --pk-duration, so
- * reduced motion stops it. One status message names what it waits for; the shapes are hidden from
- * assistive technology.
+ * reduced motion stops it. One status message names what it waits for, once (a status region, not a
+ * busy one: aria-busy would hold the announcement back); the shapes are hidden from assistive technology.
  */
 
 import React from "react";
@@ -29,7 +29,7 @@ export function Skeleton({ text, full = false }) {
         </div>
     );
     return (
-        <div className={full ? "pk-skeleton pk-skeleton-full" : "pk-skeleton"} role="status" aria-busy="true" data-testid="skeleton">
+        <div className={full ? "pk-skeleton pk-skeleton-full" : "pk-skeleton"} role="status" data-testid="skeleton">
             <span className="pk-sr">{text}</span>
             {full ? (
                 <div className="pk-skel-layout" aria-hidden="true">

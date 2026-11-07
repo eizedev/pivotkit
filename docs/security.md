@@ -18,10 +18,12 @@ channel described in the repository's
   without an own-property check.
 - A view from a link, a pasted text, a file or the tab's storage is the same input: it goes through
   `normalize()` against the data, and what was left out is said in plain words. A link is capped at
-  32,000 characters and its view at 1,000,000 characters while it is inflated, so a small crafted
-  link cannot make a large allocation ([Sharing](concepts/sharing.md)).
+  32,000 characters and its view at 1,000,000 characters, enforced while it is inflated (1 KiB of
+  input at a time), so a small crafted link can neither make a large allocation nor keep the page busy ([Sharing](concepts/sharing.md)).
 - `chartOptions` is the host's, but often JSON from a server: only plain JSON values pass, prototype
-  keys and functions are dropped, depth and size are capped, and nothing in it is run
+  keys and functions are dropped, depth and size are capped, and the ECharts options that are markup
+  or addresses (a string `formatter`, `rich`, `link`, `image` and the tooltip's element) are dropped
+  too, so nothing in it is markup, an address or run
   ([Charts](concepts/charts.md#chartoptions-for-developers)).
 - A bad view does not throw: what cannot be used is dropped and reported (see
   [Views and templates](concepts/views.md#a-view-is-user-input)).

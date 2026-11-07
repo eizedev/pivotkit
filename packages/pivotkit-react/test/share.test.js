@@ -22,8 +22,15 @@ test("the link's place in the fragment: pivot, or pivot-<storageKey>; other entr
     const two = withLinkParam(url, "pivot-ops", "1.abc");
     assert.equal(readLinkParam(new URL(two).hash, "pivot"), text);
     assert.equal(readLinkParam(new URL(two).hash, "pivot-ops"), "1.abc");
-    // an anchor is replaced; null removes the entry
-    assert.equal(withLinkParam("https://example.com/#top", "pivot", "1.x"), "https://example.com/#pivot=1.x");
+    // the rest of the fragment stays byte for byte: an anchor, a hash route with its own query
+    assert.equal(withLinkParam("https://example.com/#top", "pivot", "1.x"), "https://example.com/#top&pivot=1.x");
+    const routed = withLinkParam("https://h/app#/reports/a?tab=2", "pivot", "1.abc");
+    assert.equal(routed, "https://h/app#/reports/a?tab=2&pivot=1.abc");
+    assert.equal(withLinkParam(routed, "pivot", "1.def"), "https://h/app#/reports/a?tab=2&pivot=1.def");
+    assert.equal(withLinkParam(routed, "pivot", null), "https://h/app#/reports/a?tab=2");
+    assert.equal(readLinkParam(new URL(routed).hash, "pivot"), "1.abc");
+    assert.equal(withLinkParam("https://h/#x=%2F&pivot=1.a&y=a+b", "pivot", "1.b"), "https://h/#x=%2F&y=a+b&pivot=1.b");
+    // null removes the entry
     assert.equal(withLinkParam(two, "pivot", null), "https://example.com/report?x=1#pivot-ops=1.abc");
     assert.equal(withLinkParam("https://example.com/#pivot=1.x", "pivot", null), "https://example.com/");
     assert.equal(readLinkParam("", "pivot"), null);
@@ -34,6 +41,9 @@ test("the link's place in the fragment: pivot, or pivot-<storageKey>; other entr
 
 test("the link's address: the page's own for true, the host's base URL, none when off", () => {
     assert.equal(shareBase(true, "https://example.com/a#pivot=1.x"), "https://example.com/a#pivot=1.x");
+    // the page's query (tokens, ids) is not shared unless the host gives its URL
+    assert.equal(shareBase(true, "https://example.com/a?token=secret#/r"), "https://example.com/a#/r");
+    assert.equal(shareBase("https://example.com/a?data=x", "https://other"), "https://example.com/a?data=x");
     assert.equal(shareBase(" https://example.com/r ", "https://other"), "https://example.com/r");
     for (const off of [undefined, false, "", "  ", 1, {}]) {
         assert.equal(shareBase(off, "https://example.com"), null);
@@ -124,4 +134,20 @@ test("chartOptions merge: key by key, lists entry by entry, an object into every
     // nothing is changed in place
     assert.equal(base.series[0].barMaxWidth, undefined);
     assert.deepEqual(mergeChartOptions(base, undefined), base);
+});
+
+test("chartOptions: markup, addresses and text templates are left out wherever they are", () => {
+    const { options, problems } = cleanChartOptions({
+        tooltip: { formatter: "<img src=x onerror=alert(1)>", extraCssText: "background:url(https://x)", className: "x", appendTo: "body", renderMode: "html", backgroundColor: "#fff" },
+        title: { text: "Sales", link: "javascript:alert(1)", sublink: "https://x", target: "blank", subtarget: "self" },
+        series: [{ label: { formatter: "{a|x}", rich: { a: { color: "#f00" } } }, symbol: "image://https://x/p.png", tooltip: { content: "<b>x</b>" } }],
+        legend: { formatter: "{name}" },
+        backgroundColor: { image: "https://x/p.png" },
+        xAxis: { axisLabel: { formatter: 12 } }
+    });
+    assert.deepEqual(options, { tooltip: { backgroundColor: "#fff" }, title: { text: "Sales" }, series: [{ label: {}, tooltip: {} }], legend: {}, backgroundColor: {}, xAxis: { axisLabel: { formatter: 12 } } });
+    assert.equal(problems.length, 15);
+    assert.ok(problems.includes("chartOptions.tooltip.formatter: a text template (written as markup), not allowed"));
+    assert.ok(problems.includes("chartOptions.series[0].symbol: an image address, not allowed"));
+    assert.ok(problems.includes("chartOptions.title.link: markup, an address or the tooltip's element, not allowed"));
 });

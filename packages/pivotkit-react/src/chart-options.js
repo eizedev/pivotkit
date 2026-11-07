@@ -4,8 +4,21 @@
  * developer, often as JSON from a server (PowerShell Universal), so it is checked like data: only
  * plain objects, arrays, strings, finite numbers, booleans and null pass; functions, class instances,
  * symbols, prototype keys and anything too deep or too large are dropped and named in `problems`.
- * Nothing in it is ever run.
+ *
+ * Some ECharts options are markup or addresses, not data (ECharts 6.1.0): a string `formatter` of a
+ * tooltip and the tooltip's `content` are written with innerHTML (TooltipHTMLContent.js) and would
+ * replace the report's tooltip of DOM nodes, which a strict Content-Security-Policy allows; `link`,
+ * `sublink` and their targets open a window (util/format.js windowOpen, title/install.js);
+ * `extraCssText`, `className`, `appendTo`, `appendToBody` and `renderMode` change the tooltip's
+ * element and where it lives; `image` keys and "image://" symbols load an address; `rich` text styles
+ * are left out with them, as a string `formatter` anywhere (its "{a|...}" refers to them). They are
+ * dropped wherever they are and named, so nothing in chartOptions is markup, an address or run.
  */
+
+/** Keys dropped at any depth: markup, addresses, the tooltip's element (see above). */
+const UNSAFE_KEYS = new Set(["rich", "link", "sublink", "target", "subtarget", "linkTarget", "image", "extraCssText", "className", "appendTo", "appendToBody", "renderMode"]);
+/** Keys whose string value is a template or markup: dropped when they hold a string. */
+const TEMPLATE_KEYS = new Set(["formatter", "content"]);
 
 /** How deep the object may nest, and how many entries it may have in all. */
 export const CHART_OPTIONS_CAPS = Object.freeze({ depth: 12, entries: 2000 });
@@ -29,6 +42,10 @@ export function cleanChartOptions(value) {
     const problems = [];
     let entries = 0;
     const clean = (v, path, depth) => {
+        if (typeof v === "string" && /^\s*image:\/\//i.test(v)) {
+            problems.push(`${path}: an image address, not allowed`);
+            return undefined;
+        }
         if (v === null || typeof v === "string" || typeof v === "boolean") {
             return v;
         }
@@ -60,6 +77,14 @@ export function cleanChartOptions(value) {
             for (const key of Object.keys(v)) {
                 if (FORBIDDEN.has(key)) {
                     problems.push(`${path}.${key}: not allowed`);
+                    continue;
+                }
+                if (UNSAFE_KEYS.has(key)) {
+                    problems.push(`${path}.${key}: markup, an address or the tooltip's element, not allowed`);
+                    continue;
+                }
+                if (TEMPLATE_KEYS.has(key) && typeof v[key] === "string") {
+                    problems.push(`${path}.${key}: a text template (written as markup), not allowed`);
                     continue;
                 }
                 if (++entries > CHART_OPTIONS_CAPS.entries) {

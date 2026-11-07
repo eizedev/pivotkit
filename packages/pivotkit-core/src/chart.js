@@ -133,7 +133,8 @@ function legendOf(setting, auto, top, textStyle) {
 export const GROUP_AXIS_OFFSET = 24;
 
 /**
- * The group labels of a category axis with two or more row fields (`chart.groupLabels`, on by default):
+ * The group labels of a category axis with two or more row fields (`chart.groupLabels` "auto" or
+ * "on"; a UI hides "auto" ones where the chart has no room for them):
  * a second category axis with the same categories, which writes the outer field's item once per group,
  * at its middle, and draws a separator between two groups; the main axis then names each category by
  * its inner levels. null when there is nothing to group (one row field, or every category alone).
@@ -144,7 +145,7 @@ export const GROUP_AXIS_OFFSET = 24;
  */
 function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
     const levels = s.categoryLevels ?? [];
-    if (chart.groupLabels === false || rowFields < 2 || !levels.some((l) => l.length >= 2)) {
+    if (chart.groupLabels === "off" || rowFields < 2 || !levels.some((l) => l.length >= 2)) {
         return null;
     }
     const outer = levels.map((l) => l[0] ?? "");
@@ -175,6 +176,8 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
             axisPointer: { show: false },
             splitLine: { show: false },
             groups: true,
+            // "auto": a UI may leave the group labels out where the chart is too small for them
+            groupsAuto: chart.groupLabels !== "on",
             // the fewest categories of a group: a UI cuts the group labels to that many bands
             groupSize: smallest
         }

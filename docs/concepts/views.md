@@ -49,7 +49,7 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
     chart: {
         type: "bar", stacked: false, horizontal: false,        // bar line area pie heatmap
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
-        smooth: false, axisLabels: "auto", groupLabels: true
+        smooth: false, axisLabels: "auto", groupLabels: "auto"
     },
     formatting: { locale: "de-DE", timeZone: null }
 }

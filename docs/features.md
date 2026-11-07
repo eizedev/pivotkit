@@ -25,10 +25,17 @@ version is [What pivotkit does](overview.md).
 - The field menu: Add to Rows, Columns, Values, Filters, and "Filter…" for a field not placed yet ([filters](#filters)).
 - Each zone's title has an "i" that says what the zone does, with an example; Options, Help switches it ([guide](guide.md#menus-and-text-fields)).
 - Chips show what is set on them: "3 of 4", "Top 5", the sort; screen readers hear the same ([guide](guide.md#chips)).
-- After a removal the focus goes to the neighbouring chip, or to the zone ([guide](guide.md#chips)).
+- After a removal the focus goes to the neighbouring chip, or to the zone; a note in the status line offers Undo ("Region removed") ([guide](guide.md#chips)).
+- An empty report shows three first steps and up to three templates to start from ([guide](guide.md#adding-fields)).
+- Sort by label or by a value, and "Custom order" when the host gives a field its order of items ([filters](concepts/filters.md)).
 - Swap rows and columns sits above Columns; it drops its text where the zone is narrow ([React reference](reference/react.md#layout)).
 - A low report folds its zones into one line that says what is in them ([layout](reference/react.md#layout)).
 - The field search finds names, display names and descriptions; its × and Escape empty it ([guide](guide.md#menus-and-text-fields)).
+
+- Undo (Ctrl+Z, ⌘Z on a Mac) and Redo (Ctrl+Shift+Z or Ctrl+Y, ⌘⇧Z) for every change, also as buttons; Reset goes to the start view as one step ([guide](guide.md#undo-templates-and-export)).
+- Options, Help, Keyboard shortcuts lists the keys ([guide](guide.md#tips)).
+- Below 640 px of the report's own width the field list is a drawer opened with Fields in the toolbar, and menus open as sheets from the bottom ([layout](reference/react.md#layout)).
+- Toolbar buttons that do not fit move into More, Reset and Redo first; Table or Chart, Undo and Export always stay ([guide](guide.md#the-parts)).
 
 ## Values
 
@@ -58,9 +65,10 @@ version is [What pivotkit does](overview.md).
 - Bars, stacked bars, horizontal bars, lines, area, pie, heatmap; a click opens the rows behind a mark ([charts](concepts/charts.md)).
 - Display: value labels, legend, title, smooth lines, axis labels, group labels, kept in the view ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
 - Axis labels: every one when they fit, slanted when needed, else every n-th with a note; long names end in "…", the tooltip has them whole ([charts](concepts/charts.md)).
-- Two fields in Rows: the outer field's items as group labels under the axis, with separators ([charts](concepts/charts.md)).
+- Two fields in Rows: the outer field's items as group labels under the axis, with separators; automatic ones only where the chart has room (not on a phone), On forces them ([charts](concepts/charts.md)).
+- A title wider than the chart ends in "…", on screen and in the PNG ([charts](concepts/charts.md)).
 - A tip suggests bars for lines over categories without an order, with Switch to Bars ([charts](concepts/charts.md)).
-- `chartOptions` for developers: plain JSON merged over the option, the host wins ([charts](concepts/charts.md#chartoptions-for-developers)).
+- `chartOptions` for developers: plain JSON merged over the option, the host wins; markup, addresses and text templates (a string `formatter`, `rich`, `link`, `image`) are left out ([charts](concepts/charts.md#chartoptions-for-developers)).
 - At most 50 categories, with a notice; a text alternative for screen readers ([charts](concepts/charts.md)).
 
 ## Table
@@ -83,7 +91,9 @@ version is [What pivotkit does](overview.md).
 ## Sharing
 
 - Copy link (with `shareLink`), Copy view as JSON, Download view (.json), Load view… from text, a link or a file ([sharing](concepts/sharing.md)).
-- Links carry the view compressed in the fragment, `#pivot=` or `#pivot-<storageKey>=`, size-capped ([sharing](concepts/sharing.md#links-for-developers)).
+- Links carry the view compressed in the fragment, `#pivot=` or `#pivot-<storageKey>=`, size-capped; the rest of the fragment (a hash route) stays byte for byte ([sharing](concepts/sharing.md#links-for-developers)).
+- `shareLink` true links to the page without its query string; a host that wants its query passes the whole URL ([sharing](concepts/sharing.md#links-for-developers)).
+- A link at load is where the report starts; a link opened later in the same tab is one step Undo takes back ([sharing](concepts/sharing.md#links-for-developers)).
 - A loaded or linked view is normalized; what was left out is named in plain words ([sharing](concepts/sharing.md)).
 - `persistView="session"` keeps the view per tab; Reset stores the start view ([sharing](concepts/sharing.md#keeping-the-view-per-tab)).
 - The playground's address holds data set, start template and view ([demo](demo.md#the-playgrounds-url-parameters)).
@@ -108,7 +118,7 @@ version is [What pivotkit does](overview.md).
 - Every action by keyboard and by a menu; drag and drop is never the only way ([guide](guide.md#keyboard-and-screen-readers)).
 - Focus kept or moved on purpose; the × of a text field keeps the focus in it ([guide](guide.md#menus-and-text-fields)).
 - Text of at least 14 px, controls of at least 24 x 24 px, contrast checked in both themes ([theming](reference/theming.md)).
-- The skeleton is a status ("Loading the report…", `aria-busy`); reduced motion stops its shimmer ([React props](reference/react.md#props)).
+- The skeleton is one status message ("Loading the report…", announced once); reduced motion stops its shimmer ([React props](reference/react.md#props)).
 
 ## Theming
 
@@ -126,11 +136,28 @@ version is [What pivotkit does](overview.md).
 ## Limits
 
 - Rows, groups, cells and work are capped before anything big is allocated ([limits](concepts/limits.md)).
-- A link is capped at 32,000 characters and 1,000,000 once inflated ([sharing](concepts/sharing.md#links-for-developers)).
+- A link is capped at 32,000 characters and 1,000,000 inflated, enforced while inflating ([sharing](concepts/sharing.md#links-for-developers)).
 
 ## Embedding
 
+- `theme` (auto follows the page's `data-theme`, then the system), `height`, `label` (the name of the report's region), `locale`, `timeZone`, `fileName`, `className` ([React props](reference/react.md#props)).
 - React: `<PivotReport>`, controlled or not, rendered on every host change ([React](getting-started/react.md)).
 - Web component: `<pivot-report>` in a shadow root, attributes and `pivot-*` events ([element](reference/element.md)).
 - PowerShell Universal: pivotkit-react on its React 18.3.1 ([PowerShell Universal](getting-started/react.md#powershell-universal)).
 - `loading` shows the skeleton before the first data and covers the result on later loads ([React props](reference/react.md#props)).
+
+## Props and attributes
+
+Every setting of a host, as the React prop and the element's attribute (objects are element properties only); the details are in the [React reference](reference/react.md#props) and the [element reference](reference/element.md#properties-and-attributes).
+
+- Data: `data`, `dataKey` (property), `encoded` (React only), `timeZone` / `time-zone`, `limits` (property).
+- The view: `view` / `view` (JSON) controlled with `onViewChange` (event `pivot-view-change`), `defaultView` / `default-view` (JSON) uncontrolled.
+- Templates: `templates` (property), `onSaveTemplate` / `save-templates` (event `pivot-template-save`), `onDeleteTemplate` (event `pivot-template-delete`).
+- Fields: `fieldDefaults` (property): aggregator, format, order, label, description, link, type.
+- Drill-down: `drillDown` / `drill-down`, `drillDownLimit` / `drill-down-limit`, `onCellClick` (event `pivot-cell-click`).
+- Texts and look: `locale` / `locale`, `labels` (property), `theme` / `theme`, `height` / `height`, `label` / `label`, `className` (React only).
+- Export: `fileName` / `file-name`, `onExport` (event `pivot-export`).
+- Tips and help: `tips` / `tips`, `storageKey` / `storage-key`, `dismissedTips` (property), `onTipDismiss` (event `pivot-tip-dismiss`), `fieldInfo` / `field-info`, `zoneInfo` / `zone-info`.
+- Chart: `chartOptions` (property).
+- Sharing and keeping: `shareLink` / `share-link`, `persistView` / `persist-view`.
+- Loading: `loading` / `loading`.

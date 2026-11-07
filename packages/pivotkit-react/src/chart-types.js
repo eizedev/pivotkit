@@ -149,3 +149,24 @@ export function categoryLabelLayout(names, { width, height, horizontal = false, 
     }
     return result(45, mode === "all" ? 1 : every(slot, LABEL_LINE));
 }
+
+/** The least room (px) a group label needs along the axis, and the least size of a chart with group labels. */
+export const GROUP_LABEL_ROOM = Object.freeze({ along: 56, across: 28, width: 420, height: 260 });
+
+/**
+ * Whether "auto" group labels fit a chart of `width` x `height` px with `count` categories whose
+ * smallest group has `groupSize` of them: each group's name needs GROUP_LABEL_ROOM.along px under the
+ * axis (across: a line per group beside a vertical axis), and the chart itself a least size, or the
+ * plot area left over is too small to read.
+ * @param {number} count
+ * @param {number} groupSize
+ * @param {{ width: number, height: number, horizontal?: boolean }} box
+ */
+export function groupLabelsFit(count, groupSize, { width, height, horizontal = false }) {
+    if (width < GROUP_LABEL_ROOM.width || height < GROUP_LABEL_ROOM.height) {
+        return false;
+    }
+    const n = Math.max(1, count);
+    const slot = horizontal ? Math.max(0, height - AXIS_FRAME.y) / n : Math.max(0, width - AXIS_FRAME.x) / n;
+    return slot * Math.max(1, groupSize) >= (horizontal ? GROUP_LABEL_ROOM.across : GROUP_LABEL_ROOM.along);
+}

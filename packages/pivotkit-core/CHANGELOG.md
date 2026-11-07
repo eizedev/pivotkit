@@ -15,11 +15,11 @@ First release.
 - `pivotkit-core/link`: `encodeViewLink(view)` and `decodeViewLink(text)`, a view as a short link
   text (`1.` and its JSON deflated with fflate, base64url) and back; decoding never throws, caps the
   text (`LINK_LIMITS.text`, 32,000 characters) and the inflated view (`LINK_LIMITS.json`, 1,000,000)
-  while inflating, and returns `{ view, issues }` for `normalize()`.
+  while inflating (1 KiB of input at a time, it stops at the cap), an empty payload is damaged, and returns `{ view, issues }` for `normalize()`.
 - The view's chart has display settings: `valueLabels` (`auto`, `off`, `value`, `percent`, `both`),
   `legend` (`auto`, `bottom`, `right`, `off`), `title`, `smooth`, `axisLabels` (`auto`, `all`, `nth`)
-  and `groupLabels` (default `true`), normalized against fixed lists (`CATALOG.chartValueLabels`,
-  `chartLegends`, `chartAxisLabels`); `toEChartsOption()` draws them (title, legend placement and
+  and `groupLabels` (`auto`, `on`, `off`), normalized against fixed lists (`CATALOG.chartValueLabels`,
+  `chartLegends`, `chartAxisLabels`, `chartGroupLabels`); `toEChartsOption()` draws them (title, legend placement and
   room, value labels, smooth lines, and with two or more row fields a second category axis with the
   outer field's items as group labels), and `toSeries()` gives `categoryLevels`.
 - `fieldDefaultsFromSchema(schema, { schema })`: display names, descriptions, https links, column

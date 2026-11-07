@@ -189,7 +189,7 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
         legend: "auto",                                        // auto bottom right off
         title: null, smooth: false,                            // a title over the chart; smooth lines
         axisLabels: "auto",                                    // auto all nth: the category axis labels
-        groupLabels: true                                      // two or more row fields: the outer as group labels
+        groupLabels: "auto"                                    // auto on off: two or more row fields, the outer as group labels
     },
     formatting: { locale: "de-DE", timeZone: null }
 }

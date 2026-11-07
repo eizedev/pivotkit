@@ -35,6 +35,11 @@ export const CHART_LEGENDS = Object.freeze(["auto", "bottom", "right", "off"]);
  * else every n-th; "all" every label, slanted; "nth" every n-th label, straight.
  */
 export const CHART_AXIS_LABELS = Object.freeze(["auto", "all", "nth"]);
+/**
+ * With two or more row fields, the outer one's items as group labels under the axis: "auto" while
+ * the chart has room for them (the UI measures it; the core draws them), "on" always, "off" never.
+ */
+export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
 
 const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -50,10 +55,10 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
- *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: boolean }} ChartSpec  the chart
+ *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: string }} ChartSpec  the chart
  *   type and how it is drawn: value labels (CHART_VALUE_LABELS), legend (CHART_LEGENDS), a title over the
  *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
- *   row fields the first one's items as group labels under the axis
+ *   row fields the first one's items as group labels under the axis (CHART_GROUP_LABELS)
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -88,7 +93,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: true },
+        chart: { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto" },
         formatting: { locale: null, timeZone: null }
     };
 }
@@ -456,7 +461,7 @@ function displaySection(raw, view, ctx) {
             title: title === undefined || title === null ? null : ctx.text(title),
             smooth: bool(get(chart, "smooth"), false),
             axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
-            groupLabels: bool(get(chart, "groupLabels"), true)
+            groupLabels: own("groupLabels", CHART_GROUP_LABELS, "auto")
         };
         if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
             ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`);

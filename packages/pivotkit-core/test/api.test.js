@@ -59,7 +59,7 @@ test("the catalog lists exactly what normalize accepts", () => {
     for (const type of CATALOG.chartTypes) {
         assert.equal(validate({ chart: { type } }, data).valid, true, type);
     }
-    for (const [key, list] of [["valueLabels", CATALOG.chartValueLabels], ["legend", CATALOG.chartLegends], ["axisLabels", CATALOG.chartAxisLabels]]) {
+    for (const [key, list] of [["valueLabels", CATALOG.chartValueLabels], ["legend", CATALOG.chartLegends], ["axisLabels", CATALOG.chartAxisLabels], ["groupLabels", CATALOG.chartGroupLabels]]) {
         for (const value of list) {
             assert.equal(validate({ chart: { [key]: value } }, data).valid, true, `${key} ${value}`);
         }

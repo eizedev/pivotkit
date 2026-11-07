@@ -341,7 +341,7 @@ function Report(props) {
     const cleanOptions = useMemo(() => /** @type {{ options: Record<string, unknown> | null, problems: string[] }} */ (JSON.parse(chartOptionsKey)), [chartOptionsKey]);
     useEffect(() => {
         if (cleanOptions.problems.length) {
-            console.warn(`pivotkit: chartOptions entries left out (functions and values that are not plain JSON are not allowed): ${cleanOptions.problems.slice(0, 5).join("; ")}`);
+            console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${cleanOptions.problems.slice(0, 5).join("; ")}${cleanOptions.problems.length > 5 ? `; and ${cleanOptions.problems.length - 5} more` : ""}`);
         }
     }, [cleanOptions]);
 
@@ -385,23 +385,29 @@ function Report(props) {
     const param = linkParam(storageKey);
     const [opening, setOpening] = useState(false);
     const appliedLink = useRef(/** @type {string | null} */ (null));
-    const latest = useRef({ history, encoded, limits, labels, announce });
-    useEffect(() => {
-        latest.current = { history, encoded, limits, labels, announce };
-    });
-    /** Opens the view of a link text; the result waits while the link module loads. */
-    const openLink = useCallback((text) => {
+    // commit() is defined further down: the ref gets it after the render
+    const latest = useRef({ history, encoded, limits, labels, announce, commit: /** @type {any} */ (null) });
+    /**
+     * Opens the view of a link text; the result waits while the link module loads. At load the link is
+     * where the report starts (a new history); a link opened later in the tab (only the fragment
+     * changed) is a step Undo takes back, like Load view.
+     */
+    const openLink = useCallback((text, asStep = false) => {
         appliedLink.current = text;
         const now = linkNow();
         const apply = (m) => {
-            const { history: h, encoded: enc, limits: lim, labels: l, announce: say } = latest.current;
+            const { history: h, encoded: enc, limits: lim, labels: l, announce: say, commit: step } = latest.current;
             const decoded = m.decodeViewLink(text);
             const loaded = decoded.view ? viewFromObject(decoded.view, enc, { limits: lim }) : null;
             if (!loaded || !loaded.view) {
                 say(l.viewFailed.badLink, { tone: "error" });
                 return;
             }
-            h.restore(loaded.view);
+            if (asStep) {
+                step(loaded.view, { step: "viewLoaded" });
+            } else {
+                h.restore(loaded.view);
+            }
             const lines = issueLines(loaded.issues, l);
             say(lines.length ? `${l.toastLinkOpened}. ${fill(l.viewLeftOut, { parts: lines.join("; ") })}` : l.toastLinkOpened, lines.length ? { tone: "error" } : undefined);
         };
@@ -449,7 +455,7 @@ function Report(props) {
         const onHash = () => {
             const link = readLinkParam(here()?.hash ?? "", param);
             if (link && link !== appliedLink.current) {
-                openLink(link);
+                openLink(link, true);
             }
         };
         window.addEventListener("hashchange", onHash);
@@ -487,6 +493,10 @@ function Report(props) {
         },
         [history, stepText, labels, announce, limits, locale]
     );
+
+    useEffect(() => {
+        latest.current = { history, encoded, limits, labels, announce, commit };
+    });
 
     // the pivot, once per view
     const computed = useMemo(() => {

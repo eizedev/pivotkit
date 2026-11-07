@@ -21,10 +21,10 @@ template, a link and the PNG export keep them, and they stay when the chart type
 | --- | --- | --- |
 | Value labels | Automatic, Off, Value; for a pie also Percent and Value and percent | Automatic: a pie names its slices, a heatmap writes the numbers while there are 200 cells or fewer, bars and lines write nothing |
 | Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series (a pie always) |
-| Title | any text; the × removes it at once | none |
+| Title | any text; the × removes it at once. A title wider than the chart ends in "…", on screen and in the PNG | none |
 | Smooth lines | on, off (lines and area only) | off |
 | Axis labels | Automatic, All (slanted), Every n-th (bars, lines and areas) | Automatic |
-| Group labels under the axis | on, off (with two or more fields in Rows) | on |
+| Group labels under the axis | Automatic, On, Off (with two or more fields in Rows) | Automatic: shown while the chart has room for them |
 
 ![The chart type menu with its Display section: value labels, legend, title](../assets/screenshots/chart-display.png)
 
@@ -38,7 +38,10 @@ fits each bar.
 **Group labels.** With two or more fields in Rows (Region, then Country) the axis names each category
 by its inner field (the country) and writes the outer field's item (the region) once under its
 categories, with a line between two groups. Horizontal bars put the groups left of the names. Off
-writes the whole path at each category ("Asia / Japan").
+writes the whole path at each category ("Asia / Japan"). Automatic shows them only where they can be
+read: a chart at least 420 x 260 px, and at least 56 px under the axis for the smallest group (28 px
+beside it for horizontal bars); in a smaller chart, on a phone say, the axis writes the whole paths
+instead. On shows them always.
 
 ![Bars of the three largest countries per region, the regions as group labels under the country names](../assets/screenshots/chart-groups.png)
 
@@ -54,7 +57,7 @@ resolution: with its title, legend, value labels and group labels.
 In the view the settings are `chart.valueLabels` (`"auto"`, `"off"`, `"value"`, `"percent"`,
 `"both"`), `chart.legend` (`"auto"`, `"bottom"`, `"right"`, `"off"`), `chart.title` (text, at most
 `limits.name` characters, or `null`), `chart.smooth`, `chart.axisLabels` (`"auto"`, `"all"`, `"nth"`)
-and `chart.groupLabels` (`true` by default). A view without them gets the defaults; an unknown value
+and `chart.groupLabels` (`"auto"`, `"on"`, `"off"`). A view without them gets the defaults; an unknown value
 falls back to its default and is reported by `normalize()` ([Views](views.md)). "Percent" and "Value
 and percent" are a pie's; another type writes the value.
 
@@ -97,6 +100,23 @@ so keep `chartOptions` to what the user should not change.
 **Only JSON.** Strings, finite numbers, booleans, `null`, plain objects and arrays pass. Functions
 (formatters), class instances (`Date`, `Map`), symbols, `Infinity`, the keys `__proto__`,
 `constructor` and `prototype`, more than 12 levels and more than 2,000 entries are left out, with one
-console warning that names them; nothing in `chartOptions` is ever run. It is compared by value, so a
-host may build a new object on every render. The report's own formatters (numbers in the user's
-language) stay unless a key replaces them.
+console warning that names them. It is compared by value, so a host may build a new object on every
+render. The report's own formatters (numbers in the user's language) stay.
+
+**No markup, addresses or templates.** Some ECharts options are not data: ECharts writes a string
+`formatter` of the tooltip, and the tooltip's `content`, into the page as HTML (`innerHTML`), which
+would run what it holds and replace the report's tooltip of plain text nodes (the one a strict
+Content-Security-Policy allows); a title's `link` and `sublink` open a window. So these are left out
+wherever they are in `chartOptions`, each named in the warning:
+
+| Left out | Why |
+| --- | --- |
+| a string `formatter` (any depth: tooltip, labels, legend, axes) and a string `content` | written as HTML in the tooltip; the others are templates of the same kind and refer to `rich` |
+| `rich` | text styles that templates refer to |
+| `link`, `sublink`, `target`, `subtarget`, `linkTarget` | open an address |
+| `image` and any text that starts with `image://` (a symbol) | load an address |
+| `extraCssText`, `className`, `appendTo`, `appendToBody`, `renderMode` | change the tooltip's element and where it lives |
+
+What is left of `chartOptions` is styles, sizes, numbers and names; nothing in it is markup or an
+address, and nothing in it is run. The rule follows ECharts 6.1.0 (its `TooltipHTMLContent` and
+`windowOpen`).

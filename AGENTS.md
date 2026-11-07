@@ -11,8 +11,8 @@ builds depend on it.
 - `packages/pivotkit-core/` - the engine, built: plain JavaScript ES modules with JSDoc types, no UI,
   no framework. `src/` (one module per concern), `test/` (`node --test`, `test/types/` a TypeScript
   consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV) and
-  `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`); the last two are the only
-  importers of fflate; every other module is internal. The vocabulary of a view lives in tables:
+  `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`, with the capped inflate of
+  `src/inflate.js`); only those import fflate; every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
   (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`).
 - `packages/pivotkit-react/` - the React 18/19 UI on the core: `<PivotReport>`. JSX in `src/` with
@@ -23,7 +23,7 @@ builds depend on it.
   One module per concern: `PivotReport.jsx` wires the parts and defines `commit()`, which it passes to
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
-  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `chart-options.js` checks and merges the host's `chartOptions` (plain JSON only); `share.js` the link in the URL fragment, the tab's stored view and views loaded from JSON (all through normalize, what was dropped in plain words), and loads `pivotkit-core/link` on first use; `clear-input.jsx` the one text field with an "×" every menu uses; `skeleton.jsx` the report while it waits (`loading`, a large first encode, a link being read); `dnd.jsx` is the
+  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `chart-options.js` checks and merges the host's `chartOptions` (plain JSON only, and no ECharts option that is markup or an address); `share.js` the link in the URL fragment, the tab's stored view and views loaded from JSON (all through normalize, what was dropped in plain words), and loads `pivotkit-core/link` on first use; `clear-input.jsx` the one text field with an "×" every menu uses; `skeleton.jsx` the report while it waits (`loading`, a large first encode, a link being read); `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe

@@ -11,7 +11,7 @@ import { fieldLabel, toEChartsOption } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
 import { mergeChartOptions } from "./chart-options.js";
 import { tooltipFormatter } from "./chart-tooltip.js";
-import { CATEGORY_LABEL_WIDTH, MAX_CATEGORIES, categoryLabelLayout, chartTypeOf, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "./chart-types.js";
+import { CATEGORY_LABEL_WIDTH, MAX_CATEGORIES, categoryLabelLayout, groupLabelsFit, chartTypeOf, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { chartThemeFrom } from "./theme.js";
 
@@ -81,13 +81,20 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     const xAxis = heatmap ? { ...option.xAxis, axisLabel: { ...option.xAxis.axisLabel, ...columnLabelLayout(option.xAxis.data ?? [], width) } } : option.xAxis;
     // and its rows: every name where a line fits each row, else every n-th (rowLabelInterval)
     const yAxis = heatmap && option.yAxis ? { ...option.yAxis, axisLabel: { ...option.yAxis.axisLabel, interval: rowLabelInterval(option.yAxis.data?.length ?? 0, height) } } : option.yAxis;
+    // a long title ends in "…" within the chart's width (the PNG is drawn from the same option)
+    const title = option.title ? { title: { ...option.title, textStyle: { ...option.title.textStyle, width: Math.max(40, width - 32), overflow: "truncate" } } } : {};
     // bars, lines and areas: the category axis writes every label that fits (categoryLabelLayout), the
     // group labels sit below (or left of) those labels
     let axes = { xAxis, yAxis };
     let axisEvery = 1;
     const along = !heatmap && series.some((s) => s.type === "bar" || s.type === "line") ? (first(option.yAxis)?.type === "category" ? "yAxis" : first(option.xAxis)?.type === "category" ? "xAxis" : null) : null;
     if (along) {
-        const list = Array.isArray(axes[along]) ? axes[along] : [axes[along]];
+        let list = Array.isArray(axes[along]) ? axes[along] : [axes[along]];
+        // "auto" group labels need room: below it the axis writes the whole names instead
+        const group = list[1]?.groups ? list[1] : null;
+        if (group && group.groupsAuto && !groupLabelsFit(list[0].data?.length ?? 0, group.groupSize ?? 1, { width, height, horizontal: along === "yAxis" })) {
+            list = [{ ...list[0], data: extra.categoryNames ?? list[0].data }];
+        }
         const names = list[0].data ?? [];
         const layout = categoryLabelLayout(names, { width, height, horizontal: along === "yAxis", mode: extra.axisLabels });
         axisEvery = layout.every;
@@ -100,7 +107,7 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
         const rest = list.slice(1).map((a) => (a.groups ? { ...a, offset, axisTick: { ...a.axisTick, length: offset }, axisLabel: { ...a.axisLabel, width: groupWidth, overflow: "truncate" } } : a));
         axes = { ...axes, [along]: rest.length ? [main, ...rest] : main };
     }
-    return { ...option, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
+    return { ...option, ...title, tooltip, series, ...(axes.xAxis ? { xAxis: axes.xAxis } : {}), ...(axes.yAxis ? { yAxis: axes.yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400, axisEvery };
 }
 
 /**

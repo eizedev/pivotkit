@@ -316,3 +316,11 @@ test("the tooltip's title is the category's whole name when the axis writes it s
     assert.equal(tooltipContent(params, { categoryNames: ["North / A", "North / B"] }).title, "North / B");
     assert.equal(tooltipContent(params).title, "B");
 });
+
+test("auto group labels need room: a phone-sized chart writes the whole names instead", async () => {
+    const { groupLabelsFit } = await import("../src/chart-types.js");
+    assert.equal(groupLabelsFit(21, 3, { width: 1100, height: 420 }), true);
+    assert.equal(groupLabelsFit(21, 3, { width: 350, height: 180 }), false, "390 px phone");
+    assert.equal(groupLabelsFit(200, 1, { width: 1100, height: 420 }), false, "groups of one category are too narrow");
+    assert.equal(groupLabelsFit(21, 3, { width: 900, height: 600, horizontal: true }), true);
+});

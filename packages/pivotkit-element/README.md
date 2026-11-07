@@ -81,7 +81,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off). |
 | `fieldInfo`, `zoneInfo` | `field-info`, `zone-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions and of the zones; unset, the user switches them in Options, Help. |
 | `chartOptions` | | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. |
-| `shareLink` | `share-link` | `boolean \| string` | off | "Copy link" and shared links: the attribute alone for the page's address, a value as base URL. |
+| `shareLink` | `share-link` | `boolean \| string` | off | "Copy link" and shared links: the attribute alone for the page's address without its query, a value as the base URL. |
 | `persistView` | `persist-view` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storage-key`). |
 | `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the report shows its skeleton. |
 

@@ -263,9 +263,9 @@ test("a custom sort order: listed items first in their order, the rest by label,
 });
 
 test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
-    assert.deepEqual(emptyView().chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: true });
+    assert.deepEqual(emptyView().chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto" });
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true };
-    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: true });
+    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto" });
     assert.deepEqual(validate({ chart }, data), { valid: true, errors: [] });
     // unknown settings fall back to their defaults and are reported
     const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes" } }, data);

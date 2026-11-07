@@ -111,12 +111,13 @@ async function licenses(metafile) {
 }
 
 /**
- * The most a page may load per group, gzip, in KiB: about 10 % over what was measured when the budget
- * was set (initial 123.5, chart 200.3, export 7.7, one measurement on one Mac); the initial load was
- * raised to 138 for the tips and the field descriptions (134.8 measured with them), and to 152 for the
- * chart's display settings with axis and group labels, sharing a view, the skeleton, the clear
- * buttons, the zone explanations, the help switches and the filter states (147.5 measured with them). Since a view can be shared as a link, fflate is a chunk
- * of its own that the export and the link share: export 10 (9.1 measured), link 7 (6.3 measured).
+ * The most a page may load per group, gzip, in KiB, one measurement on one Mac each time it was set.
+ * Set at about 10 % over what was measured (initial 123.5, chart 200.3, export 7.7). Raised since, with
+ * less headroom: initial to 138 for the tips and the field descriptions (134.8 measured), then to 152
+ * for the chart's display settings with axis and group labels, sharing a view, the skeleton, the
+ * clear buttons, the zone explanations, the help switches and the filter states (148.1 measured,
+ * about 3 % headroom). fflate is a chunk the export and the link share: export 10 (9.3 measured),
+ * link 7 (6.7 measured). The menu panels only used on demand could load later (issue #34).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7 };

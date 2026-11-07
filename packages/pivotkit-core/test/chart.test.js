@@ -169,7 +169,7 @@ test("two row fields: the inner items name the categories, the outer ones are gr
     assert.deepEqual([horizontal.yAxis.length, horizontal.yAxis[0].inverse, horizontal.yAxis[1].inverse], [2, true, true]);
     assert.ok(Array.isArray(toEChartsOption(nested, { chart: { type: "area" } }).xAxis));
     // off, one row field, a pie: one axis with the whole names
-    const off = toEChartsOption(nested, { chart: { groupLabels: false } });
+    const off = toEChartsOption(nested, { chart: { groupLabels: "off" } });
     assert.equal(off.xAxis.data[0], "North / A");
     assert.equal(Array.isArray(toEChartsOption(r).xAxis), false);
     assert.equal(toEChartsOption(nested, { chart: { type: "pie" } }).xAxis, undefined);

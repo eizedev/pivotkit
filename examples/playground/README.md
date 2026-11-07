@@ -39,8 +39,9 @@ empty report; `preset=0|1|2|3|4` by position also works), `rows=2000|4000|100000
 without it the report follows the system). The footer shows the engine timings of the last change
 and the last `onCellClick`. The Data and Start dropdowns write `data` and `start` into the address,
 and every change of the report writes its view into the fragment (`#pivot-playground=`, pivotkit's
-share format, read back by the report's `shareLink`), so a reload keeps the report and Copy link in
-Templates copies the whole address.
+share format, read back by the report's `shareLink`), so a reload keeps the report. Copy link in
+Templates copies `data`, `start`, `rows` (generated data) and the view: the playground passes that URL
+as `shareLink`, so the viewer's language, theme and height stay out of it.
 
 The report is controlled (`view` + `onViewChange`) and the page renders again on every engine timing,
 as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, the

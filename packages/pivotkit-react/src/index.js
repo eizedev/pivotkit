@@ -106,10 +106,11 @@
  *   "Show dismissed tips again", with the whole list, for a host that stores it itself
  * @property {Record<string, unknown>} [chartOptions]  plain JSON merged over the ECharts option the
  *   report builds (objects key by key; an object given for a list such as `series` into every entry);
- *   it wins over the view's chart settings. Functions and values that are not plain JSON are left
- *   out with a console warning
+ *   it wins over the view's chart settings. Functions, values that are not plain JSON and the
+ *   options that are markup or addresses (a string `formatter`, `rich`, `link`, `image`) are left out
+ *   with a console warning
  * @property {boolean | string} [shareLink]  "Copy link" in the Templates menu and opening a shared
- *   link: `true` links to the page's own address, a string to that base URL; the view travels in the
+ *   link: `true` links to the page's own address without its query, a string is the base URL as it is; the view travels in the
  *   URL fragment (`#pivot=`, `#pivot-<storageKey>=` with a storageKey). Off by default
  * @property {"session"} [persistView]  "session": the view is kept in sessionStorage for this tab
  *   (per `storageKey`) and comes back when the page is loaded again

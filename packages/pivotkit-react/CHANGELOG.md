@@ -14,18 +14,21 @@ First release.
 
 - Chart display settings in the chart type menu ("Display"): value labels, legend, title, smooth
   lines, axis labels (all straight when they fit, slanted, else every n-th with a note; long names cut
-  with "…", whole in the tooltip) and group labels under the axis for two or more row fields; kept in
+  with "…", whole in the tooltip), long titles cut with "…", and group labels under the axis for two
+  or more row fields (automatic: only where the chart has room; on, off); kept in
   the view, so templates, links and the PNG export show them. A tip suggests bars for lines over
   categories without an order (`chartTrend`, "Switch to Bars").
 - `chartOptions`: plain JSON merged over the ECharts option (lists entry by entry, an object into
-  every entry of a list); it wins over the view's settings; functions and values that are not JSON
-  are left out with a warning.
+  every entry of a list); it wins over the view's settings; functions, values that are not JSON and
+  the ECharts options that are markup or addresses (a string `formatter` at any depth, `rich`, `link`,
+  `sublink`, `image`, the tooltip's element) are left out with a warning.
 - Sharing in the Templates menu: Copy link (with `shareLink`: `true` or a base URL; the view in the
-  fragment, `#pivot=` or `#pivot-<storageKey>=`, read after the first render and on a fragment
-  change), Copy view as JSON, Download view (.json) (`onExport` kind `"json"`), Load view… from
+  fragment, `#pivot=` or `#pivot-<storageKey>=`, only that entry changed so a hash route stays;
+  `true` links to the page without its query; read after the first render as the start, and on a
+  fragment change as one undoable step), Copy view as JSON, Download view (.json) (`onExport` kind `"json"`), Load view… from
   pasted JSON, a link or a file; what does not fit the data is named in plain words.
 - `persistView="session"`: the view kept per tab in `sessionStorage`; Reset stores the start view.
-- `loading` and a skeleton (toolbar, zones, table rows, `role="status"`, `aria-busy`, reduced motion
+- `loading` and a skeleton (toolbar, zones, table rows, `role="status"` announced once, reduced motion
   respected) while the host loads data, while more than 10,000 rows are encoded the first time and
   while a link is read.
 - Filters say what they keep: "Filter: 15 of 45" or the condition in the chip menu, in the accent

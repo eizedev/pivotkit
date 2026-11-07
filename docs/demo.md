@@ -35,8 +35,9 @@ come from a fixed seed, so everyone sees the same numbers.
 
 The playground's address says what it shows, and it changes with it: the Data and Start dropdowns
 write `data` and `start`, and every change of the report writes the view into the fragment. A reload
-keeps the report; **Templates**, **Copy link** copies the whole address, so a link opens exactly that
-report. The query parameters are the playground's own; the fragment `#pivot-playground=` is
+keeps the report; **Templates**, **Copy link** copies `data`, `start` (and `rows` for generated data)
+and the view, so a link opens exactly that report; the language, theme and height stay the viewer's
+own (the playground passes that URL as `shareLink`). The query parameters are the playground's own; the fragment `#pivot-playground=` is
 pivotkit's share format, the part a host (React, the web component, PowerShell Universal) uses too:
 [Sharing and keeping a view](concepts/sharing.md).
 

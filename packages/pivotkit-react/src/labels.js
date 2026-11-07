@@ -362,6 +362,7 @@ export const en = {
     axisLabels: "Axis labels",
     axisLabelNames: { auto: "Automatic", all: "All (slanted)", nth: "Every n-th" },
     groupLabels: "Group labels under the axis",
+    groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
     axisEvery: "One label in every {n} is shown; point at a bar or point for its name.",
     // the × in a text field
     clearText: "Clear",
@@ -766,6 +767,7 @@ export const de = {
     axisLabels: "Achsenbeschriftung",
     axisLabelNames: { auto: "Automatisch", all: "Alle (schräg)", nth: "Jede n-te" },
     groupLabels: "Gruppen unter der Achse",
+    groupLabelNames: { auto: "Automatisch", on: "Ein", off: "Aus" },
     axisEvery: "Jede {n}. Beschriftung wird gezeigt; zeigen Sie auf einen Balken oder Punkt für seinen Namen.",
     clearText: "Leeren",
     defaultName: "Standardnamen verwenden",

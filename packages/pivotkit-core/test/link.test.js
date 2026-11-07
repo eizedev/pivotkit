@@ -59,3 +59,17 @@ test("a decoded view is user input: normalize keeps what fits the data and repor
     assert.deepEqual(issues.map((i) => i.path), ["rows[1]"]);
     assert.equal(/** @type {any} */ ({}).polluted, undefined);
 });
+
+test("an empty payload is damaged; inflating stops at the cap instead of inflating the whole bomb", async () => {
+    assert.deepEqual(decodeViewLink("1.").issues[0].message, "the link is damaged");
+    const { inflateCapped } = await import("../src/inflate.js");
+    // 30 MB of zeros deflate to a few KB: the inflater must stop near the cap, not produce 30 MB
+    const bomb = deflateSync(new Uint8Array(30_000_000), { level: 9 });
+    const capped = inflateCapped(bomb, 1_000_000);
+    assert.equal(capped.bytes, null);
+    assert.ok(capped.inflated < 3_000_000, `inflated ${capped.inflated} bytes before it stopped`);
+    // within the cap the bytes come back whole
+    const small = inflateCapped(deflateSync(strToU8("hello")), 100);
+    assert.equal(Buffer.from(small.bytes).toString(), "hello");
+    assert.throws(() => inflateCapped(deflateSync(strToU8("hello")).subarray(0, 3), 100));
+});

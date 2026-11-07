@@ -1,6 +1,7 @@
 // Chart display settings, sharing a view (link, JSON, file), the view kept in the address and per tab,
 // the skeleton, and the help switches. Every test here fails without its feature.
 import { readFile } from "node:fs/promises";
+import { test as plain } from "@playwright/test";
 import { chips, expect, test, toolbar } from "./fixtures.js";
 
 /** A switch of a menu (its checkbox is drawn as a track): by keyboard, as a person reaches it. */
@@ -71,7 +72,8 @@ test.describe("sharing a view", () => {
         await page.getByTestId("copy-link").click();
         await expect(page.locator(".pk-toasts")).toContainText("Link copied");
         const link = await page.evaluate(() => /** @type {any} */ (window).__copied);
-        expect(link).toMatch(/\?data=sales&start=revenue-by-region-and-category#pivot-playground=1\.[A-Za-z0-9_-]+$/);
+        // data, start and rows of the playground; the page's own query (theme, language) stays out
+        expect(link).toMatch(/\?data=sales&start=revenue-by-region-and-category&rows=4000#pivot-playground=1\.[A-Za-z0-9_-]+$/);
         const other = await context.newPage();
         await other.goto(link);
         await expect.poll(() => chips(other, "rows")).toEqual(["Region"]);
@@ -87,6 +89,37 @@ test.describe("sharing a view", () => {
         await expect.poll(() => page.url()).toContain("#pivot-playground=1.");
         await page.reload();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+    });
+
+    test("a hash route next to the view stays byte for byte, for the playground's writer and for Copy link", async ({ page }) => {
+        await captureClipboard(page);
+        await page.goto("?data=sales&theme=light#/reports/a?tab=2");
+        await page.getByRole("button", { name: "Remove Country" }).click();
+        await expect.poll(() => new URL(page.url()).hash).toMatch(/^#\/reports\/a\?tab=2&pivot-playground=1\.[A-Za-z0-9_-]+$/);
+        await page.getByRole("button", { name: "Remove Region" }).click();
+        // the entry is replaced, not added again
+        await expect.poll(() => (new URL(page.url()).hash.match(/pivot-playground=/g) ?? []).length).toBe(1);
+        await toolbar(page, "templates");
+        await page.getByTestId("copy-link").click();
+        const link = await page.evaluate(() => /** @type {any} */ (window).__copied);
+        expect(new URL(link).hash).toMatch(/^#\/reports\/a\?tab=2&pivot-playground=1\./);
+        expect(new URL(link).searchParams.get("theme"), "the page's own query is not shared").toBeNull();
+    });
+
+    test("a link opened in the same tab is a step Undo takes back; the link at load is the start", async ({ page }) => {
+        await page.goto("?data=sales");
+        await page.getByRole("button", { name: "Remove Country" }).click();
+        await expect.poll(() => page.url()).toContain("#pivot-playground=1.");
+        const withRegionOnly = page.url();
+        await toolbar(page, "reset");
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+        // another link in the same tab: only the fragment changes
+        await page.evaluate((url) => {
+            location.hash = new URL(url).hash;
+        }, withRegionOnly);
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+        await page.getByTestId("undo").click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
     });
 
     test("a damaged link and one with fields the data lacks say so in plain words", async ({ page }) => {
@@ -135,7 +168,9 @@ test.describe("sharing a view", () => {
     test("a host's page: the view is kept for the tab (persistView), chartOptions and loading change nothing else", async ({ page }) => {
         await page.goto("pages/host.html?persist&options&loading");
         // the host is loading: the skeleton, named for assistive technology
-        await expect(page.getByTestId("skeleton")).toHaveAttribute("aria-busy", "true");
+        // one status that names what it waits for; not busy, so it is announced
+        await expect(page.getByTestId("skeleton")).toHaveAttribute("role", "status");
+        await expect(page.getByTestId("skeleton")).not.toHaveAttribute("aria-busy", /.*/);
         await expect(page.getByRole("status").filter({ hasText: "Loading the report…" })).toHaveCount(1);
         await expect(page.getByTestId("pivot-table")).toBeVisible();
         await expect(page.getByTestId("skeleton")).toHaveCount(0);
@@ -206,5 +241,44 @@ test.describe("help switches", () => {
         await flip(page.getByTestId("show-field-info"));
         await expect(page.locator(".pk-panel .pk-info, .pk-chip .pk-info")).toHaveCount(0);
         await expect(page.locator('.pk-field[data-field="Population"] .pk-field-name')).toHaveAttribute("aria-describedby", /.+/);
+    });
+});
+
+test.describe("chartOptions", () => {
+    test("the host's chartOptions are merged into the option the chart draws", async ({ page }) => {
+        await page.goto("pages/host.html?options");
+        await page.getByTestId("show-chart").click();
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await expect.poll(async () => (await page.evaluate(() => /** @type {any} */ (window).__chartOption()))?.series?.[0]?.barMaxWidth).toBe(12);
+        const option = await page.evaluate(() => /** @type {any} */ (window).__chartOption());
+        // into every series, next to what the report set; the report's own tooltip stays
+        expect(option.series.every((s) => s.barMaxWidth === 12 && s.type === "bar")).toBe(true);
+        expect(option.grid[0].left).toBe(40);
+        expect(option.tooltip[0].formatter).toBe("[function]");
+    });
+
+    // its own fixture: the console warning is what this test expects
+    plain("markup in a tooltip formatter is left out with a warning and never runs", async ({ page }) => {
+        const warnings = [];
+        const errors = [];
+        page.on("console", (m) => (m.type() === "warning" ? warnings : m.type() === "error" ? errors : []).push(m.text()));
+        page.on("pageerror", (e) => errors.push(e.message));
+        await page.goto("pages/host.html?xss");
+        await page.getByTestId("show-chart").click();
+        const canvas = page.locator('[data-testid="pivot-chart"] canvas');
+        await expect(canvas).toBeVisible();
+        await expect.poll(() => warnings.join("\n")).toContain("chartOptions.tooltip.formatter: a text template (written as markup), not allowed");
+        // the rest of the host's options still apply
+        await expect.poll(async () => (await page.evaluate(() => /** @type {any} */ (window).__chartOption()))?.series?.[0]?.barMaxWidth).toBe(10);
+        // a tooltip shows, built by the report: no markup, nothing run
+        const box = await canvas.boundingBox();
+        for (const x of [0.15, 0.3, 0.45]) {
+            await page.mouse.move(box.x + box.width * x, box.y + box.height * 0.7);
+            await page.waitForTimeout(150);
+        }
+        expect(await page.evaluate(() => /** @type {any} */ (window).__xss)).toBeUndefined();
+        expect(await page.locator("img[src='x']").count()).toBe(0);
+        expect((await page.evaluate(() => /** @type {any} */ (window).__chartOption())).tooltip[0].formatter).toBe("[function]");
+        expect(errors).toEqual([]);
     });
 });

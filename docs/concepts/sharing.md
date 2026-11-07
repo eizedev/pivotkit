@@ -29,8 +29,10 @@ Where a page does not allow the clipboard, the report says so and points to Down
 
 ## Links (for developers)
 
-`shareLink` turns links on: `true` links to the page's own address, a string to that base URL (a
-page that shows the report for everyone). It is off by default.
+`shareLink` turns links on. `true` links to the page's own address without its query string (origin,
+path and fragment: a query may hold a token or an id the host did not mean to share); a string is used
+as the base URL as it is, so a host that wants its query in the link passes the whole URL. It is off
+by default.
 
 ```jsx
 <PivotReport data={rows} shareLink />
@@ -44,17 +46,20 @@ page that shows the report for everyone). It is off by default.
 
 The view travels in the URL fragment, which browsers do not send to the server: `#pivot=<text>`, or
 `#pivot-<storageKey>=<text>` when the report has a `storageKey`, so several reports on one page each
-have their own. Other entries of the fragment stay. With `shareLink` set the report reads its entry
-after the first render (so a server render and its hydration match), and again when only the fragment
-changes (a link opened in the same tab). The link's view becomes the view shown, with a new undo
-history; Reset still goes to the start view.
+have their own. Only that entry is added or replaced: the rest of the fragment stays byte for byte,
+also a hash route with its own query (`#/reports/a?tab=2&pivot=1.…`). With `shareLink` set the report
+reads its entry after the first render (so a server render and its hydration match): a link at load is
+where the report starts, with a new undo history (Reset still goes to the start view). When only the
+fragment changes later (a link opened in the same tab), its view is one step, like Load view, and Undo
+goes back to the view before.
 
 The text is pivotkit's share format, `encodeViewLink` and `decodeViewLink` of
 [`pivotkit-core/link`](../reference/core.md#links-pivotkit-corelink): `1.` and the view's JSON
 compressed with DEFLATE ([fflate](https://github.com/101arrowz/fflate)), in base64url. It is capped
 at 32,000 characters (a larger view is shared as a file; Copy link says so) and at 1,000,000
-characters once inflated, which is checked while it is inflated, so a crafted link cannot make a
-large allocation. The module is loaded on first use: a report that never shares does not load it
+characters inflated: the compressed bytes go into the inflater 1 KiB at a time and it stops at the
+first slice past the cap, so a crafted link (a deflate bomb) can neither make a large allocation nor
+keep the page busy. The module is loaded on first use: a report that never shares does not load it
 (pivotkit-element loads it as a chunk of its own, [bundle size](../reference/element.md#bundle-size)).
 
 A host that keeps the view in its own address, as the playground does, writes the same entry with
@@ -78,7 +83,9 @@ own and the share format:
 - `data` and `start` (the template's name in words) are the playground's: they pick the data set and
   the start template, and the Data and Start dropdowns write them.
 - `#pivot-playground=` is the share format (the playground's `storageKey` is `playground`), written on
-  every change; Copy link copies the whole address, so a link opens exactly that report.
+  every change; Copy link copies data, start (and `rows` for generated data) and the view, so a link
+  opens exactly that report. The playground passes that URL as `shareLink`; its language, theme and
+  height stay the viewer's own.
 
 A React app, a page with `<pivot-report>` or a PowerShell Universal dashboard uses only the fragment
 part, with its own data.

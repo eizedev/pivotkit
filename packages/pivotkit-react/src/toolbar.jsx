@@ -51,6 +51,7 @@ function ChartTypeOptions({ view, labels, onChart, close }) {
 const VALUE_LABELS = { pie: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] };
 const LEGENDS = ["auto", "bottom", "right", "off"];
 const AXIS_LABELS = ["auto", "all", "nth"];
+const GROUP_LABELS = ["auto", "on", "off"];
 
 /** The chart's title: applied with Enter or Apply; the × removes it at once. */
 function ChartTitle({ title, labels, onDisplay }) {
@@ -131,7 +132,18 @@ function ChartDisplay({ view, labels, onDisplay }) {
                     </div>
                 </>
             ) : null}
-            {axis && view.rows.length >= 2 ? <Switch checked={chart.groupLabels} onChange={(on) => onDisplay({ groupLabels: on })} testId="chart-groups">{labels.groupLabels}</Switch> : null}
+            {axis && view.rows.length >= 2 ? (
+                <>
+                    <div className="pk-subtitle">{labels.groupLabels}</div>
+                    <div className="pk-choice-grid">
+                        {GROUP_LABELS.map((v) => (
+                            <Option key={v} checked={chart.groupLabels === v} onSelect={() => onDisplay({ groupLabels: v })} testId={`groups-${v}`}>
+                                {labels.groupLabelNames[v]}
+                            </Option>
+                        ))}
+                    </div>
+                </>
+            ) : null}
             {chart.type === "line" || chart.type === "area" ? <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">{labels.smoothLines}</Switch> : null}
         </Section>
     );

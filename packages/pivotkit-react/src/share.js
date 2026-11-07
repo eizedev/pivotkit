@@ -35,27 +35,29 @@ export function linkParam(storageKey) {
     return storageKey ? `pivot-${storageKey}` : "pivot";
 }
 
+/** The entries of a fragment: its text split at "&", each kept as it is. */
+const entries = (fragment) => (fragment ? fragment.split("&") : []);
+/** Whether a fragment entry is the one of `param`. */
+const isEntry = (entry, param) => entry.startsWith(`${encodeURIComponent(param)}=`);
+
 /**
- * The encoded view of a fragment ("#pivot=1.abc&pivot-sales=1.def") under a name, or null.
+ * The encoded view of a fragment ("#pivot=1.abc&pivot-sales=1.def") under a name, or null. The
+ * fragment is read as it is, not as form data, so a hash route next to it ("#/reports/a?tab=2&pivot=...")
+ * does not matter.
  * @param {string} hash  location.hash, with or without "#"
  * @param {string} param
  */
 export function readLinkParam(hash, param) {
     const text = typeof hash === "string" ? hash.replace(/^#/, "") : "";
-    if (!text) {
-        return null;
-    }
-    try {
-        const value = new URLSearchParams(text).get(param);
-        return value ? value : null;
-    } catch {
-        return null;
-    }
+    const entry = entries(text).find((e) => isEntry(e, param));
+    const value = entry ? entry.slice(encodeURIComponent(param).length + 1) : "";
+    return value ? value : null;
 }
 
 /**
- * A URL with the encoded view under `param` in its fragment; other entries of the fragment stay. A
- * fragment that is not a list of name=value pairs (an anchor, "#top") is replaced.
+ * A URL with the encoded view under `param` in its fragment. Only that entry is added, replaced or
+ * removed; the rest of the fragment (another report's entry, a hash route such as "#/reports/a?tab=2",
+ * an anchor) stays byte for byte.
  * @param {string} url
  * @param {string} param
  * @param {string | null} encoded  null removes the entry
@@ -63,27 +65,30 @@ export function readLinkParam(hash, param) {
 export function withLinkParam(url, param, encoded) {
     const at = url.indexOf("#");
     const base = at === -1 ? url : url.slice(0, at);
-    const fragment = at === -1 ? "" : url.slice(at + 1);
-    const params = new URLSearchParams(fragment.includes("=") ? fragment : "");
-    if (encoded) {
-        params.set(param, encoded);
-    } else {
-        params.delete(param);
-    }
-    const text = params.toString();
-    return text ? `${base}#${text}` : base;
+    const kept = entries(at === -1 ? "" : url.slice(at + 1)).filter((e) => !isEntry(e, param));
+    const next = encoded ? [...kept, `${encodeURIComponent(param)}=${encoded}`] : kept;
+    return next.length ? `${base}#${next.join("&")}` : base;
 }
 
 /**
- * The address a shared link points to: the host's base URL, or the page's own address for `true`; null
- * when links are off.
+ * The address a shared link points to: the host's base URL as given, or for `true` the page's own
+ * address without its query (it may hold tokens or ids the host did not mean to share) and with its
+ * fragment (other entries, a hash route); null when links are off.
  * @param {unknown} shareLink  the prop: true, a URL, or anything else for off
  * @param {string | undefined} here  the page's address (location.href)
  * @returns {string | null}
  */
 export function shareBase(shareLink, here) {
     if (shareLink === true) {
-        return here ?? null;
+        if (!here) {
+            return null;
+        }
+        try {
+            const url = new URL(here);
+            return `${url.origin}${url.pathname}${url.hash}`;
+        } catch {
+            return null;
+        }
     }
     return typeof shareLink === "string" && shareLink.trim() ? shareLink.trim() : null;
 }

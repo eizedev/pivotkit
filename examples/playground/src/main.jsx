@@ -43,8 +43,13 @@ function address(query, { keepView = true } = {}) {
         if (v === null) url.searchParams.delete(k);
         else url.searchParams.set(k, String(v));
     }
-    if (!keepView) url.hash = "";
+    if (!keepView) url.hash = withoutView(url.hash);
     return url.toString();
+}
+
+/** A fragment without the view's entry; every other entry stays as it is. */
+function withoutView(hash) {
+    return hash.replace(/^#/, "").split("&").filter((e) => e && !e.startsWith(`${LINK_PARAM}=`)).join("&");
 }
 
 /** Writes the view into the fragment without a new history entry: reload keeps it, the address shares it. */
@@ -56,10 +61,9 @@ function writeView(view) {
         // too large for a link (long filter lists): the address keeps no view
         text = null;
     }
-    const fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
-    if (text) fragment.set(LINK_PARAM, text);
-    else fragment.delete(LINK_PARAM);
-    const hash = fragment.toString();
+    // only the view's entry changes; the rest of the fragment stays as it is (pivotkit's rule)
+    const kept = withoutView(location.hash);
+    const hash = [kept, text ? `${LINK_PARAM}=${text}` : ""].filter(Boolean).join("&");
     history.replaceState(history.state, "", `${location.pathname}${location.search}${hash ? `#${hash}` : ""}`);
 }
 // ?height=480: the report at a fixed height in px, as a host card gives it (else the window's height)
@@ -135,7 +139,7 @@ function Report({ start, ...props }) {
 }
 
 function App() {
-    const [dataset, setDataset] = useState(params.get("data") in DATASETS ? params.get("data") : "tickets");
+    const [dataset, setDataset] = useState(Object.hasOwn(DATASETS, params.get("data") ?? "") ? params.get("data") : "tickets");
     const [size, setSize] = useState(SIZES.includes(Number(params.get("rows"))) ? Number(params.get("rows")) : 4000);
     const [lang, setLang] = useState(params.get("lang") === "de" ? "de" : "en");
     const [theme, setTheme] = useState(["light", "dark"].includes(params.get("theme")) ? params.get("theme") : "auto");
@@ -150,10 +154,15 @@ function App() {
     const templates = useMemo(() => [...presets, ...saved.map((t) => ({ ...t, deletable: true }))], [presets, saved]);
     const start = preset >= 0 ? presets[preset].view : undefined;
     // the address says which data and template the report starts from, in words (the view stays)
+    const startName = preset >= 0 ? slug(presets[preset].name) : "empty";
     useEffect(() => {
-        const startName = preset >= 0 ? slug(presets[preset].name) : "empty";
         history.replaceState(history.state, "", address({ data: dataset, start: startName, preset: null, empty: null }));
-    }, [dataset, preset, presets]);
+    }, [dataset, startName]);
+    // Copy link: this page with the data set and the start (and the generated rows), the view is added
+    // by the report; the language, theme and height stay the viewer's own
+    // (the rest of the fragment, a hash route say, stays in the link as the report keeps it)
+    const routeHash = withoutView(location.hash);
+    const shareUrl = `${location.origin}${location.pathname}?${new URLSearchParams({ data: dataset, start: startName, ...(DATASETS[dataset].make ? { rows: String(size) } : {}) })}${routeHash ? `#${routeHash}` : ""}`;
 
     useEffect(() => {
         // the host page's theme, as PowerShell Universal sets it; "auto" leaves it to the system
@@ -249,7 +258,7 @@ function App() {
                 onDeleteTemplate={deleteTemplate}
                 fieldDefaults={withDescriptions(DATASETS[dataset].fieldDefaults, dataset)}
                 storageKey={STORAGE_KEY}
-                shareLink
+                shareLink={shareUrl}
                 onCellClick={(c) => setLastClick({ row: c.row, col: c.col, count: c.count })}
                 locale={lang === "de" ? "de-DE" : "en-US"}
                 height={fixedHeight ?? "calc(100vh - var(--pg-head-h))"}

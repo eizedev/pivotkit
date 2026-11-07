@@ -9,7 +9,7 @@ import { COLUMN_TYPES } from "./encode.js";
 import { FILTER_TYPES, LABEL_OPS, VALUE_OPS } from "./filters.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
-import { CHART_AXIS_LABELS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
+import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
 
 export const CATALOG = Object.freeze({
     aggregators: AGGREGATOR_NAMES,
@@ -33,6 +33,7 @@ export const CATALOG = Object.freeze({
     chartValueLabels: CHART_VALUE_LABELS,
     chartLegends: CHART_LEGENDS,
     chartAxisLabels: CHART_AXIS_LABELS,
+    chartGroupLabels: CHART_GROUP_LABELS,
     displayModes: DISPLAY_MODES,
     conditionalTypes: CONDITIONAL_TYPES
 });

@@ -60,7 +60,7 @@ supported.
 | `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user switches it in Options, Help. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
 | `zoneInfo` | `zone-info` | The same for the "i" next to the zone titles.<br><small>Type: `"on"` or `"off"`</small> |
 | `chartOptions` |  | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings; functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)).<br><small>Type: `object`</small> |
-| `shareLink` | `share-link` | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address, a value is the base URL, `"false"` is off ([Sharing](../concepts/sharing.md)).<br><small>Type: `boolean` or `string`; default: off</small> |
+| `shareLink` | `share-link` | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)).<br><small>Type: `boolean` or `string`; default: off</small> |
 | `persistView` | `persist-view` | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`).<br><small>Type: `"session"`</small> |
 | `loading` | `loading` (boolean) | The page is loading the data: the skeleton before the first data, the result covered on later loads.<br><small>Type: `boolean`; default: `false`</small> |
 
