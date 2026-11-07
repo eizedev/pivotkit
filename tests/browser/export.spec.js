@@ -121,8 +121,8 @@ test.describe("drill-down panel", () => {
 
         await panel.getByTestId("drill-export").click();
         const [csv] = await Promise.all([page.waitForEvent("download"), page.getByTestId("drill-csv").click()]);
-        expect(csv.suggestedFilename()).toMatch(/\.csv$/);
-        expect(csv.suggestedFilename()).toContain(" – ");
+        // the cell's path: "Service Desk – P1 Critical.csv" (WebKit on Linux reports spaces as "_")
+        expect(csv.suggestedFilename()).toMatch(/^Service[ _]Desk[ _]–[ _]P1[ _]Critical\.csv$/);
         const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
         expect(text.trimEnd().split("\r\n")).toHaveLength(count + 1);
 
