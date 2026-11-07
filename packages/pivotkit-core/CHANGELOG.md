@@ -6,6 +6,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-07
+
 ### Changed
 
 - `yearMonth` labels follow the locale ("Jan 2025" instead of "2025-01"), `yearQuarter` reads
@@ -106,3 +108,6 @@ Breaking changes against the phase 1 code on `main` (never published):
 - Numeric text is recognised in linear time: a long run of digits followed by another character took
   quadratic time in `encode()` (half a second for 40,000 digits), also without `inferNumbers`, since
   `detected` checks every text column. Text longer than 100 characters is no number.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-core@0.1.0

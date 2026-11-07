@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-07
+
 ### Added
 
 - `<PivotReport>`: field list with search, type icons, quick add and a menu per field; Rows, Columns,
@@ -100,3 +102,6 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   past its box. It is the size of its box now, and a pie leaves room for its labels above and below:
   5 % of the chart's height, at most 24 px, so a pie in a tall chart is about 48 px smaller in
   diameter than before.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-react@0.1.0

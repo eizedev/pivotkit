@@ -6,6 +6,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-07
+
 ### Added
 
 - `<pivot-report>`: pivotkit-react's `<PivotReport>` as a custom element in an open shadow root, with
@@ -51,3 +53,6 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - `engines` is gone: the package runs in the browser.
 - pivotkit-core's limits for `computePivot()` and its lower defaults are in the bundle, with a
   message per limit in place of the result.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-element@0.1.0
