@@ -51,10 +51,10 @@ Every function takes its required inputs first and all optional settings in one 
 | `validate(view, schema)` | `{ valid, errors }`: everything `normalize` would drop or change. |
 | `migrate(view)` | `{ view, issues }`: a parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
 | `emptyView()`, `viewFields(view, schema)` | A new report; the fields of a view including its derived fields. |
-| `computePivot(data, view, { locale, limits })` | Row and column key trees with subtotals and totals; `result.value(row, col, i)` and `result.display(row, col, i)` (after "show values as"); `result.issues`. |
+| `computePivot(data, view, { locale, limits })` | Row and column key trees with subtotals and totals; `result.value(row, col, i)` and `result.display(row, col, i)` (after "show values as"), `result.hasRows(row, col)` (whether any source row is behind a cell); `result.issues`. |
 | `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
 | `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
-| `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios. |
+| `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios; `hasRows` on each value cell (false: a blank cell with no source row behind it, nothing to drill into). One value's name is a single header cell over all of its columns, as in Excel. |
 | `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap. ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
 | `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars) and CSV (the grid's locale decides separator and decimal mark, formula-injection guard). |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views. |
@@ -171,7 +171,10 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
                                                            // yearQuarter yearMonth yearWeek
         { name: "Band", field: "Amount", by: "bin", size: 100, origin: 0 }
     ],
-    sort: [{ field: "Country", by: "value", order: "desc", value: { field: "Sales", agg: "sum" } }],
+    sort: [
+        { field: "Country", by: "value", order: "desc", value: { field: "Sales", agg: "sum" } },
+        { field: "Season", by: "custom", items: ["Spring", "Summer", "Autumn", "Winter"] }
+    ],                                         // by: label (default), value, custom
     totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
@@ -200,7 +203,15 @@ above it, and totals then add up the visible items only, as in Excel. Top N keep
 a tie at the cut keeps the item that appears first in the data (Excel may keep all tied items).
 
 Number bins include their lower bound and exclude the upper one, computed in the decimals of `size`
-and `origin`, so 0.3 lands in "0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused.
+and `origin`, so 0.3 lands in "0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused. Their
+labels use the locale's thousands separators, except when every range of the field has whole-number
+bounds between -9,999 and 9,999: ranges of years, ages or scores read "1900 – 1910", as a year on an
+axis reads "1960", not "1,900 – 1,910".
+
+Sort: by label (natural order, blank last), by a value (`value`, default the first value), or in a
+custom order (`by: "custom"`, Excel's custom lists): the `items`, named as filter items name them,
+first in their order, then the field's other items by label; `order: "desc"` reverses both. Blank
+comes last unless it is listed (`null`).
 
 ## Export
 
@@ -213,7 +224,11 @@ and `origin`, so 0.3 lands in "0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 
 - CSV: text a spreadsheet would run as a formula gets a leading `'`: text starting with a tab or a
   carriage return, text whose first visible character (after spaces, line breaks and control
   characters) is `=` or `@`, and text starting with `+` or `-` unless it is a plain number (`-5%`) or a
-  number range like the bin label `-10 – 0`. Numbers keep 15 significant digits.
+  number range like the bin label `-10 – 0`. Numbers keep 15 significant digits. A value the table
+  shows as a percent (`percent`, `percent100`, the "show values as" percentages) is written in
+  percent with a `%`, as the table shows it but with full precision (`-2.56435492186162%`), so a
+  reader sees percent and a spreadsheet reads it back as the fraction. The XLSX keeps the fraction
+  with a percent number format.
 
 ## Development
 

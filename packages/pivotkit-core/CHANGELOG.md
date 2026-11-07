@@ -6,6 +6,26 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- A custom sort order: `sort: [{ field, by: "custom", items: [...] }]` puts the listed items first in
+  their order and the others after them by label, like Excel's custom lists (#26).
+- `result.hasRows(row, col)` and `hasRows` on the grid's value cells: whether any source row is behind
+  a cell, so a UI can leave a blank cell without rows unclickable (#23).
+
+### Changed
+
+- One value's name is a single header cell over all of its columns instead of being repeated in each
+  (#26).
+- CSV: a value shown as a percent is written in percent with a `%` (`-2.56435492186162%`, as the
+  table shows it, with full precision) instead of as the fraction; spreadsheets read it back as the
+  fraction. The XLSX is unchanged (#26).
+
+### Fixed
+
+- Number ranges whose bounds are all whole numbers between -9,999 and 9,999 (years) are labelled
+  without thousands separators: "1900 – 1910", not "1,900 – 1,910" (#22).
+
 ## [0.1.0] - 2026-11-07
 
 First release.

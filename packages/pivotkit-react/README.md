@@ -81,8 +81,8 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `templates` | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name. |
 | `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`). |
 | `onDeleteTemplate` | `(name) => unknown` | | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
-| `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. |
-| `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. |
+| `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and its menu offers it as "Custom order"; items not listed follow by label. |
+| `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. A blank cell with no rows behind it is not clickable. |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`. |
 | `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. |
@@ -110,9 +110,10 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   up to six years by quarter, longer by year; the chip says so ("Created (Month)").
 - Chips: drag to reorder or to another zone, drag back to the field list or press x to remove (a note
   under the table offers Undo). A chip shows what is set on it: "3 of 4" for a filter, "Top 5", the
-  sort. The menu of a row or column field has sort (label or value), date grouping (along the time
-  line: year, quarter, month, week, day; or across years: quarter, month, week of the year, weekday,
-  hour), number ranges, top or bottom N, filter, and move. The menu of a value has the aggregator (sum,
+  sort. The menu of a row or column field has sort (label or value, and the custom order of the view
+  or of `fieldDefaults`), date grouping (along the time line: year, quarter, month, week, day; or
+  across years: quarter, month, week of the year, weekday, hour), number ranges (their size and where
+  they start, Excel's "Starting at"; a new size keeps the start), top or bottom N, filter, and move. The menu of a value has the aggregator (sum,
   count, average, minimum, maximum; the statistics under "More statistics"), "show as" (the header
   then says it: "% of grand total of Revenue"), the number format, highlighting (colour scale, data
   bars), its name, and move; Remove stays at the foot of every menu.
@@ -120,13 +121,18 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   (contains, begins with, ...). A field in the Filters zone filters the whole report.
 - Notes above the result say what a top N does to totals and percentages ("Country shows the top 5
   only: ..."), what to do next when nothing is in Values, and how to open a value.
-- Drill-down: a click on a value opens a panel with the rows behind it, formatted as the table
+- Drill-down: a click on a value opens a panel with the rows behind it (a blank cell with no rows
+  behind it opens nothing; the arrow keys still stop on it), formatted as the table
   formats them: dates as dates (with the time when the column has times), numbers in the locale,
   yes/no fields as "Yes" and "No" (`labels.core.true`, `false`), and a field's `fieldDefaults` format.
 - Table: sticky header and row labels, groups expand and collapse, subtotals and grand totals on and
   off (Options), a click on a value opens its rows. Field names and value names in the header can be
-  dragged into a zone with the mouse; the chips' menus do the same from the keyboard. From 300 body
-  rows on only the visible rows are rendered. The table is as wide as its columns.
+  dragged into a zone with the mouse; the chips' menus do the same from the keyboard. One value's name
+  is a single header over all of its columns, as in Excel. From 300 body rows on only the visible rows
+  are rendered. The table is as wide as its columns; the row label columns share at most half of the
+  report's main area (each at least 5em), so a long label wraps and a phone still shows values next
+  to it (from 300 rows on, where rows have one height, it is cut with an ellipsis and its full text is
+  the cell's title).
 - Chart: bars, stacked bars, horizontal bars, lines, area, pie, heatmap ("Chart type: Bars" in the
   toolbar); a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap

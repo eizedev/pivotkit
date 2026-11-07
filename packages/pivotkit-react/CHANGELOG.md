@@ -6,6 +6,27 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- The number range form has "Starting at" next to the size (#24).
+- `fieldDefaults[field].order`: the field's custom order of items; a field placed on Rows or Columns
+  is sorted in it, and its menu offers "Custom order" (also for a view's own custom sort) (#26).
+
+### Changed
+
+- The row label columns share at most half of the report's main area, so long labels wrap and a
+  phone shows values next to nested row labels; from 300 rows on, a label is cut with an ellipsis and
+  its full text is the cell's title (#25).
+- One value's name is shown once over its columns (pivotkit-core) (#26).
+
+### Fixed
+
+- A stacked area or line chart of a view is named "Area" or "Lines" in the toolbar and the picker,
+  not "Bars" (#21).
+- A blank value cell with no rows behind it no longer opens an empty drill-down: it is not clickable
+  and Enter does nothing; `onCellClick` is not called for it (#23).
+- A new range size keeps the ranges' start instead of resetting it to 0 (#24).
+
 ## [0.1.0] - 2026-11-07
 
 First release.

@@ -6,6 +6,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- Bundles the pivotkit-core and pivotkit-react changes of this release: number ranges with
+  "Starting at", custom sort orders (`fieldDefaults[field].order`), unclickable empty cells, row labels
+  that wrap on a phone, one header for a single value, year ranges without thousands separators, CSV
+  percentages in percent (#21 to #26).
+
 ## [0.1.0] - 2026-11-07
 
 First release.
