@@ -2202,9 +2202,13 @@
     height: max(var(--pk-target), 1.7em);
 }
 
-/* a narrow report: the action goes below the text */
+/* a narrow report: the action goes below the text, the x stays beside it (drawn before the action) */
 .pk-root[data-pk-size="narrow"] .pk-tip {
     flex-wrap: wrap;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-tip > .pk-btn {
+    order: 1;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-tip-text {

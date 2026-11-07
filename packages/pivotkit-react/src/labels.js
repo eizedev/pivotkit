@@ -264,20 +264,6 @@ export const en = {
     skipToToolbar: "Skip to the toolbar",
     // field descriptions (fieldDefaults)
     aboutField: "About {field}",
-    // the "i" next to a setting that needs explaining (Options → Help → Show explanations)
-    aboutSetting: "About {setting}",
-    settingInfo: {
-        grandTotalRow: "A last row with the total of every column.",
-        grandTotalColumn: "A last column with the total of every row.",
-        rowSubtotals: "With two or more fields in Rows: a total row under each group of the outer field.",
-        colSubtotals: "With two or more fields in Columns: a total column after each group of the outer field.",
-        along: "The direction the calculation walks: Rows goes down the rows of each column, Columns across the columns of each row. A running total adds up along it, a difference compares with the item before it.",
-        showAs: "Shows each value as a share, a difference, a running total or a rank instead of the number itself. For percentages, a tip above the result says what 100% is.",
-        exportXlsx: "Every number with all its decimals, formats kept, ready to calculate with.",
-        exportCsv: "Percentages and calculations as the table shows them, as plain text.",
-        groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
-        labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend."
-    },
     learnMore: "Learn more",
     dragInstructions: "To pick up a field, press space or enter. The left and right arrow keys move it within a zone, up and down to the zone above or below. Press space or enter to drop it, escape to cancel. Every field and chip also has a menu with the same moves.",
     dragStart: "Picked up {field}.",
@@ -606,19 +592,6 @@ export const de = {
     },
     skipToToolbar: "Zur Werkzeugleiste springen",
     aboutField: "Über {field}",
-    aboutSetting: "Über {setting}",
-    settingInfo: {
-        grandTotalRow: "Eine letzte Zeile mit der Summe jeder Spalte.",
-        grandTotalColumn: "Eine letzte Spalte mit der Summe jeder Zeile.",
-        rowSubtotals: "Mit zwei oder mehr Feldern in Zeilen: eine Summenzeile unter jeder Gruppe des äußeren Felds.",
-        colSubtotals: "Mit zwei oder mehr Feldern in Spalten: eine Summenspalte nach jeder Gruppe des äußeren Felds.",
-        along: "Die Richtung der Berechnung: Zeilen geht die Zeilen jeder Spalte hinunter, Spalten über die Spalten jeder Zeile. Eine laufende Summe addiert entlang, eine Differenz vergleicht mit dem Eintrag davor.",
-        showAs: "Zeigt jeden Wert als Anteil, Differenz, laufende Summe oder Rang statt der Zahl selbst. Bei Prozenten sagt ein Tipp über dem Ergebnis, was 100 % ist.",
-        exportXlsx: "Jede Zahl mit allen Nachkommastellen, Formate bleiben, bereit zum Rechnen.",
-        exportCsv: "Prozente und Berechnungen wie in der Tabelle, als reiner Text.",
-        groupLabels: "Mit zwei oder mehr Feldern in Zeilen: die Einträge des äußeren Felds einmal unter der Achse, unter ihren Kategorien.",
-        labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende."
-    },
     learnMore: "Mehr erfahren",
     dragInstructions: "Leertaste oder Eingabe hebt ein Feld auf. Die Pfeiltasten links und rechts bewegen es innerhalb eines Bereichs, hoch und runter in den Bereich darüber oder darunter. Mit Leertaste oder Eingabe ablegen, mit Escape abbrechen. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
     dragStart: "{field} aufgenommen.",

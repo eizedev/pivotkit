@@ -306,6 +306,8 @@ function Report(props) {
     const [dragAt, setDragAt] = useState(/** @type {number | null} */ (null));
     // `changes` when the view was last saved: the tip to save it waits for new changes
     const [savedAt, setSavedAt] = useState(0);
+    // the menus' module once loaded: its texts are those of the "i" of the settings (help.labels)
+    const [menus, setMenus] = useState(/** @type {typeof import("./menus.js") | null} */ (null));
     // a tip's "Save view" opens the Views menu: a new number is a new request
     const [viewsRequest, setViewsRequest] = useState(0);
     // what a loaded view (a file, a link, a saved view) left out, for the area above the result; it
@@ -643,7 +645,11 @@ function Report(props) {
 
     // the menus' panels, right after the first render: there before anyone opens a menu
     useEffect(() => {
-        loadMenus().catch(() => undefined);
+        let live = true;
+        loadMenus().then((m) => live && setMenus(() => m), () => undefined);
+        return () => {
+            live = false;
+        };
     }, []);
     // the report's least height: it grows past a host box too low for it (use-big-result.js)
     const mainRef = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -1012,11 +1018,12 @@ function Report(props) {
     const help = useMemo(
         () => ({
             explain: settingSwitch.on,
-            labels,
+            // with the menus' texts once they are loaded: the explanations are among them
+            labels: menus ? menus.menuLabels(labels) : labels,
             isOpen: (id) => sectionOpen(id, dismissed),
             setOpen: (id, open) => changeDismissed(withSection(dismissed, id, open), null)
         }),
-        [settingSwitch.on, labels, dismissed, changeDismissed]
+        [settingSwitch.on, labels, menus, dismissed, changeDismissed]
     );
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
     const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate), savedAt, chartPlan: plan });

@@ -122,11 +122,12 @@ async function licenses(metafile) {
  * menus.js, issue #34): with the view files, the explanations, Enlarge and Full screen the first load
  * is 151.2 measured, the menus 9.3 (budget 11). The texts only the menus show load with them
  * (pivotkit-react's menu-labels.js), which made room in the first load for the automatic chart type,
- * the field list's keys and the touch targets: first load 151.7 measured, the menus 13.0, their budget
- * raised to 14 for the texts moved there.
+ * the field list's keys and the touch targets; then the explanations of the settings too (gzip on Node 24 measured the first
+ * load 0.3 higher than on 22): first load 151.0 measured, the menus 13.8, their budget raised to 15
+ * for the texts moved there.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 14 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 15 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

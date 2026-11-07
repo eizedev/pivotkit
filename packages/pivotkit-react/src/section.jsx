@@ -22,13 +22,14 @@ import { fill } from "./labels.js";
 export const HelpContext = createContext(/** @type {Help} */ ({ explain: true, isOpen: () => true, setOpen: () => {}, labels: null }));
 
 /**
- * The "i" next to a setting: its explanation (labels.settingInfo[id]) on hover, focus or tap. Nothing
- * while "Show explanations" is off or the text is missing.
+ * The "i" next to a setting: its explanation (labels.settingInfo[id], loaded with the menus) on
+ * hover, focus or tap. Nothing while "Show explanations" is off or the text is missing.
  * @param {{ id: string, name: string }} props  `name`: the setting's name, for the button's name
  */
 export function SettingInfo({ id, name }) {
     const { explain, labels } = useContext(HelpContext);
-    const text = labels && Object.hasOwn(labels.settingInfo, id) ? labels.settingInfo[id] : null;
+    // the texts load with the menus (menu-labels.js): none before
+    const text = labels && labels.settingInfo && Object.hasOwn(labels.settingInfo, id) ? labels.settingInfo[id] : null;
     if (!explain || !labels || !text) {
         return null;
     }
