@@ -9,7 +9,7 @@ import { LABELS, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
 import { swapAxes } from "../src/view-ops.js";
 import {
-    ALL_TIPS, NO_EXPLANATIONS, SWITCHES, helpSwitch, keptOnReset, sectionOpen, withSection, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
+    ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, SWITCHES, helpSwitch, keptOnReset, sectionOpen, withSection, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
 } from "../src/tips.js";
 
 const en = LABELS.en;
@@ -289,7 +289,8 @@ test("tips: a line or an area over categories without an order suggests bars; da
 
 test("help switches: the host's on or off decides, else the user's list; Show dismissed tips again keeps them", () => {
     // one switch of the user's, "Show explanations", for the "i" of settings, zones and fields
-    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_EXPLANATIONS]);
+    // and the field list collapsed to a rail (FIELDS_COLLAPSED), kept in the same list
+    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_EXPLANATIONS, FIELDS_COLLAPSED]);
     assert.deepEqual(helpSwitch(undefined, []), { on: true, user: true });
     assert.deepEqual(helpSwitch(undefined, [NO_EXPLANATIONS]), { on: false, user: true });
     // a host's prop decides its kind, whatever the switch says
@@ -299,6 +300,20 @@ test("help switches: the host's on or off decides, else the user's list; Show di
     assert.deepEqual(cleanDismissed(["-fieldInfo", "-zoneInfo", "-settingInfo", "nope", ALL_TIPS, NO_EXPLANATIONS, NO_EXPLANATIONS]), [ALL_TIPS, NO_EXPLANATIONS]);
     // "Show dismissed tips again" keeps the switches and the sections' states, takes the tips back
     assert.deepEqual([ALL_TIPS, NO_EXPLANATIONS, "open:format", "values"].filter(keptOnReset), [ALL_TIPS, NO_EXPLANATIONS, "open:format"]);
+});
+
+test("the field list collapsed: the user's choice in this session, else the host's fieldList, else the stored list", () => {
+    assert.equal(fieldsCollapsed(null, undefined, []), false);
+    assert.equal(fieldsCollapsed(null, undefined, [FIELDS_COLLAPSED]), true);
+    // the host decides over what was stored; a value it does not know leaves it to the user
+    assert.equal(fieldsCollapsed(null, "open", [FIELDS_COLLAPSED]), false);
+    assert.equal(fieldsCollapsed(null, "collapsed", []), true);
+    assert.equal(fieldsCollapsed(null, "nope", [FIELDS_COLLAPSED]), true);
+    // the user's change in this session wins over the host's start
+    assert.equal(fieldsCollapsed(false, "collapsed", []), false);
+    // a stored, kept switch: "Show dismissed tips again" does not open the list
+    assert.deepEqual(cleanDismissed([FIELDS_COLLAPSED]), [FIELDS_COLLAPSED]);
+    assert.equal(keptOnReset(FIELDS_COLLAPSED), true);
 });
 
 test("menu sections: open or folded by default, the user's choice kept in the tips' list only where it differs", () => {

@@ -42,6 +42,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "source-name", prop: "sourceName", kind: "string" },
     { attr: "schema-url", prop: "schemaUrl", kind: "string" },
     { attr: "grow", prop: "grow", kind: "on-off" },
+    { attr: "field-list", prop: "fieldList", kind: "string" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);

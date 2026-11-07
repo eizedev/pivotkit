@@ -276,8 +276,21 @@ export const ALL_TIPS = "*";
  * except those a host forces on (the props settingInfo, zoneInfo and fieldInfo).
  */
 export const NO_EXPLANATIONS = "-explanations";
+/** The field list collapsed to a rail by the user (a wide or medium report), kept in the same list. */
+export const FIELDS_COLLAPSED = "-fields";
 /** Entries of the list that are switches, not dismissed tips: "Show dismissed tips again" keeps them. */
-export const SWITCHES = Object.freeze([ALL_TIPS, NO_EXPLANATIONS]);
+export const SWITCHES = Object.freeze([ALL_TIPS, NO_EXPLANATIONS, FIELDS_COLLAPSED]);
+
+/**
+ * Whether the field list is collapsed: the user's choice in this session, else the host's
+ * `fieldList` ("open" or "collapsed"), else what the user chose before (the list).
+ * @param {boolean | null} session
+ * @param {unknown} forced
+ * @param {readonly string[]} dismissed
+ */
+export function fieldsCollapsed(session, forced, dismissed) {
+    return session ?? (forced === "collapsed" || forced === "open" ? forced === "collapsed" : dismissed.includes(FIELDS_COLLAPSED));
+}
 
 /**
  * The sections of the menus that fold, and whether each is open until the user folds or opens it:

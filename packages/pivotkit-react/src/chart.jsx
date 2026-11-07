@@ -9,7 +9,6 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { fieldLabel, toEChartsOption } from "pivotkit-core";
 import { chartSummary } from "./chart-summary.js";
-import { mergeChartOptions } from "./chart-options.js";
 import { tooltipFormatter } from "./chart-tooltip.js";
 import { CATEGORY_LABEL_WIDTH, MAX_CATEGORIES, categoryLabelLayout, groupLabelsFit, chartTypeOf, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "./chart-types.js";
 import { fill } from "./labels.js";
@@ -135,6 +134,10 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     const type = plan ? plan.name : chartTypeOf(result.view.chart);
     const drawAs = plan ? plan.chart : null;
     const latest = useRef({ series, onPoint, onInstance, type });
+    // the ECharts module (echarts.js), with the check and merge of the host's chartOptions
+    const lib = useRef(/** @type {any} */ (null));
+    // the chartOptions whose problems were said: once per value, not on every redraw
+    const warned = useRef(/** @type {unknown} */ (undefined));
     useEffect(() => {
         latest.current = { series, onPoint, onInstance, type };
     });
@@ -148,6 +151,7 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
                 if (disposed || !el.current) {
                     return;
                 }
+                lib.current = echarts;
                 const instance = echarts.init(el.current, null, { renderer: "canvas" });
                 chart.current = instance;
                 latest.current.onInstance(instance);
@@ -194,8 +198,14 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
         const { axisEvery, ...drawn } = decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels });
         setEvery(axisEvery);
-        // the host's chartOptions win over the view's display settings and the report's own styles
-        chart.current.setOption(chartOptions ? mergeChartOptions(drawn, chartOptions) : drawn, { notMerge: true });
+        // the host's chartOptions win over the view's display settings and the report's own styles:
+        // plain JSON only; what is dropped is a developer's mistake, said in the console
+        const clean = chartOptions ? lib.current.cleanChartOptions(chartOptions) : null;
+        if (clean?.problems.length && warned.current !== chartOptions) {
+            warned.current = chartOptions;
+            console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${clean.problems.slice(0, 5).join("; ")}${clean.problems.length > 5 ? `; and ${clean.problems.length - 5} more` : ""}`);
+        }
+        chart.current.setOption(clean?.options ? lib.current.mergeChartOptions(drawn, clean.options) : drawn, { notMerge: true });
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
     }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, drawAs]);
 

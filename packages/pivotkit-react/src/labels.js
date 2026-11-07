@@ -270,6 +270,9 @@ export const en = {
     panel: "Field list",
     showFields: "Fields",
     hideFields: "Close field list",
+    // the field list folded to a rail on a wide report, and opened again
+    collapseFields: "Collapse the field list",
+    expandFields: "Show the field list",
     dropToRemove: "Drop here to remove",
     // while the report waits for its data or a shared view
     loadingReport: "Loading the report…",
@@ -592,6 +595,8 @@ export const de = {
     panel: "Feldliste",
     showFields: "Felder",
     hideFields: "Feldliste schließen",
+    collapseFields: "Feldliste einklappen",
+    expandFields: "Feldliste anzeigen",
     dropToRemove: "Zum Entfernen hier ablegen",
     loadingReport: "Bericht wird geladen…",
     loadingMenu: "Wird geladen…",

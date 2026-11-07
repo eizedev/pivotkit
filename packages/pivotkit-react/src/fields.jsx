@@ -12,7 +12,7 @@
  * the menu of the field in focus. A link before it skips to the toolbar.
  */
 
-import React, { useCallback, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ClearInput } from "./clear-input.jsx";
 import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
@@ -132,11 +132,14 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
  * @param {{ fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, labels: import("./labels.js").UiLabels,
  *   onAdd: (field: string, zone: string) => void, onNote: (text: string) => void, drawer: boolean, open: boolean, onClose: () => void,
  *   onFilter?: (field: string, anchor: HTMLElement | null) => void, showInfo?: boolean,
- *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo>, onSkip?: () => void }} props
+ *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo>, onSkip?: () => void,
+ *   collapsed?: boolean, onCollapse?: (collapsed: boolean) => void }} props
  *   `nameOf`: a field's display name; `info`: the host's descriptions by lower-case field name;
- *   `onSkip`: the link past the list to the toolbar (not in the drawer, which the toolbar opens)
+ *   `onSkip`: the link past the list to the toolbar (not in the drawer, which the toolbar opens);
+ *   `collapsed`, `onCollapse`: the list folded to a rail ("Fields" and a search button) beside the
+ *   report, and the change of it (not in the drawer)
  */
-export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, info, showInfo = true, onSkip }) {
+export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, info, showInfo = true, onSkip, collapsed = false, onCollapse }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
@@ -151,6 +154,21 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
     const ref = (node) => {
         el.current = node;
         setNodeRef(node);
+    };
+    // where the focus goes once the list folded or opened by a button of its own: the control that
+    // stands in that button's place ("rail", "collapse") or the search field ("search")
+    const refocus = useRef(/** @type {string | null} */ (null));
+    const rail = collapsed && !drawer;
+    useEffect(() => {
+        const to = refocus.current;
+        refocus.current = null;
+        if (to && el.current) {
+            /** @type {HTMLElement | null} */ (el.current.querySelector(`[data-pk-focus="${to}"], [data-pk-focus="${to}"] input`))?.focus();
+        }
+    }, [rail]);
+    const fold = (next, to) => {
+        refocus.current = to;
+        onCollapse?.(next);
     };
     // the field and control of the list that is in the Tab order (the last one focused)
     const [stop, setStop] = useState(/** @type {{ field: string, slot: string } | null} */ (null));
@@ -188,6 +206,21 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
             /** @type {HTMLElement | null} */ (rows[next.row].querySelector(`[data-pk-slot='${next.slot}']`))?.focus();
         }
     };
+    if (rail) {
+        // a chip dropped here leaves the report, as on the open list
+        return (
+            <aside className={`pk-panel pk-rail${removing ? " pk-removing" : ""}${isOver && removing ? " pk-over" : ""}`} ref={ref} aria-label={labels.panel} data-testid="field-rail">
+                <button type="button" className="pk-rail-open" aria-expanded={false} aria-label={labels.expandFields} title={labels.expandFields} onClick={() => fold(false, "collapse")} data-pk-focus="rail" data-testid="expand-fields">
+                    <span className="pk-rail-title" aria-hidden="true">
+                        {labels.fields}
+                    </span>
+                </button>
+                <button type="button" className="pk-icon-btn" aria-label={labels.searchFields} title={labels.searchFields} onClick={() => fold(false, "search")} data-testid="rail-search">
+                    <Icon name="search" />
+                </button>
+            </aside>
+        );
+    }
     return (
         <aside
             className={`pk-panel${removing ? " pk-removing" : ""}${isOver && removing ? " pk-over" : ""}`}
@@ -204,6 +237,11 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
             ) : null}
             <div className="pk-panel-head">
                 <h2 className="pk-panel-title">{labels.fields}</h2>
+                {onCollapse && !drawer ? (
+                    <button type="button" className="pk-icon-btn" aria-expanded={true} aria-label={labels.collapseFields} title={labels.collapseFields} onClick={() => fold(true, "rail")} data-pk-focus="collapse" data-testid="collapse-fields">
+                        <span aria-hidden="true">«</span>
+                    </button>
+                ) : null}
                 {drawer ? (
                     <button type="button" className="pk-icon-btn" onClick={onClose} aria-label={labels.hideFields} title={labels.hideFields}>
                         <Icon name="x" />
@@ -211,7 +249,7 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                 ) : null}
             </div>
             <p className="pk-hint">{labels.fieldsHint}</p>
-            <label className="pk-search">
+            <label className="pk-search" data-pk-focus="search">
                 <Icon name="search" />
                 <span className="pk-sr">{labels.searchFields}</span>
                 <ClearInput type="search" value={query} placeholder={labels.searchFields} onChange={setQuery} clearLabel={labels.clearText} data-autofocus="" data-testid="field-search" />

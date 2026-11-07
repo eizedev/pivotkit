@@ -13,7 +13,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { computePivot, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
-import { cleanChartOptions } from "./chart-options.js";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
@@ -33,7 +32,7 @@ import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
 import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
 import { templateEntries, viewsName } from "./templates.js";
-import { ALL_TIPS, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
+import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
 import { useExport } from "./use-export.js";
@@ -114,6 +113,15 @@ function sessionStore() {
         return typeof window !== "undefined" && window.sessionStorage ? window.sessionStorage : null;
     } catch {
         return null;
+    }
+}
+
+/** A host's chartOptions as a text that changes only when they do, or the object itself (a cycle). */
+function optionsKey(options) {
+    try {
+        return JSON.stringify(options ?? null, (k, v) => (["function", "symbol", "bigint"].includes(typeof v) ? `\u0000${typeof v}` : v));
+    } catch {
+        return options;
     }
 }
 
@@ -262,6 +270,7 @@ function Report(props) {
         onSourceSwitch,
         schemaUrl,
         grow: growProp,
+        fieldList,
         loading = false
     } = props;
     // past its box only without a height of the host's (or when the host asks for it): a card with a
@@ -363,14 +372,11 @@ function Report(props) {
     const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
     const view = history.view;
 
-    // the host's chartOptions: plain JSON only, compared by value; what it drops is a developer's mistake
-    const chartOptionsKey = JSON.stringify(cleanChartOptions(chartOptions));
-    const cleanOptions = useMemo(() => /** @type {{ options: Record<string, unknown> | null, problems: string[] }} */ (JSON.parse(chartOptionsKey)), [chartOptionsKey]);
-    useEffect(() => {
-        if (cleanOptions.problems.length) {
-            console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${cleanOptions.problems.slice(0, 5).join("; ")}${cleanOptions.problems.length > 5 ? `; and ${cleanOptions.problems.length - 5} more` : ""}`);
-        }
-    }, [cleanOptions]);
+    // the host's chartOptions, compared by value (a function or another value JSON cannot hold counts
+    // as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
+    const chartOptionsKey = optionsKey(chartOptions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stableChartOptions = useMemo(() => chartOptions, [chartOptionsKey]);
 
     const stepText = useCallback(
         (note) => {
@@ -1020,6 +1026,17 @@ function Report(props) {
         }),
         [settingSwitch.on, labels, menus, dismissed, changeDismissed]
     );
+    // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
+    // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session
+    const [fieldsSession, setFieldsSession] = useState(/** @type {boolean | null} */ (null));
+    const railed = size !== "narrow" && fieldsCollapsed(fieldsSession, fieldList, dismissed);
+    const collapseFields = (next) => {
+        if (fieldList === "open" || fieldList === "collapsed") {
+            setFieldsSession(next);
+        } else {
+            changeDismissed(next ? [...dismissed, FIELDS_COLLAPSED] : dismissed.filter((d) => d !== FIELDS_COLLAPSED), null);
+        }
+    };
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
     const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
     const shownTips = activeTips(ctx, { allowed, dismissed }).map((t) => ({
@@ -1068,6 +1085,7 @@ function Report(props) {
             data-pk-size={size}
             data-pk-layout={layoutFolded ? "compact" : undefined}
             data-pk-enlarged={big.enlarged ? "" : undefined}
+            data-pk-fields={railed ? "collapsed" : undefined}
             data-pk-fit={grow ? undefined : "contain"}
             lang={labels.lang}
             // a named region, not <main>: the host's page has its own main landmark around the report
@@ -1110,6 +1128,8 @@ function Report(props) {
                                 drawer={size === "narrow"}
                                 open={drawerOpen}
                                 onClose={() => setDrawer(false)}
+                                collapsed={railed}
+                                onCollapse={collapseFields}
                                 onSkip={() => /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector(".pk-toolbar button:not([disabled])"))?.focus()}
                             />
                         </div>
@@ -1245,7 +1265,7 @@ function Report(props) {
                                         themeName={themeName}
                                         root={root}
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
-                                        chartOptions={cleanOptions.options}
+                                        chartOptions={stableChartOptions}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));

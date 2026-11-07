@@ -12,6 +12,8 @@ First release.
 
 ### Added
 
+- The attribute `field-list` (`"open"`, `"collapsed"`): the field list collapsed to a rail, as
+  pivotkit-react's `fieldList`.
 - Templates as pivotkit-react's: `templates` entries with `scope` and `file`, the attributes
   `template-store` (`"browser"`: "My views" in localStorage, no event for its saves and deletes) and
   `can-publish`, the event `pivot-template-publish` (`{ name, view, respondWith }`), and `scope` in

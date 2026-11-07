@@ -90,6 +90,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `shareLink` | `share-link` | `boolean \| string` | off | "Copy link" and shared links: the attribute alone for the page's address without its query, a value as the base URL. |
 | `persistView` | `persist-view` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storage-key`). |
 | `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the report shows its skeleton. |
+| `fieldList` | `field-list` | `"open" \| "collapsed"` | the user's choice | The field list of a wide report open or collapsed to a rail, over the user's stored choice. |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that

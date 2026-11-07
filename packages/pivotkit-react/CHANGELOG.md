@@ -12,6 +12,13 @@ First release.
 
 ### Added
 
+- The field list collapses to a rail of about 40 px (`--pk-rail-w`): « next to "Fields"
+  (`collapseFields`, `aria-expanded`), the rail with "Fields" upright (`expandFields`) and a search
+  button that opens the list with the focus in its search field; a chip dropped on the rail leaves
+  the report; the choice is kept with the tips (`-fields`); `fieldList` (`"open"`, `"collapsed"`)
+  starts it so. Not on a narrow report (the drawer); Enlarge hides it. The check and merge of
+  `chartOptions` load with ECharts (`dist/echarts.js`), so the first load stays small; its warning
+  comes when the chart is drawn.
 - Templates in two groups of the Views menu, "Shared views" and "My views" (labels `sharedViews`,
   `myViews`; "Gemeinsame Ansichten", "Meine Ansichten"), each shown only with entries ("My views"
   also while people can save; `noViews` when there is nothing at all). `templates` entries take

@@ -287,6 +287,17 @@ export class PivotReportElement extends Base {
         this.#write("template-store", value);
     }
 
+    /**
+     * "open" or "collapsed": the field list of a wide report open or collapsed to a rail; without it
+     * the user's choice (remembered with the tips) decides.
+     */
+    get fieldList() {
+        return /** @type {string | undefined} */ (this.#read("field-list"));
+    }
+    set fieldList(value) {
+        this.#write("field-list", value);
+    }
+
     /** Offers "Publish as shared view" on the user's views; a publish is a pivot-template-publish event. */
     get canPublish() {
         return /** @type {boolean} */ (this.#read("can-publish"));
@@ -634,6 +645,7 @@ export class PivotReportElement extends Base {
             sources: Array.isArray(v.sources) ? v.sources : undefined,
             schemaUrl: this.schemaUrl,
             grow: this.grow,
+            fieldList: this.fieldList === "open" || this.fieldList === "collapsed" ? /** @type {"open" | "collapsed"} */ (this.fieldList) : undefined,
             onSourceSwitch: this.#onSourceSwitch
         };
     }

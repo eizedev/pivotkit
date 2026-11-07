@@ -154,6 +154,9 @@
  *   view never depends on it
  * @property {(request: SourceSwitch) => void} [onSourceSwitch]  the user chose to switch to the data a
  *   view was made for and load it there: the host shows that data and the view (as its start view)
+ * @property {"open" | "collapsed"} [fieldList]  the field list of a wide or medium report open or
+ *   collapsed to a rail; without it the user's choice («, remembered with the tips per storageKey)
+ *   decides. With it the user can still change it until the page is loaded again
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
  *   the first data) or covers its result (later loads)
  */
