@@ -145,7 +145,8 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   imported without `customElements`. The first load stays free of ECharts and the export
   (`test/build.test.js`).
 - A host may render the report on every change of its own state: props compared by value
-  (`labels`, `limits`), data by `dataKey`, the history kept across renders (`use-view-history.js`).
+  (`labels`, `limits`, the orders of `fieldDefaults`), data by `dataKey`, the history kept across
+  renders (`use-view-history.js`).
 - Docs describe the current state; history belongs in each package's `CHANGELOG.md`, commits and pull
   requests. A change that people see (a prop, an attribute, a view key, a menu) is also
   described on the documentation site (`docs/`); a change of the UI takes the screenshots again
