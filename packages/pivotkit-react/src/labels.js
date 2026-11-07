@@ -224,6 +224,8 @@ export const en = {
     chartCategories: { one: "{count} category", other: "{count} categories" },
     chartSeries: { one: "{count} series", other: "{count} series" },
     chartExtremes: "Highest {max} at {maxAt}; lowest {min} at {minAt}.",
+    // the last sentence of the chart's text alternative
+    chartTableHint: "Switch to Table to read every value.",
     categories: "categories",
     // drill-down
     drillTitle: "Rows behind this value",
@@ -292,15 +294,13 @@ export const en = {
         afterDrag: "Undo takes the last step back. Every field and chip also has a menu with the same moves.",
         saveTemplate: "Save this view as a template to open it again later?",
         menus: "Every field also has a menu, and the toolbar has Undo.",
-        cells: "Click a value, or press Enter on it, to see the rows behind it. The arrow keys move between values.",
-        chartTable: "Switch to Table to read every value."
+        cells: "Click a value, or press Enter on it, to see the rows behind it. The arrow keys move between values."
     },
     tipActions: {
         removeFilters: "Remove filter",
         swap: "Swap rows and columns",
         groupDate: "Group by {unit}",
-        saveTemplate: "Save as template",
-        showTable: "Show table"
+        saveTemplate: "Save as template"
     },
     dismissTip: "Dismiss tip",
     tipsTitle: "Tips",
@@ -560,6 +560,7 @@ export const de = {
     chartCategories: { one: "{count} Kategorie", other: "{count} Kategorien" },
     chartSeries: { one: "{count} Reihe", other: "{count} Reihen" },
     chartExtremes: "Höchster Wert {max} bei {maxAt}; niedrigster {min} bei {minAt}.",
+    chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
     categories: "Kategorien",
     drillTitle: "Zeilen hinter diesem Wert",
     drillCount: { one: "{count} Zeile", other: "{count} Zeilen" },
@@ -622,15 +623,13 @@ export const de = {
         afterDrag: "Rückgängig nimmt den letzten Schritt zurück. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
         saveTemplate: "Diese Ansicht als Vorlage speichern, um sie später wieder zu öffnen?",
         menus: "Jedes Feld hat auch ein Menü, und die Werkzeugleiste hat Rückgängig.",
-        cells: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen. Die Pfeiltasten wechseln zwischen den Werten.",
-        chartTable: "Zur Tabelle wechseln, um jeden Wert zu lesen."
+        cells: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen. Die Pfeiltasten wechseln zwischen den Werten."
     },
     tipActions: {
         removeFilters: "Filter entfernen",
         swap: "Zeilen und Spalten tauschen",
         groupDate: "Nach {unit} gruppieren",
-        saveTemplate: "Als Vorlage speichern",
-        showTable: "Tabelle zeigen"
+        saveTemplate: "Als Vorlage speichern"
     },
     dismissTip: "Tipp ausblenden",
     tipsTitle: "Tipps",

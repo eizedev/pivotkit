@@ -72,7 +72,6 @@ polite live region. The tips, in the order they are shown, and when:
 | `saveTemplate` | After five changes of the view, when `onSaveTemplate` is set. | Save as template (opens Templates) |
 | `menus` | The empty report, before the first drag. | |
 | `cells` | A table with values, until a value was opened once. | |
-| `chartTable` | A chart: the table shows every value. | Show table |
 
 The texts are `labels.tips` and `labels.tipActions` ([Localisation](localisation.md)).
 

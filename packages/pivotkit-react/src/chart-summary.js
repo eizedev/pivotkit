@@ -58,6 +58,6 @@ export function chartSummary(s, { type, rows, valueNames, labels, locale }) {
         const text = (p) => formatter(s.series[p.si].format, { locale })(p.v);
         parts.push(fill(labels.chartExtremes, { max: text(max), maxAt: where(max), min: text(min), minAt: where(min) }));
     }
-    parts.push(labels.tips.chartTable);
+    parts.push(labels.chartTableHint);
     return parts.join(" ");
 }

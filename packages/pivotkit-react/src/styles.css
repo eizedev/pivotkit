@@ -2184,7 +2184,7 @@
     outline: none;
 }
 
-/* a described field: the "i" stands close to the name and its badges, so the name keeps its room */
+/* a described field: the "i" stands close to the badges and the menu, so the name keeps its room */
 .pk-field > .pk-info {
-    margin-inline: -5px -3px;
+    margin-inline: -3px -4px;
 }

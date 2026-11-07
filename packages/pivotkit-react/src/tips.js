@@ -191,12 +191,6 @@ export const TIPS = Object.freeze([
         id: "cells",
         icon: "info",
         when: (ctx) => (table(ctx) && ctx.tableShown && ctx.view.values.length > 0 && !ctx.drilled ? {} : null)
-    },
-    {
-        id: "chartTable",
-        icon: "table",
-        action: "showTable",
-        when: (ctx) => (chart(ctx) ? {} : null)
     }
 ]);
 

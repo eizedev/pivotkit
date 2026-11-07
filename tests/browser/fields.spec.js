@@ -109,7 +109,7 @@ test.describe("display names and descriptions from an OpenAPI document (web comp
         expect((await view).rows).toEqual(["Region"]);
         await a.getByTestId("export").click();
         const [csv] = await Promise.all([page.waitForEvent("download"), a.getByTestId("export-csv").click()]);
-        const text = (await readFile(await csv.path(), "utf8")).replace(/^﻿/, "");
+        const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
         expect(text.split(/\r?\n/).slice(0, 3).join("\n")).toContain("Sales region");
         expect(text).toContain("Sum of Net revenue");
         // the search finds it by its label

@@ -54,12 +54,9 @@ function FieldItem({ field, labels, zones, onAdd, onNote, name, info }) {
                 {name}
             </button>
             {info ? (
-                <>
-                    <span id={describedBy} className="pk-sr">
-                        {[action.description, info.description].filter(Boolean).join(". ")}
-                    </span>
-                    <InfoButton info={info} name={name} labels={labels} />
-                </>
+                <span id={describedBy} className="pk-sr">
+                    {[action.description, info.description].filter(Boolean).join(". ")}
+                </span>
             ) : null}
             {zones.length ? (
                 <span className="pk-badges" aria-hidden="true">
@@ -70,6 +67,8 @@ function FieldItem({ field, labels, zones, onAdd, onNote, name, info }) {
                     ))}
                 </span>
             ) : null}
+            {/* after the badges: the "i" of every described field stands in one column */}
+            {info ? <InfoButton info={info} name={name} labels={labels} /> : null}
             <MenuButton label={fill(labels.fieldMenu, { field: name })} icon="more" className="pk-icon-btn pk-field-menu" testId={`field-menu-${field.name}`}>
                 {(close) =>
                     ZONES.map((zone) => (

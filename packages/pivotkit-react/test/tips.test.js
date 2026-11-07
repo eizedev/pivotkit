@@ -100,11 +100,11 @@ test("tips: charts with many series, dates on Columns, capped categories, and th
     const rows = [];
     for (let c = 0; c < MANY_SERIES + 2; c++) rows.push({ R: "r", C: `c${c}`, V: c, D: `2026-01-${String(c + 1).padStart(2, "0")}` });
     const bars = contextOf(rows, { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "bar" } });
-    assert.deepEqual(holding(bars), ["chartSeries", "chartTable"]);
+    assert.deepEqual(holding(bars), ["chartSeries"]);
     const pie = contextOf(rows, { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "pie" } });
-    assert.deepEqual(holding(pie), ["chartTable"], "a pie has no series to tell apart");
+    assert.deepEqual(holding(pie), [], "a pie has no series to tell apart");
     const lines = contextOf(rows, { rows: ["R"], cols: ["D"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "line" } });
-    assert.deepEqual(holding(lines), ["chartDates", "chartTable"], "the dates tip says it, not the series tip too");
+    assert.deepEqual(holding(lines), ["chartDates"], "the dates tip says it, not the series tip too");
     const wide = Array.from({ length: MAX_CATEGORIES + 5 }, (_, i) => ({ K: `k${i}`, V: i }));
     const capped = contextOf(wide, { rows: ["K"], values: [{ field: "V", agg: "sum" }], display: "chart" });
     const tip = activeTips(capped, { allowed: "on", dismissed: [] })[0];

@@ -590,8 +590,6 @@ export function PivotReport(props) {
             commit(withoutFilters(view), { step: "filtersRemoved" });
         } else if (action === "groupDate") {
             commit(groupField(view, params.source, params.unit, { name: groupingName(nameOf(params.source), params.unit, labels) }).view, { step: "group", field: nameOf(params.source) });
-        } else if (action === "showTable") {
-            commit(setDisplay(view, "table"), { step: "display", display: "table" });
         } else if (action === "saveTemplate") {
             setTemplatesRequest((n) => n + 1);
         }
