@@ -1,6 +1,6 @@
 ---
 title: Getting started with React
-description: Install pivotkit-react, render <PivotReport> with your rows, keep the view in your app, offer templates and react to clicks - for React 18 and 19, and PowerShell Universal.
+description: Install pivotkit-react, render <PivotReport> with your rows, keep the view in your app, offer saved views and react to clicks - for React 18 and 19, and PowerShell Universal.
 ---
 
 # Getting started with React
@@ -90,12 +90,14 @@ const presets = [
 
 - `dataKey` tells the report when the data is new. An app that builds a new array on every render
   passes a key, and the rows are encoded again only when it changes.
-- `templates` fill the Templates menu; `onSaveTemplate` adds "Save current view". Both callbacks may
+- `templates` fill the saved views of the Views menu; `onSaveTemplate` adds "Save current view". Both callbacks may
   return a promise: the report shows "Saved" when it resolves and an error when it rejects.
 - `fieldDefaults` set the aggregator and format a field gets when someone adds it to Values, and
   the custom order of its items (`order`) on Rows or Columns.
 - `onCellClick` gets every click on a value or a chart point, with the rows behind it.
 - `locale` sets numbers, dates and sorting, and the language of the labels (`de-*` is German).
+- `source` (`{ id, name }`) names the data: shared views carry it, and a view made for other data
+  asks before it is loaded ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
 
 All props are listed in the [pivotkit-react reference](../reference/react.md).
 
@@ -127,5 +129,5 @@ PowerShell Universal.
 ## Next
 
 - [Using the report](../guide.md): what the people using it can do.
-- [Views and templates](../concepts/views.md): the JSON behind every report.
+- [Views and saved views](../concepts/views.md): the JSON behind every report.
 - [Theming](../reference/theming.md) and [Localisation](../reference/localisation.md).

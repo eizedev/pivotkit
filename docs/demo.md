@@ -12,7 +12,7 @@ daily weather of 14 cities, population, GDP and CO2 per country, the earthquakes
 Nobel Prize laureates and the end-of-life dates of 489 software products - and three generated ones: IT tickets, sales and assets per source system.
 Each real data set starts with a template phrased as a question; [Learn with real data](learn.md)
 walks through all of them with tasks to try. Drag fields, open the menus on the chips, click a value,
-switch to the chart, export. Templates you save stay in this browser.
+switch to the chart, export. Views you save stay in this browser.
 
 <p><a class="md-button md-button--primary" href="playground/" target="_blank" rel="noopener">Open the playground full screen</a> <a class="md-button" href="playground/examples/element/" target="_blank" rel="noopener">Open the web component example</a></p>
 
@@ -35,7 +35,7 @@ come from a fixed seed, so everyone sees the same numbers.
 
 The playground's address says what it shows, and it changes with it: the Data and Start dropdowns
 write `data` and `start`, and every change of the report writes the view into the fragment. A reload
-keeps the report; **Templates**, **Copy link** copies `data`, `start` (and `rows` for generated data)
+keeps the report; **Views**, **Copy link** copies `data`, `start` (and `rows` for generated data)
 and the view, so a link opens exactly that report; the language, theme and height stay the viewer's
 own (the playground passes that URL as `shareLink`). The query parameters are the playground's own; the fragment `#pivot-playground=` is
 pivotkit's share format, the part a host (React, the web component, PowerShell Universal) uses too:

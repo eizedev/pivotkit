@@ -65,9 +65,9 @@ report.addEventListener("pivot-view-change", (e) => {
 The [example page](../demo.md#the-web-component-example) shows all of it; its source is in
 [`examples/element/`](https://github.com/eizedev/pivotkit/tree/main/examples/element).
 
-## Save templates on a server
+## Save views on a server
 
-With `save-templates` the Templates menu offers "Save current view". The element asks the page with
+With `save-templates` the Views menu offers "Save current view" under Saved views. The element asks the page with
 a `pivot-template-save` event and waits for the answer you pass to `respondWith()`:
 
 ```js

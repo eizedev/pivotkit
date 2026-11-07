@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: pivotkit is a pivot report builder for the web - drag-and-drop fields, table and chart, filters, drill-down, templates as JSON and native Excel export - as a JavaScript engine, a React component and a web component.
+description: pivotkit is a pivot report builder for the web - drag-and-drop fields, table and chart, filters, drill-down, views as JSON files and native Excel export - as a JavaScript engine, a React component and a web component.
 hide:
   - navigation
   - toc
@@ -12,7 +12,7 @@ hide:
 
 # pivotkit
 
-<p class="hero-lead">A pivot report builder for the web, with Excel's PivotTable as the reference: people drag fields into rows, columns and values, filter, drill into the rows behind a number, switch to a chart and export to Excel - and the whole report is a small JSON object you can save as a template.</p>
+<p class="hero-lead">A pivot report builder for the web, with Excel's PivotTable as the reference: people drag fields into rows, columns and values, filter, drill into the rows behind a number, switch to a chart and export to Excel - and the whole report is a small JSON object you can save, share as a link or a file and load again.</p>
 
 <p class="hero-install"><code>npm install pivotkit-react react react-dom echarts</code></p>
 
@@ -44,7 +44,7 @@ hide:
 
 | Package | What it is | Use it when |
 | --- | --- | --- |
-| [`pivotkit-react`](reference/react.md) | The report builder as a React component: field list, drag and drop, table and chart, filters, drill-down, undo, templates, export. | Your page is a React app (or a host that renders React components). |
+| [`pivotkit-react`](reference/react.md) | The report builder as a React component: field list, drag and drop, table and chart, filters, drill-down, undo, saved views and sharing, export. | Your page is a React app (or a host that renders React components). |
 | [`pivotkit-element`](reference/element.md) | The same report builder as the web component `<pivot-report>`, with React bundled inside a shadow root. | Your page has no React: Angular, PHP and other server-rendered pages, plain HTML. |
 | [`pivotkit-core`](reference/core.md) | The engine without UI: typed encoding, pivot computation, subtotals and totals, "show values as", filters, date grouping, grids, ECharts options, XLSX and CSV. | You draw your own UI, or build reports on a server. |
 
@@ -101,8 +101,8 @@ hide:
 - Group dates by year, quarter, month, week, day or hour, and numbers into ranges.
 - Filter by values with their row counts, by a text condition, by a value condition or to the top N.
 - Click a number to see the rows behind it.
-- Switch to a bar, line, area, pie or heatmap chart, with value labels, legend, title and group labels.
-- Undo and redo every step, save the report as a template, share it as a link, as JSON or as a file,
+- Switch to a bar, line, area, pie, donut or heatmap chart, with value labels, legend, title and group labels.
+- Undo and redo every step, save the report as a view, share it as a link, as JSON or as a view file,
   export to Excel, CSV and PNG.
 - Use it with a keyboard and a screen reader, in English or German, light or dark, from a phone to a
   wide screen.

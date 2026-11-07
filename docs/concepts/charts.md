@@ -1,26 +1,29 @@
 ---
 title: Charts
-description: The chart of a pivotkit report - chart types, value labels, legend, title, smooth lines, axis labels and group labels in the view, the PNG export, and chartOptions for developers with its precedence.
+description: The chart of a pivotkit report - chart types, value labels and where a pie writes them, legend, title, smooth lines, axis labels and group labels in the view, the PNG export, and chartOptions for developers with its precedence.
 ---
 
 # Charts
 
 **Chart** in the toolbar draws the same report as a chart: bars, stacked bars, horizontal bars,
-lines, area, pie or heatmap. The categories are the items of Rows, one series per item of Columns and
+lines, area, pie (a whole circle), donut (a ring) or heatmap. The categories are the items of Rows, one series per item of Columns and
 value. At most 50 categories are drawn, with a note. A click on a bar, a point or a heatmap cell opens
 the rows behind it, as in the table. The chart has a text alternative (type, values, counts, highest
 and lowest value); its name includes the title when it has one ("Chart: Revenue by region").
 
 ## Display settings (for the people who use the report)
 
-The chart type menu has a **Display** section under the chart types. Each choice applies at once and
-the menu stays open, so the chart behind it shows the change. The settings are part of the view, so a
-template, a link and the PNG export keep them, and they stay when the chart type changes.
+The chart type menu has a **Display** section under the chart types (both sections fold, see
+[long menus](../guide.md#menus-that-are-long)). Each choice applies at once and the menu stays open,
+so the chart behind it shows the change. The settings are part of the view, so a saved view, a link
+and the PNG export keep them, and they stay when the chart type changes. An "i" next to Labels and
+to Group labels explains them.
 
 | Setting | Choices | Default |
 | --- | --- | --- |
-| Value labels | Automatic, Off, Value; for a pie also Percent and Value and percent | Automatic: a pie names its slices, a heatmap writes the numbers while there are 200 cells or fewer, bars and lines write nothing |
-| Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series (a pie always) |
+| Value labels | Automatic, Off, Value; for a pie and a donut also Percent and Value and percent | Automatic: a pie names its slices, a heatmap writes the numbers while there are 200 cells or fewer, bars and lines write nothing |
+| Labels (pie and donut) | Outside, Inside; not offered while value labels are Off | Outside: each slice's name with what is chosen, on a line to the slice. Inside: only the number on the slice (the share for Automatic), in a colour that reads on it; the legend names the slices, and a slice narrower than 12 degrees gets no label |
+| Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series (a pie and a donut always) |
 | Title | any text; the × removes it at once. A title wider than the chart ends in "…", on screen and in the PNG | none |
 | Smooth lines | on, off (lines and area only) | off |
 | Axis labels | Automatic, All (slanted), Every n-th (bars, lines and areas) | Automatic |
@@ -60,11 +63,14 @@ tip offers to swap).
 resolution: with its title, legend, value labels and group labels.
 
 In the view the settings are `chart.valueLabels` (`"auto"`, `"off"`, `"value"`, `"percent"`,
-`"both"`), `chart.legend` (`"auto"`, `"bottom"`, `"right"`, `"off"`), `chart.title` (text, at most
+`"both"`), `chart.labelPosition` (`"outside"`, `"inside"`), `chart.legend` (`"auto"`, `"bottom"`, `"right"`, `"off"`), `chart.title` (text, at most
 `limits.name` characters, or `null`), `chart.smooth`, `chart.axisLabels` (`"auto"`, `"all"`, `"nth"`)
 and `chart.groupLabels` (`"auto"`, `"on"`, `"off"`). A view without them gets the defaults; an unknown value
 falls back to its default and is reported by `normalize()` ([Views](views.md)). "Percent" and "Value
-and percent" are a pie's; another type writes the value.
+and percent" are a pie's and a donut's; another type writes the value. `chart.type` is `"bar"`,
+`"line"`, `"area"`, `"pie"`, `"donut"` or `"heatmap"`; a pie and a donut differ only in the hole
+(pivotkit-core's `DEFAULT_THEME.pieRadius` `["0%", "70%"]` and `donutRadius` `["42%", "70%"]`, which a
+host changes with `toEChartsOption`'s `theme`).
 
 ## `chartOptions` (for developers)
 

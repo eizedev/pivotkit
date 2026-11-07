@@ -81,9 +81,9 @@ In the UI, a layout over a limit shows a message in place of the result that say
 what to change, for example "This layout makes more than 500,000 groups of rows and columns. Remove a
 field with many values from Rows or Columns, or filter it." The person takes a field off and goes on.
 A ninth field on Rows or Columns (or a seventeenth value) is refused with the note "Rows holds at
-most 8 fields. Remove one first."; a template with more loads the fields that fit and says so. The
+most 8 fields. Remove one first."; a saved view with more loads the fields that fit and says so above the result. The
 texts are `tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`, `zoneFull` and
-`templateTrimmed` in the [labels](../reference/localisation.md).
+`viewTrimmed` in the [labels](../reference/localisation.md).
 
 The engine is designed for up to about 100,000 rows in the browser. More rows work within `rows`, at
 the cost of time and memory; see the [performance numbers](../reference/react.md#performance).

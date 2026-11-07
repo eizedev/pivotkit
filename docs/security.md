@@ -26,7 +26,7 @@ channel described in the repository's
   too, so nothing in it is markup, an address or run
   ([Charts](concepts/charts.md#chartoptions-for-developers)).
 - A bad view does not throw: what cannot be used is dropped and reported (see
-  [Views and templates](concepts/views.md#a-view-is-user-input)).
+  [Views and saved views](concepts/views.md#a-view-is-user-input)).
 - A view cannot ask for unbounded work. Its size and its parts are capped (8 fields per axis, 16
   values), the work of a pivot is computed before it starts, and the groups, aggregated cells and
   every dense structure (rows x columns of a table, data points of a chart) are counted against

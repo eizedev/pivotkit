@@ -20,11 +20,12 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - Dates are grouped as soon as they are placed, numbers go into ranges ([dates](concepts/dates.md)).
 - Filter a field by its values, a text condition, a value condition ("Sum of Revenue > 1,000") or its top N; the menu says what a filter keeps ([filters](concepts/filters.md)).
 - Click a number to see the rows behind it ([drill-down](guide.md#the-rows-behind-a-number)).
-- Switch to bars, lines, area, pie or heatmap, with value labels, legend, title and group labels ([charts](concepts/charts.md)).
-- Undo and redo every step; Reset goes back to the start ([guide](guide.md#undo-templates-and-export)).
-- Save the report as a template, or share it as a link, as JSON or as a file ([sharing](concepts/sharing.md)).
-- Export the table to Excel or CSV and the chart to PNG ([export](guide.md#undo-templates-and-export)).
-- Tips say what the report shows and what to do next; an "i" explains each zone and field ([tips](guide.md#tips)).
+- Switch to bars, lines, area, pie, donut or heatmap, with value labels, legend, title and group labels ([charts](concepts/charts.md)).
+- Undo and redo every step; Reset goes back to the start ([guide](guide.md#undo-saved-views-and-export)).
+- Save the report under Views, or share it as a link, as JSON or as a view file; a view for other data asks first ([sharing](concepts/sharing.md)).
+- Enlarge the result or put the report on the full screen ([guide](guide.md#more-room-for-the-result)).
+- Export the table to Excel or CSV and the chart to PNG ([export](guide.md#undo-saved-views-and-export)).
+- Tips say what the report shows and what to do next; an "i" explains each zone, field and setting that needs it, and long menus fold their sections ([tips](guide.md#tips), [menus](guide.md#menus-that-are-long)).
 - Every text field in a menu has an × that empties it ([guide](guide.md#menus-and-text-fields)).
 - Works with a keyboard and a screen reader, from a phone to a wide screen ([keyboard](guide.md#keyboard-and-screen-readers)).
 - In English and German, light and dark ([localisation](reference/localisation.md), [theming](reference/theming.md)).
@@ -43,7 +44,8 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - A view is user input: names only, checked against fixed lists and limits, never run ([security](security.md)).
 - Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
 - `chartOptions` merges plain JSON over the ECharts option, for what the menus do not offer ([charts](concepts/charts.md#chartoptions-for-developers)).
-- `shareLink` and `persistView` share and keep views; `encodeViewLink` is the format ([sharing](concepts/sharing.md)).
+- `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it ([sharing](concepts/sharing.md)).
+- `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
 - Every file passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
 - Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)).

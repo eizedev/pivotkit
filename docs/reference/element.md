@@ -41,24 +41,28 @@ supported.
 | `dataKey` |  | The identity of `data`: a new array with the same key is not encoded again.<br><small>Type: `string` or `number`</small> |
 | `view` | `view` (JSON) | Controlled: the view to show, see below.<br><small>Type: view</small> |
 | `defaultView` | `default-view` (JSON) | Uncontrolled: the start view, see below.<br><small>Type: view; default: empty</small> |
-| `templates` |  | The Templates menu; the first three are also offered in the empty state.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
+| `templates` |  | The saved views of the Views menu; the first three are also offered in the empty state.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
 | `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event.<br><small>Type: `boolean`; default: `false`</small> |
 | `fieldDefaults` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md).<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`</small> |
 | `labels` |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`).<br><small>Type: partial labels</small> |
 | `limits` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react.<br><small>Type: `Partial<Limits>`</small> |
 | `locale` | `locale` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not.<br><small>Type: `string`; default: `"en-US"`</small> |
 | `theme` | `theme` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them.<br><small>Type: `"auto"` or `"light"` or `"dark"`; default: `"auto"`</small> |
-| `height` | `height` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`).<br><small>Type: `number` or `string`; default: `640`</small> |
+| `height` | `height` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). A height lower than the report needs lets it grow ([layout](react.md#layout)).<br><small>Type: `number` or `string`; default: `640`</small> |
 | `timeZone` | `time-zone` | The zone `data` is encoded in; see pivotkit-core.<br><small>Type: `string`; default: `"UTC"`</small> |
 | `fileName` | `file-name` | Name of exported files, without the extension; made safe.<br><small>Type: `string`; default: `"pivot"`</small> |
 | `label` | `label` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`).<br><small>Type: `string`; default: `labels.report`</small> |
 | `drillDown` | `drill-down` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off.<br><small>Type: `boolean`; default: `true`</small> |
 | `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
 | `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
-| `storageKey` | `storage-key` | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
-| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off.<br><small>Type: `string[]`</small> |
+| `storageKey` | `storage-key` | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
+| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`, `"-settingInfo"`: those help switches off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded.<br><small>Type: `string[]`</small> |
 | `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user switches it in Options, Help. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
 | `zoneInfo` | `zone-info` | The same for the "i" next to the zone titles.<br><small>Type: `"on"` or `"off"`</small> |
+| `settingInfo` | `setting-info` | The same for the "i" next to the settings that need explaining ("Show explanations").<br><small>Type: `"on"` or `"off"`</small> |
+| `sourceId` | `source-id` | The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).<br><small>Type: `string`</small> |
+| `sourceName` | `source-name` | The name of the data for people ("Sales 2026"), with `source-id`.<br><small>Type: `string`</small> |
+| `sources` |  | The other data the page can show: a view made for one of them offers "Switch to “name” and load", a `pivot-source-switch` event.<br><small>Type: `{ id, name? }[]`</small> |
 | `chartOptions` |  | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings; functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)).<br><small>Type: `object`</small> |
 | `shareLink` | `share-link` | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)).<br><small>Type: `boolean` or `string`; default: off</small> |
 | `persistView` | `persist-view` | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`).<br><small>Type: `"session"`</small> |
@@ -67,7 +71,7 @@ supported.
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
 is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, labels, field defaults and limits are properties only. A view is user input either
+Data, templates, sources, labels, field defaults and limits are properties only. A view is user input either
 way: pivotkit-core normalizes it against the data and it cannot run code.
 
 The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
@@ -116,14 +120,15 @@ or on the document gets it, with `event.target` the element.
 | `pivot-view-change` | Every change of the view, normalized.<br><small>`detail`: `{ view }`</small> |
 | `pivot-cell-click` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects).<br><small>`detail`: `{ row, col, value, valueIndex, text, count, rows }`</small> |
 | `pivot-template-save` | "Save current view" (with `save-templates`).<br><small>`detail`: `{ name, view, respondWith }`</small> |
-| `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu.<br><small>`detail`: `{ name, respondWith }`</small> |
-| `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
+| `pivot-template-delete` | Delete of a saved view marked `deletable`, after the user confirmed in the menu.<br><small>`detail`: `{ name, respondWith }`</small> |
+| `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
+| `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view` (as the file has it, not normalized).<br><small>`detail`: `{ source, view, name }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)
 when the promise resolves, and an error with its message when it rejects (a rejection without a
-message shows "The server could not save the template.", `labels.toastSaveRejected`). Without `respondWith` (no
+message shows "The server could not save the view.", `labels.toastSaveRejected`). Without `respondWith` (no
 listener, or `respondWith` after an `await`) the action counts as done at once and the element logs a
 console warning, since the user is told "saved" or "deleted" either way. The page then sets
 `templates` to the new list.

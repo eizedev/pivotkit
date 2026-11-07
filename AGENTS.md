@@ -14,7 +14,7 @@ builds depend on it.
   `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`, with the capped inflate of
   `src/inflate.js`); only those import fflate; every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
-  (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`).
+  (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`). `view-file.js` is the view file, the one format a view is shared in (file, JSON, link): `toViewFile`, `fromViewFile`, `viewFileText`, `viewFileName`, `viewFileFields`; its JSON Schema is `docs/schema/view-file-1.json` (`tests/view-file-schema.test.js` keeps both in step).
 - `packages/pivotkit-react/` - the React 18/19 UI on the core: `<PivotReport>`. JSX in `src/` with
   JSDoc types, built by esbuild (`build.js`) into `dist/` (JSX as `React.createElement`, every
   dependency left as an import) and `dist/styles.css`. React, ReactDOM and ECharts are peer
@@ -23,7 +23,7 @@ builds depend on it.
   One module per concern: `PivotReport.jsx` wires the parts and defines `commit()`, which it passes to
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
-  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `chart-options.js` checks and merges the host's `chartOptions` (plain JSON only, and no ECharts option that is markup or an address); `share.js` the link in the URL fragment, the tab's stored view and views loaded from JSON (all through normalize, what was dropped in plain words), and loads `pivotkit-core/link` on first use; `clear-input.jsx` the one text field with an "×" every menu uses; `numbers.js` reads the numbers typed into a menu in the report's locale (every number field of a menu is a text field through it, never `type="number"`); `skeleton.jsx` the report while it waits (`loading`, a large first encode, a link being read); `dnd.jsx` is the
+  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `chart-options.js` checks and merges the host's `chartOptions` (plain JSON only, and no ECharts option that is markup or an address); `share.js` the link in the URL fragment, the tab's stored view and views loaded from a view file or JSON (all through normalize, what was dropped in plain words, what to ask before a view for other data is applied), and loads `pivotkit-core/link` on first use; `section.jsx` the menus' sections that fold (their state kept with the tips, `SECTIONS` in `tips.js`) and the one way to explain a setting, the "i" (`SettingInfo`, texts in `labels.settingInfo`); `use-big-result.js` Enlarge, Full screen and the report's least height; `version.js` the package's version (esbuild define in `build.js`) for the view files' `generator`; `clear-input.jsx` the one text field with an "×" every menu uses; `numbers.js` reads the numbers typed into a menu in the report's locale (every number field of a menu is a text field through it, never `type="number"`); `skeleton.jsx` the report while it waits (`loading`, a large first encode, a link being read); `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
@@ -50,13 +50,15 @@ builds depend on it.
   `earthquakes`, `nobel`, `endoflife`), each loaded as its own chunk; `data/sources.js` holds the requests and the
   mapping from response to rows (used by `scripts/docs-data.js` and shown on the docs page
   `learn.md`), `data/SOURCES.md` the licences and attribution. The page never calls the sources.
+- `examples/playground/validator.html` (`src/validator.js`) - the view file check the docs page
+  `reference/view-file.md` embeds: pivotkit-core in the browser, nothing uploaded.
 - `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run
   build:playground` copies it to `examples/playground/dist/examples/element/`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
   `pages/` (a host page that loads `dist/index.js` with React from an import map and renders again
   all the time; a shadow root; the web component's pages in `pages/element/`: two elements, upgrade,
   loaded twice, strict CSP, listener counts, a page with its own React); CI runs them on React 18 and
-  React 19 (`tests/react19/`, own lock file). `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
+  React 19 (`tests/react19/`, own lock file), one job per engine and React version. `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
   versions, caret ranges for this repository's own packages).
 - `scripts/check-pack.js` - checks what `npm pack` would publish.
 - `docs/` - the documentation site (pivotkit.eize.dev): Zensical (`zensical.toml`) with the shared design

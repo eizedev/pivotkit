@@ -1,15 +1,15 @@
 ---
-title: Views and templates
-description: The view is the whole report as plain JSON - the start preset, the saved template, the undo step and what the UI edits. Its keys, how it is checked, and how to store it.
+title: Views and saved views
+description: The view is the whole report as plain JSON - the start preset, the saved view, the undo step and what the UI edits. Its keys, how it is checked, and how to store it.
 ---
 
-# Views and templates
+# Views and saved views
 
 A **view** is the whole report as a small JSON object: which fields are on rows and columns, which
 values are computed and how, the filters, the sort, the totals, table or chart. The same object is
 
 - the start preset you pass to the report (`defaultView`, or `default-view` on the element),
-- the template people save and load,
+- the saved view people save and load (the host's `templates`),
 - one step of the undo history,
 - what `onViewChange` (or `pivot-view-change`) hands you on every change.
 
@@ -47,9 +47,10 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
     chart: {
-        type: "bar", stacked: false, horizontal: false,        // bar line area pie heatmap
+        type: "bar", stacked: false, horizontal: false,        // bar line area pie donut heatmap
         valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
-        smooth: false, axisLabels: "auto", groupLabels: "auto"
+        smooth: false, axisLabels: "auto", groupLabels: "auto",
+        labelPosition: "outside"                               // pie and donut: "outside" or "inside"
     },
     formatting: { locale: "de-DE", timeZone: null }
 }
@@ -82,7 +83,7 @@ pivotkit treats every view as untrusted, wherever it comes from:
   operators and chart types against fixed lists, colours against `#rgb`/`#rrggbb`. Nothing in a view
   is evaluated as code or rendered as HTML.
 - **A bad view never throws.** What cannot be used is dropped and reported as an issue with its path
-  (`values[0]`: `unknown aggregator "evil"`); the rest of the report still works. A template saved
+  (`values[0]`: `unknown aggregator "evil"`); the rest of the report still works. A view saved
   for one data set therefore opens on another with the fields that exist there.
 - It cannot ask for unbounded work: its size and every dense structure it leads to are counted
   against [limits](limits.md#limits) before anything is allocated.
@@ -90,12 +91,14 @@ pivotkit treats every view as untrusted, wherever it comes from:
 `normalize(view, data)` in pivotkit-core returns the checked view and the issues; `validate` only
 reports. The UI normalizes every view it gets.
 
-## Templates in the UI
+## Saved views in the UI
 
-The report's **Templates** menu lists what you pass in `templates` (`{ name, view, deletable? }`) and
-offers the first three in the empty state. With `onSaveTemplate` (or `save-templates` on the element)
-people save the current view under a name; your code stores it and passes the new list back.
-Templates marked `deletable` get a delete button with a confirmation. Names need not be unique.
+The report's **Views** menu lists what you pass in `templates` (`{ name, view, deletable? }`) under
+**Saved views** and offers the first three in the empty state. With `onSaveTemplate` (or
+`save-templates` on the element) people save the current view under a name; your code stores it and
+passes the new list back. Entries marked `deletable` get a delete button with a confirmation. Names
+need not be unique. The menu's second section, **Share**, copies or downloads the view as a
+[view file](../reference/view-file.md) and loads one ([sharing](sharing.md)).
 
 ## Versions
 

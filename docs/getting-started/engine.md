@@ -29,7 +29,7 @@ const data = encode([
     { region: "South", product: "B", units: 7, date: "2026-02-14" }
 ]);
 
-// the view is the report as JSON: save it as a template, send it to the browser, undo it
+// the view is the report as JSON: save it, send it to the browser, undo it
 const input = {
     rows: ["Region"],
     cols: ["Month"],
@@ -111,5 +111,5 @@ keep its memory use bounded; a view that would need more throws `PivotkitError` 
 ## Next
 
 - [pivotkit-core reference](../reference/core.md): every function and its options.
-- [Views and templates](../concepts/views.md): the view's keys.
+- [Views and saved views](../concepts/views.md): the view's keys.
 - [Locale, time zones, limits and errors](../concepts/limits.md).

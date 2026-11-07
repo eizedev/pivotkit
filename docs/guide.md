@@ -1,6 +1,6 @@
 ---
 title: Using the report
-description: A guide for the people who use a pivotkit report - fields and zones, drag and drop, chips and their menus, values, filters, the chart, drill-down, export, templates, undo and the keyboard.
+description: A guide for the people who use a pivotkit report - fields and zones, drag and drop, chips and their menus, values, filters, the chart, drill-down, export, saved views and sharing, more room for the result, undo and the keyboard.
 ---
 
 # Using the report
@@ -22,10 +22,12 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
 - **The zones**: **Rows** and **Columns** say how the table is split, **Values** what is computed in
   the cells, **Filters** what is left out of the whole report. The **i** next to a zone's title says
   what it does, with an example.
-- **The toolbar**: Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, Templates and
+- **The toolbar**: Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, Views and
   Export. What does not fit the report's width moves into **More**, Reset and Redo first, then Layout,
-  Templates, Options and the chart type; Table or Chart, Undo and Export always stay.
-- **The result**: the table or the chart, with tips above it and a status line below it.
+  Views, Options and the chart type; Table or Chart, Undo and Export always stay. Which buttons are in
+  More depends on the width only: a click on Layout never moves it.
+- **The result**: the table or the chart, with tips above it, **Enlarge** and **Full screen** at its
+  top right, and a status line below it.
 
 ## Adding fields
 
@@ -80,15 +82,18 @@ with a note under it), top or bottom N by a value you choose, the filter with a 
 
 ![The menu of a value: Summarize by, Show as, Number format and Remove](assets/screenshots/value-menu.png)
 
-The menu of a **value** has:
+The menu of a **value** has these sections; Summarize by and Show as are open, the others folded
+until you open them ([long menus](#menus-that-are-long)):
 
 - **Summarize by**: sum, count, average, minimum, maximum; the statistics (median, distinct count,
   standard deviation, variance, first, last) under "More statistics".
 - **Show as**: the value itself, % of grand total, % of row total, % of column total; differences,
   running totals and ranks under "More calculations", with an **Along** switch (Rows or Columns) for
-  the direction they walk. The header then says it: "% of grand total of Revenue".
-- **Number format**: automatic, number (also with no or two decimals), whole number, currency,
-  percent, compact (1.2K), bytes, durations from hours or seconds. A format the template brought along
+  the direction they walk; an **i** next to Show as and next to Along explains them. The header then
+  says it: "% of grand total of Revenue".
+- **Number format**: automatic, number (also with no or two decimals), currency, percent; whole
+  number, compact (1.2K), bytes and durations from hours or seconds under "More formats". A format the
+  saved view brought along
   that is not in this list (a date, text, another currency) stays until you pick another.
 - **Highlight**: a colour scale or data bars.
 - Show as, Number format and Highlight are there only for a value that gives a number: not for a list
@@ -150,7 +155,10 @@ Notes above the table say what it does to totals and percentages ("Country shows
 - **Swap rows and columns** (above Columns) swaps the fields, which groups are collapsed, and the
   direction of calculations: "% of row total" becomes "% of column total", a running total along Rows
   runs along Columns.
-- Subtotals and grand totals are switched on and off in **Options**.
+- Subtotals and grand totals are switched on and off in **Options**, each with an **i** that says what
+  it does. A switch that would change nothing in this layout is greyed out with the reason under it:
+  the grand total row needs a field in Rows, the grand total column a field in Columns, row subtotals
+  two or more fields in Rows, column subtotals two or more fields in Columns.
 - Field names and value names in the header can be dragged into a zone.
 - With one value, its name stands once over all of its columns.
 - The table is as wide as its columns and scrolls sideways when it is wider than the report. Long
@@ -172,7 +180,7 @@ with no rows behind it opens nothing.
 ![A line chart of monthly revenue per category in the dark theme](assets/screenshots/chart.png)
 
 **Chart** in the toolbar shows the same report as a chart: bars, stacked bars, horizontal bars, lines,
-area, pie or heatmap ("Chart type" in the toolbar). A click on a bar, a point or a heatmap cell opens
+area, pie, donut or heatmap ("Chart type" in the toolbar). A click on a bar, a point or a heatmap cell opens
 its rows, as in the table. Pointing at a category shows a tooltip with its whole name and one line per
 series with its colour and the formatted value; on a pie, the slice; on a heatmap, the cell's row and
 column and its value.
@@ -181,60 +189,81 @@ At most 50 categories are drawn, with a tip. With more than 8 series, or lines w
 Columns, a tip offers **Swap rows and columns** (also above the Columns zone). Lines over categories
 without an order (countries) get a tip with **Switch to Bars**.
 
-The chart type menu also has **Display**: value labels, legend, title, smooth lines, axis labels and,
-with two fields in Rows, group labels under the axis. The settings stay with the report, also in
-templates, links and the PNG. All of it is in [Charts](concepts/charts.md).
+The chart type menu also has **Display**: value labels, for a pie or a donut whether they stand
+outside or inside the slices, legend, title, smooth lines, axis labels and, with two fields in Rows,
+group labels under the axis. The settings stay with the report, also in saved views, links and the
+PNG. All of it is in [Charts](concepts/charts.md).
 
-## Undo, templates and export
+## More room for the result
+
+Two buttons at the top right of the result give it more room; neither is part of the view.
+
+- **Enlarge** lets the table or the chart fill the report: the field list, the zones, the tips and
+  the notes above the result step aside, and one line says which fields the report shows ("Rows:
+  Team · Columns: Priority · Values: Count of Ticket"). The toolbar stays. **Escape** or the same
+  button (shown pressed) brings everything back.
+- **Full screen** puts the whole report on the screen. **Escape** or the button leaves it. It is
+  offered only where the browser can do it (not, for example, in Safari on an iPhone).
+
+## Undo, saved views and export
 
 - **Undo** (Ctrl+Z, on a Mac Cmd+Z) and **Redo** (Ctrl+Shift+Z or Ctrl+Y, Cmd+Shift+Z) step through
   every change. **Reset** goes back to the start view, as one step you can undo.
-- **Templates** loads a saved report. When the application allows it, "Save current view" saves yours
-  under a name (up to 120 characters; Enter saves), and your own templates can be deleted, after a
-  confirmation. **Share this view** copies a link (when the application allows links) or the view as
-  JSON, downloads it as a file, and **Load view…** opens one from pasted text or a file:
-  [Sharing and keeping a view](concepts/sharing.md).
+- **Views** has two sections. **Saved views** loads a saved report; when the application allows it,
+  "Save current view" saves yours under a name (up to 120 characters; Enter saves), and your own saved
+  views can be deleted, after a confirmation. **Share** copies a link (when the application allows
+  links) or the view as JSON, downloads it as a file (`.pivotkit.json`), and **Load view…** opens one
+  from pasted text or a file; a view made for other data asks first. A line there says that a shared
+  view holds the values chosen in its filters: [Sharing and keeping a view](concepts/sharing.md).
 - **Export** downloads the table as **Excel** (XLSX) or **CSV**, or the chart as **PNG**. The Excel
   file keeps every number with all its decimals, the number formats, the merged headers, the bold
   totals and the highlighting; its sheet has the file's name (made valid for Excel: at most 31
   characters). The CSV is UTF-8 with a byte order mark, so Excel reads accents and umlauts right; it
   writes percentages and "show values as" calculations as the table shows them ("-2.6%"); other
-  numbers keep all their decimals; a row label is repeated on every row it spans. The export menu
-  says so too. The PNG is the chart as drawn, at twice the screen's resolution, on the report's
+  numbers keep all their decimals; a row label is repeated on every row it spans. An **i** next to each
+  format in the export menu says so too. The PNG is the chart as drawn, at twice the screen's resolution, on the report's
   background colour. The files are named after the application's `fileName` ("pivot" when it gives
-  none): `pivot.xlsx`, `pivot.csv`, `pivot.png`, and `pivot-view.json` for a downloaded view.
+  none): `pivot.xlsx`, `pivot.csv`, `pivot.png`; a downloaded view is `<name>.pivotkit.json`, after
+  the view's or the data's name.
 
-A button or menu entry that would do nothing is greyed out:
+A button or menu entry that would do nothing is greyed out; where the reason is not obvious, a short
+line under it says why, only while it is greyed out:
 
 | Entry | Available when |
 | --- | --- |
 | Undo, Redo | there is a step to take back or to repeat |
 | Reset | the report differs from the start view |
-| Export, **Chart image (.png)** | the chart is shown and drawn |
+| Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |
 | Options, **Expand all**, **Collapse all** | it changes something; the line under it says why not |
-| Templates, **Save** | the name holds text |
+| Options, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout; the line under it says what it needs |
+| Views, **Save** | the name holds text |
+| Chart type, Display, **Labels** (pie and donut) | value labels are not Off |
 | Load view, **Load** | the box holds text (a chosen file loads at once) |
 | The chart title's **Apply** | the title differs from the current one |
 
 ### Status messages
 
-Notes such as "Undone: Region removed", "Template “Sales” saved" or "Exported pivot.xlsx" appear in
+Notes such as "Undone: Region removed", "View “Sales” saved" or "Exported pivot.xlsx" appear in
 the status line under the table, never over the data, and a screen reader hears them. At most two
 show at a time; each goes after 6 seconds, but stays while the pointer is on it or the focus is in it.
-Errors ("Export failed: ...") stay until you close them with their **x**.
+A loaded view says so with **Undo** ("View loaded", "Opened the view from the link"); when parts of it
+did not fit ("View loaded; some parts did not fit this data") that is a warning: it goes like any
+note, and the details stay above the result (below). Errors ("Export failed: ...") stay until you
+close them with their **x**.
 
 ### Parts of a view that were not used
 
-A template, a link or a loaded file can name things the data does not have (a field that is gone, a
-value the field cannot compute). The report leaves them out and shows "Some parts of the view were
-not used: 2" above the result; open it to see each part (its path in the view, such as
-`filters[1].by`, and why) - up to 20 of them.
+A saved view, a link or a loaded file can name things the data does not have (a field that is gone,
+a value the field cannot compute). The report leaves them out and shows "Some parts of the view were
+not used: 2" above the result; open it to see each part (what a loaded view left out in words, such as
+"fields this data does not have (“Planet”)", or its path in the view, such as `filters[1].by`, and
+why) - up to 20 of them. It stays until you dismiss it with its **x** or load another view.
 
 ### When the report cannot show anything
 
 - Data without a single column: the field list says "The data has no columns."
-- No field placed: the table shows three first steps and up to three templates to start from.
+- No field placed: the table shows three first steps and up to three saved views to start from.
 - A layout over a limit: the result says what to change ("This layout makes more than 500,000 groups of
   rows and columns. Remove a field with many values from Rows or Columns, or filter it."), see
   [Limits](concepts/limits.md).
@@ -245,27 +274,45 @@ not used: 2" above the result; open it to see each part (its path in the view, s
 Short tips above the result say what the report shows and what you can do next: that a top 5 changes
 what the totals mean, what 100 % is for a percentage, that a text field in Values is counted, that a
 date makes a column per day (with a button to group it by month), that a filter leaves nothing (with
-**Remove filter**), or that the view could be saved as a template. At most two show at a time, the
+**Remove filter**), or that the view could be saved (**Save view** opens Views). At most two show at a time, the
 most important first, and never over the table. The notes that say the result is cut or empty (a top
 5, the first 50 categories of a chart, a filter that leaves nothing) always stay; they have no x.
 
 - The **x** of a tip (Tab reaches it) hides that tip; the report remembers it.
 - **Options**, **Help** has **Show tips**, to switch them all off and on, **Show field descriptions**
-  (the **i** of the fields; shown when the application describes its fields) and **Show zone
-  explanations** (the **i** of the zones), and **Show dismissed tips again**. The report remembers the
-  switches like the tips.
+  (the **i** of the fields; shown when the application describes its fields), **Show zone
+  explanations** (the **i** of the zones), **Show explanations** (the **i** next to the settings of
+  the menus) and **Show dismissed tips again**. The report remembers the switches like the tips.
 - **Options**, **Help**, **Keyboard shortcuts** lists the keys.
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](assets/screenshots/tips.png)
 
 ## Menus and text fields
 
+- A setting that needs explaining has an **i** next to it: pointing at it or moving the focus to it
+  shows the explanation, a tap opens it. It is the same **i** everywhere (totals, Show as, Along, the
+  export formats, the chart's labels), so every menu row stays one line. **Options**, **Help**, **Show
+  explanations** hides them all.
+
 - Every text field in a menu - the field search, a value's name, "Starting at" of number ranges, a
-  template's name, the text of a filter condition, the box of Load view - has an **×** while it holds
+  saved view's name, the text of a filter condition, the box of Load view - has an **×** while it holds
   text. It empties the field and keeps the focus there; Ctrl+Z in the field brings the text back.
 - **Escape** in such a field empties it first; the next Escape closes the menu.
 - While the report waits for its data, or opens a shared link, it shows grey shapes where the
   toolbar, the zones and the table will be, and a screen reader hears "Loading the report…".
+
+## Menus that are long
+
+- A menu keeps the mouse wheel to itself: at its end it stops, the table or the page behind it does
+  not scroll; scrolling a long menu by touch stops at its end too. A menu is never higher than the window; what does not fit scrolls inside
+  it.
+- Its sections fold with their title. The ones used most are open: in a value's menu **Summarize by**
+  and **Show as**; **Number format**, **Highlight**, **Name**, **Filters** and **Move** are folded. In
+  a field's menu **Sort**, the date grouping, number ranges, **Show only the top items** and
+  **Filters** are open, **Move** folded. The toolbar's menus start open. The report remembers what you open
+  and fold, like the tips.
+- Entries few people need sit behind a link in their section: **More statistics**, **More
+  calculations**, **More formats** (whole number, compact, bytes, durations).
 
 ## Small screens
 
@@ -275,11 +322,15 @@ as sheets from the bottom, and toolbar buttons that do not fit move into **More*
 with its **x** ("Close field list"), Escape or a tap beside it, and by itself once a field is added
 from it, its "Filter…" opens or a drag starts, so you see where the field lands.
 
-![The report at phone width: toolbar, the zones stacked, and the table below](assets/screenshots/phone.png){ width="320" }
+![The report at phone width: toolbar, the zones folded into one line, one tip, Enlarge and Full screen, and the table below](assets/screenshots/phone.png){ width="320" }
 
-When the report is low, the zones fold into one line that says what is in them ("Rows: Team ·
-Columns: Priority · Values: Count of Ticket"); a click on it, or **Layout** in the toolbar, opens them.
-A drag from the field list or the table opens them while it lasts.
+When the report is low (below 600 px; a narrow one below 820 px), the zones fold into one line that
+says what is in them ("Rows: Team · Columns: Priority · Values: Count of Ticket"), and at most one tip
+shows; a click on the line, or **Layout** in the toolbar, opens them. **Layout** keeps its name and
+shows pressed while the zones are open; in **More** it is an entry with a check. A drag from the field
+list or the table opens them while it lasts. When the report's box is lower than its toolbar, its
+zones, its tips and the least height of the result need, the report grows and the page scrolls,
+instead of squeezing the table into a sliver.
 
 ## Keyboard and screen readers
 

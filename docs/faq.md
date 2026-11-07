@@ -37,8 +37,8 @@ const objects = data.rows.map((r) => Object.fromEntries(data.columns.map((c, i) 
 ## How do I save a report?
 
 Store the view that `onViewChange` (or `pivot-view-change`) hands you, as JSON, and pass it back as
-`view` or `defaultView` later. To let people name and keep several, use templates; see
-[Views and templates](concepts/views.md#templates-in-the-ui).
+`view` or `defaultView` later. To let people name and keep several, pass them as `templates` (the saved views of the Views menu); see
+[Views and saved views](concepts/views.md#saved-views-in-the-ui).
 
 ## Is it safe to load a view someone else saved?
 

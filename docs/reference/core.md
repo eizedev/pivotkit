@@ -67,7 +67,7 @@ view's. Throws `INVALID_ARGUMENT` for input that is no schema at all. See [Field
 
 ## Views
 
-A view is the report as JSON; [Views and templates](../concepts/views.md) describes its keys.
+A view is the report as JSON; [Views and saved views](../concepts/views.md) describes its keys.
 
 | Function | Returns | What |
 | --- | --- | --- |
@@ -77,6 +77,21 @@ A view is the report as JSON; [Views and templates](../concepts/views.md) descri
 | `emptyView()` | `View` | A new, empty report. |
 | `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`; `type` is `"date"` for a grouping by day, `"number"` for every other unit and for number ranges). |
 | `VIEW_VERSION` | `number` | The view version this release writes. |
+
+### View files
+
+A view with its name, the data it was made for and the fields it uses, as one JSON document: what
+pivotkit-react shares as JSON, as a file and (in its link profile) as a link. The format, its rules
+and its JSON Schema are in [View file format](view-file.md).
+
+| Function | Returns | What |
+| --- | --- | --- |
+| `toViewFile(view, meta?, { link })` | object | The view file, keys in their canonical order. `meta`: `name`, `description` (left out when empty), `createdAt` (a `Date` or ISO text; left out without it), `generator` (`{ name, version }`), `source` (`{ id, name }`), `data` (an `Encoded`: `source.fields` lists the fields the view uses with their types). `link: true` gives the link profile: format, version, `source.id`, `name` and the view only. Throws `TypeError` for a view that is no object. |
+| `fromViewFile(input, { data, sourceId })` | `ViewFileRead` | Reads a view file, a bare view or a template `{ name, view }` from its text or parsed object; never throws. `view` (as parsed, not normalized; `null` when it cannot be used), `envelope`, `name`, `description`, `createdAt`, `generator`, `source`, `failed` (`"empty"`, `"tooLarge"`, `"notJson"`, `"notView"`, `"newerFormat"`, `"newerView"`), `issues` (what was left out of the envelope). With `data`: `compatible` `{ ok, source: "same" \| "other" \| "unknown", missing, changed, needs }`. |
+| `viewFileText(file)` | `string` | The file as JSON with a 2-space indent and a trailing newline. |
+| `viewFileName(name)` | `string` | `"<slug>.pivotkit.json"` ("Revenue by region" gives `revenue-by-region.pivotkit.json`), `view.pivotkit.json` without a letter or digit. |
+| `viewFileFields(view)` | `string[]` | The data's fields a view uses (rows, columns, values, filters, sort; a grouping as its source field), each once. |
+| `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | | `"pivotkit-view"`, `1`, the schema's address, and `{ text: 1000000, name: 256, description: 2000, fields: 1000 }`. |
 
 ## Pivot
 
@@ -136,12 +151,12 @@ header cell over all of its columns, as in Excel.
 ### `toSeries(result, options?)` and `toEChartsOption(result, options?)`
 
 Chart data, and a plain [Apache ECharts](https://echarts.apache.org/) option for bar, stacked bar,
-line, area, pie and heatmap. ECharts itself is not imported.
+line, area, pie, donut and heatmap. ECharts itself is not imported.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels }`, over the view's chart ([Charts](../concepts/charts.md)). |
-| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `heatmapColors` (low, high), `pieRadius` (inner, outer; default a ring, `35%`, `70%`). |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition }`, over the view's chart ([Charts](../concepts/charts.md)). |
+| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `heatmapColors` (low, high), `pieRadius` (inner, outer of a pie; default a whole circle, `0%`, `70%`), `donutRadius` (of a donut; default a ring, `42%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none; default the pivot's locale. |
 | `labels`, `limits` | both | Texts; `cells` caps the data points. |
 | `separator` | both | Between the parts of a multi-level label, default `" / "`. |
@@ -151,7 +166,8 @@ line, area, pie and heatmap. ECharts itself is not imported.
 `toSeries` gives `categories` (the whole path of each category, "Asia / Japan"), `categoryLevels`
 (its label per level, `["Asia", "Japan"]`), `categoryPaths`, `series` and `totals`. The view's display
 settings are part of the option: a `title`, the legend where `chart.legend` puts it (and room for
-it), value labels (`label` of the series), `smooth` lines, and with `chart.groupLabels` (`"auto"` or `"on"`; the UI hides `"auto"` ones in a small chart) and two or
+it), value labels (`label` of the series; for a pie or a donut outside or, with `chart.labelPosition`
+`"inside"`, on the slices without a label line), `smooth` lines, and with `chart.groupLabels` (`"auto"` or `"on"`; the UI hides `"auto"` ones in a small chart) and two or
 more row fields a second category axis with the outer field's items, once per group at its middle,
 with a separator tick where a group starts (`xAxis` or `yAxis` is then a list of two). Where to write
 the category labels (`chart.axisLabels`) depends on the chart's size, so the UI decides it
@@ -160,8 +176,10 @@ the category labels (`chart.axisLabels`) depends on the chart's size, so the UI 
 ### Links: `pivotkit-core/link`
 
 A view as a short text for a link and back; a separate entry point, so a page that never shares does
-not load fflate. The format is pivotkit's share format: `1.` and the view's JSON compressed with raw
-DEFLATE, in base64url. See [Sharing](../concepts/sharing.md).
+not load fflate. The format is pivotkit's share format: `1.` and the JSON compressed with raw
+DEFLATE, in base64url. pivotkit-react encodes the [link profile of a view file](view-file.md#the-link-profile)
+(`toViewFile(view, meta, { link: true })`); `decodeViewLink` gives back whatever object was encoded,
+which `fromViewFile` reads (a bare view too). See [Sharing](../concepts/sharing.md).
 
 | Name | What |
 | --- | --- |
@@ -187,11 +205,11 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
-| `DEFAULT_THEME` | Default colours for colour scales and data bars, and the pie's radius. |
+| `DEFAULT_THEME` | Default colours for colour scales and data bars, and the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
 | `PivotkitError` | The error class; `code` is `INVALID_ARGUMENT`, `INVALID_OPTION` or `LIMIT_EXCEEDED`, `details` holds `{ limit, value, max }` for a limit. |
 
@@ -199,7 +217,8 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 
 `View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `Encoded`, `Column`,
 `ColumnType`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
-`Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults` and `PivotkitErrorCode`, from `pivotkit-core`.
+`Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults`, `PivotkitErrorCode`, `ViewFileMeta`, `ViewFileRead`,
+`ViewFileCompatibility` and `ViewFileSource`, from `pivotkit-core`.
 
 ## Performance
 

@@ -5,8 +5,8 @@
   </picture>
 </p>
 
-Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), templates as
-JSON, native Excel export; as a JavaScript core, a React component and a web component.
+Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), views as
+JSON files, native Excel export; as a JavaScript core, a React component and a web component.
 
 ![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
@@ -25,7 +25,7 @@ Version 0.1.0 of each package, on npm.
 | Package | What | Install |
 | --- | --- | --- |
 | [pivotkit-core](packages/pivotkit-core/) | The engine in plain JavaScript, no UI and no framework | `npm install pivotkit-core` |
-| [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder: field list, drag and drop, table and chart, filters, templates, export; React and ECharts are provided by the host | `npm install pivotkit-react react react-dom echarts` |
+| [pivotkit-react](packages/pivotkit-react/) | React 18/19 report builder: field list, drag and drop, table and chart, filters, saved and shared views, export; React and ECharts are provided by the host | `npm install pivotkit-react react react-dom echarts` |
 | [pivotkit-element](packages/pivotkit-element/) | The report builder as the web component `<pivot-report>` with its own React, for Angular, PHP and plain HTML; ECharts loaded on the first chart | `npm install pivotkit-element` |
 
 ## Example

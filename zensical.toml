@@ -23,7 +23,7 @@ nav = [
   ] },
   { "Using the report" = "guide.md" },
   { "Concepts" = [
-    { "Views and templates" = "concepts/views.md" },
+    { "Views and saved views" = "concepts/views.md" },
     { "Values: aggregators, show as, formats" = "concepts/values.md" },
     { "Dates and number ranges" = "concepts/dates.md" },
     { "Filters, top N and sorting" = "concepts/filters.md" },
@@ -36,6 +36,7 @@ nav = [
     { "pivotkit-core" = "reference/core.md" },
     { "pivotkit-react props" = "reference/react.md" },
     { "pivotkit-element" = "reference/element.md" },
+    { "View file format" = "reference/view-file.md" },
     { "Theming" = "reference/theming.md" },
     { "Localisation" = "reference/localisation.md" },
   ] },

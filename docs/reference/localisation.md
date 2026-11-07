@@ -64,7 +64,7 @@ calculation), their buttons `labels.tipActions`, the keyboard shortcuts of the h
 
 Field names are not labels: a field's display name in any language comes from `fieldDefaults`
 (`label`), see [Field descriptions and names](../concepts/fields.md). A host that shows German names
-passes German labels there; views keep the field names, so a template works in every language.
+passes German labels there; views keep the field names, so a saved view works in every language.
 
 ## Another language
 
