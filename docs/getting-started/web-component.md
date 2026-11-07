@@ -26,6 +26,12 @@ Without a bundler, serve the package's whole `dist/` directory and load its entr
 files in `dist/chunks/` (ECharts, the export) are loaded by relative URL from the entry when they are
 first needed, so `index.js` alone is not enough.
 
+To get `dist/` without a build: `npm install pivotkit-element` and copy
+`node_modules/pivotkit-element/dist/` to your web root (the examples below use
+`/assets/pivotkit-element/dist/`), or `npm pack pivotkit-element` and take `package/dist/` from the
+tarball. A CDN that serves npm packages works the same way, as long as it serves the whole `dist/`
+directory of one exact version.
+
 ## The first report
 
 ```html
@@ -97,7 +103,7 @@ hand them to the element from a module script:
 document.getElementById("report").data = JSON.parse(document.getElementById("report-rows").textContent);
 ```
 
-`JSON_HEX_TAG` writes `<` and `>` as `<` and `>`, so a value containing `</script>` cannot end
+`JSON_HEX_TAG` writes `<` and `>` as `\u003C` and `\u003E`, so a value containing `</script>` cannot end
 the block. A start view fits in the attribute:
 `default-view='<?= htmlspecialchars(json_encode($view), ENT_QUOTES) ?>'`. Data never goes into an
 attribute.

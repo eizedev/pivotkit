@@ -12,6 +12,8 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
 ![The report: the field list on the left, the four zones Filters, Columns, Rows and Values, and the table](assets/screenshots/report-light.png#only-light)
 ![The report: the field list on the left, the four zones Filters, Columns, Rows and Values, and the table](assets/screenshots/report-dark.png#only-dark)
 
+<small>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information ([attribution](learn.md#query-it-live)).</small>
+
 ## The parts
 
 - **Fields** (left): every column of the data, with an icon for its type (text, number, date,
@@ -19,7 +21,8 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
 - **The zones**: **Rows** and **Columns** say how the table is split, **Values** what is computed in
   the cells, **Filters** what is left out of the whole report.
 - **The toolbar**: Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, Templates and
-  Export.
+  Export. What does not fit the report's width moves into **More**, Reset and Redo first, then Layout,
+  Templates, Options and the chart type; Table or Chart, Undo and Export always stay.
 - **The result**: the table or the chart, with notes above it and a status line below it.
 
 ## Adding fields

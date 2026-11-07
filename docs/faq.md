@@ -14,9 +14,10 @@ description: Common questions about pivotkit - which package to use, data size, 
 ## How many rows can it handle?
 
 It is designed for up to about 100,000 rows in the browser; a change then stays within a frame or two
-(see [Performance](reference/react.md#performance)). `encode` accepts up to 10 million rows by
-default, at the cost of time and memory. The size of the table, not the number of rows, is what the
-`cells` [limit](concepts/limits.md#limits) guards.
+(see [Performance](reference/react.md#performance)). `encode` accepts up to 1,000,000 rows by
+default, at the cost of time and memory. Beyond the rows, the [limits](concepts/limits.md#limits)
+guard the work of a layout (`work`), its groups (`groups`), its aggregated cells (`pivotCells`) and
+the size of the table (`cells`).
 
 ## My data is on a server. Does pivotkit fetch it?
 

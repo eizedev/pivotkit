@@ -15,6 +15,9 @@ generated from the JSDoc types.
 npm install pivotkit-core
 ```
 
+pivotkit-core is an ES module package (`import`, no `require`). In Node, write the examples in a
+`.mjs` file or in a package with `"type": "module"` in its `package.json`.
+
 ## From rows to a table
 
 ```js

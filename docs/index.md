@@ -17,6 +17,7 @@ hide:
 <p class="hero-install"><code>npm install pivotkit-react react react-dom echarts</code></p>
 
 [Get started](getting-started/react.md){ .md-button .md-button--primary }
+[Using the report](guide.md){ .md-button title="For the people who build reports: fields, filters, charts, export" }
 [Try the live demo](demo.md){ .md-button }
 [Learn with real data](learn.md){ .md-button }
 [Source on GitHub](https://github.com/eizedev/pivotkit){ .md-button }
@@ -25,6 +26,8 @@ hide:
 
 ![The pivot report in the light theme with real weather data: field list on the left, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](assets/screenshots/report-light.png#only-light)
 ![The pivot report in the dark theme with real weather data: field list on the left, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](assets/screenshots/report-dark.png#only-dark)
+
+<small>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information ([attribution](learn.md#query-it-live)).</small>
 
 <div class="cards" markdown>
 
@@ -59,6 +62,10 @@ hide:
     ```
 
 === "Web component"
+
+    `/assets/pivotkit-element/dist/` is the package's `dist/` directory, copied from
+    `node_modules/pivotkit-element/dist/` after `npm install pivotkit-element`
+    ([details](getting-started/web-component.md)).
 
     ```html
     <script type="module" src="/assets/pivotkit-element/dist/index.js"></script>

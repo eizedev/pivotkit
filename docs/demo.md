@@ -2,7 +2,6 @@
 title: Live demo
 description: Try pivotkit in the browser - the playground with real public data (weather, countries, earthquakes, Nobel laureates) and generated business data, and the web component on a plain HTML page.
 hide:
-  - navigation
   - toc
 ---
 
@@ -24,7 +23,8 @@ generated data set the number of rows (2,000, 4,000 or 100,000). Its footer show
 of the last change.
 
 The real data are snapshots stored with the playground; the page calls none of the sources. Weather
-data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0); countries from the
+data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; contains modified Copernicus Climate
+Change Service information, see [Learn with real data](learn.md#query-it-live)); countries from the
 [World Bank](https://data.worldbank.org/), World Development Indicators (CC BY 4.0); earthquakes from
 the [U.S. Geological Survey](https://earthquake.usgs.gov/) (public domain); laureates from
 [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/) (CC0). The generated rows
