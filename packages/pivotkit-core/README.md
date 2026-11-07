@@ -57,7 +57,8 @@ Every function takes its required inputs first and all optional settings in one 
 | `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
 | `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
 | `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios; `hasRows` on each value cell (false: a blank cell with no source row behind it, nothing to drill into). One value's name is a single header cell over all of its columns, as in Excel. |
-| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap. ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
+| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap, with the view's display settings: title, legend, value labels, smooth lines, and the outer row field as group labels on a second category axis (`toSeries` gives `categoryLevels` for it). ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
+| `encodeViewLink(view)`, `decodeViewLink(text)`, `LINK_LIMITS` | From `pivotkit-core/link`: a view as a short link text (`1.` and its JSON deflated with fflate, base64url) and back. Decoding never throws, caps the text (32,000 characters) and the inflated view (1,000,000) and returns `{ view, issues }`; the view is user input for `normalize`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
 | `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars) and CSV (the grid's locale decides separator and decimal mark, formula-injection guard). |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views. |
 | `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
@@ -182,7 +183,14 @@ XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a lar
     totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
-    chart: { type: "bar", stacked: false, horizontal: false },   // bar line area pie heatmap
+    chart: {
+        type: "bar", stacked: false, horizontal: false,        // bar line area pie heatmap
+        valueLabels: "auto",                                   // auto off value percent both (percent, both: pie)
+        legend: "auto",                                        // auto bottom right off
+        title: null, smooth: false,                            // a title over the chart; smooth lines
+        axisLabels: "auto",                                    // auto all nth: the category axis labels
+        groupLabels: true                                      // two or more row fields: the outer as group labels
+    },
     formatting: { locale: "de-DE", timeZone: null }
 }
 ```

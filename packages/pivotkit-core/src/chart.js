@@ -45,11 +45,15 @@ export function toSeries(result, options) {
     if (colLines.length === 0) {
         colLines = [{ node: result.colRoot, kind: "leaf" }];
     }
-    const pathLabel = (axis, node) => {
+    const partsOf = (axis, node) => {
         const parts = [];
         for (let n = node; n && n.parent; n = n.parent) {
             parts.unshift(result.label(axis, n, labels));
         }
+        return parts;
+    };
+    const pathLabel = (axis, node) => {
+        const parts = partsOf(axis, node);
         return parts.length ? parts.join(separator) : labels.grandTotal;
     };
     const plottedValues = view.values.filter((_, vi) => result.valueTypes[vi] !== "text").length;
@@ -75,6 +79,8 @@ export function toSeries(result, options) {
     }
     return {
         categories: rowLines.map(({ node }) => pathLabel("rows", node)),
+        // the label of each level of a category's path ([] for the grand total), for a two-level axis
+        categoryLevels: rowLines.map(({ node }) => partsOf("rows", node)),
         categoryCount,
         categoryPaths: rowLines.map(({ node }) => node.path),
         series,
@@ -95,11 +101,92 @@ export function toSeries(result, options) {
  * @property {[string, string]} [pieRadius]       inner and outer radius, default a ring (35%, 70%)
  */
 
+/** Room (px) the title takes above the chart. */
+const TITLE_ROOM = 32;
+/** Room (px) a legend takes on its side: one line at the top or bottom, a column on the right. */
+const LEGEND_ROOM = { top: 24, bottom: 32, right: 160 };
+
 /**
- * A plain ECharts option for the view's chart, themed by the host.
+ * Where the legend of a chart goes and the room it takes, from `chart.legend`: "auto" above the
+ * chart when `auto` (more than one series, a pie), "bottom", "right" (a scrolling column), "off".
+ * @param {string | undefined} setting
+ * @param {boolean} auto
+ * @param {number} top  the room above the legend (the title)
+ * @param {object} textStyle
+ * @returns {{ legend: object | null, room: { top: number, bottom: number, right: number } }}
+ */
+function legendOf(setting, auto, top, textStyle) {
+    const where = setting === "bottom" || setting === "right" || setting === "off" ? setting : auto ? "top" : "off";
+    if (where === "off") {
+        return { legend: null, room: { top: 0, bottom: 0, right: 0 } };
+    }
+    if (where === "right") {
+        return { legend: { type: "scroll", orient: "vertical", right: 0, top: top + 8, bottom: 8, textStyle }, room: { top: 0, bottom: 0, right: LEGEND_ROOM.right } };
+    }
+    if (where === "bottom") {
+        return { legend: { type: "scroll", bottom: 0, textStyle }, room: { top: 0, bottom: LEGEND_ROOM.bottom, right: 0 } };
+    }
+    return { legend: { type: "scroll", top, textStyle }, room: { top: LEGEND_ROOM.top, bottom: 0, right: 0 } };
+}
+
+/** Room (px) between the category axis and the group labels under it (or left of it), before the layout of the UI. */
+export const GROUP_AXIS_OFFSET = 24;
+
+/**
+ * The group labels of a category axis with two or more row fields (`chart.groupLabels`, on by default):
+ * a second category axis with the same categories, which writes the outer field's item once per group,
+ * at its middle, and draws a separator between two groups; the main axis then names each category by
+ * its inner levels. null when there is nothing to group (one row field, or every category alone).
+ * @param {ReturnType<typeof toSeries>} s
+ * @param {number} rowFields
+ * @param {Partial<import("./view.js").ChartSpec>} chart
+ * @param {{ separator: string, axisLine: { lineStyle?: object }, theme: ChartTheme }} style
+ */
+function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
+    const levels = s.categoryLevels ?? [];
+    if (chart.groupLabels === false || rowFields < 2 || !levels.some((l) => l.length >= 2)) {
+        return null;
+    }
+    const outer = levels.map((l) => l[0] ?? "");
+    // a collapsed group is one category: its own name on both axes
+    const leaves = levels.map((l, i) => (l.length > 1 ? l.slice(1).join(separator) : s.categories[i]));
+    const starts = outer.map((g, i) => i === 0 || g !== outer[i - 1]);
+    const middles = new Set();
+    let from = 0;
+    let smallest = outer.length;
+    for (let i = 1; i <= outer.length; i++) {
+        if (i === outer.length || starts[i]) {
+            middles.add(Math.floor((from + i - 1) / 2));
+            smallest = Math.min(smallest, i - from);
+            from = i;
+        }
+    }
+    return {
+        leaves,
+        axis: {
+            type: "category",
+            data: outer,
+            position: chart.horizontal ? "left" : "bottom",
+            offset: GROUP_AXIS_OFFSET,
+            axisLine: { show: false },
+            // the separators: from this axis to the main one, at the first category of each group
+            axisTick: { show: true, inside: true, length: GROUP_AXIS_OFFSET, interval: (i) => i > 0 && starts[i] === true, lineStyle: axisLine.lineStyle },
+            axisLabel: { color: theme.textColor, fontWeight: 600, interval: (i) => middles.has(i) },
+            axisPointer: { show: false },
+            splitLine: { show: false },
+            groups: true,
+            // the fewest categories of a group: a UI cuts the group labels to that many bands
+            groupSize: smallest
+        }
+    };
+}
+
+/**
+ * A plain ECharts option for the view's chart, themed by the host. The view's display settings
+ * (chart.valueLabels, legend, title, smooth) are part of it, so an image of the chart shows them.
  * @param {import("./pivot.js").PivotResult} result
  * @param {object} [options]
- * @param {{ type?: string, stacked?: boolean, horizontal?: boolean }} [options.chart]  overrides the view's chart
+ * @param {Partial<import("./view.js").ChartSpec>} [options.chart]  overrides the view's chart settings
  * @param {ChartTheme} [options.theme]
  * @param {string} [options.locale]  used when the view names none; default the pivot's locale
  * @param {Partial<import("./labels.js").Labels>} [options.labels]
@@ -128,19 +215,48 @@ export function toEChartsOption(result, options) {
         textStyle,
         ...(theme.colors && theme.colors.length ? { color: theme.colors } : {})
     };
-    const legend = s.series.length > 1 ? { legend: { type: "scroll", top: 0, textStyle } } : {};
     const valueFormatter = (v) => (typeof v === "number" ? fmt(v) : "");
+    // the title over the chart, and the legend where the view puts it, with the room they take
+    const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: 16, fontWeight: 600 } } } : {};
+    const titleRoom = title.title ? TITLE_ROOM : 0;
+    const { legend, room } = legendOf(chart.legend, chart.type === "pie" || s.series.length > 1, titleRoom, textStyle);
+    const legendPart = legend ? { legend } : {};
+    // what is written next to the marks: "percent" and "both" are a pie's; the other types write the value
+    const labels = chart.valueLabels === "off" || chart.valueLabels === "value" || chart.valueLabels === "percent" || chart.valueLabels === "both" ? chart.valueLabels : "auto";
 
     if (chart.type === "pie") {
         const vi = first ? first.valueIndex : 0;
         const data = s.categories
             .map((name, i) => ({ name, value: s.totals[vi] ? s.totals[vi][i] : null }))
             .filter((d) => typeof d.value === "number" && d.value > 0);
+        const percent = (p) => `${formatterFor("number:1", locale)(p.percent)} %`;
+        const pieLabel =
+            labels === "off"
+                ? { show: false }
+                : labels === "value"
+                  ? { formatter: (p) => `${p.name}: ${fmt(p.value)}` }
+                  : labels === "percent"
+                    ? { formatter: (p) => `${p.name}: ${percent(p)}` }
+                    : labels === "both"
+                      ? { formatter: (p) => `${p.name}: ${fmt(p.value)} (${percent(p)})` }
+                      : {};
         return {
             ...base,
+            ...title,
             tooltip: { trigger: "item", valueFormatter },
-            legend: { type: "scroll", top: 0, textStyle },
-            series: [{ type: "pie", name: first ? first.name : "", radius: [...(theme.pieRadius ?? DEFAULT_THEME.pieRadius)], top: 24, data, label: { color: theme.textColor } }]
+            ...legendPart,
+            series: [
+                {
+                    type: "pie",
+                    name: first ? first.name : "",
+                    radius: [...(theme.pieRadius ?? DEFAULT_THEME.pieRadius)],
+                    top: titleRoom + room.top,
+                    ...(room.bottom ? { bottom: room.bottom } : {}),
+                    ...(room.right ? { right: room.right } : {}),
+                    data,
+                    label: { color: theme.textColor, ...pieLabel }
+                }
+            ]
         };
     }
 
@@ -160,8 +276,9 @@ export function toEChartsOption(result, options) {
         });
         return {
             ...base,
+            ...title,
             tooltip: { trigger: "item", valueFormatter },
-            grid: { top: 16, bottom: 64 },
+            grid: { top: 16 + titleRoom, bottom: 64 },
             // no split areas: ECharts paints them light grey whatever the theme, so the empty cells
             // would be the brightest part of a dark chart; an empty cell shows the background
             // every column is labelled (interval 0): ECharts would otherwise hide every second name
@@ -177,34 +294,43 @@ export function toEChartsOption(result, options) {
                 textStyle,
                 ...(theme.heatmapColors ? { inRange: { color: theme.heatmapColors } } : {})
             },
-            series: [{ type: "heatmap", name: first ? first.name : "", data, label: { show: data.length <= 200, formatter: (p) => fmt(p.value[2]) } }]
+            // the numbers in the cells: by default while there are few enough cells
+            series: [{ type: "heatmap", name: first ? first.name : "", data, label: { show: labels === "auto" ? data.length <= 200 : labels !== "off", formatter: (p) => fmt(p.value[2]) } }]
         };
     }
 
     // bar, line and area share the category axis
     const type = chart.type === "line" || chart.type === "area" ? "line" : "bar";
-    const categoryAxis = { type: "category", data: s.categories, axisLine, axisLabel: { color: theme.textColor } };
+    const groups = groupAxisOf(s, result.view.rows.length, chart, { separator: options.separator ?? " / ", axisLine, theme });
+    // with group labels the axis names each category by its inner levels, the group axis the outer one
+    const categoryAxis = { type: "category", data: groups ? groups.leaves : s.categories, axisLine, axisLabel: { color: theme.textColor } };
     const valueAxis = {
         type: "value",
         axisLine,
         axisLabel: { color: theme.textColor, formatter: (v) => compact(v) },
         splitLine: { lineStyle: { color: theme.gridColor } }
     };
+    // value labels: at the end of a bar, inside a stacked one, above a point of a line
+    const showValues = labels !== "auto" && labels !== "off";
+    const position = type === "line" ? "top" : chart.stacked ? "inside" : chart.horizontal ? "right" : "top";
+    const valueLabel = showValues ? { label: { show: true, position, color: theme.textColor, formatter: (p) => (typeof p.value === "number" ? fmt(p.value) : "") } } : {};
     return {
         ...base,
-        ...legend,
+        ...title,
+        ...legendPart,
         tooltip: { trigger: "axis", valueFormatter },
-        // only the top is set: room for the legend; ECharts keeps its own defaults for the label margins
-        grid: { top: s.series.length > 1 ? 40 : 16 },
-        xAxis: chart.horizontal ? valueAxis : categoryAxis,
-        yAxis: chart.horizontal ? { ...categoryAxis, inverse: true } : valueAxis,
+        // room for the title and the legend; ECharts keeps its own defaults for the label margins
+        grid: { top: 16 + titleRoom + room.top, ...(room.bottom ? { bottom: room.bottom + 8 } : {}), ...(room.right ? { right: room.right + 8 } : {}) },
+        xAxis: chart.horizontal ? valueAxis : groups ? [categoryAxis, groups.axis] : categoryAxis,
+        yAxis: chart.horizontal ? (groups ? [{ ...categoryAxis, inverse: true }, { ...groups.axis, inverse: true }] : { ...categoryAxis, inverse: true }) : valueAxis,
         series: s.series.map((x) => ({
             type,
             name: x.name,
             data: x.data,
             ...(chart.stacked ? { stack: "total" } : {}),
             ...(chart.type === "area" ? { areaStyle: {} } : {}),
-            ...(type === "line" ? { connectNulls: false } : {})
+            ...(type === "line" ? { connectNulls: false, smooth: Boolean(chart.smooth) } : {}),
+            ...valueLabel
         }))
     };
 }

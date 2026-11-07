@@ -97,3 +97,80 @@ test("maxCategories plots the first categories in the view's order and reports h
     assert.deepEqual(toEChartsOption(r, { series: s }).xAxis.data, s.categories);
     assert.throws(() => toEChartsOption(r, { series: /** @type {any} */ ({}) }), PivotkitError);
 });
+
+test("display settings: a title, the legend where the view puts it, smooth lines", () => {
+    const titled = toEChartsOption(r, { chart: { type: "bar", title: "Units" } });
+    assert.equal(titled.title.text, "Units");
+    // the grid makes room for the title and the legend above it
+    assert.equal(titled.legend.top, 32);
+    assert.ok(titled.grid.top > toEChartsOption(r).grid.top);
+    assert.equal(toEChartsOption(r).title, undefined);
+    assert.equal(toEChartsOption(r, { chart: { legend: "off" } }).legend, undefined);
+    const bottom = toEChartsOption(r, { chart: { legend: "bottom" } });
+    assert.equal(bottom.legend.bottom, 0);
+    assert.ok(bottom.grid.bottom > 0);
+    const right = toEChartsOption(r, { chart: { legend: "right" } });
+    assert.equal(right.legend.orient, "vertical");
+    assert.ok(right.grid.right > 100);
+    // one series: no legend unless the view asks for one
+    const one = computePivot(data, { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
+    assert.equal(toEChartsOption(one).legend, undefined);
+    assert.equal(toEChartsOption(one, { chart: { legend: "bottom" } }).legend.bottom, 0);
+    assert.equal(toEChartsOption(r, { chart: { type: "line", smooth: true } }).series[0].smooth, true);
+    assert.equal(toEChartsOption(r, { chart: { type: "line" } }).series[0].smooth, false);
+    assert.equal(toEChartsOption(r, { chart: { type: "pie", legend: "off" } }).legend, undefined);
+});
+
+test("value labels: the value on bars and lines, value and share on a pie, numbers on a heatmap", () => {
+    assert.equal(toEChartsOption(r).series[0].label, undefined);
+    const bar = toEChartsOption(r, { chart: { type: "bar", valueLabels: "value" } });
+    assert.equal(bar.series[0].label.show, true);
+    assert.equal(bar.series[0].label.position, "top");
+    assert.equal(bar.series[0].label.formatter({ value: 1234 }), "1,234");
+    assert.equal(toEChartsOption(r, { chart: { type: "bar", stacked: true, valueLabels: "value" } }).series[0].label.position, "inside");
+    assert.equal(toEChartsOption(r, { chart: { type: "bar", horizontal: true, valueLabels: "value" } }).series[0].label.position, "right");
+    // "percent" is a pie's: a bar writes its value
+    assert.equal(toEChartsOption(r, { chart: { type: "line", valueLabels: "percent" } }).series[0].label.formatter({ value: 8 }), "8");
+    const pie = (valueLabels) => toEChartsOption(r, { chart: { type: "pie", valueLabels } }).series[0].label;
+    assert.equal(pie("auto").formatter, undefined);
+    assert.equal(pie("off").show, false);
+    assert.equal(pie("value").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10");
+    assert.equal(pie("percent").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 35.7 %");
+    assert.equal(pie("both").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10 (35.7 %)");
+    assert.equal(toEChartsOption(r, { chart: { type: "heatmap" } }).series[0].label.show, true);
+    assert.equal(toEChartsOption(r, { chart: { type: "heatmap", valueLabels: "off" } }).series[0].label.show, false);
+});
+
+test("the view's display settings reach the option without an override", () => {
+    const view = { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "line", title: "Trend", smooth: true, legend: "bottom", valueLabels: "value" } };
+    const option = toEChartsOption(computePivot(data, view));
+    assert.equal(option.title.text, "Trend");
+    assert.equal(option.legend.bottom, 0);
+    assert.equal(option.series[0].smooth, true);
+    assert.equal(option.series[0].label.show, true);
+});
+
+test("two row fields: the inner items name the categories, the outer ones are group labels on a second axis", () => {
+    const nested = computePivot(data, { rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] });
+    const s = toSeries(nested);
+    assert.deepEqual(s.categoryLevels.slice(0, 3), [["North", "A"], ["North", "B"], ["South", "A"]]);
+    const bar = toEChartsOption(nested, { series: s });
+    assert.ok(Array.isArray(bar.xAxis));
+    const [main, groups] = bar.xAxis;
+    assert.deepEqual(main.data.slice(0, 3), ["A", "B", "A"]);
+    assert.equal(groups.data.length, main.data.length, "both axes have the same bands");
+    // each group's name once, at its middle; a separator where a group starts
+    const named = groups.data.map((g, i) => (groups.axisLabel.interval(i) ? g : null)).filter(Boolean);
+    assert.deepEqual(named, [...new Set(groups.data)]);
+    const starts = groups.data.map((_, i) => groups.axisTick.interval(i));
+    assert.deepEqual(starts, groups.data.map((g, i) => i > 0 && g !== groups.data[i - 1]));
+    // horizontal bars: on the y axis, both reversed; lines and areas too
+    const horizontal = toEChartsOption(nested, { chart: { horizontal: true } });
+    assert.deepEqual([horizontal.yAxis.length, horizontal.yAxis[0].inverse, horizontal.yAxis[1].inverse], [2, true, true]);
+    assert.ok(Array.isArray(toEChartsOption(nested, { chart: { type: "area" } }).xAxis));
+    // off, one row field, a pie: one axis with the whole names
+    const off = toEChartsOption(nested, { chart: { groupLabels: false } });
+    assert.equal(off.xAxis.data[0], "North / A");
+    assert.equal(Array.isArray(toEChartsOption(r).xAxis), false);
+    assert.equal(toEChartsOption(nested, { chart: { type: "pie" } }).xAxis, undefined);
+});

@@ -30,6 +30,10 @@
       "types": "./types/export.d.ts",
       "default": "./src/export.js"
     },
+    "./link": {
+      "types": "./types/link.d.ts",
+      "default": "./src/link.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

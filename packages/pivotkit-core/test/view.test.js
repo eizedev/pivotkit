@@ -222,8 +222,8 @@ function random(seed) {
 test("fuzz: normalize never throws, its output is valid and normalizes to itself", () => {
     const rnd = random(7);
     const pick = (list) => list[Math.floor(rnd() * list.length)];
-    const atoms = [null, true, false, 0, -1, 1.5, 1e308, "", "Region", "units", "Date", "sum", "count", "bin", "year", "include", "top", "value", "label", "rows", "cols", "#fff", "percentOfRowTotal", "runningTotal", "__proto__", "constructor", "de-DE", "UTC", "x".repeat(300)];
-    const keys = ["version", "rows", "cols", "values", "filters", "derived", "sort", "totals", "collapsed", "display", "chart", "formatting", "field", "agg", "type", "items", "op", "value", "value2", "count", "by", "name", "size", "origin", "order", "showAs", "conditional", "colors", "color", "locale", "timeZone", "axis", "format", "label", "__proto__"];
+    const atoms = [null, true, false, 0, -1, 1.5, 1e308, "", "auto", "both", "right", "Region", "units", "Date", "sum", "count", "bin", "year", "include", "top", "value", "label", "rows", "cols", "#fff", "percentOfRowTotal", "runningTotal", "__proto__", "constructor", "de-DE", "UTC", "x".repeat(300)];
+    const keys = ["version", "rows", "cols", "values", "filters", "derived", "sort", "totals", "collapsed", "display", "chart", "formatting", "field", "agg", "type", "items", "op", "value", "value2", "count", "by", "name", "size", "origin", "order", "showAs", "conditional", "colors", "color", "locale", "timeZone", "axis", "format", "label", "valueLabels", "legend", "title", "smooth", "__proto__"];
     const make = (depth) => {
         const r = rnd();
         if (depth > 3 || r < 0.35) {
@@ -260,4 +260,19 @@ test("a custom sort order: listed items first in their order, the rest by label,
     assert.deepEqual(n.view.sort, [{ field: "Units", by: "custom", order: "asc", items: [5, 3] }]);
     assert.deepEqual(n.issues.map((i) => i.path), ["sort[0].items"]);
     assert.deepEqual(validate({ rows: ["Region"], sort: [{ field: "Region", by: "custom" }] }, data).errors.map((e) => e.path), ["sort[0].items"]);
+});
+
+test("chart display settings: value labels, legend, title and smooth lines, checked against fixed lists", () => {
+    assert.deepEqual(emptyView().chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: true });
+    const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true };
+    assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: true });
+    assert.deepEqual(validate({ chart }, data), { valid: true, errors: [] });
+    // unknown settings fall back to their defaults and are reported
+    const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes" } }, data);
+    assert.deepEqual(bad.view.chart, emptyView().chart);
+    assert.deepEqual(bad.issues.map((i) => i.path), ["chart.valueLabels", "chart.legend", "chart.title"]);
+    assert.equal(norm({ chart: { title: "x".repeat(300) } }).chart.title, null);
+    assert.equal(norm({ chart: { title: "   " } }).chart.title, null);
+    // a view of before these settings reads with their defaults
+    assert.deepEqual(norm({ chart: { type: "line" } }).chart, { ...emptyView().chart, type: "line" });
 });

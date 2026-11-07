@@ -23,6 +23,18 @@ export const VIEW_VERSION = 1;
 export const CHART_TYPES = Object.freeze(["bar", "line", "area", "pie", "heatmap"]);
 export const DISPLAY_MODES = Object.freeze(["table", "chart"]);
 export const CONDITIONAL_TYPES = Object.freeze(["colorScale", "dataBar"]);
+/**
+ * What a chart writes next to its marks: "auto" as its type draws them (a pie its names, a heatmap
+ * its numbers, the others nothing), "off", "value", and for a pie "percent" (its share) or "both".
+ */
+export const CHART_VALUE_LABELS = Object.freeze(["auto", "off", "value", "percent", "both"]);
+/** Where the legend goes: "auto" above the chart when it has more than one series (a pie always). */
+export const CHART_LEGENDS = Object.freeze(["auto", "bottom", "right", "off"]);
+/**
+ * The category axis of bars, lines and areas: "auto" every label when they fit, slanted when needed,
+ * else every n-th; "all" every label, slanted; "nth" every n-th label, straight.
+ */
+export const CHART_AXIS_LABELS = Object.freeze(["auto", "all", "nth"]);
 
 const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -37,6 +49,11 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   count?: number, bottom?: boolean, by?: ValueRef }} FilterSpec
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
+ * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
+ *   title: string | null, smooth: boolean, axisLabels: string, groupLabels: boolean }} ChartSpec  the chart
+ *   type and how it is drawn: value labels (CHART_VALUE_LABELS), legend (CHART_LEGENDS), a title over the
+ *   chart, smooth lines (line, area), the category axis labels (CHART_AXIS_LABELS), and with two or more
+ *   row fields the first one's items as group labels under the axis
  *   custom: `items` first in their order (reversed for "desc"), the rest after them by label
  *
  * @typedef {object} View
@@ -50,7 +67,7 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @property {{ grandTotalRow: boolean, grandTotalColumn: boolean, rowSubtotals: boolean, colSubtotals: boolean }} totals
  * @property {{ rows: any[][], cols: any[][] }} collapsed
  * @property {"table" | "chart"} display
- * @property {{ type: string, stacked: boolean, horizontal: boolean }} chart
+ * @property {ChartSpec} chart
  * @property {{ locale: string | null, timeZone: string | null }} formatting  timeZone: the zone the
  *   report was made for; the host passes it to encode(), computePivot() reports a mismatch
  */
@@ -71,7 +88,7 @@ export function emptyView() {
         totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
         collapsed: { rows: [], cols: [] },
         display: "table",
-        chart: { type: "bar", stacked: false, horizontal: false },
+        chart: { type: "bar", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: true },
         formatting: { locale: null, timeZone: null }
     };
 }
@@ -421,13 +438,28 @@ function displaySection(raw, view, ctx) {
     }
     const chart = get(raw, "chart");
     if (chart !== undefined) {
-        view.chart = {
-            type: oneOf(get(chart, "type"), CHART_TYPES, view.chart.type),
-            stacked: bool(get(chart, "stacked"), false),
-            horizontal: bool(get(chart, "horizontal"), false)
+        const own = (key, allowed, fallback) => {
+            const value = get(chart, key);
+            const out = oneOf(value, allowed, fallback);
+            if (value !== undefined && out !== value) {
+                ctx.issue(`chart.${key}`, `unknown ${key} ${JSON.stringify(value)}`);
+            }
+            return out;
         };
-        if (get(chart, "type") !== undefined && view.chart.type !== get(chart, "type")) {
-            ctx.issue("chart.type", `unknown chart type ${JSON.stringify(get(chart, "type"))}`);
+        const title = get(chart, "title");
+        view.chart = {
+            type: own("type", CHART_TYPES, view.chart.type),
+            stacked: bool(get(chart, "stacked"), false),
+            horizontal: bool(get(chart, "horizontal"), false),
+            valueLabels: own("valueLabels", CHART_VALUE_LABELS, "auto"),
+            legend: own("legend", CHART_LEGENDS, "auto"),
+            title: title === undefined || title === null ? null : ctx.text(title),
+            smooth: bool(get(chart, "smooth"), false),
+            axisLabels: own("axisLabels", CHART_AXIS_LABELS, "auto"),
+            groupLabels: bool(get(chart, "groupLabels"), true)
+        };
+        if (title !== undefined && title !== null && view.chart.title === null && !(typeof title === "string" && title.trim() === "")) {
+            ctx.issue("chart.title", `not a text up to ${ctx.limits.name} characters`);
         }
     }
 }
