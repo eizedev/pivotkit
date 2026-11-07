@@ -1751,9 +1751,14 @@
     max-width: max(6em, 30cqi);
 }
 
-/* a narrow report: a little less room around each cell, for the labels' least width below */
+/* a narrow report: a little less room around each cell, for the labels' least width below, and a
+   value's name wraps beyond 22 % (a word such as "Population" still fits) */
 .pk-root[data-pk-size="narrow"] .pk-table :is(th, td) {
     padding-inline: 0.6em;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
+    max-width: max(5em, 22cqi);
 }
 
 /* a label wraps between words; at least 5.5em wide, so a common word ("Central", "Bangladesh") never

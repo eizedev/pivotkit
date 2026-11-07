@@ -389,3 +389,18 @@ test("a date grouping is named in words: Date by month, Datum nach Monat", async
     // a host's labels without unitInName: the unit's own name
     assert.equal(groupingName("Date", "year", { ...LABELS.en, unitInName: undefined }), "Date by Year");
 });
+
+test("toolbar room: the widest text of every language, plus what a button has around it", async () => {
+    const { toolbarRoom, toolbarTexts, overflowLevel } = await import("../src/overflow.js");
+    const texts = toolbarTexts([LABELS.en, LABELS.de]);
+    assert.ok(texts.undo.includes("Undo") && texts.undo.includes("Rückgängig"));
+    assert.ok(texts.chartType.includes("Gestapelte Balken"));
+    // one px per character: the room is that of the longer language
+    const room = toolbarRoom(texts, (t) => t.length, { text: 30, menu: 40, display: 50, sep: 9, gap: 6 });
+    assert.equal(room.undo, 30 + "Rückgängig".length + 6);
+    assert.equal(room.chartType, 40 + "Gestapelte Balken".length + 6);
+    assert.equal(room.display, 50 + "Tabelle".length + "Diagramm".length + 6);
+    // the same room whichever language is shown: the same level at the same width
+    const shownDe = toolbarRoom(toolbarTexts([LABELS.en, LABELS.de, LABELS.de]), (t) => t.length, { text: 30, menu: 40, display: 50, sep: 9, gap: 6 });
+    for (let w = 100; w < 600; w += 7) assert.equal(overflowLevel(w, false, shownDe), overflowLevel(w, false, room));
+});

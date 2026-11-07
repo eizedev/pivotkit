@@ -658,6 +658,8 @@ function Report(props) {
             return undefined;
         }
         const box = el.getBoundingClientRect();
+        // the width class before the first paint too: never a frame of the wide layout on a phone
+        setSize(sizeOf(box.width));
         const first = compactAt(sizeOf(box.width), box.height);
         setMeasuredShort(first);
         setShort(first);

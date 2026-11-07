@@ -1,7 +1,9 @@
 /*
  * Which toolbar buttons move into "More" (toolbar.jsx): a fixed priority (OVERFLOW_ORDER) and the
- * room each button takes with the longest text of the built-in languages (TOOLBAR_ROOM), so the same
- * buttons show at the same width in English and German. Pure, so it is tested without a DOM.
+ * room each button takes with the longest of its texts in every built-in language and the report's
+ * own (toolbarRoom: the texts measured in the toolbar's font, plus what a button has around its text),
+ * so the same buttons show at the same width in English and German, whatever font the browser draws
+ * them in. TOOLBAR_ROOM is the estimate where nothing can be measured. Pure, tested without a DOM.
  */
 
 /**
@@ -34,14 +36,65 @@ export const TOOLBAR_ROOM = Object.freeze({
     more: 7.2
 });
 
+/** The parts of the toolbar that are buttons with a text, and those that open a menu (with a caret). */
+const TEXT_BUTTONS = Object.freeze(["fields", "undo", "redo", "reset", "layout"]);
+const MENU_BUTTONS = Object.freeze(["chartType", "options", "views", "export", "more"]);
+
 /**
- * How many entries of OVERFLOW_ORDER go into "More" in a toolbar `width` em wide: the fewest with
- * which the rest fits.
- * @param {number} width  in em
- * @param {boolean} narrow  the report is narrow: the Fields button is there too
+ * Every text each part of the toolbar can show, from several label sets (the built-in languages and
+ * the report's own): a list of texts per part; for `display` (Table | Chart) the pairs.
+ * @param {ReadonlyArray<any>} sets  labels objects
+ * @returns {Record<string, string[]> & { display: string[][] }}
  */
-export function overflowLevel(width, narrow) {
-    const room = TOOLBAR_ROOM;
+export function toolbarTexts(sets) {
+    const out = /** @type {any} */ ({ fields: [], undo: [], redo: [], reset: [], layout: [], chartType: [], options: [], views: [], export: [], more: [], display: [] });
+    const text = (v) => (typeof v === "string" ? v : "");
+    for (const l of sets) {
+        out.fields.push(text(l.showFields));
+        out.undo.push(text(l.undo));
+        out.redo.push(text(l.redo));
+        out.reset.push(text(l.reset));
+        out.layout.push(text(l.layout));
+        out.options.push(text(l.options));
+        out.views.push(text(l.views));
+        out.export.push(text(l.exportLabel));
+        out.more.push(text(l.more));
+        out.chartType.push(...Object.values(l.chartTypes ?? {}).map(text));
+        out.display.push([text(l.table), text(l.chart)]);
+    }
+    return out;
+}
+
+/**
+ * The room (px) each part takes with its widest text: what a button has around its text (`chrome`:
+ * a text button's, a menu button's, Table | Chart's; measured from those on screen) plus the widest
+ * text (`measure`, in the toolbar's font) plus the gap after it. `sep`: the separator with its margins.
+ * @param {ReturnType<typeof toolbarTexts>} texts
+ * @param {(text: string, kind: "button" | "display") => number} measure
+ * @param {{ text: number, menu: number, display: number, sep: number, gap: number }} chrome
+ * @returns {Record<string, number>}
+ */
+export function toolbarRoom(texts, measure, chrome) {
+    const widest = (list, /** @type {"button" | "display"} */ kind = "button") => Math.max(0, ...list.map((t) => measure(t, kind)));
+    const room = /** @type {Record<string, number>} */ ({ sep: chrome.sep + chrome.gap });
+    for (const id of TEXT_BUTTONS) {
+        room[id] = chrome.text + widest(texts[id]) + chrome.gap;
+    }
+    for (const id of MENU_BUTTONS) {
+        room[id] = chrome.menu + widest(texts[id]) + chrome.gap;
+    }
+    room.display = chrome.display + Math.max(0, ...texts.display.map(([a, b]) => measure(a, "display") + measure(b, "display"))) + chrome.gap;
+    return room;
+}
+
+/**
+ * How many entries of OVERFLOW_ORDER go into "More" in a toolbar `width` wide: the fewest with
+ * which the rest fits.
+ * @param {number} width  in the unit of `room` (em for TOOLBAR_ROOM, px for toolbarRoom)
+ * @param {boolean} narrow  the report is narrow: the Fields button is there too
+ * @param {Readonly<Record<string, number>>} [room]
+ */
+export function overflowLevel(width, narrow, room = TOOLBAR_ROOM) {
     const fixed = (narrow ? room.fields : 0) + room.display + room.sep + room.undo + room.redo + room.export;
     let level = 0;
     const need = (n) => fixed + OVERFLOW_ORDER.slice(n).reduce((sum, id) => sum + room[id], 0) + (n > 0 ? room.more : 0);

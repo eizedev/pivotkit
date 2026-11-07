@@ -9,14 +9,14 @@
  * their text.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHART_TYPES, chartTypeOf } from "./chart-types.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
-import { fill } from "./labels.js";
+import { LABELS, fill } from "./labels.js";
 import { MenuPanel } from "./lazy-menus.jsx";
 import { MenuButton, Option, Popover } from "./popover.jsx";
-import { OVERFLOW_ORDER, overflowLevel } from "./overflow.js";
+import { OVERFLOW_ORDER, overflowLevel, toolbarRoom, toolbarTexts } from "./overflow.js";
 import { SettingInfo } from "./section.jsx";
 
 /** @param {{ icon: any, label: string, onClick: () => void, disabled?: boolean, testId?: string, shortcut?: string }} props */
@@ -29,23 +29,84 @@ function TextButton({ icon, label, onClick, disabled, testId, shortcut }) {
     );
 }
 
+/** A canvas for measuring texts, made once. @type {CanvasRenderingContext2D | null | undefined} */
+let measuring;
+
+/** The font of an element for the canvas (Firefox gives no `font` shorthand in the computed style). */
+const fontOf = (style) => `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+
 /**
- * How many entries of OVERFLOW_ORDER are in "More": overflowLevel() of the toolbar's width, raised
- * further only when the buttons still do not fit in one line (a host's longer labels); measured
- * again when the width or the buttons change.
+ * The room (px) of each part of the toolbar, measured: its texts in every built-in language and the
+ * report's own, in the font the toolbar is drawn in, plus what the buttons on screen have around their
+ * text. Null where the browser cannot measure (then overflowLevel's estimate in em applies).
+ * @param {HTMLElement} el  the toolbar
+ * @param {ReturnType<typeof toolbarTexts>} texts
+ */
+function measuredRoom(el, texts) {
+    const doc = el.ownerDocument;
+    if (measuring === undefined) {
+        try {
+            measuring = doc.createElement("canvas").getContext("2d");
+        } catch {
+            measuring = null;
+        }
+    }
+    const undo = el.querySelector("[data-testid='undo']");
+    const menu = el.querySelector("[data-testid='export']");
+    const display = el.querySelector(".pk-segmented");
+    const sep = el.querySelector(".pk-sep");
+    const textOf = (node) => node?.querySelector(".pk-btn-text, span");
+    if (!measuring || !undo || !menu || !display || !textOf(undo) || !textOf(display)) {
+        return null;
+    }
+    const view = doc.defaultView;
+    if (!view) {
+        return null;
+    }
+    const fonts = { button: fontOf(view.getComputedStyle(/** @type {Element} */ (textOf(undo)))), display: fontOf(view.getComputedStyle(/** @type {Element} */ (textOf(display)))) };
+    const ctx = measuring;
+    const measure = (text, kind) => {
+        ctx.font = fonts[kind];
+        return ctx.measureText(text).width;
+    };
+    const w = (node) => node.getBoundingClientRect().width;
+    const tw = (node) => (node ? node.getBoundingClientRect().width : 0);
+    const segTexts = [...display.querySelectorAll("button > span")];
+    const sepStyle = sep ? view.getComputedStyle(sep) : null;
+    const chrome = {
+        text: w(undo) - tw(textOf(undo)),
+        menu: w(menu) - tw(textOf(menu)),
+        display: w(display) - segTexts.reduce((n, s) => n + tw(s), 0),
+        sep: sep && sepStyle ? w(sep) + parseFloat(sepStyle.marginLeft) + parseFloat(sepStyle.marginRight) : 0,
+        // one more px per part: text widths are fractional, the buttons round them
+        gap: (parseFloat(view.getComputedStyle(el).columnGap) || 0) + 1
+    };
+    return toolbarRoom(texts, measure, chrome);
+}
+
+/**
+ * How many entries of OVERFLOW_ORDER are in "More": overflowLevel() of the toolbar's width and the
+ * room of its parts with their widest text in every language (measuredRoom), so English and German
+ * show the same buttons; raised further only when the buttons still do not fit (a font that came
+ * later). Measured again when the width or the texts change.
  * @param {React.RefObject<HTMLElement | null>} ref
  * @param {string} key  changes when the buttons change (another language, the zones folded or open)
  * @param {boolean} narrow  the report is narrow (the Fields button is in the toolbar)
  * @param {number} max  how many entries can move
+ * @param {ReturnType<typeof toolbarTexts>} texts
  */
-function useOverflow(ref, key, narrow, max) {
+function useOverflow(ref, key, narrow, max, texts) {
     const [level, setLevel] = useState(0);
-    const [base, setBase] = useState(0);
     const [measure, setMeasure] = useState(0);
     const [lastKey, setLastKey] = useState(key);
+    const latest = useRef(texts);
+    // before the effect below, which reads it
+    useIsoLayoutEffect(() => {
+        latest.current = texts;
+    });
     if (key !== lastKey) {
         setLastKey(key);
-        setLevel(base);
+        setMeasure((m) => m + 1);
     }
     useIsoLayoutEffect(() => {
         const el = ref.current;
@@ -53,22 +114,32 @@ function useOverflow(ref, key, narrow, max) {
             return undefined;
         }
         let width = -1;
+        const decide = () => {
+            const em = parseFloat(getComputedStyle(el).fontSize) || 14;
+            const room = measuredRoom(el, latest.current);
+            setLevel(room ? overflowLevel(width, narrow, room) : overflowLevel(width / em, narrow));
+            setMeasure((m) => m + 1);
+        };
         const ro = new ResizeObserver(([entry]) => {
             // the width only: the toolbar's own height changes when it wraps, and must not start over
             const w = Math.round(entry.contentRect.width);
-            if (w === width) {
-                return;
+            if (w !== width) {
+                width = w;
+                decide();
             }
-            width = w;
-            const em = parseFloat(getComputedStyle(el).fontSize) || 14;
-            const next = overflowLevel(w / em, narrow);
-            setBase(next);
-            setLevel(next);
-            setMeasure((m) => m + 1);
         });
+        // before the first paint: the buttons never show in the toolbar for a frame and then move
+        width = Math.round(el.getBoundingClientRect().width);
+        decide();
         ro.observe(el);
-        return () => ro.disconnect();
-    }, [ref, narrow]);
+        // a web font that arrives later draws the texts wider or narrower
+        let live = true;
+        el.ownerDocument.fonts?.ready.then(() => live && width >= 0 && decide(), () => undefined);
+        return () => {
+            live = false;
+            ro.disconnect();
+        };
+    }, [ref, narrow, key]);
     useIsoLayoutEffect(() => {
         const el = ref.current;
         if (el && el.scrollWidth > el.clientWidth + 1 && level < max) {
@@ -89,7 +160,9 @@ export function Toolbar(props) {
     const viewsButton = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const [panel, setPanel] = useState(/** @type {"options" | "views" | "chartType" | null} */ (null));
     const order = OVERFLOW_ORDER;
-    const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}`, size === "narrow", order.length);
+    // every text a part of the toolbar can show, in the built-in languages and the report's own
+    const texts = useMemo(() => toolbarTexts([LABELS.en, LABELS.de, labels]), [labels]);
+    const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}`, size === "narrow", order.length, texts);
     const hidden = new Set(order.slice(0, level));
     // a panel opened from "More" closes when its own button is back in the toolbar
     if (panel && !hidden.has(panel)) {
