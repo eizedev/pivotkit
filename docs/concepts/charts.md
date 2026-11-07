@@ -35,6 +35,11 @@ label; Every n-th keeps them straight and leaves out as many as needed. A name l
 in "…"; the tooltip has it whole. Horizontal bars write their names straight, every one while a line
 fits each bar.
 
+**Tooltip.** Pointing at a category of bars, lines or areas shows its whole name and one line per
+series: the series' colour, its name and the value formatted as in the table. A pie shows the value's
+name, the slice and its value; a heatmap the value's name, the cell's row and column and its value.
+It is built from text nodes, never from HTML, so nothing from the data is read as markup.
+
 **Group labels.** With two or more fields in Rows (Region, then Country) the axis names each category
 by its inner field (the country) and writes the outer field's item (the region) once under its
 categories, with a line between two groups. Horizontal bars put the groups left of the names. Off

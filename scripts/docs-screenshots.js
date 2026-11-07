@@ -29,6 +29,14 @@ const GROUPED = encodeViewLink({
     chart: { type: "bar", title: "The three largest countries of each region (2024)" }
 });
 
+/** Regions with more than 2 million revenue, by the second value of two: the chip says so, the menu has the form open. */
+const VALUE_FILTER = encodeViewLink({
+    rows: ["Region", "Product"],
+    values: [{ field: "Units", agg: "sum" }, { field: "Revenue", agg: "sum", format: "currency:EUR" }],
+    filters: [{ field: "Region", type: "value", op: ">", value: 2_000_000, by: { field: "Revenue", agg: "sum" } }],
+    sort: [{ field: "Region", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } }]
+});
+
 /** @type {{ name: string, query: string, size: typeof WIDE, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
     // the hero of the start page: real data (the weather of 14 cities)
@@ -99,6 +107,16 @@ const SHOTS = [
             await page.getByTestId("chip-menu-Region").click();
         }
     },
+    {
+        name: "value-filter",
+        query: `data=sales&theme=light#pivot-playground=${VALUE_FILTER}`,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Region").click();
+            // the menu scrolled to its Filters section
+            await page.getByTestId("open-filter").evaluate((el) => el.closest(".pk-section").scrollIntoView({ block: "start" }));
+        }
+    },
     { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE },
     // a field's description (fieldDefaults) opened from its "i", and the tips above the table
     {
@@ -156,7 +174,7 @@ try {
         await page.getByTestId("skeleton").waitFor({ state: "detached" });
         // the playground's footer shows timings that differ on every run
         await page.addStyleTag({ content: ".pg-foot { visibility: hidden; }" });
-        if (shot.query.includes("preset=1") || shot.query.includes("#pivot")) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
+        if (shot.query.includes("preset=1") || shot.query.includes(GROUPED)) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
         if (shot.open) await shot.open(page);
         // fonts, the chart's first frame, the popover's position
         await page.waitForTimeout(600);

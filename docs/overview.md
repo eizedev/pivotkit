@@ -18,7 +18,7 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - Drag fields into Rows, Columns, Values and Filters, or use the menu every field has ([guide](guide.md#adding-fields)).
 - Sum, count, average and more, or show a value as a share, a running total or a rank ([values](concepts/values.md)).
 - Dates are grouped as soon as they are placed, numbers go into ranges ([dates](concepts/dates.md)).
-- Filter a field by its values, a text condition or its top N; the menu says what a filter keeps ([filters](concepts/filters.md)).
+- Filter a field by its values, a text condition, a value condition ("Sum of Revenue > 1,000") or its top N; the menu says what a filter keeps ([filters](concepts/filters.md)).
 - Click a number to see the rows behind it ([drill-down](guide.md#the-rows-behind-a-number)).
 - Switch to bars, lines, area, pie or heatmap, with value labels, legend, title and group labels ([charts](concepts/charts.md)).
 - Undo and redo every step; Reset goes back to the start ([guide](guide.md#undo-templates-and-export)).

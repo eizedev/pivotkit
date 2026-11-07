@@ -126,6 +126,16 @@ survives the host's renders, and it is not part of the view, so a template does 
 640 px leaves little room for it on a phone: give it more height there, for example
 `height="calc(100svh - 24px)"` (the page scrolls to the report, the table scrolls inside it).
 
+## Escape and the host page
+
+While a popover, the drill-down or the narrow field drawer of the report is open, the report listens
+for Escape on the whole `document` and closes its newest layer only, also when the focus is outside
+the report (on the host page, say). It calls `preventDefault()` on that Escape, and it leaves an
+Escape alone that is `defaultPrevented` already. A host that opens a dialog of its own while a report
+layer is open: handle Escape in the dialog's own `keydown` listener (it runs before the document's)
+and call `preventDefault()`, or close the report's layer first. The keys of the report itself are in
+[Using the report](../guide.md#keyboard-and-screen-readers).
+
 ## Performance
 
 The pivot is computed once per view and the table body is virtualized. Approximate numbers, measured

@@ -2,6 +2,8 @@
 
 Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/core/) - the API reference, the view and its concepts, and a [guide to the engine](https://pivotkit.eize.dev/getting-started/engine/).
 
+What pivotkit does, in short: [overview](https://pivotkit.eize.dev/overview/); every feature, also the small behaviours: [feature list](https://pivotkit.eize.dev/features/).
+
 The pivot engine of pivotkit, in plain JavaScript without UI: typed encoding of your rows, pivot tables
 with subtotals and totals, "show values as", filters, date grouping and number bins, a grid with merged
 headers for any table renderer, chart options for Apache ECharts, and XLSX and CSV export. Excel's
@@ -50,16 +52,16 @@ Every function takes its required inputs first and all optional settings in one 
 | --- | --- |
 | `encode(rows, { types, columns, timeZone, inferNumbers, limits })` | Columns typed (string, number, boolean, date incl. ISO strings), as Int32 codes plus dictionaries and Float64 measures. Names match case-insensitively; colliding spellings are listed in `data.issues`. `data.schema.fields[i].detected` says when a text column holds only numbers. |
 | `normalize(view, schema, { limits })` | `{ view, issues }`: names resolved against the schema and fixed lists, everything else dropped and reported. Nothing in a view runs as code. |
-| `validate(view, schema)` | `{ valid, errors }`: everything `normalize` would drop or change. |
+| `validate(view, schema, { limits })` | `{ valid, errors }`: everything `normalize` would drop or change, against the same `limits`. |
 | `migrate(view)` | `{ view, issues }`: a parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
-| `emptyView()`, `viewFields(view, schema)` | A new report; the fields of a view including its derived fields. |
+| `emptyView()`, `viewFields(view, schema)` | A new report; the fields of a view including its derived fields, as `[{ name, type, derived? }]`. |
 | `computePivot(data, view, { locale, limits })` | Row and column key trees with subtotals and totals; `result.value(row, col, i)` and `result.display(row, col, i)` (after "show values as"), `result.hasRows(row, col)` (whether any source row is behind a cell); `result.issues`. |
 | `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
 | `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
 | `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios; `hasRows` on each value cell (false: a blank cell with no source row behind it, nothing to drill into). One value's name is a single header cell over all of its columns, as in Excel. |
 | `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie and heatmap, with the view's display settings: title, legend, value labels, smooth lines, and the outer row field as group labels on a second category axis (`toSeries` gives `categoryLevels` for it). ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
 | `encodeViewLink(view)`, `decodeViewLink(text)`, `LINK_LIMITS` | From `pivotkit-core/link`: a view as a short link text (`1.` and its JSON deflated with fflate, base64url) and back. Decoding never throws, caps the text (32,000 characters) and the inflated view (1,000,000) and returns `{ view, issues }`; the view is user input for `normalize`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
-| `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars) and CSV (the grid's locale decides separator and decimal mark, formula-injection guard). |
+| `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { separator, repeatLabels, bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars; `sheetName` default `"Pivot"`, made valid for Excel: 31 characters, no `\ / ? * [ ] :`) and CSV (the grid's locale decides separator, `;` where the decimal mark is a comma, and decimal mark; `repeatLabels` default `true` repeats a row label on every row it spans; formula-injection guard). `toCsvBytes` writes UTF-8 with a byte order mark unless `bom` is `false`. |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views. |
 | `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
 | `CATALOG`, `aggregatorsFor(type)` | Every name a view accepts (aggregators, formats, show-as, filter types, grouping units, chart types), for a UI's menus, with the sub-lists `commonAggregators`, `timelineUnits` and `cyclicUnits`; the aggregators that fit a field type. |

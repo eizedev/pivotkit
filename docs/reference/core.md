@@ -72,10 +72,10 @@ A view is the report as JSON; [Views and templates](../concepts/views.md) descri
 | Function | Returns | What |
 | --- | --- | --- |
 | `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported with its path. Nothing in a view runs as code. |
-| `validate(view, schema)` | `{ valid, errors }` | Everything `normalize` would drop or change. |
+| `validate(view, schema, { limits })` | `{ valid, errors }` | Everything `normalize` would drop or change, against the same `limits` (`errors` are `normalize`'s issues, `{ path, message }`). |
 | `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
 | `emptyView()` | `View` | A new, empty report. |
-| `viewFields(view, schema)` | | The fields of a view, including its derived fields. |
+| `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`; `type` is `"date"` for a grouping by day, `"number"` for every other unit and for number ranges). |
 | `VIEW_VERSION` | `number` | The view version this release writes. |
 
 ## Pivot
@@ -173,9 +173,9 @@ DEFLATE, in base64url. See [Sharing](../concepts/sharing.md).
 
 | Function | What |
 | --- | --- |
-| `toXlsx(grid, { sheetName, theme })` | An Excel workbook: typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars. `theme`: `{ colorScale, dataBar }` for conditional formats whose view names no colours.<br><small>Returns `Uint8Array`</small> |
-| `toCsv(grid, { separator, repeatLabels })` | CSV. The grid's locale decides the separator and the decimal mark; numbers keep 15 significant digits; a percent and a "show values as" value are written as the table shows them, rounded to the decimals of their format, a percent in percent with a `%` (`-2.6%`; the XLSX keeps their full precision); text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
-| `toCsvBytes(grid, { separator, repeatLabels, bom })` | The same as UTF-8 bytes, with a byte order mark when `bom` is set.<br><small>Returns `Uint8Array`</small> |
+| `toXlsx(grid, { sheetName, theme })` | An Excel workbook: typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars. `sheetName`: default `"Pivot"`; at most 31 characters, `\ / ? * [ ] :` and control characters become spaces, apostrophes at either end are dropped, and `"History"` (reserved by Excel) becomes `"History 1"`. `theme`: `{ colorScale, dataBar }` for conditional formats whose view names no colours.<br><small>Returns `Uint8Array`</small> |
+| `toCsv(grid, { separator, repeatLabels })` | CSV. `separator`: default `";"` where the grid's locale writes decimals with a comma (de-DE), else `","`; the locale also gives the decimal mark. `repeatLabels`: default `true`, a row label that spans several rows is written on each of them, so every line stands on its own; `false` writes it once. Numbers keep 15 significant digits; a percent and a "show values as" value are written as the table shows them, rounded to the decimals of their format, a percent in percent with a `%` (`-2.6%`; the XLSX keeps their full precision); text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
+| `toCsvBytes(grid, { separator, repeatLabels, bom })` | The same as UTF-8 bytes, with a byte order mark so Excel detects the encoding; `bom: false` leaves it out.<br><small>Returns `Uint8Array`</small> |
 
 What the files contain, and where Excel's number formats cannot follow the grid, is in
 [Security](../security.md#exports) and [Values](../concepts/values.md#export).

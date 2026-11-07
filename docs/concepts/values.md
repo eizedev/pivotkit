@@ -95,6 +95,23 @@ where it adds up to a whole number ("118.00" next to "2.33"): the column lines u
 does; `number` (up to 2 decimals) shows "118". All formatting follows the
 [locale](limits.md#locale), never the machine's.
 
+## In the value's menu
+
+The menu of a value chip ([Using the report](../guide.md#values)) shows **Show as**, **Number
+format** and **Highlight** only for a value that gives a number in every cell: not for a list of
+distinct values, the first or last entry of a text, or the average, median, minimum or maximum of
+dates. Such a value keeps Summarize by, Name and Move.
+
+- The six calculations that walk along an axis (differences, running totals, ranks) add an **Along**
+  switch, **Rows** or **Columns**: the view's `axis`.
+- **Number format** offers Automatic (no `format`) and ten formats: `number`, `number:0`, `number:2`,
+  `integer`, `currency`, `percent`, `compact`, `bytes`, `duration:h` and `duration:s`. Every other
+  format of the table above works in a view (a template, a link, `fieldDefaults`) and is kept, but is
+  not in the menu: `percent100`, `date`, `datetime`, `time`, `text`, a currency with its code
+  (`currency:USD`), other decimals (`number:3`, `percent:0`) or other duration units. No entry is
+  checked then; picking one replaces it.
+- **Highlight**: none, a colour scale or data bars, in the theme's colours.
+
 ## Highlighting
 
 `conditional` colours the cells of a value, as Excel's conditional formatting does:

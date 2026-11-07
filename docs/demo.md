@@ -45,12 +45,12 @@ pivotkit's share format, the part a host (React, the web component, PowerShell U
 | --- | --- | --- |
 | `data` | `weather`, `countries`, `earthquakes`, `nobel`, `endoflife`, `tickets`, `sales`, `assets` | The data set |
 | `start` | the start template's name in words, as the Start dropdown writes it (`which-city-is-the-sunniest-top-3`), or `empty` | The start template |
-| `preset` | `0` to `4` | The start template by its place in the list (the older form of `start`) |
+| `preset` | `0`, `1`, ... | The start template by its place in the Start dropdown, counted from `0`; `start` wins when both are given |
 | `rows` | `2000`, `4000`, `100000` | The number of generated rows (generated data sets only) |
 | `empty` | | Start with an empty report (as `start=empty`) |
 | `lang` | `en`, `de` | English or German |
 | `theme` | `light`, `dark` | The page's theme; without it the report follows the system |
-| `height` | a number of pixels, for example `480` | The report at a fixed height, as a host's card gives it |
+| `height` | a number of pixels written with three or four digits, for example `480` | The report at a fixed height, as a host's card gives it; any other value is ignored, and the report takes the window's height below the playground's header |
 
 For example [`?data=earthquakes&start=did-some-months-shake-more-than-others-chart&theme=dark`](playground/?data=earthquakes&start=did-some-months-shake-more-than-others-chart&theme=dark){ target="_blank" }
 opens the earthquakes per month as a chart in the dark theme.

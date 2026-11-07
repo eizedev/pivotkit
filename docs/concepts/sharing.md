@@ -17,11 +17,15 @@ Under **Share this view**:
 - **Copy link** (when the application allows links): an address with the view in it. Whoever opens
   it sees the same report on the same data; Reset still goes to the application's start view.
 - **Copy view as JSON**: the view as text, for a message or a ticket.
-- **Download view (.json)**: the view as a file, named after the report (`pivot-view.json`).
-- **Load view…**: paste a view's JSON or a link, or **Choose file…**. Nothing changes until it is
-  loaded; it is one step that Undo takes back. A text that is no view says why ("This is neither a view
-  in JSON nor a pivotkit link."); fields the data does not have are named after the load ("Some parts
-  did not fit this data and were left out: fields this data does not have (“Planet”)").
+- **Download view (.json)**: the view as a file, named after the host's `fileName` with `-view.json`
+  (`pivot-view.json` without one).
+- **Load view…**: paste a view's JSON or a link and press **Load** (greyed out while the box is
+  empty), or **Choose file…**, which loads the file at once. Nothing changes until it is loaded; it is
+  one step that Undo takes back. A text of more than 1,000,000 characters, or a file of more than
+  1,000,000 bytes, is refused before it is parsed ("This is too large for a view."); a text that is no view says why ("This is neither a
+  view in JSON nor a pivotkit link.", "This view comes from a newer version of pivotkit and cannot be
+  read here."); fields the data does not have are named after the load ("Some parts did not fit this
+  data and were left out: fields this data does not have (“Planet”)").
 
 ![The Templates menu with Share this view: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu.png)
 

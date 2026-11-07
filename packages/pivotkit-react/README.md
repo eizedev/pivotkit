@@ -2,6 +2,8 @@
 
 Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/react/) - getting started, every prop, theming, localisation, a [guide for the people using the report](https://pivotkit.eize.dev/guide/) and a [live demo](https://pivotkit.eize.dev/demo/).
 
+What pivotkit does, in short: [overview](https://pivotkit.eize.dev/overview/); every feature, also the small behaviours: [feature list](https://pivotkit.eize.dev/features/).
+
 The pivot report builder of pivotkit as a React 18/19 component: a searchable field list, four drop
 zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every field, table and chart
 (Apache ECharts), filters with value counts, drill-down to the rows behind a value, undo and redo,
@@ -121,11 +123,13 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   up to six years by quarter, longer by year; the chip says so ("Created (Month)").
 - Chips: drag to reorder or to another zone, drag back to the field list or press x to remove (a note
   under the table offers Undo). A chip shows what is set on it: "3 of 4" for a filter, "Top 5", the
-  sort. The menu of a row or column field has sort (label or value, and the custom order of the view
+  sort, a value condition ("Sum of Revenue > 1,000"). The menu of a row or column field has sort (by
+  label, largest or smallest first by any value that gives a number, and the custom order of the view
   or of `fieldDefaults`), date grouping (along the time line: year, quarter, month, week, day; or
   across years: quarter, month, week of the year, weekday, hour), number ranges (their size and where
   they start, Excel's "Starting at"; a new size keeps the start, an empty start is 0, a start too far
-  from the field's numbers is refused with a note), top or bottom N, filter, and move. The menu of a value has the aggregator (sum,
+  from the field's numbers is refused with a note), top or bottom N by a chosen value, filter with a
+  value condition ("Value filter…"), and move. The menu of a value has the aggregator (sum,
   count, average, minimum, maximum; the statistics under "More statistics"), "show as" (the header
   then says it: "% of grand total of Revenue"), the number format, highlighting (colour scale, data
   bars), its name, and move; Remove stays at the foot of every menu.
@@ -179,8 +183,9 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 
 For hosts: while a popover, the drill-down or the narrow field drawer of the report is open, the
 report listens for Escape on the whole document and closes its newest layer, also when the focus is
-outside the report. A host that opens a dialog of its own over an open report layer gets that Escape
-to the report first; close the report's layer before, or open the dialog when none is open.
+outside the report; it calls `preventDefault()` on that Escape and leaves one alone that is
+`defaultPrevented` already. A host dialog opened over an open report layer handles Escape in its own
+listener and calls `preventDefault()`, or closes the report's layer first.
 
 ## Layout
 

@@ -2,6 +2,8 @@
 
 Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/element/) - getting started, every attribute, property and event, theming, security and a [live demo](https://pivotkit.eize.dev/demo/).
 
+What pivotkit does, in short: [overview](https://pivotkit.eize.dev/overview/); every feature, also the small behaviours: [feature list](https://pivotkit.eize.dev/features/).
+
 The pivot report builder of [pivotkit-react](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#readme) as one web component,
 `<pivot-report>`, for pages without React: Angular apps, PHP and other server-rendered pages, plain
 HTML. It brings its own React 18.3.1 and ReactDOM, pivotkit-react, [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme)

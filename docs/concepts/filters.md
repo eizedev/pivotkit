@@ -66,7 +66,11 @@ Each field on rows or columns is sorted on its own:
   "desc"` reverses both. Blank sorts last unless it is listed (`null`).
 
 In the UI the menu of a row or column field offers "A to Z", "Z to A" (or "Oldest first", "Newest
-first" for dates) and "Largest first", "Smallest first" for each value. "Custom order" and "Custom
+first" for dates) and, for each value that gives a number, "Largest Sum of Revenue first" and
+"Smallest Sum of Revenue first" (with the value's name); without a value it sorts by the number of
+rows. A value gives no number to sort by when it lists distinct values, takes the first or last entry
+of a text, or the average, median, minimum or maximum of dates; the menu leaves those out. The entry in
+use has a check mark. "Custom order" and "Custom
 order, reversed" are offered when the view has a custom sort for the field or the host gives the
 field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"] } }`. A
 field with such an order is sorted in it as soon as it is placed on Rows or Columns, as a `custom`
@@ -76,5 +80,35 @@ in the menu is then kept as a sort entry of its own, so the host's order does no
 
 ## Filters in the UI
 
-The filter of a field shows its values with their row counts, a search, select all or none, "only
-this value", and a text condition. [Using the report](../guide.md#filters) shows it.
+The filter of a field ("Filter…" in its menu, or a click on a chip in Filters) shows:
+
+- Its values with their row counts, and "N selected" at the top. At most 300 values are listed; a
+  longer list says "300 of 1,045 values; search to find more", and the search finds the others.
+- **Select all** and **Select none** act on the values the search finds (all of them, also those past
+  the first 300), **Only** next to a value keeps that one alone.
+- A text condition (`label` filter): is, is not, contains, does not contain, begins with, ends with.
+- **Remove filter** at its top while the field is filtered.
+
+The values you tick are a draft until **Apply**. The report stores the values you did **not** tick as
+an `exclude` filter, as Excel does: a value that appears in later data is shown. With every value
+ticked, the field has no item filter at all.
+
+A **value condition** (`value` filter) is in the menu of a row or column field, under **Value
+filter…**: the value it compares (a select when the view has several values that give numbers, the
+first one chosen), an operator (equals, does not equal, greater than, greater than or equal to, less
+than, less than or equal to, between, not between) and a number, two for between. Apply sets it,
+**Clear** removes it, and changing it replaces it; it is one undo step either way. The chip shows it in
+short, "Sum of Revenue > 1,000" (a long one ends in "…"; its whole text is in the chip's name for screen
+readers and in its tooltip), and so does the menu: "Filter: Sum of Revenue > 1,000". **Remove filter**
+in the menu removes it together with the item list and the text condition; Top N stays.
+
+**Show only the top items** in the same menu is the `top` filter: Top or Bottom, a count, and "by" the
+value it ranks by (a select when the view has several values that give numbers; the first value is
+the default). **Clear** removes it.
+
+![The menu of Region: the value condition "Sum of Revenue > 2,000,000" in the accent colour and its form, open](../assets/screenshots/value-filter.png)
+
+A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
+report - its **x**, Remove in its menu, or dragged back to the field list - takes its filters and its
+sort with it; moved to Values, it leaves its filters behind. [Using the report](../guide.md#filters)
+shows the filter itself.

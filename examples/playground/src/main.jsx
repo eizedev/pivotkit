@@ -25,7 +25,7 @@ const LINK_PARAM = `pivot-${STORAGE_KEY}`;
 const slug = (name) => name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 /**
- * The start template from the address: start=<slug> (or preset=<n>, the older form), -1 for
+ * The start template from the address: start=<slug>, else preset=<n> (its place in the list), -1 for
  * "Empty report" (start=empty or empty), else the first.
  */
 function startOf(presets) {

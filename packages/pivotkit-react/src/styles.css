@@ -963,7 +963,7 @@
 
 /* a value condition on a chip: at most this wide, the rest an ellipsis */
 .pk-badge-condition {
-    max-width: 12em;
+    max-width: 18em;
 }
 
 .pk-badge-cut {

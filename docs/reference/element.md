@@ -178,6 +178,16 @@ with a transformed wrapper). The narrow layout's bottom sheets, the field drawer
 cover that ancestor, not the window, in such a case. The drag preview (also `position: fixed`) is not
 corrected there and is not tested; a scaled ancestor (`scale()`) is not corrected either.
 
+## Escape and the host page
+
+While a popover, the drill-down or the narrow field drawer of the report is open, the report listens
+for Escape on the whole `document` and closes its newest layer only, also when the focus is outside
+the element (on the host page, say). It calls `preventDefault()` on that Escape, and it leaves an
+Escape alone that is `defaultPrevented` already. A host that opens a dialog of its own while a report
+layer is open: handle Escape in the dialog's own `keydown` listener (it runs before the document's)
+and call `preventDefault()`, or close the report's layer first. The keys of the report itself are in
+[Using the report](../guide.md#keyboard-and-screen-readers).
+
 ## React on the page
 
 The element's React is private to the bundle: it sets no global, and a page with a React of its own
