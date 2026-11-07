@@ -85,7 +85,7 @@ test("drill-down exports of the first of more rows hold those rows and say so", 
     assert.equal(files[0].text.trimEnd().split("\r\n").length, 2);
     assert.deepEqual(said, [{ text: en.toastCopyBlocked, extra: { tone: "error" } }]);
     // the toast of a done export names the rows it holds
-    assert.equal(en.drillCopied.replace("{rows}", rowsText({ shown: 1, count: 2 }, en, "en-US")), "Copied 1 of 2 rows");
+    assert.equal(en.drillCopied.replace("{rows}", rowsText({ shown: 1, count: 2 }, en, "en-US")), "Copied 1 of 2 rows: tab-separated, pastes into Excel or Google Sheets as columns");
     assert.equal(de.drillExported.replace("{file}", "a.csv").replace("{rows}", rowsText({ shown: 1000, count: 4212 }, de, "de-DE")), "a.csv exportiert (1.000 von 4.212 Zeilen)");
 });
 

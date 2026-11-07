@@ -1314,11 +1314,12 @@ function Report(props) {
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>
+                        {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
+                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
                 </PivotDnd>
-                {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
                 <div className="pk-layer" ref={setLayer}>
                     {/* a fixed probe at 0, 0: where fixed popovers start (popover.jsx) */}
                     <span className="pk-origin" aria-hidden="true" />

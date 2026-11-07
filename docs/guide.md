@@ -277,7 +277,9 @@ Two buttons at the top right of the result give it more room; neither is part of
   group marked as such (the shape is in [pivotkit-core's `toJson`](reference/core.md)). It is not the
   view: Views, **Copy view as JSON** copies how the report is built, not its numbers. Where the page
   does not allow copying (an address without https, a frame without the permission) a note says so:
-  "This page does not allow copying. Download a file instead."
+  "This page does not allow copying. Download a file instead." A copy says what it gave: "Table
+  copied: tab-separated, pastes into Excel or Google Sheets as columns", in the drill-down "Copied 25
+  rows: …". The menu's sections, **Download** and **Copy**, fold like the other menus' sections.
 
 ![The Export menu: Excel workbook, CSV file and chart image under Download; Copy table and Copy data as JSON under Copy](assets/screenshots/export-menu.png)
 

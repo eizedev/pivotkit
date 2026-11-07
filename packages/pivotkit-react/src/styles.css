@@ -135,10 +135,8 @@
        zones, the tips and the result's least height need (use-big-result.js); a lower host box lets
        it grow, so the page scrolls */
     min-height: 320px;
-    /* clip, not hidden, where the browser has it: the root does not become a scroll container, so the
-       status notes (.pk-toast-dock) stay at the edge of the window while the report reaches past it */
-    overflow: hidden;
-    overflow: clip;
+    /* not clipped: the popovers' layer (.pk-layer) is in the root, and Safari clips a fixed popover
+       to a clipping ancestor; the layout inside clips instead (.pk-layout) */
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface);
@@ -364,6 +362,12 @@
 
 .pk-layout {
     position: relative;
+    /* clip, not hidden, where the browser has it: no scroll container, so the status notes
+       (.pk-toast-dock) stay at the edge of the window while the report reaches past it; the root's
+       round corners, inside its border */
+    overflow: hidden;
+    overflow: clip;
+    border-radius: calc(var(--pk-radius) - 1px);
     display: grid;
     grid-template-columns: var(--pk-panel-w) minmax(0, 1fr);
     flex: 1;
@@ -2217,7 +2221,8 @@
 .pk-toast-dock {
     position: sticky;
     bottom: 0;
-    z-index: 30;
+    /* above the drill-down panel (45): its copies and exports are said there too */
+    z-index: 46;
     height: 0;
     flex: none;
     /* takes no room: not even the gap of .pk-main before it */

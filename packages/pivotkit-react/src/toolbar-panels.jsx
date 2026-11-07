@@ -674,13 +674,15 @@ export function ExportPanel({ labels, onExport, chartReady, display, prepare, cl
     };
     return (
         <>
-            <div className="pk-subtitle">{labels.exportDownload}</div>
-            <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} testId="export-xlsx" />
-            <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} testId="export-csv" />
-            <ExportOption icon="image" text={labels.exportPng} disabled={!chartReady} reason={display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
-            <div className="pk-subtitle">{labels.exportCopy}</div>
-            <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} testId="export-copy-table" />
-            <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} testId="export-copy-json" />
+            <Section title={labels.exportDownload} id="exportDownload">
+                <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} testId="export-xlsx" />
+                <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} testId="export-csv" />
+                <ExportOption icon="image" text={labels.exportPng} disabled={!chartReady} reason={display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
+            </Section>
+            <Section title={labels.exportCopy} id="exportCopy">
+                <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} testId="export-copy-table" />
+                <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} testId="export-copy-json" />
+            </Section>
         </>
     );
 }

@@ -131,6 +131,7 @@ version is [What pivotkit does](overview.md).
 - Copy table (the table as shown, tab-separated, headers and totals) and Copy data as JSON (labels and raw values) put the table on the clipboard; where the page does not allow copying a note says so ([guide](guide.md#undo-saved-views-and-export)).
 - Every file and every copy passes `onExport` first (`xlsx`, `csv`, `png`, `json` for a downloaded view file, `copy-table`, `copy-json`, and the drill-down's `drill-copy`, `drill-json`, `drill-csv`, `drill-xlsx`) ([React props](reference/react.md#props)).
 - The CSV is UTF-8 with a byte order mark; the XLSX sheet is named after `fileName` (valid for Excel, at most 31 characters); the PNG is at twice the screen's resolution on the report's background colour ([guide](guide.md#undo-saved-views-and-export)).
+- The Export menus (the toolbar's and the drill-down's) have the sections Download and Copy, which fold like the other menus' sections and are remembered with them; Copy table and the drill-down's Copy say in their "i" and in the note after the copy that it is tab-separated and pastes into Excel or Google Sheets as columns; the notes show above the open drill-down panel ([guide](guide.md#undo-saved-views-and-export)).
 - The export menu explains Excel, CSV, Copy table and Copy data as JSON with an "i" each; the chart image says "Switch to Chart first." while the table is shown ([guide](guide.md#undo-saved-views-and-export)).
 
 ## Sharing

@@ -12,6 +12,13 @@ First release.
 
 ### Added
 
+- The Export menus (the toolbar's and the drill-down's) fold their sections Download and Copy
+  (`exportDownload`, `exportCopy`), remembered as the other sections. Copy table and the drill-down's
+  Copy say in their "i" and their note that the copy is tab-separated and pastes into Excel or Google
+  Sheets as columns. The status notes show above the drill-down panel, so its copies and exports are
+  seen. The popovers' layer is no longer inside a clipping box: the report's layout clips its content
+  instead of the report, so Safari no longer cuts a popover (the filter from the field list) at the
+  report's edge.
 - The field list collapses to a rail of about 40 px (`--pk-rail-w`): « next to "Fields"
   (`collapseFields`, `aria-expanded`), the rail with "Fields" upright (`expandFields`) and a search
   button that opens the list with the focus in its search field; a chip dropped on the rail leaves
