@@ -15,7 +15,7 @@ JSON, native Excel export; as a JavaScript core, a React component and a web com
 | | |
 | --- | --- |
 | Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
-| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): getting started, a guide for the people using the report, the API reference, a [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) (weather, countries, earthquakes, Nobel laureates) |
+| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): getting started, a guide for the people using the report, the API reference, a [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) (weather, countries, earthquakes, Nobel laureates, software end of life) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
 Version 0.1.0 of each package, on npm.

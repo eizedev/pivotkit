@@ -1,7 +1,7 @@
 `<PivotReport>` with real public data and generated data to try in the browser.
 
 Real data (snapshots in [data/](data/), fetched once by `npm run docs:data`; the page calls none of
-the sources), each with four templates phrased as questions:
+the sources), each with four or five templates phrased as questions:
 
 | `?data=` | What | Source, licence |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ the sources), each with four templates phrased as questions:
 | `countries` | Population, GDP and CO2 per country, 2005-2024 | [World Bank](https://data.worldbank.org/), World Development Indicators, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | `earthquakes` | Earthquakes of magnitude 4.5 and more, 2025 | [U.S. Geological Survey](https://earthquake.usgs.gov/), public domain |
 | `nobel` | Nobel Prize laureates, 1901-2026 | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `endoflife` | Release cycles of 489 products with their release, support and end-of-life dates | [endoflife.date](https://endoflife.date/), [MIT](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE) |
 
 [data/SOURCES.md](data/SOURCES.md) has the requests, what was changed and the terms of each source;
 [data/sources.js](data/sources.js) the requests and the mapping from response to rows, which the
@@ -31,8 +32,8 @@ node examples/playground/serve.js 4173    # serve the static build
 server, for example GitHub Pages or a test container. The build is esbuild only: the package is built
 first and imported as a consumer imports it (`pivotkit-react` and `pivotkit-react/styles.css`).
 
-URL parameters pick the start: `?data=weather|countries|earthquakes|nobel|tickets|sales|assets`,
-`rows=2000|4000|100000` (generated data only), `preset=0|1|2|3`,
+URL parameters pick the start: `?data=weather|countries|earthquakes|nobel|endoflife|tickets|sales|assets`,
+`rows=2000|4000|100000` (generated data only), `preset=0|1|2|3|4`,
 `empty`, `lang=en|de`, `height=480` (the report at that height in px, as a host's card gives it),
 `theme=light|dark` (sets `<html data-theme>` as PowerShell Universal does;
 without it the report follows the system). The footer shows the engine timings of the last change

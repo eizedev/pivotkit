@@ -43,10 +43,10 @@ builds depend on it.
   are copied into `types/` by `types.js`; only the public declarations ship (`files`). `npm run size`
   fails above `SIZE_BUDGET_KIB` in `build.js`.
   `test/` runs the pure modules, the build and a Node import with `node --test`.
-- `examples/playground/` - the playground: four real public data sets and three generated ones (fixed
+- `examples/playground/` - the playground: five real public data sets and three generated ones (fixed
   seed, any size, for tests and benchmarks), built by esbuild into static files (`dist/`), served by
   `serve.js`. The real data are committed snapshots in `data/` (`weather`, `countries`,
-  `earthquakes`, `nobel`), each loaded as its own chunk; `data/sources.js` holds the requests and the
+  `earthquakes`, `nobel`, `endoflife`), each loaded as its own chunk; `data/sources.js` holds the requests and the
   mapping from response to rows (used by `scripts/docs-data.js` and shown on the docs page
   `learn.md`), `data/SOURCES.md` the licences and attribution. The page never calls the sources.
 - `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run

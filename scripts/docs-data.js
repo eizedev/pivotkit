@@ -1,17 +1,18 @@
-// Fetches the four real data sets of the playground once and writes their snapshots to
-// examples/playground/data/ (weather.json, countries.json, earthquakes.json, nobel.json), committed
+// Fetches the five real data sets of the playground once and writes their snapshots to
+// examples/playground/data/ (weather.json, countries.json, earthquakes.json, nobel.json,
+// endoflife.json), committed
 // with the repository. The requests and the mapping from response to rows are in
 // examples/playground/data/sources.js; this file only runs them, slowly, and writes the result.
 //
-//   npm run docs:data              all four
+//   npm run docs:data              all five
 //   npm run docs:data -- weather   one or more by name
 //
 // The snapshots are data, not code: the playground and the browser tests read them and never call
 // the APIs. Sources, licences and attribution are in examples/playground/data/SOURCES.md.
 import { writeFile } from "node:fs/promises";
 import {
-    COUNTRIES, USER_AGENT, WEATHER, countriesUrl, countryRows, earthquakeRows, earthquakesUrl, indicatorUrl,
-    nobelRows, nobelUrl, pack, weatherRows, weatherUrl
+    COUNTRIES, USER_AGENT, WEATHER, countriesUrl, countryRows, earthquakeRows, earthquakesUrl, endoflifeRows, endoflifeUrl,
+    indicatorUrl, nobelRows, nobelUrl, pack, weatherRows, weatherUrl
 } from "../examples/playground/data/sources.js";
 
 const out = new URL("../examples/playground/data/", import.meta.url);
@@ -67,6 +68,10 @@ const JOBS = {
             await later(1000);
         }
         return nobelRows(laureates);
+    },
+    async endoflife() {
+        // one request: every product with every release cycle
+        return endoflifeRows(await get(endoflifeUrl));
     }
 };
 

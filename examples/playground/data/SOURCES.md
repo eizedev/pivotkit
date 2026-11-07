@@ -1,6 +1,6 @@
 # Sources of the real data sets
 
-The playground's four real data sets are snapshots of public data, fetched once with
+The playground's five real data sets are snapshots of public data, fetched once with
 `npm run docs:data` (`scripts/docs-data.js`) and committed here. The playground and the browser tests
 read only these files; nothing calls the APIs at run time. The requests and the mapping from each
 response to rows are in [sources.js](sources.js), the one place the script, the documentation
@@ -15,6 +15,7 @@ pivotkit's code is MIT licensed; these data files are not code and keep the lice
 | `countries.json` | 4,340 | [World Bank](https://data.worldbank.org/), World Development Indicators | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | "World Bank, World Development Indicators" |
 | `earthquakes.json` | 8,559 | [U.S. Geological Survey](https://earthquake.usgs.gov/), ANSS Comprehensive Earthquake Catalog (ComCat) | U.S. public domain | "U.S. Geological Survey" (credit asked for, not required) |
 | `nobel.json` | 1,036 | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), api.nobelprize.org 2.1 | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) | "Nobel Prize Outreach, api.nobelprize.org" (citing the source is encouraged) |
+| `endoflife.json` | 9,374 | [endoflife.date](https://endoflife.date/), API v1 (schema 1.2.1) | [MIT](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE) | "endoflife.date" with the copyright notice "Copyright 2020 endoflife.date contributors" and the MIT licence text (below) |
 
 Fetched on 2026-11-07 (the `fetched` key of each file). The terms below were read on that day; they
 can change, so read them again before you fetch.
@@ -36,6 +37,12 @@ CC BY asks to say what was changed. The changes are the mapping functions in `so
   "Country" is the birth country of a person or the founding country of an organization, in today's
   borders as the API names it; "Age at award" is the award year minus the birth year; "Share" is the
   portion of the prize (1/3 is 0.333...).
+- Software end of life: one row per release cycle of every product; the category slug as a label
+  ("server-app" is "Server app", "lang" is "Language"); the tags joined with ", "; added: "Release
+  year", "Support years" (release to end of life in years of 365.25 days, cut to 0.01) and "Days to
+  EOL" (from the day the API generated the response); left out: aliases, identifiers, links, codename,
+  the label of a cycle, the LTS start, the extended-support and discontinued fields and the custom
+  fields of a product.
 
 A snapshot stores the rows as arrays in the order of `columns`, with the text of few-valued columns as
 an index into `dicts`; `unpack()` in `sources.js` turns it back into an array of objects.
@@ -111,10 +118,39 @@ an index into `dicts`; `unpack()` in `sources.js` turns it back into an array of
   The terms also ask not to alter the data in a misleading way and not to use Nobel Prize Outreach's
   name or logos in a way that implies endorsement; the playground names the source only.
 
+## endoflife.date (endoflife.json)
+
+- Request: `https://endoflife.date/api/v1/products/full` (`endoflifeUrl`): every product with every
+  release cycle in one response of about 3 MB, mapped by `endoflifeRows(response)`.
+- Key: none ([API documentation](https://endoflife.date/docs/api/v1/), OpenAPI 3.1 at
+  `https://endoflife.date/docs/api/v1/openapi.yml`). No rate limit is documented: the API answers
+  `429` with an optional `Retry-After` header when a client asks too often, and `304` to a
+  conditional request. The API is marked beta in the project's README; breaking changes can happen.
+- Licence: the endoflife.date repository, data included, is under the
+  [MIT License](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE), which asks to
+  include this notice and the licence text in all copies or substantial portions:
+
+  > Copyright 2020 endoflife.date contributors
+  >
+  > Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+  >
+  > The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+  >
+  > THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+  The product descriptions on the website come from Wikipedia under CC BY-SA 3.0; the API's release
+  data used here does not contain them.
+- Mixed types: `eolFrom`, `eoasFrom` and `latest.date` are a date or null (not known); `isEol`,
+  `isMaintained` and `isLts` are always booleans; `eoasFrom` is missing for a product without an
+  active-support phase. The mapping keeps a date column a date or blank, never a boolean. "EOL" can
+  be Yes with a blank "EOL date" (551 cycles: EOL, date not recorded). The API decides "EOL" and
+  "Maintained" on the day it generates the response (`generated_at`, 2026-11-07 for this snapshot),
+  and "Days to EOL" counts from that day; a cycle whose end of life is that day is not yet EOL.
+
 ## Fetching again
 
 ```bash
-npm run docs:data              # all four
+npm run docs:data              # all five
 npm run docs:data -- weather   # one or more by name
 ```
 

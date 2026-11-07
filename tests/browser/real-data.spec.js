@@ -12,6 +12,7 @@ const weather = load("weather");
 const countries = load("countries");
 const quakes = load("earthquakes");
 const nobel = load("nobel");
+const eol = load("endoflife");
 
 const sum = (list) => list.reduce((s, x) => s + x, 0);
 const avg = (list) => sum(list) / list.length;
@@ -191,6 +192,116 @@ test.describe("Nobel laureates", () => {
     });
 });
 
+test.describe("software end of life", () => {
+    const year = (x) => x["EOL date"]?.slice(0, 4);
+    // a date as the report writes it in en-US: the snapshot's dates are calendar days, no time zone
+    const usDate = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+    const known = eol.filter((x) => x["Support years"] !== null);
+
+    test("release cycles reaching end of life per year: chart and its table", async ({ page }) => {
+        await open(page, "data=endoflife&preset=0");
+        await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+        await page.getByTestId("show-table").click();
+        expect((await row(page, "2025"))[1]).toBe(int(eol.filter((x) => year(x) === "2025").length));
+        const shown = eol.filter((x) => year(x) >= "2016" && year(x) <= "2030");
+        expect((await row(page, "Grand Total"))[1]).toBe(int(shown.length));
+    });
+
+    test("the products with the most supported release cycles, top 10", async ({ page }) => {
+        await open(page, "data=endoflife&preset=1");
+        const ranked = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length);
+        const rows = await tableRows(page);
+        expect(rows.map((r) => r[0])).toEqual([...ranked.slice(0, 10).map(([p]) => p), "Grand Total"]);
+        const oldest = ranked[0][1].map((x) => x.Released).sort()[0];
+        expect(rows[0].slice(1)).toEqual([int(ranked[0][1].length), usDate(oldest)]);
+        await expect(page.getByTestId("note-top")).toContainText("Product shows the top 10 only");
+    });
+
+    test("support length per category in ranges of 2 years, without unknown ends", async ({ page }) => {
+        await open(page, "data=endoflife&preset=2");
+        const os = known.filter((x) => x.Category === "Operating system");
+        const r = await row(page, "Operating system");
+        // 0 – 2, 2 – 4, ...: each cycle counts in the range of its whole years
+        expect(r[1]).toBe(pct(os.filter((x) => x["Support years"] < 2).length / os.length));
+        expect(r[2]).toBe(pct(os.filter((x) => x["Support years"] >= 2 && x["Support years"] < 4).length / os.length));
+        expect(r.at(-1)).toBe("100.0%");
+        const head = await page.locator('[data-testid="pivot-table"] thead').textContent();
+        expect(head).not.toContain("(blank)");
+    });
+
+    test("LTS against the rest: average support in years", async ({ page }) => {
+        await open(page, "data=endoflife&preset=3");
+        const lang = known.filter((x) => x.Category === "Language");
+        const r = await row(page, "Language");
+        // No, Yes, Grand Total: the boolean LTS reads as No and Yes
+        expect(r.slice(1)).toEqual([one(avg(lang.filter((x) => !x.LTS).map((x) => x["Support years"]))), one(avg(lang.filter((x) => x.LTS).map((x) => x["Support years"]))), one(avg(lang.map((x) => x["Support years"])))]);
+        const head = await page.locator('[data-testid="pivot-table"] thead').textContent();
+        expect(head).toContain("No");
+        expect(head).toContain("Yes");
+    });
+
+    test("what reaches end of life in the next 12 months: a click lists the cycles", async ({ page }) => {
+        await open(page, "data=endoflife&preset=4");
+        const next = eol.filter((x) => x["Days to EOL"] !== null && x["Days to EOL"] >= 0 && x["Days to EOL"] < 365);
+        expect((await row(page, "Grand Total")).at(-1)).toBe(int(next.length));
+        const ranked = Object.entries(Object.groupBy(next, (x) => x.Product)).sort((a, b) => b[1].length - a[1].length);
+        const [product, cycles] = ranked[0];
+        const cell = page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: product }).locator("td").last();
+        await expect(cell).toHaveText(int(cycles.length));
+        await cell.click();
+        await expect(page.getByTestId("drill-count")).toHaveText(`${cycles.length} rows`);
+        await expect(page.locator(".pk-drill-table tbody")).toContainText(cycles[0].Cycle);
+    });
+
+    test("German: dates, booleans and numbers in German notation", async ({ page }) => {
+        await open(page, "data=endoflife&preset=3&lang=de");
+        const head = await page.locator('[data-testid="pivot-table"] thead').textContent();
+        expect(head).toContain("Nein");
+        expect(head).toContain("Ja");
+        const lang = known.filter((x) => x.Category === "Language" && x.LTS);
+        expect((await row(page, "Language"))[2]).toBe(avg(lang.map((x) => x["Support years"])).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+        await open(page, "data=endoflife&preset=1&lang=de");
+        const top = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length)[0];
+        const oldest = top[1].map((x) => x.Released).sort()[0];
+        expect((await row(page, top[0]))[2]).toBe(new Date(oldest).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }));
+    });
+
+    test("the export keeps dates, booleans and blanks", async ({ page }) => {
+        await open(page, "data=endoflife&preset=3");
+        await page.getByTestId("export").click();
+        const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
+        expect(xlsx.suggestedFilename()).toBe("pivotkit-endoflife.xlsx");
+        const sheet = await readSheet(await readFile(await xlsx.path()));
+        const lang = known.filter((x) => x.Category === "Language");
+        const line = sheet.find((r) => r[0] === "Language");
+        expect(line[2]).toBeCloseTo(avg(lang.filter((x) => x.LTS).map((x) => x["Support years"])), 9);
+        // a category without LTS cycles: an empty cell, not a zero
+        expect(sheet.find((r) => r[0] === "Device")[2]).toBeNull();
+        await page.getByTestId("export").click();
+        const [csv] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-csv").click()]);
+        const text = (await readFile(await csv.path(), "utf8")).replace(/^\uFEFF/, "");
+        expect(text.split(/\r?\n/).find((l) => l.startsWith("Device,"))).toMatch(/^Device,[\d.]+,,[\d.]+$/);
+    });
+});
+
+test.describe("software end of life in a time zone far from UTC", () => {
+    // the dates are calendar days: a year, a quarter or a date must not move with the browser's zone
+    for (const timezoneId of ["Pacific/Kiritimati", "Pacific/Pago_Pago"]) {
+        test.describe(timezoneId, () => {
+            test.use({ timezoneId });
+            test("EOL years and the oldest release date stay the same", async ({ page }) => {
+                await open(page, "data=endoflife&preset=0");
+                await page.getByTestId("show-table").click();
+                expect((await row(page, "2026"))[1]).toBe(int(eol.filter((x) => x["EOL date"]?.startsWith("2026")).length));
+                await open(page, "data=endoflife&preset=1");
+                const top = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length)[0];
+                const oldest = top[1].map((x) => x.Released).sort()[0];
+                expect((await row(page, top[0]))[2]).toBe(new Date(oldest).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }));
+            });
+        });
+    }
+});
+
 // A few "try this" tasks of the documentation's "Learn with real data" page, as a person does them.
 test.describe("learning tasks", () => {
     test("weather: Max instead of Average; rain days as % of row total", async ({ page }) => {
@@ -243,6 +354,29 @@ test.describe("learning tasks", () => {
         expect((await row(page, "0 – 100"))[1]).toBe(int(quakes.filter((x) => x["Depth km"] < 100).length));
     });
 
+    test("end of life: category as a heatmap; the median instead of the average", async ({ page }) => {
+        await open(page, "data=endoflife&preset=0");
+        await page.getByTestId("field-menu-Category").click();
+        await page.getByRole("menuitem", { name: "Add to Columns" }).click();
+        await page.getByTestId("chart-type").click();
+        await page.getByTestId("chart-heatmap").click();
+        await expect(page.getByTestId("chart-type")).toHaveText(/Chart type: Heatmap/);
+        // ECharts draws a heatmap with a slider on more than one canvas
+        await expect(page.locator('[data-testid="pivot-chart"] canvas').first()).toBeVisible();
+        await page.getByTestId("show-table").click();
+        expect((await row(page, "2026"))[7]).toBe(int(eol.filter((x) => x["EOL date"]?.startsWith("2026") && x.Category === "Server app").length));
+
+        await open(page, "data=endoflife&preset=3");
+        await page.getByTestId("chip-menu-Average of Support years").click();
+        await page.getByText("More statistics").click();
+        await page.getByTestId("agg-median").click();
+        const years = eol.filter((x) => x.Category === "Language" && !x.LTS && x["Support years"] !== null).map((x) => x["Support years"]).sort((a, b) => a - b);
+        const mid = years.length / 2;
+        const median = years.length % 2 ? years[Math.floor(mid)] : (years[mid - 1] + years[mid]) / 2;
+        // a new aggregator drops the value's format: the cell shows the median with its own decimals
+        expect(Number((await row(page, "Language"))[1])).toBeCloseTo(median, 9);
+    });
+
     test("Nobel: the sum of Share counts prizes, not laureates", async ({ page }) => {
         await open(page, "data=nobel&preset=0");
         await page.locator('.pk-field[data-field="Share"] .pk-field-name').click();
@@ -271,20 +405,23 @@ test("export of real data: the XLSX holds the numbers, the German CSV the same n
 });
 
 test("each real data set names its source and licence next to the data", async ({ page }) => {
-    for (const [data, text, licence] of [["weather", "Open-Meteo.com", "CC BY 4.0"], ["countries", "World Bank", "CC BY 4.0"], ["earthquakes", "U.S. Geological Survey", "public domain"], ["nobel", "Nobel Prize Outreach", "CC0"]]) {
+    for (const [data, text, licence] of [["weather", "Open-Meteo.com", "CC BY 4.0"], ["countries", "World Bank", "CC BY 4.0"], ["earthquakes", "U.S. Geological Survey", "public domain"], ["nobel", "Nobel Prize Outreach", "CC0"], ["endoflife", "endoflife.date", "MIT"]]) {
         await open(page, `data=${data}`);
         await expect(page.getByTestId("pg-source")).toContainText(text);
         await expect(page.getByTestId("pg-source").getByRole("link", { name: licence })).toBeVisible();
-        // the weather data also credits the Copernicus programme (ERA5, ERA5-Land), as the Climate Data Store asks
-        await expect(page.getByTestId("pg-credit")).toHaveCount(data === "weather" ? 1 : 0);
+        // the weather data also credits the Copernicus programme (ERA5, ERA5-Land), as the Climate Data Store asks;
+        // the end-of-life data shows the copyright notice of its MIT License
+        await expect(page.getByTestId("pg-credit")).toHaveCount(data === "weather" || data === "endoflife" ? 1 : 0);
     }
+    await open(page, "data=endoflife");
+    await expect(page.getByTestId("pg-credit")).toHaveText("Copyright 2020 endoflife.date contributors.");
     await open(page, "data=weather");
     await expect(page.getByTestId("pg-credit")).toContainText("Contains modified Copernicus Climate Change Service information");
 });
 
 test("at 390 px the page does not scroll sideways with a real data set", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const data of ["weather", "countries", "earthquakes", "nobel"]) {
+    for (const data of ["weather", "countries", "earthquakes", "nobel", "endoflife"]) {
         await open(page, `data=${data}&theme=dark`);
         expect(await page.evaluate(() => document.documentElement.scrollWidth), data).toBe(390);
     }

@@ -30,10 +30,13 @@ test("the data set table: rows per data set", () => {
     says(`| 4,340 country-years |`);
     says(`| 8,559 quakes |`);
     says(`| 1,036 prizes |`);
+    says(`| 9,374 release cycles |`);
     assert.equal(load("weather").length, 15344);
     assert.equal(load("countries").length, 4340);
     assert.equal(load("earthquakes").length, 8559);
     assert.equal(load("nobel").length, 1036);
+    assert.equal(load("endoflife").length, 9374);
+    says(`Software end of life, ${new Set(load("endoflife").map((x) => x.Product)).size} products`);
     says(`${new Set(load("countries").map((x) => x.Country)).size} countries from 2005 to 2024`);
 });
 
@@ -131,4 +134,37 @@ test("Nobel laureates", () => {
     says(`${countries.slice(0, 3).map(([c, l]) => `${c} ${l.length}`).join(", ")}`);
     const ages = countries.flatMap(([, l]) => l.map((x) => x["Age at award"])).filter((x) => x !== null);
     says(`were ${Math.round(avg(ages))} years old on average when they won`);
+});
+
+test("software end of life", () => {
+    const e = load("endoflife");
+    const blank = e.filter((x) => x["EOL date"] === null);
+    says(`${int(blank.length)} cycles have no known end of life`);
+    says(`and ${blank.filter((x) => x.EOL).length} of them are EOL all the same`);
+
+    const years = ranked(by(e.filter((x) => x["EOL date"]), (x) => x["EOL date"].slice(0, 4)), (l) => l.length);
+    assert.equal(years[0][0], "2026");
+    says(`2026 has the most, ${int(years[0][1])} release cycles; ${years[1][0]} follows with ${int(years[1][1])}`);
+    says(`${blank.filter((x) => !x.EOL).length} supported cycles have no end date yet`);
+    says(`Server apps stand out: ${e.filter((x) => x["EOL date"]?.startsWith("2026") && x.Category === "Server app").length} of 2026's cycles`);
+
+    const maintained = ranked(by(e.filter((x) => x.Maintained), "Product"), (l) => l.length);
+    says(`${maintained.slice(0, 3).map(([p, n]) => `${p} ${n}`).join(", ")}`);
+
+    const known = e.filter((x) => x["Support years"] !== null);
+    const short = (list) => list.filter((x) => x["Support years"] < 2).length / list.length;
+    says(`${pct(short(known))} of all release cycles with a known end are supported for less than 2 years; of the devices only ${pct(short(known.filter((x) => x.Category === "Device")))}`);
+
+    const years2 = (list) => one(avg(list.map((x) => x["Support years"])));
+    const lang = known.filter((x) => x.Category === "Language");
+    says(`${years2(known.filter((x) => x.LTS))} years with LTS against ${years2(known.filter((x) => !x.LTS))} without`);
+    says(`Languages differ most: ${years2(lang.filter((x) => x.LTS))} years against ${years2(lang.filter((x) => !x.LTS))}`);
+    const sorted = lang.filter((x) => !x.LTS).map((x) => x["Support years"]).sort((a, b) => a - b);
+    const mid = sorted.length / 2;
+    says(`Languages without LTS drop to ${(sorted.length % 2 ? sorted[Math.floor(mid)] : (sorted[mid - 1] + sorted[mid]) / 2).toLocaleString("en-US")} years`);
+
+    const next = e.filter((x) => x["Days to EOL"] !== null && x["Days to EOL"] >= 0 && x["Days to EOL"] < 365);
+    const cats = ranked(by(next, "Category"), (l) => l.length);
+    assert.equal(cats[0][0], "Server app");
+    says(`${next.length} release cycles end within a year of the snapshot; server apps have the most (${cats[0][1]})`);
 });

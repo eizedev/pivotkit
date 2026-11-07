@@ -1,11 +1,11 @@
 ---
 title: Learn with real data
-description: Learn the pivot report step by step with four real public data sets - daily weather of 14 cities, countries with population, GDP and CO2, the earthquakes of 2025 and the Nobel Prize laureates - and how to query each source live.
+description: Learn the pivot report step by step with five real public data sets - daily weather of 14 cities, countries with population, GDP and CO2, the earthquakes of 2025, the Nobel Prize laureates and the end-of-life dates of software - and how to query each source live.
 ---
 
 # Learn with real data
 
-The [live demo](demo.md) has four real public data sets next to the generated ones. Each comes with
+The [live demo](demo.md) has five real public data sets next to the generated ones. Each comes with
 templates phrased as questions: pick one under **Start** in the playground's header, read the answer,
 then change the report with the tasks below. Every task says what you should see, so you know when
 you got it right.
@@ -18,6 +18,7 @@ you got it right.
 | [Countries, 2005-2024](#countries) | 4,340 country-years | Country, Code, Region, Income group, Year, Population, GDP (US$), CO2 (Mt) | [World Bank, World Development Indicators](https://data.worldbank.org/), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [Earthquakes of magnitude 4.5+, 2025](#earthquakes) | 8,559 quakes | Time, Magnitude, Depth km, Place, Region, Latitude, Longitude, Alert, Tsunami flag | [U.S. Geological Survey](https://earthquake.usgs.gov/), public domain |
 | [Nobel Prize laureates, 1901-2026](#nobel-laureates) | 1,036 prizes | Laureate, Type, Gender, Category, Year, Share, Age at award, Country | [Nobel Prize Outreach](https://www.nobelprize.org/about/developer-zone-2/), [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| [Software end of life, 489 products](#software-end-of-life) | 9,374 release cycles | Product, Category, Cycle, Released, EOL date, EOL, Maintained, LTS, Active support until, Support years, Days to EOL, Latest version, Latest release, Release year, Tags | [endoflife.date](https://endoflife.date/), [MIT](https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE) |
 
 The data are snapshots fetched once on 2026-11-07 and stored with the playground; the page makes no
 call to these services. How each snapshot was made, what was changed and the full terms of each
@@ -337,5 +338,96 @@ https://api.nobelprize.org/2.1/laureates?offset=0&limit=5&sort=asc
 --8<-- "sources.js:nobel"
 ```
 
-The examples were run against the live services on 2026-11-07 (PowerShell 7.6). All four services
+## Software end of life
+
+Every release cycle of every product on [endoflife.date](https://endoflife.date/): operating systems,
+languages, databases, frameworks, server and desktop apps, cloud services and devices. A row is one
+release cycle ("Python 3.12", "Ubuntu 24.04"). "EOL" and "Maintained" are Yes or No as endoflife.date
+saw them on 2026-11-07; "Maintained" stays Yes while any support is left, extended support
+included. "Days to EOL" counts from that day (negative: the end lies behind), "Support years" from the
+release to the end of life. 1,288 cycles have no known end of life: their "EOL date", "Support years"
+and "Days to EOL" are blank, and 551 of them are EOL all the same, the date was just never recorded.
+
+![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife.png)
+
+**How many release cycles reach end of life per year? (chart)** "EOL date" grouped by year (the
+derived field "EOL date (Year)"), counted, filtered to 2016 to 2030, as bars.
+
+- Read it: 2026 has the most, 1,047 release cycles; 2025 follows with 1,008. The later years are
+  not complete: 737 supported cycles have no end date yet.
+- Try this: add "Category" to Columns and pick **Chart type: Heatmap**. Server apps stand out:
+  487 of 2026's cycles.
+
+**Which products have the most supported release cycles right now? (top 10)** Products on rows,
+filtered to "Maintained" Yes and to the top 10 by count; the oldest release date still supported next
+to it.
+
+- Read it: devices and services lead: Samsung Mobile 127, Motorola Mobility 103, OpenAI API Models
+  63. A phone model is a release cycle here.
+- Try this: open the menu of "Product", set **Count** under Top to 20 and press **Apply**.
+
+**How long is a release supported, by category? (ranges of 2 years)** Categories on rows, "Support
+years" in ranges of 2 on columns, counted as **% of row total**; cycles without a known end are
+filtered out (the "(blank)" item of the range).
+
+- Read it: 61.0 % of all release cycles with a known end are supported for less than 2 years; of the
+  devices only 5.1 %.
+- Try this: open the menu of "Support years (by 2)" and set **Range size** to 5.
+
+**Are LTS releases supported longer? (average years)** Categories on rows, "LTS" (Yes or No) on
+columns, the average of "Support years".
+
+- Read it: 3.4 years with LTS against 2.1 without. Languages differ most: 6.3 years against 1.8.
+- Try this: open the menu of "Average of Support years", open **More statistics** and pick
+  **Median**. Languages without LTS
+  drop to 0.55 years: many short-lived cycles, a few long ones pull the average up.
+
+**What reaches end of life in the next 12 months? Click a count for the cycles** Category and product
+on rows, the quarter of the EOL date on columns, filtered with "Days to EOL" in ranges of 365 to the
+range 0 to 365.
+
+- Read it: 565 release cycles end within a year of the snapshot; server apps have the most (193).
+  The last column is a partial quarter: the year ends on 6 November 2027.
+- Try this: click a product's total. A panel lists its cycles with release date, EOL date and
+  latest version. Press Escape to close it.
+
+### Query it live
+
+```text
+https://endoflife.date/api/v1/products/python
+https://endoflife.date/api/v1/products/full
+```
+
+- Key: none. No rate limit is documented; the API answers `429 Too Many Requests` with a
+  `Retry-After` header when a client asks too often, and supports `304 Not Modified` for caching
+  ([API documentation](https://endoflife.date/docs/api/v1/)). The API is marked beta.
+- `products/full` returns every product with every release cycle in one response (about 3 MB),
+  `products/{product}` one product.
+- Licence: MIT. Keep the copyright notice "Copyright 2020 endoflife.date contributors" and the
+  licence text with copies of the data; the playground shows the notice and links the licence.
+
+=== "JavaScript (browser or Node)"
+
+    ```js
+    import { endoflifeRows } from "./sources.js";
+
+    const response = await (await fetch("https://endoflife.date/api/v1/products/python")).json();
+    // one product: its result is the product, not a list
+    const rows = endoflifeRows({ ...response, result: [response.result] });
+    ```
+
+=== "PowerShell"
+
+    ```powershell
+    $eol = Invoke-RestMethod 'https://endoflife.date/api/v1/products/python'
+    $eol.result.releases | Select-Object name, releaseDate, eolFrom, isEol, isLts
+    ```
+
+    `eolFrom` is a date or empty (not known), `isEol` always `True` or `False`; the dates stay text.
+
+```js
+--8<-- "sources.js:endoflife"
+```
+
+The examples were run against the live services on 2026-11-07 (PowerShell 7.6). All five services
 send `Access-Control-Allow-Origin: *`, so `fetch` works from a page in the browser too.

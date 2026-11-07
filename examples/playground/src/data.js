@@ -1,6 +1,6 @@
-// The data sets of the playground. Four are real public data, read from the snapshots in ../data/
-// (fetched once by `npm run docs:data`, see ../data/SOURCES.md): daily weather, countries, earthquakes
-// and Nobel laureates, each with templates phrased as the questions they answer. Three are made up,
+// The data sets of the playground. Five are real public data, read from the snapshots in ../data/
+// (fetched once by `npm run docs:data`, see ../data/SOURCES.md): daily weather, countries, earthquakes,
+// Nobel laureates and software end of life, each with templates phrased as the questions they answer. Three are made up,
 // generated from a fixed seed (the same rows on every machine and in every test run) in any size for
 // the tests and the benchmarks: IT tickets, sales, and assets per source system. No real names.
 import { unpack } from "../data/sources.js";
@@ -363,6 +363,77 @@ export const REAL = {
                     values: [{ field: "Laureate", agg: "count", label: "Laureates" }, { field: "Age at award", agg: "average", format: "number:0" }],
                     filters: [{ field: "Country", type: "top", count: 10, by: { field: "Laureate", agg: "count" } }],
                     sort: [{ field: "Country", by: "value", order: "desc" }]
+                }
+            }
+        ]
+    },
+    endoflife: {
+        label: "Software end of life, 489 products",
+        load: () => import("../data/endoflife.json").then((m) => unpack(m.default)),
+        source: {
+            text: "endoflife.date",
+            href: "https://endoflife.date/",
+            licence: "MIT",
+            licenceHref: "https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE",
+            // the MIT License asks for its copyright notice with every copy of the data
+            credit: "Copyright 2020 endoflife.date contributors."
+        },
+        fieldDefaults: {
+            "Support years": { agg: "average", format: "number:1" },
+            "Days to EOL": { agg: "min", format: "integer" },
+            "Release year": { drillFormat: "text" }
+        },
+        presets: [
+            {
+                name: "How many release cycles reach end of life per year? (chart)",
+                view: {
+                    rows: ["EOL date (Year)"],
+                    derived: [{ name: "EOL date (Year)", field: "EOL date", by: "year" }],
+                    values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
+                    filters: [{ field: "EOL date (Year)", type: "include", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030] }],
+                    display: "chart",
+                    chart: { type: "bar" }
+                }
+            },
+            {
+                name: "Which products have the most supported release cycles right now? (top 10)",
+                view: {
+                    rows: ["Product"],
+                    values: [{ field: "Cycle", agg: "count", label: "Supported cycles", conditional: { type: "dataBar" } }, { field: "Released", agg: "min", label: "Oldest supported" }],
+                    filters: [{ field: "Maintained", type: "include", items: [true] }, { field: "Product", type: "top", count: 10, by: { field: "Cycle", agg: "count" } }],
+                    sort: [{ field: "Product", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "How long is a release supported, by category? (ranges of 2 years)",
+                view: {
+                    rows: ["Category"],
+                    cols: ["Support years (by 2)"],
+                    derived: [{ name: "Support years (by 2)", field: "Support years", by: "bin", size: 2, origin: 0 }],
+                    values: [{ field: "Cycle", agg: "count", label: "Release cycles", showAs: { type: "percentOfRowTotal" }, conditional: { type: "colorScale", colors: ["#f4f4f4", "#5a8dee"] } }],
+                    // a cycle without a known end of life has no support length
+                    filters: [{ field: "Support years (by 2)", type: "exclude", items: [null] }],
+                    sort: [{ field: "Category", by: "label", order: "asc" }]
+                }
+            },
+            {
+                name: "Are LTS releases supported longer? (average years)",
+                view: {
+                    rows: ["Category"],
+                    cols: ["LTS"],
+                    values: [{ field: "Support years", agg: "average", format: "number:1" }],
+                    sort: [{ field: "Category", by: "value", order: "desc" }]
+                }
+            },
+            {
+                name: "What reaches end of life in the next 12 months? Click a count for the cycles",
+                view: {
+                    rows: ["Category", "Product"],
+                    cols: ["EOL date (Quarter)"],
+                    derived: [{ name: "EOL date (Quarter)", field: "EOL date", by: "yearQuarter" }, { name: "Days to EOL (by 365)", field: "Days to EOL", by: "bin", size: 365, origin: 0 }],
+                    values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
+                    filters: [{ field: "Days to EOL (by 365)", type: "include", items: [0] }],
+                    sort: [{ field: "Category", by: "value", order: "desc" }, { field: "Product", by: "value", order: "desc" }]
                 }
             }
         ]
