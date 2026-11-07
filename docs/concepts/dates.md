@@ -61,7 +61,9 @@ field)` in pivotkit-core makes the same choice.
 and excludes the upper one, computed in the decimals of `size` and `origin`, so 0.3 lands in
 "0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused. In the UI, "Group numbers into ranges" in the menu of
 a number field on rows or columns sets them, the size and "Starting at" (Excel's name for `origin`);
-the chip then reads "Amount (by 100)". A new size keeps the start.
+the chip then reads "Amount (by 100)". A new size keeps the start; an empty start is 0. A start so
+far from the field's numbers that the bounds of a range can no longer be told apart (1e17 for
+magnitudes in ranges of 0.5) would leave every row blank: the form refuses it with a note.
 
 Range labels use the locale's thousands separators ("10,000 – 20,000"), except when every range of
 the field has whole-number bounds between -9,999 and 9,999: ranges of years, ages or scores read

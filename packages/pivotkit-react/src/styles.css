@@ -1135,6 +1135,14 @@
     min-width: 7.5em;
 }
 
+/* why the form cannot be applied: under its inputs, across the menu's width */
+.pk-form-problem {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--pk-danger);
+    font-size: var(--pk-small);
+}
+
 .pk-narrow-input {
     flex: 0 0 5em;
     min-width: 5em;

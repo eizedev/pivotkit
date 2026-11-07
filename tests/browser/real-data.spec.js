@@ -467,6 +467,25 @@ test.describe("what the real data showed (#21 to #26)", () => {
         expect((await row(page, "4 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
     });
 
+    test("Starting at: empty is 0; a start too far from the values is refused with a note", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        // the ranges of 0.5 from 1e17 cannot be told apart: every row would be "(blank)"
+        await page.getByTestId("bin-start").fill("1e17");
+        await expect(page.getByTestId("bin-problem")).toContainText("Ranges from 100,000,000,000,000,000 cannot hold this field's values");
+        await expect(page.getByTestId("bin-start")).toHaveAttribute("aria-invalid", "true");
+        await expect(page.getByTestId("bin-start")).toHaveAttribute("aria-describedby", /.+/);
+        await expect(page.getByRole("button", { name: "Apply" }).first()).toBeDisabled();
+        await page.getByTestId("bin-start").press("Enter");
+        expect((await row(page, "4.5 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
+        // empty: from 0, as the placeholder says, not the range's old start
+        await page.getByTestId("bin-start").fill("");
+        await expect(page.getByTestId("bin-problem")).toHaveCount(0);
+        await page.getByTestId("bin-size").fill("2");
+        await page.getByTestId("bin-size").press("Enter");
+        expect((await row(page, "4 – 6"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 6).length));
+    });
+
     test("at 390 px a value is visible next to two levels of long row labels", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await open(page, "data=countries&preset=0");

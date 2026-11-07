@@ -282,6 +282,52 @@ export function updateValue(view, index, patch, options = {}) {
 }
 
 /**
+ * The smallest and the largest number of a number column, for the range form; null without numbers.
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {string} field
+ * @returns {{ min: number, max: number } | null}
+ */
+export function numberRange(encoded, field) {
+    const column = encoded.column(field);
+    if (!column || column.type !== "number") {
+        return null;
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of column.dict) {
+        if (typeof v === "number" && Number.isFinite(v)) {
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+    }
+    return min <= max ? { min, max } : null;
+}
+
+/**
+ * Why ranges of `size` from `start` cannot hold the numbers of `range`, or null when they can. A start
+ * so far from the values that a range's bounds can no longer be told apart in a double (1e17 for
+ * magnitudes of 2 to 9 in ranges of 0.5) would put every row into "(blank)": "far".
+ * @param {number} size
+ * @param {number} start
+ * @param {{ min: number, max: number } | null} range
+ * @returns {"far" | null}
+ */
+export function binProblem(size, start, range) {
+    if (!range) {
+        return null;
+    }
+    for (const v of [range.min, range.max]) {
+        const k = Math.floor((v - start) / size);
+        const low = start + k * size;
+        const slack = size * 1e-9;
+        if (!Number.isSafeInteger(k) || low + size === low || low > v + slack || v >= low + size + slack) {
+            return "far";
+        }
+    }
+    return null;
+}
+
+/**
  * The derived field a grouping makes of a field on an axis: replaces it in place. `unit` null removes
  * the grouping (back to the source field). Returns the view and the new field's name.
  * @param {any} view

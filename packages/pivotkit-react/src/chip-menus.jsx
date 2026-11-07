@@ -5,12 +5,12 @@
  * pivotkit-core's CATALOG; Remove is pinned to the foot of the menu so it is never scrolled away.
  */
 
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { CATALOG, aggregatorsFor, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
 import { groupingName, valueLabel } from "./names.js";
 import { Option, Section } from "./popover.jsx";
-import { ZONES, filtersOf, groupField, groupingOf, isFiltered, moveField, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, isFiltered, moveField, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
 
 /** The formats the value menu offers; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "integer", "currency", "percent", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
@@ -32,20 +32,27 @@ function More({ title, open, children }) {
  * Number ranges: their size and where they start (Excel's "Starting at"). An empty start keeps the
  * ranges' own, or 0.
  */
-function BinForm({ grouping, labels, onApply, onClear }) {
+/**
+ * Size and start of number ranges. An empty start is 0, as its placeholder says; a start whose ranges
+ * could not hold the field's numbers (`range`, see binProblem) is refused with a note under the input.
+ */
+function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
     const [size, setSize] = useState(String(grouping?.size ?? ""));
     const [start, setStart] = useState(String(grouping?.origin ?? ""));
+    const problemId = useId();
     const n = Number(size);
-    const s = Number(start);
-    const startOk = start.trim() === "" || Number.isFinite(s);
-    const ok = size.trim() !== "" && Number.isFinite(n) && n > 0 && startOk;
+    const s = start.trim() === "" ? 0 : Number(start);
+    const sizeOk = size.trim() !== "" && Number.isFinite(n) && n > 0;
+    const far = sizeOk && Number.isFinite(s) && binProblem(n, s, range) === "far";
+    const ok = sizeOk && Number.isFinite(s) && !far;
+    const number = (x) => x.toLocaleString(locale, { maximumFractionDigits: 6 });
     return (
         <form
             className="pk-inline-form pk-bin-form"
             onSubmit={(e) => {
                 e.preventDefault();
                 if (ok) {
-                    onApply(n, start.trim() === "" ? undefined : s);
+                    onApply(n, s);
                 }
             }}
         >
@@ -55,8 +62,13 @@ function BinForm({ grouping, labels, onApply, onClear }) {
             </label>
             <label className="pk-field-label">
                 <span>{labels.binStart}</span>
-                <input type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={(e) => setStart(e.target.value)} data-testid="bin-start" />
+                <input type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={(e) => setStart(e.target.value)} data-testid="bin-start" aria-invalid={far || undefined} aria-describedby={far ? problemId : undefined} />
             </label>
+            {far && range ? (
+                <p id={problemId} className="pk-form-problem" data-testid="bin-problem">
+                    {fill(labels.binStartFar, { start: number(s), min: number(range.min), max: number(range.max) })}
+                </p>
+            ) : null}
             <button type="submit" className="pk-btn pk-primary" disabled={!ok}>
                 {labels.apply}
             </button>
@@ -117,7 +129,7 @@ function RemoveFoot({ labels, onRemove, close }) {
 }
 
 /** The menu of a chip on Rows or Columns. */
-export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, defaultsOf }) {
+export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, defaultsOf, rangeOf, locale }) {
     const source = sourceOf(view, field);
     const sourceType = types.get(source.toLowerCase());
     const grouping = groupingOf(view, field);
@@ -170,7 +182,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                 ) : null}
                 {sourceType === "number" ? (
                     <Section title={labels.bins}>
-                        <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
+                        <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} range={rangeOf?.(source) ?? null} locale={locale} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
                     </Section>
                 ) : null}
                 <Section title={labels.topN}>

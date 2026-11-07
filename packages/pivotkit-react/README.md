@@ -115,7 +115,8 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   sort. The menu of a row or column field has sort (label or value, and the custom order of the view
   or of `fieldDefaults`), date grouping (along the time line: year, quarter, month, week, day; or
   across years: quarter, month, week of the year, weekday, hour), number ranges (their size and where
-  they start, Excel's "Starting at"; a new size keeps the start), top or bottom N, filter, and move. The menu of a value has the aggregator (sum,
+  they start, Excel's "Starting at"; a new size keeps the start, an empty start is 0, a start too far
+  from the field's numbers is refused with a note), top or bottom N, filter, and move. The menu of a value has the aggregator (sum,
   count, average, minimum, maximum; the statistics under "More statistics"), "show as" (the header
   then says it: "% of grand total of Revenue"), the number format, highlighting (colour scale, data
   bars), its name, and move; Remove stays at the foot of every menu.

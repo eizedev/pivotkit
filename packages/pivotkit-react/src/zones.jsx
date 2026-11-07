@@ -7,7 +7,7 @@
  * is in them; a drag opens them while it lasts, so a field can still be dropped.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems } from "pivotkit-core";
 import { AxisMenu, ValueMenu, ZONE_ICON } from "./chip-menus.jsx";
 import { layoutSummary, valueLabel } from "./names.js";
@@ -15,7 +15,7 @@ import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { MenuButton } from "./popover.jsx";
-import { ZONES, filterZoneFields, filtersOf, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
+import { ZONES, filterZoneFields, filtersOf, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
 
 /**
  * What is set on a field: its item filter as "shown of total" (null without one), its top N and its
@@ -101,7 +101,7 @@ function Badges({ state, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf, rangeOf }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const chipRef = useRef(/** @type {HTMLElement | null} */ (null));
     const ref = (el) => {
@@ -146,7 +146,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                         zone === "values" ? (
                             <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} defaultsOf={defaultsOf} />
                         ) : (
-                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} defaultsOf={defaultsOf} />
+                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} defaultsOf={defaultsOf} rangeOf={rangeOf} locale={locale} />
                         )
                     }
                 </MenuButton>
@@ -262,6 +262,8 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
         }
         return map;
     }, [entries, view, encoded, locale]);
+    // the numbers of a field, for the range form of its menu
+    const rangeOf = useCallback((field) => numberRange(encoded, field), [encoded]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const focusAfter = useRef(/** @type {{ zone: string, index: number } | null} */ (null));
     const onRemove = (zone, index, text) => {
@@ -355,6 +357,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             state={zone === "values" ? null : states.get(e.field)}
                             locale={locale}
                             defaultsOf={defaultsOf}
+                            rangeOf={rangeOf}
                         />
                     ))}
                 </Zone>

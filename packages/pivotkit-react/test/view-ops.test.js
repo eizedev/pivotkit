@@ -4,7 +4,7 @@ import { computePivot, encode, normalize } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
-    withHostOrders, zoneOverLimit
+    binProblem, numberRange, withHostOrders, zoneOverLimit
 } from "../src/view-ops.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
@@ -260,4 +260,19 @@ test("a field with the host's custom order is sorted in it when placed on an axi
     // a date placed grouped has items of its own
     const d = addField(empty, "Date", "rows", { type: "date", dateUnit: "yearMonth", groupName: "Date (Month)", defaults: { order: ["2026-01-05"] } });
     assert.deepEqual(d.sort, []);
+});
+
+test("the range form: the numbers of a field, and a start too far from them", () => {
+    assert.deepEqual(numberRange(data, "Units"), { min: 1, max: 7 });
+    assert.equal(numberRange(data, "Region"), null);
+    assert.equal(numberRange(data, "Missing"), null);
+    const quakes = { min: 2.5, max: 9.1 };
+    assert.equal(binProblem(0.5, 0, quakes), null);
+    // far, but the ranges can still be told apart: the same ranges as from 0
+    assert.equal(binProblem(0.5, 1e9, quakes), null);
+    assert.equal(binProblem(0.5, -1e15, quakes), null);
+    // every row would land in "(blank)"
+    assert.equal(binProblem(0.5, 1e17, quakes), "far");
+    assert.equal(binProblem(0.5, -1e16, quakes), "far");
+    assert.equal(binProblem(0.5, 1e17, null), null);
 });
