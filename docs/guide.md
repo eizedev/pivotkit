@@ -42,7 +42,7 @@ years by month ("Jan 2025"), up to six years by quarter, longer by year. The chi
 
 When the application describes its fields, an **i** stands next to such a field in the list and on
 its chips. Point at it, or move the focus to it with Tab, and the description appears; click or tap it
-to keep it open, with **Learn more** when there is a page about the field. Escape closes it. The same
+to keep it open, with **Learn more** when there is a page about the field. Escape closes it. On a phone a chip has no **i**; the same
 text is at the top of the chip's menu and on the field's headers in the table and in the drill-down,
 and the field search finds a field by words of its description. The application may also give a
 field a clearer name than the data's; the report uses that name everywhere, also in the exported

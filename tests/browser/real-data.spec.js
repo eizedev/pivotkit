@@ -215,7 +215,7 @@ test.describe("software end of life", () => {
         expect(rows.map((r) => r[0])).toEqual([...ranked.slice(0, 10).map(([p]) => p), "Grand Total"]);
         const oldest = ranked[0][1].map((x) => x.Released).sort()[0];
         expect(rows[0].slice(1)).toEqual([int(ranked[0][1].length), usDate(oldest)]);
-        await expect(page.getByTestId("note-top")).toContainText("Product shows the top 10 only");
+        await expect(page.getByTestId("tip-top")).toContainText("Product shows the top 10 only");
     });
 
     test("support length per category in ranges of 2 years, without unknown ends", async ({ page }) => {

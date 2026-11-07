@@ -2237,3 +2237,9 @@
 .pk-field > .pk-info {
     margin-inline: -3px -4px;
 }
+
+/* a narrow report: a chip keeps its room for its name and badges; the description is at the top of
+   its menu, which a tap on the chip opens */
+.pk-root[data-pk-size="narrow"] .pk-chip-info {
+    display: none;
+}

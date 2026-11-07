@@ -112,10 +112,11 @@ async function licenses(metafile) {
 
 /**
  * The most a page may load per group, gzip, in KiB: about 10 % over what was measured when the budget
- * was set (initial 123.5, chart 200.3, export 7.7, one measurement on one Mac). `--size` fails above it; raise it on purpose,
- * with the reason in the commit.
+ * was set (initial 123.5, chart 200.3, export 7.7, one measurement on one Mac); the initial load was
+ * raised to 138 for the tips and the field descriptions (134.8 measured with them). `--size` fails
+ * above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 134, chart: 221, export: 9 };
+export const SIZE_BUDGET_KIB = { initial: 138, chart: 221, export: 9 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
