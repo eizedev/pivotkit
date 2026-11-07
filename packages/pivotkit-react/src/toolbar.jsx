@@ -17,7 +17,6 @@ import { LABELS, fill } from "./labels.js";
 import { MenuPanel } from "./lazy-menus.jsx";
 import { MenuButton, Option, Popover } from "./popover.jsx";
 import { OVERFLOW_ORDER, overflowLevel, toolbarRoom, toolbarTexts } from "./overflow.js";
-import { SettingInfo } from "./section.jsx";
 
 /** @param {{ icon: any, label: string, onClick: () => void, disabled?: boolean, testId?: string, shortcut?: string }} props */
 function TextButton({ icon, label, onClick, disabled, testId, shortcut }) {
@@ -282,21 +281,9 @@ export function Toolbar(props) {
             {buttons("history")}
             <span className="pk-grow" />
             {buttons("end")}
-            {/* a dialog, not a menu: Tab reaches the "i" of each format */}
+            {/* a dialog, not a menu: Tab reaches the "i" of each format; it loads with the menus */}
             <MenuButton label={labels.exportLabel} icon="download" text={labels.exportLabel} role="dialog" align="end" testId="export">
-                {(close) => (
-                    <>
-                        <div className="pk-setting-row">
-                            <Option icon="file" onSelect={() => { close(); onExport("xlsx"); }} testId="export-xlsx">{labels.exportXlsx}</Option>
-                            <SettingInfo id="exportXlsx" name={labels.exportXlsx} />
-                        </div>
-                        <div className="pk-setting-row">
-                            <Option icon="file" onSelect={() => { close(); onExport("csv"); }} testId="export-csv">{labels.exportCsv}</Option>
-                            <SettingInfo id="exportCsv" name={labels.exportCsv} />
-                        </div>
-                        <Option icon="image" disabled={!chartReady} reason={view.display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={() => { close(); onExport("png"); }} testId="export-png">{labels.exportPng}</Option>
-                    </>
-                )}
+                {(close) => <MenuPanel name="ExportPanel" loadingText={labels.loadingMenu} props={{ labels, onExport, chartReady, display: view.display, prepare: props.prepareExport, close }} />}
             </MenuButton>
             {level > 0 ? (
                 <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more}>

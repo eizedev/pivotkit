@@ -24,7 +24,7 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - Undo and redo every step; Reset goes back to the start ([guide](guide.md#undo-saved-views-and-export)).
 - Save the report under Views, or share it as a link, as JSON or as a view file; a view for other data asks first ([sharing](concepts/sharing.md)).
 - Enlarge the result or put the report on the full screen ([guide](guide.md#more-room-for-the-result)).
-- Export the table to Excel or CSV and the chart to PNG ([export](guide.md#undo-saved-views-and-export)).
+- Export the table to Excel or CSV and the chart to PNG, or copy the table into a spreadsheet ([export](guide.md#undo-saved-views-and-export)); copy or download the rows behind a number ([drill-down](guide.md#the-rows-behind-a-number)).
 - Tips, one at a time, say what the report shows and what to do next; an "i" explains each zone, field and setting that needs it, and long menus fold their sections ([tips](guide.md#tips), [menus](guide.md#menus-that-are-long)).
 - Every text field in a menu has an × that empties it ([guide](guide.md#menus-and-text-fields)).
 - Works with a keyboard and a screen reader, from a phone to a wide screen ([keyboard](guide.md#keyboard-and-screen-readers)).
@@ -47,7 +47,7 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 - `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it ([sharing](concepts/sharing.md)).
 - `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
-- Every file passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
+- Every file and every copy passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
 - Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)).
 - Designed for about 100,000 rows; heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
 

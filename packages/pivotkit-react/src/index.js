@@ -59,10 +59,18 @@
  */
 
 /**
- * @typedef {object} ExportFile  a file the report made, before it is downloaded
- * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view file (Views, "Download view")
- * @property {string} fileName  with the extension ("pivot.xlsx"), made safe
+ * @typedef {object} ExportFile  a file the report made, before it is downloaded, or a text before it
+ *   goes on the clipboard
+ * @property {"xlsx" | "csv" | "png" | "json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ *   "json": the view file (Views, "Download view"); "copy-table", "copy-json": Export → Copy table,
+ *   Copy data as JSON; "drill-*": the drill-down panel's Export menu (Copy, Copy as JSON, Download
+ *   CSV, Download Excel)
+ * @property {string} fileName  with the extension ("pivot.xlsx"), made safe; for a copy the name it
+ *   would have as a file ("pivot.tsv", "Central – Jul 2026.json")
  * @property {Blob} blob
+ * @property {string} [text]  a copy's text (tab-separated or JSON), the same as the blob's
+ * @property {{ shown: number, count: number }} [rows]  a drill-down export: the rows it holds (the
+ *   panel's, at most `drillDownLimit`) and the rows behind the value
  */
 
 /**
@@ -98,8 +106,9 @@
  *   several reports on one page each need their own
  * @property {string} [className]
  * @property {string} [fileName]  name of exported files without extension (default "pivot"); made safe
- * @property {(file: ExportFile) => unknown} [onExport]  every exported file before its download;
- *   returning false skips the download (the host keeps the file, for example to upload it)
+ * @property {(file: ExportFile) => unknown} [onExport]  every exported file before its download, and
+ *   every copy before it goes on the clipboard; returning false skips the download or the copy (the
+ *   host keeps the file or the text, for example to upload it)
  * @property {"on" | "off" | string | string[]} [tips]  the tips above the result: "on" (default), "off"
  *   (none, and no switch in Options), or the ids of the tips allowed (an array, or a comma-separated text)
  * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per

@@ -124,10 +124,14 @@ async function licenses(metafile) {
  * (pivotkit-react's menu-labels.js), which made room in the first load for the automatic chart type,
  * the field list's keys and the touch targets; then the explanations of the settings too (gzip on Node 24 measured the first
  * load 0.3 higher than on 22): first load 151.0 measured, the menus 13.8, their budget raised to 15
- * for the texts moved there.
+ * for the texts moved there. The Export menu with its texts and the export's work (export-run.js) then
+ * moved out of the first load into the menus, with the copies of the table and the drill-down's
+ * Enlarge and Export menu: first load 151.0 measured (no more than before), the menus 16.4, budget
+ * 17.5; the export (now loaded from the menus, so the groups follow dynamic imports of the chunks
+ * too) with the rows export, TSV and JSON 10.6, budget 11.5. Both load on demand, never first.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 15 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 11.5, link: 7, menus: 17.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -153,7 +157,19 @@ export function loadGroups(metafile) {
         return seen;
     };
     const initial = closure(["dist/index.js"]);
-    const dynamic = [...initial].flatMap((f) => (metafile.outputs[f]?.imports ?? []).filter((i) => i.kind === "dynamic-import").map((i) => i.path));
+    // dynamic imports of the first load and of the chunks they load (the menus load the export)
+    const dynamic = [];
+    const scan = (files) => {
+        for (const f of files) {
+            for (const i of metafile.outputs[f]?.imports ?? []) {
+                if (i.kind === "dynamic-import" && !dynamic.includes(i.path)) {
+                    dynamic.push(i.path);
+                    scan(closure([i.path]));
+                }
+            }
+        }
+    };
+    scan(initial);
     const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : "export");
     const groups = [{ group: "initial", files: [...initial] }];
     for (const name of ["chart", "export", "link", "menus"]) {

@@ -34,7 +34,7 @@ import { Toasts, useToasts } from "./toasts.jsx";
 import { ALL_TIPS, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
-import { useExport } from "./use-export.js";
+import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { useViewHistory } from "./use-view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
@@ -79,15 +79,19 @@ function measured(name, fn) {
 /** "Region: North · Product: A" for a cell's paths. */
 function pathTitle(result, rowPath, colPath, labels) {
     const parts = [];
+    const items = [];
     const add = (axis, fields, path) => {
         const node = findNode(result, axis, path);
         for (let n = node; n && n.parent; n = n.parent) {
-            parts.unshift(`${fieldLabel(fields[n.depth - 1], labels.core)}: ${result.label(axis, n, labels.core)}`);
+            const item = result.label(axis, n, labels.core);
+            parts.unshift(`${fieldLabel(fields[n.depth - 1], labels.core)}: ${item}`);
+            items.unshift(item);
         }
     };
     add("cols", result.colFields, colPath);
     add("rows", result.rowFields, rowPath);
-    return parts.length ? parts.join(" · ") : labels.core.grandTotal;
+    // the items alone name the drill-down's files and sheet: "Central – Jul 2026"
+    return { title: parts.length ? parts.join(" · ") : labels.core.grandTotal, name: items.length ? items.join(" – ") : labels.core.grandTotal };
 }
 
 /** Every key path of the row tree down to the second-last level: what "collapse all" collapses. */
@@ -298,7 +302,7 @@ function Report(props) {
     const zonesId = useId();
     const [drawer, setDrawer] = useState(false);
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement, base?: object } | null} */ (null));
-    const [drill, setDrill] = useState(/** @type {{ title: string, count: number, columns: Array<{ name: string, numeric: boolean, label?: string, description?: string }>, rows: string[][] } | null} */ (null));
+    const [drill, setDrill] = useState(/** @type {import("./drill-panel.jsx").Drill | null} */ (null));
     const [hinted, setHinted] = useState(false);
     // changes of the view in this session, and their number at the first drag (for the tips)
     const changesRef = useRef(0);
@@ -788,7 +792,9 @@ function Report(props) {
                 };
                 const table = drillTable(encoded, indices, { locale: result.locale, labels: labels.core, formatOf });
                 const columns = table.columns.map((c) => ({ ...c, label: nameOf(c.name), description: infoOf(c.name)?.description }));
-                setDrill({ title: pathTitle(result, rowPath, colPath, labels), count, rows: table.rows, columns });
+                // the same formats for the panel's exports (pivotkit-core's rows exporters)
+                const formats = Object.fromEntries(table.columns.map((c) => [c.name, formatOf(c.name)]).filter(([, f]) => typeof f === "string"));
+                setDrill({ ...pathTitle(result, rowPath, colPath, labels), count, rows: table.rows, columns, indices, formats, locale: result.locale });
             }
         },
         [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, labels, encoded, fieldDefaults, nameOf, infoOf]
@@ -1144,6 +1150,7 @@ function Report(props) {
                                 onSaveTemplate={saveTemplate}
                                 onDeleteTemplate={deleteTemplate}
                                 onExport={doExport}
+                                prepareExport={prepareExporters}
                                 chartReady={view.display === "chart" && chartReady}
                                 onShowFields={() => setDrawer(true)}
                                 layoutFolded={layoutFolded}
@@ -1280,7 +1287,7 @@ function Report(props) {
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
                 </PivotDnd>
-                {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale }} /> : null}
+                {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
                 <div className="pk-layer" ref={setLayer}>
                     {/* a fixed probe at 0, 0: where fixed popovers start (popover.jsx) */}
                     <span className="pk-origin" aria-hidden="true" />

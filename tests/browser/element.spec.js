@@ -132,6 +132,21 @@ test.describe("two elements on one page", () => {
         await expect(sales.locator(".pk-toasts")).toContainText("Exported pivot.xlsx");
         await expect(sales.locator(".pk-toasts")).not.toContainText("Exported pivot.csv");
         expect((await events(page, "pivot-export")).map((e) => e.detail.kind)).toEqual(["xlsx", "csv"]);
+        // a copy goes through pivot-export too: kept by the page, it never reaches the clipboard
+        await page.evaluate(() => {
+            window.__clipboard = [];
+            Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => void window.__clipboard.push(t) } });
+        });
+        await sales.getByTestId("export").click();
+        await sales.getByTestId("export-copy-table").click();
+        await expect.poll(() => page.evaluate(() => window.__kept.length)).toBe(2);
+        const copy = await page.evaluate(() => window.__kept[1]);
+        expect(copy.name).toBe("pivot.tsv");
+        expect(copy.text).toBe(copy.given);
+        expect(copy.text.split("\r\n")[0]).toContain("\t");
+        expect(await page.evaluate(() => window.__clipboard.length)).toBe(0);
+        await expect(sales.locator(".pk-toasts")).not.toContainText("Table copied");
+        expect((await events(page, "pivot-export")).map((e) => e.detail.kind)).toEqual(["xlsx", "csv", "copy-table"]);
     });
 });
 

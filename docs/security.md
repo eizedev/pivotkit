@@ -52,11 +52,14 @@ reference depth and the number of schema objects it reads.
   or a carriage return, text whose first visible character (after spaces, line breaks and control
   characters) is `=` or `@`, and text starting with `+` or `-` unless it is a plain number (`-5%`) or a
   number range such as the bin label `-10 – 0`.
+- **Copies** (Copy table, the drill-down's Copy): the same guard on every cell, since a spreadsheet
+  runs a pasted formula too. Copy as JSON writes values, never markup or code.
 - **XLSX**: text is written as inline strings, never as formulas. The XML is written by pivotkit-core
   itself; no spreadsheet library is involved. Excel's sheet limits are checked before writing.
 - Downloads use a blob URL on an `<a download>`; nothing is sent anywhere. File names are made safe:
   path separators and characters a file system refuses are replaced. With `onExport` (or the
-  cancelable `pivot-export` event) your page gets every file first and can keep it instead.
+  cancelable `pivot-export` event) your page gets every file and every copy first and can keep it
+  instead.
 
 ## Content-Security-Policy
 

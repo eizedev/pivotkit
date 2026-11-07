@@ -1,6 +1,7 @@
 /*
  * The panels of the toolbar's menus: the chart type with how the chart is drawn, Options (totals,
- * expand and collapse, help), and Views (the saved views, sharing, loading a view). They load with
+ * expand and collapse, help), Views (the saved views, sharing, loading a view) and Export (the files,
+ * and the table on the clipboard). They load with
  * the chip menus on demand (menus.js), so the first load of a page stays small.
  */
 
@@ -540,3 +541,49 @@ export function ViewsPanel({ templates, labels, onLoad, onSave, onDelete, close,
     );
 }
 
+/**
+ * One entry of an export menu: the option and, when it needs explaining, its "i".
+ * @param {{ icon: string, text: string, info?: string, onSelect: () => void, testId: string, disabled?: boolean, reason?: string }} props
+ */
+export function ExportOption({ icon, text, info, onSelect, testId, disabled, reason }) {
+    const option = (
+        <Option icon={icon} onSelect={onSelect} disabled={disabled} reason={reason} testId={testId}>
+            {text}
+        </Option>
+    );
+    return info ? (
+        <div className="pk-setting-row">
+            {option}
+            <SettingInfo id={/** @type {any} */ (info)} name={text} />
+        </div>
+    ) : (
+        option
+    );
+}
+
+/**
+ * The Export menu: the table as a file (Excel, CSV), the chart as an image, and the table on the
+ * clipboard (as shown, or its data as JSON). The export module loads when the menu opens, so a copy
+ * happens right in the click.
+ * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, prepare: () => void, close: () => void }} props
+ */
+export function ExportPanel({ labels, onExport, chartReady, display, prepare, close }) {
+    useEffect(() => {
+        prepare();
+    }, [prepare]);
+    const run = (kind) => () => {
+        close();
+        onExport(kind);
+    };
+    return (
+        <>
+            <div className="pk-subtitle">{labels.exportDownload}</div>
+            <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} testId="export-xlsx" />
+            <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} testId="export-csv" />
+            <ExportOption icon="image" text={labels.exportPng} disabled={!chartReady} reason={display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
+            <div className="pk-subtitle">{labels.exportCopy}</div>
+            <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} testId="export-copy-table" />
+            <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} testId="export-copy-json" />
+        </>
+    );
+}

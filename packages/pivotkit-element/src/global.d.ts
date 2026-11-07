@@ -14,7 +14,7 @@ export interface PivotReportEventMap {
     "pivot-template-save": CustomEvent<TemplateSave>;
     /** Delete of a template marked `deletable`, after the user confirmed; answer with `detail.respondWith(promise)`. */
     "pivot-template-delete": CustomEvent<TemplateDelete>;
-    /** Every exported file before its download; `preventDefault()` skips the download. */
+    /** Every exported file before its download and every copy before the clipboard; `preventDefault()` skips it. */
     "pivot-export": CustomEvent<ExportFile>;
     /** A tip dismissed, all tips switched off or back on; `detail.dismissed` is the whole list to store. */
     "pivot-tip-dismiss": CustomEvent<TipDismiss>;

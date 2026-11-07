@@ -10,7 +10,7 @@ builds depend on it.
 
 - `packages/pivotkit-core/` - the engine, built: plain JavaScript ES modules with JSDoc types, no UI,
   no framework. `src/` (one module per concern), `test/` (`node --test`, `test/types/` a TypeScript
-  consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV) and
+  consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV, TSV and JSON of a grid; `rows.js`: CSV and XLSX of source rows) and
   `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`, with the capped inflate of
   `src/inflate.js`); only those import fflate; every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
@@ -27,7 +27,7 @@ builds depend on it.
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
-  focus and Escape helpers; `labels.js` the texts of the first load (en, de), `menu-labels.js` those only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `all-labels.js` both as `LABELS`, the subpath export `pivotkit-react/labels`; `overflow.js` which toolbar buttons go into "More" (a fixed priority and the room each takes, not the texts); `rove.js` the arrow keys of the field list (one Tab stop); `chart-types.js` also `chartPlan`, what an automatic chart (`chart.type: "auto"`) draws; `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
+  focus and Escape helpers; `labels.js` the texts of the first load (en, de), `menu-labels.js` those only the menus show (loaded with them; a host's labels for them are kept aside by `resolveLabels` and merged by `menuLabels`), `all-labels.js` both as `LABELS`, the subpath export `pivotkit-react/labels`; `overflow.js` which toolbar buttons go into "More" (a fixed priority and the room each takes, not the texts); `rove.js` the arrow keys of the field list (one Tab stop); `use-export.js` the Export menu's entry point, `export-run.js` its work and `drill-export.js` the drill-down panel's exports (both load with the menus and start loading pivotkit-core/export when a menu that copies opens, so a copy happens in the click; every file and copy passes `onExport` first); `place.js` where a popover goes (below, above, else against the window's edge); `chart-types.js` also `chartPlan`, what an automatic chart (`chart.type: "auto"`) draws; `styles.css` every `--pk-*` token. Logic that needs no DOM lives in `.js` modules; `test/` runs
   them with `node --test` (plus a server render of the built package and the contrast of the tokens);
   `test/types/` is a TypeScript consumer.
 - `packages/pivotkit-element/` - the web component `<pivot-report>`: pivotkit-react in an open shadow

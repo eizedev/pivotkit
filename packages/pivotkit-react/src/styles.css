@@ -2051,13 +2051,35 @@
     background: var(--pk-scrim-light);
 }
 
+/* Enlarge: the panel fills the report */
+.pk-drill.pk-drill-big {
+    left: 0;
+    width: 100%;
+    border-left: 0;
+}
+
 .pk-drill-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1em;
+    gap: 8px 1em;
     padding: 16px 16px 12px;
     border-bottom: 1px solid var(--pk-border);
+}
+
+.pk-drill-heading {
+    flex: 1 1 14em;
+    min-width: 0;
+}
+
+.pk-drill-actions {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
 }
 
 .pk-drill-head h2 {
@@ -2102,6 +2124,18 @@
 
 .pk-drill-table .pk-num {
     text-align: right;
+}
+
+/* a long text wraps: its column is as wide as the content needs, up to this width */
+.pk-drill-text {
+    min-width: 10em;
+    max-width: 22em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.pk-drill-big .pk-drill-text {
+    max-width: 40em;
 }
 
 /* toasts: at the bottom edge of the report's visible part: under the table when the report's end is
