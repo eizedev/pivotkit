@@ -1,0 +1,50 @@
+/*
+ * The entries of the Views menu: the host's `templates` (a view or a view file each, shared or the
+ * user's own) and the views of the browser store (view-store.js, loaded with the menus), each with its
+ * scope and whether it can be deleted.
+ */
+
+import { fromViewFile } from "pivotkit-core";
+
+/** The localStorage item of a report's views: one per storageKey ("pivotkit:views" without one). */
+export const viewsName = (key) => (key ? `pivotkit:views:${key}` : "pivotkit:views");
+
+/**
+ * @typedef {object} TemplateEntry  an entry of the Views menu
+ * @property {string} name
+ * @property {Record<string, unknown>} view  not normalized: the report normalizes it when it is loaded
+ * @property {"shared" | "user"} scope
+ * @property {boolean} deletable
+ * @property {number} [at]  its place in the browser store; only for the store's own entries
+ */
+
+/**
+ * The entries of the Views menu: the host's templates (an entry with `file` is read as a view file;
+ * one without a usable view or name is left out), then the browser store's. An entry without a
+ * `scope` is the user's own when it is deletable, else shared. A host's entry can be deleted only
+ * when it is marked `deletable` and the host takes the delete (`hostDeletes`).
+ * @param {unknown} templates  the host's
+ * @param {Array<{ name: string, view: Record<string, unknown>, at: number }>} stored
+ * @param {boolean} hostDeletes
+ * @returns {TemplateEntry[]}
+ */
+export function templateEntries(templates, stored, hostDeletes) {
+    /** @type {TemplateEntry[]} */
+    const out = [];
+    for (const t of Array.isArray(templates) ? templates : []) {
+        if (!t || typeof t !== "object") {
+            continue;
+        }
+        let { name, view } = t;
+        if (t.file !== undefined && t.file !== null) {
+            const read = fromViewFile(t.file);
+            view = read.view;
+            name = typeof name === "string" && name ? name : read.name;
+        }
+        if (typeof name === "string" && name && view && typeof view === "object") {
+            const deletable = t.deletable === true;
+            out.push({ name, view, deletable: deletable && hostDeletes, scope: t.scope === "shared" || t.scope === "user" ? t.scope : deletable ? "user" : "shared" });
+        }
+    }
+    return [...out, ...stored.map((t) => ({ name: t.name, view: t.view, scope: /** @type {const} */ ("user"), deletable: true, at: t.at }))];
+}

@@ -1338,6 +1338,11 @@
     gap: 2px;
 }
 
+/* the Views menu's groups stand in the popover as its own sections */
+.pk-views {
+    display: contents;
+}
+
 .pk-switch {
     display: flex;
     align-items: center;

@@ -22,7 +22,7 @@ import { displayNames, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { copyText, safeFileName, saveBlob } from "./files.js";
-import { errorText, fill, hostFailure, plural, resolveLabels } from "./labels.js";
+import { errorText, fill, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
@@ -31,6 +31,8 @@ import { HelpContext } from "./section.jsx";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
+import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
+import { templateEntries, viewsName } from "./templates.js";
 import { ALL_TIPS, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
@@ -104,15 +106,6 @@ function outerPaths(result) {
     };
     walk(result.rowRoot);
     return out;
-}
-
-/** The browser's localStorage, or null where it is missing or blocked (a sandboxed frame throws). */
-function localStore() {
-    try {
-        return typeof window !== "undefined" && window.localStorage ? window.localStorage : null;
-    } catch {
-        return null;
-    }
 }
 
 /** The tab's sessionStorage, or null where it is missing or blocked. */
@@ -237,6 +230,9 @@ function Report(props) {
         templates = [],
         onSaveTemplate,
         onDeleteTemplate,
+        onPublishTemplate,
+        canPublish = false,
+        templateStore,
         onCellClick,
         drillDown = true,
         drillDownLimit = DRILL_LIMIT,
@@ -889,30 +885,29 @@ function Report(props) {
         },
         [commit, labels, announce, limits, locale]
     );
-    // the host's callbacks may return a promise: the note comes when it is kept
-    const saveTemplate = onSaveTemplate
-        ? async (name) => {
-              try {
-                  await onSaveTemplate(name, view);
-                  setSavedAt(changesRef.current);
-                  announce(fill(labels.toastSaved, { name }));
-              } catch (e) {
-                  announce(hostFailure(labels.toastSaveFailed, labels.toastSaveRejected, e), { tone: "error" });
-              }
-          }
-        : null;
-    const deleteTemplate = onDeleteTemplate
-        ? async (name) => {
-              try {
-                  await onDeleteTemplate(name);
-                  announce(fill(labels.toastDeleted, { name }));
-                  return true;
-              } catch (e) {
-                  announce(hostFailure(labels.toastDeleteFailed, labels.toastDeleteRejected, e), { tone: "error" });
-                  return false;
-              }
-          }
-        : null;
+    // the browser store (templateStore="browser"): the user's own views in localStorage under the
+    // storageKey; read after hydration, as the tips. Its views are read with the menus' module
+    // (view-store.js), loaded right after the first render
+    const viewStore = templateStore === "browser";
+    const storeName = viewsName(storageKey);
+    const subscribeViews = useCallback((callback) => (viewStore ? subscribeItem(storeName, callback) : () => {}), [viewStore, storeName]);
+    const viewsText = useSyncExternalStore(subscribeViews, () => (viewStore ? readItem(storeName, localStore()) : null), () => null);
+    const entries = useMemo(() => templateEntries(templates, viewStore && menus ? menus.storedViews(viewsText, sourceId) : [], Boolean(onDeleteTemplate)), [templates, viewStore, menus, viewsText, sourceId, onDeleteTemplate]);
+    // what the Views menu needs to save, delete and publish (toolbar-panels.jsx: viewActions): the
+    // host's callbacks, else the browser store; the notes come when they are kept
+    const templateActions = {
+        view,
+        announce,
+        locale,
+        sourceId,
+        viewsText,
+        store: viewStore,
+        keep: (text) => writeItem(storeName, localStore(), text),
+        onSave: onSaveTemplate,
+        onDelete: onDeleteTemplate,
+        onPublish: canPublish ? onPublishTemplate : undefined,
+        onSaved: () => setSavedAt(changesRef.current)
+    };
 
     const onKeyDown = (e) => {
         const target = /** @type {HTMLElement} */ (e.target);
@@ -1026,7 +1021,7 @@ function Report(props) {
         [settingSwitch.on, labels, menus, dismissed, changeDismissed]
     );
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
-    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate), savedAt, chartPlan: plan });
+    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
     const shownTips = activeTips(ctx, { allowed, dismissed }).map((t) => ({
         id: t.id,
         params: t.params,
@@ -1139,10 +1134,9 @@ function Report(props) {
                                 onCollapse={collapseAll}
                                 folding={folding}
                                 share={share}
-                                templates={templates}
+                                templates={entries}
                                 onLoadTemplate={loadTemplate}
-                                onSaveTemplate={saveTemplate}
-                                onDeleteTemplate={deleteTemplate}
+                                templateActions={templateActions}
                                 onExport={doExport}
                                 chartReady={view.display === "chart" && chartReady}
                                 onShowFields={() => setDrawer(true)}
@@ -1240,7 +1234,7 @@ function Report(props) {
                                         <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
-                                    <EmptyState labels={labels} templates={templates} onTemplate={loadTemplate} />
+                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} />
                                 ) : view.display === "chart" && chartResult ? (
                                     <PivotChart
                                         result={chartResult}

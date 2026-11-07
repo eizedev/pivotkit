@@ -11,6 +11,7 @@
 import { CATALOG, fieldLabel, suggestDateUnit } from "pivotkit-core";
 import { CHART_TYPES, MANY_SERIES, SLICE_TYPES, chartPlan } from "./chart-types.js";
 import { fill } from "./labels.js";
+import { readItem, subscribeItem, writeItem } from "./storage.js";
 import { filterZoneFields, filtersOf, isFiltered, sourceOf } from "./view-ops.js";
 
 /** Tips shown at a time: one, the most important; the next waits until it is followed or dismissed. */
@@ -302,7 +303,8 @@ export const SECTIONS = Object.freeze({
     totals: true,
     folding: true,
     help: true,
-    savedViews: true,
+    sharedViews: true,
+    myViews: true,
     share: true,
     chartType: true,
     chartDisplay: true
@@ -490,14 +492,7 @@ export const storageName = (key) => `pivotkit:tips:${key}`;
  * @returns {string | null}
  */
 export function readStored(key, storage) {
-    if (!key || !storage) {
-        return null;
-    }
-    try {
-        return storage.getItem(storageName(key));
-    } catch {
-        return null;
-    }
+    return key ? readItem(storageName(key), storage) : null;
 }
 
 /** The dismissed ids of a stored text: [] for nothing or broken JSON. @param {string | null} raw */
@@ -521,62 +516,29 @@ export function readDismissed(key, storage) {
     return parseStored(readStored(key, storage));
 }
 
-/** Who listens to the stored tips of a key in this page (the reports with that storageKey). */
-const listeners = new Map();
-
 /**
  * Listens to the stored tips of a key: a write in this page (writeDismissed) or in another tab of
- * the same site (the storage event). For useSyncExternalStore, so the report reads the storage only
- * after hydration (its server snapshot is "nothing stored").
+ * the same site. For useSyncExternalStore, so the report reads the storage only after hydration (its
+ * server snapshot is "nothing stored").
  * @param {string | undefined} key
  * @param {() => void} callback
  * @returns {() => void}  stops listening
  */
 export function subscribeStored(key, callback) {
-    if (!key) {
-        return () => {};
-    }
-    const set = listeners.get(key) ?? new Set();
-    set.add(callback);
-    listeners.set(key, set);
-    const onStorage = (e) => {
-        if (e.key === null || e.key === storageName(key)) {
-            callback();
-        }
-    };
-    const win = typeof window !== "undefined" ? window : null;
-    win?.addEventListener("storage", onStorage);
-    return () => {
-        set.delete(callback);
-        if (set.size === 0) {
-            listeners.delete(key);
-        }
-        win?.removeEventListener("storage", onStorage);
-    };
+    return key ? subscribeItem(storageName(key), callback) : () => {};
 }
 
 /**
  * Stores the dismissed tips of a report and tells the reports of the page that use the key; nothing
- * without a key or storage, and quietly when the browser refuses (private mode, quota).
+ * without a key or storage, and quietly when the browser refuses (private mode, quota): the tips stay
+ * dismissed until the page is loaded again.
  * @param {string | undefined} key
  * @param {Pick<Storage, "setItem" | "removeItem"> | null | undefined} storage
  * @param {readonly string[]} dismissed
  */
 export function writeDismissed(key, storage, dismissed) {
-    if (!key || !storage) {
-        return;
-    }
-    try {
-        if (dismissed.length) {
-            storage.setItem(storageName(key), JSON.stringify(dismissed));
-        } else {
-            storage.removeItem(storageName(key));
-        }
-    } catch {
-        // storage blocked or full: the tips stay dismissed until the page is loaded again
-    }
-    for (const callback of [...(listeners.get(key) ?? [])]) {
-        callback();
+    if (key && storage) {
+        writeItem(storageName(key), storage, dismissed.length ? JSON.stringify(dismissed) : null);
     }
 }
 

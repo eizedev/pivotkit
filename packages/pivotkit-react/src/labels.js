@@ -176,15 +176,8 @@ export const en = {
     toastRedone: "Redone: {step}",
     toastReset: "Back to the start view",
     toastExported: "Exported {file}",
-    toastSaved: "View “{name}” saved",
     toastLoaded: "View “{name}” loaded",
-    toastDeleted: "View “{name}” deleted",
     toastExportFailed: "Export failed: {message}",
-    toastSaveFailed: "The view could not be saved: {message}",
-    toastDeleteFailed: "The view could not be deleted: {message}",
-    // the host refused without saying why (a rejected promise without a message)
-    toastSaveRejected: "The server could not save the view.",
-    toastDeleteRejected: "The server could not delete the view.",
     // what an undo step was, for "Undone: ..."
     steps: {
         added: "{field} added to {zone}",
@@ -510,14 +503,8 @@ export const de = {
     toastRedone: "Wiederholt: {step}",
     toastReset: "Zurück zur Startansicht",
     toastExported: "{file} exportiert",
-    toastSaved: "Ansicht „{name}“ gespeichert",
     toastLoaded: "Ansicht „{name}“ geladen",
-    toastDeleted: "Ansicht „{name}“ gelöscht",
     toastExportFailed: "Export fehlgeschlagen: {message}",
-    toastSaveFailed: "Die Ansicht konnte nicht gespeichert werden: {message}",
-    toastDeleteFailed: "Die Ansicht konnte nicht gelöscht werden: {message}",
-    toastSaveRejected: "Der Server konnte die Ansicht nicht speichern.",
-    toastDeleteRejected: "Der Server konnte die Ansicht nicht löschen.",
     steps: {
         added: "{field} zu {zone} hinzugefügt",
         removed: "{field} entfernt",

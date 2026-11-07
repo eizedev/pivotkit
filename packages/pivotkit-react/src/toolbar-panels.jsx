@@ -10,11 +10,12 @@ import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart
 import { ClearInput } from "./clear-input.jsx";
 import { activeIn } from "./dom.js";
 import { Icon } from "./icons.jsx";
-import { fill } from "./labels.js";
+import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
 import { SHORTCUTS } from "./tips.js";
 import { TOTALS, totalNoEffect } from "./view-ops.js";
+import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
     const current = chartTypeOf(view.chart);
@@ -474,69 +475,161 @@ function ShareSection({ labels, share, close }) {
 }
 
 /**
- * The Views menu: the saved views (the host's templates: load one, save the view, delete one the
- * host marked `deletable`) and sharing. A delete asks first, in place, and the entry goes only when
- * the host's callback has finished. Names need not be unique (a saved view may have a preset's
- * name): every entry is shown, keyed and confirmed by its place in the list.
+ * What the Views menu's buttons do, from what the report passes (PivotReport: templateActions): save
+ * the view (the host's onSaveTemplate wins over the browser store), delete an entry (a host's goes to
+ * its onDeleteTemplate, a stored one to the store) and publish a user's view (onPublishTemplate, when
+ * the host allows it). Each says "saved", "deleted" or "published" when it is kept (a promise
+ * resolved), or why not; the delete and the publish resolve to whether they were kept.
+ * @param {any} ctx
+ * @param {any} labels  with the menus' texts
  */
-export function ViewsPanel({ templates, labels, onLoad, onSave, onDelete, close, share }) {
-    const [confirming, setConfirming] = useState(/** @type {number | null} */ (null));
+function viewActions(ctx, labels) {
+    const run = (task, done, failed, rejected, name) =>
+        Promise.resolve()
+            .then(task)
+            .then(
+                () => {
+                    ctx.announce(fill(done, { name }));
+                    return true;
+                },
+                (e) => {
+                    ctx.announce(hostFailure(failed, rejected, e), { tone: "error" });
+                    return false;
+                }
+            );
+    const write = (change) => storeViews(ctx.viewsText, change, labels, ctx.locale, ctx.keep);
+    return {
+        save:
+            ctx.onSave || ctx.store
+                ? (name) =>
+                      run(() => (ctx.onSave ? ctx.onSave(name, ctx.view, { scope: "user" }) : write({ name, view: ctx.view, sourceId: ctx.sourceId })), labels.toastSaved, labels.toastSaveFailed, labels.toastSaveRejected, name).then(
+                          (ok) => ok && ctx.onSaved()
+                      )
+                : null,
+        remove: ctx.onDelete || ctx.store ? (t) => run(() => (t.at !== undefined ? write({ remove: t.at, removeName: t.name }) : ctx.onDelete(t.name, { scope: t.scope })), labels.toastDeleted, labels.toastDeleteFailed, labels.toastDeleteRejected, t.name) : null,
+        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, t.view), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
+    };
+}
+
+/**
+ * The Views menu: the templates in two groups, "Shared views" (the host's, for everyone) and "My
+ * views" (the user's own: the host's or the browser store's), each shown only when it has entries
+ * ("My views" also with "Save current view"), then sharing. An entry loads its view; a deletable one
+ * has a delete button, a shared one that is not has the "i" that says who changes shared views, and
+ * a user's view offers "Publish as shared view" when the host allows it. Delete and publish ask
+ * first, in place; the entry changes only when the host's callback (or the browser store) has
+ * finished, and the focus goes back to the entry in that place. Names need not be unique: every
+ * entry is shown, keyed and confirmed by its place in the list.
+ * @param {{ templates: import("./templates.js").TemplateEntry[], labels: any, onLoad: (t: any) => void, actions: any, close: () => void, share?: any }} props
+ */
+export function ViewsPanel({ templates, labels, onLoad, actions, close, share }) {
+    const { save: onSave, remove: onDelete, publish: onPublish } = viewActions(actions, labels);
+    // "My views" says where they are kept while the browser store takes the saves
+    const store = actions.store && !actions.onSave;
+    const [confirming, setConfirming] = useState(/** @type {{ at: number, kind: "delete" | "publish" } | null} */ (null));
     const [busy, setBusy] = useState(false);
+    const box = useRef(/** @type {HTMLDivElement | null} */ (null));
+    // the entry the focus goes back to once a question in its place is gone: by its key, else (it was
+    // deleted) the entry now at its place in the menu
+    const [refocus, setRefocus] = useState(/** @type {{ key: string, place: number } | null} */ (null));
     useEffect(() => {
         // the link module, before a click asks for it: a copy right in the click is allowed everywhere
         share?.prepare?.();
     }, [share]);
+    useEffect(() => {
+        if (refocus && box.current) {
+            const entries = [...box.current.querySelectorAll("[data-pk-entry]")];
+            const entry = entries.find((el) => el.getAttribute("data-pk-entry") === refocus.key) ?? entries[Math.min(refocus.place, entries.length - 1)];
+            /** @type {HTMLElement | null} */ ((entry ?? box.current).querySelector("[data-pk-option]"))?.focus({ preventScroll: true });
+            setRefocus(null);
+        }
+    }, [refocus, templates]);
+    /** An entry's key in the menu: its group, its place in the browser store and its name. */
+    const keyOf = (t) => `${t.scope}:${t.at ?? ""}:${t.name}`;
+    useEffect(() => {
+        // a question in an entry's place takes the focus (a click does not focus a button everywhere: Safari)
+        if (confirming) {
+            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(".pk-confirm [data-autofocus]"))?.focus({ preventScroll: true });
+        }
+    }, [confirming]);
+    const answer = (t) => {
+        setConfirming(null);
+        const entries = box.current ? [...box.current.querySelectorAll("[data-pk-entry], .pk-confirm")] : [];
+        setRefocus({ key: keyOf(t), place: Math.max(0, entries.findIndex((el) => el.classList.contains("pk-confirm"))) });
+    };
+    const entry = (t, at) => {
+        if (confirming && confirming.at === at) {
+            const kind = confirming.kind;
+            const publish = kind === "publish";
+            const question = fill(publish ? labels.publishConfirm : labels.deleteConfirm, { name: t.name });
+            return (
+                <div key={`${at}:${t.name}`} className="pk-template pk-confirm" role="group" aria-label={question}>
+                    <span className="pk-confirm-text">{question}</span>
+                    <button
+                        type="button"
+                        className={publish ? "pk-btn pk-primary" : "pk-btn pk-danger-btn"}
+                        disabled={busy}
+                        data-autofocus=""
+                        data-testid={`confirm-${kind}`}
+                        onClick={async () => {
+                            setBusy(true);
+                            const ok = await (publish ? onPublish : onDelete)?.(t);
+                            setBusy(false);
+                            if (ok) {
+                                answer(t);
+                            }
+                        }}
+                    >
+                        {publish ? labels.publishAction : labels.deleteAction}
+                    </button>
+                    <button type="button" className="pk-btn" disabled={busy} onClick={() => answer(t)}>
+                        {labels.cancel}
+                    </button>
+                </div>
+            );
+        }
+        const button = (kind, icon, text) => (
+            <button type="button" className="pk-icon-btn" onClick={() => setConfirming({ at, kind })} aria-label={text} title={text} data-testid={`${kind}-view-${t.name}`}>
+                <Icon name={icon} />
+            </button>
+        );
+        return (
+            <div key={`${at}:${t.name}`} className="pk-template" data-pk-entry={keyOf(t)}>
+                <Option icon="bookmark" onSelect={() => { close(); onLoad(t); }} testId={`saved-view-${t.name}`}>
+                    {t.name}
+                </Option>
+                {onPublish && t.scope === "user" ? button("publish", "upload", fill(labels.publishView, { name: t.name })) : null}
+                {onDelete && t.deletable ? button("delete", "trash", fill(labels.deleteView, { name: t.name })) : t.scope === "shared" ? <SettingInfo id="sharedView" name={t.name} /> : null}
+            </div>
+        );
+    };
+    const group = (scope) => templates.map((t, at) => (t.scope === scope ? entry(t, at) : null)).filter(Boolean);
+    const shared = group("shared");
+    const mine = group("user");
     return (
-        <>
-            <Section title={labels.savedViews} id="savedViews">
-                {templates.length === 0 ? <p className="pk-hint">{labels.noViews}</p> : null}
-                {templates.map((t, i) =>
-                    confirming === i ? (
-                        <div key={`${i}:${t.name}`} className="pk-template pk-confirm" role="group" aria-label={fill(labels.deleteConfirm, { name: t.name })}>
-                            <span className="pk-confirm-text">{fill(labels.deleteConfirm, { name: t.name })}</span>
-                            <button
-                                type="button"
-                                className="pk-btn pk-danger-btn"
-                                disabled={busy}
-                                data-autofocus=""
-                                data-testid="confirm-delete"
-                                onClick={async () => {
-                                    setBusy(true);
-                                    const ok = await onDelete(t.name);
-                                    setBusy(false);
-                                    if (ok) {
-                                        setConfirming(null);
-                                    }
-                                }}
-                            >
-                                {labels.deleteAction}
-                            </button>
-                            <button type="button" className="pk-btn" disabled={busy} onClick={() => setConfirming(null)}>
-                                {labels.cancel}
-                            </button>
-                        </div>
-                    ) : (
-                        <div key={`${i}:${t.name}`} className="pk-template">
-                            <Option icon="bookmark" onSelect={() => { close(); onLoad(t); }} testId={`saved-view-${t.name}`}>
-                                {t.name}
-                            </Option>
-                            {onDelete && t.deletable === true ? (
-                                <button type="button" className="pk-icon-btn" onClick={() => setConfirming(i)} aria-label={fill(labels.deleteView, { name: t.name })} title={fill(labels.deleteView, { name: t.name })}>
-                                    <Icon name="trash" />
-                                </button>
-                            ) : null}
-                        </div>
-                    )
-                )}
-                {onSave ? (
-                    <>
-                        <div className="pk-subtitle">{labels.saveView}</div>
-                        <SaveView labels={labels} onSave={onSave} />
-                    </>
-                ) : null}
-            </Section>
+        <div ref={box} className="pk-views">
+            {shared.length ? (
+                <Section title={labels.sharedViews} id="sharedViews">
+                    {shared}
+                </Section>
+            ) : null}
+            {mine.length || onSave || !shared.length ? (
+                <Section title={labels.myViews} id="myViews">
+                    {mine.length || onSave ? mine : <p className="pk-hint">{labels.noViews}</p>}
+                    {onSave ? (
+                        <>
+                            <div className="pk-subtitle">{labels.saveView}</div>
+                            <SaveView labels={labels} onSave={onSave} />
+                        </>
+                    ) : null}
+                    {store ? (
+                        <p className="pk-hint pk-menu-hint" data-testid="store-note">
+                            {labels.storeNote}
+                        </p>
+                    ) : null}
+                </Section>
+            ) : null}
             {share ? <ShareSection labels={labels} share={share} close={close} /> : null}
-        </>
+        </div>
     );
 }
-

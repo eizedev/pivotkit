@@ -12,6 +12,23 @@ First release.
 
 ### Added
 
+- Templates in two groups of the Views menu, "Shared views" and "My views" (labels `sharedViews`,
+  `myViews`; "Gemeinsame Ansichten", "Meine Ansichten"), each shown only with entries ("My views"
+  also while people can save; `noViews` when there is nothing at all). `templates` entries take
+  `scope` (`"shared"` or `"user"`; without it a `deletable` entry is the user's own) and `file`, a
+  view file instead of `view` (its name the default). A shared entry that cannot be deleted has an
+  "i": "Only admins can change shared views." (`labels.settingInfo.sharedView`). `onSaveTemplate`
+  gets `{ scope: "user" }` and `onDeleteTemplate` `{ scope }`. `canPublish` with `onPublishTemplate`
+  offers "Publish as shared view" on the user's views, asked in place (`publishView`,
+  `publishConfirm`, `publishAction`, `toastPublished`, `toastPublishFailed`,
+  `toastPublishRejected`). After a delete, a publish or Cancel the focus goes back to the entry in
+  that place. `templateStore="browser"` keeps the user's views in localStorage
+  (`pivotkit:views:<storageKey>`) as view files per data (`source`), at most 100 views and 500,000
+  characters, read after hydration, with a note that they stay in this browser (`storeNote`) and
+  the reasons a save is refused (`storeFull`, `storeTooLarge`, `storeRefused`); the host's
+  `onSaveTemplate` wins. The texts of save and delete (`toastSaved`, `toastDeleted`,
+  `toastSaveFailed`, `toastDeleteFailed`, `toastSaveRejected`, `toastDeleteRejected`) load with the
+  menus, as does the browser store with pivotkit-core/templates, so the first load stays small.
 - Sort by value and Top N by any value that gives numbers: the sort section lists "Largest … first"
   and "Smallest … first" for each such value, Top N has a "by" select; the first value is the
   default. A value condition on a row or column field ("Value filter…" in the Filters section of its
@@ -37,8 +54,7 @@ First release.
   every entry of a list); it wins over the view's settings; functions, values that are not JSON and
   the ECharts options that are markup or addresses (a string `formatter` at any depth, `rich`, `link`,
   `sublink`, `image`, the tooltip's element) are left out with a warning.
-- The Views menu (labels `views`, `savedViews`, `share`; "Ansichten" in German) with two sections:
-  Saved views (the host's `templates`, "Save current view") and Share: Copy link (with `shareLink`:
+- The Views menu (labels `views`, `share`; "Ansichten" in German) with the templates and Share: Copy link (with `shareLink`:
   `true` or a base URL; the view in the fragment, `#pivot=` or `#pivot-<storageKey>=`, only that
   entry changed so a hash route stays; `true` links to the page without its query; read after the
   first render as the start, and on a fragment change as one undoable step), Copy view as JSON,
