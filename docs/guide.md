@@ -46,8 +46,8 @@ the sort.
 - Drag it back to the field list, or press its **x**, to remove it. A note under the table offers Undo.
 - Open its **menu** (the arrow) for everything else.
 
-The menu of a **row or column field** has sort (by label or by a value, and "Custom order" when the
-field has one, such as the seasons in the order of the year), date grouping (along the time line:
+The menu of a **row or column field** has sort (by label or by a value, and "Custom order" and
+"Custom order, reversed" when the field has one, such as the seasons in the order of the year), date grouping (along the time line:
 year, quarter, month, week, day; or across years: quarter, month, week of the year, weekday, hour),
 number ranges (their size and where they start, "Starting at"; a new size keeps the start), top or
 bottom N, filter, and move. Remove is always at the foot.

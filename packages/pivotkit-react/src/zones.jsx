@@ -59,7 +59,7 @@ function stateWords(state, labels, locale, firstValue) {
         const desc = state.sort.order === "desc";
         const order = state.sort.by === "value"
             ? fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: firstValue })
-            : state.sort.by === "custom" ? labels.sortCustom : desc ? labels.sortLabelDesc : labels.sortLabelAsc;
+            : state.sort.by === "custom" ? (desc ? labels.sortCustomDesc : labels.sortCustom) : desc ? labels.sortLabelDesc : labels.sortLabelAsc;
         words.push(fill(labels.stateSorted, { order }));
     }
     return words.join(", ");
@@ -101,7 +101,7 @@ function Badges({ state, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, orderOf }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const chipRef = useRef(/** @type {HTMLElement | null} */ (null));
     const ref = (el) => {
@@ -144,9 +144,9 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                 >
                     {(close) =>
                         zone === "values" ? (
-                            <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} />
+                            <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} defaultsOf={defaultsOf} />
                         ) : (
-                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} orderOf={orderOf} />
+                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} defaultsOf={defaultsOf} />
                         )
                     }
                 </MenuButton>
@@ -241,10 +241,10 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
  *   commit: (view: object, note?: any) => void, openFilter: (field: string, anchor: HTMLElement) => void,
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
- *   id: string, folded: boolean, onShow: () => void, orderOf?: (field: string) => unknown[] | undefined }} props
- *   `folded`: the compact layout's one line; `orderOf`: the host's custom order of a source field
+ *   id: string, folded: boolean, onShow: () => void, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined }} props
+ *   `folded`: the compact layout's one line; `defaultsOf`: the host's settings for a source field (fieldDefaults)
  */
-export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, orderOf }) {
+export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, defaultsOf }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -354,7 +354,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             onRemove={onRemove}
                             state={zone === "values" ? null : states.get(e.field)}
                             locale={locale}
-                            orderOf={orderOf}
+                            defaultsOf={defaultsOf}
                         />
                     ))}
                 </Zone>

@@ -161,7 +161,9 @@ test("software end of life", () => {
     says(`Languages differ most: ${years2(lang.filter((x) => x.LTS))} years against ${years2(lang.filter((x) => !x.LTS))}`);
     const sorted = lang.filter((x) => !x.LTS).map((x) => x["Support years"]).sort((a, b) => a - b);
     const mid = sorted.length / 2;
-    says(`Languages without LTS drop to ${(sorted.length % 2 ? sorted[Math.floor(mid)] : (sorted[mid - 1] + sorted[mid]) / 2).toLocaleString("en-US")} years`);
+    const median = sorted.length % 2 ? sorted[Math.floor(mid)] : (sorted[mid - 1] + sorted[mid]) / 2;
+    // the cell keeps the data set's one decimal for "Support years"; the text names the exact median too
+    says(`Languages without LTS drop to ${one(median)} years (${median.toLocaleString("en-US")}, shown with the one decimal`);
 
     const next = e.filter((x) => x["Days to EOL"] !== null && x["Days to EOL"] >= 0 && x["Days to EOL"] < 365);
     const cats = ranked(by(next, "Category"), (l) => l.length);

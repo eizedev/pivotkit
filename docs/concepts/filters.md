@@ -66,11 +66,13 @@ Each field on rows or columns is sorted on its own:
   "desc"` reverses both. Blank sorts last unless it is listed (`null`).
 
 In the UI the menu of a row or column field offers "A to Z", "Z to A" (or "Oldest first", "Newest
-first" for dates) and "Largest first", "Smallest first" for each value. "Custom order" is offered when
-the view has a custom sort for the field or the host gives the field an order: `fieldDefaults:
-{ Season: { order: ["Spring", "Summer", "Autumn", "Winter"] } }`. A field with such an order is
-sorted in it as soon as it is placed on Rows or Columns, as a `custom` sort in the view, so a saved
-template keeps it.
+first" for dates) and "Largest first", "Smallest first" for each value. "Custom order" and "Custom
+order, reversed" are offered when the view has a custom sort for the field or the host gives the
+field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"] } }`. A
+field with such an order is sorted in it as soon as it is placed on Rows or Columns, as a `custom`
+sort in the view, so a saved template keeps it. A view or template that has the field on Rows or
+Columns without a sort entry for it gets the same `custom` sort when the report shows it; "A to Z"
+in the menu is then kept as a sort entry of its own, so the host's order does not come back.
 
 ## Filters in the UI
 

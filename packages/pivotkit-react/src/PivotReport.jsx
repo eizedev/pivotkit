@@ -205,7 +205,20 @@ export function PivotReport(props) {
     }, [encodedProp, dataIdentity, timeZone, limits]);
     const encoded = source.encoded;
 
-    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside });
+    // the host's custom orders (fieldDefaults.order), compared by value: every view shown sorts by them
+    const ordersKey = JSON.stringify(
+        fieldDefaults && typeof fieldDefaults === "object"
+            ? Object.entries(fieldDefaults).filter(([, d]) => d && Array.isArray(d.order) && d.order.length > 0).map(([field, d]) => [field, d.order])
+            : []
+    );
+    const orderOf = useMemo(() => {
+        const orders = /** @type {[string, unknown[]][]} */ (JSON.parse(ordersKey));
+        if (!orders.length) {
+            return undefined;
+        }
+        return (/** @type {string} */ field) => orders.find(([name]) => name.toLowerCase() === field.toLowerCase())?.[1];
+    }, [ordersKey]);
+    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
     const view = history.view;
 
     const stepText = useCallback(
@@ -364,11 +377,8 @@ export function PivotReport(props) {
         },
         [encoded, typeOf, fieldDefaults, labels]
     );
-    /** The host's custom order of a field's items (fieldDefaults.order), for the sort menu. */
-    const orderOf = useCallback((field) => {
-        const order = defaultsFor(fieldDefaults, field)?.order;
-        return Array.isArray(order) ? order : undefined;
-    }, [fieldDefaults]);
+    /** The host's settings for a field (fieldDefaults), for the chip menus: its format, its custom order. */
+    const defaultsOf = useCallback((field) => defaultsFor(fieldDefaults, field), [fieldDefaults]);
     const addTo = useCallback(
         (field, zone, index = undefined) => {
             const options = placeOptions(field, zone, index);
@@ -586,7 +596,7 @@ export function PivotReport(props) {
                                 id={zonesId}
                                 folded={layoutFolded}
                                 onShow={() => setFolded(false)}
-                                orderOf={orderOf}
+                                defaultsOf={defaultsOf}
                             />
                             {result && result.issues.length > 0 && !empty ? (
                                 <details className="pk-issues">

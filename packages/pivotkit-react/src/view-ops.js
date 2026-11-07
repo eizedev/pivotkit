@@ -240,17 +240,42 @@ export function reorder(view, zone, from, to) {
     return next;
 }
 
-/** Changes properties of the value at `index` (agg, format, label, showAs, conditional). */
-export function updateValue(view, index, patch) {
+/** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
+const COUNTING = new Set(["count", "countUnique", "listUnique"]);
+const unitOf = (agg) => (COUNTING.has(agg) ? "count" : "field");
+
+/**
+ * Changes properties of the value at `index` (agg, format, label, showAs, conditional). A new
+ * aggregator drops the "show values as" calculation (a running total does not fit an average) and
+ * picks the format: one the patch names; else the user's own format (one that is not the host's
+ * default) while the result keeps its unit (average to median: still years); else the host's format
+ * for the field (fieldDefaults) when its aggregator has that unit; else none, the automatic one.
+ * @param {any} view
+ * @param {number} index
+ * @param {object} patch
+ * @param {{ defaults?: { agg?: string, format?: string } }} [options]  `defaults`: the host's
+ *   settings for the value's field
+ */
+export function updateValue(view, index, patch, options = {}) {
     const next = clone(view);
     if (!next.values[index]) {
         return view;
     }
+    const before = view.values[index];
     const value = { ...next.values[index], ...patch };
-    if (patch.agg && patch.agg !== view.values[index].agg) {
-        // a calculation or a format chosen for another aggregator may not fit the new one
+    if (patch.agg && patch.agg !== before.agg) {
         value.showAs = patch.showAs ?? null;
-        value.format = patch.format ?? null;
+        const wanted = options.defaults ?? {};
+        const hostFormat = typeof wanted.format === "string" && isFormat(wanted.format) ? wanted.format : null;
+        const own = before.format && before.format !== hostFormat ? before.format : null;
+        if (patch.format !== undefined) {
+            value.format = patch.format;
+        } else if (own) {
+            value.format = unitOf(before.agg) === unitOf(patch.agg) ? own : null;
+        } else {
+            // the host's format belongs to its aggregator for the field (a number of days to an average, say)
+            value.format = hostFormat && unitOf(typeof wanted.agg === "string" ? wanted.agg : "sum") === unitOf(patch.agg) ? hostFormat : null;
+        }
     }
     next.values[index] = value;
     return next;
@@ -325,6 +350,27 @@ export function setSort(view, field, sort) {
     next.sort = next.sort.filter((s) => !same(s.field, field));
     if (sort) {
         next.sort.push({ field, ...sort });
+    }
+    return next;
+}
+
+/**
+ * The view with the host's custom order (fieldDefaults.order) for every field on Rows or Columns that
+ * has no sort entry: a saved or default view sorts such a field as placing it in the UI does
+ * (addField). A field with an entry keeps it, "A to Z" included; a grouping has items of its own.
+ * Returns the same view when there is nothing to add.
+ * @param {any} view  normalized
+ * @param {(field: string) => unknown[] | undefined} orderOf  the host's order of a source field
+ */
+export function withHostOrders(view, orderOf) {
+    const missing = [...view.rows, ...view.cols].filter((field) => !view.derived.some((d) => same(d.name, field)) && !view.sort.some((s) => same(s.field, field)));
+    const added = missing.map((field) => ({ field, order: orderOf(field) })).filter(({ order }) => Array.isArray(order) && order.length > 0);
+    if (!added.length) {
+        return view;
+    }
+    const next = clone(view);
+    for (const { field, order } of added) {
+        next.sort.push({ field, by: "custom", order: "asc", items: [...order] });
     }
     return next;
 }

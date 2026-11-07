@@ -117,7 +117,7 @@ function RemoveFoot({ labels, onRemove, close }) {
 }
 
 /** The menu of a chip on Rows or Columns. */
-export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, orderOf }) {
+export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, defaultsOf }) {
     const source = sourceOf(view, field);
     const sourceType = types.get(source.toLowerCase());
     const grouping = groupingOf(view, field);
@@ -129,12 +129,14 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     const isSort = (by, order) => (sort ? sort.by === by && sort.order === order : by === "label" && order === "asc");
     // the custom order of the view, else the host's for the field (fieldDefaults.order); a grouped
     // field has items of its own
-    const hostOrder = source === field ? orderOf?.(source) : undefined;
+    const hostOrder = source === field ? defaultsOf?.(source)?.order : undefined;
     const customItems = sort?.by === "custom" ? sort.items : Array.isArray(hostOrder) && hostOrder.length > 0 ? hostOrder : null;
     const doSort = (by, order) => {
         close();
         const spec = by === "value" ? { by, order, value: firstRef } : by === "custom" ? { by, order, items: [...customItems] } : { by, order };
-        commit(setSort(view, field, by === "label" && order === "asc" ? null : spec), { step: "sort", field });
+        // A to Z is the default without an entry; a field with the host's order keeps it as an entry, or
+        // the host's order would come back (withHostOrders)
+        commit(setSort(view, field, by === "label" && order === "asc" && !(Array.isArray(hostOrder) && hostOrder.length > 0) ? null : spec), { step: "sort", field });
     };
     const regroup = (unit, size, origin) => {
         close();
@@ -154,7 +156,8 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
                     <Option checked={isSort("value", "desc")} icon="sortDesc" onSelect={() => doSort("value", "desc")}>{fill(labels.sortValueDesc, { value: firstName })}</Option>
                     <Option checked={isSort("value", "asc")} icon="sortAsc" onSelect={() => doSort("value", "asc")}>{fill(labels.sortValueAsc, { value: firstName })}</Option>
-                    {customItems ? <Option checked={sort?.by === "custom"} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
+                    {customItems ? <Option checked={isSort("custom", "asc")} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
+                    {customItems ? <Option checked={isSort("custom", "desc")} icon="sortDesc" onSelect={() => doSort("custom", "desc")} testId="sort-custom-desc">{labels.sortCustomDesc}</Option> : null}
                 </Section>
                 {sourceType === "date" ? (
                     <Section title={labels.groupBy}>
@@ -186,7 +189,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
 }
 
 /** The menu of a value chip. */
-export function ValueMenu({ view, index, types, labels, commit, close, onRemove }) {
+export function ValueMenu({ view, index, types, labels, commit, close, onRemove, defaultsOf }) {
     const spec = view.values[index];
     const type = spec.field ? types.get(spec.field.toLowerCase()) ?? "string" : "number";
     const aggs = spec.field ? aggregatorsFor(type) : ["count"];
@@ -197,7 +200,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove 
     const name = valueLabel(spec, labels);
     const set = (patch) => {
         close();
-        commit(updateValue(view, index, patch), { step: "value", field: name });
+        commit(updateValue(view, index, patch, { defaults: spec.field ? defaultsOf?.(spec.field) : undefined }), { step: "value", field: name });
     };
     const [rename, setRename] = useState(spec.label ?? "");
     const aggOption = (a) => (

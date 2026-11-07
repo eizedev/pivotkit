@@ -57,8 +57,8 @@ test.describe("weather", () => {
         await open(page, "data=weather&preset=2");
         const sg = weather.filter((x) => x.City === "Singapore" && x.Date.startsWith("2025"));
         const r = await row(page, "Singapore");
-        // Autumn, Spring, Summer, Winter, Grand Total
-        expect(r.slice(1)).toEqual([...["Autumn", "Spring", "Summer", "Winter"].map((s) => int(sum(sg.filter((x) => x.Season === s).map((x) => x["Rain day"])))), int(sg.filter((x) => x["Rain mm"] >= 1).length)]);
+        // the seasons in the order the playground gives the field (fieldDefaults.order), Grand Total
+        expect(r.slice(1)).toEqual([...["Spring", "Summer", "Autumn", "Winter"].map((s) => int(sum(sg.filter((x) => x.Season === s).map((x) => x["Rain day"])))), int(sg.filter((x) => x["Rain mm"] >= 1).length)]);
     });
 
     test("Berlin, 2023 to 2025: the chart's table", async ({ page }) => {
@@ -373,8 +373,8 @@ test.describe("learning tasks", () => {
         const years = eol.filter((x) => x.Category === "Language" && !x.LTS && x["Support years"] !== null).map((x) => x["Support years"]).sort((a, b) => a - b);
         const mid = years.length / 2;
         const median = years.length % 2 ? years[Math.floor(mid)] : (years[mid - 1] + years[mid]) / 2;
-        // a new aggregator drops the value's format: the cell shows the median with its own decimals
-        expect(Number((await row(page, "Language"))[1])).toBeCloseTo(median, 9);
+        // the host's format for Support years (fieldDefaults, number:1) stays with the new aggregator
+        expect((await row(page, "Language"))[1]).toBe(one(median));
     });
 
     test("Nobel: the sum of Share counts prizes, not laureates", async ({ page }) => {
@@ -489,13 +489,18 @@ test.describe("what the real data showed (#21 to #26)", () => {
         await expect(names).toHaveAttribute("colspan", "13");
     });
 
-    test("the seasons in the order of the year, from the field's menu", async ({ page }) => {
+    test("the seasons in the order of the year in a template without a sort; reversed and A to Z from the menu", async ({ page }) => {
         await open(page, "data=weather&preset=2");
         const seasons = () => page.locator(".pk-table thead tr:first-child th.pk-colHeader").allTextContents();
-        expect(await seasons()).toEqual(["Autumn", "Spring", "Summer", "Winter", "Grand Total"]);
+        expect(await seasons()).toEqual(["Spring", "Summer", "Autumn", "Winter", "Grand Total"]);
         await page.getByTestId("chip-menu-Season").click();
-        await page.getByTestId("sort-custom").click();
-        await expect.poll(seasons).toEqual(["Spring", "Summer", "Autumn", "Winter", "Grand Total"]);
+        await expect(page.getByTestId("sort-custom")).toHaveAttribute("aria-pressed", "true");
+        await page.getByTestId("sort-custom-desc").click();
+        await expect.poll(seasons).toEqual(["Winter", "Autumn", "Summer", "Spring", "Grand Total"]);
+        // A to Z stays A to Z: the host's order does not come back
+        await page.getByTestId("chip-menu-Season").click();
+        await page.getByRole("button", { name: "A to Z", exact: true }).click();
+        await expect.poll(seasons).toEqual(["Autumn", "Spring", "Summer", "Winter", "Grand Total"]);
     });
 
     test("the CSV holds a percentage as the table shows it, in percent", async ({ page }) => {

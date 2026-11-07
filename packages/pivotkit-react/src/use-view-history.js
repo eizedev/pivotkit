@@ -14,6 +14,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { emptyView, normalize } from "pivotkit-core";
 import { createState, record, redo as redoStep, reset as resetStep, settle, undo as undoStep } from "./view-history.js";
+import { withHostOrders } from "./view-ops.js";
 
 /**
  * The identity of a data set's columns: names and types.
@@ -25,15 +26,25 @@ export function schemaKeyOf(encoded) {
 
 /**
  * @param {{ encoded: import("pivotkit-core").Encoded, view: object | undefined, defaultView: object | undefined,
- *   onViewChange?: (view: import("pivotkit-core").View) => void, limits: object | undefined, outsideNote: string }} options
+ *   onViewChange?: (view: import("pivotkit-core").View) => void, limits: object | undefined, outsideNote: string,
+ *   orderOf?: (field: string) => unknown[] | undefined }} options  `orderOf`: the host's custom order of a
+ *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
  * @returns {{ view: import("pivotkit-core").View, viewKey: string, commit: (next: object, note: string) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
  *   canUndo: boolean, canRedo: boolean, canReset: boolean }}
  */
-export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote }) {
+export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf }) {
     const controlled = view !== undefined;
     const schema = useMemo(() => schemaKeyOf(encoded), [encoded]);
-    const json = useCallback((v) => JSON.stringify(normalize(v ?? emptyView(), encoded, { limits }).view), [encoded, limits]);
+    const json = useCallback(
+        (v) => {
+            const normalized = normalize(v ?? emptyView(), encoded, { limits }).view;
+            const ordered = orderOf ? withHostOrders(normalized, orderOf) : normalized;
+            // the added entries are normalized too: their items take the field's type
+            return JSON.stringify(ordered === normalized ? normalized : normalize(ordered, encoded, { limits }).view);
+        },
+        [encoded, limits, orderOf]
+    );
     // the first view the report got is the start: reset goes back to it
     const [initial] = useState(() => (controlled ? view : defaultView) ?? null);
     const start = useMemo(() => json(initial), [json, initial]);

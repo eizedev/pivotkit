@@ -67,9 +67,10 @@ filtered to 2025 with the derived field "Year".
   75 fall in its winter (38). Mumbai has none in winter and 90 in its summer monsoon.
 - Try this: open the menu of "Rain days" and pick **Show as: % of row total**. Each row now
   adds up to 100 %: the share of a city's rain days per season.
-- Try this: open the menu of "Season" and pick **Custom order**. The seasons follow the year:
-  Spring, Summer, Autumn, Winter, instead of the alphabet. The playground gives "Season" this order
-  (`fieldDefaults`), as Excel's custom lists do.
+- Try this: open the menu of "Season" and pick **A to Z**, then **Custom order** again. The seasons
+  follow the year (Spring, Summer, Autumn, Winter) instead of the alphabet: the playground gives
+  "Season" this order (`fieldDefaults`), as Excel's custom lists do, and the template, which has no
+  sort for "Season", uses it.
 
 **Was 2025 warmer than 2023 in Berlin? (chart)** One line per year, filtered to Berlin.
 
@@ -380,7 +381,8 @@ columns, the average of "Support years".
 - Read it: 3.4 years with LTS against 2.1 without. Languages differ most: 6.3 years against 1.8.
 - Try this: open the menu of "Average of Support years", open **More statistics** and pick
   **Median**. Languages without LTS
-  drop to 0.55 years: many short-lived cycles, a few long ones pull the average up.
+  drop to 0.6 years (0.55, shown with the one decimal the data set sets for "Support years"): many
+  short-lived cycles, a few long ones pull the average up.
 
 **What reaches end of life in the next 12 months? Click a count for the cycles** Category and product
 on rows, the quarter of the EOL date on columns, filtered with "Days to EOL" in ranges of 365 to the

@@ -4,7 +4,7 @@ import { computePivot, encode, normalize } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
-    zoneOverLimit
+    withHostOrders, zoneOverLimit
 } from "../src/view-ops.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
@@ -132,6 +132,40 @@ test("sort, values, collapse, chart", () => {
     assert.equal(chartTypeOf(c.chart), "stacked");
     assert.equal(isEmptyView(empty), true);
     assert.equal(defaultAgg("date"), "count");
+});
+
+test("a new aggregator keeps the host's format for the field, a user's own format while the unit stays", () => {
+    const defaults = { agg: "average", format: "number:1" };
+    const at = (format) => norm({ rows: ["Region"], values: [{ field: "Units", agg: "average", format }] });
+    // the host's format, set when the value was added or by a template: taken again
+    assert.equal(updateValue(at("number:1"), 0, { agg: "median" }, { defaults }).values[0].format, "number:1");
+    assert.equal(updateValue(at(null), 0, { agg: "max" }, { defaults }).values[0].format, "number:1");
+    // the user's own format stays while the result is still a value of the field
+    assert.equal(updateValue(at("number:3"), 0, { agg: "median" }, { defaults }).values[0].format, "number:3");
+    // a count is not in the field's unit: neither format fits it
+    assert.equal(updateValue(at("number:1"), 0, { agg: "count" }, { defaults }).values[0].format, null);
+    assert.equal(updateValue(at("currency:EUR"), 0, { agg: "count" }, { defaults }).values[0].format, null);
+    // a format the patch names wins; without the host's settings a new aggregator starts automatic
+    assert.equal(updateValue(at("number:1"), 0, { agg: "median", format: "integer" }, { defaults }).values[0].format, "integer");
+    assert.equal(updateValue(at(null), 0, { agg: "median" }).values[0].format, null);
+    // a host's format for a count applies to counts only
+    const counted = norm({ rows: ["Region"], values: [{ field: "Product", agg: "count", format: "integer" }] });
+    assert.equal(updateValue(counted, 0, { agg: "countUnique" }, { defaults: { agg: "count", format: "integer" } }).values[0].format, "integer");
+});
+
+test("a saved view sorts a field by the host's order when it has no sort entry of its own", () => {
+    const orderOf = (field) => (field.toLowerCase() === "product" ? ["B", "A"] : undefined);
+    const v = norm({ rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
+    const ordered = withHostOrders(v, orderOf);
+    assert.deepEqual(ordered.sort, [{ field: "Product", by: "custom", order: "asc", items: ["B", "A"] }]);
+    assert.deepEqual(computePivot(data, ordered).colRoot.children.map((n) => n.key), ["B", "A"]);
+    // an entry of the view wins, "A to Z" included; nothing to add: the same view
+    const own = norm({ ...v, sort: [{ field: "Product", by: "label", order: "asc" }] });
+    assert.equal(withHostOrders(own, orderOf), own);
+    assert.equal(withHostOrders(v, () => undefined), v);
+    // a grouping has items of its own
+    const grouped = norm({ rows: ["Date (month)"], derived: [{ name: "Date (month)", field: "Date", by: "month" }] });
+    assert.equal(withHostOrders(grouped, () => [1, 2]), grouped);
 });
 
 test("every result is a view normalize accepts without issues", () => {
