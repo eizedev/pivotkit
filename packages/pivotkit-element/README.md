@@ -2,15 +2,15 @@
 
 Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/element/) - getting started, every attribute, property and event, theming, security and a [live demo](https://pivotkit.eize.dev/demo/).
 
-The pivot report builder of [pivotkit-react](../pivotkit-react/) as one web component,
+The pivot report builder of [pivotkit-react](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#readme) as one web component,
 `<pivot-report>`, for pages without React: Angular apps, PHP and other server-rendered pages, plain
-HTML. It brings its own React 18.3.1 and ReactDOM, pivotkit-react, [pivotkit-core](../pivotkit-core/)
+HTML. It brings its own React 18.3.1 and ReactDOM, pivotkit-react, [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme)
 and @dnd-kit, and renders into an open shadow root. Everything the React component does (field list,
 drag and drop, table and chart, filters, drill-down, undo, templates, export) works the same; the
-[pivotkit-react README](../pivotkit-react/README.md#what-the-user-can-do) describes it.
+[pivotkit-react README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#what-the-user-can-do) describes it.
 
 Version 0.1.0: `npm install pivotkit-element`, or serve its `dist/` directory as below. Try it in the
-[example](../../examples/element/).
+[example](https://github.com/eizedev/pivotkit/tree/main/examples/element).
 
 ## Use
 
@@ -95,7 +95,7 @@ are not encoded again. Set a new array (`report.data = [...rows]`), or a new `da
 On a phone the report's zones sit above the table, so the default 640 px leaves little room for it.
 Give the element more height on narrow screens, for example `height="100%"` and
 `@media (max-width: 639px) { pivot-report { height: calc(100svh - 24px); } }`, as the
-[example](../../examples/element/) does: the page scrolls to the report, the table scrolls inside it.
+[example](https://github.com/eizedev/pivotkit/tree/main/examples/element) does: the page scrolls to the report, the table scrolls inside it.
 
 ### Controlled and uncontrolled
 
@@ -178,7 +178,7 @@ pivot-report[data-pk-theme="dark"] {
 ```
 
 The tokens and their defaults are listed in the
-[pivotkit-react README](../pivotkit-react/README.md#theming). There are no `::part()` names; the
+[pivotkit-react README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#theming). There are no `::part()` names; the
 tokens are the styling interface.
 
 The styles reach the shadow root as one constructed stylesheet shared by every element of the
@@ -236,7 +236,7 @@ ECharts is bundled, not left to the page: a page without a bundler or an import 
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart
 types the report draws are in the chunk: pivotkit-react's `echarts.js` imports them by name
 (`test/build.test.js` checks the chunk against it). A page that already has ECharts loads it twice; one that needs a single
-copy uses [pivotkit-react](../pivotkit-react/) with its own React instead.
+copy uses [pivotkit-react](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#readme) with its own React instead.
 
 ## React on the page
 
@@ -374,4 +374,4 @@ BSD-3-Clause; tslib: 0BSD; fflate: MIT). The browser test pages are in `tests/br
 
 ## License
 
-[MIT](../../LICENSE); the bundled packages under their own licenses, see `dist/THIRD_PARTY_LICENSES.txt`.
+[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE); the bundled packages under their own licenses, see `dist/THIRD_PARTY_LICENSES.txt`.

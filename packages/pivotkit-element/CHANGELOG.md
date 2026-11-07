@@ -6,6 +6,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- README: links to the other packages, the example and the license are absolute (GitHub), so they
+  work on the npm page.
+
 ## [0.1.0] - 2026-11-07
 
 First release.

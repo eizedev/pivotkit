@@ -6,6 +6,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- README: the link to the license is absolute (GitHub), so it works on the npm page.
+
 ## [0.1.0] - 2026-11-07
 
 First release.

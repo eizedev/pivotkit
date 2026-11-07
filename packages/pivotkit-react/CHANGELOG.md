@@ -6,6 +6,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- README: links to other packages, the examples and the license are absolute (GitHub, the
+  documentation site), so they work on the npm page.
+
 ## [0.1.0] - 2026-11-07
 
 First release.

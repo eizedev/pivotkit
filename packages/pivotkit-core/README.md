@@ -242,4 +242,4 @@ with this version, other machines differ):
 
 ## License
 
-[MIT](../../LICENSE)
+[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE)
