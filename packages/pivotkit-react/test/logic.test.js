@@ -93,6 +93,15 @@ test("popover placement: below, above when there is no room, inside the viewport
     assert.equal(up.top, 500 - 6 - 300);
     assert.equal(placePopover({ top: 10, bottom: 40, left: 750, right: 790 }, { width: 200, height: 100 }, vp).left, 800 - 200 - 8);
     assert.equal(placePopover({ top: 10, bottom: 40, left: 600, right: 790 }, { width: 200, height: 100 }, vp, "end").left, 590);
+    // a filter opened from a field low in the list: room on neither side, so it rises until its foot
+    // is inside the window, at most the window's height (its content scrolls)
+    const low = placePopover({ top: 389, bottom: 419, left: 241, right: 271 }, { width: 340, height: 500 }, { width: 2000, height: 850 });
+    assert.equal(low.top + Math.min(500, low.maxHeight) <= 850 - 8, true);
+    assert.equal(low.top >= 8, true);
+    const tall = placePopover({ top: 300, bottom: 330, left: 0, right: 30 }, { width: 340, height: 900 }, vp);
+    assert.deepEqual([tall.top, tall.maxHeight], [8, 600 - 16]);
+    // room enough below: it never covers the anchor
+    assert.equal(placePopover({ top: 389, bottom: 419, left: 241, right: 271 }, { width: 340, height: 400 }, { width: 2000, height: 850 }).top, 425);
 });
 
 test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", () => {

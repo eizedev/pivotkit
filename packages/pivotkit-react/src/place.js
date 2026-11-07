@@ -1,6 +1,7 @@
 /*
- * Where a popover goes: below its anchor, above it when there is not enough room below, and always
- * inside the viewport with a margin. A popover is position: fixed; an ancestor with a transform, a
+ * Where a popover goes: below its anchor when it fits there, else above it when it fits there, else
+ * against the window's edge on the anchor's roomier side, as tall as the window allows (its content
+ * scrolls inside, a form's buttons stay at its foot); always inside the viewport with a margin. A popover is position: fixed; an ancestor with a transform, a
  * filter or `contain` (a router animation, a dialog, a carousel) makes itself the containing block of
  * fixed elements, so the place in viewport coordinates is moved by that block's origin (fromOrigin).
  */
@@ -18,13 +19,20 @@ const GAP = 6;
 export function placePopover(anchor, size, viewport, align = "start") {
     const below = viewport.height - anchor.bottom - GAP - MARGIN;
     const above = anchor.top - GAP - MARGIN;
-    const side = size.height <= below || below >= above ? "below" : "above";
-    const room = side === "below" ? below : above;
-    const height = Math.min(size.height, room);
-    const top = side === "below" ? anchor.bottom + GAP : anchor.top - GAP - height;
+    const most = Math.max(0, viewport.height - 2 * MARGIN);
+    const height = Math.min(size.height, most);
     const wanted = align === "end" ? anchor.right - size.width : anchor.left;
     const left = Math.max(MARGIN, Math.min(wanted, viewport.width - size.width - MARGIN));
-    return { top: Math.max(MARGIN, top), left, maxHeight: Math.max(120, room), side };
+    if (height <= below) {
+        return { top: anchor.bottom + GAP, left, maxHeight: below, side: "below" };
+    }
+    if (height <= above) {
+        return { top: anchor.top - GAP - height, left, maxHeight: above, side: "above" };
+    }
+    // fits on neither side: next to the anchor as far as the window lets it, over the anchor if need be
+    const side = below >= above ? "below" : "above";
+    const near = side === "below" ? anchor.bottom + GAP : anchor.top - GAP - height;
+    return { top: Math.max(MARGIN, Math.min(near, viewport.height - MARGIN - height)), left, maxHeight: most, side };
 }
 
 /**

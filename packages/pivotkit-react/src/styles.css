@@ -1057,8 +1057,11 @@
     font-weight: 600;
 }
 
+/* the filter: the list of values shrinks and scrolls when the window is low, Apply and Cancel stay at
+   the foot (the form scrolls as a last resort, its foot sticks) */
 .pk-filter-popover {
     width: 340px;
+    overflow: hidden;
 }
 
 /* at the bottom of the window, not of the report (which can reach past the window): every entry is
@@ -1419,10 +1422,30 @@
 
 .pk-filter {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 8px;
     padding: 6px;
     min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.pk-filter > * {
+    flex: none;
+}
+
+.pk-filter > .pk-values {
+    flex: 0 1 auto;
+    min-height: 4.5em;
+}
+
+.pk-filter > .pk-popover-foot {
+    position: sticky;
+    bottom: -6px;
+    margin-bottom: -6px;
+    padding: 6px 0;
+    background: var(--pk-surface-raised);
 }
 
 .pk-popover-head {
