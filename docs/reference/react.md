@@ -80,7 +80,7 @@ polite live region. In the order they are shown, and when:
 | `top` | notice | A field on Rows or Columns shows its top or bottom N: totals and percentages cover those items only. | |
 | `chartCapped` | notice | The chart draws the first 50 of more categories. | |
 | `showAs` | tip | A value is shown as a percentage: what 100 % is for that calculation. | |
-| `chartOverTime` | tip | A chart type the user chose (not lines, areas or a heatmap) with a date or a grouping of one on Rows or Columns. | Show as lines over time (the automatic type) |
+| `chartOverTime` | tip | A chart type the user chose (not lines, areas or a heatmap) with a date or a grouping of one along the time line on Rows or Columns (where Automatic would draw lines). | Show as lines over time (the automatic type) |
 | `pieSlices` | tip | A pie or donut of more than 7 slices. | Switch to Bars |
 | `pieColumns` | tip | A pie or donut with a field on Columns: it draws one slice per row and adds up the columns. | Switch to Bars |
 | `chartDates` | tip | Lines or areas with the dates on Columns (and none on Rows). | Swap rows and columns |
@@ -135,7 +135,7 @@ area: the narrow layout, and a medium one such as a half-width card of 650 px). 
 columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the
 Columns zone is too narrow for the text. Only the table scrolls sideways. The row label columns share
 at most 40 % of the main area (each at least 5.5em, so a common word such as "Central" never breaks;
-a longer word breaks at a hyphenation point of the report's language; a narrow report has less room
+a longer one breaks at a hyphen of its own, a word longer than the column as a last resort; a narrow report has less room
 around each cell) and a value's name wraps beyond 30 %, so a long label wraps between words and a
 phone still shows values next to two levels of row labels; from 300 rows on, where
 rows have one height (too low for two lines), a row label is cut with an ellipsis: its full text is

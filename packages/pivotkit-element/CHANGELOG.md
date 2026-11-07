@@ -22,8 +22,8 @@ First release.
   props; `fieldDefaults` takes `label`, `description`, `href` and `type`.
 - The attribute `grow` (pivotkit-react's `grow`: past the height or inside it).
 - The menus' texts load with the menus (pivotkit-react's `menu-labels.js`): the first load stays
-  within its 152 KiB budget (150.6 measured with the automatic chart type, the field list's keys and
-  the touch targets); the menus' budget is 14 KiB (12.9 measured).
+  within its 152 KiB budget (151.7 measured with the automatic chart type, the field list's keys and
+  the touch targets); the menus' budget is 14 KiB (13.0 measured).
 - The attribute `schema-url` (pivotkit-react's `schemaUrl`: the `$schema` of the view files; `""` for none).
 - Attributes `setting-info` (the "i" next to the settings, as pivotkit-react's `settingInfo`),
   `source-id` and `source-name` (the data shown, for the shared view files and the check before a

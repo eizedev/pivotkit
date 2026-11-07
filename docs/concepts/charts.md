@@ -16,7 +16,9 @@ and lowest value); its name includes the title when it has one ("Chart: Revenue 
 Until a type is picked, the chart type is **Automatic** (`chart.type: "auto"`, also for a view
 without a type): the data decides.
 
-- A date, or a grouping of one ("Created by month"), on Rows: **lines**, the dates along the axis.
+- A date, or a grouping of one along the time line ("Created by month": day, week, month, quarter,
+  year), on Rows: **lines**, the dates along the axis. A grouping that repeats (weekday, hour of day,
+  month, quarter or week of year) is categories: **bars**.
 - Dates on Columns only: **lines** too, with rows and columns swapped for the chart alone, so the
   dates run along the axis and each item of Rows is a line; the table keeps its layout and the view
   is not changed. A click on a point opens its rows as in the table.
@@ -31,7 +33,7 @@ columns up into one slice per row. A heatmap's colour scale writes its ends in t
 format.
 
 For developers: pivotkit-core's `autoChartType(view, data)` says what "auto" stands for (`"line"`
-with a date on Rows, else `"bar"`) and `toEChartsOption()` draws it; the swap for dates on Columns is
+with a date along the time line on Rows, else `"bar"`) and `toEChartsOption()` draws it; the swap for dates on Columns is
 the UI's (pivotkit-react computes the chart from the swapped view).
 
 ## Display settings (for the people who use the report)
@@ -90,8 +92,9 @@ In the view the settings are `chart.valueLabels` (`"auto"`, `"off"`, `"value"`, 
 `limits.name` characters, or `null`), `chart.smooth`, `chart.axisLabels` (`"auto"`, `"all"`, `"nth"`)
 and `chart.groupLabels` (`"auto"`, `"on"`, `"off"`). A view without them gets the defaults; an unknown value
 falls back to its default and is reported by `normalize()` ([Views](views.md)). "Percent" and "Value
-and percent" are a pie's and a donut's; another type writes the value. `chart.type` is `"bar"`,
-`"line"`, `"area"`, `"pie"`, `"donut"` or `"heatmap"`; a pie and a donut differ only in the hole
+and percent" are a pie's and a donut's; another type writes the value. `chart.type` is `"auto"` (the
+default: the data decides, see [the chart type](#the-chart-type)), `"bar"`, `"line"`, `"area"`, `"pie"`,
+`"donut"` or `"heatmap"`; a pie and a donut differ only in the hole
 (pivotkit-core's `DEFAULT_THEME.pieRadius` `["0%", "70%"]` and `donutRadius` `["42%", "70%"]`, which a
 host changes with `toEChartsOption`'s `theme`).
 

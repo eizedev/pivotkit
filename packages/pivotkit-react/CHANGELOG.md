@@ -130,7 +130,7 @@ First release.
   heights), expand and collapse, totals on and off, colour scales and
   data bars, keyboard navigation, drill-down panel and `onCellClick`; virtual scrolling from 300 rows.
 - The chart type "Automatic" (the default, `chart.type: "auto"`): lines when a date or a grouping of
-  one is on Rows; with dates on Columns only, lines too, with rows and columns swapped for the chart
+  one along the time line is on Rows (a weekday or hour of day is bars); with dates on Columns only, lines too, with rows and columns swapped for the chart
   alone (the table keeps its layout); bars otherwise. The toolbar's button shows the type ("Automatic",
   "Bars"; its name "Chart type: …"), the menu's "Automatic" what it draws now (`chartAutoNow`). A
   type the user picks stays.
@@ -161,7 +161,8 @@ First release.
 - Status notes sit at the bottom edge of the report's part on screen, also when the report reaches
   past the window. The Views menu stays open after "Save", with the new entry and Copy link in it.
 - Row labels on a narrow report wrap between words and keep at least 5.5em, so a common word is not
-  cut in two; a longer one breaks at a hyphenation point of the report's language.
+  cut in two; a longer one breaks at a hyphen of its own (labels are data, not the UI's
+  language), a word longer than the column only as a last resort.
 - On a touch screen (a coarse pointer) the ×, the "i", a field's menu and grip and a tip's x are at
   least 44 px (token `--pk-target-touch`).
 - The texts only the menus show load with them (`menu-labels.js`); a host's `labels` for them still

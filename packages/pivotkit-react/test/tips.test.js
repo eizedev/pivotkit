@@ -140,6 +140,10 @@ test("tips: an automatic chart draws lines over dates (swapped for the chart alo
     assert.equal(tipText(first.id, first.params, en, "en-US"), "D by month is a date: lines show how the values change over time.");
     assert.equal(tipActionText(first.entry, first.params, en), "Show as lines over time");
     assert.equal(first.entry.action, "auto");
+    // a repeating grouping (weekday) is categories: no suggestion of lines over time
+    const weekdays = contextOf(rows, { rows: ["D by weekday"], derived: [{ name: "D by weekday", field: "D", by: "weekday" }], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "bar" } });
+    assert.ok(!holding(weekdays).includes("chartOverTime"));
+    assert.equal(contextOf(rows, { rows: ["D by weekday"], derived: [{ name: "D by weekday", field: "D", by: "weekday" }], values: [{ field: "V", agg: "sum" }], display: "chart" }).chartPlan.name, "bar");
     // lines chosen, or a heatmap (dates in its grid): no suggestion
     assert.ok(!holding(view({ type: "line" }, { rows: ["D by month"], cols: ["R"] })).includes("chartOverTime"));
     assert.ok(!holding(view({ type: "heatmap" }, { rows: ["R"], cols: ["D by month"] })).includes("chartOverTime"));

@@ -52,6 +52,8 @@ export const en = {
     fields: "Fields",
     fieldsHint: "Drag a field into Rows, Columns, Values or Filters, or open its menu.",
     searchFields: "Search fields",
+    // the field list's keys, for screen readers (the list is one stop of the Tab order)
+    fieldListKeys: "Arrow keys up and down move between the fields, left and right to a field's grip, its i and its menu. Enter adds the field, Shift+F10 opens its menu.",
     noFieldMatch: "No field matches “{query}”.",
     fieldMenu: "Options for {field}",
     addTo: "Add to {zone}",
@@ -410,6 +412,7 @@ export const de = {
     fields: "Felder",
     fieldsHint: "Ein Feld in Zeilen, Spalten, Werte oder Filter ziehen oder sein Menü öffnen.",
     searchFields: "Felder suchen",
+    fieldListKeys: "Pfeiltasten auf und ab wechseln zwischen den Feldern, links und rechts zum Griff eines Felds, seinem i und seinem Menü. Eingabe fügt das Feld hinzu, Umschalt+F10 öffnet sein Menü.",
     noFieldMatch: "Kein Feld passt zu „{query}“.",
     fieldMenu: "Optionen für {field}",
     addTo: "Zu {zone} hinzufügen",

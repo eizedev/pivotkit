@@ -156,6 +156,7 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
     const [stop, setStop] = useState(/** @type {{ field: string, slot: string } | null} */ (null));
     const current = stop && shown.some((f) => f.name === stop.field) ? stop : shown.length ? { field: shown[0].name, slot: "name" } : null;
     const list = useRef(/** @type {HTMLUListElement | null} */ (null));
+    const keysId = useId();
     const onFocus = useCallback((e) => {
         const control = /** @type {HTMLElement} */ (e.target).closest?.("[data-pk-slot]");
         const row = control?.closest("[data-field]");
@@ -215,7 +216,8 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                 <span className="pk-sr">{labels.searchFields}</span>
                 <ClearInput type="search" value={query} placeholder={labels.searchFields} onChange={setQuery} clearLabel={labels.clearText} data-autofocus="" data-testid="field-search" />
             </label>
-            <ul className="pk-field-list" ref={list} onFocus={onFocus} onKeyDown={onListKey} data-testid="field-list">
+            {/* a list (role kept where list-style: none would drop it), named, with its keys as its description */}
+            <ul className="pk-field-list" ref={list} role="list" aria-label={labels.fields} aria-describedby={keysId} onFocus={onFocus} onKeyDown={onListKey} data-testid="field-list">
                 {shown.map((f) => (
                     <FieldItem
                         key={f.name}
@@ -233,6 +235,9 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                     />
                 ))}
             </ul>
+            <p id={keysId} hidden>
+                {labels.fieldListKeys}
+            </p>
             {shown.length === 0 ? <p className="pk-hint">{fields.length ? fill(labels.noFieldMatch, { query }) : labels.emptyFields}</p> : null}
             {removing ? (
                 <div className="pk-remove-hint" aria-hidden="true">

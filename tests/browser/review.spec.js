@@ -85,10 +85,12 @@ test.describe("phone", () => {
 
     test("row labels break between words, never inside one, and a value stays in view", async ({ page }) => {
         await page.goto("?data=sales");
-        const central = page.locator(".pk-table tbody th.pk-rowHeader .pk-th-text").filter({ hasText: /^Central$/ }).first();
-        await expect(central).toBeVisible();
-        // one line: the word is not cut in two
-        expect((await central.boundingBox()).height).toBeLessThan(26);
+        // one line each: the word is not cut in two
+        for (const word of ["Central", "Switzerland"]) {
+            const label = page.locator(".pk-table tbody th.pk-rowHeader .pk-th-text").filter({ hasText: new RegExp(`^${word}$`) }).first();
+            await expect(label).toBeVisible();
+            expect((await label.boundingBox()).height, word).toBeLessThan(26);
+        }
         const visible = await page.evaluate(() => {
             const wrap = document.querySelector(".pk-table-wrap").getBoundingClientRect();
             return [...document.querySelectorAll(".pk-table tbody td")].filter((td) => td.textContent !== "" && td.getBoundingClientRect().right <= wrap.right + 0.5).length;
@@ -118,6 +120,9 @@ test.describe("the field list for the keyboard", () => {
     test("one stop of the Tab order; arrow keys between fields and their controls, Shift+F10 opens the menu", async ({ page, browserName }) => {
         test.skip(browserName === "webkit", "Safari's Tab skips buttons unless the user turns that on");
         await page.goto("?data=sales");
+        // a named list that says its keys
+        const list = page.getByRole("list", { name: "Fields" });
+        await expect(list).toHaveAccessibleDescription(/Arrow keys up and down move between the fields/);
         await page.getByTestId("field-search").focus();
         await page.keyboard.press("Tab");
         const name = (field) => page.locator(`.pk-field[data-field="${field}"] .pk-field-name`);
@@ -227,5 +232,12 @@ test.describe("touch", () => {
             els.filter((e) => e.getClientRects().length).map((e) => [e.className, Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)]).filter(([, w, h]) => w < 44 || h < 44)
         );
         await expect.poll(small).toEqual([]);
+        // on a phone the tip's x stays in the line of its text
+        await page.setViewportSize({ width: 390, height: 844 });
+        const tip = page.locator(".pk-tip:not(.pk-notice)").first();
+        await expect(tip).toBeVisible();
+        const [text, x] = await Promise.all([tip.locator(".pk-tip-text").boundingBox(), tip.locator(".pk-tip-x").boundingBox()]);
+        expect(x.y).toBeLessThan(text.y + text.height);
+        expect(x.y + x.height).toBeGreaterThan(text.y);
     });
 });

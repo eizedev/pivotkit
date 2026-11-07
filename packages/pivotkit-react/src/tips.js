@@ -8,8 +8,8 @@
  * text in every language and, for a button, its action in PivotReport.
  */
 
-import { fieldLabel, suggestDateUnit } from "pivotkit-core";
-import { CHART_TYPES, MANY_SERIES, SLICE_TYPES } from "./chart-types.js";
+import { CATALOG, fieldLabel, suggestDateUnit } from "pivotkit-core";
+import { CHART_TYPES, MANY_SERIES, SLICE_TYPES, chartPlan } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { filterZoneFields, filtersOf, isFiltered, sourceOf } from "./view-ops.js";
 
@@ -69,6 +69,8 @@ const PERCENT_SHOW_AS = Object.freeze(["percentOfGrandTotal", "percentOfRowTotal
  */
 
 const name = (ctx, field) => fieldLabel(field, { fields: ctx.fields });
+/** The grouping unit of a derived field ("month", "weekday"), "" for a field of the data. */
+const derivedBy = (ctx, field) => ctx.view.derived.find((d) => d.name.toLowerCase() === String(field).toLowerCase())?.by ?? "";
 const isRawDate = (ctx, field) => ctx.typeOf(field) === "date" && sourceOf(ctx.view, field).toLowerCase() === String(field).toLowerCase();
 const table = (ctx) => !ctx.failed && !ctx.empty && ctx.view.display === "table";
 const chart = (ctx) => !ctx.failed && ctx.view.display === "chart" && ctx.series !== null && ctx.view.values.length > 0;
@@ -135,7 +137,11 @@ export const TIPS = Object.freeze([
             if (!chart(ctx) || ctx.chartPlan.auto || lines(ctx) || ctx.chartPlan.name === "heatmap") {
                 return null;
             }
-            const field = [...ctx.view.rows, ...ctx.view.cols].find((f) => ctx.typeOf(f) === "date");
+            // only where Automatic would draw lines: a date along the time line, not a repeating one (weekday)
+            if (chartPlan({ ...ctx.view, chart: { ...ctx.view.chart, type: "auto" } }, ctx.encoded).name !== "line") {
+                return null;
+            }
+            const field = [...ctx.view.rows, ...ctx.view.cols].find((f) => ctx.typeOf(f) === "date" && !CATALOG.cyclicUnits.includes(derivedBy(ctx, f)));
             return field ? { field: name(ctx, field) } : null;
         }
     },

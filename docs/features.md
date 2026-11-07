@@ -92,7 +92,7 @@ version is [What pivotkit does](overview.md).
 
 ## Chart
 
-- Automatic (the default until the user picks a type): lines when a date is on Rows, lines with the dates along the axis when they are on Columns (swapped for the chart alone), else bars; the menu's "Automatic" says what it draws now ([charts](concepts/charts.md#the-chart-type)).
+- Automatic (the default until the user picks a type): lines when a date along the time line is on Rows (a weekday or hour of day is categories: bars), lines with the dates along the axis when they are on Columns (swapped for the chart alone), else bars; the menu's "Automatic" says what it draws now ([charts](concepts/charts.md#the-chart-type)).
 - Bars, stacked bars, horizontal bars, lines, area, pie (a whole circle), donut (a ring), heatmap; a click opens the rows behind a mark ([charts](concepts/charts.md)).
 - Display: value labels, legend, title, smooth lines, axis labels, group labels, kept in the view ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
 - A pie or a donut writes its labels outside (name and number on a line to the slice) or inside (the number on the slice, in a colour that reads on it; the legend names the slices); not offered while value labels are off ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
@@ -112,7 +112,7 @@ version is [What pivotkit does](overview.md).
 - A total that would change nothing is greyed out with what it needs: the grand total row a field in Rows, the grand total column one in Columns, subtotals two or more fields on their axis ([guide](guide.md#the-table)).
 - Expand all and Collapse all (the groups of Rows) are offered only when they change something, say why not ("Nothing is collapsed.", "Needs two or more fields in Rows.", "Every group is collapsed already."), and report "5 groups collapsed" ([guide](guide.md#the-table)).
 - Headers and row labels stay in place; the body is virtual from 300 rows ([layout](reference/react.md#layout)).
-- Row labels wrap between words and keep at least 5.5em on a phone, so a common word is never cut; a longer one breaks at a hyphenation point ([layout](reference/react.md#layout)).
+- Row labels wrap between words and keep at least 5.5em on a phone, so a common word is never cut; a longer one breaks at a hyphen of its own, a word longer than the column as a last resort ([layout](reference/react.md#layout)).
 - Headers drag into a zone ([guide](guide.md#the-table)).
 
 ## Drill-down

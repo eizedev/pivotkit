@@ -122,7 +122,7 @@ async function licenses(metafile) {
  * menus.js, issue #34): with the view files, the explanations, Enlarge and Full screen the first load
  * is 151.2 measured, the menus 9.3 (budget 11). The texts only the menus show load with them
  * (pivotkit-react's menu-labels.js), which made room in the first load for the automatic chart type,
- * the field list's keys and the touch targets: first load 150.6 measured, the menus 12.9, their budget
+ * the field list's keys and the touch targets: first load 151.7 measured, the menus 13.0, their budget
  * raised to 14 for the texts moved there.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */

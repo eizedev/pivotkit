@@ -1762,14 +1762,14 @@
 }
 
 /* a label wraps between words; at least 5.5em wide, so a common word ("Central", "Bangladesh") never
-   breaks; a longer one breaks at a hyphenation point of the report's language, with a hyphen, where
-   the browser has the dictionary */
+   breaks; a longer one breaks at a hyphen of its own, and only a word longer than the column inside */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner, thead tr:last-child th.pk-colHeader) .pk-th-text {
     min-width: 0;
     white-space: normal;
     overflow-wrap: break-word;
-    -webkit-hyphens: auto;
-    hyphens: auto;
+    /* labels are data, not the UI's language: a break only at a hyphen the label has itself */
+    -webkit-hyphens: manual;
+    hyphens: manual;
 }
 
 /* tr: as specific as the wrapping rule above, which the :is() list makes (0,4,3), and later */
@@ -2850,5 +2850,11 @@
     .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x) {
         min-width: var(--pk-target-touch);
         min-height: var(--pk-target-touch);
+    }
+
+    /* a narrow report: the tip's x stays in the line of its text (the icon, two gaps and the x
+       beside it); only the action goes below */
+    .pk-root[data-pk-size="narrow"] .pk-tip-text {
+        flex-basis: calc(100% - 16px - 1.2em - var(--pk-target-touch));
     }
 }
