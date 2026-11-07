@@ -43,6 +43,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - pivotkit-react's fixes ship in the bundle: the report is a named region instead of a `<main>`,
   zones stack by their own width, a compact layout below 540 px of height, charts inside their box,
   formatted drill-down rows, plural forms, and a note for a template save the page rejects without a
-  message. The first load is 123.5 KiB gzip.
+  message. The first load is 124.4 KiB gzip.
+- The chart's tooltip works under a strict Content-Security-Policy (`style-src 'self'`): pivotkit-react
+  builds it without inline `style` attributes. The CSP browser test hovers the chart.
 - pivotkit-core's limits for `computePivot()` and its lower defaults are in the bundle, with a
   message per limit in place of the result.

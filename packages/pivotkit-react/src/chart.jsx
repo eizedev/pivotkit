@@ -9,6 +9,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toEChartsOption, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "./chart-summary.js";
+import { tooltipFormatter } from "./chart-tooltip.js";
 import { MAX_CATEGORIES, chartTypeOf, pieLabelRoom } from "./chart-types.js";
 import { Icon } from "./icons.jsx";
 import { chartThemeFrom } from "./theme.js";
@@ -24,12 +25,14 @@ export function loadECharts() {
 }
 
 /**
- * Mark styles on top of the core's option: rounded bar ends, 2 px lines, tooltips in the theme.
+ * Mark styles on top of the core's option: rounded bar ends, 2 px lines, tooltips in the theme, built
+ * as DOM nodes (chart-tooltip.js) so a strict Content-Security-Policy allows them.
  * @param {any} option
  * @param {CSSStyleDeclaration} style  the report's computed style (the --pk-* tokens)
  * @param {number} [height]  the chart's height in px, for the room around a pie
+ * @param {Document} [doc]  the chart's document, for the tooltip's nodes
  */
-export function decorate(option, style, height = 480) {
+export function decorate(option, style, height = 480, doc = undefined) {
     const v = (name) => style.getPropertyValue(name).trim();
     // without the stylesheet the tokens are empty and ECharts keeps its own colours
     const surface = v("--pk-surface") || undefined;
@@ -38,7 +41,8 @@ export function decorate(option, style, height = 480) {
         backgroundColor: v("--pk-surface-raised") || surface,
         borderColor: v("--pk-border") || undefined,
         textStyle: { color: v("--pk-text") || undefined, fontFamily: style.getPropertyValue("font-family") || undefined },
-        extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: 8px;`
+        extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: 8px;`,
+        ...(doc ? { formatter: tooltipFormatter(doc, { valueFormatter: option.tooltip?.valueFormatter, xNames: option.xAxis?.data, yNames: option.yAxis?.data }) } : {})
     };
     const series = (option.series || []).map((s) => {
         if (s.type === "bar") {
@@ -148,7 +152,7 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
         const style = getComputedStyle(root.current);
         // the series of the summary and the hints, not computed a second time
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}) });
-        chart.current.setOption(decorate(option, style, chart.current.getHeight()), { notMerge: true });
+        chart.current.setOption(decorate(option, style, chart.current.getHeight(), root.current.ownerDocument), { notMerge: true });
         // pieHeight: a pie is drawn again when its height changes
     }, [ready, result, series, labels, locale, themeName, root, pieHeight]);
 

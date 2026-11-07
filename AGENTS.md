@@ -22,7 +22,7 @@ builds depend on it.
   One module per concern: `PivotReport.jsx` wires the parts and defines `commit()`, which it passes to
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
-  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `dnd.jsx` is the
+  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe

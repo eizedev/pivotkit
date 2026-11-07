@@ -81,6 +81,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   now says what a click does from where it is ("Move to Rows" from Columns or Filters, "Add to
   Values" for a number). A click on a field already in Rows leaves it there and says so in the
   status line ("Region is already in Rows", new label `alreadyIn`).
+- The chart's tooltip is built as DOM nodes with styles set through the CSSOM: ECharts' default HTML
+  string has inline `style` attributes, which a Content-Security-Policy without
+  `style-src 'unsafe-inline'` refused on every hover. The data's texts go in as text.
 - The drill-down showed raw values (ISO date texts, "40,072" for an identifier); it formats each
   column by its type as the table does (dates as dates, numbers in the locale, Yes/No) and
   applies a field's `fieldDefaults` format. The new `fieldDefaults[field].drillFormat` sets the

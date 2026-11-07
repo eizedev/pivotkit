@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "../src/chart-summary.js";
+import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
 import { MANY_SERIES, MAX_CATEGORIES, pieLabelRoom } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
@@ -228,4 +229,36 @@ test("a limit of the core is a message in words with what to change, any other e
     for (const key of ["tooManyGroups", "tooManyCells", "tooManyRows"]) {
         assert.equal(typeof LABELS.de[key], "string", key);
     }
+});
+
+test("chart tooltips: a title and a line per series or slice, values in the core's format", () => {
+    const fmt = (v) => (typeof v === "number" ? `${v.toFixed(1)} u` : "");
+    // trigger "axis" (bar, line, area): the category, then each series
+    assert.deepEqual(
+        tooltipContent([{ axisValueLabel: "North", name: "North", seriesName: "2025", value: 3, color: "#123456" }, { name: "North", seriesName: "2026", value: null, color: { type: "linear" } }], { valueFormatter: fmt }),
+        { title: "North", lines: [{ color: "#123456", name: "2025", value: "3.0 u" }, { color: null, name: "2026", value: "" }] }
+    );
+    // pie: the value's name, then the slice
+    assert.deepEqual(tooltipContent({ seriesType: "pie", seriesName: "Sum of Units", name: "<b>x</b>", value: 2, color: "#abc" }, { valueFormatter: fmt }), {
+        title: "Sum of Units",
+        lines: [{ color: "#abc", name: "<b>x</b>", value: "2.0 u" }]
+    });
+    // heatmap: the row and the column of the cell
+    assert.deepEqual(tooltipContent({ seriesType: "heatmap", seriesName: "Count", value: [1, 0, 5], color: "#000" }, { valueFormatter: fmt, xNames: ["2025", "2026"], yNames: ["North"] }), {
+        title: "Count",
+        lines: [{ color: "#000", name: "North, 2026", value: "5.0 u" }]
+    });
+});
+
+test("chart tooltips are nodes with texts and CSSOM styles, never markup", () => {
+    /** a document with just what the formatter uses */
+    const node = () => ({ style: {}, textContent: "", children: [], append(...c) { this.children.push(...c); } });
+    const doc = /** @type {any} */ ({ createElement: () => node() });
+    const box = /** @type {any} */ (tooltipFormatter(doc, {})({ seriesName: "<img src=x onerror=alert(1)>", name: "<script>", value: 1, color: "red" }));
+    assert.equal(box.children[0].textContent, "<img src=x onerror=alert(1)>");
+    const [marker, name, value] = box.children[1].children;
+    assert.equal(marker.style.backgroundColor, "red");
+    assert.equal(name.textContent, "<script>");
+    assert.equal(value.textContent, "1");
+    assert.equal(JSON.stringify(box).includes("innerHTML"), false);
 });

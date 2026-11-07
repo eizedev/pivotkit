@@ -450,7 +450,17 @@ plain("a strict Content-Security-Policy: styles, chart and export work without '
     await expect(el.locator(".pk-root")).toHaveCSS("border-top-style", "solid");
     // ECharts from its chunk, drawn on a canvas
     await el.getByTestId("show-chart").click();
-    await expect(el.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
+    const chart = el.getByTestId("pivot-chart");
+    const canvas = chart.locator("canvas").first();
+    await expect(canvas).toBeVisible();
+    // the tooltip: hovering the plot shows it (the axis tooltip of the bar chart) without an inline
+    // style attribute, which style-src 'self' would refuse (style-src-attr)
+    const before = await chart.textContent();
+    const box = await canvas.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.move(box.x + box.width / 2 + 4, box.y + box.height / 2 + 4);
+    await expect.poll(() => chart.textContent()).not.toBe(before);
+    expect(await page.evaluate(() => window.__violations)).toEqual([]);
     await el.getByTestId("export").click();
     await expect(el.getByTestId("export-png")).toBeEnabled();
     const [png] = await Promise.all([page.waitForEvent("download"), el.getByTestId("export-png").click()]);

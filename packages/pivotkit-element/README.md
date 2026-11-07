@@ -199,6 +199,9 @@ default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect
 - The report renders and is styled: the constructed stylesheet is not blocked by `style-src 'self'`,
   and the inline styles React sets (through `element.style`, the CSSOM) are not blocked either.
 - The chart works: ECharts loads from its chunk and draws on a canvas; nothing needs `'unsafe-eval'`.
+  Its tooltip shows on hover without a violation: pivotkit-react builds it as DOM nodes with styles
+  set through the CSSOM and the data's texts as `textContent`, instead of ECharts' default HTML string
+  with inline `style` attributes (which `style-src-attr` would refuse).
 - The XLSX and PNG exports download (a blob URL on an `<a download>`; no `fetch` of `data:`); CSV
   takes the same path as XLSX.
 - No violation is reported (`securitypolicyviolation`) and nothing is logged; the test checks that the
@@ -219,7 +222,7 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 386 KiB | 124 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 389 KiB | 124 KiB |
 | On the first chart (ECharts with bar, line, pie, heatmap, the components they use and the canvas renderer) | 1 | 592 KiB | 200 KiB |
 | On the first XLSX or CSV export (pivotkit-core's export with fflate) | 1 | 17 KiB | 8 KiB |
 

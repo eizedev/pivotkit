@@ -130,7 +130,9 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 - Chart: bars, stacked bars, horizontal bars, lines, area, pie, heatmap ("Chart type: Bars" in the
   toolbar); a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap
-  rows and columns" (also above the Columns zone).
+  rows and columns" (also above the Columns zone). The tooltip is built as DOM nodes with the data's
+  texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
+  `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
   Reset to the start view, Layout (the zones folded into one line or open), Options, Templates,
   Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when the report is
