@@ -8,6 +8,7 @@
  *   const grid = toGrid(result);                     // table cells with merges and formatted text
  *   const option = toEChartsOption(result);          // for an Apache ECharts instance
  *   const unit = suggestDateUnit(data, "Created");     // "day", "yearMonth", ... from the span of a date field
+ *   const defaults = fieldDefaultsFromSchema(openapi, { schema: "Release" }); // names, descriptions, types
  *   // import { toXlsx, toCsv } from "pivotkit-core/export"
  *
  * Conventions: required inputs first (the subject leads), everything optional in one trailing options
@@ -36,6 +37,7 @@
  * @typedef {import("./format.js").Formatter} Formatter
  * @typedef {import("./limits.js").Limits} Limits
  * @typedef {import("./labels.js").Labels} Labels
+ * @typedef {import("./schema.js").SchemaFieldDefaults} SchemaFieldDefaults
  * @typedef {import("./errors.js").PivotkitErrorCode} PivotkitErrorCode
  */
 
@@ -51,7 +53,8 @@ export { createHistory } from "./history.js";
 export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
-export { DEFAULT_LABELS } from "./labels.js";
+export { DEFAULT_LABELS, fieldLabel } from "./labels.js";
+export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { LIMITS } from "./limits.js";
 export { PivotkitError } from "./errors.js";

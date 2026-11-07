@@ -10,7 +10,7 @@
 
 import { checkLimit, expect } from "./errors.js";
 import { formatterFor, parseFormat } from "./format.js";
-import { DEFAULT_LABELS, fill } from "./labels.js";
+import { DEFAULT_LABELS, fieldLabel, fill } from "./labels.js";
 import { axisLines } from "./layout.js";
 import { resolveLimits } from "./limits.js";
 import { isPivotResult } from "./pivot.js";
@@ -116,7 +116,7 @@ export function valueName(spec, labels = DEFAULT_LABELS) {
     } else {
         const aggs = { ...DEFAULT_LABELS.aggregators, ...(labels.aggregators || {}) };
         const agg = Object.hasOwn(aggs, spec.agg) ? aggs[spec.agg] : spec.agg;
-        base = fill(labels.valueName ?? DEFAULT_LABELS.valueName, { agg, field: spec.field });
+        base = fill(labels.valueName ?? DEFAULT_LABELS.valueName, { agg, field: fieldLabel(spec.field, labels) });
     }
     if (!spec.showAs) {
         return base;
@@ -124,7 +124,7 @@ export function valueName(spec, labels = DEFAULT_LABELS) {
     const names = { ...DEFAULT_LABELS.showAs, ...(labels.showAs || {}) };
     const type = spec.showAs.type;
     const showAs = Object.hasOwn(names, type) ? names[type] : type;
-    const value = spec.field && spec.agg === "sum" ? spec.field : base;
+    const value = spec.field && spec.agg === "sum" ? fieldLabel(spec.field, labels) : base;
     return fill(labels.showAsName ?? DEFAULT_LABELS.showAsName, { showAs, value });
 }
 
@@ -277,10 +277,10 @@ function headerRows(g) {
     for (let r = 0; r < h; r++) {
         for (let c = 0; c < k; c++) {
             if (r === h - 1) {
-                header[r][c] = { text: view.rows.length > 0 ? view.rows[c] : "", value: null, kind: "corner", total: 0, field: view.rows.length > 0 ? view.rows[c] : undefined };
+                header[r][c] = { text: view.rows.length > 0 ? fieldLabel(view.rows[c], g.labels) : "", value: null, kind: "corner", total: 0, field: view.rows.length > 0 ? view.rows[c] : undefined };
             } else if (c === k - 1) {
                 // the column field's name, next to its labels
-                header[r][c] = { text: view.cols[r], value: null, kind: "corner", total: 0, field: view.cols[r] };
+                header[r][c] = { text: fieldLabel(view.cols[r], g.labels), value: null, kind: "corner", total: 0, field: view.cols[r] };
             } else {
                 header[r][c] = { text: "", value: null, kind: "corner", total: 0, mergeKey: "corner" };
             }

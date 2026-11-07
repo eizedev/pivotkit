@@ -63,6 +63,8 @@ Every function takes its required inputs first and all optional settings in one 
 | `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
 | `CATALOG`, `aggregatorsFor(type)` | Every name a view accepts (aggregators, formats, show-as, filter types, grouping units, chart types), for a UI's menus, with the sub-lists `commonAggregators`, `timelineUnits` and `cyclicUnits`; the aggregators that fit a field type. |
 | `suggestDateUnit(data, field)` | The date grouping a date field gets on an axis, from the span of its values: up to 62 days `day`, up to two years `yearMonth`, up to six years `yearQuarter`, longer `year`; `null` for fewer than two days or a field that is not a date. |
+| `fieldDefaultsFromSchema(schema, { schema })` | Display names, descriptions, https links, column types and item orders of a row's fields from a JSON Schema or an OpenAPI 3 / Swagger 2 document (`title`, `description`, `externalDocs.url`, `type`/`format`, `enum`), in the shape of pivotkit-react's `fieldDefaults`. Local `$ref`s only, nothing fetched or run, sizes capped. |
+| `fieldLabel(field, labels)` | A field's display name from `labels.fields`, else the name; with `labels.fields`, `toGrid`, `toSeries` and the exports show display names in headers and value names. |
 | `DEFAULT_LABELS`, `DEFAULT_THEME`, `LIMITS`, `VIEW_VERSION`, `PivotkitError` | Defaults to override, the limits, the view version, the error class. |
 
 Types: `import type { PivotResult, Grid, View, Encoded } from "pivotkit-core"`. Modules not listed

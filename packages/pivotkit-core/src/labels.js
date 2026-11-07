@@ -22,6 +22,8 @@ const DATE_TIME = { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" };
  * @property {Record<string, string>} aggregators
  * @property {string} [showAsName]  the name of a value shown as a calculation; {showAs} and {value}
  * @property {Record<string, string>} [showAs]  names of the "show values as" calculations
+ * @property {Record<string, string>} [fields]  display names of fields by field name (matched
+ *   case-insensitively): the corner headers, value names and exports show them; views keep the names
  */
 
 /**
@@ -68,6 +70,27 @@ export const DEFAULT_LABELS = Object.freeze({
         rankDescending: "Rank (largest first)"
     })
 });
+
+/**
+ * The display name of a field: its entry in `labels.fields` (matched case-insensitively, own entries
+ * only), else the name itself. Display only; a view always holds the field's own name.
+ * @param {string} field
+ * @param {{ fields?: Record<string, string> }} [labels]
+ * @returns {string}
+ */
+export function fieldLabel(field, labels) {
+    const map = labels && labels.fields;
+    if (!map || typeof map !== "object" || typeof field !== "string") {
+        return field;
+    }
+    const usable = (k) => typeof map[k] === "string" && map[k].trim() !== "";
+    if (Object.hasOwn(map, field) && usable(field)) {
+        return map[field];
+    }
+    const lower = field.toLowerCase();
+    const key = Object.keys(map).find((k) => k.toLowerCase() === lower && usable(k));
+    return key === undefined ? field : map[key];
+}
 
 /**
  * The label of one dictionary value of a column.
