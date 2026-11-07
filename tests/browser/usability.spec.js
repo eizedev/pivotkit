@@ -80,8 +80,8 @@ test("a chip on a phone keeps its badges whole and a few characters of the field
         for (const [width, lang] of [[390, "en"], [320, "en"], [390, "de"], [320, "de"]]) {
             // a report high enough for its stacked zones open, in a window that holds it (no page
             // scrollbar takes width from the chips)
-            await page.setViewportSize({ width, height: 1600 });
-            await page.goto(`?data=endoflife&preset=${preset}&lang=${lang}&height=1200`);
+            await page.setViewportSize({ width, height: 2200 });
+            await page.goto(`?data=endoflife&preset=${preset}&lang=${lang}&height=2000`);
             // the stacked zones of a phone need more room than some of these reports have: opened by hand
             await openZones(page);
             const text = page.locator(`[data-zone="rows"] .pk-chip[data-chip="${field}"] .pk-chip-label .pk-btn-text`);
@@ -206,8 +206,8 @@ test("a half-width report (650 px) stacks its zones; nothing in them is cut, in 
 });
 
 test("where the Columns zone is too narrow, the swap button is an icon with its name and a tooltip", async ({ page }) => {
-    await page.setViewportSize({ width: 340, height: 900 });
-    await page.goto("?data=tickets&lang=de&height=1200");
+    await page.setViewportSize({ width: 340, height: 2200 });
+    await page.goto("?data=tickets&lang=de&height=2000");
     // a phone's stacked zones may need more than the box: opened by hand
     await openZones(page);
     const swap = page.getByTestId("swap");
