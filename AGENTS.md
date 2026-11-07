@@ -54,6 +54,14 @@ builds depend on it.
   React 19 (`tests/react19/`, own lock file). `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
   versions, caret ranges for this repository's own packages).
 - `scripts/check-pack.js` - checks what `npm pack` would publish.
+- `docs/` - the documentation site (pivotkit.eize.dev): Zensical (`zensical.toml`) with the shared design
+  of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
+  Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
+  `scripts/docs-screenshots.js` from the playground. `docs/playground/` (the live demo, copied by
+  `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The
+  package READMEs ship to npm: links from them to the site are absolute (`https://pivotkit.eize.dev/...`).
+- `assets/` - icon, README header and social preview, generated in eizedev/brand (`pivotkit/`); changed
+  there, never here.
 
 ## Commands
 
@@ -70,6 +78,10 @@ npm run playground                  # playground with rebuilds on http://localho
 npm run test:browser                # build the playground, the element and the test pages, Playwright in three browsers (as CI)
 PLAYGROUND_PORT=4195 npm run test:browser   # on another port, when 4173 is taken
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix tests/react19 first)
+npm run docs:demo                   # build the playground and copy it into docs/playground/ (the live demo)
+npm run docs:screenshots            # build the playground and take docs/assets/screenshots/ again
+curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
+uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # the site on http://localhost:8000 (build --strict as CI)
 ```
 
 ## Rules that matter here
@@ -123,7 +135,9 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix
 - A host may render the report on every change of its own state: props compared by value
   (`labels`, `limits`), data by `dataKey`, the history kept across renders (`use-view-history.js`).
 - Docs describe the current state; history belongs in each package's `CHANGELOG.md`, commits and pull
-  requests. Conventional Commits with the package as scope (`feat(core): ...`).
+  requests. A change that people see (a prop, an attribute, a view key, a menu) is also
+  described on the documentation site (`docs/`); a change of the UI takes the screenshots again
+  (`npm run docs:screenshots`). Conventional Commits with the package as scope (`feat(core): ...`).
 
 ## Do not
 
@@ -137,9 +151,8 @@ PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix
 
 Confirmed by the owner on 2026-11-06, each temporary:
 
-- Brand assets (icon, README header, social preview): not generated yet in `eizedev/brand`; added when
-  they are.
-- Docs website (pivotkit.eize.dev): not built yet; follows with the React package. GitHub Pages needs
-  the repository to be public on GitHub Free.
+- Docs website (pivotkit.eize.dev): built on every pull request, published only once the repository is
+  public (GitHub Pages needs that on GitHub Free) and the repository variable `PAGES_ENABLED` is
+  `true`.
 - Secret scanning, push protection, private vulnerability reporting and rulesets: not available while
   the repository is private on GitHub Free; switched on when it becomes public.

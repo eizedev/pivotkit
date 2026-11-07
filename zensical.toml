@@ -1,0 +1,80 @@
+# The documentation site (pivotkit.eize.dev): Zensical with the shared design of eizedev/brand
+# (docs-site/). The live demo in docs/playground/ is the built playground, copied in by
+# `npm run docs:demo` (and by the docs workflow) and not committed; see CONTRIBUTING.md.
+[project]
+site_name = "pivotkit"
+site_description = "Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), templates as JSON, native Excel export; as a JavaScript engine, a React component and a web component."
+site_url = "https://pivotkit.eize.dev/"
+repo_url = "https://github.com/eizedev/pivotkit"
+repo_name = "eizedev/pivotkit"
+edit_uri = "edit/main/docs/"
+copyright = "MIT licensed"
+extra_css = ["assets/site.css"]
+nav = [
+  { "Overview" = "index.md" },
+  { "Live demo" = "demo.md" },
+  { "Getting started" = [
+    { "React" = "getting-started/react.md" },
+    { "Web component" = "getting-started/web-component.md" },
+    { "Engine only" = "getting-started/engine.md" },
+  ] },
+  { "Using the report" = "guide.md" },
+  { "Concepts" = [
+    { "Views and templates" = "concepts/views.md" },
+    { "Values: aggregators, show as, formats" = "concepts/values.md" },
+    { "Dates and number ranges" = "concepts/dates.md" },
+    { "Filters, top N and sorting" = "concepts/filters.md" },
+    { "Locale, time zones, limits and errors" = "concepts/limits.md" },
+  ] },
+  { "Reference" = [
+    { "pivotkit-core" = "reference/core.md" },
+    { "pivotkit-react props" = "reference/react.md" },
+    { "pivotkit-element" = "reference/element.md" },
+    { "Theming" = "reference/theming.md" },
+    { "Localisation" = "reference/localisation.md" },
+  ] },
+  { "Security" = "security.md" },
+  { "Browser support" = "browser-support.md" },
+  { "FAQ" = "faq.md" },
+]
+
+[project.theme]
+language = "en"
+logo = "assets/icon.svg"
+favicon = "assets/icon.svg"
+# Fonts come from the system; nothing is loaded from Google.
+font = false
+features = [
+  "content.action.edit",
+  "content.code.copy",
+  "navigation.footer",
+  "navigation.instant",
+  "navigation.expand",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/moon"
+toggle.name = "Dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/sun"
+toggle.name = "Light mode"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.highlight = {}
+pymdownx.superfences = {}
+pymdownx.inlinehilite = {}
+pymdownx.tabbed = { alternate_style = true }

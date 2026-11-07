@@ -21,7 +21,9 @@
     "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react && node scripts/check-pack.js pivotkit-element",
     "playground": "node examples/playground/build.js --serve",
     "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node tests/browser/pages/build.js",
-    "test:browser": "npm run build:playground && playwright test"
+    "test:browser": "npm run build:playground && playwright test",
+    "docs:demo": "npm run build:playground && node scripts/docs-demo.js",
+    "docs:screenshots": "npm run build:playground && node scripts/docs-screenshots.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

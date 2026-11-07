@@ -1,5 +1,7 @@
 # pivotkit-react
 
+Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/react/) - getting started, every prop, theming, localisation, a [guide for the people using the report](https://pivotkit.eize.dev/guide/) and a [live demo](https://pivotkit.eize.dev/demo/).
+
 The pivot report builder of pivotkit as a React 18/19 component: a searchable field list, four drop
 zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every field, table and chart
 (Apache ECharts), filters with value counts, drill-down to the rows behind a value, undo and redo,

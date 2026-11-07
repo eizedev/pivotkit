@@ -2,6 +2,9 @@ node_modules/
 dist/
 coverage/
 /site/
+# the documentation site: the shared design (copied in by the eizedev/brand action) and the live demo
+docs/assets/site.css
+docs/playground/
 .DS_Store
 ._*
 .claude/*
