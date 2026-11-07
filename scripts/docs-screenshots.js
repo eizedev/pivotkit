@@ -9,7 +9,11 @@
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { encodeViewLink } from "pivotkit-core/link";
+import { toViewFile } from "pivotkit-core";
+import { encodeViewLink as encodeLink } from "pivotkit-core/link";
+
+/** A view as the playground's links carry it: the link profile of a view file. */
+const encodeViewLink = (view) => encodeLink(toViewFile(view, {}, { link: true }));
 
 const root = new URL("../", import.meta.url);
 const out = new URL("docs/assets/screenshots/", root).pathname;
@@ -91,7 +95,7 @@ const SHOTS = [
         name: "share-menu",
         query: "data=sales&theme=light",
         size: WIDE,
-        open: (page) => page.getByTestId("templates").click()
+        open: (page) => page.getByTestId("views").click()
     },
     {
         name: "filter-state",
@@ -115,6 +119,48 @@ const SHOTS = [
             await page.getByTestId("chip-menu-Region").click();
             // the menu scrolled to its Filters section
             await page.getByTestId("open-filter").evaluate((el) => el.closest(".pk-section").scrollIntoView({ block: "start" }));
+        }
+    },
+    {
+        // a donut with the numbers on its slices, the chart type menu open at its Labels choice
+        name: "donut-labels",
+        query: `data=sales&theme=light#pivot-playground=${encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "compact" }], display: "chart", chart: { type: "donut", valueLabels: "value", labelPosition: "inside" } })}`,
+        size: WIDE,
+        open: async (page) => {
+            await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
+            await page.getByTestId("chart-type").click();
+        }
+    },
+    {
+        // Options: totals that change nothing say why, an "i" explains each, Help has its four switches
+        name: "explanations",
+        query: "data=tickets&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("options").click();
+            await page.getByTestId("setting-info-rowSubtotals").hover();
+            await page.locator(".pk-info-pop").waitFor();
+        }
+    },
+    {
+        // Enlarge: the result fills the report, the fields in one line above it
+        name: "enlarged",
+        query: "data=weather&theme=light",
+        size: WIDE,
+        open: (page) => page.getByTestId("enlarge").click()
+    },
+    {
+        // a view file made for other data: asked before it is loaded
+        name: "load-check",
+        query: "data=sales&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("views").click();
+            await page.getByTestId("load-view").click();
+            const file = toViewFile({ rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] }, { name: "Sunshine per city", source: { id: "weather", name: "Weather" } });
+            await page.getByTestId("load-view-text").fill(JSON.stringify(file));
+            await page.getByTestId("load-view-apply").click();
+            await page.getByTestId("load-check").waitFor();
         }
     },
     { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE },

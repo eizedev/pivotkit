@@ -5,10 +5,12 @@
 // the start template in the query (?data=weather&start=<slug of the template's name>; these two are the
 // playground's own), the current view in the fragment (#pivot-playground=..., pivotkit's share format,
 // written on every change and read by the report through shareLink), so a reload keeps the view and
-// "Copy link" copies all three.
+// "Copy link" copies all three. Each data set is a source (its key and label): views shared from one
+// name it, and loading one made for another data set offers to switch to it.
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
+import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
 import "pivotkit-react/styles.css";
 import "./playground.css";
@@ -16,6 +18,8 @@ import { DATASETS, REAL } from "./data.js";
 import { withDescriptions } from "./descriptions.js";
 
 const SIZES = [2000, 4000, 100000];
+// every data set as a source the report can switch to (a view made for one names it)
+const SOURCES = Object.keys(DATASETS).filter((k) => k !== "markup").map((k) => ({ id: k, name: DATASETS[k].label }));
 const params = new URLSearchParams(location.search);
 // the report's storageKey; its view is in the fragment under "pivot-<storageKey>" (pivotkit-react's rule)
 const STORAGE_KEY = "playground";
@@ -53,10 +57,11 @@ function withoutView(hash) {
 }
 
 /** Writes the view into the fragment without a new history entry: reload keeps it, the address shares it. */
-function writeView(view) {
+function writeView(view, sourceId) {
     let text;
     try {
-        text = encodeViewLink(view);
+        // the link profile of a view file, as "Copy link" writes it
+        text = encodeViewLink(toViewFile(view, { source: { id: sourceId } }, { link: true }));
     } catch {
         // too large for a link (long filter lists): the address keeps no view
         text = null;
@@ -133,7 +138,7 @@ function Report({ start, ...props }) {
     const [view, setView] = useState(start);
     const change = (next) => {
         setView(next);
-        writeView(next);
+        writeView(next, props.source?.id);
     };
     return <PivotReport view={view} onViewChange={change} {...props} />;
 }
@@ -144,6 +149,8 @@ function App() {
     const [lang, setLang] = useState(params.get("lang") === "de" ? "de" : "en");
     const [theme, setTheme] = useState(["light", "dark"].includes(params.get("theme")) ? params.get("theme") : "auto");
     const [preset, setPreset] = useState(() => startOf(DATASETS[dataset].presets));
+    // a view loaded for another data set ("Switch to … and load"): the report starts on it there
+    const [switched, setSwitched] = useState(null);
     const [saved, setSaved] = useState(() => stored(`pivotkit-templates-${dataset}`, []));
     const [lastClick, setLastClick] = useState(null);
     const timings = useTimings();
@@ -152,7 +159,7 @@ function App() {
     const { presets, source } = DATASETS[dataset];
     // the host decides what can be deleted: the user's own templates, not the presets
     const templates = useMemo(() => [...presets, ...saved.map((t) => ({ ...t, deletable: true }))], [presets, saved]);
-    const start = preset >= 0 ? presets[preset].view : undefined;
+    const start = switched?.dataset === dataset ? switched.view : preset >= 0 ? presets[preset].view : undefined;
     // the address says which data and template the report starts from, in words (the view stays)
     const startName = preset >= 0 ? slug(presets[preset].name) : "empty";
     useEffect(() => {
@@ -206,7 +213,7 @@ function App() {
                 <div className="pg-controls">
                     <label>
                         Data
-                        <select value={dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSaved(stored(`pivotkit-templates-${e.target.value}`, [])); }} data-testid="pg-dataset">
+                        <select value={dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSwitched(null); setSaved(stored(`pivotkit-templates-${e.target.value}`, [])); }} data-testid="pg-dataset">
                             <optgroup label="Real data">
                                 {Object.keys(REAL).map((k) => <option key={k} value={k}>{DATASETS[k].label}</option>)}
                             </optgroup>
@@ -225,7 +232,7 @@ function App() {
                     ) : null}
                     <label>
                         Start
-                        <select value={preset} onChange={(e) => { const p = Number(e.target.value); history.replaceState(history.state, "", address({ start: p < 0 ? "empty" : slug(presets[p].name), preset: null, empty: null }, { keepView: false })); setPreset(p); }} data-testid="pg-preset">
+                        <select value={preset} onChange={(e) => { const p = Number(e.target.value); history.replaceState(history.state, "", address({ start: p < 0 ? "empty" : slug(presets[p].name), preset: null, empty: null }, { keepView: false })); setPreset(p); setSwitched(null); }} data-testid="pg-preset">
                             <option value={-1}>Empty report</option>
                             {presets.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
                         </select>
@@ -249,7 +256,17 @@ function App() {
             </header>
             {/* while a real data set's snapshot loads, the report shows its skeleton (loading) */}
             <Report
-                key={`${dataset}:${size}:${preset}`}
+                key={`${dataset}:${size}:${preset}:${switched?.n ?? 0}`}
+                source={{ id: dataset, name: DATASETS[dataset].label }}
+                sources={SOURCES}
+                onSourceSwitch={({ source: to, view }) => {
+                    if (!Object.hasOwn(DATASETS, to.id)) return;
+                    history.replaceState(history.state, "", address({ data: to.id, start: "empty", preset: null, rows: null, empty: null }, { keepView: false }));
+                    setSwitched((old) => ({ dataset: to.id, view, n: (old?.n ?? 0) + 1 }));
+                    setDataset(to.id);
+                    setPreset(-1);
+                    setSaved(stored(`pivotkit-templates-${to.id}`, []));
+                }}
                 start={start}
                 data={rows ?? []}
                 loading={!rows}

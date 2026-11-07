@@ -1,0 +1,130 @@
+/* The view file check of the documentation site (docs/reference/view-file.md embeds it). */
+:root {
+    color-scheme: light;
+    --vf-bg: #ffffff;
+    --vf-text: #1a1d23;
+    --vf-muted: #5a6270;
+    --vf-line: #d7dce3;
+    --vf-accent: #2563eb;
+    --vf-accent-text: #ffffff;
+    --vf-ok: #15803d;
+    --vf-bad: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --vf-bg: #16181d;
+        --vf-text: #e8eaef;
+        --vf-muted: #a3aab7;
+        --vf-line: #2f343e;
+        --vf-accent: #7aa2ff;
+        --vf-accent-text: #0f1115;
+        --vf-ok: #4ade80;
+        --vf-bad: #f87171;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--vf-bg);
+    color: var(--vf-text);
+    font: 15px/1.45 Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+}
+
+.vf {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 12px 16px;
+}
+
+.vf-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--vf-line);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.vf-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+button,
+.vf-file {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--vf-line);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.vf-primary {
+    border-color: var(--vf-accent);
+    background: var(--vf-accent);
+    color: var(--vf-accent-text);
+    font-weight: 600;
+}
+
+.vf-file input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.vf-file:focus-within,
+button:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--vf-accent);
+    outline-offset: 2px;
+}
+
+.vf-note {
+    color: var(--vf-muted);
+    font-size: 14px;
+}
+
+.vf-out h2 {
+    margin: 0 0 6px;
+    font-size: 16px;
+}
+
+.vf-out ul {
+    margin: 0 0 10px;
+    padding-left: 1.3em;
+}
+
+.vf-out code {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.vf-ok {
+    color: var(--vf-ok);
+}
+
+.vf-bad {
+    color: var(--vf-bad);
+}

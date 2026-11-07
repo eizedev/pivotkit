@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>pivotkit view file check</title>
+        <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="./validator.css" />
+    </head>
+    <body>
+        <main class="vf">
+            <form id="vf-form" class="vf-form">
+                <label for="vf-text">A view file, or a view as JSON</label>
+                <textarea id="vf-text" rows="10" spellcheck="false" data-testid="vf-text"></textarea>
+                <div class="vf-actions">
+                    <button type="submit" class="vf-primary" data-testid="vf-check">Check</button>
+                    <label class="vf-file">Choose a file… <input id="vf-file" type="file" accept="application/json,.json" data-testid="vf-file" /></label>
+                    <span class="vf-note">Checked in this browser with pivotkit-core; nothing is uploaded.</span>
+                </div>
+            </form>
+            <section id="vf-out" class="vf-out" aria-live="polite" data-testid="vf-out"></section>
+        </main>
+        <script type="module" src="./validator.js"></script>
+    </body>
+</html>

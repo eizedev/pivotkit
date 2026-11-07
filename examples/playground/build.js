@@ -20,7 +20,8 @@ const alias = process.env.PIVOTKIT_REACT === "19" ? { react: `${react19}react`, 
 /** @type {import("esbuild").BuildOptions} */
 const options = {
     absWorkingDir: here,
-    entryPoints: { app: "src/main.jsx" },
+    // the playground, and the view file check the documentation site embeds (docs/reference/view-file.md)
+    entryPoints: { app: "src/main.jsx", validator: "src/validator.js" },
     outdir: "dist",
     bundle: true,
     format: "esm",
@@ -39,6 +40,7 @@ const options = {
 
 await mkdir(`${here}dist`, { recursive: true });
 await copyFile(`${here}index.html`, `${here}dist/index.html`);
+await copyFile(`${here}validator.html`, `${here}dist/validator.html`);
 // the brand icon (made in eizedev/brand, assets/ of the repository) as logo and favicon
 await copyFile(`${here}../../assets/icon.svg`, `${here}dist/icon.svg`);
 if (serve) {
