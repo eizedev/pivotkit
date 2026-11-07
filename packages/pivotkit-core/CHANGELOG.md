@@ -12,6 +12,12 @@ First release.
 
 ### Added
 
+- Templates, the entry point `pivotkit-core/templates`: `parseTemplates(list)` reads a list (or its
+  JSON text) of view files, templates `{ name, view }` and bare views with a `name` as
+  `{ templates, issues }` without throwing (text and entries capped by `TEMPLATE_LIMITS`, own
+  properties only, names and descriptions plain text); `templatesFromSchema(doc, { schema })` reads
+  pivotkit's own extension `x-pivotkit-views` of a named schema (or a local `$ref`) or of the
+  document's root, local references only, nothing fetched. `TEMPLATES_EXTENSION` names it.
 - The view file's JSON Schema ships in the package: `pivotkit-core/schema/view-file-1.json` (the same
   bytes the site publishes at https://pivotkit.eize.dev/schema/view-file-1.json); `toViewFile`'s
   `meta.schemaUrl` writes another `$schema` (a host's own copy) or, `null`, none.

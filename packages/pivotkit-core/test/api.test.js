@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import * as core from "pivotkit-core";
 import * as exporters from "pivotkit-core/export";
 import * as links from "pivotkit-core/link";
+import * as templates from "pivotkit-core/templates";
 import { CATALOG, aggregatorsFor, encode, validate } from "pivotkit-core";
 
 const src = fileURLToPath(new URL("../src/", import.meta.url));
@@ -18,8 +19,9 @@ test("the package exports its documented entry points and nothing else", () => {
     ]);
     assert.deepEqual(Object.keys(exporters).sort(), ["toCsv", "toCsvBytes", "toXlsx"]);
     assert.deepEqual(Object.keys(links).sort(), ["LINK_LIMITS", "decodeViewLink", "encodeViewLink"]);
+    assert.deepEqual(Object.keys(templates).sort(), ["TEMPLATES_EXTENSION", "TEMPLATE_LIMITS", "parseTemplates", "templatesFromSchema"]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./link", "./schema/view-file-1.json", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./link", "./templates", "./schema/view-file-1.json", "./package.json"]);
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */

@@ -2,6 +2,7 @@
 // exports map: the published types must describe the public API as a TypeScript user sees it.
 import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, normalize, PivotkitError, toEChartsOption, toGrid, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
 import { toCsv, toXlsx } from "pivotkit-core/export";
+import { parseTemplates, templatesFromSchema, TEMPLATE_LIMITS, TEMPLATES_EXTENSION } from "pivotkit-core/templates";
 
 const data = encode([{ Region: "North", Units: 3 }], { timeZone: "UTC", inferNumbers: true });
 const { view, issues }: { view: View; issues: Array<{ path: string; message: string }> } = normalize({ rows: ["Region"] }, data);
@@ -13,4 +14,7 @@ const option: object = toEChartsOption(result, { chart: { type: "bar" }, theme: 
 const code: string = new PivotkitError("LIMIT_EXCEEDED", "x").code;
 const { defaults, issues: schemaIssues }: { defaults: Record<string, SchemaFieldDefaults>; issues: Array<{ path: string; message: string }> } = fieldDefaultsFromSchema({ openapi: "3.1.0", components: { schemas: { Row: { properties: { Units: { title: "Units sold" } } } } } }, { schema: "Row" });
 const shown: string = fieldLabel("Units", { fields: { Units: defaults.Units?.label ?? "Units" } });
-export const all = [issues.length, bytes.length, csv.length, option, code, grid.locale, shown, schemaIssues.length];
+const read = parseTemplates([{ name: "By region", view: { rows: ["Region"] } }]);
+const firstName: string | undefined = read.templates[0]?.name;
+const fromSchema = templatesFromSchema({ [TEMPLATES_EXTENSION]: [] }, {});
+export const all = [firstName, read.issues.length, fromSchema.templates.length, TEMPLATE_LIMITS.count, issues.length, bytes.length, csv.length, option, code, grid.locale, shown, schemaIssues.length];

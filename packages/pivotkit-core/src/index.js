@@ -10,6 +10,7 @@
  *   const unit = suggestDateUnit(data, "Created");     // "day", "yearMonth", ... from the span of a date field
  *   const { defaults, issues } = fieldDefaultsFromSchema(openapi, { schema: "Release" }); // names, descriptions, types
  *   const file = toViewFile(view, { name, source: { id }, data }); // the view file; fromViewFile reads one
+ *   // import { parseTemplates, templatesFromSchema } from "pivotkit-core/templates" (named views)
  *   // import { toXlsx, toCsv } from "pivotkit-core/export"
  *
  * Conventions: required inputs first (the subject leads), everything optional in one trailing options
