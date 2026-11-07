@@ -234,10 +234,14 @@ test.describe("touch", () => {
         await expect.poll(small).toEqual([]);
         // on a phone the tip's x stays in the line of its text
         await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto("?data=countries");
+        await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-size", "narrow");
         const tip = page.locator(".pk-tip:not(.pk-notice)").first();
         await expect(tip).toBeVisible();
-        const [text, x] = await Promise.all([tip.locator(".pk-tip-text").boundingBox(), tip.locator(".pk-tip-x").boundingBox()]);
-        expect(x.y).toBeLessThan(text.y + text.height);
-        expect(x.y + x.height).toBeGreaterThan(text.y);
+        // once the layout has settled: the x overlaps the text's line, it does not sit below it
+        await expect.poll(async () => {
+            const [text, x] = await Promise.all([tip.locator(".pk-tip-text").boundingBox(), tip.locator(".pk-tip-x").boundingBox()]);
+            return x.y < text.y + text.height && x.y + x.height > text.y;
+        }).toBe(true);
     });
 });

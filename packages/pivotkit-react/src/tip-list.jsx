@@ -36,7 +36,7 @@ export function Tips({ tips, labels, onDismiss, onAction, focusFallback }) {
             {tips.length ? (
                 <div className="pk-tips" ref={box} role="group" aria-label={labels.tipsTitle} data-testid="tips">
                     {tips.map((t) => (
-                        <div key={t.id} className={`pk-note pk-tip${t.notice ? " pk-notice" : ""}`} data-tip={t.id} data-kind={t.notice ? "notice" : "tip"} data-testid={`tip-${t.id}`}>
+                        <div key={t.id} className={`pk-note pk-tip${t.notice ? " pk-notice" : ""}${t.action ? " pk-has-action" : ""}`} data-tip={t.id} data-kind={t.notice ? "notice" : "tip"} data-testid={`tip-${t.id}`}>
                             <Icon name={/** @type {any} */ (t.icon)} size={16} />
                             <span className="pk-tip-text" id={`${idBase}-${t.id}`}>
                                 {t.text}
