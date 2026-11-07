@@ -38,11 +38,17 @@ Installation and a first example are in [Getting started with React](../getting-
 | `label` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart.<br><small>Type: `string`; default: `labels.report`</small> |
 | `className` | Added to the root element `.pk-root`.<br><small>Type: `string`</small> |
 | `fileName` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced.<br><small>Type: `string`; default: `"pivot"`</small> |
-| `onExport` | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say).<br><small>Type: `({ kind, fileName, blob }) => unknown`</small> |
+| `onExport` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for "Download view" in Templates; the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say).<br><small>Type: `({ kind, fileName, blob }) => unknown`</small> |
 | `tips` | The [tips](#tips) above the result: `"on"`, `"off"` (none, and no switch in Options), or the ids of the tips allowed, as an array or a comma-separated text.<br><small>Type: `"on"` or `"off"` or `string` or `string[]`; default: `"on"`</small> |
 | `storageKey` | Remembers the dismissed tips in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again. Read after the first render, so server rendering and hydration match.<br><small>Type: `string`</small> |
-| `dismissedTips` | Dismissed tip ids from the host's own storage; `"*"` means the user switched all tips off. A new list (by value) replaces the report's.<br><small>Type: `string[]`</small> |
-| `onTipDismiss` | Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), on or "Show dismissed tips again" (`id` `null`), with the whole list to store and pass back as `dismissedTips`.<br><small>Type: `({ id, dismissed }) => void`</small> |
+| `dismissedTips` | Dismissed tip ids from the host's own storage; `"*"` means the user switched all tips off, `"-fieldInfo"` and `"-zoneInfo"` that the user switched off "Show field descriptions" or "Show zone explanations" (Options, Help). A new list (by value) replaces the report's.<br><small>Type: `string[]`</small> |
+| `onTipDismiss` | Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), one of the two other help switches off (`"-fieldInfo"`, `"-zoneInfo"`), a switch on or "Show dismissed tips again" (`id` `null`; the switches stay), with the whole list to store and pass back as `dismissedTips`.<br><small>Type: `({ id, dismissed }) => void`</small> |
+| `fieldInfo` | The "i" of the field descriptions (field list, chips; the tooltip of the table headers): `"on"` or `"off"` decides it, and Options has no switch for it. Without it the user switches it in Options, Help ("Show field descriptions", shown when a field has a description; on by default, remembered like the tips). Screen readers keep the descriptions (`aria-describedby`, `aria-description`) either way.<br><small>Type: `"on"` or `"off"`</small> |
+| `zoneInfo` | The "i" next to each zone's title that says what the zone does, with an example: as `fieldInfo` ("Show zone explanations").<br><small>Type: `"on"` or `"off"`</small> |
+| `chartOptions` | Plain JSON merged over the ECharts option the report builds (objects key by key, a list entry by entry, an object given for a list into every entry); it wins over the view's chart settings. Functions and values that are not plain JSON are left out with a console warning. Compared by value. See [Charts](../concepts/charts.md#chartoptions-for-developers).<br><small>Type: `object`</small> |
+| `shareLink` | "Copy link" in the Templates menu, and opening a shared link: `true` links to the page's own address, a string to that base URL. The view is in the URL fragment, `#pivot=` or `#pivot-<storageKey>=`, read after the first render and when only the fragment changes. See [Sharing](../concepts/sharing.md).<br><small>Type: `boolean` or `string`; default: off</small> |
+| `persistView` | `"session"`: the view is kept in `sessionStorage` (`pivotkit:view:<storageKey>`) for this tab and shown again after a reload; read after the first render; a link wins. Reset goes to the start view, which the tab then keeps.<br><small>Type: `"session"`</small> |
+| `loading` | The host is loading the data: before the report has had data it shows its skeleton (toolbar, zones and table rows in the theme, `role="status"`, `aria-busy`, "Loading the report…"); later it covers only the result, and the view and its history stay. A data set of more than 10,000 rows shows the skeleton by itself while it is encoded the first time.<br><small>Type: `boolean`; default: `false`</small> |
 
 Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
 `ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
@@ -54,8 +60,8 @@ The report shows short notes above the table or the chart, in the flow (never ov
 important first. Three are **notices**: they say that the result is cut or empty, so they always show,
 have no x, count against no limit and stay with `tips="off"` and "Show tips" off. The others are
 **tips**: at most two at a time and one in a narrow or low report; each has an x that dismisses it
-(Tab reaches it; the focus then goes to the next tip). Options has "Show tips" and "Show dismissed
-tips again", and a help section with the keyboard shortcuts. A screen reader hears new notes through a
+(Tab reaches it; the focus then goes to the next tip). Options, Help has "Show tips", "Show field
+descriptions", "Show zone explanations", "Show dismissed tips again" and the keyboard shortcuts. A screen reader hears new notes through a
 polite live region. In the order they are shown, and when:
 
 | Id | Kind | Shown when | Button |
@@ -65,6 +71,7 @@ polite live region. In the order they are shown, and when:
 | `chartCapped` | notice | The chart draws the first 50 of more categories. | |
 | `showAs` | tip | A value is shown as a percentage: what 100 % is for that calculation. | |
 | `chartDates` | tip | Lines or areas with the dates on Columns (and none on Rows). | Swap rows and columns |
+| `chartTrend` | tip | Lines or areas over categories without an order: the last field on Rows is text or yes/no without a custom order (not dates, numbers or number ranges), and the dates are not on Columns. | Switch to Bars |
 | `chartSeries` | tip | Bars, lines or areas with more than 8 series. | Swap rows and columns |
 | `textValue` | tip | A text or yes/no field in Values without a name of its own: it is counted. | |
 | `dateUngrouped` | tip | An ungrouped date on Columns with more than 12 columns, or on Rows with more than 60 rows. | Group by (the date's span: month, quarter, year) |

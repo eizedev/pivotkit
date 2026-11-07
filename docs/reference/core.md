@@ -140,13 +140,34 @@ line, area, pie and heatmap. ECharts itself is not imported.
 
 | Option | Of | What |
 | --- | --- | --- |
-| `chart` | `toEChartsOption` | `{ type, stacked, horizontal }`, overrides the view's chart. |
+| `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels }`, over the view's chart ([Charts](../concepts/charts.md)). |
 | `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `heatmapColors` (low, high), `pieRadius` (inner, outer; default a ring, `35%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none; default the pivot's locale. |
 | `labels`, `limits` | both | Texts; `cells` caps the data points. |
 | `separator` | both | Between the parts of a multi-level label, default `" / "`. |
 | `maxCategories` | both | Plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut. |
 | `series` | `toEChartsOption` | The `toSeries` result of the same result and options, when the caller has it already. |
+
+`toSeries` gives `categories` (the whole path of each category, "Asia / Japan"), `categoryLevels`
+(its label per level, `["Asia", "Japan"]`), `categoryPaths`, `series` and `totals`. The view's display
+settings are part of the option: a `title`, the legend where `chart.legend` puts it (and room for
+it), value labels (`label` of the series), `smooth` lines, and with `chart.groupLabels` and two or
+more row fields a second category axis with the outer field's items, once per group at its middle,
+with a separator tick where a group starts (`xAxis` or `yAxis` is then a list of two). Where to write
+the category labels (`chart.axisLabels`) depends on the chart's size, so the UI decides it
+(pivotkit-react's `categoryLabelLayout`).
+
+### Links: `pivotkit-core/link`
+
+A view as a short text for a link and back; a separate entry point, so a page that never shares does
+not load fflate. The format is pivotkit's share format: `1.` and the view's JSON compressed with raw
+DEFLATE, in base64url. See [Sharing](../concepts/sharing.md).
+
+| Name | What |
+| --- | --- |
+| `encodeViewLink(view)` | The text of a link to a view. Throws `PivotkitError` `LIMIT_EXCEEDED` (`details.limit` `"link"`) when the text would be longer than `LINK_LIMITS.text`; `INVALID_ARGUMENT` for a non-object.<br><small>Returns `string`</small> |
+| `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why (empty, too long, not a pivotkit link, damaged, too large, no JSON object). Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
+| `LINK_LIMITS` | `{ text: 32000, json: 1000000 }`: the characters of a link text, and of the view once inflated (checked while inflating). |
 
 ### Export: `pivotkit-core/export`
 
@@ -166,7 +187,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |

@@ -1,0 +1,84 @@
+---
+title: Sharing and keeping a view
+description: Share a pivotkit view as a link, as JSON or as a file, load one, keep the view per browser tab, and what the playground's address holds.
+---
+
+# Sharing and keeping a view
+
+A report is its [view](views.md): a small JSON object with field names. The Templates menu shares
+it in three ways and loads one, and a host can keep it per tab. Every view that comes in - from a
+link, pasted text, a file or the tab's storage - is user input: it goes through `normalize()` against
+the data, and what does not fit is left out and said in plain words.
+
+## In the Templates menu (for the people who use the report)
+
+Under **Share this view**:
+
+- **Copy link** (when the application allows links): an address with the view in it. Whoever opens
+  it sees the same report on the same data; Reset still goes to the application's start view.
+- **Copy view as JSON**: the view as text, for a message or a ticket.
+- **Download view (.json)**: the view as a file, named after the report (`pivot-view.json`).
+- **Load view…**: paste a view's JSON or a link, or **Choose file…**. Nothing changes until it is
+  loaded; it is one step that Undo takes back. A text that is no view says why ("This is neither a view
+  in JSON nor a pivotkit link."); fields the data does not have are named after the load ("Some parts
+  did not fit this data and were left out: fields this data does not have (“Planet”)").
+
+![The Templates menu with Share this view: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu.png)
+
+Where a page does not allow the clipboard, the report says so and points to Download view.
+
+## Links (for developers)
+
+`shareLink` turns links on: `true` links to the page's own address, a string to that base URL (a
+page that shows the report for everyone). It is off by default.
+
+```jsx
+<PivotReport data={rows} shareLink />
+<PivotReport data={rows} shareLink="https://reports.example.com/sales" storageKey="sales" />
+```
+
+```html
+<pivot-report share-link></pivot-report>
+<pivot-report share-link="https://reports.example.com/sales" storage-key="sales"></pivot-report>
+```
+
+The view travels in the URL fragment, which browsers do not send to the server: `#pivot=<text>`, or
+`#pivot-<storageKey>=<text>` when the report has a `storageKey`, so several reports on one page each
+have their own. Other entries of the fragment stay. With `shareLink` set the report reads its entry
+after the first render (so a server render and its hydration match), and again when only the fragment
+changes (a link opened in the same tab). The link's view becomes the view shown, with a new undo
+history; Reset still goes to the start view.
+
+The text is pivotkit's share format, `encodeViewLink` and `decodeViewLink` of
+[`pivotkit-core/link`](../reference/core.md#links-pivotkit-corelink): `1.` and the view's JSON
+compressed with DEFLATE ([fflate](https://github.com/101arrowz/fflate)), in base64url. It is capped
+at 32,000 characters (a larger view is shared as a file; Copy link says so) and at 1,000,000
+characters once inflated, which is checked while it is inflated, so a crafted link cannot make a
+large allocation. The module is loaded on first use: a report that never shares does not load it
+(pivotkit-element loads it as a chunk of its own, [bundle size](../reference/element.md#bundle-size)).
+
+A host that keeps the view in its own address, as the playground does, writes the same entry with
+`encodeViewLink(view)` on every `onViewChange`.
+
+## Keeping the view per tab
+
+`persistView="session"` (attribute `persist-view="session"`) keeps the view in the tab's
+`sessionStorage` under `pivotkit:view:<storageKey>`: a reload shows it again, another tab starts
+fresh. It is read after the first render, like the tips; blocked storage (a private window) changes
+nothing. Reset goes to the start view, and that is what the tab keeps then. A link wins over the
+stored view. Give each report on a page its own `storageKey`.
+
+## The playground's address
+
+The [playground](../demo.md) shows what a host can do with this. Its address has two parameters of its
+own and the share format:
+
+`?data=countries&start=where-do-most-people-live-region-then-country-2024#pivot-playground=1.…`
+
+- `data` and `start` (the template's name in words) are the playground's: they pick the data set and
+  the start template, and the Data and Start dropdowns write them.
+- `#pivot-playground=` is the share format (the playground's `storageKey` is `playground`), written on
+  every change; Copy link copies the whole address, so a link opens exactly that report.
+
+A React app, a page with `<pivot-report>` or a PowerShell Universal dashboard uses only the fragment
+part, with its own data.

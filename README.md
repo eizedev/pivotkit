@@ -72,7 +72,9 @@ step and what the UI edits. It is treated as user input: it cannot run code, and
 `LIMITS` keep its memory use bounded. See [pivotkit-core](packages/pivotkit-core/) for the API, the
 view, the limits and the export, and [pivotkit-react](packages/pivotkit-react/) for the component's
 props, theming tokens and labels, and [pivotkit-element](packages/pivotkit-element/) for the
-element's properties, events, theming, CSP and bundle size.
+element's properties, events, theming, CSP and bundle size. [What pivotkit does](https://pivotkit.eize.dev/overview/)
+has it on one page for users and developers; the [feature list](https://pivotkit.eize.dev/features/)
+every feature, also the small behaviours, with links to the details.
 
 ## Development
 

@@ -20,7 +20,8 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
   yes/no) and a search. A mark next to a field shows which zone it is in. When the application
   describes a field, an **i** next to it says what the field means.
 - **The zones**: **Rows** and **Columns** say how the table is split, **Values** what is computed in
-  the cells, **Filters** what is left out of the whole report.
+  the cells, **Filters** what is left out of the whole report. The **i** next to a zone's title says
+  what it does, with an example.
 - **The toolbar**: Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, Templates and
   Export. What does not fit the report's width moves into **More**, Reset and Redo first, then Layout,
   Templates, Options and the chart type; Table or Chart, Undo and Export always stay.
@@ -32,7 +33,9 @@ There are three ways, all with the same result:
 
 - **Drag** a field into a zone. The lists and the page scroll while you drag.
 - **Click** a field: numbers go to Values, everything else to Rows.
-- Open the field's **menu** (the three dots) and choose "Add to Rows", "Columns", "Values" or "Filters".
+- Open the field's **menu** (the three dots, or a click on the grip left of the field, which says
+  "Drag into a zone") and choose "Add to Rows", "Columns", "Values" or "Filters". A field that is not
+  in the report yet also has **Filter…**: see [Filters](#filters).
 
 A date is grouped as soon as it is placed, by the span of its values: up to 62 days by day, up to two
 years by month ("Jan 2025"), up to six years by quarter, longer by year. The chip says so:
@@ -80,7 +83,10 @@ The menu of a **value** has:
 - **Number format**: automatic, number, whole number, currency, percent, compact (1.2K), bytes,
   durations.
 - **Highlight**: a colour scale or data bars.
-- **Name**, and move.
+- **Name**: type a name and Apply; the **×** gives the value its default name back at once
+  ("Sum of Revenue", shown as the placeholder), as one step Undo takes back.
+- Move, and a sentence on filtering: values are not filtered here; filter a field on Rows or Columns
+  through its menu, or move a field to Filters.
 
 What each one computes is in [Values](concepts/values.md).
 
@@ -92,6 +98,17 @@ Open a field's menu and choose the filter. It lists the field's values with thei
 search, "Select all", "Select none" and "Only" next to each value (keeps that one alone), and a text condition (contains, begins
 with, ...). A field in the **Filters** zone filters the whole report.
 
+- While a field is filtered, its menu says what the filter keeps, in the accent colour: "Filter: 15 of
+  45" or "Filter: contains “an”", with **Remove filter** right below. The filter itself has **Remove
+  filter** at its top.
+- The **×** in the text of a condition removes the condition at once; the values you ticked stay
+  until you apply them.
+- A field that is not in the report yet: **Filter…** in its menu in the field list opens its filter at
+  once. Apply puts it into Filters with what you chose; Cancel changes nothing. Moved to Rows or
+  Columns later, it keeps its filter.
+
+![A filtered field's menu: Filter: 1 of 6 in the accent colour, Remove filter right below](assets/screenshots/filter-state.png)
+
 Top N ("Show only the top items") is in the menu of a row or column field. Notes above the table
 say what it does to totals and percentages ("Country shows the top 5 only: ..."). See
 [Filters, top N and sorting](concepts/filters.md).
@@ -100,6 +117,9 @@ say what it does to totals and percentages ("Country shows the top 5 only: ...")
 
 - The header and the row labels stay in place while you scroll.
 - Groups expand and collapse with the arrow next to them; Options has "Expand all" and "Collapse all".
+  Each is offered only when it changes something; otherwise a line under it says why ("Nothing is
+  collapsed.", "Needs two or more fields in Rows."), and after a click the status line says what it did
+  ("5 groups collapsed").
 - Subtotals and grand totals are switched on and off in **Options**.
 - Field names and value names in the header can be dragged into a zone.
 - With one value, its name stands once over all of its columns.
@@ -124,14 +144,21 @@ area, pie or heatmap ("Chart type" in the toolbar). A click on a bar, a point or
 its rows, as in the table.
 
 At most 50 categories are drawn, with a tip. With more than 8 series, or lines with the dates on
-Columns, a tip offers **Swap rows and columns** (also above the Columns zone).
+Columns, a tip offers **Swap rows and columns** (also above the Columns zone). Lines over categories
+without an order (countries) get a tip with **Switch to Bars**.
+
+The chart type menu also has **Display**: value labels, legend, title, smooth lines, axis labels and,
+with two fields in Rows, group labels under the axis. The settings stay with the report, also in
+templates, links and the PNG. All of it is in [Charts](concepts/charts.md).
 
 ## Undo, templates and export
 
 - **Undo** (Ctrl+Z, on a Mac Cmd+Z) and **Redo** (Ctrl+Shift+Z or Ctrl+Y, Cmd+Shift+Z) step through
   every change. **Reset** goes back to the start view, as one step you can undo.
 - **Templates** loads a saved report. When the application allows it, "Save current view" saves yours
-  under a name, and your own templates can be deleted.
+  under a name, and your own templates can be deleted. **Share this view** copies a link (when the
+  application allows links) or the view as JSON, downloads it as a file, and **Load view…** opens one
+  from pasted text or a file: [Sharing and keeping a view](concepts/sharing.md).
 - **Export** downloads the table as **Excel** (XLSX) or **CSV**, or the chart as **PNG**. The Excel
   file keeps every number with all its decimals, the number formats, the merged headers, the bold
   totals and the highlighting. The CSV writes percentages and "show values as" calculations as the
@@ -150,10 +177,22 @@ most important first, and never over the table. The notes that say the result is
 5, the first 50 categories of a chart, a filter that leaves nothing) always stay; they have no x.
 
 - The **x** of a tip (Tab reaches it) hides that tip; the report remembers it.
-- **Options** has **Show tips**, to switch them all off and on, and **Show dismissed tips again**.
+- **Options**, **Help** has **Show tips**, to switch them all off and on, **Show field descriptions**
+  (the **i** of the fields; shown when the application describes its fields) and **Show zone
+  explanations** (the **i** of the zones), and **Show dismissed tips again**. The report remembers the
+  switches like the tips.
 - **Options**, **Help**, **Keyboard shortcuts** lists the keys.
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](assets/screenshots/tips.png)
+
+## Menus and text fields
+
+- Every text field in a menu - the field search, a value's name, "Starting at" of number ranges, a
+  template's name, the text of a filter condition, the box of Load view - has an **×** while it holds
+  text. It empties the field and keeps the focus there; Ctrl+Z in the field brings the text back.
+- **Escape** in such a field empties it first; the next Escape closes the menu.
+- While the report waits for its data, or opens a shared link, it shows grey shapes where the
+  toolbar, the zones and the table will be, and a screen reader hears "Loading the report…".
 
 ## Small screens
 

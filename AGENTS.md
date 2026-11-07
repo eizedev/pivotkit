@@ -10,8 +10,9 @@ builds depend on it.
 
 - `packages/pivotkit-core/` - the engine, built: plain JavaScript ES modules with JSDoc types, no UI,
   no framework. `src/` (one module per concern), `test/` (`node --test`, `test/types/` a TypeScript
-  consumer), `bench/`. Public entry points: `src/index.js` and `src/export.js` (XLSX, CSV; the only
-  importer of fflate); every other module is internal. The vocabulary of a view lives in tables:
+  consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV) and
+  `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`); the last two are the only
+  importers of fflate; every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
   (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`).
 - `packages/pivotkit-react/` - the React 18/19 UI on the core: `<PivotReport>`. JSX in `src/` with
@@ -22,7 +23,7 @@ builds depend on it.
   One module per concern: `PivotReport.jsx` wires the parts and defines `commit()`, which it passes to
   the zones, the chip menus, the filter and the toolbar; `use-view-history.js` (with the pure
   `view-history.js`) owns the view and its undo history, controlled or not; every view change is a
-  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `dnd.jsx` is the
+  pure function in `view-ops.js`; `chart-types.js` is the one table of chart types; `tips.js` the one table of tips (id, condition, text, action; `tip-list.jsx` shows them); `field-info.js` cleans a host's field labels and descriptions (`info.jsx` the "i" and its popover); `chart-tooltip.js` builds the chart's tooltip as DOM nodes (no inline `style` attributes, so a strict CSP allows it); `chart-options.js` checks and merges the host's `chartOptions` (plain JSON only); `share.js` the link in the URL fragment, the tab's stored view and views loaded from JSON (all through normalize, what was dropped in plain words), and loads `pivotkit-core/link` on first use; `clear-input.jsx` the one text field with an "×" every menu uses; `skeleton.jsx` the report while it waits (`loading`, a large first encode, a link being read); `dnd.jsx` is the
   only importer of @dnd-kit, its pure logic in `dnd-moves.js`; `echarts.js` the only importer of
   echarts (by name, so a bundler keeps only the four chart types; `chart.jsx` loads it on the first
   chart and the build keeps it a file of its own, `dist/echarts.js`); `dom.js` the shadow-root-safe
@@ -151,8 +152,8 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   `host-css.js`; never on `.pk-root` inside the element). Events are `pivot-*` CustomEvents that
   bubble and are composed. An attribute is added in `src/props.js` only; data and other objects stay
   properties; JSON attributes only for views. The element sets no global and touches no DOM when
-  imported without `customElements`. The first load stays free of ECharts and the export
-  (`test/build.test.js`).
+  imported without `customElements`. The first load stays free of ECharts, the export and the link
+  module (`test/build.test.js`).
 - A host may render the report on every change of its own state: props compared by value
   (`labels`, `limits`, the orders of `fieldDefaults`), data by `dataKey`, the history kept across
   renders (`use-view-history.js`).
@@ -160,6 +161,14 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   requests. A change that people see (a prop, an attribute, a view key, a menu) is also
   described on the documentation site (`docs/`); a change of the UI takes the screenshots again
   (`npm run docs:screenshots`). Conventional Commits with the package as scope (`feat(core): ...`).
+- Every feature, also a small behaviour (what an "×" does, when a menu entry is disabled and why, what
+  a status message says), is documented on the site, on its detail page and in the feature list
+  (`docs/features.md`, grouped by area, each entry linking to its details); `docs/overview.md` keeps
+  the short version for users and developers.
+- A view that comes from outside the host's code (a link, pasted or loaded JSON, the tab's storage) is
+  user input like any other: it passes `normalize()` against the data, its size is capped before it
+  is decoded or parsed, and what was dropped is said in plain words. The host's `chartOptions` is
+  checked as JSON (`chart-options.js`): nothing in it is run.
 
 ## Do not
 

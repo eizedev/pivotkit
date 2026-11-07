@@ -1,0 +1,136 @@
+---
+title: Feature list
+description: Every feature of pivotkit, also the small behaviours, grouped by area, each with a link to its details.
+---
+
+# Feature list
+
+Every feature of pivotkit, grouped by area, with the small behaviours that make it work. The short
+version is [What pivotkit does](overview.md).
+
+## Data
+
+- Rows are plain objects; each key is a field. Columns are typed (text, number, date, yes/no) and stored as typed arrays ([engine](reference/core.md#encoderows-options)).
+- Column names match case-insensitively; the data's own spelling is shown ([core](reference/core.md#data)).
+- Dates are read as wall-clock times in the report's `timeZone`, default UTC, never the machine's ([time zones](concepts/limits.md)).
+- Numbers sent as text can be read as numbers (`inferNumbers`, `fieldDefaults.type`) ([fields](concepts/fields.md)).
+- A host that renders on every change passes `dataKey`: the rows are encoded once per key ([React props](reference/react.md#props)).
+- A data set larger than 10,000 rows paints the skeleton first and is encoded in the next frame ([loading](#embedding)).
+
+## Zones and fields
+
+- Four zones: Rows, Columns, Values, Filters; drag, click or a menu place a field ([guide](guide.md#adding-fields)).
+- A click on a field: numbers go to Values, the rest to Rows; a field already there says so in the status line ([guide](guide.md#adding-fields)).
+- The grip of a field says "Drag into a zone"; a click on it opens the field's menu ([guide](guide.md#adding-fields)).
+- The field menu: Add to Rows, Columns, Values, Filters, and "Filter…" for a field not placed yet ([filters](#filters)).
+- Each zone's title has an "i" that says what the zone does, with an example; Options, Help switches it ([guide](guide.md#menus-and-text-fields)).
+- Chips show what is set on them: "3 of 4", "Top 5", the sort; screen readers hear the same ([guide](guide.md#chips)).
+- After a removal the focus goes to the neighbouring chip, or to the zone ([guide](guide.md#chips)).
+- Swap rows and columns sits above Columns; it drops its text where the zone is narrow ([React reference](reference/react.md#layout)).
+- A low report folds its zones into one line that says what is in them ([layout](reference/react.md#layout)).
+- The field search finds names, display names and descriptions; its × and Escape empty it ([guide](guide.md#menus-and-text-fields)).
+
+## Values
+
+- Sum, count, average, median, minimum, maximum, distinct count, statistics, first and last ([values](concepts/values.md)).
+- Show as: shares of totals and parents, running totals, differences, ranks ([values](concepts/values.md)).
+- Number formats, a colour scale or data bars ([values](concepts/values.md)).
+- A value's name: the × gives it the default name back at once, as one undo step ([guide](guide.md#menus-and-text-fields)).
+- The Values menu says that filtering happens on Rows or Columns, or by moving a field to Filters ([guide](guide.md#values)).
+
+## Filters
+
+- Values with row counts, search, Select all, Select none, Only; a text condition ([filters](concepts/filters.md)).
+- The chip menu says what the filter keeps ("Filter: 15 of 45", "Filter: contains “an”") in the accent colour, with "Remove filter" right below ([guide](guide.md#filters)).
+- The filter popover has "Remove filter" at its top while the field is filtered ([guide](guide.md#filters)).
+- The × of the text condition removes it at once; the values chosen stay a draft ([guide](guide.md#filters)).
+- "Filter…" of a field not placed opens its filter at once; Apply places it in Filters, Cancel changes nothing ([guide](guide.md#filters)).
+- A field keeps its filter when it moves between Filters, Rows and Columns ([filters](concepts/filters.md)).
+- Top or bottom N, with a notice what it does to totals ([filters](concepts/filters.md)).
+
+## Dates
+
+- A date is grouped as it is placed, by the span of its values ([dates](concepts/dates.md)).
+- Along the time line or across years; numbers into ranges with "Starting at", whose × empties it ([dates](concepts/dates.md)).
+
+## Chart
+
+- Bars, stacked bars, horizontal bars, lines, area, pie, heatmap; a click opens the rows behind a mark ([charts](concepts/charts.md)).
+- Display: value labels, legend, title, smooth lines, axis labels, group labels, kept in the view ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
+- Axis labels: every one when they fit, slanted when needed, else every n-th with a note; long names end in "…", the tooltip has them whole ([charts](concepts/charts.md)).
+- Two fields in Rows: the outer field's items as group labels under the axis, with separators ([charts](concepts/charts.md)).
+- A tip suggests bars for lines over categories without an order, with Switch to Bars ([charts](concepts/charts.md)).
+- `chartOptions` for developers: plain JSON merged over the option, the host wins ([charts](concepts/charts.md#chartoptions-for-developers)).
+- At most 50 categories, with a notice; a text alternative for screen readers ([charts](concepts/charts.md)).
+
+## Table
+
+- Subtotals and grand totals in Options; groups expand and collapse ([guide](guide.md#the-table)).
+- Expand all and Collapse all are offered only when they change something, say why not, and report "5 groups collapsed" ([guide](guide.md#the-table)).
+- Headers and row labels stay in place; the body is virtual from 300 rows ([layout](reference/react.md#layout)).
+- Headers drag into a zone ([guide](guide.md#the-table)).
+
+## Drill-down
+
+- Click or Enter on a value: the rows behind it, formatted as the table, up to `drillDownLimit` ([guide](guide.md#the-rows-behind-a-number)).
+- `onCellClick` gives the host the cell and its rows ([React props](reference/react.md#props)).
+
+## Export
+
+- Excel with formats, merged headers and highlighting; CSV safe against formulas; the chart as PNG with what is drawn ([guide](guide.md#undo-templates-and-export), [security](security.md)).
+- Every file passes `onExport` first (`xlsx`, `csv`, `png`, and `json` for a downloaded view) ([React props](reference/react.md#props)).
+
+## Sharing
+
+- Copy link (with `shareLink`), Copy view as JSON, Download view (.json), Load view… from text, a link or a file ([sharing](concepts/sharing.md)).
+- Links carry the view compressed in the fragment, `#pivot=` or `#pivot-<storageKey>=`, size-capped ([sharing](concepts/sharing.md#links-for-developers)).
+- A loaded or linked view is normalized; what was left out is named in plain words ([sharing](concepts/sharing.md)).
+- `persistView="session"` keeps the view per tab; Reset stores the start view ([sharing](concepts/sharing.md#keeping-the-view-per-tab)).
+- The playground's address holds data set, start template and view ([demo](demo.md#the-playgrounds-url-parameters)).
+
+## Templates
+
+- Load, save under a name, delete with a confirmation; the host stores them ([guide](guide.md#undo-templates-and-export)).
+- The template name field has an ×; Escape in it empties it first, then closes the menu ([guide](guide.md#menus-and-text-fields)).
+
+## Tips
+
+- At most two, the most important first, dismissible and remembered per `storageKey` ([tips](reference/react.md#tips)).
+- Notices for a cut or empty result always show ([tips](reference/react.md#tips)).
+
+## Field descriptions
+
+- Labels, descriptions and links per field, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
+- Options, Help, "Show field descriptions" hides every "i" of a field; screen readers keep the text; `fieldInfo` decides it for the host ([React props](reference/react.md#props)).
+
+## Accessibility
+
+- Every action by keyboard and by a menu; drag and drop is never the only way ([guide](guide.md#keyboard-and-screen-readers)).
+- Focus kept or moved on purpose; the × of a text field keeps the focus in it ([guide](guide.md#menus-and-text-fields)).
+- Text of at least 14 px, controls of at least 24 x 24 px, contrast checked in both themes ([theming](reference/theming.md)).
+- The skeleton is a status ("Loading the report…", `aria-busy`); reduced motion stops its shimmer ([React props](reference/react.md#props)).
+
+## Theming
+
+- Every colour, size and duration is a `--pk-*` token; light and dark ([theming](reference/theming.md)).
+
+## Languages
+
+- English and German; numbers and dates in the locale; every text replaceable ([localisation](reference/localisation.md)).
+
+## Security
+
+- A view holds names only, checked against fixed lists and limits; a link and a loaded file too ([security](security.md)).
+- `chartOptions` passes plain JSON only; nothing in it is run ([charts](concepts/charts.md#chartoptions-for-developers)).
+
+## Limits
+
+- Rows, groups, cells and work are capped before anything big is allocated ([limits](concepts/limits.md)).
+- A link is capped at 32,000 characters and 1,000,000 once inflated ([sharing](concepts/sharing.md#links-for-developers)).
+
+## Embedding
+
+- React: `<PivotReport>`, controlled or not, rendered on every host change ([React](getting-started/react.md)).
+- Web component: `<pivot-report>` in a shadow root, attributes and `pivot-*` events ([element](reference/element.md)).
+- PowerShell Universal: pivotkit-react on its React 18.3.1 ([PowerShell Universal](getting-started/react.md#powershell-universal)).
+- `loading` shows the skeleton before the first data and covers the result on later loads ([React props](reference/react.md#props)).

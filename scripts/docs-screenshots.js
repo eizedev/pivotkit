@@ -9,6 +9,7 @@
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
+import { encodeViewLink } from "pivotkit-core/link";
 
 const root = new URL("../", import.meta.url);
 const out = new URL("docs/assets/screenshots/", root).pathname;
@@ -17,6 +18,16 @@ const base = `http://127.0.0.1:${port}/`;
 
 const WIDE = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
+
+/** The three largest countries per region as bars: the regions are the group labels under the axis. */
+const GROUPED = encodeViewLink({
+    rows: ["Region", "Country"],
+    values: [{ field: "Population", agg: "sum", format: "compact" }],
+    filters: [{ field: "Year", type: "include", items: [2024] }, { field: "Country", type: "top", count: 3, by: { field: "Population", agg: "sum" } }],
+    sort: [{ field: "Region", by: "value", order: "desc" }, { field: "Country", by: "value", order: "desc" }],
+    display: "chart",
+    chart: { type: "bar", title: "The three largest countries of each region (2024)" }
+});
 
 /** @type {{ name: string, query: string, size: typeof WIDE, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
@@ -57,6 +68,36 @@ const SHOTS = [
             el.style.scrollMarginTop = "12px";
             el.scrollIntoView({ block: "start" });
         })
+    },
+    {
+        name: "chart-display",
+        query: "data=sales&preset=1&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chart-type").click();
+            await page.getByTestId("legend-bottom").click();
+        }
+    },
+    { name: "chart-groups", query: `data=countries&theme=light#pivot-playground=${GROUPED}`, size: WIDE },
+    {
+        name: "share-menu",
+        query: "data=sales&theme=light",
+        size: WIDE,
+        open: (page) => page.getByTestId("templates").click()
+    },
+    {
+        name: "filter-state",
+        query: "data=sales&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Region").click();
+            await page.getByTestId("open-filter").click();
+            const west = page.locator(".pk-filter-popover .pk-value", { hasText: "West" });
+            await west.hover();
+            await west.locator(".pk-only").click();
+            await page.getByTestId("filter-apply").click();
+            await page.getByTestId("chip-menu-Region").click();
+        }
     },
     { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE },
     // a field's description (fieldDefaults) opened from its "i", and the tips above the table
@@ -111,9 +152,11 @@ try {
             }
         }
         await page.locator(".pk-root").waitFor();
+        // a real data set loads first: the skeleton goes when the report has its data
+        await page.getByTestId("skeleton").waitFor({ state: "detached" });
         // the playground's footer shows timings that differ on every run
         await page.addStyleTag({ content: ".pg-foot { visibility: hidden; }" });
-        if (shot.query.includes("preset=1")) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
+        if (shot.query.includes("preset=1") || shot.query.includes("#pivot")) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
         if (shot.open) await shot.open(page);
         // fonts, the chart's first frame, the popover's position
         await page.waitForTimeout(600);

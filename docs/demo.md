@@ -33,20 +33,30 @@ come from a fixed seed, so everyone sees the same numbers.
 
 ## The playground's URL parameters
 
-The full-screen playground takes its start from the address, which is handy for links:
+The playground's address says what it shows, and it changes with it: the Data and Start dropdowns
+write `data` and `start`, and every change of the report writes the view into the fragment. A reload
+keeps the report; **Templates**, **Copy link** copies the whole address, so a link opens exactly that
+report. The query parameters are the playground's own; the fragment `#pivot-playground=` is
+pivotkit's share format, the part a host (React, the web component, PowerShell Universal) uses too:
+[Sharing and keeping a view](concepts/sharing.md).
 
 | Parameter | Values | What |
 | --- | --- | --- |
 | `data` | `weather`, `countries`, `earthquakes`, `nobel`, `endoflife`, `tickets`, `sales`, `assets` | The data set |
+| `start` | the start template's name in words, as the Start dropdown writes it (`which-city-is-the-sunniest-top-3`), or `empty` | The start template |
+| `preset` | `0` to `4` | The start template by its place in the list (the older form of `start`) |
 | `rows` | `2000`, `4000`, `100000` | The number of generated rows (generated data sets only) |
-| `preset` | `0` to `4` | The start template of the data set (the generated ones have three, `endoflife` five) |
-| `empty` | | Start with an empty report |
+| `empty` | | Start with an empty report (as `start=empty`) |
 | `lang` | `en`, `de` | English or German |
 | `theme` | `light`, `dark` | The page's theme; without it the report follows the system |
 | `height` | a number of pixels, for example `480` | The report at a fixed height, as a host's card gives it |
 
-For example [`?data=earthquakes&preset=3&theme=dark`](playground/?data=earthquakes&preset=3&theme=dark){ target="_blank" }
+For example [`?data=earthquakes&start=did-some-months-shake-more-than-others-chart&theme=dark`](playground/?data=earthquakes&start=did-some-months-shake-more-than-others-chart&theme=dark){ target="_blank" }
 opens the earthquakes per month as a chart in the dark theme.
+
+| Fragment | What |
+| --- | --- |
+| `#pivot-playground=1.…` | The current view in pivotkit's share format, written on every change and read on load. |
 
 ## The web component example
 

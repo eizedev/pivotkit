@@ -46,7 +46,11 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
     totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
-    chart: { type: "bar", stacked: false, horizontal: false },   // bar line area pie heatmap
+    chart: {
+        type: "bar", stacked: false, horizontal: false,        // bar line area pie heatmap
+        valueLabels: "auto", legend: "auto", title: null,      // how it is drawn, see Charts
+        smooth: false, axisLabels: "auto", groupLabels: true
+    },
     formatting: { locale: "de-DE", timeZone: null }
 }
 ```
@@ -66,7 +70,7 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 | `sort` | Per field: by label, by a value or in a custom order, ascending or descending. | [Sorting](filters.md#sorting) |
 | `totals` | Grand total row and column, row and column subtotals; all on by default. | |
 | `collapsed` | Key paths of collapsed groups per axis. | |
-| `display`, `chart` | Table or chart, and the chart's type, stacking and direction. | |
+| `display`, `chart` | Table or chart, the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels ([Charts](charts.md)). | |
 | `formatting` | The view's own locale and time zone. | [Locale and time zones](limits.md) |
 | `version` | The view format's version; older views are migrated. | |
 

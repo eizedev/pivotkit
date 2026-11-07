@@ -56,7 +56,13 @@ supported.
 | `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
 | `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
 | `storageKey` | `storage-key` | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
-| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off.<br><small>Type: `string[]`</small> |
+| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off.<br><small>Type: `string[]`</small> |
+| `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user switches it in Options, Help. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
+| `zoneInfo` | `zone-info` | The same for the "i" next to the zone titles.<br><small>Type: `"on"` or `"off"`</small> |
+| `chartOptions` |  | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings; functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)).<br><small>Type: `object`</small> |
+| `shareLink` | `share-link` | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address, a value is the base URL, `"false"` is off ([Sharing](../concepts/sharing.md)).<br><small>Type: `boolean` or `string`; default: off</small> |
+| `persistView` | `persist-view` | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`).<br><small>Type: `"session"`</small> |
+| `loading` | `loading` (boolean) | The page is loading the data: the skeleton before the first data, the result covered on later loads.<br><small>Type: `boolean`; default: `false`</small> |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -111,7 +117,7 @@ or on the document gets it, with `event.target` the element.
 | `pivot-cell-click` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects).<br><small>`detail`: `{ row, col, value, valueIndex, text, count, rows }`</small> |
 | `pivot-template-save` | "Save current view" (with `save-templates`).<br><small>`detail`: `{ name, view, respondWith }`</small> |
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu.<br><small>`detail`: `{ name, respondWith }`</small> |
-| `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`) before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
+| `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
@@ -240,9 +246,10 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 4 | 390 KiB | 125 KiB |
-| On the first chart (ECharts with bar, line, pie, heatmap, the components they use and the canvas renderer) | 1 | 592 KiB | 200 KiB |
-| On the first XLSX or CSV export (pivotkit-core's export with fflate) | 1 | 17 KiB | 8 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 5 | 461 KiB | 148 KiB |
+| On the first chart (ECharts with bar, line, pie, heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
+| On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 20 KiB | 9 KiB |
+| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

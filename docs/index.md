@@ -20,6 +20,8 @@ hide:
 [Using the report](guide.md){ .md-button title="For the people who build reports: fields, filters, charts, export" }
 [Try the live demo](demo.md){ .md-button }
 [Learn with real data](learn.md){ .md-button }
+[What pivotkit does](overview.md){ .md-button }
+[Feature list](features.md){ .md-button }
 [Source on GitHub](https://github.com/eizedev/pivotkit){ .md-button }
 
 </div>
@@ -99,12 +101,15 @@ hide:
 - Group dates by year, quarter, month, week, day or hour, and numbers into ranges.
 - Filter by values with their row counts, by a text condition, by a value condition or to the top N.
 - Click a number to see the rows behind it.
-- Switch to a bar, line, area, pie or heatmap chart.
-- Undo and redo every step, save the report as a template, export to Excel, CSV and PNG.
+- Switch to a bar, line, area, pie or heatmap chart, with value labels, legend, title and group labels.
+- Undo and redo every step, save the report as a template, share it as a link, as JSON or as a file,
+  export to Excel, CSV and PNG.
 - Use it with a keyboard and a screen reader, in English or German, light or dark, from a phone to a
   wide screen.
 
-[Using the report](guide.md) describes all of it for the people who use the report.
+[Using the report](guide.md) describes all of it for the people who use the report; [What pivotkit
+does](overview.md) has it on one page for users and developers, and the [feature list](features.md)
+every behaviour with its details.
 
 ## Designed for
 

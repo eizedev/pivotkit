@@ -12,6 +12,8 @@ copyright = "MIT licensed"
 extra_css = ["assets/site.css"]
 nav = [
   { "Overview" = "index.md" },
+  { "What pivotkit does" = "overview.md" },
+  { "Feature list" = "features.md" },
   { "Live demo" = "demo.md" },
   { "Learn with real data" = "learn.md" },
   { "Getting started" = [
@@ -26,6 +28,8 @@ nav = [
     { "Dates and number ranges" = "concepts/dates.md" },
     { "Filters, top N and sorting" = "concepts/filters.md" },
     { "Field descriptions and names" = "concepts/fields.md" },
+    { "Charts" = "concepts/charts.md" },
+    { "Sharing and keeping a view" = "concepts/sharing.md" },
     { "Locale, time zones, limits and errors" = "concepts/limits.md" },
   ] },
   { "Reference" = [
