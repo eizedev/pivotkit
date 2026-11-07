@@ -123,7 +123,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
             {zone === "filters" ? (
                 <button type="button" className="pk-chip-label" onClick={(e) => openFilter(field, e.currentTarget.closest(".pk-chip"))} title={fill(labels.filterTitle, { field: text })} aria-label={name}>
                     <span className="pk-btn-text">
-                        {text}
+                        <span className="pk-chip-name">{text}</span>
                         {badges}
                     </span>
                 </button>
@@ -132,7 +132,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                     label={fill(labels.fieldMenu, { field: text })}
                     text={
                         <>
-                            {text}
+                            <span className="pk-chip-name">{text}</span>
                             {badges}
                         </>
                     }

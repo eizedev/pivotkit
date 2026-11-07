@@ -800,8 +800,20 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35em;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* a narrow chip shortens the field's name, never a badge: "Top 10" cut to "Top 1" reads as a wrong value */
+.pk-chip-name {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pk-chip-label .pk-badges-inline {
+    flex: none;
 }
 
 .pk-chip-badge {
