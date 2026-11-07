@@ -11,13 +11,23 @@ A view's `filters` are a list; every filter names a field and a `type`. Item and
 source rows before anything is computed; value filters and top N drop whole groups after the values
 are aggregated.
 
-| `type` | Example | What |
-| --- | --- | --- |
-| `include` | `{ "field": "Region", "type": "include", "items": ["North", null] }` | Keep only the listed values; `null` is (blank). |
-| `exclude` | `{ "field": "Status", "type": "exclude", "items": ["Retired"] }` | Drop the listed values. |
-| `label` | `{ "field": "Rep", "type": "label", "op": "contains", "value": "an" }` | A text condition on the label: `equals`, `notEquals`, `contains`, `notContains`, `beginsWith`, `endsWith`. |
-| `value` | `{ "field": "Region", "type": "value", "op": ">", "value": 1000 }` | A condition on an aggregated value: `=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween` (with `value2`). |
-| `top` | `{ "field": "Country", "type": "top", "count": 5, "bottom": false }` | Keep the `count` largest (or, with `bottom`, smallest) items. |
+```json
+"filters": [
+    { "field": "Region", "type": "include", "items": ["North", null] },
+    { "field": "Status", "type": "exclude", "items": ["Retired"] },
+    { "field": "Rep", "type": "label", "op": "contains", "value": "an" },
+    { "field": "Region", "type": "value", "op": ">", "value": 1000 },
+    { "field": "Country", "type": "top", "count": 5, "bottom": false }
+]
+```
+
+| `type` | What |
+| --- | --- |
+| `include` | Keep only the listed `items`; `null` is (blank). |
+| `exclude` | Drop the listed `items`. |
+| `label` | A text condition on the label. `op`: `equals`, `notEquals`, `contains`, `notContains`, `beginsWith`, `endsWith`. |
+| `value` | A condition on an aggregated value. `op`: `=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween` (with `value2`). |
+| `top` | Keep the `count` largest items, or with `bottom: true` the smallest. |
 
 `value` and `top` rank by `by`, a value reference such as `{ "field": "Sales", "agg": "sum" }`; without
 it they use the view's first value.

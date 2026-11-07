@@ -14,31 +14,31 @@ Installation and a first example are in [Getting started with React](../getting-
 
 ## Props
 
-| Prop | Type | Default | What |
-| --- | --- | --- | --- |
-| `data` | `object[]` | | The rows; encoded once per array, or once per `dataKey`. |
-| `dataKey` | `string \| number` | | The identity of `data`: a host that builds a new array on every render passes a key, and the rows are encoded again only when it changes. |
-| `encoded` | `Encoded` | | Data already encoded with pivotkit-core's `encode()`, instead of `data`. |
-| `view` | view | | Controlled: the view to show. Pass back what `onViewChange` gives; the undo history stays in the report however often the host renders. A view the host changes on its own becomes one undo step. |
-| `defaultView` | view | empty | Uncontrolled: the start view. |
-| `onViewChange` | `(view) => void` | | Every change, as a normalized view. |
-| `templates` | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name. |
-| `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`). |
-| `onDeleteTemplate` | `(name) => unknown` | | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
-| `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. |
-| `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. |
-| `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
-| `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`. |
-| `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. |
-| `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
-| `labels` | partial labels | | Texts merged over the language's labels, see [Localisation](localisation.md). |
-| `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
-| `height` | `number \| string` | `640` | The report's height; the table and the field list scroll inside it. |
-| `limits` | `Partial<Limits>` | | pivotkit-core's limits. A layout over `limits.cells` shows a message instead of the table. |
-| `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
-| `className` | `string` | | Added to the root element `.pk-root`. |
-| `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
-| `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
+| Prop | What |
+| --- | --- |
+| `data` | The rows; encoded once per array, or once per `dataKey`.<br><small>Type: `object[]`</small> |
+| `dataKey` | The identity of `data`: a host that builds a new array on every render passes a key, and the rows are encoded again only when it changes.<br><small>Type: `string` or `number`</small> |
+| `encoded` | Data already encoded with pivotkit-core's `encode()`, instead of `data`.<br><small>Type: `Encoded`</small> |
+| `view` | Controlled: the view to show. Pass back what `onViewChange` gives; the undo history stays in the report however often the host renders. A view the host changes on its own becomes one undo step.<br><small>Type: view</small> |
+| `defaultView` | Uncontrolled: the start view.<br><small>Type: view; default: empty</small> |
+| `onViewChange` | Every change, as a normalized view.<br><small>Type: `(view) => void`</small> |
+| `templates` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
+| `onSaveTemplate` | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`).<br><small>Type: `(name, view) => unknown`</small> |
+| `onDeleteTemplate` | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message).<br><small>Type: `(name) => unknown`</small> |
+| `fieldDefaults` | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time.<br><small>Type: `{ [field]: { agg?, format?, drillFormat? } }`</small> |
+| `onCellClick` | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them.<br><small>Type: `({ row, col, value, valueIndex, text, count, rows }) => void`</small> |
+| `drillDown` | The panel with the rows behind a clicked value.<br><small>Type: `boolean`; default: `true`</small> |
+| `drillDownLimit` | Rows passed to the panel and to `onCellClick`.<br><small>Type: `number`; default: `1000`</small> |
+| `locale` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German.<br><small>Type: `string`; default: `"en-US"`</small> |
+| `timeZone` | The zone `data` is encoded in; see pivotkit-core.<br><small>Type: `string`; default: `"UTC"`</small> |
+| `labels` | Texts merged over the language's labels, see [Localisation](localisation.md).<br><small>Type: partial labels</small> |
+| `theme` | `auto` follows the nearest `data-theme="light` or `dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them.<br><small>Type: `"auto"` or `"light"` or `"dark"`; default: `"auto"`</small> |
+| `height` | The report's height; the table and the field list scroll inside it.<br><small>Type: `number` or `string`; default: `640`</small> |
+| `limits` | pivotkit-core's limits. A layout over `limits.cells` shows a message instead of the table.<br><small>Type: `Partial<Limits>`</small> |
+| `label` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart.<br><small>Type: `string`; default: `labels.report`</small> |
+| `className` | Added to the root element `.pk-root`.<br><small>Type: `string`</small> |
+| `fileName` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced.<br><small>Type: `string`; default: `"pivot"`</small> |
+| `onExport` | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say).<br><small>Type: `({ kind, fileName, blob }) => unknown`</small> |
 
 Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
 `ExportFile`, `Template`, `FieldDefaults`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and

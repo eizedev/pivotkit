@@ -24,7 +24,7 @@ measures. Returns `Encoded`.
 
 | Option | Type | Default | What |
 | --- | --- | --- | --- |
-| `types` | `{ [column]: "string" \| "number" \| "boolean" \| "date" }` | detected | The type of a column, by name (case-insensitive). |
+| `types` | `{ [column]: "string"` or `"number"` or `"boolean"` or `"date" }` | detected | The type of a column, by name (case-insensitive). |
 | `columns` | `string[]` | all | Only these columns, in this order (case-insensitive). |
 | `timeZone` | `string` | `"UTC"` | The wall clock that `Date` objects, epoch milliseconds and ISO strings with an offset are read in: `"UTC"`, an IANA zone (`"Europe/Berlin"`) or `"local"` (the machine's zone, resolved to its name). See [time zones](../concepts/limits.md#time-zones). |
 | `inferNumbers` | `boolean` | `false` | Numeric text (`"12"`, `"-3.5"`) makes a number column. |
@@ -127,11 +127,11 @@ line, area, pie and heatmap. ECharts itself is not imported.
 
 ### Export: `pivotkit-core/export`
 
-| Function | Returns | What |
-| --- | --- | --- |
-| `toXlsx(grid, { sheetName, theme })` | `Uint8Array` | An Excel workbook: typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars. `theme`: `{ colorScale, dataBar }` for conditional formats whose view names no colours. |
-| `toCsv(grid, { separator, repeatLabels })` | `string` | CSV. The grid's locale decides the separator and the decimal mark; text a spreadsheet would run as a formula gets a leading `'`. |
-| `toCsvBytes(grid, { separator, repeatLabels, bom })` | `Uint8Array` | The same as UTF-8 bytes, with a byte order mark when `bom` is set. |
+| Function | What |
+| --- | --- |
+| `toXlsx(grid, { sheetName, theme })` | An Excel workbook: typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars. `theme`: `{ colorScale, dataBar }` for conditional formats whose view names no colours.<br><small>Returns `Uint8Array`</small> |
+| `toCsv(grid, { separator, repeatLabels })` | CSV. The grid's locale decides the separator and the decimal mark; text a spreadsheet would run as a formula gets a leading `'`.<br><small>Returns `string`</small> |
+| `toCsvBytes(grid, { separator, repeatLabels, bom })` | The same as UTF-8 bytes, with a byte order mark when `bom` is set.<br><small>Returns `Uint8Array`</small> |
 
 What the files contain, and where Excel's number formats cannot follow the grid, is in
 [Security](../security.md#exports) and [Values](../concepts/values.md#export).

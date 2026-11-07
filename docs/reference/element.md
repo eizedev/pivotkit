@@ -35,25 +35,25 @@ supported.
 
 ## Properties and attributes
 
-| Property | Attribute | Type | Default | What |
-| --- | --- | --- | --- | --- |
-| `data` | | `object[]` | `[]` | The rows: an array of objects. Encoded once per array, or once per `dataKey`. pivotkit-core takes rows only; columnar data (`{ columns, rows }`) is not supported, map it to objects first. |
-| `dataKey` | | `string \| number` | | The identity of `data`: a new array with the same key is not encoded again. |
-| `view` | `view` (JSON) | view | | Controlled: the view to show, see below. |
-| `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
-| `templates` | | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. |
-| `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. |
-| `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat? } }` | | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is). |
-| `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
-| `limits` | | `Partial<Limits>` | | pivotkit-core's limits. |
-| `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
-| `theme` | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
-| `height` | `height` | `number \| string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). |
-| `timeZone` | `time-zone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
-| `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
-| `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
-| `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
-| `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
+| Property | Attribute | What |
+| --- | --- | --- |
+| `data` |  | The rows: an array of objects. Encoded once per array, or once per `dataKey`. pivotkit-core takes rows only; columnar data (`{ columns, rows }`) is not supported, map it to objects first.<br><small>Type: `object[]`; default: `[]`</small> |
+| `dataKey` |  | The identity of `data`: a new array with the same key is not encoded again.<br><small>Type: `string` or `number`</small> |
+| `view` | `view` (JSON) | Controlled: the view to show, see below.<br><small>Type: view</small> |
+| `defaultView` | `default-view` (JSON) | Uncontrolled: the start view, see below.<br><small>Type: view; default: empty</small> |
+| `templates` |  | The Templates menu; the first three are also offered in the empty state.<br><small>Type: `{ name, view, deletable? }[]`; default: `[]`</small> |
+| `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event.<br><small>Type: `boolean`; default: `false`</small> |
+| `fieldDefaults` |  | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is).<br><small>Type: `{ [field]: { agg?, format?, drillFormat? } }`</small> |
+| `labels` |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`).<br><small>Type: partial labels</small> |
+| `limits` |  | pivotkit-core's limits.<br><small>Type: `Partial<Limits>`</small> |
+| `locale` | `locale` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not.<br><small>Type: `string`; default: `"en-US"`</small> |
+| `theme` | `theme` | `auto` follows the nearest `data-theme="light` or `dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them.<br><small>Type: `"auto"` or `"light"` or `"dark"`; default: `"auto"`</small> |
+| `height` | `height` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`).<br><small>Type: `number` or `string`; default: `640`</small> |
+| `timeZone` | `time-zone` | The zone `data` is encoded in; see pivotkit-core.<br><small>Type: `string`; default: `"UTC"`</small> |
+| `fileName` | `file-name` | Name of exported files, without the extension; made safe.<br><small>Type: `string`; default: `"pivot"`</small> |
+| `label` | `label` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`).<br><small>Type: `string`; default: `labels.report`</small> |
+| `drillDown` | `drill-down` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off.<br><small>Type: `boolean`; default: `true`</small> |
+| `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -102,13 +102,13 @@ a new history.
 Every event is a `CustomEvent` that bubbles and is composed: a listener on the element, on a parent
 or on the document gets it, with `event.target` the element.
 
-| Event | `detail` | What |
-| --- | --- | --- |
-| `pivot-view-change` | `{ view }` | Every change of the view, normalized. |
-| `pivot-cell-click` | `{ row, col, value, valueIndex, text, count, rows }` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects). |
-| `pivot-template-save` | `{ name, view, respondWith }` | "Save current view" (with `save-templates`). |
-| `pivot-template-delete` | `{ name, respondWith }` | Delete of a template marked `deletable`, after the user confirmed in the menu. |
-| `pivot-export` | `{ kind, fileName, blob }` | Every exported file (`"xlsx"`, `"csv"`, `"png"`) before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say). |
+| Event | What |
+| --- | --- |
+| `pivot-view-change` | Every change of the view, normalized.<br><small>`detail`: `{ view }`</small> |
+| `pivot-cell-click` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects).<br><small>`detail`: `{ row, col, value, valueIndex, text, count, rows }`</small> |
+| `pivot-template-save` | "Save current view" (with `save-templates`).<br><small>`detail`: `{ name, view, respondWith }`</small> |
+| `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu.<br><small>`detail`: `{ name, respondWith }`</small> |
+| `pivot-export` | Every exported file (`"xlsx"`, `"csv"`, `"png"`) before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)
