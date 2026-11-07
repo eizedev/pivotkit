@@ -103,3 +103,6 @@ Breaking changes against the phase 1 code on `main` (never published):
 - `computePivot()` honours `options.limits` for its own work: a view of many fields with many distinct
   values on both axes used to build millions of nodes and cells (gigabytes) before `toGrid()` refused
   it; it throws `LIMIT_EXCEEDED` (`groups` or `pivotCells`) within a fraction of a second now.
+- Numeric text is recognised in linear time: a long run of digits followed by another character took
+  quadratic time in `encode()` (half a second for 40,000 digits), also without `inferNumbers`, since
+  `detected` checks every text column. Text longer than 100 characters is no number.
