@@ -102,6 +102,8 @@ test.describe("keyboard and focus", () => {
         await expect(page.getByTestId("export")).toBeFocused();
         await page.getByTestId("chip-menu-Region").click();
         await expect(page.locator(".pk-popover")).toHaveCount(1);
+        // once the menu has taken the focus (a frame after it opens), the focus leaving it closes it
+        await expect(page.locator(".pk-popover [data-pk-option]").first()).toBeFocused();
         await page.getByTestId("swap").focus();
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await page.getByTestId("options").click();
