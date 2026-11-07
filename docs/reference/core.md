@@ -66,7 +66,9 @@ A view is the report as JSON; [Views and templates](../concepts/views.md) descri
 ### `computePivot(data, view, options?)`
 
 Builds the row and column key trees with subtotals and totals. The view is normalized first, so raw
-user input is fine. Options: `locale`, `limits`.
+user input is fine. Options: `locale`, `limits` (`work` is computed before the aggregation starts;
+`groups` and `pivotCells` are counted while the key trees and the cells grow; over one,
+`LIMIT_EXCEEDED`).
 
 The `PivotResult` has, among others:
 

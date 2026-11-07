@@ -45,17 +45,22 @@ the size of everything dense (rows x columns) **before** it allocates it and sto
 instead.
 
 `LIMITS` holds the defaults; every function that takes `options.limits` (and the `limits` prop or
-property of the UI) merges your values over them.
+property of the UI) merges your values over them. A resource limit is counted before the memory it
+guards is allocated, or while it grows, and stops with `LIMIT_EXCEEDED`; a view limit drops what is
+over it and reports it as an issue.
 
 | Limit | Default | Guards |
 | --- | --- | --- |
-| `rows` | 10,000,000 | Rows `encode` accepts. |
+| `rows` | 1,000,000 | Rows `encode` accepts. |
+| `groups` | 500,000 | Groups of rows and columns `computePivot` makes, subtotals and grand totals included. |
+| `pivotCells` | 2,000,000 | Cells `computePivot` aggregates, subtotals and totals included. |
+| `work` | 100,000,000 | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x values; a median or a unique count counts 10 times. |
 | `cells` | 2,000,000 | Cells of a grid and data points of a chart. |
-| `cacheEntries` | 64 | Derived columns and sort orders kept per data set; the least recently used go first. |
+| `cacheEntries` | 16 | Derived columns and sort orders kept per data set; the least recently used go first. |
+| `axisFields` | 8 | Fields per axis (rows, columns). |
+| `values` | 16 | Values. |
 | `json` | 5,000,000 | Characters of the serialized view. |
 | `name` | 256 | Length of a name in a view. |
-| `axisFields` | 32 | Fields per axis. |
-| `values` | 64 | Values. |
 | `filters` | 128 | Filters. |
 | `items` | 100,000 | Items in one filter. |
 | `derived` | 64 | Derived fields. |
@@ -63,11 +68,22 @@ property of the UI) merges your values over them.
 | `collapsed` | 10,000 | Collapsed groups. |
 | `topCount` | 1,000,000 | The `count` of a top N filter. |
 
+The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for; the
+[pivotkit-core README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#limits)
+has the measurements behind each number. `groups` can be raised to 2^27 at most. A host that takes
+data or views from untrusted users can lower them, for example
+`{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
+
 The XLSX export adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a larger grid
 throws) and 32,767 characters per cell (longer text is cut).
 
-In the UI, a layout over `limits.cells` shows a message in place of the table; the person can take a
-field off and go on.
+In the UI, a layout over a limit shows a message in place of the result that says which limit and
+what to change, for example "This layout makes more than 500,000 groups of rows and columns. Remove a
+field with many values from Rows or Columns, or filter it." The person takes a field off and goes on.
+A ninth field on Rows or Columns (or a seventeenth value) is refused with the note "Rows holds at
+most 8 fields. Remove one first."; a template with more loads the fields that fit and says so. The
+texts are `tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`, `zoneFull` and
+`templateTrimmed` in the [labels](../reference/localisation.md).
 
 The engine is designed for up to about 100,000 rows in the browser. More rows work within `rows`, at
 the cost of time and memory; see the [performance numbers](../reference/react.md#performance).

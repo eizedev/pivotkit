@@ -34,7 +34,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `labels` | Texts merged over the language's labels, see [Localisation](localisation.md).<br><small>Type: partial labels</small> |
 | `theme` | `auto` follows the nearest `data-theme="light` or `dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them.<br><small>Type: `"auto"` or `"light"` or `"dark"`; default: `"auto"`</small> |
 | `height` | The report's height; the table and the field list scroll inside it.<br><small>Type: `number` or `string`; default: `640`</small> |
-| `limits` | pivotkit-core's limits. A layout over `limits.cells` shows a message instead of the table.<br><small>Type: `Partial<Limits>`</small> |
+| `limits` | pivotkit-core's [limits](../concepts/limits.md#limits). Data over `limits.rows`, or a layout over `limits.work`, `groups`, `pivotCells` or `cells`, shows a message in place of the result that says what to change; a field beyond `limits.axisFields` or `limits.values` is refused with a note, and a template with more loads the fields that fit and says so.<br><small>Type: `Partial<Limits>`</small> |
 | `label` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart.<br><small>Type: `string`; default: `labels.report`</small> |
 | `className` | Added to the root element `.pk-root`.<br><small>Type: `string`</small> |
 | `fileName` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced.<br><small>Type: `string`; default: `"pivot"`</small> |

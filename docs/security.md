@@ -18,10 +18,12 @@ channel described in the repository's
   without an own-property check.
 - A bad view does not throw: what cannot be used is dropped and reported (see
   [Views and templates](concepts/views.md#a-view-is-user-input)).
-- A view cannot ask for unbounded work. Its size and its parts are capped, and every dense structure
-  (rows x columns of a table, data points of a chart) is counted against [limits](concepts/limits.md#limits)
-  **before** it is allocated; over a limit, `PivotkitError` with `LIMIT_EXCEEDED` is thrown and the UI
-  shows a message instead of the table.
+- A view cannot ask for unbounded work. Its size and its parts are capped (8 fields per axis, 16
+  values), the work of a pivot is computed before it starts, and the groups, aggregated cells and
+  every dense structure (rows x columns of a table, data points of a chart) are counted against
+  [limits](concepts/limits.md#limits) before or while they are allocated; over a limit,
+  `PivotkitError` with `LIMIT_EXCEEDED` is thrown and the UI shows a message that says which limit
+  and what to change.
 
 ## Data is text, never markup
 
