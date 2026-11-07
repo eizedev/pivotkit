@@ -6,29 +6,6 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
-### Added
-
-- The number range form has "Starting at" next to the size (#24).
-- `fieldDefaults[field].order`: the field's custom order of items; a field placed on Rows or Columns
-  is sorted in it, and its menu offers "Custom order" (also for a view's own custom sort) (#26).
-
-### Changed
-
-- README: links to other packages, the examples and the license are absolute (GitHub, the
-  documentation site), so they work on the npm page.
-- The row label columns share at most 40 % of the report's main area and a value's name wraps
-  beyond 30 %, so long labels wrap and a phone shows values next to nested row labels; from 300
-  rows on, a label is cut with an ellipsis and its full text is the cell's title (#25).
-- One value's name is shown once over its columns (pivotkit-core) (#26).
-
-### Fixed
-
-- A stacked area or line chart of a view is named "Area" or "Lines" in the toolbar and the picker,
-  not "Bars" (#21).
-- A blank value cell with no rows behind it no longer opens an empty drill-down: it is not clickable
-  and Enter does nothing; `onCellClick` is not called for it (#23).
-- A new range size keeps the ranges' start instead of resetting it to 0 (#24).
-
 ## [0.1.0] - 2026-11-07
 
 First release.
@@ -46,11 +23,13 @@ First release.
   `fieldDefaults` gives a field's aggregator and format in Values.
 - Drag and drop with @dnd-kit (mouse, touch and keyboard with positions announced), a drag preview
   above everything, auto-scroll, drop on the field list to remove, header cells dragged into a zone.
-- Table with sticky header and row labels, expand and collapse, totals on and off, colour scales and
+- Table with sticky header and row labels (their offsets follow the report's width and fractional row
+  heights), expand and collapse, totals on and off, colour scales and
   data bars, keyboard navigation, drill-down panel and `onCellClick`; virtual scrolling from 300 rows.
 - Chart with Apache ECharts (a peer dependency, loaded on first use): bars, stacked and horizontal
   bars, lines, area, pie, heatmap, themed from the `--pk-*` tokens, with a text alternative, at most 50
-  categories, hints for many series and dates on Columns, and "Swap rows and columns".
+  categories, hints for many series and dates on Columns, and "Swap rows and columns"; a stacked area
+  or line chart is named "Area" or "Lines" in the toolbar and the picker.
 - Filter popover with values and row counts, search, select all or none and a text condition.
 - Undo, redo and reset; templates (load, save, delete of templates marked `deletable` after an in-page
   confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG, with
@@ -84,6 +63,28 @@ First release.
 - A field beyond pivotkit-core's limit of its zone (8 per axis, 16 values) is refused with a note
   (`zoneFull`); a template with more loads the fields that fit and says so
   (`templateTrimmed`).
+- Number ranges: size and "Starting at" (Excel's origin; empty is 0); a new size keeps the start, and
+  a start so far from the field's numbers that every row would be blank is refused with a note.
+- `fieldDefaults[field].order`: the field's custom order of items. A field placed on Rows or Columns
+  is sorted in it, and so is one in a view or template without a sort entry for it; its menu offers
+  "Custom order" and "Custom order, reversed" (also for a view's own custom sort).
+- Another aggregator in a value's menu keeps the field's format (`fieldDefaults` or the user's own)
+  while the result is in the field's unit, not for a count; "show values as" starts again.
+- Long row labels wrap: the label columns share at most 40 % of the report's main area and a value's
+  name wraps beyond 30 %, so a phone shows values next to nested row labels. From 300 rows on, where
+  rows have one height, a label is cut with an ellipsis; the status line shows the whole label of a
+  tapped label or of the focused value.
+- A blank value cell with no rows behind it is not clickable and Enter does nothing; `onCellClick` is
+  not called for it. Every empty cell stays an arrow-key stop and a screen reader hears "No rows" or
+  "No value" (`labels.emptyCell`, `labels.emptyValue`).
+- A narrow chip shortens the field's name with an ellipsis, never a badge ("Top 10").
+- Heatmaps slant their column names where they would overlap and show the numbers only in cells
+  large enough for them.
+- The export menu says what each file keeps: the XLSX every decimal, the CSV percentages and
+  calculations as the table shows them.
+- Tested against the five real public data sets of the playground and the documentation site:
+  weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
+  cycles of software products (endoflife.date).
 
 [Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.1.0...HEAD
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-react@0.1.0

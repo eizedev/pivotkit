@@ -6,15 +6,6 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
-### Changed
-
-- Bundles the pivotkit-core and pivotkit-react changes of this release: number ranges with
-  "Starting at", custom sort orders (`fieldDefaults[field].order`), unclickable empty cells, row labels
-  that wrap on a phone, one header for a single value, year ranges without thousands separators, CSV
-  percentages in percent (#21 to #26).
-- README: links to the other packages, the example and the license are absolute (GitHub), so they
-  work on the npm page.
-
 ## [0.1.0] - 2026-11-07
 
 First release.
@@ -48,6 +39,12 @@ First release.
   drill-down.
 - Attribute and property `label`: the name of the report's region landmark, one per report on a
   page.
+- Everything of pivotkit-core and pivotkit-react 0.1.0 in the bundle, among it number ranges with
+  "Starting at", custom sort orders (`fieldDefaults[field].order`, reversed too, also for saved views),
+  unclickable empty cells with a text for screen readers, row labels that wrap on a phone and are
+  shown whole in the status line of a long table, one header for a single value, year ranges without
+  thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
+  grey empty cells.
 
 [Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.1.0...HEAD
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-element@0.1.0

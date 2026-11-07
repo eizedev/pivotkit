@@ -6,27 +6,6 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
-### Added
-
-- A custom sort order: `sort: [{ field, by: "custom", items: [...] }]` puts the listed items first in
-  their order and the others after them by label, like Excel's custom lists (#26).
-- `result.hasRows(row, col)` and `hasRows` on the grid's value cells: whether any source row is behind
-  a cell, so a UI can leave a blank cell without rows unclickable (#23).
-
-### Changed
-
-- README: the link to the license is absolute (GitHub), so it works on the npm page.
-- One value's name is a single header cell over all of its columns instead of being repeated in each
-  (#26).
-- CSV: a value shown as a percent is written in percent with a `%` (`-2.56435492186162%`, as the
-  table shows it, with full precision) instead of as the fraction; spreadsheets read it back as the
-  fraction. The XLSX is unchanged (#26).
-
-### Fixed
-
-- Number ranges whose bounds are all whole numbers between -9,999 and 9,999 (years) are labelled
-  without thousands separators: "1900 – 1910", not "1,900 – 1,910" (#22).
-
 ## [0.1.0] - 2026-11-07
 
 First release.
@@ -57,12 +36,18 @@ First release.
   median, min, max, stdev, stdevp, var, varp, first, last; subtotals and grand totals; eleven "show
   values as" calculations; `findNode()` and `cellRows()` for drill-down.
 - `toGrid()`: header and body rows with merges, totals, formatted text, toggles and conditional
-  formatting.
-- `toSeries()` and `toEChartsOption()` for bar, stacked bar, line, area, pie and heatmap.
+  formatting; a single value's name is one header cell over all of its columns. Number ranges whose
+  bounds are all whole numbers between -9,999 and 9,999 (years) are labelled without thousands
+  separators ("1900 – 1910").
+- `toSeries()` and `toEChartsOption()` for bar, stacked bar, line, area, pie and heatmap; a heatmap's
+  empty cells show the background (no split areas, which ECharts paints light grey in every theme)
+  and its x axis names every column.
 - `pivotkit-core/export` with `toXlsx()`, `toCsv()` and `toCsvBytes()`: workbook with typed cells,
   number formats that show cells as the grid does, merged headers, bold totals, frozen panes, column
-  widths and native colour scales and data bars; CSV with the grid locale's separator and a guard
-  against formula injection.
+  widths and native colour scales and data bars, every number with full precision; CSV with the grid
+  locale's separator and a guard against formula injection, a percent and a "show values as" value
+  as the table shows them (rounded to their format's decimals, a percent in percent with a `%`),
+  other numbers with full precision.
 - `LIMITS` and `options.limits`: besides the view limits, `rows` for `encode()`; `work` for the cell
   updates of `computePivot()` (computed before it starts, a median or unique count 10 times) and
   `groups` and `pivotCells` for its key trees and cells (counted while they grow); `cells` for the
@@ -75,6 +60,12 @@ First release.
 - `PivotkitError` with the codes `INVALID_ARGUMENT`, `INVALID_OPTION` and `LIMIT_EXCEEDED`.
 - `CATALOG` and `aggregatorsFor()` for a UI's menus; `DEFAULT_LABELS`, `DEFAULT_THEME`.
 - `createHistory()` for undo, redo and reset; generated TypeScript declarations; a benchmark script.
+- A custom sort order: `sort: [{ field, by: "custom", items: [...] }]` puts the listed items first in
+  their order and the others after them by label, like Excel's custom lists; `order: "desc"` reverses
+  both.
+- `result.hasRows(row, col)` and `hasRows` on the grid's value cells: whether any source row is behind
+  a cell, so a UI can leave a blank cell without rows unclickable.
+- `grid.showAs`: per value its "show values as" type, or null.
 
 [Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.1.0...HEAD
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-core@0.1.0
