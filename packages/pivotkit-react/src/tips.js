@@ -124,6 +124,23 @@ export const TIPS = Object.freeze([
         when: (ctx) => (datesAcross(ctx) ? {} : null)
     },
     {
+        // a line or an area over categories without an order (countries, teams) draws a trend
+        // between things that follow no line: bars fit better. Dates, number ranges and a custom
+        // order (seasons) are an order
+        id: "chartTrend",
+        icon: "chart",
+        action: "bars",
+        when: (ctx) => {
+            // dates on Columns: the dates tip (swap) says the better thing
+            if (!axisChart(ctx) || datesAcross(ctx) || !["line", "area"].includes(chartTypeOf(ctx.view.chart)) || ctx.view.rows.length === 0) {
+                return null;
+            }
+            const field = ctx.view.rows[ctx.view.rows.length - 1];
+            const ordered = ["date", "number"].includes(ctx.typeOf(field)) || ctx.view.sort.some((s) => s.by === "custom" && String(s.field).toLowerCase() === String(field).toLowerCase());
+            return ordered ? null : {};
+        }
+    },
+    {
         id: "chartSeries",
         action: "swap",
         // the dates tip says the same (swap) more precisely
@@ -208,6 +225,30 @@ export const NOTICE_IDS = Object.freeze(TIPS.filter((t) => t.kind === "notice").
 
 /** The dismissal that switches every tip off ("Show tips" in Options). */
 export const ALL_TIPS = "*";
+
+/**
+ * The other two switches of Options → Help, kept in the same list (and storage) as the tips: the
+ * "i" of the field descriptions off, the "i" of the zone explanations off.
+ */
+export const NO_FIELD_INFO = "-fieldInfo";
+export const NO_ZONE_INFO = "-zoneInfo";
+/** Entries of the list that are switches, not dismissed tips: "Show dismissed tips again" keeps them. */
+export const SWITCHES = Object.freeze([ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO]);
+
+/**
+ * Whether a help switch is on: the host's "on" or "off" forces it (and Options hides the switch),
+ * else the user's choice in the list, on by default.
+ * @param {unknown} forced  the host's prop
+ * @param {readonly string[]} dismissed
+ * @param {string} off  NO_FIELD_INFO or NO_ZONE_INFO
+ * @returns {{ on: boolean, user: boolean }}  `user`: the user may switch it
+ */
+export function helpSwitch(forced, dismissed, off) {
+    if (forced === "on" || forced === "off") {
+        return { on: forced === "on", user: false };
+    }
+    return { on: !dismissed.includes(off), user: true };
+}
 
 /**
  * The keyboard shortcuts of the help section in Options: the keys (with "Mod" for Ctrl or ⌘) and
@@ -331,9 +372,9 @@ export function allowedTips(value) {
     return list.map((id) => String(id).trim()).filter((id) => TIP_IDS.includes(id));
 }
 
-/** Dismissed ids from anywhere (storage, a host): known ids and ALL_TIPS only, once each. */
+/** Dismissed ids from anywhere (storage, a host): known ids and the switches only, once each. */
 export function cleanDismissed(value) {
-    return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && (id === ALL_TIPS || TIP_IDS.includes(id))))] : [];
+    return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && (SWITCHES.includes(id) || TIP_IDS.includes(id))))] : [];
 }
 
 /** The localStorage key of a report's tips: one per `storageKey`, so two reports never share one. */

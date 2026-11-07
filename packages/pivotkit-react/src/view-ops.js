@@ -480,6 +480,19 @@ export function setTopFilter(view, field, top) {
     return replaceFilters(view, field, ["top"], top ? [{ field, type: "top", count: top.count, bottom: Boolean(top.bottom), ...(top.by ? { by: top.by } : {}) }] : []);
 }
 
+/**
+ * Removes what the filter of a field keeps out: its item list, its text condition and a value
+ * condition; Top N has its own control and stays. A field in the Filters zone stays there, unfiltered.
+ */
+export function removeFilters(view, field) {
+    return replaceFilters(view, field, ["include", "exclude", "label", "value"], []);
+}
+
+/** True when a field has an item, text or value filter that removes something (Top N is not counted). */
+export function hasFilter(view, field) {
+    return filtersOf(view, field, ["include", "exclude", "label", "value"]).some((f) => f.type !== "exclude" || f.items.length > 0);
+}
+
 /** True when a field has a filter that removes something. */
 export function isFiltered(view, field) {
     return filtersOf(view, field).some((f) => f.type !== "exclude" || f.items.length > 0);
@@ -497,6 +510,32 @@ export function toggleCollapsed(view, axis, path) {
         list.splice(at, 1);
     }
     return next;
+}
+
+/**
+ * What "Expand all" and "Collapse all" would do for the rows: each is offered only when it changes
+ * something. `outer` are the groups that can collapse (every level but the last, from the pivot's
+ * tree); `why` names the reason when one of them would change nothing.
+ * @param {any} view
+ * @param {Array<Array<unknown>>} outer
+ * @returns {{ canExpand: boolean, canCollapse: boolean, collapsed: number, open: number, why: { expand: string | null, collapse: string | null } }}
+ */
+export function rowFolding(view, outer) {
+    const keys = new Set(view.collapsed.rows.map((p) => JSON.stringify(p)));
+    const collapsed = outer.filter((p) => keys.has(JSON.stringify(p))).length;
+    const open = view.rows.length < 2 ? 0 : outer.length - collapsed;
+    const canExpand = view.collapsed.rows.length > 0;
+    const canCollapse = open > 0;
+    return {
+        canExpand,
+        canCollapse,
+        collapsed: view.collapsed.rows.length,
+        open,
+        why: {
+            expand: canExpand ? null : "expandNothing",
+            collapse: canCollapse ? null : view.rows.length < 2 ? "collapseNeedsRows" : "collapseAllDone"
+        }
+    };
 }
 
 /**
@@ -525,11 +564,23 @@ export function setDisplay(view, display) {
     return next;
 }
 
-/** Switches to the chart with a picker entry's settings (chart-types.js). */
+/** Switches to the chart with a picker entry's settings (chart-types.js); its display settings stay. */
 export function setChart(view, name) {
     const next = clone(view);
-    next.chart = { ...CHART_TYPES[name].chart };
+    next.chart = { ...next.chart, ...CHART_TYPES[name].chart };
     next.display = "chart";
+    return next;
+}
+
+/**
+ * Changes how the chart is drawn: { valueLabels, legend, title, smooth } (pivotkit-core's chart
+ * settings); the chart type stays.
+ * @param {any} view
+ * @param {{ valueLabels?: string, legend?: string, title?: string | null, smooth?: boolean }} patch
+ */
+export function setChartDisplay(view, patch) {
+    const next = clone(view);
+    next.chart = { ...next.chart, ...patch };
     return next;
 }
 

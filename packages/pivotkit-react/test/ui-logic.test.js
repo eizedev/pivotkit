@@ -290,3 +290,29 @@ test("heatmap row names: every one when a line fits each row, else every n-th", 
     assert.equal(rowLabelInterval(45, 300), 3);
     assert.equal(rowLabelInterval(0, 300), 0);
 });
+
+test("category axis labels: all straight when they fit, slanted, else every n-th; the modes force one", async () => {
+    const { categoryLabelLayout, CATEGORY_LABEL_WIDTH } = await import("../src/chart-types.js");
+    const short = ["A", "B", "C"];
+    assert.deepEqual(categoryLabelLayout(short, { width: 800, height: 400 }), { rotate: 0, interval: 0, every: 1, width: CATEGORY_LABEL_WIDTH, overflow: "truncate" });
+    const countries = Array.from({ length: 21 }, (_, i) => `Country number ${i}`);
+    const slanted = categoryLabelLayout(countries, { width: 900, height: 400 });
+    assert.deepEqual([slanted.rotate, slanted.every], [45, 1], "21 long names in 900 px: slanted, every one");
+    const many = Array.from({ length: 200 }, (_, i) => `Country number ${i}`);
+    const nth = categoryLabelLayout(many, { width: 900, height: 400 });
+    assert.equal(nth.rotate, 45);
+    assert.ok(nth.every > 1 && nth.interval === nth.every - 1);
+    assert.equal(categoryLabelLayout(many, { width: 900, height: 400, mode: "all" }).every, 1);
+    const straight = categoryLabelLayout(countries, { width: 900, height: 400, mode: "nth" });
+    assert.deepEqual([straight.rotate, straight.every > 1], [0, true]);
+    // horizontal bars: names stay straight, one per row while a line fits
+    assert.equal(categoryLabelLayout(countries, { width: 900, height: 600, horizontal: true }).every, 1);
+    assert.ok(categoryLabelLayout(many, { width: 900, height: 600, horizontal: true }).every > 1);
+});
+
+test("the tooltip's title is the category's whole name when the axis writes it shorter", async () => {
+    const { tooltipContent } = await import("../src/chart-tooltip.js");
+    const params = [{ dataIndex: 1, axisValueLabel: "B", seriesName: "Units", value: 2, color: "#123456" }];
+    assert.equal(tooltipContent(params, { categoryNames: ["North / A", "North / B"] }).title, "North / B");
+    assert.equal(tooltipContent(params).title, "B");
+});

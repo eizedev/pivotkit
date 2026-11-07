@@ -197,9 +197,10 @@ export function MenuButton({ label, icon, text, showText = true, className, role
 /**
  * One option of a menu or of a chip's settings.
  * @param {{ onSelect: () => void, icon?: string, checked?: boolean, children: React.ReactNode, hint?: React.ReactNode,
- *   inMenu?: boolean, disabled?: boolean, danger?: boolean, testId?: string }} props
+ *   inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string }} props
+ *   `tone`: "accent" for an option that says what is set (a filter)
  */
-export function Option({ onSelect, icon, checked, children, hint, inMenu = false, disabled, danger, testId }) {
+export function Option({ onSelect, icon, checked, children, hint, inMenu = false, disabled, danger, tone, testId }) {
     const role = inMenu ? (checked === undefined ? "menuitem" : "menuitemradio") : undefined;
     return (
         <button
@@ -207,7 +208,7 @@ export function Option({ onSelect, icon, checked, children, hint, inMenu = false
             role={role}
             aria-checked={inMenu && checked !== undefined ? checked : undefined}
             aria-pressed={!inMenu && checked !== undefined ? checked : undefined}
-            className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}`}
+            className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${tone === "accent" ? " pk-accent" : ""}`}
             data-pk-option=""
             data-testid={testId}
             disabled={disabled}

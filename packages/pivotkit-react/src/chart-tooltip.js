@@ -17,17 +17,18 @@
 /**
  * What a tooltip shows for ECharts' formatter parameters: a title and one line per series or slice.
  * @param {any} params  one item (trigger "item") or a list (trigger "axis")
- * @param {{ valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[] }} [options]
- *   valueFormatter: the core's; xNames, yNames: the categories of a heatmap's axes
+ * @param {{ valueFormatter?: (v: unknown) => string, xNames?: string[], yNames?: string[], categoryNames?: string[] }} [options]
+ *   valueFormatter: the core's; xNames, yNames: the categories of a heatmap's axes; categoryNames: the
+ *   whole name of each category, for an axis that writes them shorter (cut, or without their group)
  * @returns {{ title: string, lines: TooltipLine[] }}
  */
-export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [] } = {}) {
+export function tooltipContent(params, { valueFormatter = (v) => String(v ?? ""), xNames = [], yNames = [], categoryNames = [] } = {}) {
     const color = (p) => (typeof p.color === "string" ? p.color : null);
     const text = (v) => (v === null || v === undefined ? "" : String(v));
     if (Array.isArray(params)) {
         const first = params[0];
         return {
-            title: first ? text(first.axisValueLabel ?? first.name) : "",
+            title: first ? text(categoryNames[first.dataIndex] ?? first.axisValueLabel ?? first.name) : "",
             lines: params.map((p) => ({ color: color(p), name: text(p.seriesName), value: valueFormatter(p.value) }))
         };
     }

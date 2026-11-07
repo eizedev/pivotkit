@@ -8,7 +8,7 @@ import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-i
 import { LABELS, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
 import {
-    ALL_TIPS, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
+    ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, SWITCHES, helpSwitch, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
 } from "../src/tips.js";
 
 const en = LABELS.en;
@@ -211,4 +211,32 @@ test("field descriptions: cleaned like a schema; nothing without fieldDefaults",
     assert.ok(!fieldMatches("Units", "rep", info.get("units")));
     assert.deepEqual(typesOf({ A: { type: "number" }, B: { type: "date" }, C: { type: "eval" }, D: {} }), { A: "number", B: "date" });
     assert.equal(typesOf({ A: { agg: "sum" } }), null);
+});
+
+test("tips: a line or an area over categories without an order suggests bars; dates, ranges and a custom order do not", () => {
+    const rows = [
+        { Country: "Chile", Region: "Americas", Year: 2024, Day: "2026-01-02", Pop: 19 },
+        { Country: "Japan", Region: "Asia", Year: 2025, Day: "2026-01-03", Pop: 124 }
+    ];
+    const at = (view) => holding(contextOf(rows, { values: [{ field: "Pop", agg: "sum" }], display: "chart", ...view }));
+    assert.deepEqual(at({ rows: ["Region", "Country"], chart: { type: "area" } }), ["chartTrend"]);
+    assert.deepEqual(at({ rows: ["Country"], chart: { type: "line" } }), ["chartTrend"]);
+    assert.deepEqual(at({ rows: ["Country"], chart: { type: "bar" } }), []);
+    assert.deepEqual(at({ rows: ["Day"], chart: { type: "line" } }), [], "dates are an order");
+    assert.deepEqual(at({ rows: ["Year"], chart: { type: "line" } }), [], "numbers are an order");
+    assert.deepEqual(at({ rows: ["Country"], chart: { type: "line" }, sort: [{ field: "Country", by: "custom", items: ["Japan", "Chile"] }] }), [], "a custom order is an order");
+    const ctx = contextOf(rows, { rows: ["Country"], values: [{ field: "Pop", agg: "sum" }], display: "chart", chart: { type: "area" } });
+    const tip = activeTips(ctx, { allowed: "on", dismissed: [] }).find((t) => t.id === "chartTrend");
+    assert.equal(tip.entry.action, "bars");
+    assert.equal(tipActionText(tip.entry, tip.params, en), "Switch to Bars");
+    assert.equal(tipText("chartTrend", {}, en, "en-US"), "Lines connect points into a trend. For categories such as countries, bars fit better.");
+});
+
+test("help switches: the host's on or off decides, else the user's list; Show dismissed tips again keeps them", () => {
+    assert.deepEqual(helpSwitch(undefined, [], NO_FIELD_INFO), { on: true, user: true });
+    assert.deepEqual(helpSwitch(undefined, [NO_FIELD_INFO], NO_FIELD_INFO), { on: false, user: true });
+    assert.deepEqual(helpSwitch("on", [NO_FIELD_INFO], NO_FIELD_INFO), { on: true, user: false });
+    assert.deepEqual(helpSwitch("off", [], NO_ZONE_INFO), { on: false, user: false });
+    assert.deepEqual(cleanDismissed([NO_FIELD_INFO, NO_ZONE_INFO, "nope", ALL_TIPS, NO_ZONE_INFO]), [NO_FIELD_INFO, NO_ZONE_INFO, ALL_TIPS]);
+    assert.deepEqual(SWITCHES, [ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO]);
 });

@@ -3,11 +3,17 @@
  * by the host or not); the field list, the zones, the toolbar, the table and the chart are views of
  * that state and change it through commit(), which they get as a prop. The pivot is computed once per
  * view; the grid only for the table.
+ *
+ * While the host loads its data (`loading`), and while a large data set is encoded for the first time,
+ * the report shows its skeleton (skeleton.jsx). A view can come back by itself: the tab's own
+ * (`persistView`, sessionStorage) or a shared link in the page's address (`shareLink`); both are read
+ * after the first render, so a server render and its hydration match, and both pass normalize().
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { computePivot, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
+import { cleanChartOptions } from "./chart-options.js";
 import { MAX_CATEGORIES } from "./chart-types.js";
 import { groupingName, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
@@ -17,19 +23,22 @@ import { displayNames, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { FilterPopover } from "./filter.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
+import { copyText, safeFileName, saveBlob } from "./files.js";
 import { errorText, fill, hostFailure, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { LayerContext } from "./popover.jsx";
+import { issueLines, linkNow, linkParam, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, withLinkParam, writeStoredView } from "./share.js";
+import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
-import { ALL_TIPS, TIP_LIMIT, activeTips, allowedTips, cleanDismissed, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
+import { ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, SWITCHES, TIP_LIMIT, activeTips, helpSwitch, allowedTips, cleanDismissed, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
 import { useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { useViewHistory } from "./use-view-history.js";
 import {
-    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, setChart, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones } from "./zones.jsx";
 
@@ -97,6 +106,71 @@ function localStore() {
     }
 }
 
+/** The tab's sessionStorage, or null where it is missing or blocked. */
+function sessionStore() {
+    try {
+        return typeof window !== "undefined" && window.sessionStorage ? window.sessionStorage : null;
+    } catch {
+        return null;
+    }
+}
+
+/** The page's address and fragment, or undefined outside a browser. */
+const here = () => (typeof location !== "undefined" ? { href: location.href, hash: location.hash } : undefined);
+
+/** Rows above which the report shows its skeleton first and encodes the data in the next frame. */
+export const DEFER_ROWS = 10_000;
+
+/**
+ * The pivot report builder. While the host's data loads (`loading`) or a large data set is encoded for
+ * the first time, the report shows its skeleton; once shown, the report stays (its view and history
+ * too) and a later `loading` covers its result only.
+ * @param {import("./index.js").PivotReportProps} props
+ */
+export function PivotReport(props) {
+    const { loading = false, data, encoded } = props;
+    // a large data set: the skeleton paints first, the encoding runs after it (a frame later)
+    const [deferred, setDeferred] = useState(() => !encoded && Array.isArray(data) && data.length > DEFER_ROWS);
+    const [started, setStarted] = useState(false);
+    useEffect(() => {
+        if (!deferred) {
+            return undefined;
+        }
+        let timer = 0;
+        const frame = requestAnimationFrame(() => {
+            timer = window.setTimeout(() => setDeferred(false), 0);
+        });
+        return () => {
+            cancelAnimationFrame(frame);
+            clearTimeout(timer);
+        };
+    }, [deferred]);
+    const waiting = Boolean(loading) || deferred;
+    if (!waiting && !started) {
+        setStarted(true);
+    }
+    if (waiting && !started) {
+        return <WaitingReport {...props} />;
+    }
+    return <Report {...props} />;
+}
+
+/**
+ * The report's frame with the skeleton in it, before the report has its data.
+ * @param {import("./index.js").PivotReportProps} props
+ */
+function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto", height = 640, className, label }) {
+    const root = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const labelsKey = JSON.stringify(customLabels ?? null);
+    const labels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
+    const themeName = useResolvedTheme(theme, root);
+    return (
+        <div ref={root} className={`pk-root${className ? ` ${className}` : ""}`} data-pk-theme={themeName} lang={labels.lang} role="region" aria-label={label || labels.report} style={{ height }}>
+            <Skeleton full text={labels.loadingReport} />
+        </div>
+    );
+}
+
 /** The host's settings for a field (fieldDefaults), matched case-insensitively like column names. */
 function defaultsFor(fieldDefaults, field) {
     if (!fieldDefaults || typeof fieldDefaults !== "object") {
@@ -140,10 +214,10 @@ function EmptyState({ labels, templates, onTemplate }) {
 }
 
 /**
- * The pivot report builder.
+ * The report itself, once it has its data.
  * @param {import("./index.js").PivotReportProps} props
  */
-export function PivotReport(props) {
+function Report(props) {
     const {
         data,
         dataKey,
@@ -171,7 +245,13 @@ export function PivotReport(props) {
         tips: tipsProp = "on",
         storageKey,
         dismissedTips,
-        onTipDismiss
+        onTipDismiss,
+        chartOptions,
+        shareLink,
+        persistView,
+        fieldInfo: fieldInfoProp,
+        zoneInfo: zoneInfoProp,
+        loading = false
     } = props;
 
     // props a host may rebuild on every render, compared by value
@@ -196,7 +276,7 @@ export function PivotReport(props) {
     const layoutFolded = folded ?? short;
     const zonesId = useId();
     const [drawer, setDrawer] = useState(false);
-    const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement } | null} */ (null));
+    const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement, base?: object } | null} */ (null));
     const [drill, setDrill] = useState(/** @type {{ title: string, count: number, columns: Array<{ name: string, numeric: boolean, label?: string, description?: string }>, rows: string[][] } | null} */ (null));
     const [hinted, setHinted] = useState(false);
     // changes of the view in this session, and their number at the first drag (for the tips)
@@ -256,6 +336,15 @@ export function PivotReport(props) {
     const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
     const view = history.view;
 
+    // the host's chartOptions: plain JSON only, compared by value; what it drops is a developer's mistake
+    const chartOptionsKey = JSON.stringify(cleanChartOptions(chartOptions));
+    const cleanOptions = useMemo(() => /** @type {{ options: Record<string, unknown> | null, problems: string[] }} */ (JSON.parse(chartOptionsKey)), [chartOptionsKey]);
+    useEffect(() => {
+        if (cleanOptions.problems.length) {
+            console.warn(`pivotkit: chartOptions entries left out (functions and values that are not plain JSON are not allowed): ${cleanOptions.problems.slice(0, 5).join("; ")}`);
+        }
+    }, [cleanOptions]);
+
     const stepText = useCallback(
         (note) => {
             const template = Object.hasOwn(labels.steps, note.step) ? labels.steps[note.step] : labels.steps.change;
@@ -290,6 +379,88 @@ export function PivotReport(props) {
         history.reset(labels.steps.reset);
         announce(labels.toastReset);
     }, [history, labels, announce]);
+
+    // a view that comes back by itself: the tab's stored one, then a shared link (which wins); read
+    // once, after the first render. A link needs pivotkit-core/link: while it loads the result waits.
+    const param = linkParam(storageKey);
+    const [opening, setOpening] = useState(false);
+    const appliedLink = useRef(/** @type {string | null} */ (null));
+    const latest = useRef({ history, encoded, limits, labels, announce });
+    useEffect(() => {
+        latest.current = { history, encoded, limits, labels, announce };
+    });
+    /** Opens the view of a link text; the result waits while the link module loads. */
+    const openLink = useCallback((text) => {
+        appliedLink.current = text;
+        const now = linkNow();
+        const apply = (m) => {
+            const { history: h, encoded: enc, limits: lim, labels: l, announce: say } = latest.current;
+            const decoded = m.decodeViewLink(text);
+            const loaded = decoded.view ? viewFromObject(decoded.view, enc, { limits: lim }) : null;
+            if (!loaded || !loaded.view) {
+                say(l.viewFailed.badLink, { tone: "error" });
+                return;
+            }
+            h.restore(loaded.view);
+            const lines = issueLines(loaded.issues, l);
+            say(lines.length ? `${l.toastLinkOpened}. ${fill(l.viewLeftOut, { parts: lines.join("; ") })}` : l.toastLinkOpened, lines.length ? { tone: "error" } : undefined);
+        };
+        if (now) {
+            apply(now);
+            return;
+        }
+        setOpening(true);
+        loadLink().then(
+            (m) => {
+                setOpening(false);
+                apply(m);
+            },
+            () => {
+                setOpening(false);
+                latest.current.announce(latest.current.labels.viewFailed.badLink, { tone: "error" });
+            }
+        );
+    }, []);
+    useIsoLayoutEffect(() => {
+        const page = here();
+        const link = shareLink ? readLinkParam(page?.hash ?? "", param) : null;
+        if (link) {
+            openLink(link);
+        } else if (persistView === "session") {
+            const raw = readStoredView(storageKey, sessionStore());
+            if (raw) {
+                try {
+                    const loaded = viewFromObject(JSON.parse(raw), encoded, { limits });
+                    if (loaded.view) {
+                        history.restore(loaded.view);
+                    }
+                } catch {
+                    // a stored text that is no JSON (changed by hand): the start view stays
+                }
+            }
+        }
+        // once per mounted report: a later change of these props does not bring a stored view back
+    }, []);
+    // a link opened in the same tab (only the fragment changed): its view, once
+    useEffect(() => {
+        if (!shareLink || typeof window === "undefined") {
+            return undefined;
+        }
+        const onHash = () => {
+            const link = readLinkParam(here()?.hash ?? "", param);
+            if (link && link !== appliedLink.current) {
+                openLink(link);
+            }
+        };
+        window.addEventListener("hashchange", onHash);
+        return () => window.removeEventListener("hashchange", onHash);
+    }, [shareLink, param, openLink]);
+    // the tab keeps the view shown (persistView="session"); Reset stores the start view the same way
+    useEffect(() => {
+        if (persistView === "session") {
+            writeStoredView(storageKey, sessionStore(), JSON.parse(history.viewKey));
+        }
+    }, [persistView, storageKey, history.viewKey]);
 
     /**
      * Every change of the view: `note.step` names it for "Undone: ...". Adding needs no note on
@@ -440,6 +611,27 @@ export function PivotReport(props) {
         [view, placeOptions, commit, nameOf]
     );
 
+    /**
+     * "Filter…" of a field not in the report: the filter of a draft that puts it into Filters (a date
+     * grouped as it would be placed), so Apply places it with the selection and Cancel changes nothing.
+     */
+    const filterNew = useCallback(
+        (field, anchor) => {
+            const options = placeOptions(field, "filters");
+            const draft = addField(view, field, "filters", options);
+            // on a narrow report the field list is a drawer: it closes, the filter anchors to its button
+            const opener = size === "narrow" ? /** @type {HTMLElement | null} */ (root.current?.querySelector("[data-pk-opener='fields']") ?? null) : null;
+            if (size === "narrow") {
+                setDrawer(false);
+            }
+            const target = opener ?? anchor;
+            if (target) {
+                setFilterTarget({ field: options.groupName ?? field, anchor: target, base: draft });
+            }
+        },
+        [placeOptions, view, size]
+    );
+
     const onDrop = useCallback(
         (src, target) => {
             // the first drag: a tip about Undo and the menus follows (it counts the change it makes)
@@ -485,6 +677,68 @@ export function PivotReport(props) {
     );
 
     const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });
+
+    // sharing: a link (when the host allows it), the view as JSON, as a file; and loading one
+    const base = shareBase(shareLink, here()?.href);
+    const share = {
+        canLink: base !== null,
+        prepare: base !== null ? () => void loadLink().catch(() => undefined) : undefined,
+        copyLink: async () => {
+            const target = shareBase(shareLink, here()?.href);
+            if (target === null) {
+                return;
+            }
+            let text;
+            try {
+                text = (linkNow() ?? (await loadLink())).encodeViewLink(view);
+            } catch (e) {
+                announce(e && /** @type {any} */ (e).code === "LIMIT_EXCEEDED" ? labels.toastLinkTooLong : fill(labels.error, { message: String(e) }), { tone: "error" });
+                return;
+            }
+            const ok = await copyText(withLinkParam(target, param, text), root.current);
+            announce(ok ? labels.toastLinkCopied : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
+        },
+        copyJson: async () => {
+            const ok = await copyText(JSON.stringify(view, null, 2), root.current);
+            announce(ok ? labels.toastJsonCopied : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
+        },
+        download: () => {
+            const file = `${safeFileName(fileName)}-view.json`;
+            const blob = new Blob([JSON.stringify(view, null, 2)], { type: "application/json" });
+            // the host sees the file first, as every export (kind "json"); false keeps it from the download
+            if (onExport?.({ kind: "json", fileName: file, blob }) === false) {
+                return;
+            }
+            saveBlob(blob, file, root.current?.ownerDocument ?? document);
+            announce(fill(labels.toastExported, { file }));
+        },
+        /** @param {string} text  @returns {Promise<string | null>} why nothing was loaded, or null */
+        loadText: async (text) => {
+            let loaded = viewFromText(text, encoded, { limits });
+            if (loaded.failed === "notJson") {
+                // a link (or its "#pivot=..." part) pasted instead of JSON
+                const t = text.trim();
+                const fromUrl = t.includes("#") ? readLinkParam(t.slice(t.indexOf("#")), param) ?? readLinkParam(t.slice(t.indexOf("#")), "pivot") : null;
+                const payload = fromUrl ?? (t.startsWith("1.") ? t : null);
+                if (!payload) {
+                    return labels.viewFailed.notJson;
+                }
+                try {
+                    const decoded = (linkNow() ?? (await loadLink())).decodeViewLink(payload);
+                    loaded = decoded.view ? viewFromObject(decoded.view, encoded, { limits }) : { view: null, issues: [], failed: "badLink" };
+                } catch {
+                    return labels.viewFailed.badLink;
+                }
+            }
+            if (!loaded.view) {
+                return labels.viewFailed[loaded.failed ?? "notView"] ?? labels.viewFailed.notView;
+            }
+            commit(loaded.view, { step: "viewLoaded" });
+            const lines = issueLines(loaded.issues, labels);
+            announce(lines.length ? `${labels.toastViewLoaded}. ${fill(labels.viewLeftOut, { parts: lines.join("; ") })}` : labels.toastViewLoaded, lines.length ? { tone: "error" } : undefined);
+            return null;
+        }
+    };
 
     const loadTemplate = useCallback(
         (t) => {
@@ -554,6 +808,22 @@ export function PivotReport(props) {
 
     const showTable = !error && !(empty && view.display === "table") && view.display !== "chart" && gridState.grid;
 
+    // Expand all and Collapse all: offered when they change something, and they say what they did
+    const outer = useMemo(() => (result ? outerPaths(result) : []), [result]);
+    const folding = rowFolding(view, outer);
+    const expandAll = () => {
+        const count = view.collapsed.rows.length;
+        commit(setCollapsed(view, "rows", null), { step: "collapse" });
+        announce(plural(labels.groupsExpanded, count, { lang: labels.lang, locale }));
+    };
+    const collapseAll = () => {
+        if (!result) {
+            return;
+        }
+        commit(setCollapsed(view, "rows", outer), { step: "collapse" });
+        announce(plural(labels.groupsCollapsed, folding.open, { lang: labels.lang, locale }));
+    };
+
     // the chart's series, once per result: drawn by the chart, read by its tips
     const series = useMemo(() => {
         if (!result || view.display !== "chart" || view.values.length === 0) {
@@ -592,6 +862,11 @@ export function PivotReport(props) {
         [storageKey, onTipDismiss]
     );
     const tipsOn = allowed !== "off" && !dismissed.includes(ALL_TIPS);
+    // the i of the field descriptions and of the zones: the host forces them, else the user's switch
+    const describedFields = [...info.values()].some((i) => i.description);
+    const fieldSwitch = helpSwitch(fieldInfoProp, dismissed, NO_FIELD_INFO);
+    const zoneSwitch = helpSwitch(zoneInfoProp, dismissed, NO_ZONE_INFO);
+    const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
     const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) });
     const shownTips = activeTips(ctx, { allowed, dismissed, // a narrow or low report keeps its room for the result: one tip
         limit: size === "narrow" || layoutFolded ? 1 : TIP_LIMIT }).map((t) => ({
@@ -611,6 +886,8 @@ export function PivotReport(props) {
             commit(withoutFilters(view), { step: "filtersRemoved" });
         } else if (action === "groupDate") {
             commit(groupField(view, params.source, params.unit, { name: groupingName(nameOf(params.source), params.unit, labels) }).view, { step: "group", field: nameOf(params.source) });
+        } else if (action === "bars") {
+            commit(setChart(view, "bar"), { step: "chart", type: "bar" });
         } else if (action === "saveTemplate") {
             setTemplatesRequest((n) => n + 1);
         }
@@ -656,8 +933,10 @@ export function PivotReport(props) {
                                     }
                                 }}
                                 onNote={(text) => announce(text)}
+                                onFilter={filterNew}
                                 nameOf={nameOf}
                                 info={info}
+                                showInfo={fieldSwitch.on}
                                 drawer={size === "narrow"}
                                 open={drawerOpen}
                                 onClose={() => setDrawer(false)}
@@ -677,9 +956,12 @@ export function PivotReport(props) {
                                 onReset={reset}
                                 onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
                                 onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
+                                onChartDisplay={(patch) => commit(setChartDisplay(view, patch), { step: "chartDisplay" })}
                                 onTotal={(key, on) => commit(setTotal(view, key, on), { step: "totals" })}
-                                onExpand={() => commit(setCollapsed(view, "rows", null), { step: "collapse" })}
-                                onCollapse={() => result && commit(setCollapsed(view, "rows", outerPaths(result)), { step: "collapse" })}
+                                onExpand={expandAll}
+                                onCollapse={collapseAll}
+                                folding={folding}
+                                share={share}
                                 templates={templates}
                                 onLoadTemplate={loadTemplate}
                                 onSaveTemplate={saveTemplate}
@@ -693,8 +975,12 @@ export function PivotReport(props) {
                                 tipsControls={allowed !== "off"}
                                 tipsOn={tipsOn}
                                 onTipsOn={(on) => changeDismissed(on ? dismissed.filter((id) => id !== ALL_TIPS) : [...dismissed, ALL_TIPS], on ? null : ALL_TIPS)}
-                                canResetTips={dismissed.some((id) => id !== ALL_TIPS)}
-                                onResetTips={() => changeDismissed(dismissed.filter((id) => id === ALL_TIPS), null)}
+                                canResetTips={dismissed.some((id) => !SWITCHES.includes(id))}
+                                onResetTips={() => changeDismissed(dismissed.filter((id) => SWITCHES.includes(id)), null)}
+                                help={{
+                                    fieldInfo: describedFields && fieldSwitch.user ? { on: fieldSwitch.on, set: (on) => toggle(NO_FIELD_INFO, on) } : null,
+                                    zoneInfo: zoneSwitch.user ? { on: zoneSwitch.on, set: (on) => toggle(NO_ZONE_INFO, on) } : null
+                                }}
                                 templatesRequest={templatesRequest}
                             />
                             <Zones
@@ -711,6 +997,8 @@ export function PivotReport(props) {
                                 onShow={() => setFolded(false)}
                                 defaultsOf={defaultsOf}
                                 infoOf={infoOf}
+                                explain={zoneSwitch.on}
+                                showInfo={fieldSwitch.on}
                             />
                             {result && result.issues.length > 0 && !empty ? (
                                 <details className="pk-issues">
@@ -739,7 +1027,9 @@ export function PivotReport(props) {
                                 </p>
                             ) : null}
                             <section className="pk-result" aria-label={view.display === "chart" ? labels.chart : labels.table}>
-                                {error ? (
+                                {loading || opening ? (
+                                    <Skeleton text={labels.loadingReport} />
+                                ) : error ? (
                                     <div className="pk-message pk-error" role="alert">
                                         <Icon name="info" />
                                         <p>{errorText(error, labels, locale)}</p>
@@ -755,6 +1045,7 @@ export function PivotReport(props) {
                                         themeName={themeName}
                                         root={root}
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
+                                        chartOptions={cleanOptions.options}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));
@@ -762,7 +1053,7 @@ export function PivotReport(props) {
                                         onPoint={(p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
                                 ) : null}
                             </section>
                             <div className="pk-status">

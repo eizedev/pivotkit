@@ -16,7 +16,7 @@ const LEAVE_DELAY = 250;
 
 /**
  * The description and its link.
- * @param {{ info: import("./field-info.js").FieldInfo, labels: import("./labels.js").UiLabels, link?: boolean, className?: string }} props
+ * @param {{ info: { description: string, href?: string }, labels: import("./labels.js").UiLabels, link?: boolean, className?: string }} props
  */
 export function FieldDescription({ info, labels, link = true, className = "pk-field-desc" }) {
     return (
@@ -35,10 +35,10 @@ export function FieldDescription({ info, labels, link = true, className = "pk-fi
 }
 
 /**
- * @param {{ info: import("./field-info.js").FieldInfo, name: string, labels: import("./labels.js").UiLabels, className?: string }} props
+ * @param {{ info: { description: string, href?: string }, name: string, labels: import("./labels.js").UiLabels, className?: string, testId?: string }} props
  *   `name`: the field's display name, for the button's name
  */
-export function InfoButton({ info, name, labels, className }) {
+export function InfoButton({ info, name, labels, className, testId = "field-info" }) {
     // "peek": on hover or focus, the focus stays on the button; "open": clicked, a dialog
     const [mode, setMode] = useState(/** @type {null | "peek" | "open"} */ (null));
     const ref = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -77,7 +77,7 @@ export function InfoButton({ info, name, labels, className }) {
                 aria-expanded={mode === "open"}
                 aria-controls={mode ? id : undefined}
                 aria-haspopup="dialog"
-                data-testid="field-info"
+                data-testid={testId}
                 onPointerEnter={(e) => {
                     if (e.pointerType === "mouse") {
                         stay();

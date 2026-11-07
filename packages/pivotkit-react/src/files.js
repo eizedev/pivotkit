@@ -68,3 +68,42 @@ export function saveBlob(blob, name, doc = document) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/**
+ * Puts a text on the clipboard: the Clipboard API, else a copy from a hidden text field inside the
+ * report (`container`, so it works in a shadow root too). False when the browser allows neither (no
+ * secure context, a frame without the permission).
+ * @param {string} text
+ * @param {HTMLElement | null} container
+ * @returns {Promise<boolean>}
+ */
+export async function copyText(text, container) {
+    try {
+        if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch {
+        // refused: try the older way below
+    }
+    if (!container) {
+        return false;
+    }
+    const doc = container.ownerDocument;
+    const field = doc.createElement("textarea");
+    field.value = text;
+    field.readOnly = true;
+    field.className = "pk-sr";
+    const before = /** @type {HTMLElement | null} */ (container.getRootNode() instanceof ShadowRoot ? /** @type {ShadowRoot} */ (container.getRootNode()).activeElement : doc.activeElement);
+    container.appendChild(field);
+    let ok;
+    try {
+        field.select();
+        ok = typeof doc.execCommand === "function" && doc.execCommand("copy");
+    } catch {
+        ok = false;
+    }
+    field.remove();
+    before?.focus?.({ preventScroll: true });
+    return ok;
+}

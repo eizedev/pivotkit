@@ -102,7 +102,7 @@ function Badges({ state, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf, rangeOf, info }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf, rangeOf, info, showInfo }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const chipRef = useRef(/** @type {HTMLElement | null} */ (null));
     const ref = (el) => {
@@ -147,12 +147,12 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                         zone === "values" ? (
                             <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} defaultsOf={defaultsOf} info={info} />
                         ) : (
-                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} defaultsOf={defaultsOf} rangeOf={rangeOf} locale={locale} info={info} />
+                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} defaultsOf={defaultsOf} rangeOf={rangeOf} locale={locale} info={info} state={state} />
                         )
                     }
                 </MenuButton>
             )}
-            {info ? <InfoButton info={info} name={fieldLabel(sourceOf(view, field), labels.core)} labels={labels} className="pk-chip-info" /> : null}
+            {info && showInfo ? <InfoButton info={info} name={fieldLabel(sourceOf(view, field), labels.core)} labels={labels} className="pk-chip-info" /> : null}
             <button type="button" className="pk-chip-x" onClick={remove} aria-label={fill(labels.removeField, { field: text })} title={fill(labels.removeField, { field: text })}>
                 <Icon name="x" size={14} />
             </button>
@@ -160,7 +160,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
     );
 }
 
-function Zone({ zone, entries, labels, children, action }) {
+function Zone({ zone, entries, labels, children, action, explain }) {
     const count = entries.length;
     const { setNodeRef, isOver } = useDropTarget(`zone:${zone}`, { kind: "zone", zone, count });
     const active = useActiveDrag();
@@ -188,6 +188,9 @@ function Zone({ zone, entries, labels, children, action }) {
                     <Icon name={/** @type {any} */ (ZONE_ICON[zone])} size={14} />
                     {labels.zones[zone]}
                 </h3>
+                {/* what the zone does, with an example: shown while tips are on */}
+                {explain ? <InfoButton info={{ description: labels.zoneInfo[zone] }} name={labels.zones[zone]} labels={labels} className="pk-zone-info" testId={`zone-info-${zone}`} /> : null}
+                <span className="pk-grow" />
                 {action}
             </div>
             <ChipList ids={entries.map((e) => e.id)}>
@@ -246,11 +249,13 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
  *   commit: (view: object, note?: any) => void, openFilter: (field: string, anchor: HTMLElement) => void,
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
  *   id: string, folded: boolean, onShow: () => void, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
- *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined }} props
+ *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean }} props
+ *   `explain`: an "i" next to each zone's title that says what the zone does; `showInfo` false: no "i"
+ *   of a field description on the chips (Options → Help)
  *   `folded`: the compact layout's one line; `defaultsOf`: the host's settings for a source field (fieldDefaults);
  *   `infoOf`: the host's description of a field (its source field's for a grouping)
  */
-export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf }) {
+export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf, explain = false, showInfo = true }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -334,6 +339,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                     zone={zone}
                     entries={entries[zone]}
                     labels={labels}
+                    explain={explain}
                     action={
                         zone === "cols" ? (
                             // the text goes when the zone is too narrow (styles.css): the title keeps it as a tooltip
@@ -365,6 +371,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             defaultsOf={defaultsOf}
                             rangeOf={rangeOf}
                             info={e.field ? infoOf?.(e.field) : undefined}
+                            showInfo={showInfo}
                         />
                     ))}
                 </Zone>

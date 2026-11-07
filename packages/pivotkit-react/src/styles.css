@@ -2144,6 +2144,258 @@
     width: 100%;
 }
 
+/* ---- text fields with a clear button (clear-input.jsx) ---- */
+
+.pk-clear-input {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 6em;
+}
+
+.pk-clear-input > input,
+.pk-clear-input > textarea {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+}
+
+/* room for the x inside the field */
+.pk-inline-form .pk-clear-input > input,
+.pk-condition .pk-clear-input > input {
+    padding-right: calc(var(--pk-target) + 6px);
+}
+
+.pk-clear-input > textarea {
+    box-sizing: border-box;
+    min-height: 6em;
+    padding: 0.45em calc(var(--pk-target) + 8px) 0.45em 0.6em;
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    color: var(--pk-text);
+    font: inherit;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--pk-small);
+    resize: vertical;
+}
+
+.pk-clear-input > textarea:focus {
+    outline: none;
+    border-color: var(--pk-accent);
+    box-shadow: 0 0 0 3px var(--pk-accent-soft);
+}
+
+/* the browser's own clear button of a search field: the report has its own */
+.pk-clear-input > input[type="search"]::-webkit-search-cancel-button {
+    display: none;
+}
+
+.pk-clear-x {
+    position: absolute;
+    right: 2px;
+    display: inline-grid;
+    place-items: center;
+    width: var(--pk-target);
+    height: var(--pk-target);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--pk-muted);
+    cursor: pointer;
+    transition: background var(--pk-duration), color var(--pk-duration);
+}
+
+.pk-clear-multi > .pk-clear-x {
+    top: 4px;
+    right: 4px;
+}
+
+.pk-clear-x:hover {
+    background: var(--pk-surface-3);
+    color: var(--pk-text);
+}
+
+/* the search fields are short: the x sits at their end */
+.pk-search .pk-clear-input {
+    min-width: 0;
+}
+
+.pk-search .pk-clear-x {
+    right: -6px;
+}
+
+/* ---- menus: what is set, sharing, loading a view ---- */
+
+.pk-option.pk-accent,
+.pk-option.pk-accent .pk-option-icon {
+    color: var(--pk-accent);
+    font-weight: 600;
+}
+
+.pk-menu-hint {
+    margin: 0;
+    padding: 2px 8px 6px;
+    font-size: var(--pk-small);
+}
+
+.pk-remove-filter {
+    align-self: flex-start;
+    margin-bottom: 6px;
+}
+
+.pk-load-view .pk-hint {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.pk-load-view .pk-clear-input {
+    flex-basis: 100%;
+}
+
+.pk-chart-menu {
+    width: 340px;
+}
+
+.pk-chart-menu .pk-switch {
+    margin-top: 4px;
+}
+
+/* the i next to a zone's title: as small as the title */
+.pk-zone-info {
+    margin-left: -0.3em;
+}
+
+/* the category axis names every n-th category only: said under the chart */
+.pk-axis-note {
+    flex: none;
+    margin: 0;
+    padding: 2px 12px 6px;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    text-align: center;
+    pointer-events: none;
+}
+
+/* ---- skeleton (skeleton.jsx) ---- */
+
+.pk-skeleton {
+    flex: 1;
+    min-height: 0;
+    padding: 12px;
+    overflow: hidden;
+}
+
+.pk-skeleton-full {
+    display: flex;
+    height: 100%;
+    padding: 0;
+}
+
+.pk-skel-layout {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.pk-skel-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: var(--pk-panel-w);
+    padding: 16px 14px;
+    border-right: 1px solid var(--pk-border);
+    background: var(--pk-surface-2);
+}
+
+.pk-root[data-pk-size="narrow"] .pk-skel-panel {
+    display: none;
+}
+
+.pk-skel-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px;
+}
+
+.pk-skel-toolbar,
+.pk-skel-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pk-skel-grow {
+    flex: 1;
+}
+
+.pk-skel-zones {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.pk-skel-table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+.pk-skel {
+    display: block;
+    border-radius: var(--pk-radius-sm);
+    background: linear-gradient(90deg, var(--pk-surface-3) 0%, var(--pk-surface-2) 50%, var(--pk-surface-3) 100%);
+    background-size: 200% 100%;
+    animation: pk-shimmer calc(var(--pk-duration) * 8) ease-in-out infinite;
+}
+
+.pk-skel-title {
+    width: 40%;
+    height: 1.2em;
+}
+
+.pk-skel-field {
+    height: 1.9em;
+}
+
+.pk-skel-btn {
+    width: 5.5em;
+    height: 2.2em;
+}
+
+.pk-skel-wide {
+    width: 9em;
+}
+
+.pk-skel-zone {
+    height: 4.2em;
+    border-radius: var(--pk-radius);
+}
+
+.pk-skel-cell {
+    flex: 1;
+    height: 1.6em;
+}
+
+.pk-skel-head {
+    flex: 1.6;
+}
+
+@keyframes pk-shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: -100% 0;
+    }
+}
+
 /* ---- motion ---- */
 
 @keyframes pk-pop {

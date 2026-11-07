@@ -60,7 +60,7 @@
 
 /**
  * @typedef {object} ExportFile  a file the report made, before it is downloaded
- * @property {"xlsx" | "csv" | "png"} kind
+ * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view (Templates, "Download view")
  * @property {string} fileName  with the extension ("pivot.xlsx"), made safe
  * @property {Blob} blob
  */
@@ -100,9 +100,25 @@
  *   (none, and no switch in Options), or the ids of the tips allowed (an array, or a comma-separated text)
  * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per
  *   report on a page); without it they are remembered until the page is loaded again
- * @property {string[]} [dismissedTips]  dismissed tip ids from the host's own storage ("*": all tips off)
+ * @property {string[]} [dismissedTips]  dismissed tip ids from the host's own storage ("*": all tips off,
+ *   "-fieldInfo" and "-zoneInfo": those switches of Options → Help off)
  * @property {(change: TipDismiss) => void} [onTipDismiss]  every dismissal, "Show tips" and
  *   "Show dismissed tips again", with the whole list, for a host that stores it itself
+ * @property {Record<string, unknown>} [chartOptions]  plain JSON merged over the ECharts option the
+ *   report builds (objects key by key; an object given for a list such as `series` into every entry);
+ *   it wins over the view's chart settings. Functions and values that are not plain JSON are left
+ *   out with a console warning
+ * @property {boolean | string} [shareLink]  "Copy link" in the Templates menu and opening a shared
+ *   link: `true` links to the page's own address, a string to that base URL; the view travels in the
+ *   URL fragment (`#pivot=`, `#pivot-<storageKey>=` with a storageKey). Off by default
+ * @property {"session"} [persistView]  "session": the view is kept in sessionStorage for this tab
+ *   (per `storageKey`) and comes back when the page is loaded again
+ * @property {"on" | "off"} [fieldInfo]  the "i" of the field descriptions: "on" or "off" decides it
+ *   (and Options has no switch for it); without it the user switches it in Options → Help (on by default,
+ *   remembered like the tips). Screen readers keep the descriptions either way
+ * @property {"on" | "off"} [zoneInfo]  the "i" next to the zone titles that explains each zone, as `fieldInfo`
+ * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
+ *   the first data) or covers its result (later loads)
  */
 
 /**

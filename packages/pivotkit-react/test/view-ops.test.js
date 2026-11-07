@@ -4,8 +4,10 @@ import { computePivot, encode, normalize } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
-    binProblem, numberRange, withHostOrders, zoneOverLimit
+    binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding
 } from "../src/view-ops.js";
+import { filterText } from "../src/names.js";
+import { LABELS } from "../src/labels.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
 const data = encode([
@@ -128,7 +130,7 @@ test("sort, values, collapse, chart", () => {
     assert.deepEqual(toggleCollapsed(v, "rows", ["North"]).collapsed.rows, []);
     assert.deepEqual(reorder(v, "rows", 0, 1).collapsed.rows, [], "collapsed paths belong to the old field order");
     const c = setChart(v, "stacked");
-    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false }]);
+    assert.deepEqual([c.display, c.chart], ["chart", { type: "bar", stacked: true, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: true }]);
     assert.equal(chartTypeOf(c.chart), "stacked");
     assert.equal(isEmptyView(empty), true);
     assert.equal(defaultAgg("date"), "count");
@@ -275,4 +277,62 @@ test("the range form: the numbers of a field, and a start too far from them", ()
     assert.equal(binProblem(0.5, 1e17, quakes), "far");
     assert.equal(binProblem(0.5, -1e16, quakes), "far");
     assert.equal(binProblem(0.5, 1e17, null), null);
+});
+
+test("chart display settings change without the type, and stay when the type changes", () => {
+    const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
+    const shown = setChartDisplay(v, { valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: true });
+    assert.deepEqual(shown.chart, { type: "bar", stacked: false, horizontal: false, valueLabels: "value", legend: "bottom", title: "Units", smooth: true, axisLabels: "auto", groupLabels: true });
+    // the display mode is the user's: a setting does not switch to the chart
+    assert.equal(shown.display, "table");
+    const line = setChart(shown, "line");
+    assert.deepEqual([line.chart.type, line.chart.title, line.chart.legend, line.chart.smooth], ["line", "Units", "bottom", true]);
+    assert.deepEqual(norm(line).chart, line.chart);
+});
+
+test("Remove filter takes the item list and the text condition, keeps Top N and the field in Filters", () => {
+    let v = norm({ rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
+    v = setItemFilter(v, "Region", ["North"], ["North", "South", "West"]);
+    v = setLabelFilter(v, "Region", { op: "contains", value: "o" });
+    v = setTopFilter(v, "Region", { count: 2, bottom: false });
+    assert.equal(hasFilter(v, "Region"), true);
+    const removed = removeFilters(v, "Region");
+    assert.deepEqual(removed.filters.map((f) => f.type), ["top"]);
+    assert.equal(hasFilter(removed, "Region"), false);
+    // Top N alone is no filter here: it has its own control
+    assert.equal(hasFilter(setTopFilter(norm({ rows: ["Region"] }), "Region", { count: 1 }), "Region"), false);
+    // a field of the Filters zone stays there, filtering nothing
+    let z = addField(norm({}), "Product", "filters");
+    z = setItemFilter(z, "Product", ["A"], ["A", "B"]);
+    assert.deepEqual(removeFilters(z, "Product").filters, [{ field: "Product", type: "exclude", items: [] }]);
+    assert.deepEqual(filterZoneFields(removeFilters(z, "Product")), ["Product"]);
+});
+
+test("the menu says what a filter keeps: shown of total, the condition, by value", () => {
+    const labels = LABELS.en;
+    let v = norm({ rows: ["Region"] });
+    assert.equal(filterText(v, "Region", null, labels, "en-US"), null);
+    v = setLabelFilter(v, "Region", { op: "contains", value: "or" });
+    assert.equal(filterText(v, "Region", { summary: { shown: 15, total: 1045 } }, labels, "en-US"), "Filter: 15 of 1,045, contains “or”");
+    assert.equal(filterText(v, "region", null, LABELS.de, "de-DE"), "Filter: enthält “or”");
+    assert.equal(filterText({ filters: [{ field: "Region", type: "value", op: "gt", value: 1 }] }, "Region", null, labels, "en-US"), "Filter: by value");
+});
+
+test("expand all and collapse all are offered only when they change something, and say why not", () => {
+    const one = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
+    assert.deepEqual(rowFolding(one, []), { canExpand: false, canCollapse: false, collapsed: 0, open: 0, why: { expand: "expandNothing", collapse: "collapseNeedsRows" } });
+    const two = norm({ rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] });
+    const outer = [["North"], ["South"], ["West"]];
+    assert.deepEqual(rowFolding(two, outer), { canExpand: false, canCollapse: true, collapsed: 0, open: 3, why: { expand: "expandNothing", collapse: null } });
+    const some = toggleCollapsed(two, "rows", ["South"]);
+    assert.deepEqual([rowFolding(some, outer).canExpand, rowFolding(some, outer).canCollapse, rowFolding(some, outer).open], [true, true, 2]);
+    let all = some;
+    for (const p of [["North"], ["West"]]) {
+        all = toggleCollapsed(all, "rows", p);
+    }
+    assert.deepEqual(rowFolding(all, outer), { canExpand: true, canCollapse: false, collapsed: 3, open: 0, why: { expand: null, collapse: "collapseAllDone" } });
+    for (const key of ["expandNothing", "collapseNeedsRows", "collapseAllDone"]) {
+        assert.equal(typeof LABELS.en[key], "string");
+        assert.equal(typeof LABELS.de[key], "string");
+    }
 });

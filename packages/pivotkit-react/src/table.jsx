@@ -56,10 +56,10 @@ function firstValueCell(grid) {
 }
 
 /** A header cell that can be dragged into a zone: a field name in the corner or a value name. */
-function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope, description }) {
+function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope, description, tooltip = true }) {
     const { setNodeRef, isDragging, itemProps } = useDragSource(`table:${source.zone}:${source.index}:${source.field ?? ""}`, source);
     return (
-        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind} title={description} aria-description={description}>
+        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind} title={tooltip ? description : undefined} aria-description={description}>
             {children}
             <Icon name="grip" size={12} className="pk-th-grip" />
         </th>
@@ -81,12 +81,12 @@ function Toggle({ toggle, text, labels, onToggle }) {
 /**
  * @param {{ grid: import("pivotkit-core").Grid, view: any, labels: import("./labels.js").UiLabels,
  *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: unknown, hintId?: string,
- *   onRowLabel?: (label: string | null) => void, infoOf?: (field: string) => { description?: string } | undefined }} props
+ *   onRowLabel?: (label: string | null) => void, infoOf?: (field: string) => { description?: string } | undefined, showInfo?: boolean }} props
  *   `onRowLabel`: the whole label of the row of a focused value or a tapped row label while the table
  *   is virtual (its labels are cut to one line); null when there is none to show; `infoOf`: the host's
- *   description of a field
+ *   description of a field; `showInfo` false: no tooltip for it (the accessible description stays)
  */
-export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, onRowLabel, infoOf }) {
+export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, onRowLabel, infoOf, showInfo = true }) {
     const wrap = useRef(/** @type {HTMLDivElement | null} */ (null));
     const table = useRef(/** @type {HTMLTableElement | null} */ (null));
     const bodyCount = grid.rows.length - grid.headerRows;
@@ -282,7 +282,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "corner" && cell.field) {
             const zone = view.rows.includes(cell.field) ? "rows" : "cols";
             return (
-                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.text }} description={infoOf?.(cell.field)?.description}>
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.text }} description={infoOf?.(cell.field)?.description} tooltip={showInfo}>
                     {content}
                 </DraggableHeader>
             );
@@ -290,7 +290,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "colHeader" && cell.valueIndex !== undefined && r === grid.headerRows - 1) {
             const spec = view.values[cell.valueIndex];
             return (
-                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }} description={spec?.field ? infoOf?.(spec.field)?.description : undefined}>
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }} description={spec?.field ? infoOf?.(spec.field)?.description : undefined} tooltip={showInfo}>
                     {content}
                 </DraggableHeader>
             );

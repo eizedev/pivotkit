@@ -111,3 +111,41 @@ export function rowLabelInterval(rows, height) {
     const h = Math.max(0, height - HEATMAP_FRAME.y) / Math.max(1, rows);
     return h >= LABEL_LINE ? 0 : Math.ceil(LABEL_LINE / Math.max(h, 0.1)) - 1;
 }
+
+/** Width (px) a category label of bars, lines and areas takes at most: a longer one ends in "…" (the tooltip has it whole). */
+export const CATEGORY_LABEL_WIDTH = 120;
+/** Room (px) of a chart that is not its category axis: the value axis and the margins. */
+const AXIS_FRAME = { x: 80, y: 60 };
+
+/**
+ * How the category axis of bars, lines and areas writes its labels (`chart.axisLabels`):
+ * - "auto": every label straight when the longest fits its slot, else slanted by 45 degrees while a
+ *   line fits each slot, else every n-th slanted (`every` > 1, the chart says so in a note);
+ * - "all": every label, slanted when they do not fit straight;
+ * - "nth": straight, every n-th so they never overlap.
+ * Along a vertical axis (horizontal bars) the labels stay straight: every one while a line fits each
+ * row, else every n-th. A label is cut at CATEGORY_LABEL_WIDTH; character width estimated at 0.55 of the font size.
+ * @param {string[]} names
+ * @param {{ width: number, height: number, horizontal?: boolean, mode?: string, fontSize?: number }} box
+ * @returns {{ rotate: number, interval: number, every: number, width: number, overflow: "truncate" }}
+ */
+export function categoryLabelLayout(names, { width, height, horizontal = false, mode = "auto", fontSize = 12 }) {
+    const n = Math.max(1, names.length);
+    const cut = { width: CATEGORY_LABEL_WIDTH, overflow: /** @type {const} */ ("truncate") };
+    const every = (slot, need) => Math.max(1, Math.ceil(need / Math.max(slot, 0.1)));
+    const result = (rotate, step) => ({ rotate, interval: step - 1, every: step, ...cut });
+    if (horizontal) {
+        // one line of 12 px text per row: a row of 13 px holds it
+        const slot = Math.max(0, height - AXIS_FRAME.y) / n;
+        return result(0, mode === "all" ? 1 : every(slot, fontSize + 1));
+    }
+    const slot = Math.max(0, width - AXIS_FRAME.x) / n;
+    const longest = Math.min(CATEGORY_LABEL_WIDTH, Math.max(0, ...names.map((t) => String(t).length)) * fontSize * 0.55);
+    if (mode === "nth") {
+        return result(0, every(slot, longest + 8));
+    }
+    if (longest + 8 <= slot) {
+        return result(0, 1);
+    }
+    return result(45, mode === "all" ? 1 : every(slot, LABEL_LINE));
+}

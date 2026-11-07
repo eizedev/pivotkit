@@ -7,11 +7,12 @@
 
 import React, { useId, useState } from "react";
 import { CATALOG, aggregatorsFor, fieldLabel, isFormat } from "pivotkit-core";
+import { ClearInput } from "./clear-input.jsx";
 import { FieldDescription } from "./info.jsx";
 import { fill } from "./labels.js";
-import { groupingName, valueLabel } from "./names.js";
+import { filterText, groupingName, valueLabel } from "./names.js";
 import { Option, Section } from "./popover.jsx";
-import { ZONES, binProblem, filtersOf, groupField, groupingOf, isFiltered, moveField, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, moveField, removeFilters, reorder, setSort, setTopFilter, sortOf, sourceOf, updateValue } from "./view-ops.js";
 
 /** The formats the value menu offers; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "integer", "currency", "percent", "compact", "bytes", "duration:h", "duration:s"].filter(isFormat);
@@ -59,7 +60,7 @@ function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
             </label>
             <label className="pk-field-label">
                 <span>{labels.binStart}</span>
-                <input type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={(e) => setStart(e.target.value)} data-testid="bin-start" aria-invalid={far || undefined} aria-describedby={far ? problemId : undefined} />
+                <ClearInput type="number" inputMode="decimal" step="any" value={start} placeholder="0" onChange={setStart} clearLabel={labels.clearText} data-testid="bin-start" aria-invalid={far || undefined} aria-describedby={far ? problemId : undefined} />
             </label>
             {far && range ? (
                 <p id={problemId} className="pk-form-problem" data-testid="bin-problem">
@@ -126,7 +127,7 @@ function RemoveFoot({ labels, onRemove, close }) {
 }
 
 /** The menu of a chip on Rows or Columns. */
-export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, defaultsOf, rangeOf, locale, info }) {
+export function AxisMenu({ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove, defaultsOf, rangeOf, locale, info, state }) {
     const source = sourceOf(view, field);
     const name = fieldLabel(field, labels.core);
     const sourceType = types.get(source.toLowerCase());
@@ -189,9 +190,21 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     <TopForm top={top} labels={labels} firstName={firstName} onApply={(t) => { close(); commit(setTopFilter(view, field, t ? { ...t, by: firstRef } : null), { step: "top", field: name }); }} />
                 </Section>
                 <Section title={labels.zones.filters}>
-                    <Option icon="filter" onSelect={() => { close(); openFilter(field, chipRef.current); }} checked={isFiltered(view, field) ? true : undefined} testId="open-filter">
-                        {labels.filter}
-                    </Option>
+                    {/* a filter says what it keeps, in the accent colour, and can go right below */}
+                    {hasFilter(view, field) ? (
+                        <>
+                            <Option icon="filter" tone="accent" onSelect={() => { close(); openFilter(field, chipRef.current); }} testId="open-filter">
+                                {filterText(view, field, state, labels, locale)}
+                            </Option>
+                            <Option icon="x" onSelect={() => { close(); commit(removeFilters(view, field), { step: "filter", field: name }); }} testId="remove-filter">
+                                {labels.removeFilter}
+                            </Option>
+                        </>
+                    ) : (
+                        <Option icon="filter" onSelect={() => { close(); openFilter(field, chipRef.current); }} testId="open-filter">
+                            {labels.filter}
+                        </Option>
+                    )}
                 </Section>
                 <MoveSection view={view} zone={zone} index={index} count={view[zone].length} labels={labels} commit={commit} close={close} text={name} type={sourceType} />
             </div>
@@ -286,9 +299,23 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                 ) : null}
                 <Section title={labels.rename}>
                     <form className="pk-inline-form" onSubmit={(e) => { e.preventDefault(); set({ label: rename.trim() || null }); }}>
-                        <input type="text" value={rename} placeholder={valueLabel({ ...spec, label: null }, labels)} onChange={(e) => setRename(e.target.value)} aria-label={labels.rename} maxLength={200} />
+                        {/* the × gives the value its default name back at once (one undo step); the default is the placeholder */}
+                        <ClearInput
+                            type="text"
+                            value={rename}
+                            placeholder={valueLabel({ ...spec, label: null }, labels)}
+                            onChange={setRename}
+                            onClear={() => (spec.label ? commit(updateValue(view, index, { label: null }), { step: "value", field: name }) : undefined)}
+                            clearLabel={labels.defaultName}
+                            aria-label={labels.rename}
+                            maxLength={200}
+                            data-testid="value-name"
+                        />
                         <button type="submit" className="pk-btn pk-primary">{labels.apply}</button>
                     </form>
+                </Section>
+                <Section title={labels.zones.filters}>
+                    <p className="pk-hint pk-menu-hint" data-testid="values-filter-hint">{labels.valuesFilterHint}</p>
                 </Section>
                 <MoveSection view={view} zone="values" index={index} count={view.values.length} labels={labels} commit={commit} close={close} text={name} type={type} />
             </div>

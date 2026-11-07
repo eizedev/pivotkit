@@ -98,9 +98,14 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
 | `tips` | `"on" \| "off" \| string \| string[]` | `"on"` | The tips above the result (at most two at a time, each dismissible): all, none (and no switch in Options), or the tip ids allowed. The ids and when each shows are on the [documentation site](https://pivotkit.eize.dev/reference/react/#tips). |
 | `storageKey` | `string` | | Remembers dismissed tips in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. |
-| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off). |
-| `onTipDismiss` | `({ id, dismissed }) => void` | | Every dismissal, "Show tips" off and on, "Show dismissed tips again", with the whole list to store. |
-| `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
+| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off). |
+| `onTipDismiss` | `({ id, dismissed }) => void` | | Every dismissal, "Show tips" off and on, the other help switches, "Show dismissed tips again", with the whole list to store. |
+| `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for "Download view"; the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
+| `fieldInfo`, `zoneInfo` | `"on" \| "off"` | | Decide the "i" of the field descriptions and of the zones; without them the user switches each in Options, Help (on by default, remembered like the tips). Screen readers keep the field descriptions either way. |
+| `chartOptions` | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. Functions and values that are not JSON are left out with a warning. [Charts](https://pivotkit.eize.dev/concepts/charts/#chartoptions-for-developers). |
+| `shareLink` | `boolean \| string` | off | "Copy link" in Templates and opening shared links: `true` for the page's address, a string as base URL. The view is in the fragment, `#pivot=` or `#pivot-<storageKey>=`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
+| `persistView` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storageKey`); a reload shows it again. |
+| `loading` | `boolean` | `false` | The host is loading data: the skeleton before the first data, the result covered on later loads. |
 
 Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
 `ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and

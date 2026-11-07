@@ -12,6 +12,36 @@ First release.
 
 ### Added
 
+- Chart display settings in the chart type menu ("Display"): value labels, legend, title, smooth
+  lines, axis labels (all straight when they fit, slanted, else every n-th with a note; long names cut
+  with "…", whole in the tooltip) and group labels under the axis for two or more row fields; kept in
+  the view, so templates, links and the PNG export show them. A tip suggests bars for lines over
+  categories without an order (`chartTrend`, "Switch to Bars").
+- `chartOptions`: plain JSON merged over the ECharts option (lists entry by entry, an object into
+  every entry of a list); it wins over the view's settings; functions and values that are not JSON
+  are left out with a warning.
+- Sharing in the Templates menu: Copy link (with `shareLink`: `true` or a base URL; the view in the
+  fragment, `#pivot=` or `#pivot-<storageKey>=`, read after the first render and on a fragment
+  change), Copy view as JSON, Download view (.json) (`onExport` kind `"json"`), Load view… from
+  pasted JSON, a link or a file; what does not fit the data is named in plain words.
+- `persistView="session"`: the view kept per tab in `sessionStorage`; Reset stores the start view.
+- `loading` and a skeleton (toolbar, zones, table rows, `role="status"`, `aria-busy`, reduced motion
+  respected) while the host loads data, while more than 10,000 rows are encoded the first time and
+  while a link is read.
+- Filters say what they keep: "Filter: 15 of 45" or the condition in the chip menu, in the accent
+  colour, with "Remove filter" right below; "Remove filter" at the top of the filter popover; the ×
+  of the text condition removes it at once.
+- One clear "×" for every text field in a menu (field search, value name, "Starting at", template
+  name, filter search and condition, Load view): it empties the field and keeps the focus there,
+  Escape does the same first; a value's name goes back to its default at once, as one undo step.
+- "Filter…" in the field list for a field not placed: its filter opens at once, Apply puts it into
+  Filters with the selection.
+- The Values menu says where filtering happens; an "i" next to each zone's title explains it with an
+  example; the field list's grip says "Drag into a zone" and opens the field's menu on a click.
+- Options, Help: "Show tips", "Show field descriptions" and "Show zone explanations", remembered
+  with the tips; `fieldInfo` and `zoneInfo` ("on", "off") decide them for the host.
+- Expand all and Collapse all are offered only when they change something, say why not, and report
+  what they did ("5 groups collapsed").
 - Notices and tips above the result, from one table (`tips.js`). Notices, always shown and not
   dismissible: a filter that leaves nothing (with "Remove filter"), top N, the chart's category cap.
   Tips: what 100 % is for a percentage, dates on Columns and many

@@ -55,6 +55,7 @@ export const en = {
     move: "Move",
     moveTo: "Move to {zone}",
     dragHandle: "Drag {field}",
+    dragIntoZone: "Drag into a zone",
     moveLeft: "Move left",
     moveRight: "Move right",
     remove: "Remove",
@@ -274,6 +275,8 @@ export const en = {
         template: "template “{name}”",
         reset: "back to the start view",
         outside: "change from outside the report",
+        viewLoaded: "view loaded",
+        chartDisplay: "chart display",
         change: "last change"
     },
     // tips above the result (tips.js): when each shows is in the TIPS table
@@ -293,6 +296,7 @@ export const en = {
             percentDifferenceFromPrevious: "The previous item is 100 %: each value says how much it grew or shrank from it."
         },
         chartDates: "The dates are on Columns, so each date is a line of its own. Swap rows and columns to draw the dates along the axis.",
+        chartTrend: "Lines connect points into a trend. For categories such as countries, bars fit better.",
         chartSeries: "{count} series are hard to tell apart. Swap rows and columns, or filter Columns to fewer items.",
         textValue: "{field} is text, so Values counts its entries. Use a number field for sums.",
         dateUngrouped: "{field} makes a row or column for every date. Group it by {unit} to read it more easily.",
@@ -307,11 +311,14 @@ export const en = {
         removeFilters: "Remove filter",
         swap: "Swap rows and columns",
         groupDate: "Group by {unit}",
-        saveTemplate: "Save as template"
+        saveTemplate: "Save as template",
+        bars: "Switch to Bars"
     },
     dismissTip: "Dismiss tip",
     tipsTitle: "Tips",
     showTips: "Show tips",
+    showFieldInfo: "Show field descriptions",
+    showZoneInfo: "Show zone explanations",
     resetTips: "Show dismissed tips again",
     help: "Help",
     shortcutsTitle: "Keyboard shortcuts",
@@ -340,7 +347,72 @@ export const en = {
     panel: "Field list",
     showFields: "Fields",
     hideFields: "Close field list",
-    dropToRemove: "Drop here to remove"
+    dropToRemove: "Drop here to remove",
+    // while the report waits for its data or a shared view
+    loadingReport: "Loading the report…",
+    // chart display (the chart type menu)
+    chartDisplay: "Display",
+    valueLabels: "Value labels",
+    valueLabelNames: { auto: "Automatic", off: "Off", value: "Value", percent: "Percent", both: "Value and percent" },
+    legend: "Legend",
+    legendNames: { auto: "Automatic", bottom: "Bottom", right: "Right", off: "Off" },
+    chartTitle: "Title",
+    chartTitleNone: "No title",
+    smoothLines: "Smooth lines",
+    axisLabels: "Axis labels",
+    axisLabelNames: { auto: "Automatic", all: "All (slanted)", nth: "Every n-th" },
+    groupLabels: "Group labels under the axis",
+    axisEvery: "One label in every {n} is shown; point at a bar or point for its name.",
+    // the × in a text field
+    clearText: "Clear",
+    defaultName: "Use the default name",
+    // sharing a view (the Templates menu)
+    share: "Share this view",
+    copyLink: "Copy link",
+    copyJson: "Copy view as JSON",
+    downloadView: "Download view (.json)",
+    loadView: "Load view…",
+    loadViewHint: "Paste a view as JSON or a link, or choose a .json file.",
+    loadViewText: "View as JSON or link",
+    chooseFile: "Choose file…",
+    load: "Load",
+    toastLinkCopied: "Link copied",
+    toastJsonCopied: "View copied as JSON",
+    toastCopyFailed: "This page does not allow copying. Use “Download view” instead.",
+    toastLinkTooLong: "This view is too large for a link. Use “Download view” instead.",
+    toastViewLoaded: "View loaded",
+    toastLinkOpened: "Opened the view from the link",
+    viewLeftOut: "Some parts did not fit this data and were left out: {parts}",
+    viewMissingFields: "fields this data does not have ({fields})",
+    viewOtherIssue: "{count} other setting",
+    viewOtherIssues: "{count} other settings",
+    viewFailed: {
+        empty: "Paste a view or choose a file first.",
+        tooLarge: "This is too large for a view.",
+        notJson: "This is neither a view in JSON nor a pivotkit link.",
+        notView: "This is not a pivotkit view.",
+        newer: "This view comes from a newer version of pivotkit and cannot be read here.",
+        badLink: "This link is damaged or not a pivotkit link.",
+        file: "The file could not be read."
+    },
+    // filters
+    filterIs: "Filter: {filter}",
+    filterByValue: "by value",
+    removeFilter: "Remove filter",
+    valuesFilterHint: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters.",
+    // the i next to each zone's title (shown while tips are on)
+    zoneInfo: {
+        rows: "Rows group the report by a field: each of its items gets a row. Example: Region in Rows lists North, South and West one below the other.",
+        cols: "Columns split every row by a field: each of its items gets a column. Example: Year in Columns puts 2024 and 2025 side by side.",
+        values: "Values are the numbers in the cells, summed, counted or averaged for each row and column. Example: Revenue in Values shows the revenue of each region.",
+        filters: "Filters keep only some items of a field in the whole report, without a row or column for it. Example: Country in Filters with only Germany selected."
+    },
+    // Options: expand and collapse all
+    expandNothing: "Nothing is collapsed.",
+    collapseNeedsRows: "Needs two or more fields in Rows.",
+    collapseAllDone: "Every group is collapsed already.",
+    groupsCollapsed: { one: "{count} group collapsed", other: "{count} groups collapsed" },
+    groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" }
 };
 
 export const de = {
@@ -404,6 +476,7 @@ export const de = {
     move: "Verschieben",
     moveTo: "Nach {zone} verschieben",
     dragHandle: "{field} ziehen",
+    dragIntoZone: "In einen Bereich ziehen",
     moveLeft: "Nach links",
     moveRight: "Nach rechts",
     remove: "Entfernen",
@@ -612,6 +685,8 @@ export const de = {
         template: "Vorlage „{name}“",
         reset: "zurück zur Startansicht",
         outside: "Änderung von außerhalb des Berichts",
+        viewLoaded: "Ansicht geladen",
+        chartDisplay: "Diagrammdarstellung",
         change: "letzte Änderung"
     },
     tips: {
@@ -629,6 +704,7 @@ export const de = {
             percentDifferenceFromPrevious: "Der vorherige Eintrag ist 100 %: Jeder Wert sagt, wie viel er gegenüber ihm gewachsen oder geschrumpft ist."
         },
         chartDates: "Die Daten liegen in Spalten, so wird jedes Datum eine eigene Linie. Zeilen und Spalten tauschen, um die Daten entlang der Achse zu zeichnen.",
+        chartTrend: "Linien verbinden Punkte zu einem Verlauf. Für Kategorien wie Länder passen Balken besser.",
         chartSeries: "{count} Reihen sind schwer zu unterscheiden. Zeilen und Spalten tauschen oder Spalten auf weniger Einträge filtern.",
         textValue: "{field} ist Text, darum werden seine Einträge gezählt. Für Summen ein Zahlenfeld verwenden.",
         dateUngrouped: "{field} macht für jedes Datum eine Zeile oder Spalte. Nach {unit} gruppiert ist es leichter zu lesen.",
@@ -643,11 +719,14 @@ export const de = {
         removeFilters: "Filter entfernen",
         swap: "Zeilen und Spalten tauschen",
         groupDate: "Nach {unit} gruppieren",
-        saveTemplate: "Als Vorlage speichern"
+        saveTemplate: "Als Vorlage speichern",
+        bars: "Zu Balken wechseln"
     },
     dismissTip: "Tipp ausblenden",
     tipsTitle: "Tipps",
     showTips: "Tipps zeigen",
+    showFieldInfo: "Feldbeschreibungen zeigen",
+    showZoneInfo: "Erklärungen der Bereiche zeigen",
     resetTips: "Ausgeblendete Tipps wieder zeigen",
     help: "Hilfe",
     shortcutsTitle: "Tastenkürzel",
@@ -674,7 +753,65 @@ export const de = {
     panel: "Feldliste",
     showFields: "Felder",
     hideFields: "Feldliste schließen",
-    dropToRemove: "Zum Entfernen hier ablegen"
+    dropToRemove: "Zum Entfernen hier ablegen",
+    loadingReport: "Bericht wird geladen…",
+    chartDisplay: "Darstellung",
+    valueLabels: "Wertbeschriftung",
+    valueLabelNames: { auto: "Automatisch", off: "Aus", value: "Wert", percent: "Prozent", both: "Wert und Prozent" },
+    legend: "Legende",
+    legendNames: { auto: "Automatisch", bottom: "Unten", right: "Rechts", off: "Aus" },
+    chartTitle: "Titel",
+    chartTitleNone: "Kein Titel",
+    smoothLines: "Geglättete Linien",
+    axisLabels: "Achsenbeschriftung",
+    axisLabelNames: { auto: "Automatisch", all: "Alle (schräg)", nth: "Jede n-te" },
+    groupLabels: "Gruppen unter der Achse",
+    axisEvery: "Jede {n}. Beschriftung wird gezeigt; zeigen Sie auf einen Balken oder Punkt für seinen Namen.",
+    clearText: "Leeren",
+    defaultName: "Standardnamen verwenden",
+    share: "Diese Ansicht teilen",
+    copyLink: "Link kopieren",
+    copyJson: "Ansicht als JSON kopieren",
+    downloadView: "Ansicht herunterladen (.json)",
+    loadView: "Ansicht laden…",
+    loadViewHint: "Eine Ansicht als JSON oder einen Link einfügen oder eine .json-Datei wählen.",
+    loadViewText: "Ansicht als JSON oder Link",
+    chooseFile: "Datei wählen…",
+    load: "Laden",
+    toastLinkCopied: "Link kopiert",
+    toastJsonCopied: "Ansicht als JSON kopiert",
+    toastCopyFailed: "Diese Seite erlaubt kein Kopieren. Nutzen Sie stattdessen „Ansicht herunterladen“.",
+    toastLinkTooLong: "Diese Ansicht ist zu groß für einen Link. Nutzen Sie stattdessen „Ansicht herunterladen“.",
+    toastViewLoaded: "Ansicht geladen",
+    toastLinkOpened: "Ansicht aus dem Link geöffnet",
+    viewLeftOut: "Einige Teile passen nicht zu diesen Daten und wurden weggelassen: {parts}",
+    viewMissingFields: "Felder, die diese Daten nicht haben ({fields})",
+    viewOtherIssue: "{count} weitere Einstellung",
+    viewOtherIssues: "{count} weitere Einstellungen",
+    viewFailed: {
+        empty: "Fügen Sie zuerst eine Ansicht ein oder wählen Sie eine Datei.",
+        tooLarge: "Das ist zu groß für eine Ansicht.",
+        notJson: "Das ist weder eine Ansicht als JSON noch ein pivotkit-Link.",
+        notView: "Das ist keine pivotkit-Ansicht.",
+        newer: "Diese Ansicht stammt aus einer neueren pivotkit-Version und kann hier nicht gelesen werden.",
+        badLink: "Dieser Link ist beschädigt oder kein pivotkit-Link.",
+        file: "Die Datei konnte nicht gelesen werden."
+    },
+    filterIs: "Filter: {filter}",
+    filterByValue: "nach Wert",
+    removeFilter: "Filter entfernen",
+    valuesFilterHint: "Werte werden hier nicht gefiltert: Filtern Sie ein Feld in Zeilen oder Spalten über sein Menü, oder ziehen Sie ein Feld in Filter.",
+    zoneInfo: {
+        rows: "Zeilen gruppieren den Bericht nach einem Feld: Jeder Eintrag bekommt eine Zeile. Beispiel: Region in Zeilen listet Nord, Süd und West untereinander.",
+        cols: "Spalten teilen jede Zeile nach einem Feld: Jeder Eintrag bekommt eine Spalte. Beispiel: Jahr in Spalten stellt 2024 und 2025 nebeneinander.",
+        values: "Werte sind die Zahlen in den Zellen, summiert, gezählt oder gemittelt für jede Zeile und Spalte. Beispiel: Umsatz in Werte zeigt den Umsatz jeder Region.",
+        filters: "Filter behalten nur einige Einträge eines Felds im ganzen Bericht, ohne Zeile oder Spalte dafür. Beispiel: Land in Filter mit nur Deutschland ausgewählt."
+    },
+    expandNothing: "Nichts ist zugeklappt.",
+    collapseNeedsRows: "Braucht zwei oder mehr Felder in Zeilen.",
+    collapseAllDone: "Alle Gruppen sind schon zugeklappt.",
+    groupsCollapsed: { one: "{count} Gruppe zugeklappt", other: "{count} Gruppen zugeklappt" },
+    groupsExpanded: { one: "{count} Gruppe aufgeklappt", other: "{count} Gruppen aufgeklappt" }
 };
 
 /** @type {Readonly<{ en: UiLabels, de: UiLabels }>} */

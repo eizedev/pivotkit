@@ -14,7 +14,7 @@ const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
  * Hands the file to the host's onExport, then downloads it unless onExport returned false.
  * @returns {boolean} whether the report downloaded it
  * @param {Blob} blob
- * @param {{ kind: "xlsx" | "csv" | "png", file: string, doc: Document, onExport?: (file: { kind: "xlsx" | "csv" | "png", fileName: string, blob: Blob }) => unknown }} options
+ * @param {{ kind: "xlsx" | "csv" | "png", file: string, doc: Document, onExport?: (file: { kind: "xlsx" | "csv" | "png" | "json", fileName: string, blob: Blob }) => unknown }} options
  */
 function deliver(blob, { kind, file, doc, onExport }) {
     if (onExport?.({ kind, fileName: file, blob }) === false) {
@@ -28,7 +28,7 @@ function deliver(blob, { kind, file, doc, onExport }) {
  * @param {{ fileName: string, result: import("pivotkit-core").PivotResult | null, locale: string,
  *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
  *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
- *   onExport?: (file: { kind: "xlsx" | "csv" | "png", fileName: string, blob: Blob }) => unknown }} options
+ *   onExport?: (file: { kind: "xlsx" | "csv" | "png" | "json", fileName: string, blob: Blob }) => unknown }} options
  * @returns {(kind: "xlsx" | "csv" | "png") => Promise<void>}
  */
 export function useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport }) {
