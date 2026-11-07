@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
-import { MANY_SERIES, MAX_CATEGORIES, pieLabelRoom } from "../src/chart-types.js";
+import { MANY_SERIES, MAX_CATEGORIES, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
@@ -269,4 +269,19 @@ test("chart tooltips are nodes with texts and CSSOM styles, never markup", () =>
     assert.equal(name.textContent, "<script>");
     assert.equal(value.textContent, "1");
     assert.equal(JSON.stringify(box).includes("innerHTML"), false);
+});
+
+test("heatmap column names: straight when they fit, slanted and cut when they would overlap", () => {
+    const names = ["App", "Database", "Device", "Framework", "Language", "Operating system", "Server app", "Service", "Standard"];
+    // the chart of a report 1440 px wide is about 1100 px
+    assert.deepEqual(columnLabelLayout(names, 1100), { rotate: 0 });
+    assert.deepEqual(columnLabelLayout(names, 390), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });
+    assert.deepEqual(columnLabelLayout(["2024", "2025"], 390), { rotate: 0 });
+    assert.deepEqual(columnLabelLayout([], 390), { rotate: 0 });
+});
+
+test("heatmap cells show their numbers only when they are large enough", () => {
+    assert.equal(heatmapCellLabels(9, 15, 1100, 440), true);
+    assert.equal(heatmapCellLabels(9, 15, 340, 300), false);
+    assert.equal(heatmapCellLabels(0, 0, 0, 0), false);
 });

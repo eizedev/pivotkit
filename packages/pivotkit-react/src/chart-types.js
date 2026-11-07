@@ -54,3 +54,42 @@ export const MAX_CATEGORIES = 50;
 export function pieLabelRoom(height) {
     return Math.round(Math.min(24, Math.max(0, height) * 0.05));
 }
+
+/** Width (px) a slanted column name of a heatmap takes at most; a longer one ends in "…". */
+export const SLANTED_LABEL_WIDTH = 120;
+/** Room (px) of a heatmap's chart that is not cells: the row names, the column names and the colour scale. */
+const HEATMAP_FRAME = { x: 80, y: 120 };
+/** A heatmap cell smaller than this (px) shows its value in the tooltip only: the numbers would overlap. */
+const HEATMAP_LABEL_CELL = { width: 32, height: 16 };
+
+/**
+ * How a heatmap writes its column names along the x axis of a chart `width` px wide: straight when
+ * the longest fits its column, else slanted by 45 degrees and cut at SLANTED_LABEL_WIDTH. Every name is
+ * shown (the core sets interval 0); the width of a character is estimated as 0.55 of the font size.
+ * @param {string[]} names
+ * @param {number} width  the chart's width in px
+ * @param {number} [fontSize]  px, ECharts' default for axis labels
+ * @returns {{ rotate: number, width?: number, overflow?: "truncate" }}
+ */
+export function columnLabelLayout(names, width, fontSize = 12) {
+    if (names.length === 0) {
+        return { rotate: 0 };
+    }
+    const slot = Math.max(0, width - HEATMAP_FRAME.x) / names.length;
+    const longest = Math.max(...names.map((n) => String(n).length)) * fontSize * 0.55;
+    return longest <= slot ? { rotate: 0 } : { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" };
+}
+
+/**
+ * True when the cells of a heatmap of `columns` x `rows` in a chart of `width` x `height` px are large
+ * enough for their numbers.
+ * @param {number} columns
+ * @param {number} rows
+ * @param {number} width
+ * @param {number} height
+ */
+export function heatmapCellLabels(columns, rows, width, height) {
+    const w = Math.max(0, width - HEATMAP_FRAME.x) / Math.max(1, columns);
+    const h = Math.max(0, height - HEATMAP_FRAME.y) / Math.max(1, rows);
+    return w >= HEATMAP_LABEL_CELL.width && h >= HEATMAP_LABEL_CELL.height;
+}

@@ -162,8 +162,11 @@ export function toEChartsOption(result, options) {
             ...base,
             tooltip: { trigger: "item", valueFormatter },
             grid: { top: 16, bottom: 64 },
-            xAxis: { type: "category", data: columns.map((c) => c.name), axisLine, splitArea: { show: true } },
-            yAxis: { type: "category", data: s.categories, axisLine, splitArea: { show: true } },
+            // no split areas: ECharts paints them light grey whatever the theme, so the empty cells
+            // would be the brightest part of a dark chart; an empty cell shows the background
+            // every column is labelled (interval 0): ECharts would otherwise hide every second name
+            xAxis: { type: "category", data: columns.map((c) => c.name), axisLine, axisLabel: { color: theme.textColor, interval: 0 }, splitArea: { show: false } },
+            yAxis: { type: "category", data: s.categories, axisLine, axisLabel: { color: theme.textColor }, splitArea: { show: false } },
             visualMap: {
                 min: data.length ? min : 0,
                 max: data.length ? max : 1,
