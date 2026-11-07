@@ -1,0 +1,312 @@
+{
+ "openapi": "3.1.1",
+ "info": {
+  "title": "endoflife API",
+  "version": "1.2.1",
+  "license": {
+   "name": "MIT License",
+   "url": "https://github.com/endoflife-date/endoflife.date/blob/master/LICENSE"
+  }
+ },
+ "components": {
+  "schemas": {
+   "ProductVersion": {
+    "description": "Information about a product version.",
+    "type": "object",
+    "required": [
+     "name",
+     "date",
+     "link"
+    ],
+    "properties": {
+     "name": {
+      "description": "Name of the version.",
+      "type": "string",
+      "examples": [
+       "22.04.2"
+      ]
+     },
+     "date": {
+      "description": "Release date of the version.\nThis field is null when the information is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "examples": [
+       "2022-04-21"
+      ]
+     },
+     "link": {
+      "description": "Link to the changelog or release notes.\nThis field is null when there is no public link available, or when the information is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "uri",
+      "examples": [
+       "https://wiki.ubuntu.com/JammyJellyfish/ReleaseNotes/"
+      ]
+     }
+    }
+   },
+   "ProductRelease": {
+    "description": "Full information about a product release cycle.",
+    "type": "object",
+    "required": [
+     "name",
+     "codename",
+     "label",
+     "releaseDate",
+     "isLts",
+     "ltsFrom",
+     "isEol",
+     "eolFrom",
+     "isMaintained",
+     "latest"
+    ],
+    "properties": {
+     "name": {
+      "description": "Name of the product release cycle.",
+      "type": "string",
+      "examples": [
+       "22.04"
+      ]
+     },
+     "codename": {
+      "description": "Codename of the product release cycle.\nThis field is null when the release cycle does not have a codename, or when the information is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "examples": [
+       "Jammy Jellyfish"
+      ]
+     },
+     "label": {
+      "description": "Label of the product release cycle.",
+      "type": "string",
+      "examples": [
+       "22.04 'Jammy Jellyfish' (LTS)"
+      ]
+     },
+     "releaseDate": {
+      "description": "Release date of the release cycle.",
+      "type": "string",
+      "format": "date",
+      "examples": [
+       "2022-04-21"
+      ]
+     },
+     "isLts": {
+      "description": "Whether the product release cycle receives long-term support (LTS).",
+      "type": "boolean",
+      "examples": [
+       true
+      ]
+     },
+     "ltsFrom": {
+      "description": "Start date of the LTS phase for the release cycle.\nThis field is null when the isLts field is set to false, when the LTS phase does not start later than the release date, or when the date is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "examples": [
+       "2022-04-21"
+      ]
+     },
+     "isEoas": {
+      "description": "Whether the active support phase is over for the release cycle.\nThis field is not provided when the product does not have an active support phase.\n",
+      "type": "boolean",
+      "examples": [
+       false
+      ]
+     },
+     "eoasFrom": {
+      "description": "End of active support date for the release cycle.\nThis field is not provided when the product does not have an active support phase. It is null when the date is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "examples": [
+       "2024-09-30"
+      ]
+     },
+     "isEol": {
+      "description": "Whether the release cycle is EOL.",
+      "type": "boolean",
+      "examples": [
+       false
+      ]
+     },
+     "eolFrom": {
+      "description": "End of life date for the release cycle.\nThis field is null when the date is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "examples": [
+       "2027-04-01"
+      ]
+     },
+     "isDiscontinued": {
+      "description": "Whether the release cycle is discontinued.\nThis field is mainly used for hardware, it is not provided when not applicable.\n",
+      "type": "boolean",
+      "examples": [
+       false
+      ]
+     },
+     "discontinuedFrom": {
+      "description": "Discontinuation date for the release cycle.\nThis field is mainly used for hardware, it is not provided when not applicable. It is null when the date is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "examples": [
+       "2027-04-01"
+      ]
+     },
+     "isEoes": {
+      "description": "Whether the extended support phase is over for the release cycle.\nThis field is not provided when the product does not have an extended support phase. This field is null when the release cycle is not eligible for extended support.\n",
+      "type": [
+       "boolean",
+       "null"
+      ],
+      "examples": [
+       true
+      ]
+     },
+     "eoesFrom": {
+      "description": "End of extended support date for the release cycle.\nThis field is not provided when the product does not have an extended support phase. It is null when the release cycle is not eligible for extended support or when the date is not known.\n",
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "examples": [
+       "2032-04-09"
+      ]
+     },
+     "isMaintained": {
+      "description": "Whether this release cycle still have some level of support.\nThis can be any level of support, even extended support.\n",
+      "type": "boolean",
+      "examples": [
+       true
+      ]
+     },
+     "latest": {
+      "description": "Latest version for this release cycle.\nThis field is null when this release cycle does not have a latest version documented.\n",
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ProductVersion"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "custom": {
+      "description": "Custom fields for the product release cycle.\nThis field is null when the product does not declare at least one custom fields.\n",
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/UnknownProperties"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "examples": [
+       {
+        "chromeVersion": "M136",
+        "nodeVersion": "22.15"
+       }
+      ]
+     }
+    }
+   },
+   "ProductSummary": {
+    "description": "Summary of a product.",
+    "type": "object",
+    "required": [
+     "name",
+     "label",
+     "aliases",
+     "category",
+     "tags",
+     "uri"
+    ],
+    "properties": {
+     "name": {
+      "description": "Name of the product.",
+      "type": "string",
+      "examples": [
+       "ubuntu"
+      ]
+     },
+     "label": {
+      "description": "Label of the product.",
+      "type": "string",
+      "examples": [
+       "Ubuntu"
+      ]
+     },
+     "aliases": {
+      "description": "Aliases declared for the product (derived from alternate_urls).\nThe array is empty when no alias is declared.\n",
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "examples": [
+       [
+        "ubuntu-linux"
+       ]
+      ]
+     },
+     "category": {
+      "description": "Category of the product.",
+      "type": "string",
+      "examples": [
+       "os"
+      ]
+     },
+     "tags": {
+      "description": "Tags associated to the product.\nGiven the category is also a tag, the array will always contain at least one tag.\n",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "string"
+      },
+      "examples": [
+       [
+        "canonical",
+        "os"
+       ]
+      ]
+     },
+     "uri": {
+      "description": "Link to the full product details.",
+      "type": "string",
+      "format": "uri",
+      "examples": [
+       "https://endoflife.date/api/v1/products/ubuntu/"
+      ]
+     }
+    }
+   },
+   "UnknownProperties": {
+    "description": "Group properties with name not know in advance, such as custom properties.",
+    "type": "object",
+    "additionalProperties": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   }
+  }
+ }
+}

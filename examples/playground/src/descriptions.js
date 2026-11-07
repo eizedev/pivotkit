@@ -1,13 +1,24 @@
 // What each field of the real data sets means (fieldDefaults `description` and `href`), merged over
 // the data sets' own fieldDefaults by `withDescriptions`. Quoted from the source where it documents
-// the field (Open-Meteo's variable list, the World Bank's indicator notes); otherwise it says how
+// the field (Open-Meteo's variable list, the World Bank's indicator notes, the endoflife.date API's
+// OpenAPI document, read with pivotkit-core's fieldDefaultsFromSchema); otherwise it says how
 // data/sources.js made the field from the response. The generated data sets have none: they show a
 // report as it is without descriptions.
+
+import { fieldDefaultsFromSchema } from "pivotkit-core";
+import endoflifeApi from "../data/endoflife-openapi.json";
 
 const OPEN_METEO = "https://open-meteo.com/en/docs/historical-weather-api";
 const WORLD_BANK = (code) => `https://data.worldbank.org/indicator/${code}`;
 const USGS = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php";
 const NOBEL = "https://www.nobelprize.org/about/developer-zone-2/";
+
+const ENDOFLIFE_DOCS = "https://endoflife.date/docs/api/v1/";
+const release = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductRelease" });
+const product = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductSummary" });
+const version = fieldDefaultsFromSchema(endoflifeApi, { schema: "ProductVersion" });
+/** A field of the API's schema as the description of a column of data/sources.js (endoflifeRows). */
+const fromApi = (entry, more = "") => ({ description: `${entry.description}${more}`, href: ENDOFLIFE_DOCS });
 
 /** Per data set: per field, its description and a link to the source's documentation. */
 export const DESCRIPTIONS = {
@@ -50,6 +61,23 @@ export const DESCRIPTIONS = {
         Region: { description: "The part of the place after its last comma (\"Vanuatu\"), or the whole place when it has none." },
         Alert: { description: "Green, yellow, orange or red when USGS's PAGER estimated the impact of the event; blank otherwise.", href: USGS },
         "Tsunami flag": { description: "Yes when USGS set its tsunami flag, which it does for large events in oceanic regions. It does not say that a tsunami happened.", href: USGS }
+    },
+    endoflife: {
+        Product: fromApi(product.label),
+        Category: fromApi(product.category),
+        Cycle: fromApi(release.name),
+        Released: fromApi(release.releaseDate),
+        "EOL date": fromApi(release.eolFrom),
+        EOL: fromApi(release.isEol),
+        Maintained: fromApi(release.isMaintained),
+        LTS: fromApi(release.isLts),
+        "Active support until": fromApi(release.eoasFrom),
+        "Latest version": fromApi(version.name, " (the latest version of the release cycle)"),
+        "Latest release": fromApi(version.date, " (of the latest version)"),
+        Tags: fromApi(product.tags),
+        "Support years": { description: "Years from the release to the end of life (365.25 days a year), cut to 0.01; blank without an end-of-life date." },
+        "Days to EOL": { description: "Days from the day the API generated the data to the end of life; negative when it lies back." },
+        "Release year": { description: "The year of the release date." }
     },
     nobel: {
         Laureate: { description: "The laureate's known name, or the organization's name." },
