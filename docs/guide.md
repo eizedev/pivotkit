@@ -153,7 +153,7 @@ most important first, and never over the table. The notes that say the result is
 - **Options** has **Show tips**, to switch them all off and on, and **Show dismissed tips again**.
 - **Options**, **Help**, **Keyboard shortcuts** lists the keys.
 
-![Two tips above the table: the top 3 note and how to open a value, each with its x](assets/screenshots/tips.png)
+![Above the table: the notice that the top 3 cover these items only, and a tip with its x](assets/screenshots/tips.png)
 
 ## Small screens
 
