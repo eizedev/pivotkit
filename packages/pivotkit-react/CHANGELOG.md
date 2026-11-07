@@ -49,9 +49,9 @@ First release.
   of the wrong type; the report's `lang` follows the labels.
 - Labels `toastSaveRejected` and `toastDeleteRejected` ("The server could not save the template."),
   shown when the host's template callback throws or rejects without a message; a message the host
-  gives (an `Error`, a text) is shown as before.
+  gives (an `Error`, a text) is shown instead.
 - Compact layout: below 540 px of height (border box, measured before the first paint) the zones
-  start folded into one line that says what is in them; the line and the new Layout button of the
+  start folded into one line that says what is in them; the line and the Layout button of the
   toolbar open and fold them, and a drag opens them while it lasts. Layout stays in the toolbar
   while the zones are folded. A fold waits while a menu or popover is open, and a focus in the
   zones moves to the folded line. Labels `layout`, `showLayout`, `hideLayout` and `layoutEmpty`.
@@ -73,13 +73,15 @@ First release.
 - Long row labels wrap: the label columns share at most 40 % of the report's main area and a value's
   name wraps beyond 30 %, so a phone shows values next to nested row labels. From 300 rows on, where
   rows have one height, a label is cut with an ellipsis; the status line shows the whole label of a
-  tapped label or of the focused value.
+  tapped label or of the focused value until the focus leaves the table or the table is scrolled.
 - A blank value cell with no rows behind it is not clickable and Enter does nothing; `onCellClick` is
   not called for it. Every empty cell stays an arrow-key stop and a screen reader hears "No rows" or
-  "No value" (`labels.emptyCell`, `labels.emptyValue`).
-- A narrow chip shortens the field's name with an ellipsis, never a badge ("Top 10").
-- Heatmaps slant their column names where they would overlap and show the numbers only in cells
-  large enough for them.
+  "No value" (`labels.emptyCell`, `labels.emptyValue`); a copied selection keeps the cell empty.
+- A narrow chip shortens the field's name with an ellipsis and keeps a few characters of it, never a
+  badge ("Top 10", "15 of 45"); on a phone a zone's name stands above its chips.
+- Heatmaps slant their column names where they would overlap, write every row name where a line
+  fits each row (else every n-th), and show the numbers only where the formatted numbers fit the
+  cells.
 - The export menu says what each file keeps: the XLSX every decimal, the CSV percentages and
   calculations as the table shows them.
 - Tested against the five real public data sets of the playground and the documentation site:

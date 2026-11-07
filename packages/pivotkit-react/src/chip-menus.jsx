@@ -29,11 +29,7 @@ function More({ title, open, children }) {
 }
 
 /**
- * Number ranges: their size and where they start (Excel's "Starting at"). An empty start keeps the
- * ranges' own, or 0.
- */
-/**
- * Size and start of number ranges. An empty start is 0, as its placeholder says; a start whose ranges
+ * Number ranges: their size and where they start (Excel's "Starting at"). An empty start is 0, as its placeholder says; a start whose ranges
  * could not hold the field's numbers (`range`, see binProblem) is refused with a note under the input.
  */
 function BinForm({ grouping, labels, onApply, onClear, range, locale }) {

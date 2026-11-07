@@ -5,6 +5,9 @@
 // the tests and the benchmarks: IT tickets, sales, and assets per source system. No real names.
 import { unpack } from "../data/sources.js";
 
+/** A loaded snapshot module: its rows and the day it was fetched ("YYYY-MM-DD"), shown as "as of". */
+const snapshot = (m) => ({ rows: unpack(m.default), fetched: m.default.fetched });
+
 /** A small, fast seeded random generator (mulberry32). */
 export function random(seed) {
     let a = seed >>> 0;
@@ -153,7 +156,7 @@ export function assets(n, seed = 23) {
 export const REAL = {
     weather: {
         label: "Weather of 14 cities, 2023-2025",
-        load: () => import("../data/weather.json").then((m) => unpack(m.default)),
+        load: () => import("../data/weather.json").then(snapshot),
         source: {
             text: "Weather data by Open-Meteo.com",
             href: "https://open-meteo.com/",
@@ -221,7 +224,7 @@ export const REAL = {
     },
     countries: {
         label: "Countries: population, GDP, CO2, 2005-2024",
-        load: () => import("../data/countries.json").then((m) => unpack(m.default)),
+        load: () => import("../data/countries.json").then(snapshot),
         source: { text: "World Bank, World Development Indicators", href: "https://data.worldbank.org/", licence: "CC BY 4.0", licenceHref: "https://creativecommons.org/licenses/by/4.0/" },
         fieldDefaults: {
             Population: { format: "integer" },
@@ -273,7 +276,7 @@ export const REAL = {
     },
     earthquakes: {
         label: "Earthquakes of magnitude 4.5+, 2025",
-        load: () => import("../data/earthquakes.json").then((m) => unpack(m.default)),
+        load: () => import("../data/earthquakes.json").then(snapshot),
         source: { text: "U.S. Geological Survey, ANSS Comprehensive Catalog", href: "https://earthquake.usgs.gov/earthquakes/search/", licence: "public domain", licenceHref: "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits" },
         fieldDefaults: {
             Magnitude: { agg: "max", format: "number:1" },
@@ -322,7 +325,7 @@ export const REAL = {
     },
     nobel: {
         label: "Nobel Prize laureates, 1901-2026",
-        load: () => import("../data/nobel.json").then((m) => unpack(m.default)),
+        load: () => import("../data/nobel.json").then(snapshot),
         source: { text: "Nobel Prize Outreach, api.nobelprize.org", href: "https://www.nobelprize.org/about/developer-zone-2/", licence: "CC0", licenceHref: "https://creativecommons.org/publicdomain/zero/1.0/" },
         fieldDefaults: { Year: { drillFormat: "text" }, "Age at award": { agg: "average", format: "number:0" } },
         presets: [
@@ -369,7 +372,7 @@ export const REAL = {
     },
     endoflife: {
         label: "Software end of life, 489 products",
-        load: () => import("../data/endoflife.json").then((m) => unpack(m.default)),
+        load: () => import("../data/endoflife.json").then(snapshot),
         source: {
             text: "endoflife.date",
             href: "https://endoflife.date/",

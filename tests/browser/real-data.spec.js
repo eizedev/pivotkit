@@ -416,6 +416,11 @@ test("each real data set names its source and licence next to the data", async (
     }
     await open(page, "data=endoflife");
     await expect(page.getByTestId("pg-credit")).toHaveText("Copyright 2020 endoflife.date contributors.");
+    // "supported right now", "the next 12 months": as of the day the snapshot was fetched
+    const fetched = JSON.parse(readFileSync(new URL("../../examples/playground/data/endoflife.json", import.meta.url), "utf8")).fetched;
+    expect(fetched).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await expect(page.getByTestId("pg-as-of")).toHaveText(`, as of ${fetched}`);
+    await expect(page.getByTestId("pg-source")).toContainText(`MIT, as of ${fetched}.`);
     await open(page, "data=weather");
     await expect(page.getByTestId("pg-credit")).toContainText("Contains modified Copernicus Climate Change Service information");
 });
@@ -447,6 +452,18 @@ test.describe("what the real data showed (#21 to #26)", () => {
         expect((await row(page, "Russia"))[1]).toBe("");
         await expect(blank).toHaveText("No rows");
         await expect(blank.locator(".pk-sr")).toHaveText("No rows");
+        await expect(blank).toHaveAccessibleName("No rows");
+        // a selection of the table (what Ctrl+C copies into a spreadsheet) keeps the empty cells empty
+        const copied = await page.evaluate(() => {
+            const range = document.createRange();
+            range.selectNodeContents(document.querySelector('[data-testid="pivot-table"] tbody'));
+            const sel = getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            return sel.toString();
+        });
+        expect(copied).toContain("Russia");
+        expect(copied).not.toContain("No rows");
         await expect(blank).not.toHaveClass(/pk-clickable/);
         await blank.click();
         await blank.focus();

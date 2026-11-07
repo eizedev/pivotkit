@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
-import { MANY_SERIES, MAX_CATEGORIES, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom } from "../src/chart-types.js";
+import { MANY_SERIES, MAX_CATEGORIES, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
@@ -280,8 +280,26 @@ test("heatmap column names: straight when they fit, slanted and cut when they wo
     assert.deepEqual(columnLabelLayout([], 390), { rotate: 0 });
 });
 
-test("heatmap cells show their numbers only when they are large enough", () => {
-    assert.equal(heatmapCellLabels(9, 15, 1100, 440), true);
-    assert.equal(heatmapCellLabels(9, 15, 340, 300), false);
-    assert.equal(heatmapCellLabels(0, 0, 0, 0), false);
+test("heatmap cells show their numbers only when the formatted numbers fit", () => {
+    const counts = ["4", "37", "487"];
+    // 9 columns of about 113 px and 15 rows of 21 px: counts fit
+    assert.equal(heatmapCellLabels(9, 15, 1100, 440, counts), true);
+    // a phone: 29 px wide cells hold "487" (20 px) but not "1,234.5" or "-12.3%" (46 px, 40 px)
+    assert.equal(heatmapCellLabels(9, 15, 340, 440, counts), true);
+    assert.equal(heatmapCellLabels(9, 15, 340, 440, ["1,234.5"]), false);
+    assert.equal(heatmapCellLabels(9, 15, 340, 440, ["-12.3%"]), false);
+    assert.equal(heatmapCellLabels(3, 15, 340, 440, ["1,234.5"]), true);
+    // rows lower than a line of text
+    assert.equal(heatmapCellLabels(9, 15, 1100, 300, counts), false);
+    assert.equal(heatmapCellLabels(0, 0, 0, 0, []), false);
+});
+
+test("heatmap row names: every one when a line fits each row, else every n-th", () => {
+    // 15 rows in 440 px: 21 px each
+    assert.equal(rowLabelInterval(15, 440), 0);
+    // 15 rows in 300 px: 12 px each, every second name
+    assert.equal(rowLabelInterval(15, 300), 1);
+    // 45 rows in 300 px: 4 px each, every fourth
+    assert.equal(rowLabelInterval(45, 300), 3);
+    assert.equal(rowLabelInterval(0, 300), 0);
 });

@@ -22,7 +22,7 @@ The playground's header picks the data set, a start template, the language and t
 generated data set the number of rows (2,000, 4,000 or 100,000). Its footer shows the engine timings
 of the last change.
 
-The real data are snapshots stored with the playground; the page calls none of the sources. Weather
+The real data are snapshots stored with the playground; the page calls none of the sources, and its source line says the day a snapshot was fetched ("as of"), the "now" of templates such as the end-of-life ones. Weather
 data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; contains modified Copernicus Climate
 Change Service information, see [Learn with real data](learn.md#query-it-live)); countries from the
 [World Bank](https://data.worldbank.org/), World Development Indicators (CC BY 4.0); earthquakes from

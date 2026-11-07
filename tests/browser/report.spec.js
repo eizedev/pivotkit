@@ -354,6 +354,17 @@ test("virtual table: a cut row label is shown whole in the status line, for a fo
     await wrap.locator('tbody tr[data-r="0"] td').first().focus();
     for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
     await expect(page.getByTestId("row-label")).toHaveText(new RegExp(` / ${cycle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
+    // the focus leaves the table: the label goes
+    await page.getByTestId("export").focus();
+    await expect(page.getByTestId("row-label")).toHaveCount(0);
+    // a tapped label stays while its row is in view; scrolled out of view, it goes
+    await cut.click();
+    await expect(page.getByTestId("row-label")).toBeVisible();
+    await wrap.evaluate((el) => { el.scrollTop += 2; });
+    await page.waitForTimeout(100);
+    await expect(page.getByTestId("row-label")).toBeVisible();
+    await wrap.evaluate((el) => { el.scrollTop += 2000; });
+    await expect(page.getByTestId("row-label")).toHaveCount(0);
 });
 
 test("sticky header at 1024 px: its rows stay at the top and close up, nothing of the body shows between them", async ({ page }) => {

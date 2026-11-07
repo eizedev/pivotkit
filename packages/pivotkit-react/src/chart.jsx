@@ -10,7 +10,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toEChartsOption, toSeries } from "pivotkit-core";
 import { chartHints, chartSummary } from "./chart-summary.js";
 import { tooltipFormatter } from "./chart-tooltip.js";
-import { MAX_CATEGORIES, chartTypeOf, columnLabelLayout, heatmapCellLabels, pieLabelRoom } from "./chart-types.js";
+import { MAX_CATEGORIES, chartTypeOf, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "./chart-types.js";
 import { Icon } from "./icons.jsx";
 import { chartThemeFrom } from "./theme.js";
 
@@ -62,7 +62,8 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
-            const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height);
+            const texts = typeof s.label?.formatter === "function" ? s.data.map((/** @type {any} */ d) => s.label.formatter({ value: d })) : [];
+            const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height, texts);
             return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 3 }, label: { ...s.label, show: Boolean(s.label?.show) && fits, color: v("--pk-text") || undefined } };
         }
         return s;
@@ -72,7 +73,9 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
     // a heatmap names every column: slanted where they would overlap (columnLabelLayout)
     const heatmap = series.some((s) => s.type === "heatmap") && option.xAxis?.axisLabel;
     const xAxis = heatmap ? { ...option.xAxis, axisLabel: { ...option.xAxis.axisLabel, ...columnLabelLayout(option.xAxis.data ?? [], width) } } : option.xAxis;
-    return { ...option, tooltip, series, ...(xAxis ? { xAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400 };
+    // and its rows: every name where a line fits each row, else every n-th (rowLabelInterval)
+    const yAxis = heatmap && option.yAxis ? { ...option.yAxis, axisLabel: { ...option.yAxis.axisLabel, interval: rowLabelInterval(option.yAxis.data?.length ?? 0, height) } } : option.yAxis;
+    return { ...option, tooltip, series, ...(xAxis ? { xAxis } : {}), ...(yAxis ? { yAxis } : {}), ...(legend ? { legend } : {}), ...(grid ? { grid } : {}), animationDuration: style.getPropertyValue("--pk-duration").trim() === "0ms" ? 0 : 400 };
 }
 
 /**

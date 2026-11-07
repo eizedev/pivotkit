@@ -74,20 +74,28 @@ test("top N: its own badge on the chip and a note that totals cover the shown it
     await expect(page.getByTestId("note-top")).toHaveText("Country shows the top 2 only: totals and percentages cover these items, not all of them.");
 });
 
-test("a narrow chip shortens the field's name, never its badge", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("?data=endoflife&preset=1");
-    const chip = page.locator('[data-zone="rows"] .pk-chip[data-chip="Product"]');
-    const badge = chip.getByTestId("top-badge");
-    await expect(badge).toHaveText("Top 10");
-    // the whole badge lies inside the chip's label, the name ends in an ellipsis instead
-    const box = await chip.locator(".pk-chip-label .pk-btn-text").evaluate((text) => {
-        const b = text.querySelector('[data-testid="top-badge"]').getBoundingClientRect();
-        const t = text.getBoundingClientRect();
-        const name = text.querySelector(".pk-chip-name");
-        return { inside: b.left >= t.left - 0.5 && b.right <= t.right + 0.5, cut: name.scrollWidth > name.clientWidth, ellipsis: getComputedStyle(name).textOverflow };
-    });
-    expect(box).toEqual({ inside: true, cut: true, ellipsis: "ellipsis" });
+test("a chip on a phone keeps its badges whole and a few characters of the field's name", async ({ page }) => {
+    // the chips with the longest badges of the end-of-life templates: "Top 10" and a sort, "15 of 45"
+    for (const [preset, field] of [[1, "Product"], [0, "EOL date (Year)"]]) {
+        for (const [width, lang] of [[390, "en"], [320, "en"], [390, "de"], [320, "de"]]) {
+            await page.setViewportSize({ width, height: 844 });
+            await page.goto(`?data=endoflife&preset=${preset}&lang=${lang}`);
+            const text = page.locator(`[data-zone="rows"] .pk-chip[data-chip="${field}"] .pk-chip-label .pk-btn-text`);
+            const box = await text.evaluate((el) => {
+                const t = el.getBoundingClientRect();
+                const chip = el.closest(".pk-chip").getBoundingClientRect();
+                const badges = [...el.querySelectorAll(".pk-badge-text")];
+                const name = el.querySelector(".pk-chip-name");
+                return {
+                    badges: badges.length > 0 && badges.every((b) => b.getBoundingClientRect().right <= t.right + 0.5 && b.scrollWidth <= b.clientWidth),
+                    inChip: t.right <= chip.right + 0.5,
+                    // a name that does not fit ends in an ellipsis, and some of it is always there
+                    name: name.clientWidth >= 20 && (name.scrollWidth <= name.clientWidth || getComputedStyle(name).textOverflow === "ellipsis")
+                };
+            });
+            expect(box, `preset ${preset}, ${width} px, ${lang}`).toEqual({ badges: true, inChip: true, name: true });
+        }
+    }
 });
 
 test("Rows without Values: a note says what to do; one value column is not stretched", async ({ page }) => {

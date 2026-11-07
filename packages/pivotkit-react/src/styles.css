@@ -806,7 +806,8 @@
 
 /* a narrow chip shortens the field's name, never a badge: "Top 10" cut to "Top 1" reads as a wrong value */
 .pk-chip-name {
-    min-width: 0;
+    /* a few characters and the ellipsis stay: a chip of badges only would not say which field it is */
+    min-width: 2.5em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1380,6 +1381,13 @@
     min-width: 0;
     color: var(--pk-text);
     overflow-wrap: anywhere;
+}
+
+/* read by a screen reader, left out of a selection: a table copied into a spreadsheet keeps its empty
+   cells empty */
+.pk-no-copy {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .pk-message {
@@ -1994,6 +2002,18 @@
     .pk-chips {
         flex: 1;
         min-width: 0;
+    }
+}
+
+/* a phone: the zone's name above its chips, so a chip has the zone's width for its name and its
+   badges ("15 of 45", "Top 10") */
+@container pk-main (width < 400px) {
+    .pk-zone {
+        flex-wrap: wrap;
+    }
+
+    .pk-zone .pk-zone-head {
+        width: 100%;
     }
 }
 
