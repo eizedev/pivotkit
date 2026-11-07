@@ -8,6 +8,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [0.1.0] - 2026-11-07
 
+First release.
+
 ### Added
 
 - `<PivotReport>`: field list with search, type icons, quick add and a menu per field; Rows, Columns,
@@ -57,56 +59,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   rows in the data (`tooManyRows`), too many cell updates (`tooMuchWork`), groups (`tooManyGroups`) or
   cells with subtotals (`tooManyCells`) in the layout, besides the dense grid's `tooLarge`.
 - A field beyond pivotkit-core's limit of its zone (8 per axis, 16 values) is refused with a note
-  (`zoneFull`) instead of vanishing; a template with more loads the fields that fit and says so
+  (`zoneFull`); a template with more loads the fields that fit and says so
   (`templateTrimmed`).
-
-### Changed
-
-- Counts in words take the plural form of the language ("1 series", "1 Reihe", "1 row"):
-  `rowsCount`, `drillCount` and the new `chartCategories` and `chartSeries` are objects with one
-  text per `Intl.PluralRules` category (`{ one, other }`, more for languages that have them), and
-  the placeholders of `chartCounts` ("{categories}, {series}.") carry the nouns. Migration: a host
-  label written as one text keeps working (`rowsCount: "{count} Zeilen"` is used for every count,
-  and a `chartCounts` with the nouns after its placeholders gets the bare numbers); to have "1
-  Zeile", pass `{ one: "{count} Zeile", other: "{count} Zeilen" }`.
-- Yes/no fields read "Yes" and "No" ("Ja", "Nein") in the table, the filter list and the
-  drill-down, instead of "true" and "false" ("wahr", "falsch"): `labels.core.true` and `false`.
-
-### Fixed
-
-- ECharts is loaded from `dist/echarts.js`, which imports bar, line, pie, heatmap, their components
-  and the canvas renderer by name; the namespace imports before made a host's bundler keep every
-  chart type.
-- The report is a `role="region"` named by the new label `report` ("Pivot report", "Pivot-Bericht")
-  instead of a `<main>`, which nested inside the host page's main landmark.
-- Templates with the same name (a saved template with a preset's name) gave React duplicate keys,
-  and a delete asked for confirmation on every entry of that name; entries are keyed and confirmed
-  by their place in the list, and every one is shown.
-- A field of the field list described its click as "Add to Rows" wherever it was; its description
-  now says what a click does from where it is ("Move to Rows" from Columns or Filters, "Add to
-  Values" for a number). A click on a field already in Rows leaves it there and says so in the
-  status line ("Region is already in Rows", new label `alreadyIn`).
-- The chart's tooltip is built as DOM nodes with styles set through the CSSOM: ECharts' default HTML
-  string has inline `style` attributes, which a Content-Security-Policy without
-  `style-src 'unsafe-inline'` refused on every hover. The data's texts go in as text.
-- A file name with many trailing dots and spaces took quadratic time to clean (seconds for a long
-  `fileName`); it is trimmed in one pass, after the cut at 120 characters, so it never ends in a dot.
-- Drill-down rows rebuilt from encoded data keep a column named `__proto__` as a value instead of
-  setting the row's prototype.
-- `engines` is gone: the package runs in the browser, and the Node version of the host's build tools
-  is theirs to choose.
-- The drill-down showed raw values (ISO date texts, "40,072" for an identifier); it formats each
-  column by its type as the table does (dates as dates, numbers in the locale, Yes/No) and
-  applies a field's `fieldDefaults` format. The new `fieldDefaults[field].drillFormat` sets the
-  format of the field's values there (`"text"`: an identifier as it is).
-- At medium widths (a half-width card of about 650 px) "Swap rows and columns" and the chips ran out
-  of their zones: the zones stack whenever the area next to the field list is narrower than 640 px
-  (a container query, no longer the narrow size class alone), and the swap button shows its icon
-  only, with its name and a tooltip, when the Columns zone is too narrow for the text.
-- A chart in a low report was cut at the bottom: the canvas had a minimum height of 240 px and grew
-  past its box. It is the size of its box now, and a pie leaves room for its labels above and below:
-  5 % of the chart's height, at most 24 px, so a pie in a tall chart is about 48 px smaller in
-  diameter than before.
 
 [Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.1.0...HEAD
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-react@0.1.0
