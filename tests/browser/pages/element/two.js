@@ -38,7 +38,7 @@ sales.addEventListener("pivot-template-save", (e) => {
                     reject(new Error("the server said no"));
                     return;
                 }
-                saved.push({ name, view, deletable: true });
+                saved.push({ name, view, scope: "user", deletable: true });
                 sales.templates = [...presets, ...saved];
                 resolve();
             }, 50)

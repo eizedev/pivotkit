@@ -4,7 +4,8 @@
  * "echarts/charts" would keep every chart type). This module is the only importer of echarts and is
  * loaded on the first chart (chart.jsx), so a report that never shows a chart does not load it; the
  * build keeps it a file of its own (dist/echarts.js). The check and merge of the host's chartOptions
- * (chart-options.js) come with it: only a chart needs them.
+ * (chart-options.js) and the report's marks on the option (chart-decorate.js) come with it: only a
+ * chart needs them.
  */
 
 // renamed: a call of `use` reads as a React hook to the linter
@@ -17,3 +18,4 @@ register([BarChart, LineChart, PieChart, HeatmapChart, GridComponent, TooltipCom
 
 export { init };
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
+export { decorate } from "./chart-decorate.js";

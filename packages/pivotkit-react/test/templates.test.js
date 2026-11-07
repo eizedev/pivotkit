@@ -6,9 +6,10 @@ import { VIEW_STORE_LIMITS, changedViews, storeViews, storedViews } from "../src
 import { MENU_LABELS } from "../src/menu-labels.js";
 
 const VIEW = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
-const tooMuch = (limit, max) => `${limit} ${max}`;
+const tooMuch = (kind, max) => `${kind} ${max}`;
 
-test("the Views menu's entries: the host's by scope (deletable means the user's own by default), then the store's", () => {
+test("the Views menu's entries: the host's by scope (deletable means the user's own by default, with a warning once), then the store's", (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
     const file = toViewFile(VIEW, { name: "From a file" });
     const entries = templateEntries(
         [
@@ -41,6 +42,9 @@ test("the Views menu's entries: the host's by scope (deletable means the user's 
         ]
     );
     assert.deepEqual(entries[4].view, VIEW);
+    // a deletable entry without a scope: said once in the console
+    assert.equal(warn.mock.callCount(), 1);
+    assert.match(String(warn.mock.calls[0].arguments[0]), /without a scope/);
     // without the host's delete, its entries cannot be deleted; the store's still can
     const noDelete = templateEntries([{ name: "Mine", view: VIEW, deletable: true }], [{ name: "Stored", view: VIEW, at: 0 }], false);
     assert.deepEqual(
@@ -51,6 +55,25 @@ test("the Views menu's entries: the host's by scope (deletable means the user's 
         ]
     );
     assert.deepEqual(templateEntries(undefined, [], true), []);
+});
+
+test("every name is plain text: control, bidi and zero-width characters go, at most 120 characters; an empty one is left out", () => {
+    const entries = templateEntries(
+        [
+            { name: "Sales\u202e by\u200b region\u0000", view: VIEW, scope: "shared" },
+            { name: "x".repeat(500), view: VIEW, scope: "shared" },
+            { name: "\u200b\u202e", view: VIEW, scope: "shared" }
+        ],
+        [{ name: "Stored\u2066 view", view: VIEW, at: 0 }],
+        true
+    );
+    assert.deepEqual(
+        entries.map((e) => e.name.length <= 120),
+        [true, true, true]
+    );
+    assert.equal(entries[0].name, "Sales by region");
+    assert.equal(entries[2].name, "Stored view");
+    assert.equal(entries.length, 3);
 });
 
 test("the browser store: one item per storageKey, views saved per data, a save of the same name replaces it", () => {
@@ -87,16 +110,17 @@ test("the browser store: one item per storageKey, views saved per data, a save o
     );
     // a delete by the place in the store, whatever the data shown
     const at = storedViews(text, "sales").find((t) => t.name === "A")?.at;
-    text = changedViews(text, { remove: at }, tooMuch);
+    text = changedViews(text, { remove: at, removeName: "A" }, tooMuch);
     assert.deepEqual(
         storedViews(text, "sales").map((t) => t.name),
         ["C"]
     );
     assert.equal(storedViews(text, "tickets").length, 3);
-    // a place that holds another view by now (another tab changed the store): nothing is deleted
-    assert.equal(changedViews(text, { remove: 0, removeName: "Not there" }, tooMuch), text);
+    // a place that holds another view by now (another tab changed the store): an error, nothing deleted
+    assert.throws(() => changedViews(text, { remove: 0, removeName: "Not there" }, tooMuch), { message: "changed 0" });
+    assert.throws(() => changedViews(text, { remove: 99, removeName: "A" }, tooMuch), { message: "changed 0" });
     // the last one gone: nothing left to keep
-    assert.equal(changedViews(changedViews(null, { name: "X", view: VIEW }, tooMuch), { remove: 0 }, tooMuch), null);
+    assert.equal(changedViews(changedViews(null, { name: "X", view: VIEW }, tooMuch), { remove: 0, removeName: "X" }, tooMuch), null);
 });
 
 test("the browser store reads what is stored as user input: broken or foreign text gives no views", () => {
@@ -122,6 +146,32 @@ test("the browser store is capped: views and characters, with the reason in the 
     const { de } = MENU_LABELS;
     assert.throws(() => storeViews(text, { name: "One more", view: VIEW }, de, "de-DE", () => true), { message: "dieser Browser behält höchstens 100 Ansichten" });
     assert.throws(() => storeViews(null, { name: "Big", view: big }, de, "de-DE", () => true), { message: "die Ansichten bräuchten mehr als 500.000 Zeichen" });
+});
+
+test("a store over the caps (older caps, changed by hand) can always shrink; only a save is capped", () => {
+    // 130 views, more than VIEW_STORE_LIMITS.count
+    const many = JSON.stringify(Array.from({ length: 130 }, (_, i) => toViewFile(VIEW, { name: `V${i}` }, { link: true })));
+    assert.equal(storedViews(many, undefined).length, 130);
+    let text = many;
+    for (let i = 0; i < 40; i++) {
+        text = changedViews(text, { remove: 0, removeName: `V${i}` }, tooMuch);
+    }
+    assert.equal(storedViews(text, undefined).length, 90);
+    // a save into a store over the cap says so and keeps nothing
+    assert.throws(() => changedViews(many, { name: "New", view: VIEW }, tooMuch), { message: `count ${VIEW_STORE_LIMITS.count}` });
+});
+
+test("a stored text longer than the cap is not parsed: no views, one warning, and the next save replaces it", (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const huge = JSON.stringify([{ name: "Big", view: { rows: ["x".repeat(VIEW_STORE_LIMITS.text)] } }]);
+    assert.deepEqual(storedViews(huge, undefined), []);
+    assert.deepEqual(storedViews(huge, undefined), []);
+    assert.equal(warn.mock.callCount(), 1);
+    const text = changedViews(huge, { name: "Fresh", view: VIEW }, tooMuch);
+    assert.deepEqual(
+        storedViews(text, undefined).map((v) => v.name),
+        ["Fresh"]
+    );
 });
 
 test("the browser store: a write the browser refuses says so; a kept one hands over the text", () => {

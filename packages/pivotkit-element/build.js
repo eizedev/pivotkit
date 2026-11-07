@@ -126,9 +126,9 @@ async function licenses(metafile) {
  * load 0.3 higher than on 22): first load 151.0 measured, the menus 13.8, their budget raised to 15
  * for the texts moved there. The templates (shared and my views, publish, the browser store with
  * pivotkit-core/templates) load with the menus, and the texts and actions of save and delete moved
- * there with them, and the check of chartOptions moved to the chart (dist/echarts.js), which made
- * room for the collapsible field list: first load 151.4 measured (Node 26), the menus 16.1, their
- * budget raised to 17.
+ * there with them; the check of chartOptions and the marks on the chart's option (chart-decorate.js
+ * with the tooltip) moved to the chart (dist/echarts.js), which made room for the collapsible field
+ * list: first load 150.3 measured (Node 26), the chart 203.5, the menus 16.3, their budget raised to 17.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 17 };

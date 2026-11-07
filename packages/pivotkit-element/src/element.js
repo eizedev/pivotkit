@@ -645,7 +645,8 @@ export class PivotReportElement extends Base {
             sources: Array.isArray(v.sources) ? v.sources : undefined,
             schemaUrl: this.schemaUrl,
             grow: this.grow,
-            fieldList: this.fieldList === "open" || this.fieldList === "collapsed" ? /** @type {"open" | "collapsed"} */ (this.fieldList) : undefined,
+            // another value reaches the report, which ignores it with a warning
+            fieldList: /** @type {any} */ (this.fieldList),
             onSourceSwitch: this.#onSourceSwitch
         };
     }

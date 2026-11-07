@@ -73,7 +73,7 @@ export function TicketReport({ rows, saved, saveTemplate, deleteTemplate }) {
             dataKey="tickets"
             view={view}
             onViewChange={setView}
-            templates={[...presets, ...saved.map((t) => ({ ...t, deletable: true }))]}
+            templates={[...presets, ...saved.map((t) => ({ ...t, scope: "user", deletable: true }))]}
             onSaveTemplate={(name, v) => saveTemplate({ name, view: v })}
             onDeleteTemplate={(name, { scope }) => deleteTemplate(name, scope)}
             fieldDefaults={{ "Lead hours": { agg: "average", format: "duration:h" } }}

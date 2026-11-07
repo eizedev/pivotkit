@@ -12,49 +12,83 @@ import { fill } from "./labels.js";
 /** The most the browser store keeps per storageKey: views, and characters of their JSON. */
 export const VIEW_STORE_LIMITS = Object.freeze({ count: 100, text: 500_000 });
 
+/** Whether the console was told once that the stored text is too long to read. */
+let warnedLarge = false;
+
+/**
+ * Every view of the store's text. A text longer than VIEW_STORE_LIMITS.text (changed by hand, or
+ * written by another program) is not parsed: it reads as no views, with one console warning, and
+ * the next save replaces it. Broken or foreign text gives none (parseTemplates checks it).
+ * @param {string | null} raw
+ */
+function readAll(raw) {
+    if (!raw) {
+        return [];
+    }
+    if (raw.length > VIEW_STORE_LIMITS.text) {
+        if (!warnedLarge) {
+            warnedLarge = true;
+            console.warn(`pivotkit: the browser store of views holds more than ${VIEW_STORE_LIMITS.text} characters; it is not read, and the next save replaces it`);
+        }
+        return [];
+    }
+    return parseTemplates(raw).templates;
+}
+
 /**
  * The browser store's views from its text, those for the data shown: made for `sourceId` or for no
- * named data. Broken or foreign text gives none (parseTemplates checks and caps it).
+ * named data.
  * @param {string | null} raw
  * @param {string | undefined} sourceId
  * @returns {Array<{ name: string, view: Record<string, unknown>, at: number }>}
  */
 export function storedViews(raw, sourceId) {
-    const all = raw ? parseTemplates(raw).templates : [];
-    return all.map((t, at) => ({ name: t.name, view: t.view, id: t.source?.id, at })).filter((t) => !t.id || !sourceId || t.id === sourceId).map(({ name, view, at }) => ({ name, view, at }));
+    return readAll(raw)
+        .map((t, at) => ({ name: t.name, view: t.view, id: t.source?.id, at }))
+        .filter((t) => !t.id || !sourceId || t.id === sourceId)
+        .map(({ name, view, at }) => ({ name, view, at }));
 }
 
 /**
  * The browser store's text after a change: `name` saved for `sourceId` (replacing a view of the same
- * name for the same data), or the view at `remove` taken out, when it is still the one named
- * `removeName` (another tab may have changed the store since the menu was drawn). Throws an Error naming the limit when
- * the store would hold more than VIEW_STORE_LIMITS.
+ * name for the same data), or the view at `remove` taken out. A delete checks that the view there is
+ * still the one named `removeName` (another tab may have changed the store since the menu was drawn)
+ * and throws "changed" when it is not, so the wrong view is never deleted. The caps apply to a save
+ * only: a store over them (older caps, changed by hand) can always shrink.
  * @param {string | null} raw
  * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string }} change
- * @param {(limit: "count" | "text", max: number) => string} tooMuch  the message for a limit
+ * @param {(kind: "count" | "text" | "changed", max: number) => string} message  the Error's message
  * @returns {string | null}  null when nothing is left
  */
-export function changedViews(raw, change, tooMuch) {
-    const all = raw ? parseTemplates(raw).templates : [];
-    let next = all.filter((t, i) => i !== change.remove || (change.removeName !== undefined && t.name !== change.removeName));
-    if (change.name && change.view) {
+export function changedViews(raw, change, message) {
+    const all = readAll(raw);
+    let next = all;
+    if (change.remove !== undefined) {
+        if (all[change.remove]?.name !== change.removeName) {
+            throw new Error(message("changed", 0));
+        }
+        next = all.filter((t, i) => i !== change.remove);
+    }
+    const saving = Boolean(change.name && change.view);
+    if (saving) {
         const id = change.sourceId;
         next = next.filter((t) => t.name !== change.name || (t.source?.id ?? undefined) !== id);
-        next.push({ name: change.name, view: /** @type {Record<string, unknown>} */ (change.view), ...(id ? { source: { id } } : {}) });
-    }
-    if (next.length > VIEW_STORE_LIMITS.count) {
-        throw new Error(tooMuch("count", VIEW_STORE_LIMITS.count));
+        next.push({ name: /** @type {string} */ (change.name), view: /** @type {Record<string, unknown>} */ (change.view), ...(id ? { source: { id } } : {}) });
+        if (next.length > VIEW_STORE_LIMITS.count) {
+            throw new Error(message("count", VIEW_STORE_LIMITS.count));
+        }
     }
     const text = next.length ? JSON.stringify(next.map((t) => toViewFile(t.view, { name: t.name, source: t.source }, { link: true }))) : null;
-    if (text && text.length > VIEW_STORE_LIMITS.text) {
-        throw new Error(tooMuch("text", VIEW_STORE_LIMITS.text));
+    if (saving && text && text.length > VIEW_STORE_LIMITS.text) {
+        throw new Error(message("text", VIEW_STORE_LIMITS.text));
     }
     return text;
 }
 
 /**
  * Saves or deletes a view in the browser store (see changedViews). Throws an Error with the reason in
- * the labels' words when the store would hold too much or the browser refused to keep it.
+ * the labels' words when the store would hold too much, changed since the menu was drawn, or the
+ * browser refused to keep it.
  * @param {string | null} raw  the store's text now
  * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string }} change
  * @param {any} labels  with the menus' texts
@@ -62,7 +96,8 @@ export function changedViews(raw, change, tooMuch) {
  * @param {(text: string | null) => boolean} keep  writes the text (storage.js: writeItem), false when the browser refused
  */
 export function storeViews(raw, change, labels, locale, keep) {
-    const text = changedViews(raw, change, (limit, max) => fill(limit === "count" ? labels.storeFull : labels.storeTooLarge, { max: max.toLocaleString(locale) }));
+    const texts = { count: labels.storeFull, text: labels.storeTooLarge, changed: labels.storeChanged };
+    const text = changedViews(raw, change, (kind, max) => fill(texts[kind], { max: max.toLocaleString(locale) }));
     if (!keep(text)) {
         throw new Error(labels.storeRefused);
     }

@@ -15,23 +15,29 @@ First release.
 - The field list collapses to a rail of about 40 px (`--pk-rail-w`): « next to "Fields"
   (`collapseFields`, `aria-expanded`), the rail with "Fields" upright (`expandFields`) and a search
   button that opens the list with the focus in its search field; a chip dropped on the rail leaves
-  the report; the choice is kept with the tips (`-fields`); `fieldList` (`"open"`, `"collapsed"`)
+  the report (the rail reads "Drop here to remove" while one is dragged); another `fieldList` value
+  is ignored with a console warning; the choice is kept with the tips (`-fields`); `fieldList` (`"open"`, `"collapsed"`)
   starts it so. Not on a narrow report (the drawer); Enlarge hides it. The check and merge of
-  `chartOptions` load with ECharts (`dist/echarts.js`), so the first load stays small; its warning
-  comes when the chart is drawn.
+  `chartOptions` and the report's marks on the chart's option load with ECharts
+  (`dist/echarts.js`), so the first load stays small; the `chartOptions` warning comes when the chart
+  is drawn.
 - Templates in two groups of the Views menu, "Shared views" and "My views" (labels `sharedViews`,
   `myViews`; "Gemeinsame Ansichten", "Meine Ansichten"), each shown only with entries ("My views"
   also while people can save; `noViews` when there is nothing at all). `templates` entries take
   `scope` (`"shared"` or `"user"`; without it a `deletable` entry is the user's own) and `file`, a
   view file instead of `view` (its name the default). A shared entry that cannot be deleted has an
-  "i": "Only admins can change shared views." (`labels.settingInfo.sharedView`). `onSaveTemplate`
+  "i": "Only admins can change shared views." (`labels.settingInfo.sharedView`), where someone can
+  change shared views (a deletable shared entry, or Publish). Every name is plain text, at most 120
+  characters; a deletable entry without `scope` is listed under My views with a console warning once.
+  A published view is sent normalized against the data. `onSaveTemplate`
   gets `{ scope: "user" }` and `onDeleteTemplate` `{ scope }`. `canPublish` with `onPublishTemplate`
   offers "Publish as shared view" on the user's views, asked in place (`publishView`,
   `publishConfirm`, `publishAction`, `toastPublished`, `toastPublishFailed`,
   `toastPublishRejected`). After a delete, a publish or Cancel the focus goes back to the entry in
   that place. `templateStore="browser"` keeps the user's views in localStorage
   (`pivotkit:views:<storageKey>`) as view files per data (`source`), at most 100 views and 500,000
-  characters, read after hydration, with a note that they stay in this browser (`storeNote`) and
+  characters for a save (a delete is never refused; a text over the cap is not read), a delete
+  changed in another tab meanwhile refused (`storeChanged`), read after hydration, with a note that they stay in this browser (`storeNote`) and
   the reasons a save is refused (`storeFull`, `storeTooLarge`, `storeRefused`); the host's
   `onSaveTemplate` wins. The texts of save and delete (`toastSaved`, `toastDeleted`,
   `toastSaveFailed`, `toastDeleteFailed`, `toastSaveRejected`, `toastDeleteRejected`) load with the

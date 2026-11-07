@@ -53,7 +53,7 @@ report.addEventListener("pivot-template-save", (e) => {
     const { name, view } = e.detail;
     e.detail.respondWith(
         Promise.resolve().then(() => {
-            saved.push({ name, view, deletable: true });
+            saved.push({ name, view, scope: "user", deletable: true });
             report.templates = [...presets, ...saved];
         })
     );

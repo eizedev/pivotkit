@@ -202,7 +202,8 @@ PNG. All of it is in [Charts](concepts/charts.md).
 **«** next to "Fields" collapses the field list to a slim rail at the side of the report that shows
 "Fields" and a search button: the zones and the result get its room. A click on the rail opens the
 list again; the search button opens it with the cursor in the search field. A chip dragged onto the
-rail leaves the report, as on the open list. The report remembers the choice (with the tips); an
+rail leaves the report, as on the open list: while one is dragged, the rail reads "Drop here to
+remove". The report remembers the choice (with the tips); an
 application can start the list open or collapsed. On a phone the field list is a drawer, as before
 ([small screens](#small-screens)).
 
@@ -222,7 +223,7 @@ Two buttons at the top right of the result give it more room; neither is part of
 - **Undo** (Ctrl+Z, on a Mac Cmd+Z) and **Redo** (Ctrl+Shift+Z or Ctrl+Y, Cmd+Shift+Z) step through
   every change. **Reset** goes back to the start view, as one step you can undo.
 - **Views** lists the saved reports in two groups. **Shared views** are the same for everyone who uses
-  the report; an "i" next to one says that only admins can change it. **My views** are your own:
+  the report; where someone can change them, an "i" next to one says who (by default "Only admins can change shared views."). **My views** are your own:
   "Save current view" saves yours under a name (up to 120 characters; Enter saves; the menu stays
   open with the new entry, so **Copy link** is one click away), and your own views can be deleted,
   after a confirmation. When the application allows it, the arrow next to one of your views

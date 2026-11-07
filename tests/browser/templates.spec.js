@@ -141,5 +141,22 @@ test("web component: templates from view files, the browser store, publish and d
         ["pivot-template-publish", "Mine", undefined],
         ["pivot-template-delete", "Team view", "shared"]
     ]);
-    expect(events[0].detail.view.rows).toEqual(expect.any(Array));
+    // the published view is normalized against the data, never the stored text as it is
+    expect(events[0].detail.view.version).toEqual(expect.any(Number));
+    expect(events[0].detail.view.totals).toEqual(expect.any(Object));
+});
+
+test("no i about admins where nobody here can change shared views", async ({ page }) => {
+    // the sales element: shared presets, no Publish, no deletable shared entry
+    await page.goto("pages/element-two.html");
+    const sales = page.locator("#sales");
+    await sales.locator('[data-testid="pivot-table"]').waitFor();
+    const views = sales.getByTestId("views");
+    if (await views.count()) await views.click();
+    else {
+        await sales.getByTestId("more").click();
+        await sales.getByTestId("more-views").click();
+    }
+    await expect(sales.locator('[data-section="sharedViews"] [data-pk-entry]').first()).toBeVisible();
+    await expect(sales.locator('[data-testid="setting-info-sharedView"]')).toHaveCount(0);
 });

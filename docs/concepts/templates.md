@@ -16,8 +16,10 @@ report's **Views** menu lists them in two groups:
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu.png)
 
 Each entry loads its view with one click. An entry that can be deleted has a delete button (asked
-in place before it goes); a shared view that cannot has an "i" that says "Only admins can change shared
-views." (shown while **Show explanations** in Options is on). When your application allows it, each of
+in place before it goes). Where someone can change shared views here (a shared entry is `deletable`,
+or Publish is offered), a shared view that cannot be deleted has an "i": "Only admins can change shared
+views." (`labels.settingInfo.sharedView`, so a host names its own role; shown while **Show
+explanations** in Options is on). When your application allows it, each of
 the user's views has **Publish as shared view** (asked in place too). A group without entries is not
 shown; "My views" shows while people can save. The first three entries are also offered in the empty
 report. Every view that comes in this way is user input: the report checks it against the data
@@ -32,7 +34,7 @@ The `templates` prop (a property on the element) is a list of entries:
 | `name` | The name in the menu, plain text. For a view file, its `name` is used when the entry has none. |
 | `view` | The view, as `onViewChange` gives it. |
 | `file` | Instead of `view`: a [view file](../reference/view-file.md) (`format: "pivotkit-view"`), its object or its text, as people download and share it. |
-| `scope` | `"shared"` (Shared views) or `"user"` (My views). Without it, an entry marked `deletable` is the user's own and every other one is shared. |
+| `scope` | `"shared"` (Shared views) or `"user"` (My views). Without it, an entry marked `deletable` is the user's own and every other one is shared. Set it on every entry: a deletable shared view without it would be listed under "My views" (the console says so once). |
 | `deletable` | `true` shows a delete button, when the report has a delete to call (`onDeleteTemplate`). |
 
 An entry without a name or without a usable view is left out. Names need not be unique: every entry
@@ -55,7 +57,9 @@ Each callback may return a promise (the element: `event.detail.respondWith(promi
 says "saved", "deleted" or "published" when it resolves, and the error's message when it rejects.
 Then pass the new list as `templates`. Who may publish or delete shared views is your decision:
 pass `canPublish` and mark shared entries `deletable` only for the people who may (an admin role,
-say). The report only shows what you allow; your server still checks it.
+say). The report only shows what you allow: your server must check who may save, publish or delete,
+and validate every view it receives as user input. A published view is sent normalized against the
+data, never as it was stored.
 
 ```jsx
 function Report({ rows, user }) {
@@ -106,8 +110,11 @@ Without a server of your own, the report can keep the user's own views itself:
 - They are **only in this browser on this device**, gone when the site's data is cleared, and not
   shared with anyone. The menu says so under "My views".
 - At most 100 views and 500,000 characters; a save beyond that, or one the browser refuses (storage
-  blocked or full), says why and keeps nothing. Saving a view under a name it already has for the
-  same data replaces it.
+  blocked or full), says why and keeps nothing. Deletes are never refused by the caps, so a store
+  over them (older caps, changed by hand) can always shrink; a stored text over 500,000 characters is
+  not read at all (one console warning) and the next save replaces it. A delete whose view was
+  changed in another tab meanwhile says so and deletes nothing. Saving a view under a name it
+  already has for the same data replaces it.
 - What is stored is read as user input (`parseTemplates`), and it is read after the first render, so a
   report rendered on the server hydrates without a mismatch.
 - `onSaveTemplate` wins: with it, saves go to your application, and views stored earlier are still

@@ -41,6 +41,7 @@ export const en = {
     storeFull: "this browser keeps at most {max} views",
     storeTooLarge: "the views would take more than {max} characters",
     storeRefused: "this browser did not keep it (storage blocked or full)",
+    storeChanged: "the views were changed in another tab; open the menu again",
     // what a save, a delete or a publish in the Views menu came to; "Rejected": the host refused
     // without saying why (a rejected promise without a message)
     toastSaved: "View “{name}” saved",
@@ -217,6 +218,7 @@ export const de = {
     storeFull: "dieser Browser behält höchstens {max} Ansichten",
     storeTooLarge: "die Ansichten bräuchten mehr als {max} Zeichen",
     storeRefused: "dieser Browser hat sie nicht behalten (Speicher gesperrt oder voll)",
+    storeChanged: "die Ansichten wurden in einem anderen Tab geändert; das Menü neu öffnen",
     toastSaved: "Ansicht „{name}“ gespeichert",
     toastDeleted: "Ansicht „{name}“ gelöscht",
     toastPublished: "Ansicht „{name}“ veröffentlicht",

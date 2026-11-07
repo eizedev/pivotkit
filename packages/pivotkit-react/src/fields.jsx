@@ -212,12 +212,16 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
             <aside className={`pk-panel pk-rail${removing ? " pk-removing" : ""}${isOver && removing ? " pk-over" : ""}`} ref={ref} aria-label={labels.panel} data-testid="field-rail">
                 <button type="button" className="pk-rail-open" aria-expanded={false} aria-label={labels.expandFields} title={labels.expandFields} onClick={() => fold(false, "collapse")} data-pk-focus="rail" data-testid="expand-fields">
                     <span className="pk-rail-title" aria-hidden="true">
-                        {labels.fields}
+                        {removing ? labels.dropToRemove : labels.fields}
                     </span>
                 </button>
                 <button type="button" className="pk-icon-btn" aria-label={labels.searchFields} title={labels.searchFields} onClick={() => fold(false, "search")} data-testid="rail-search">
                     <Icon name="search" />
                 </button>
+                {/* while a chip is dragged: said where it can go */}
+                <span className="pk-sr" role="status" data-testid="rail-status">
+                    {removing ? labels.dropToRemove : ""}
+                </span>
             </aside>
         );
     }

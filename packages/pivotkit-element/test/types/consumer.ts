@@ -6,7 +6,7 @@ import { EVENTS as EVENTS_ONLY, define as defineOnly } from "pivotkit-element/el
 const el: PivotReportElement = document.createElement("pivot-report");
 const found: PivotReportElement | null = document.querySelector("pivot-report");
 const start: PivotView = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
-const templates: Template[] = [{ name: "By region", view: start, deletable: true }];
+const templates: Template[] = [{ name: "By region", view: start, scope: "user", deletable: true }];
 
 el.data = [{ Region: "North", Units: 3 }];
 el.defaultView = start;

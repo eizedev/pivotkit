@@ -507,7 +507,7 @@ function viewActions(ctx, labels) {
                       )
                 : null,
         remove: ctx.onDelete || ctx.store ? (t) => run(() => (t.at !== undefined ? write({ remove: t.at, removeName: t.name }) : ctx.onDelete(t.name, { scope: t.scope })), labels.toastDeleted, labels.toastDeleteFailed, labels.toastDeleteRejected, t.name) : null,
-        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, t.view), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
+        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view)), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
     };
 }
 
@@ -599,10 +599,13 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
                     {t.name}
                 </Option>
                 {onPublish && t.scope === "user" ? button("publish", "upload", fill(labels.publishView, { name: t.name })) : null}
-                {onDelete && t.deletable ? button("delete", "trash", fill(labels.deleteView, { name: t.name })) : t.scope === "shared" ? <SettingInfo id="sharedView" name={t.name} /> : null}
+                {onDelete && t.deletable ? button("delete", "trash", fill(labels.deleteView, { name: t.name })) : t.scope === "shared" && sharedChange ? <SettingInfo id="sharedView" name={t.name} /> : null}
             </div>
         );
     };
+    // the "i" on a shared view says who changes shared views: only where someone here can (a shared
+    // view the host lets delete, or Publish), so no report claims admins it does not have
+    const sharedChange = Boolean(onPublish) || templates.some((t) => t.scope === "shared" && t.deletable);
     const group = (scope) => templates.map((t, at) => (t.scope === scope ? entry(t, at) : null)).filter(Boolean);
     const shared = group("shared");
     const mine = group("user");

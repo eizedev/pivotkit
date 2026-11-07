@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computePivot, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
+import { computePivot, encode, normalize, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
@@ -115,6 +115,15 @@ function sessionStore() {
         return null;
     }
 }
+
+/** What the console was told already, so a developer's mistake is said once per page. */
+const warned = new Set();
+const warnOnce = (text) => {
+    if (!warned.has(text)) {
+        warned.add(text);
+        console.warn(text);
+    }
+};
 
 /** A host's chartOptions as a text that changes only when they do, or the object itself (a cycle). */
 function optionsKey(options) {
@@ -912,6 +921,8 @@ function Report(props) {
         onSave: onSaveTemplate,
         onDelete: onDeleteTemplate,
         onPublish: canPublish ? onPublishTemplate : undefined,
+        // a view leaves the report checked against the data, never as it was stored
+        normalized: (v) => normalize(v, encoded, { limits }).view,
         onSaved: () => setSavedAt(changesRef.current)
     };
 
@@ -1029,6 +1040,11 @@ function Report(props) {
     // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
     // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session
     const [fieldsSession, setFieldsSession] = useState(/** @type {boolean | null} */ (null));
+    useEffect(() => {
+        if (fieldList !== undefined && fieldList !== "open" && fieldList !== "collapsed") {
+            warnOnce(`pivotkit: fieldList ${JSON.stringify(String(fieldList)).slice(0, 40)} is neither "open" nor "collapsed"; the user's choice decides`);
+        }
+    }, [fieldList]);
     const railed = size !== "narrow" && fieldsCollapsed(fieldsSession, fieldList, dismissed);
     const collapseFields = (next) => {
         if (fieldList === "open" || fieldList === "collapsed") {
