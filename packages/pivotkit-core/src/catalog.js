@@ -4,7 +4,7 @@
  */
 
 import { AGGREGATOR_NAMES } from "./aggregators.js";
-import { DERIVE_UNITS } from "./derive.js";
+import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
 import { FILTER_TYPES, LABEL_OPS, VALUE_OPS } from "./filters.js";
 import { FORMAT_NAMES } from "./format.js";
@@ -18,9 +18,9 @@ export const CATALOG = Object.freeze({
     columnTypes: COLUMN_TYPES,
     deriveUnits: DERIVE_UNITS,
     /** date units along the time line (each value one period of one year: "Jan 2025") */
-    timelineUnits: Object.freeze(["year", "yearQuarter", "yearMonth", "yearWeek", "day"]),
+    timelineUnits: TIMELINE_UNITS,
     /** date units that repeat every year or day ("Jan" of every year), for comparing periods */
-    cyclicUnits: Object.freeze(["quarter", "month", "week", "weekday", "hour"]),
+    cyclicUnits: CYCLIC_UNITS,
     filterTypes: FILTER_TYPES,
     labelOps: LABEL_OPS,
     valueOps: VALUE_OPS,

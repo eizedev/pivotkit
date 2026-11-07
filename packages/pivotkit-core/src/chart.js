@@ -6,6 +6,7 @@
  */
 
 import { DEFAULT_THEME } from "./defaults.js";
+import { TIMELINE_UNITS } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
 import { formatterFor } from "./format.js";
 import { defaultFormat, valueName } from "./grid.js";
@@ -188,7 +189,9 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
 
 /**
  * The chart type "auto" stands for (the view's default, `chart.type: "auto"`): lines when a field on
- * Rows is a date or a grouping of one, so the categories are points in time; else bars. A date on
+ * Rows is a date or a grouping of one along the time line (day, week, month, quarter, year), so the
+ * categories are points in time; else bars. A grouping that repeats (weekday, hour of day, month,
+ * quarter or week of year) makes categories, not a time line: bars. A date on
  * Columns alone is not enough: each date would be a line of its own, so a UI that wants lines there
  * swaps rows and columns for the chart first (pivotkit-react does).
  * @param {import("./view.js").View} view  the normalized view
@@ -200,7 +203,10 @@ export function autoChartType(view, data) {
     const isDate = (name) => {
         const key = String(name).toLowerCase();
         const d = derived.find((x) => x && typeof x.name === "string" && x.name.toLowerCase() === key);
-        // a date grouping (year, month, ...) counts as a date; a number range of a number does not
+        // a grouping along the time line counts as a date; a repeating one and a number range do not
+        if (d && !TIMELINE_UNITS.includes(d.by)) {
+            return false;
+        }
         return data.column(d ? d.field : name)?.type === "date";
     };
     return (Array.isArray(view.rows) ? view.rows : []).some(isDate) ? "line" : "bar";

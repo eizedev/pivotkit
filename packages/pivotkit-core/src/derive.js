@@ -48,6 +48,11 @@ const weekdayName = (weekday, locale) =>
  */
 
 /** @type {Readonly<Record<string, DerivedUnit>>} */
+/** Date units along the time line (each value one period of one year: "Jan 2025"). */
+export const TIMELINE_UNITS = Object.freeze(["year", "yearQuarter", "yearMonth", "yearWeek", "day"]);
+/** Date units that repeat every year or day ("Jan" of every year): categories, for comparing periods. */
+export const CYCLIC_UNITS = Object.freeze(["quarter", "month", "week", "weekday", "hour"]);
+
 export const DERIVED = Object.freeze({
     year: { source: "date", type: "number", value: (d) => d.getUTCFullYear(), label: (v) => String(v) },
     quarter: { source: "date", type: "number", value: (d) => Math.floor(d.getUTCMonth() / 3) + 1, label: (v) => `Q${v}` },

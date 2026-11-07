@@ -29,7 +29,7 @@ First release.
   text (`LINK_LIMITS.text`, 32,000 characters) and the inflated view (`LINK_LIMITS.json`, 1,000,000)
   while inflating (1 KiB of input at a time, it stops at the cap), an empty payload is damaged, and returns `{ view, issues }` for `normalize()`.
 - The chart type `"auto"`, the view's default (also for a view without `chart.type`): the data
-  decides, lines when a date or a grouping of one is on Rows, else bars; `autoChartType(view, data)`
+  decides, lines when a date or a grouping of one along the time line (not weekday, hour, month of year) is on Rows, else bars; `autoChartType(view, data)`
   says which, `toEChartsOption()` draws it. Any other type is one the user chose. A pie's or donut's
   share is written as the locale writes a percentage ("35.7%", "35,7 %"); a heatmap's colour scale
   writes its ends in the value's number format.

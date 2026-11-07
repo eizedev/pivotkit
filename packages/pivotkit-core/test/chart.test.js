@@ -205,6 +205,13 @@ test("auto: lines when a date or a date grouping is on Rows, else bars; a date o
     assert.equal(autoChartType(view({ rows: ["Date"], values: [{ field: "Units", agg: "sum" }] }), data), "line");
     assert.equal(autoChartType(view({ rows: ["Region", "Date (Month)"], derived: [month], values: [{ field: "Units", agg: "sum" }] }), data), "line");
     assert.equal(autoChartType(view({ rows: ["Region"], cols: ["Date (Month)"], derived: [month], values: [{ field: "Units", agg: "sum" }] }), data), "bar");
+    // a grouping that repeats is categories, not a time line: bars; every one along the time line: lines
+    for (const by of ["weekday", "hour", "month", "quarter", "week"]) {
+        assert.equal(autoChartType(view({ rows: ["D"], derived: [{ name: "D", field: "Date", by }], values: [{ agg: "count" }] }), data), "bar", by);
+    }
+    for (const by of ["day", "yearWeek", "yearMonth", "yearQuarter", "year"]) {
+        assert.equal(autoChartType(view({ rows: ["D"], derived: [{ name: "D", field: "Date", by }], values: [{ agg: "count" }] }), data), "line", by);
+    }
     // a number range of a number is no date
     assert.equal(autoChartType(view({ rows: ["Units (bins)"], derived: [{ name: "Units (bins)", field: "Units", by: "bin", size: 2 }], values: [{ agg: "count" }] }), data), "bar");
     // the view's default type is "auto", and the option draws it as the type it stands for
