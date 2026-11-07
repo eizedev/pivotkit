@@ -119,8 +119,11 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         }
         const headRows = t.tHead ? [...t.tHead.rows] : [];
         setHeadHeight(t.tHead ? t.tHead.offsetHeight : 0);
-        const ys = headRows.map((tr) => tr.offsetTop);
-        setTops((old) => (old.length === ys.length && old.every((v, i) => v === ys[i]) ? old : ys));
+        // fractional: offsetTop rounds, and a row 36.8 px high left a 0.2 px gap under the first header
+        // row through which the body showed while it scrolled (#9)
+        const top = t.tHead ? t.tHead.getBoundingClientRect().top : 0;
+        const ys = headRows.map((tr) => tr.getBoundingClientRect().top - top);
+        setTops((old) => (old.length === ys.length && old.every((v, i) => Math.abs(v - ys[i]) < 0.01) ? old : ys));
         const last = headRows[headRows.length - 1];
         if (last) {
             const xs = [];

@@ -356,6 +356,22 @@ test("virtual table: a cut row label is shown whole in the status line, for a fo
     await expect(page.getByTestId("row-label")).toHaveText(new RegExp(` / ${cycle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
 });
 
+test("sticky header at 1024 px: its rows stay at the top and close up, nothing of the body shows between them", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto("?data=sales");
+    const wrap = page.getByTestId("pivot-table");
+    await wrap.evaluate((el) => { el.scrollTop = 400; });
+    await expect.poll(() => wrap.evaluate((el) => el.scrollTop)).toBeGreaterThan(300);
+    const gaps = await wrap.evaluate((el) => {
+        const rows = [...el.querySelectorAll("thead tr")].map((tr) => [...tr.children].map((c) => c.getBoundingClientRect()));
+        const top = el.getBoundingClientRect().top;
+        return [Math.min(...rows[0].map((r) => r.top)) - top, ...rows.slice(1).map((cells, i) => Math.min(...cells.map((r) => r.top)) - Math.max(...rows[i].map((r) => r.bottom)))];
+    });
+    // two header rows (the categories, then the value), the first at the top of the box
+    expect(gaps.length).toBe(2);
+    for (const gap of gaps) expect(Math.abs(gap)).toBeLessThan(0.05);
+});
+
 test("a popover opens at its button also inside a transformed ancestor (a containing block for fixed elements)", async ({ page }) => {
     // no opening animation: the place is measured once
     await page.emulateMedia({ reducedMotion: "reduce" });
