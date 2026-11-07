@@ -135,6 +135,12 @@ test("value names: plain aggregator words, show-as renames the value", () => {
 
 test("file names: no path, no reserved characters or names", () => {
     assert.equal(safeFileName("report"), "report");
+    assert.equal(safeFileName(" .report. . "), "report");
+    // trailing dots and spaces are trimmed in linear time (a regex for them backtracked quadratically)
+    const t0 = performance.now();
+    assert.equal(safeFileName(`a${". ".repeat(200_000)}x`), `a${". ".repeat(200_000)}x`.slice(0, 120).replace(/[\s.]+$/, ""));
+    assert.equal(safeFileName(`a${". ".repeat(200_000)}`), "a");
+    assert.ok(performance.now() - t0 < 200, `${Math.round(performance.now() - t0)} ms`);
     assert.equal(safeFileName("../../etc/passwd"), "etc-passwd");
     assert.equal(safeFileName("C:\\\\temp\\\\x"), "C-temp-x");
     assert.equal(safeFileName('a<b>c:"d|e?*'), "a-b-c-d-e-");

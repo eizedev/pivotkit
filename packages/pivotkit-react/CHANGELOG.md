@@ -89,6 +89,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The chart's tooltip is built as DOM nodes with styles set through the CSSOM: ECharts' default HTML
   string has inline `style` attributes, which a Content-Security-Policy without
   `style-src 'unsafe-inline'` refused on every hover. The data's texts go in as text.
+- A file name with many trailing dots and spaces took quadratic time to clean (seconds for a long
+  `fileName`); it is trimmed in one pass, after the cut at 120 characters, so it never ends in a dot.
 - Drill-down rows rebuilt from encoded data keep a column named `__proto__` as a value instead of
   setting the row's prototype.
 - `engines` is gone: the package runs in the browser, and the Node version of the host's build tools
