@@ -182,6 +182,23 @@ export function derivedColumn(encoded, spec) {
     return column.name === spec.name ? column : { ...column, name: spec.name, key: spec.name.toLowerCase() };
 }
 
+/** Range bounds up to this magnitude are written without thousands separators when all are whole. */
+const PLAIN_RANGE_BOUND = 9999;
+
+/**
+ * True when every range of a binned column has whole-number bounds within PLAIN_RANGE_BOUND: years,
+ * ages, scores. Their labels read "1900 – 1910" instead of "1,900 – 1,910", as a number on an axis
+ * does ("1960"); larger or fractional ranges keep the locale's grouping ("10,000 – 20,000").
+ * @param {ReturnType<typeof binning>} bins
+ * @param {number[]} lows  the lower bounds present
+ */
+function plainRanges(bins, lows) {
+    if (bins.decimals > 0) {
+        return false;
+    }
+    return lows.every((lo) => Math.abs(lo) <= PLAIN_RANGE_BOUND && Math.abs(bins.upperOf(lo)) <= PLAIN_RANGE_BOUND);
+}
+
 function buildDerived(source, spec, unit, id) {
     const n = source.values.length;
     const codes = new Int32Array(n);
@@ -220,9 +237,10 @@ function buildDerived(source, spec, unit, id) {
     if (unit.type === "date") {
         column.dateOnly = true;
     } else if (bins) {
-        // lower bound included, upper bound excluded
+        // lower bound included, upper bound excluded; ranges of years read "1900 – 1910"
+        const useGrouping = !plainRanges(bins, dict);
         column.labeler = (lo, locale) => {
-            const f = numberFormat(locale, { maximumFractionDigits: bins.decimals, signDisplay: "negative" });
+            const f = numberFormat(locale, { maximumFractionDigits: bins.decimals, signDisplay: "negative", useGrouping });
             return `${f.format(lo)} – ${f.format(bins.upperOf(lo))}`;
         };
     } else {

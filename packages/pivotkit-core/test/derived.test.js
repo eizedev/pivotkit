@@ -80,6 +80,20 @@ test("bins of decimal sizes put boundary values into the bin they start", () => 
     assert.deepEqual(bins([1.1, 1.2, 1.3], 0.1, 0.05).map((b) => b[1]), ["1.05 – 1.15", "1.15 – 1.25", "1.25 – 1.35"]);
 });
 
+test("ranges of years have no thousands separators; large or fractional ranges keep them", () => {
+    const labels = (values, size, locale) => {
+        const d = encode(values.map((x) => ({ x })));
+        const r = computePivot(d, { derived: [{ name: "B", field: "x", by: "bin", size }], rows: ["B"], values: [{ agg: "count" }], formatting: { locale } });
+        return r.rowRoot.children.map((n) => r.label("rows", n));
+    };
+    assert.deepEqual(labels([1901, 1915, 2024], 10, "en-US"), ["1900 – 1910", "1910 – 1920", "2020 – 2030"]);
+    assert.deepEqual(labels([1901, 2024], 10, "de-DE"), ["1900 – 1910", "2020 – 2030"]);
+    assert.deepEqual(labels([-5000, 9998], 1, "en-US"), ["-5000 – -4999", "9998 – 9999"]);
+    // one range past 9,999 groups every label of the column, so they stay alike
+    assert.deepEqual(labels([9999, 12000], 5000, "en-US"), ["5,000 – 10,000", "10,000 – 15,000"]);
+    assert.deepEqual(labels([1500.5], 0.5, "en-US"), ["1,500.5 – 1,501"]);
+});
+
 test("negative values and origins", () => {
     assert.deepEqual(bins([-0.3, -0.1, -0.25, 0], 0.1), [[-0.3, "-0.3 – -0.2", 2], [-0.1, "-0.1 – 0", 1], [0, "0 – 0.1", 1]]);
     assert.deepEqual(bins([-5, -10, 0, 4], 10), [[-10, "-10 – 0", 2], [0, "0 – 10", 2]]);
