@@ -13,6 +13,7 @@ extra_css = ["assets/site.css"]
 nav = [
   { "Overview" = "index.md" },
   { "Live demo" = "demo.md" },
+  { "Learn with real data" = "learn.md" },
   { "Getting started" = [
     { "React" = "getting-started/react.md" },
     { "Web component" = "getting-started/web-component.md" },
@@ -78,3 +79,5 @@ pymdownx.highlight = {}
 pymdownx.superfences = {}
 pymdownx.inlinehilite = {}
 pymdownx.tabbed = { alternate_style = true }
+# the "Learn with real data" page shows the marked sections of the playground's data/sources.js
+pymdownx.snippets = { base_path = ["examples/playground/data"], check_paths = true }

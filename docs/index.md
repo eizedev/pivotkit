@@ -18,12 +18,13 @@ hide:
 
 [Get started](getting-started/react.md){ .md-button .md-button--primary }
 [Try the live demo](demo.md){ .md-button }
+[Learn with real data](learn.md){ .md-button }
 [Source on GitHub](https://github.com/eizedev/pivotkit){ .md-button }
 
 </div>
 
-![The pivot report in the light theme: field list on the left, the Filters, Columns, Rows and Values zones, and a table of revenue by region, country and category with subtotals and grand totals](assets/screenshots/report-light.png#only-light)
-![The pivot report in the dark theme: field list on the left, the Filters, Columns, Rows and Values zones, and a table of revenue by region, country and category with subtotals and grand totals](assets/screenshots/report-dark.png#only-dark)
+![The pivot report in the light theme with real weather data: field list on the left, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](assets/screenshots/report-light.png#only-light)
+![The pivot report in the dark theme with real weather data: field list on the left, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](assets/screenshots/report-dark.png#only-dark)
 
 <div class="cards" markdown>
 

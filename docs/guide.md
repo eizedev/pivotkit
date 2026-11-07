@@ -6,7 +6,8 @@ description: A guide for the people who use a pivotkit report - fields and zones
 # Using the report
 
 This page is for the people who build reports with pivotkit. Everything here works the same in the
-React component and in the web component; the [live demo](demo.md) is a good place to follow along.
+React component and in the web component; the [live demo](demo.md) is a good place to follow along,
+and [Learn with real data](learn.md) has tasks to try on real public data.
 
 ![The report: the field list on the left, the four zones Filters, Columns, Rows and Values, and the table](assets/screenshots/report-light.png#only-light)
 ![The report: the field list on the left, the four zones Filters, Columns, Rows and Values, and the table](assets/screenshots/report-dark.png#only-dark)

@@ -4,7 +4,8 @@
 //   npm run build:playground && node scripts/docs-screenshots.js
 //
 // Every shot is one entry in SHOTS: the playground's URL parameters, the window size and what to open
-// before the picture is taken. The data has a fixed seed, so the numbers are the same on every run.
+// before the picture is taken. The generated data has a fixed seed and the real data is a committed
+// snapshot, so the numbers are the same on every run.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
@@ -19,8 +20,9 @@ const PHONE = { width: 390, height: 844 };
 
 /** @type {{ name: string, query: string, size: typeof WIDE, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
-    { name: "report-light", query: "data=sales&theme=light", size: WIDE },
-    { name: "report-dark", query: "data=sales&theme=dark", size: WIDE },
+    // the hero of the start page: real data (the weather of 14 cities)
+    { name: "report-light", query: "data=weather&theme=light", size: WIDE },
+    { name: "report-dark", query: "data=weather&theme=dark", size: WIDE },
     {
         name: "value-menu",
         query: "data=sales&theme=light",
@@ -56,7 +58,20 @@ const SHOTS = [
             el.scrollIntoView({ block: "start" });
         })
     },
-    { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE }
+    { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE },
+    // "Learn with real data": one template of each real data set
+    { name: "learn-weather", query: "data=weather&preset=0&theme=light", size: WIDE },
+    { name: "learn-countries", query: "data=countries&preset=0&theme=light", size: WIDE },
+    {
+        name: "learn-earthquakes",
+        query: "data=earthquakes&preset=2&theme=light",
+        size: WIDE,
+        open: async (page) => {
+            await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^Russia/ }).locator("td").nth(1).click();
+            await page.getByTestId("drill-panel").waitFor();
+        }
+    },
+    { name: "learn-nobel", query: "data=nobel&preset=0&theme=light", size: WIDE }
 ];
 
 const server = spawn(process.execPath, [new URL("examples/playground/serve.js", root).pathname, String(port)], { stdio: "ignore" });
