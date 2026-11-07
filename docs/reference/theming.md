@@ -69,7 +69,7 @@ through the element.
 | `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge of a zone (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
 | `--pk-note` | Notes and hints above the result | `#eef3fd` | `#1e2638` |
 | `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours | `#f8696b`<br>`#ffeb84`<br>`#63be7b` | `#c2413f`<br>`#b39a2e`<br>`#3f9a5c` |
-| `--pk-small`<br>`--pk-target` | Secondary text, never below 14 px; the smallest hit area of a control | `max(14px, 0.93em)`<br>`24px` | as light |
+| `--pk-small`<br>`--pk-target`<br>`--pk-target-touch` | Secondary text, never below 14 px; the smallest hit area of a control; that of a small control (×, "i", a field's menu and grip, a tip's x) on a touch screen (`pointer: coarse`) | `max(14px, 0.93em)`<br>`24px`<br>`44px` | as light |
 | `--pk-shadow-sm`<br>`--pk-scrim`<br>`--pk-scrim-light`<br>`--pk-knob` | Chip shadow; behind sheets and the drawer; behind the drill-down; the knob of a switch | see `styles.css` | see `styles.css` |
 | `--pk-total`<br>`--pk-total-strong` | Subtotal and grand total rows | `#f4f6f9`<br>`#e9edf3` | `#1d2128`<br>`#252a33` |
 | `--pk-danger`<br>`--pk-focus` | Remove and errors; the focus ring | `#b42318`<br>`#2b5fd9` | `#ff8b80`<br>`#84a3ff` |
@@ -89,7 +89,7 @@ colours, keep those ratios.
 ## Sizes and motion
 
 - Text is never smaller than 14 px, whatever the page's font size (`--pk-font-size`, `--pk-small`).
-- Every control is at least 24 x 24 px (`--pk-target`).
+- Every control is at least 24 x 24 px (`--pk-target`); on a touch screen the small ones at least 44 x 44 px (`--pk-target-touch`).
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
 
 ## Chart colours

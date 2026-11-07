@@ -53,13 +53,24 @@ export async function tableRows(page) {
  * all buttons. `testId` is the button's ("redo", "reset", "options", "views", "chart-type").
  */
 export async function toolbar(page, testId) {
+    // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
+    await page.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     const own = page.getByTestId(testId);
     if (await own.count()) {
         await own.click();
-        return;
+    } else {
+        await page.getByTestId("more").click();
+        await page.getByTestId(`more-${testId}`).click();
     }
-    await page.getByTestId("more").click();
-    await page.getByTestId(`more-${testId}`).click();
+    // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
+    // so a test that moves the focus inside does not lose it to that
+    if (testId !== "redo" && testId !== "reset" && testId !== "layout") {
+        await expect.poll(() => page.evaluate(() => {
+            const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
+            return Boolean(deep(document)?.closest(".pk-popover"));
+        })).toBe(true);
+    }
 }
 
 /**

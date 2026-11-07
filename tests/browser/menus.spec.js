@@ -348,7 +348,7 @@ test.describe("long menus and explanations", () => {
     test("the wheel over a menu never scrolls the table or the page behind it", async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 520 });
         await page.goto("?data=countries&height=1200");
-        await page.getByTestId("options").click();
+        await toolbar(page, "options");
         const menu = page.locator(".pk-popover");
         await expect(menu).toBeVisible();
         const before = await page.evaluate(() => window.scrollY);
@@ -365,7 +365,7 @@ test.describe("long menus and explanations", () => {
 
     test("an i explains a setting; Show explanations hides them all; a switch that changes nothing says why", async ({ page }) => {
         await page.goto("?data=tickets");
-        await page.getByTestId("options").click();
+        await toolbar(page, "options");
         // one row field, one column field: subtotals would change nothing
         await expect(page.getByTestId("total-rowSubtotals")).toBeDisabled();
         await expect(page.getByTestId("total-rowSubtotals-reason")).toHaveText("Needs two or more fields in Rows.");
@@ -378,7 +378,7 @@ test.describe("long menus and explanations", () => {
         await info.focus();
         await expect(page.locator(".pk-info-pop")).toContainText("a total row under each group");
         // Show explanations off: no i anywhere, the reason stays (it is state)
-        const show = page.getByTestId("show-setting-info");
+        const show = page.getByTestId("show-explanations");
         await show.focus();
         await show.press("Space");
         await expect(page.locator('[data-testid^="setting-info-"]')).toHaveCount(0);
@@ -389,10 +389,12 @@ test.describe("long menus and explanations", () => {
         await expect(page.getByTestId("setting-info-exportXlsx")).toHaveCount(0);
         await page.keyboard.press("Escape");
         // back on: the export formats explain themselves with an i, one line each
-        await page.getByTestId("options").click();
-        await page.getByTestId("show-setting-info").focus();
-        await page.getByTestId("show-setting-info").press("Space");
-        await expect(page.getByTestId("show-setting-info")).toBeChecked();
+        await toolbar(page, "options");
+        // the menu has taken the focus (from More it opens a frame later), so it does not take it back
+        await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")))).toBe(true);
+        await page.getByTestId("show-explanations").focus();
+        await page.getByTestId("show-explanations").press("Space");
+        await expect(page.getByTestId("show-explanations")).toBeChecked();
         await page.keyboard.press("Escape");
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await page.getByTestId("export").click();

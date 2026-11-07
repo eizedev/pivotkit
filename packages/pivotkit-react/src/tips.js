@@ -8,13 +8,13 @@
  * text in every language and, for a button, its action in PivotReport.
  */
 
-import { fieldLabel, suggestDateUnit } from "pivotkit-core";
-import { CHART_TYPES, MANY_SERIES, chartTypeOf } from "./chart-types.js";
+import { CATALOG, fieldLabel, suggestDateUnit } from "pivotkit-core";
+import { CHART_TYPES, MANY_SERIES, SLICE_TYPES, chartPlan } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { filterZoneFields, filtersOf, isFiltered, sourceOf } from "./view-ops.js";
 
-/** Tips shown at a time: more would be a wall of text above the table. */
-export const TIP_LIMIT = 2;
+/** Tips shown at a time: one, the most important; the next waits until it is followed or dismissed. */
+export const TIP_LIMIT = 1;
 
 /** When the tips show; each number is documented in the React reference (tips). */
 export const TIP_THRESHOLDS = Object.freeze({
@@ -27,7 +27,9 @@ export const TIP_THRESHOLDS = Object.freeze({
     /** changes of the view in this session after which saving it as a template is suggested */
     changesBeforeSave: 5,
     /** changes after the first drag during which the Undo and menu tip stays */
-    afterDragChanges: 3
+    afterDragChanges: 3,
+    /** slices from which a pie or a donut suggests bars: a circle reads well up to about 7 parts */
+    pieSlices: 7
 });
 
 /** The "show values as" calculations that are percentages: their tip says what 100 % is. */
@@ -51,6 +53,9 @@ const PERCENT_SHOW_AS = Object.freeze(["percentOfGrandTotal", "percentOfRowTotal
  * @property {number} changes  changes of the view in this session
  * @property {number | null} dragAt  `changes` when the first drag ended, null before
  * @property {boolean} canSave  the host lets the user save templates
+ * @property {number} savedAt  `changes` when the view was last saved (0: not saved in this session)
+ * @property {{ name: string, auto: boolean, swap: boolean }} chartPlan  what the chart draws
+ *   (chart-types.js chartPlan): the type, whether the data chose it, rows and columns swapped for it
  */
 
 /**
@@ -64,14 +69,19 @@ const PERCENT_SHOW_AS = Object.freeze(["percentOfGrandTotal", "percentOfRowTotal
  */
 
 const name = (ctx, field) => fieldLabel(field, { fields: ctx.fields });
+/** The grouping unit of a derived field ("month", "weekday"), "" for a field of the data. */
+const derivedBy = (ctx, field) => ctx.view.derived.find((d) => d.name.toLowerCase() === String(field).toLowerCase())?.by ?? "";
 const isRawDate = (ctx, field) => ctx.typeOf(field) === "date" && sourceOf(ctx.view, field).toLowerCase() === String(field).toLowerCase();
 const table = (ctx) => !ctx.failed && !ctx.empty && ctx.view.display === "table";
 const chart = (ctx) => !ctx.failed && ctx.view.display === "chart" && ctx.series !== null && ctx.view.values.length > 0;
 /** The chart's series where chart(ctx) holds. */
 const seriesOf = (ctx) => /** @type {NonNullable<TipContext["series"]>} */ (ctx.series);
-const axisChart = (ctx) => chart(ctx) && CHART_TYPES[chartTypeOf(ctx.view.chart)].axis;
-/** Lines or areas with dates on Columns only: each date is a line of its own. */
-const datesAcross = (ctx) => axisChart(ctx) && ["line", "area"].includes(chartTypeOf(ctx.view.chart)) && ctx.view.cols.some((f) => ctx.typeOf(f) === "date") && !ctx.view.rows.some((f) => ctx.typeOf(f) === "date");
+const axisChart = (ctx) => chart(ctx) && CHART_TYPES[ctx.chartPlan.name].axis;
+const lines = (ctx) => ["line", "area"].includes(ctx.chartPlan.name);
+const sliceChart = (ctx) => chart(ctx) && SLICE_TYPES.includes(ctx.chartPlan.name);
+const dateOn = (ctx, axis) => ctx.view[axis].some((f) => ctx.typeOf(f) === "date");
+/** Lines or areas with dates on Columns only, drawn as the view has them: each date is a line of its own. */
+const datesAcross = (ctx) => axisChart(ctx) && !ctx.chartPlan.swap && lines(ctx) && dateOn(ctx, "cols") && !dateOn(ctx, "rows");
 
 /** @type {readonly TipEntry[]} the tips, most important first: that is the order they show in */
 export const TIPS = Object.freeze([
@@ -119,6 +129,37 @@ export const TIPS = Object.freeze([
         }
     },
     {
+        // a type the user chose for data over time: lines show it (automatic draws them)
+        id: "chartOverTime",
+        icon: "line",
+        action: "auto",
+        when: (ctx) => {
+            if (!chart(ctx) || ctx.chartPlan.auto || lines(ctx) || ctx.chartPlan.name === "heatmap") {
+                return null;
+            }
+            // only where Automatic would draw lines: a date along the time line, not a repeating one (weekday)
+            if (chartPlan({ ...ctx.view, chart: { ...ctx.view.chart, type: "auto" } }, ctx.encoded).name !== "line") {
+                return null;
+            }
+            const field = [...ctx.view.rows, ...ctx.view.cols].find((f) => ctx.typeOf(f) === "date" && !CATALOG.cyclicUnits.includes(derivedBy(ctx, f)));
+            return field ? { field: name(ctx, field) } : null;
+        }
+    },
+    {
+        // a pie of many slices: the small ones cannot be told apart
+        id: "pieSlices",
+        icon: "chart",
+        action: "bars",
+        when: (ctx) => (sliceChart(ctx) && seriesOf(ctx).categories.length > TIP_THRESHOLDS.pieSlices ? { count: seriesOf(ctx).categories.length, max: TIP_THRESHOLDS.pieSlices } : null)
+    },
+    {
+        // a pie draws one slice per row: the columns are added up
+        id: "pieColumns",
+        icon: "info",
+        action: "bars",
+        when: (ctx) => (sliceChart(ctx) && ctx.view.cols.length > 0 ? { fields: ctx.view.cols.map((f) => name(ctx, f)).join(", ") } : null)
+    },
+    {
         id: "chartDates",
         action: "swap",
         when: (ctx) => (datesAcross(ctx) ? {} : null)
@@ -132,7 +173,7 @@ export const TIPS = Object.freeze([
         action: "bars",
         when: (ctx) => {
             // dates on Columns: the dates tip (swap) says the better thing
-            if (!axisChart(ctx) || datesAcross(ctx) || !["line", "area"].includes(chartTypeOf(ctx.view.chart)) || ctx.view.rows.length === 0) {
+            if (!axisChart(ctx) || ctx.chartPlan.auto || datesAcross(ctx) || !lines(ctx) || ctx.view.rows.length === 0) {
                 return null;
             }
             const field = ctx.view.rows[ctx.view.rows.length - 1];
@@ -143,8 +184,9 @@ export const TIPS = Object.freeze([
     {
         id: "chartSeries",
         action: "swap",
-        // the dates tip says the same (swap) more precisely
-        when: (ctx) => (axisChart(ctx) && !datesAcross(ctx) && seriesOf(ctx).series.length > MANY_SERIES ? { count: seriesOf(ctx).series.length } : null)
+        // the dates tip says the same (swap) more precisely; lines over time drawn automatically
+        // would draw the same lines after a swap
+        when: (ctx) => (axisChart(ctx) && !datesAcross(ctx) && !(ctx.chartPlan.auto && lines(ctx)) && seriesOf(ctx).series.length > MANY_SERIES ? { count: seriesOf(ctx).series.length } : null)
     },
     {
         // a text field in Values is counted: say so, and what a sum needs
@@ -187,22 +229,23 @@ export const TIPS = Object.freeze([
         when: (ctx) => (table(ctx) && ctx.view.cols.length > 0 && ctx.colLeaves > TIP_THRESHOLDS.manyColumns && ctx.rowLeaves < ctx.colLeaves ? { count: ctx.colLeaves } : null)
     },
     {
+        // once after the first drag: Undo and the menus (before the next step: it goes after a few changes)
+        id: "afterDrag",
+        icon: "undo",
+        when: (ctx) => (!ctx.failed && ctx.dragAt !== null && ctx.changes - ctx.dragAt <= TIP_THRESHOLDS.afterDragChanges ? {} : null)
+    },
+    {
         // rows without values show no numbers
         id: "values",
         icon: "sigma",
         when: (ctx) => (table(ctx) && ctx.view.values.length === 0 ? {} : null)
     },
     {
-        // once after the first drag: Undo and the menus
-        id: "afterDrag",
-        icon: "undo",
-        when: (ctx) => (!ctx.failed && ctx.dragAt !== null && ctx.changes - ctx.dragAt <= TIP_THRESHOLDS.afterDragChanges ? {} : null)
-    },
-    {
         id: "saveTemplate",
         icon: "bookmark",
         action: "saveTemplate",
-        when: (ctx) => (ctx.canSave && !ctx.failed && !ctx.empty && ctx.changes >= TIP_THRESHOLDS.changesBeforeSave ? {} : null)
+        // after a save it waits for as many changes again
+        when: (ctx) => (ctx.canSave && !ctx.failed && !ctx.empty && ctx.changes - ctx.savedAt >= TIP_THRESHOLDS.changesBeforeSave ? {} : null)
     },
     {
         // the empty report: every field has a menu, and Undo is there
@@ -227,15 +270,13 @@ export const NOTICE_IDS = Object.freeze(TIPS.filter((t) => t.kind === "notice").
 export const ALL_TIPS = "*";
 
 /**
- * The other switches of Options → Help, kept in the same list (and storage) as the tips: the "i" of
- * the field descriptions off, the "i" of the zone explanations off.
+ * The other switch of Options → Help, "Show explanations", kept in the same list (and storage) as the
+ * tips: off, it hides every "i" - of the settings, of the zones and of the field descriptions -
+ * except those a host forces on (the props settingInfo, zoneInfo and fieldInfo).
  */
-export const NO_FIELD_INFO = "-fieldInfo";
-export const NO_ZONE_INFO = "-zoneInfo";
-/** The "i" next to the settings that need explaining off ("Show explanations"). */
-export const NO_SETTING_INFO = "-settingInfo";
+export const NO_EXPLANATIONS = "-explanations";
 /** Entries of the list that are switches, not dismissed tips: "Show dismissed tips again" keeps them. */
-export const SWITCHES = Object.freeze([ALL_TIPS, NO_FIELD_INFO, NO_ZONE_INFO, NO_SETTING_INFO]);
+export const SWITCHES = Object.freeze([ALL_TIPS, NO_EXPLANATIONS]);
 
 /**
  * The sections of the menus that fold, and whether each is open until the user folds or opens it:
@@ -292,14 +333,14 @@ const isSection = (id) => /^(open|closed):/.test(id) && Object.hasOwn(SECTIONS, 
 export const keptOnReset = (id) => SWITCHES.includes(id) || isSection(id);
 
 /**
- * Whether a help switch is on: the host's "on" or "off" forces it (and Options hides the switch),
- * else the user's choice in the list, on by default.
- * @param {unknown} forced  the host's prop
+ * Whether one kind of "i" shows: the host's "on" or "off" forces it (and the user's switch leaves it
+ * alone), else the user's "Show explanations" in the list, on by default.
+ * @param {unknown} forced  the host's prop (settingInfo, zoneInfo or fieldInfo)
  * @param {readonly string[]} dismissed
- * @param {string} off  NO_FIELD_INFO, NO_ZONE_INFO or NO_SETTING_INFO
- * @returns {{ on: boolean, user: boolean }}  `user`: the user may switch it
+ * @param {string} [off]  the switch's entry, NO_EXPLANATIONS
+ * @returns {{ on: boolean, user: boolean }}  `user`: the user's switch decides
  */
-export function helpSwitch(forced, dismissed, off) {
+export function helpSwitch(forced, dismissed, off = NO_EXPLANATIONS) {
     if (forced === "on" || forced === "off") {
         return { on: forced === "on", user: false };
     }
@@ -316,17 +357,20 @@ export const SHORTCUTS = Object.freeze([
     { keys: ["Arrow keys"], text: "move" },
     { keys: ["Enter"], text: "open" },
     { keys: ["Space"], text: "drag" },
-    { keys: ["Escape"], text: "close" }
+    { keys: ["Escape"], text: "close" },
+    { keys: ["Arrow keys"], text: "fields" },
+    { keys: ["Shift", "F10"], text: "fieldMenu" }
 ]);
 
 /**
  * What the conditions read, from the report's state. Pure.
  * @param {{ view: any, result: import("pivotkit-core").PivotResult | null, encoded: import("pivotkit-core").Encoded,
  *   failed: boolean, empty: boolean, typeOf: (field: string) => string, fields?: Record<string, string>,
- *   series?: TipContext["series"], tableShown?: boolean, drilled?: boolean, changes?: number, dragAt?: number | null, canSave?: boolean }} state
+ *   series?: TipContext["series"], tableShown?: boolean, drilled?: boolean, changes?: number, dragAt?: number | null, canSave?: boolean,
+ *   savedAt?: number, chartPlan?: TipContext["chartPlan"] }} state
  * @returns {TipContext}
  */
-export function tipContext({ view, result, encoded, failed, empty, typeOf, fields, series = null, tableShown = false, drilled = false, changes = 0, dragAt = null, canSave = false }) {
+export function tipContext({ view, result, encoded, failed, empty, typeOf, fields, series = null, tableShown = false, drilled = false, changes = 0, dragAt = null, canSave = false, savedAt = 0, chartPlan = { name: "bar", auto: true, swap: false } }) {
     const leaves = (nodes, depth) => (result && depth > 0 ? nodes.reduce((n, node) => n + (node.depth === depth ? 1 : 0), 0) : 1);
     return {
         view,
@@ -344,7 +388,9 @@ export function tipContext({ view, result, encoded, failed, empty, typeOf, field
         drilled,
         changes,
         dragAt,
-        canSave
+        canSave,
+        savedAt,
+        chartPlan
     };
 }
 

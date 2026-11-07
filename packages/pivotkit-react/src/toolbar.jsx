@@ -4,24 +4,20 @@
  * (totals, expand and collapse, help), Views (the saved views and sharing: link, JSON, file) and
  * export. (Swap rows and columns sits with the zones.) Every button keeps its text. When the report
  * is too narrow for all of them, the less used ones move, one by one, into a "More" menu
- * (OVERFLOW_ORDER), always in the same order whatever their state; Table | Chart, Undo and Export
- * always stay, with their text.
+ * (OVERFLOW_ORDER), always in the same order whatever their state, by the toolbar's width and not by
+ * the length of the texts (TOOLBAR_ROOM); Table | Chart, Undo with Redo and Export always stay, with
+ * their text.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHART_TYPES, chartTypeOf } from "./chart-types.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
-import { fill } from "./labels.js";
+import { LABELS, fill } from "./labels.js";
 import { MenuPanel } from "./lazy-menus.jsx";
 import { MenuButton, Option, Popover } from "./popover.jsx";
+import { OVERFLOW_ORDER, overflowLevel, toolbarRoom, toolbarTexts } from "./overflow.js";
 import { SettingInfo } from "./section.jsx";
-
-/**
- * The buttons that move into "More" when the toolbar is too narrow, first to go first. The order
- * never depends on a button's own state (Layout open or folded), so a click never moves it.
- */
-export const OVERFLOW_ORDER = Object.freeze(["reset", "redo", "layout", "views", "options", "chartType"]);
 
 /** @param {{ icon: any, label: string, onClick: () => void, disabled?: boolean, testId?: string, shortcut?: string }} props */
 function TextButton({ icon, label, onClick, disabled, testId, shortcut }) {
@@ -33,40 +29,117 @@ function TextButton({ icon, label, onClick, disabled, testId, shortcut }) {
     );
 }
 
+/** A canvas for measuring texts, made once. @type {CanvasRenderingContext2D | null | undefined} */
+let measuring;
+
+/** The font of an element for the canvas (Firefox gives no `font` shorthand in the computed style). */
+const fontOf = (style) => `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+
 /**
- * How many entries of OVERFLOW_ORDER are in "More": raised until the toolbar fits in one line,
- * measured again from none when the toolbar gets wider.
- * @param {React.RefObject<HTMLElement | null>} ref
- * @param {string} key  changes when the buttons change (another language, the zones folded or open):
- *   then it is measured again from none
- * @param {number} max  how many entries can move
+ * The room (px) of each part of the toolbar, measured: its texts in every built-in language and the
+ * report's own, in the font the toolbar is drawn in, plus what the buttons on screen have around their
+ * text. Null where the browser cannot measure (then overflowLevel's estimate in em applies).
+ * @param {HTMLElement} el  the toolbar
+ * @param {ReturnType<typeof toolbarTexts>} texts
  */
-function useOverflow(ref, key, max) {
+function measuredRoom(el, texts) {
+    const doc = el.ownerDocument;
+    if (measuring === undefined) {
+        try {
+            measuring = doc.createElement("canvas").getContext("2d");
+        } catch {
+            measuring = null;
+        }
+    }
+    const undo = el.querySelector("[data-testid='undo']");
+    const menu = el.querySelector("[data-testid='export']");
+    const display = el.querySelector(".pk-segmented");
+    const sep = el.querySelector(".pk-sep");
+    const textOf = (node) => node?.querySelector(".pk-btn-text, span");
+    if (!measuring || !undo || !menu || !display || !textOf(undo) || !textOf(display)) {
+        return null;
+    }
+    const view = doc.defaultView;
+    if (!view) {
+        return null;
+    }
+    const fonts = { button: fontOf(view.getComputedStyle(/** @type {Element} */ (textOf(undo)))), display: fontOf(view.getComputedStyle(/** @type {Element} */ (textOf(display)))) };
+    const ctx = measuring;
+    const measure = (text, kind) => {
+        ctx.font = fonts[kind];
+        return ctx.measureText(text).width;
+    };
+    const w = (node) => node.getBoundingClientRect().width;
+    const tw = (node) => (node ? node.getBoundingClientRect().width : 0);
+    const segTexts = [...display.querySelectorAll("button > span")];
+    const sepStyle = sep ? view.getComputedStyle(sep) : null;
+    const chrome = {
+        text: w(undo) - tw(textOf(undo)),
+        menu: w(menu) - tw(textOf(menu)),
+        display: w(display) - segTexts.reduce((n, s) => n + tw(s), 0),
+        sep: sep && sepStyle ? w(sep) + parseFloat(sepStyle.marginLeft) + parseFloat(sepStyle.marginRight) : 0,
+        // one more px per part: text widths are fractional, the buttons round them
+        gap: (parseFloat(view.getComputedStyle(el).columnGap) || 0) + 1
+    };
+    return toolbarRoom(texts, measure, chrome);
+}
+
+/**
+ * How many entries of OVERFLOW_ORDER are in "More": overflowLevel() of the toolbar's width and the
+ * room of its parts with their widest text in every language (measuredRoom), so English and German
+ * show the same buttons; raised further only when the buttons still do not fit (a font that came
+ * later). Measured again when the width or the texts change.
+ * @param {React.RefObject<HTMLElement | null>} ref
+ * @param {string} key  changes when the buttons change (another language, the zones folded or open)
+ * @param {boolean} narrow  the report is narrow (the Fields button is in the toolbar)
+ * @param {number} max  how many entries can move
+ * @param {ReturnType<typeof toolbarTexts>} texts
+ */
+function useOverflow(ref, key, narrow, max, texts) {
     const [level, setLevel] = useState(0);
-    const width = useRef(0);
     const [measure, setMeasure] = useState(0);
     const [lastKey, setLastKey] = useState(key);
+    const latest = useRef(texts);
+    // before the effect below, which reads it
+    useIsoLayoutEffect(() => {
+        latest.current = texts;
+    });
     if (key !== lastKey) {
         setLastKey(key);
-        setLevel(0);
+        setMeasure((m) => m + 1);
     }
     useIsoLayoutEffect(() => {
         const el = ref.current;
         if (!el || typeof ResizeObserver !== "function") {
             return undefined;
         }
-        const ro = new ResizeObserver(([entry]) => {
-            const w = Math.round(entry.contentRect.width);
-            if (w > width.current + 1) {
-                // wider: start over and let the layout effect below take entries out again
-                setLevel(0);
-            }
-            width.current = w;
+        let width = -1;
+        const decide = () => {
+            const em = parseFloat(getComputedStyle(el).fontSize) || 14;
+            const room = measuredRoom(el, latest.current);
+            setLevel(room ? overflowLevel(width, narrow, room) : overflowLevel(width / em, narrow));
             setMeasure((m) => m + 1);
+        };
+        const ro = new ResizeObserver(([entry]) => {
+            // the width only: the toolbar's own height changes when it wraps, and must not start over
+            const w = Math.round(entry.contentRect.width);
+            if (w !== width) {
+                width = w;
+                decide();
+            }
         });
+        // before the first paint: the buttons never show in the toolbar for a frame and then move
+        width = Math.round(el.getBoundingClientRect().width);
+        decide();
         ro.observe(el);
-        return () => ro.disconnect();
-    }, [ref]);
+        // a web font that arrives later draws the texts wider or narrower
+        let live = true;
+        el.ownerDocument.fonts?.ready.then(() => live && width >= 0 && decide(), () => undefined);
+        return () => {
+            live = false;
+            ro.disconnect();
+        };
+    }, [ref, narrow, key]);
     useIsoLayoutEffect(() => {
         const el = ref.current;
         if (el && el.scrollWidth > el.clientWidth + 1 && level < max) {
@@ -87,7 +160,9 @@ export function Toolbar(props) {
     const viewsButton = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const [panel, setPanel] = useState(/** @type {"options" | "views" | "chartType" | null} */ (null));
     const order = OVERFLOW_ORDER;
-    const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}`, order.length);
+    // every text a part of the toolbar can show, in the built-in languages and the report's own
+    const texts = useMemo(() => toolbarTexts([LABELS.en, LABELS.de, labels]), [labels]);
+    const level = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}`, size === "narrow", order.length, texts);
     const hidden = new Set(order.slice(0, level));
     // a panel opened from "More" closes when its own button is back in the toolbar
     if (panel && !hidden.has(panel)) {
@@ -113,14 +188,18 @@ export function Toolbar(props) {
             button.click();
         }
     }, [clickFor]);
-    const preset = chartTypeOf(view.chart);
+    // the type drawn (an automatic chart's icon is the type it draws) and the one chosen
+    const plan = props.chartPlan ?? { name: chartTypeOf(view.chart), auto: false };
+    const preset = plan.auto ? "auto" : plan.name;
+    const drawnIcon = CHART_TYPES[plan.name].icon;
     const mod = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl+";
+    // the button shows the type next to Table | Chart; its name and the "More" entry say what it is
     const chartTypeText = fill(labels.chartTypeIs, { type: labels.chartTypes[preset] });
     const panels = {
         // the panels load with the chip menus (menus.js), on demand
         options: (close) => <MenuPanel name="OptionsPanel" loadingText={labels.loadingMenu} props={{ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help: props.help }} />,
         views: (close) => <MenuPanel name="ViewsPanel" loadingText={labels.loadingMenu} props={{ templates, labels, onLoad: onLoadTemplate, onSave: onSaveTemplate, onDelete: onDeleteTemplate, close, share }} />,
-        chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, labels, onChart, onDisplay: onChartDisplay, close }} />
+        chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, labels, onChart, onDisplay: onChartDisplay, close }} />
     };
     /**
      * Every action that can move into "More", defined once: its button in the toolbar and its entry
@@ -131,16 +210,11 @@ export function Toolbar(props) {
         chartType: {
             place: "chart",
             button: () => (
-                <MenuButton key="chartType" label={chartTypeText} icon={CHART_TYPES[preset].icon} text={chartTypeText} role="dialog" testId="chart-type" popoverClass="pk-chart-menu">
+                <MenuButton key="chartType" label={chartTypeText} name={chartTypeText} title={chartTypeText} icon={drawnIcon} text={labels.chartTypes[preset]} role="dialog" testId="chart-type" popoverClass="pk-chart-menu">
                     {panels.chartType}
                 </MenuButton>
             ),
-            entry: (close) => <Option key="chartType" inMenu icon={CHART_TYPES[preset].icon} onSelect={() => { close(); setPanel("chartType"); }} testId="more-chart-type">{`${chartTypeText}…`}</Option>
-        },
-        redo: {
-            place: "history",
-            button: () => <TextButton key="redo" icon="redo" label={labels.redo} onClick={onRedo} disabled={!canRedo} testId="redo" shortcut={`${mod}⇧Z`} />,
-            entry: (close) => <Option key="redo" inMenu icon="redo" disabled={!canRedo} onSelect={() => { close(); onRedo(); }} testId="more-redo">{labels.redo}</Option>
+            entry: (close) => <Option key="chartType" inMenu icon={drawnIcon} onSelect={() => { close(); setPanel("chartType"); }} testId="more-chart-type">{`${chartTypeText}…`}</Option>
         },
         reset: {
             place: "history",
@@ -194,13 +268,17 @@ export function Toolbar(props) {
                     <span>{labels.table}</span>
                 </button>
                 <button type="button" aria-pressed={view.display === "chart"} onClick={() => onDisplay("chart")} data-testid="show-chart">
-                    <Icon name={/** @type {any} */ (CHART_TYPES[preset].icon)} />
+                    <Icon name={/** @type {any} */ (drawnIcon)} />
                     <span>{labels.chart}</span>
                 </button>
             </div>
             {buttons("chart")}
             <span className="pk-sep" aria-hidden="true" />
-            <TextButton icon="undo" label={labels.undo} onClick={onUndo} disabled={!canUndo} testId="undo" shortcut={`${mod}Z`} />
+            {/* Undo and Redo stay together, also when the toolbar wraps */}
+            <span className="pk-toolbar-pair">
+                <TextButton icon="undo" label={labels.undo} onClick={onUndo} disabled={!canUndo} testId="undo" shortcut={`${mod}Z`} />
+                <TextButton icon="redo" label={labels.redo} onClick={onRedo} disabled={!canRedo} testId="redo" shortcut={`${mod}⇧Z`} />
+            </span>
             {buttons("history")}
             <span className="pk-grow" />
             {buttons("end")}
@@ -226,7 +304,7 @@ export function Toolbar(props) {
                 </MenuButton>
             ) : null}
             {panel ? (
-                <Popover open anchor={more} onClose={closePanel} label={panel === "chartType" ? chartTypeText : panel === "views" ? labels.views : labels.options} role="dialog" align="end">
+                <Popover open anchor={more} onClose={closePanel} label={panel === "chartType" ? chartTypeText : panel === "views" ? labels.views : labels.options} role="dialog" align="end" className={panel === "chartType" ? "pk-chart-menu" : undefined}>
                     {panels[panel](closePanel)}
                 </Popover>
             ) : null}

@@ -73,9 +73,10 @@ First release.
   Filters with the selection.
 - The Values menu says where filtering happens; an "i" next to each zone's title explains it with an
   example; the field list's grip says "Drag into a zone" and opens the field's menu on a click.
-- Options, Help: "Show tips", "Show field descriptions", "Show zone explanations" and "Show
-  explanations", remembered with the tips; `fieldInfo`, `zoneInfo` and `settingInfo` ("on", "off")
-  decide them for the host.
+- Options, Help: two switches, "Show tips" and "Show explanations" (every "i": of the settings, the
+  zones and the field descriptions), remembered with the tips (`"-explanations"` in
+  `dismissedTips`); `fieldInfo`, `zoneInfo` and `settingInfo` ("on", "off") decide one kind each for
+  the host, whatever the switch says.
 - One way to explain a setting: the "i" (hover, focus, tap) next to the totals, Show as, Along, the
   export formats (the export menu is a dialog), and a pie's Labels and the Group labels; menu rows stay
   one line (`aboutSetting`, `settingInfo`).
@@ -88,7 +89,7 @@ First release.
   user's choice kept with the tips (`"open:<id>"`, `"closed:<id>"` in `dismissedTips`); "More
   formats" for the rarer number formats.
 - Enlarge and Full screen at the top right of the result: Enlarge lets the result fill the report
-  (Escape or the button restores), Full screen uses the Fullscreen API on the report's root (also in a
+  (Escape or the button, which then reads "Reduce", restores; label `reduce`), Full screen uses the Fullscreen API on the report's root (also in a
   shadow root) and is offered only where the browser has it; neither is part of the view.
 - Expand all and Collapse all are offered only when they change something, say why not, and report
   what they did ("5 groups collapsed").
@@ -97,8 +98,11 @@ First release.
   Tips: what 100 % is for a percentage, dates on Columns and many
   series in a chart (with "Swap rows and columns"), a text field in Values, an ungrouped date with
   many columns (with "Group by"), many columns (swap), Rows without Values, Undo after the first drag,
-  saving after five changes (opens Views), the empty report and how to open a value. At most two
-  at a time (one in a narrow or low report), in the flow above the result, each with an x; Options has
+  saving after five changes (opens Views; after a save it waits for five more), the empty report and
+  how to open a value; a chosen chart type over dates ("Show as lines over time", `chartOverTime`),
+  a pie or donut of more than 7 slices ("Switch to Bars", `pieSlices`) and one whose columns it adds
+  up (`pieColumns`). One tip at a time, the most important first, the next one waiting until it is
+  followed or dismissed; in the flow above the result, each with an x; Options has
   "Show tips", "Show dismissed tips again" and the keyboard shortcuts. Props `tips` ("on", "off" or ids),
   `storageKey` (localStorage per report, read after the first render so server rendering and
   hydration match), `dismissedTips` and `onTipDismiss`. The texts are `labels.tips`; the earlier keys
@@ -125,17 +129,44 @@ First release.
 - Table with sticky header and row labels (their offsets follow the report's width and fractional row
   heights), expand and collapse, totals on and off, colour scales and
   data bars, keyboard navigation, drill-down panel and `onCellClick`; virtual scrolling from 300 rows.
+- The chart type "Automatic" (the default, `chart.type: "auto"`): lines when a date or a grouping of
+  one along the time line is on Rows (a weekday or hour of day is bars); with dates on Columns only, lines too, with rows and columns swapped for the chart
+  alone (the table keeps its layout); bars otherwise. The toolbar's button shows the type ("Automatic",
+  "Bars"; its name "Chart type: …"), the menu's "Automatic" what it draws now (`chartAutoNow`). A
+  type the user picks stays.
 - Chart with Apache ECharts (a peer dependency, loaded on first use): bars, stacked and horizontal
-  bars, lines, area, pie, donut, heatmap, themed from the `--pk-*` tokens, with a text alternative, at most 50
+  bars, lines, area, pie, donut, heatmap (its colour scale in the value's number format), themed from the `--pk-*` tokens, with a text alternative, at most 50
   categories, tips for many series and dates on Columns, and "Swap rows and columns"; a stacked area
   or line chart is named "Area" or "Lines" in the toolbar and the picker.
-- Filter popover with values and row counts, search, select all or none and a text condition.
+- Filter popover with values and row counts, search, select all or none and a condition on the labels
+  by the field's type: "Text condition" for text, "Condition on the label" for a number (label
+  `conditionNumber`), none for a date or a grouping of one and a yes/no field.
 - Undo, redo and reset; saved views (the `templates` prop: load, save, delete of entries marked
   `deletable` after an in-page confirmation; the host's callbacks may return a promise); export to XLSX, CSV and PNG, with
   `onExport` seeing every file before its download and able to skip it (then without the "Exported"
   note).
 - Popovers and menus open at their button also inside an ancestor with a transform, a filter or
   `contain`, which becomes the containing block of fixed elements.
+- The toolbar moves buttons into "More" by a fixed priority (Reset, Layout, Views, Options, chart
+  type) and the report's width, not by the length of its texts: the same buttons show at the same
+  width in English and German; Redo stays next to Undo. On a narrow report More and every other menu
+  are a sheet at the bottom of the window, as high as 82 % of it, scrolling inside.
+- The field list is one stop of the Tab order: arrow keys move between the fields (up, down, Home,
+  End) and a field's grip, name, "i" and menu (left, right), Shift+F10 or the context menu key opens
+  its menu, Enter on a name adds it; a "Skip to the toolbar" link before it (label `skipToToolbar`);
+  both in Options → Help → Keyboard shortcuts. A long field name takes two lines, with the whole name
+  as its title.
+- A date grouping is named in words: "Created by month", "Erstellt nach Monat" (labels
+  `derivedName`, `unitInName`).
+- Status notes sit at the bottom edge of the report's part on screen, also when the report reaches
+  past the window. The Views menu stays open after "Save", with the new entry and Copy link in it.
+- Row labels on a narrow report wrap between words and keep at least 5.5em, so a common word is not
+  cut in two; a longer one breaks at a hyphen of its own (labels are data, not the UI's
+  language), a word longer than the column only as a last resort.
+- On a touch screen (a coarse pointer) the ×, the "i", a field's menu and grip and a tip's x are at
+  least 44 px (token `--pk-target-touch`).
+- The texts only the menus show load with them (`menu-labels.js`); a host's `labels` for them still
+  apply. `LABELS` (every text, English and German) is the subpath export `pivotkit-react/labels`.
 - The medium layout narrows the field list without setting `--pk-panel-w` on the root, so a host's
   value of the token stays in force.
 - Notes in the status line under the table (none for adding a field), kept while hovered or focused.

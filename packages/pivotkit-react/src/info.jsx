@@ -36,11 +36,13 @@ export function FieldDescription({ info, labels, link = true, className = "pk-fi
 }
 
 /**
- * @param {{ info: { description: string, href?: string }, name: string, labels: import("./labels.js").UiLabels, className?: string, testId?: string, label?: string }} props
+ * @param {{ info: { description: string, href?: string }, name: string, labels: import("./labels.js").UiLabels, className?: string, testId?: string, label?: string,
+ *   tabIndex?: number, slot?: string }} props
  *   `name`: the field's display name, for the button's name; `label` names the button instead
- *   ("About Row subtotals" for a setting)
+ *   ("About Row subtotals" for a setting); `tabIndex`: -1 where a list moves the focus itself, `slot`
+ *   its place there (the field list, rove.js)
  */
-export function InfoButton({ info, name, labels, className, testId = "field-info", label: named }) {
+export function InfoButton({ info, name, labels, className, testId = "field-info", label: named, tabIndex, slot }) {
     // "peek": on hover or focus, the focus stays on the button; "open": clicked, a dialog
     const [mode, setMode] = useState(/** @type {null | "peek" | "open"} */ (null));
     const ref = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -79,6 +81,8 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 aria-expanded={mode === "open"}
                 aria-controls={mode ? id : undefined}
                 aria-haspopup="dialog"
+                tabIndex={tabIndex}
+                data-pk-slot={slot}
                 data-testid={testId}
                 onPointerEnter={(e) => {
                     if (e.pointerType === "mouse") {

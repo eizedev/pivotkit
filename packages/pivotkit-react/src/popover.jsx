@@ -200,9 +200,10 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
  *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
- *   buttonRef?: React.RefObject<HTMLButtonElement> }} props
+ *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string }} props
+ *   `tabIndex`: -1 where a list moves the focus itself (the field list)
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot }) {
     const [open, setOpen] = useState(false);
     const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const ref = buttonRef ?? own;
@@ -220,6 +221,8 @@ export function MenuButton({ label, icon, text, showText = true, className, role
                 aria-label={name ?? (showText && text ? undefined : label)}
                 title={title ?? (showText && text ? undefined : label)}
                 disabled={disabled}
+                tabIndex={tabIndex}
+                data-pk-slot={slot}
                 data-testid={testId}
                 onClick={() => setOpen((o) => !o)}
             >

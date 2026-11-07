@@ -3,12 +3,17 @@
  * the table and the chart (totals, blank, value names); the rest belongs to the UI. A host passes a
  * partial object through the `labels` prop; it is merged over the language the locale picks (a whole
  * object for a language of its own, with its `lang`). Entries of the wrong type are ignored.
- * {name} placeholders are filled by fill().
+ * {name} placeholders are filled by fill(). The texts only the menus show are in menu-labels.js and
+ * load with them; a host's entries for them are kept here and win there.
  */
 
 import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
 
-/** @typedef {typeof en} UiLabels */
+/**
+ * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
+ * only, so they stay out of the first load).
+ * @typedef {typeof en & import("./menu-labels.js").MenuTexts} UiLabels
+ */
 
 export const en = {
     /** the language of the texts, for the report's lang attribute */
@@ -47,6 +52,8 @@ export const en = {
     fields: "Fields",
     fieldsHint: "Drag a field into Rows, Columns, Values or Filters, or open its menu.",
     searchFields: "Search fields",
+    // the field list's keys, for screen readers (the list is one stop of the Tab order)
+    fieldListKeys: "Arrow keys up and down move between the fields, left and right to a field's grip, its i and its menu. Enter adds the field, Shift+F10 opens its menu.",
     noFieldMatch: "No field matches “{query}”.",
     fieldMenu: "Options for {field}",
     addTo: "Add to {zone}",
@@ -56,9 +63,6 @@ export const en = {
     moveTo: "Move to {zone}",
     dragHandle: "Drag {field}",
     dragIntoZone: "Drag into a zone",
-    moveLeft: "Move left",
-    moveRight: "Move right",
-    remove: "Remove",
     removeField: "Remove {field}",
     types: { string: "Text", number: "Number", date: "Date", boolean: "Yes/No", null: "Empty" },
     inZone: "in {zone}",
@@ -71,7 +75,7 @@ export const en = {
     view: "View",
     chartType: "Chart type",
     chartTypeIs: "Chart type: {type}",
-    chartTypes: { bar: "Bars", stacked: "Stacked bars", horizontal: "Horizontal bars", line: "Lines", area: "Area", pie: "Pie", donut: "Donut", heatmap: "Heatmap" },
+    chartTypes: { auto: "Automatic", bar: "Bars", stacked: "Stacked bars", horizontal: "Horizontal bars", line: "Lines", area: "Area", pie: "Pie", donut: "Donut", heatmap: "Heatmap" },
     undo: "Undo",
     redo: "Redo",
     reset: "Reset",
@@ -84,15 +88,6 @@ export const en = {
     more: "More",
     // the Views menu: the saved views (the host's templates) and sharing
     views: "Views",
-    savedViews: "Saved views",
-    noViews: "No saved views yet.",
-    deleteView: "Delete {name}",
-    deleteConfirm: "Delete “{name}”?",
-    deleteAction: "Delete",
-    saveView: "Save current view",
-    viewName: "Name of the view",
-    save: "Save",
-    cancel: "Cancel",
     exportLabel: "Export",
     exportXlsx: "Excel workbook (.xlsx)",
     exportCsv: "CSV file (.csv)",
@@ -104,102 +99,40 @@ export const en = {
     grandTotalColumn: "Grand total column",
     rowSubtotals: "Row subtotals",
     colSubtotals: "Column subtotals",
-    expandAll: "Expand all",
-    collapseAll: "Collapse all",
     expand: "Expand {label}",
     collapse: "Collapse {label}",
-    // chip menus
-    aggregation: "Summarize by",
-    moreStatistics: "More statistics",
     showAs: "Show as",
-    showAsNone: "The value itself",
-    moreCalculations: "More calculations",
-    showAsNames: {
-        percentOfGrandTotal: "% of grand total",
-        percentOfRowTotal: "% of row total",
-        percentOfColumnTotal: "% of column total",
-        percentOfParentRow: "% of parent row",
-        percentOfParentColumn: "% of parent column",
-        differenceFromPrevious: "Difference from previous",
-        percentDifferenceFromPrevious: "% difference from previous",
-        runningTotal: "Running total",
-        percentRunningTotal: "% running total",
-        rankAscending: "Rank, smallest first",
-        rankDescending: "Rank, largest first"
-    },
-    along: "Along",
-    format: "Number format",
-    formatAuto: "Automatic",
-    formats: {
-        number: "Number",
-        "number:0": "Number, no decimals",
-        "number:2": "Number, 2 decimals",
-        integer: "Whole number",
-        currency: "Currency",
-        percent: "Percent",
-        compact: "Compact (1.2K)",
-        bytes: "Bytes (KB, MB)",
-        "duration:h": "Duration from hours",
-        "duration:s": "Duration from seconds"
-    },
-    conditional: "Highlight",
-    conditionalNone: "None",
-    colorScale: "Colour scale",
-    dataBar: "Data bars",
-    rename: "Name",
     sort: "Sort",
     sortLabelAsc: "A to Z",
     sortLabelDesc: "Z to A",
-    sortOldest: "Oldest first",
-    sortNewest: "Newest first",
     sortCustom: "Custom order",
     sortCustomDesc: "Custom order, reversed",
     sortValueDesc: "Largest {value} first",
     sortValueAsc: "Smallest {value} first",
-    groupBy: "Group dates by",
-    groupNone: "No grouping (every date and time)",
-    groupTimeline: "Along the time line",
-    groupCyclic: "Compare periods across years",
     units: {
         year: "Year", yearQuarter: "Quarter", yearMonth: "Month", yearWeek: "Week", day: "Day",
         quarter: "Quarter of year", month: "Month of year", week: "Week of year", weekday: "Weekday", hour: "Hour of day",
         bin: "Ranges"
     },
-    unitHints: {
-        year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan 2025", yearWeek: "2025-W03", day: "Jan 15, 2025",
-        quarter: "Q1 of every year", month: "Jan of every year", week: "W03 of every year", weekday: "Mon to Sun", hour: "00:00 to 23:00",
-        bin: ""
+    // a date grouping's name: "Date by month"; the unit as it reads inside it (unitInName)
+    derivedName: "{field} by {unit}",
+    unitInName: {
+        year: "year", yearQuarter: "quarter", yearMonth: "month", yearWeek: "week", day: "day",
+        quarter: "quarter of year", month: "month of year", week: "week of year", weekday: "weekday", hour: "hour of day",
+        bin: "ranges"
     },
-    derivedName: "{field} ({unit})",
     binsName: "{field} (by {size})",
-    bins: "Group numbers into ranges",
-    binSize: "Range size",
-    binStart: "Starting at",
-    binStartFar: "Ranges from {start} cannot hold this field's values ({min} to {max}): every row would be blank. Pick a start closer to them.",
-    apply: "Apply",
-    clear: "Clear",
-    topN: "Show only the top items",
-    topCount: "Count",
     top: "Top",
-    bottom: "Bottom",
     topBadge: "Top {count}",
     bottomBadge: "Bottom {count}",
     by: "by {value}",
-    topBy: "by",
     filter: "Filter…",
     filtered: "Filtered",
     filterSummary: "{shown} of {total}",
     filterTitle: "Filter {field}",
-    searchValues: "Search values",
-    selectAll: "Select all",
-    selectNone: "Select none",
-    onlyThis: "Only",
-    valuesShown: "{shown} of {total} values; search to find more",
+    // the condition on the labels of a field: text, or a number's label
     condition: "Text condition",
-    conditionNone: "No condition",
     labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
-    conditionValue: "Text",
-    selected: "{count} selected",
     // result
     emptyTitle: "Build your report in three steps",
     emptySteps: [
@@ -236,10 +169,6 @@ export const en = {
     // the last sentence of the chart's text alternative
     chartTableHint: "Switch to Table to read every value.",
     categories: "categories",
-    // drill-down
-    drillTitle: "Rows behind this value",
-    drillCount: { one: "{count} row", other: "{count} rows" },
-    drillShown: "Showing the first {shown} of {count} rows",
     close: "Close",
     // toasts and live region
     toastRemoved: "{field} removed",
@@ -286,16 +215,19 @@ export const en = {
         top: "{field} shows the top {count} only: totals and percentages cover these items, not all of them.",
         bottom: "{field} shows the bottom {count} only: totals and percentages cover these items, not all of them.",
         chartCapped: "Showing the first {shown} of {total} categories. Add a filter or Top N to choose them.",
-        // per "show values as" percentage: what 100 % is
+        // per "show values as" percentage: what 100% is
         showAs: {
-            percentOfGrandTotal: "100 % is the grand total: each value is its share of everything.",
-            percentOfRowTotal: "100 % is the total of each row: the values of a row add up to 100 %.",
-            percentOfColumnTotal: "100 % is the total of each column: the values of a column add up to 100 %.",
-            percentOfParentRow: "100 % is the group a row belongs to: each row is its share of the row above it.",
-            percentOfParentColumn: "100 % is the group a column belongs to: each column is its share of the column above it.",
-            percentRunningTotal: "100 % is the total along the axis: the running total ends at 100 %.",
-            percentDifferenceFromPrevious: "The previous item is 100 %: each value says how much it grew or shrank from it."
+            percentOfGrandTotal: "100% is the grand total: each value is its share of everything.",
+            percentOfRowTotal: "100% is the total of each row: the values of a row add up to 100%.",
+            percentOfColumnTotal: "100% is the total of each column: the values of a column add up to 100%.",
+            percentOfParentRow: "100% is the group a row belongs to: each row is its share of the row above it.",
+            percentOfParentColumn: "100% is the group a column belongs to: each column is its share of the column above it.",
+            percentRunningTotal: "100% is the total along the axis: the running total ends at 100%.",
+            percentDifferenceFromPrevious: "The previous item is 100%: each value says how much it grew or shrank from it."
         },
+        chartOverTime: "{field} is a date: lines show how the values change over time.",
+        pieSlices: "A pie works for up to about {max} parts; this one has {count}. Bars compare them more easily.",
+        pieColumns: "A pie draws one slice per row and adds up the columns ({fields}). Bars show the columns side by side.",
         chartDates: "The dates are on Columns, so each date is a line of its own. Swap rows and columns to draw the dates along the axis.",
         chartTrend: "Lines connect points into a trend. For categories such as countries, bars fit better.",
         chartSeries: "{count} series are hard to tell apart. Swap rows and columns, or filter Columns to fewer items.",
@@ -313,43 +245,25 @@ export const en = {
         swap: "Swap rows and columns",
         groupDate: "Group by {unit}",
         saveTemplate: "Save view",
-        bars: "Switch to Bars"
+        bars: "Switch to Bars",
+        auto: "Show as lines over time"
     },
     dismissTip: "Dismiss tip",
     tipsTitle: "Tips",
-    showTips: "Show tips",
-    showFieldInfo: "Show field descriptions",
-    showZoneInfo: "Show zone explanations",
-    showSettingInfo: "Show explanations",
-    resetTips: "Show dismissed tips again",
-    help: "Help",
-    shortcutsTitle: "Keyboard shortcuts",
-    // the keys of the shortcuts; "Mod" is Ctrl, or ⌘ on a Mac
-    keys: { Mod: "Ctrl", Shift: "Shift", "Arrow keys": "Arrow keys", Enter: "Enter", Space: "Space", Escape: "Escape" },
     shortcuts: {
         undo: "Undo",
         redo: "Redo",
         move: "Move between values in the table",
         open: "Open the rows behind a value; open a menu",
         drag: "Pick up a field or chip, and drop it",
-        close: "Close a menu, a panel or a tip"
+        close: "Close a menu, a panel or a tip",
+        fields: "In the field list: up and down between fields, left and right to a field's grip, its “i” and its menu",
+        fieldMenu: "Open the menu of the field in focus"
     },
+    // the first stop of the report for the keyboard: past the field list to the toolbar
+    skipToToolbar: "Skip to the toolbar",
     // field descriptions (fieldDefaults)
     aboutField: "About {field}",
-    // the "i" next to a setting that needs explaining (Options → Help → Show explanations)
-    aboutSetting: "About {setting}",
-    settingInfo: {
-        grandTotalRow: "A last row with the total of every column.",
-        grandTotalColumn: "A last column with the total of every row.",
-        rowSubtotals: "With two or more fields in Rows: a total row under each group of the outer field.",
-        colSubtotals: "With two or more fields in Columns: a total column after each group of the outer field.",
-        along: "The direction the calculation walks: Rows goes down the rows of each column, Columns across the columns of each row. A running total adds up along it, a difference compares with the item before it.",
-        showAs: "Shows each value as a share, a difference, a running total or a rank instead of the number itself. For percentages, a tip above the result says what 100 % is.",
-        exportXlsx: "Every number with all its decimals, formats kept, ready to calculate with.",
-        exportCsv: "Percentages and calculations as the table shows them, as plain text.",
-        groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
-        labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend."
-    },
     learnMore: "Learn more",
     dragInstructions: "To pick up a field, press space or enter. The left and right arrow keys move it within a zone, up and down to the zone above or below. Press space or enter to drop it, escape to cancel. Every field and chip also has a menu with the same moves.",
     dragStart: "Picked up {field}.",
@@ -373,35 +287,9 @@ export const en = {
     tryAgain: "Try again",
     // chart display (the chart type menu)
     chartDisplay: "Display",
-    valueLabels: "Value labels",
-    valueLabelNames: { auto: "Automatic", off: "Off", value: "Value", percent: "Percent", both: "Value and percent" },
-    legend: "Legend",
-    legendNames: { auto: "Automatic", bottom: "Bottom", right: "Right", off: "Off" },
-    chartTitle: "Title",
-    chartTitleNone: "No title",
-    smoothLines: "Smooth lines",
-    labelPosition: "Labels",
-    labelPositionNames: { outside: "Outside", inside: "Inside" },
-    axisLabels: "Axis labels",
-    axisLabelNames: { auto: "Automatic", all: "All (slanted)", nth: "Every n-th" },
-    groupLabels: "Group labels under the axis",
-    groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
     axisEvery: "One label in every {n} is shown; point at a bar or point for its name.",
     // the × in a text field
     clearText: "Clear",
-    defaultName: "Use the default name",
-    // sharing a view (the Views menu)
-    share: "Share",
-    copyLink: "Copy link",
-    copyJson: "Copy view as JSON",
-    downloadView: "Download view (.pivotkit.json)",
-    // said where a view leaves the report as a file, as JSON or as a link
-    sharePrivacy: "A view holds the names of fields and, in its filters, the values chosen there: share it only where those may be seen.",
-    loadView: "Load view…",
-    loadViewHint: "Paste a view file, a view as JSON or a link, or choose a .pivotkit.json file.",
-    loadViewText: "View as JSON or link",
-    chooseFile: "Choose file…",
-    load: "Load",
     toastLinkCopied: "Link copied",
     toastJsonCopied: "View copied as JSON",
     toastCopyFailed: "This page does not allow copying. Use “Download view” instead.",
@@ -411,15 +299,10 @@ export const en = {
     toastLinkOpened: "Opened the view from the link",
     toastLinkOpenedPartly: "Opened the view from the link; some parts did not fit this data",
     viewLeftOut: "Some parts did not fit this data and were left out: {parts}",
-    // before a view for other data is loaded: what does not fit, and the choices
-    loadCheckTitle: "This view may not fit this data",
     loadCheckSource: "It was made for “{source}”.",
     loadCheckOtherSource: "It was made for other data.",
     loadCheckMissing: "Fields this data does not have: {fields}.",
     loadCheckChanged: "Fields of another type here: {fields}.",
-    loadAnyway: "Load anyway",
-    switchAndLoad: "Switch to “{source}” and load",
-    switchStartsFresh: "Switching shows the other data with this view; Undo starts there.",
     // a link in the page's address for other data: asked before it is opened
     linkCheckTitle: "The link's view may not fit this data",
     viewMissingFields: "fields this data does not have ({fields})",
@@ -436,19 +319,8 @@ export const en = {
     },
     // filters
     filterIs: "Filter: {filter}",
-    numberInvalid: "Enter a number, such as {example}.",
-    countInvalid: "Enter a whole number of 1 or more.",
-    sizeInvalid: "Enter a number above 0, such as {example}.",
-    valueFilter: "Value filter…",
-    valueFilterBy: "Value",
-    valueFilterOp: "Condition",
-    valueFilterNumber: "Number",
-    valueFilterTo: "and",
-    valueOps: { "=": "equals", "!=": "does not equal", ">": "greater than", ">=": "greater than or equal to", "<": "less than", "<=": "less than or equal to", between: "between", notBetween: "not between" },
     valueConditions: { compare: "{value} {op} {number}", between: "{value} between {from} and {to}", notBetween: "{value} not between {from} and {to}" },
-    removeFilter: "Remove filter",
-    valuesFilterHint: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters.",
-    // the i next to each zone's title (shown while tips are on)
+    // the i next to each zone's title (shown while explanations are on)
     zoneInfo: {
         rows: "Rows group the report by a field: each of its items gets a row. Example: Region in Rows lists North, South and West one below the other.",
         cols: "Columns split every row by a field: each of its items gets a column. Example: Year in Columns puts 2024 and 2025 side by side.",
@@ -464,9 +336,9 @@ export const en = {
     needsColFields: "Needs two or more fields in Columns.",
     // the result area: bigger, and the full screen
     enlarge: "Enlarge",
+    // the same button while the result is enlarged
+    reduce: "Reduce",
     fullScreen: "Full screen",
-    // collapsible sections of the menus
-    moreFormats: "More formats",
     collapseAllDone: "Every group is collapsed already.",
     groupsCollapsed: { one: "{count} group collapsed", other: "{count} groups collapsed" },
     groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" }
@@ -526,6 +398,7 @@ export const de = {
     fields: "Felder",
     fieldsHint: "Ein Feld in Zeilen, Spalten, Werte oder Filter ziehen oder sein Menü öffnen.",
     searchFields: "Felder suchen",
+    fieldListKeys: "Pfeiltasten auf und ab wechseln zwischen den Feldern, links und rechts zum Griff eines Felds, seinem i und seinem Menü. Eingabe fügt das Feld hinzu, Umschalt+F10 öffnet sein Menü.",
     noFieldMatch: "Kein Feld passt zu „{query}“.",
     fieldMenu: "Optionen für {field}",
     addTo: "Zu {zone} hinzufügen",
@@ -534,9 +407,6 @@ export const de = {
     moveTo: "Nach {zone} verschieben",
     dragHandle: "{field} ziehen",
     dragIntoZone: "In einen Bereich ziehen",
-    moveLeft: "Nach links",
-    moveRight: "Nach rechts",
-    remove: "Entfernen",
     removeField: "{field} entfernen",
     types: { string: "Text", number: "Zahl", date: "Datum", boolean: "Ja/Nein", null: "Leer" },
     inZone: "in {zone}",
@@ -548,7 +418,7 @@ export const de = {
     view: "Ansicht",
     chartType: "Diagrammtyp",
     chartTypeIs: "Diagrammtyp: {type}",
-    chartTypes: { bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap" },
+    chartTypes: { auto: "Automatisch", bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap" },
     undo: "Rückgängig",
     redo: "Wiederholen",
     reset: "Zurücksetzen",
@@ -559,15 +429,6 @@ export const de = {
     layoutEmpty: "Noch keine Felder angeordnet",
     more: "Mehr",
     views: "Ansichten",
-    savedViews: "Gespeicherte Ansichten",
-    noViews: "Noch keine gespeicherten Ansichten.",
-    deleteView: "{name} löschen",
-    deleteConfirm: "„{name}“ löschen?",
-    deleteAction: "Löschen",
-    saveView: "Aktuelle Ansicht speichern",
-    viewName: "Name der Ansicht",
-    save: "Speichern",
-    cancel: "Abbrechen",
     exportLabel: "Export",
     exportXlsx: "Excel-Arbeitsmappe (.xlsx)",
     exportCsv: "CSV-Datei (.csv)",
@@ -579,101 +440,38 @@ export const de = {
     grandTotalColumn: "Gesamtspalte",
     rowSubtotals: "Teilergebnisse der Zeilen",
     colSubtotals: "Teilergebnisse der Spalten",
-    expandAll: "Alle aufklappen",
-    collapseAll: "Alle zuklappen",
     expand: "{label} aufklappen",
     collapse: "{label} zuklappen",
-    aggregation: "Zusammenfassen mit",
-    moreStatistics: "Weitere Statistiken",
     showAs: "Anzeigen als",
-    showAsNone: "Der Wert selbst",
-    moreCalculations: "Weitere Berechnungen",
-    showAsNames: {
-        percentOfGrandTotal: "% des Gesamtergebnisses",
-        percentOfRowTotal: "% der Zeilensumme",
-        percentOfColumnTotal: "% der Spaltensumme",
-        percentOfParentRow: "% der übergeordneten Zeile",
-        percentOfParentColumn: "% der übergeordneten Spalte",
-        differenceFromPrevious: "Differenz zum vorherigen",
-        percentDifferenceFromPrevious: "% Differenz zum vorherigen",
-        runningTotal: "Laufende Summe",
-        percentRunningTotal: "% laufende Summe",
-        rankAscending: "Rang, kleinster zuerst",
-        rankDescending: "Rang, größter zuerst"
-    },
-    along: "Entlang",
-    format: "Zahlenformat",
-    formatAuto: "Automatisch",
-    formats: {
-        number: "Zahl",
-        "number:0": "Zahl ohne Nachkommastellen",
-        "number:2": "Zahl mit 2 Nachkommastellen",
-        integer: "Ganze Zahl",
-        currency: "Währung",
-        percent: "Prozent",
-        compact: "Kompakt (1,2 Tsd.)",
-        bytes: "Bytes (KB, MB)",
-        "duration:h": "Dauer aus Stunden",
-        "duration:s": "Dauer aus Sekunden"
-    },
-    conditional: "Hervorheben",
-    conditionalNone: "Keine",
-    colorScale: "Farbskala",
-    dataBar: "Datenbalken",
-    rename: "Name",
     sort: "Sortieren",
     sortLabelAsc: "A bis Z",
     sortLabelDesc: "Z bis A",
-    sortOldest: "Älteste zuerst",
-    sortNewest: "Neueste zuerst",
     sortCustom: "Eigene Reihenfolge",
     sortCustomDesc: "Eigene Reihenfolge, umgekehrt",
     sortValueDesc: "Größte {value} zuerst",
     sortValueAsc: "Kleinste {value} zuerst",
-    groupBy: "Datum gruppieren nach",
-    groupNone: "Keine Gruppierung (jedes Datum mit Uhrzeit)",
-    groupTimeline: "Entlang der Zeitachse",
-    groupCyclic: "Zeiträume über Jahre vergleichen",
     units: {
         year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
         quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
         bin: "Bereiche"
     },
-    unitHints: {
-        year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan. 2025", yearWeek: "2025-W03", day: "15.01.2025",
-        quarter: "Q1 jedes Jahres", month: "Jan. jedes Jahres", week: "W03 jedes Jahres", weekday: "Mo. bis So.", hour: "00:00 bis 23:00",
-        bin: ""
+    derivedName: "{field} nach {unit}",
+    unitInName: {
+        year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
+        quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
+        bin: "Bereichen"
     },
-    derivedName: "{field} ({unit})",
     binsName: "{field} (je {size})",
-    bins: "Zahlen in Bereiche gruppieren",
-    binSize: "Bereichsgröße",
-    binStart: "Beginnt bei",
-    binStartFar: "Bereiche ab {start} können die Werte dieses Felds ({min} bis {max}) nicht fassen: Jede Zeile wäre leer. Einen Beginn näher an den Werten wählen.",
-    apply: "Anwenden",
-    clear: "Löschen",
-    topN: "Nur die obersten Einträge zeigen",
-    topCount: "Anzahl",
     top: "Oberste",
-    bottom: "Unterste",
     topBadge: "Top {count}",
     bottomBadge: "Letzte {count}",
     by: "nach {value}",
-    topBy: "nach",
     filter: "Filtern…",
     filtered: "Gefiltert",
     filterSummary: "{shown} von {total}",
     filterTitle: "{field} filtern",
-    searchValues: "Werte suchen",
-    selectAll: "Alle auswählen",
-    selectNone: "Keine auswählen",
-    onlyThis: "Nur",
-    valuesShown: "{shown} von {total} Werten; suchen, um weitere zu finden",
     condition: "Textbedingung",
-    conditionNone: "Keine Bedingung",
     labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", endsWith: "endet mit" },
-    conditionValue: "Text",
-    selected: "{count} ausgewählt",
     emptyTitle: "Den Bericht in drei Schritten bauen",
     emptySteps: [
         "Ein Feld wie Team oder Region in Zeilen ziehen.",
@@ -706,9 +504,6 @@ export const de = {
     chartExtremes: "Höchster Wert {max} bei {maxAt}; niedrigster {min} bei {minAt}.",
     chartTableHint: "Zur Tabelle wechseln, um jeden Wert zu lesen.",
     categories: "Kategorien",
-    drillTitle: "Zeilen hinter diesem Wert",
-    drillCount: { one: "{count} Zeile", other: "{count} Zeilen" },
-    drillShown: "Die ersten {shown} von {count} Zeilen",
     close: "Schließen",
     toastRemoved: "{field} entfernt",
     toastUndone: "Rückgängig: {step}",
@@ -760,6 +555,9 @@ export const de = {
             percentRunningTotal: "100 % ist die Summe entlang der Achse: Die laufende Summe endet bei 100 %.",
             percentDifferenceFromPrevious: "Der vorherige Eintrag ist 100 %: Jeder Wert sagt, wie viel er gegenüber ihm gewachsen oder geschrumpft ist."
         },
+        chartOverTime: "{field} ist ein Datum: Linien zeigen, wie sich die Werte über die Zeit ändern.",
+        pieSlices: "Ein Kreis eignet sich für bis zu etwa {max} Teile; dieser hat {count}. Balken lassen sich leichter vergleichen.",
+        pieColumns: "Ein Kreis zeigt ein Stück je Zeile und addiert dafür die Spalten ({fields}). Balken zeigen die Spalten nebeneinander.",
         chartDates: "Die Daten liegen in Spalten, so wird jedes Datum eine eigene Linie. Zeilen und Spalten tauschen, um die Daten entlang der Achse zu zeichnen.",
         chartTrend: "Linien verbinden Punkte zu einem Verlauf. Für Kategorien wie Länder passen Balken besser.",
         chartSeries: "{count} Reihen sind schwer zu unterscheiden. Zeilen und Spalten tauschen oder Spalten auf weniger Einträge filtern.",
@@ -777,40 +575,23 @@ export const de = {
         swap: "Zeilen und Spalten tauschen",
         groupDate: "Nach {unit} gruppieren",
         saveTemplate: "Ansicht speichern",
-        bars: "Zu Balken wechseln"
+        bars: "Zu Balken wechseln",
+        auto: "Als Linien über die Zeit zeigen"
     },
     dismissTip: "Tipp ausblenden",
     tipsTitle: "Tipps",
-    showTips: "Tipps zeigen",
-    showFieldInfo: "Feldbeschreibungen zeigen",
-    showZoneInfo: "Erklärungen der Bereiche zeigen",
-    showSettingInfo: "Erklärungen zeigen",
-    resetTips: "Ausgeblendete Tipps wieder zeigen",
-    help: "Hilfe",
-    shortcutsTitle: "Tastenkürzel",
-    keys: { Mod: "Strg", Shift: "Umschalt", "Arrow keys": "Pfeiltasten", Enter: "Eingabe", Space: "Leertaste", Escape: "Esc" },
     shortcuts: {
         undo: "Rückgängig",
         redo: "Wiederholen",
         move: "Zwischen den Werten der Tabelle wechseln",
         open: "Die Zeilen hinter einem Wert öffnen; ein Menü öffnen",
         drag: "Ein Feld oder einen Chip aufnehmen und ablegen",
-        close: "Ein Menü, ein Fenster oder einen Tipp schließen"
+        close: "Ein Menü, ein Fenster oder einen Tipp schließen",
+        fields: "In der Feldliste: auf und ab zwischen den Feldern, links und rechts zum Griff eines Felds, seinem „i“ und seinem Menü",
+        fieldMenu: "Das Menü des Felds im Fokus öffnen"
     },
+    skipToToolbar: "Zur Werkzeugleiste springen",
     aboutField: "Über {field}",
-    aboutSetting: "Über {setting}",
-    settingInfo: {
-        grandTotalRow: "Eine letzte Zeile mit der Summe jeder Spalte.",
-        grandTotalColumn: "Eine letzte Spalte mit der Summe jeder Zeile.",
-        rowSubtotals: "Mit zwei oder mehr Feldern in Zeilen: eine Summenzeile unter jeder Gruppe des äußeren Felds.",
-        colSubtotals: "Mit zwei oder mehr Feldern in Spalten: eine Summenspalte nach jeder Gruppe des äußeren Felds.",
-        along: "Die Richtung der Berechnung: Zeilen geht die Zeilen jeder Spalte hinunter, Spalten über die Spalten jeder Zeile. Eine laufende Summe addiert entlang, eine Differenz vergleicht mit dem Eintrag davor.",
-        showAs: "Zeigt jeden Wert als Anteil, Differenz, laufende Summe oder Rang statt der Zahl selbst. Bei Prozenten sagt ein Tipp über dem Ergebnis, was 100 % ist.",
-        exportXlsx: "Jede Zahl mit allen Nachkommastellen, Formate bleiben, bereit zum Rechnen.",
-        exportCsv: "Prozente und Berechnungen wie in der Tabelle, als reiner Text.",
-        groupLabels: "Mit zwei oder mehr Feldern in Zeilen: die Einträge des äußeren Felds einmal unter der Achse, unter ihren Kategorien.",
-        labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende."
-    },
     learnMore: "Mehr erfahren",
     dragInstructions: "Leertaste oder Eingabe hebt ein Feld auf. Die Pfeiltasten links und rechts bewegen es innerhalb eines Bereichs, hoch und runter in den Bereich darüber oder darunter. Mit Leertaste oder Eingabe ablegen, mit Escape abbrechen. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
     dragStart: "{field} aufgenommen.",
@@ -830,75 +611,36 @@ export const de = {
     menuFailed: "Dieses Menü konnte nicht geladen werden.",
     tryAgain: "Erneut versuchen",
     chartDisplay: "Darstellung",
-    valueLabels: "Wertbeschriftung",
-    valueLabelNames: { auto: "Automatisch", off: "Aus", value: "Wert", percent: "Prozent", both: "Wert und Prozent" },
-    legend: "Legende",
-    legendNames: { auto: "Automatisch", bottom: "Unten", right: "Rechts", off: "Aus" },
-    chartTitle: "Titel",
-    chartTitleNone: "Kein Titel",
-    smoothLines: "Geglättete Linien",
-    labelPosition: "Beschriftung",
-    labelPositionNames: { outside: "Außen", inside: "Innen" },
-    axisLabels: "Achsenbeschriftung",
-    axisLabelNames: { auto: "Automatisch", all: "Alle (schräg)", nth: "Jede n-te" },
-    groupLabels: "Gruppen unter der Achse",
-    groupLabelNames: { auto: "Automatisch", on: "Ein", off: "Aus" },
-    axisEvery: "Jede {n}. Beschriftung wird gezeigt; zeigen Sie auf einen Balken oder Punkt für seinen Namen.",
+    axisEvery: "Jede {n}. Beschriftung wird gezeigt; auf einen Balken oder Punkt zeigen, um seinen Namen zu sehen.",
     clearText: "Leeren",
-    defaultName: "Standardnamen verwenden",
-    share: "Teilen",
-    copyLink: "Link kopieren",
-    copyJson: "Ansicht als JSON kopieren",
-    downloadView: "Ansicht herunterladen (.pivotkit.json)",
-    sharePrivacy: "Eine Ansicht enthält die Namen der Felder und in ihren Filtern die dort gewählten Werte: Teilen Sie sie nur, wo diese gesehen werden dürfen.",
-    loadView: "Ansicht laden…",
-    loadViewHint: "Eine Ansichtsdatei, eine Ansicht als JSON oder einen Link einfügen oder eine .pivotkit.json-Datei wählen.",
-    loadViewText: "Ansicht als JSON oder Link",
-    chooseFile: "Datei wählen…",
-    load: "Laden",
     toastLinkCopied: "Link kopiert",
     toastJsonCopied: "Ansicht als JSON kopiert",
-    toastCopyFailed: "Diese Seite erlaubt kein Kopieren. Nutzen Sie stattdessen „Ansicht herunterladen“.",
-    toastLinkTooLong: "Diese Ansicht ist zu groß für einen Link. Nutzen Sie stattdessen „Ansicht herunterladen“.",
+    toastCopyFailed: "Diese Seite erlaubt kein Kopieren. Stattdessen „Ansicht herunterladen“ verwenden.",
+    toastLinkTooLong: "Diese Ansicht ist zu groß für einen Link. Stattdessen „Ansicht herunterladen“ verwenden.",
     toastViewLoaded: "Ansicht geladen",
     toastViewLoadedPartly: "Ansicht geladen; einige Teile passen nicht zu diesen Daten",
     toastLinkOpened: "Ansicht aus dem Link geöffnet",
     toastLinkOpenedPartly: "Ansicht aus dem Link geöffnet; einige Teile passen nicht zu diesen Daten",
     viewLeftOut: "Einige Teile passen nicht zu diesen Daten und wurden weggelassen: {parts}",
-    loadCheckTitle: "Diese Ansicht passt vielleicht nicht zu diesen Daten",
     loadCheckSource: "Sie wurde für „{source}“ gemacht.",
     loadCheckOtherSource: "Sie wurde für andere Daten gemacht.",
     loadCheckMissing: "Felder, die diese Daten nicht haben: {fields}.",
     loadCheckChanged: "Felder mit anderem Typ hier: {fields}.",
-    loadAnyway: "Trotzdem laden",
-    switchAndLoad: "Zu „{source}“ wechseln und laden",
-    switchStartsFresh: "Der Wechsel zeigt die anderen Daten mit dieser Ansicht; Rückgängig beginnt dort.",
     linkCheckTitle: "Die Ansicht des Links passt vielleicht nicht zu diesen Daten",
     viewMissingFields: "Felder, die diese Daten nicht haben ({fields})",
     viewOtherIssue: "{count} weitere Einstellung",
     viewOtherIssues: "{count} weitere Einstellungen",
     viewFailed: {
-        empty: "Fügen Sie zuerst eine Ansicht ein oder wählen Sie eine Datei.",
+        empty: "Zuerst eine Ansicht einfügen oder eine Datei wählen.",
         tooLarge: "Das ist zu groß für eine Ansicht.",
         notJson: "Das ist weder eine Ansicht als JSON noch ein pivotkit-Link.",
         notView: "Das ist keine pivotkit-Ansicht.",
-        newer: "Diese Ansicht stammt aus einer neueren pivotkit-Version und kann hier nicht gelesen werden. Aktualisieren Sie pivotkit, um sie zu öffnen.",
+        newer: "Diese Ansicht stammt aus einer neueren pivotkit-Version und kann hier nicht gelesen werden. Zum Öffnen pivotkit aktualisieren.",
         badLink: "Dieser Link ist beschädigt oder kein pivotkit-Link.",
         file: "Die Datei konnte nicht gelesen werden."
     },
     filterIs: "Filter: {filter}",
-    numberInvalid: "Eine Zahl eingeben, etwa {example}.",
-    countInvalid: "Eine ganze Zahl ab 1 eingeben.",
-    sizeInvalid: "Eine Zahl über 0 eingeben, etwa {example}.",
-    valueFilter: "Wertfilter…",
-    valueFilterBy: "Wert",
-    valueFilterOp: "Bedingung",
-    valueFilterNumber: "Zahl",
-    valueFilterTo: "und",
-    valueOps: { "=": "gleich", "!=": "ungleich", ">": "größer als", ">=": "größer oder gleich", "<": "kleiner als", "<=": "kleiner oder gleich", between: "zwischen", notBetween: "nicht zwischen" },
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
-    removeFilter: "Filter entfernen",
-    valuesFilterHint: "Werte werden hier nicht gefiltert: Filtern Sie ein Feld in Zeilen oder Spalten über sein Menü, oder ziehen Sie ein Feld in Filter.",
     zoneInfo: {
         rows: "Zeilen gruppieren den Bericht nach einem Feld: Jeder Eintrag bekommt eine Zeile. Beispiel: Region in Zeilen listet Nord, Süd und West untereinander.",
         cols: "Spalten teilen jede Zeile nach einem Feld: Jeder Eintrag bekommt eine Spalte. Beispiel: Jahr in Spalten stellt 2024 und 2025 nebeneinander.",
@@ -912,14 +654,14 @@ export const de = {
     needsRowFields: "Braucht zwei oder mehr Felder in Zeilen.",
     needsColFields: "Braucht zwei oder mehr Felder in Spalten.",
     enlarge: "Vergrößern",
+    reduce: "Verkleinern",
     fullScreen: "Vollbild",
-    moreFormats: "Weitere Formate",
     collapseAllDone: "Alle Gruppen sind schon zugeklappt.",
     groupsCollapsed: { one: "{count} Gruppe zugeklappt", other: "{count} Gruppen zugeklappt" },
     groupsExpanded: { one: "{count} Gruppe aufgeklappt", other: "{count} Gruppen aufgeklappt" }
 };
 
-/** @type {Readonly<{ en: UiLabels, de: UiLabels }>} */
+/** @type {Readonly<{ en: typeof en, de: typeof en }>} the texts of the first load; the menus' are MENU_LABELS (menu-labels.js) */
 export const LABELS = Object.freeze({ en, de });
 
 /**
@@ -997,11 +739,18 @@ export function plural(forms, count, { lang, locale }) {
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const isTextList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
 
+/** Where resolved labels keep a host's texts for the menus (menu-labels.js); a symbol, so it is no text. */
+export const MENU_TEXTS = Symbol("pivotkit menu texts");
+
 /**
  * A deep merge of `over` into `base` that keeps the shape of `base`: an entry replaces one of the same
  * kind only (text by text, a list of texts by a list of texts, an object is merged), so a wrong type
  * in a host's labels cannot break the UI. Keys `base` does not have are ignored.
  */
+export function mergeLabels(base, over) {
+    return merge(base, over);
+}
+
 function merge(base, over) {
     if (!isObject(over)) {
         return base;
@@ -1071,5 +820,8 @@ function withLegacyTips(custom) {
 export function resolveLabels(locale, custom) {
     const lang = typeof locale === "string" ? locale.toLowerCase().split(/[-_]/)[0] : "en";
     const base = Object.hasOwn(LABELS, lang) ? LABELS[lang] : en;
-    return /** @type {UiLabels} */ (merge(base, withLegacyTips(custom)));
+    const own = withLegacyTips(custom);
+    // the host's entries this language has no text for here (the menus' texts): kept aside under
+    // MENU_TEXTS, merged and checked when the menus load (menu-labels.js)
+    return /** @type {UiLabels} */ ({ ...merge(base, own), [MENU_TEXTS]: isObject(own) ? own : {} });
 }

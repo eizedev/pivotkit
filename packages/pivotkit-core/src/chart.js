@@ -6,6 +6,7 @@
  */
 
 import { DEFAULT_THEME } from "./defaults.js";
+import { TIMELINE_UNITS } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
 import { formatterFor } from "./format.js";
 import { defaultFormat, valueName } from "./grid.js";
@@ -187,6 +188,31 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
 }
 
 /**
+ * The chart type "auto" stands for (the view's default, `chart.type: "auto"`): lines when a field on
+ * Rows is a date or a grouping of one along the time line (day, week, month, quarter, year), so the
+ * categories are points in time; else bars. A grouping that repeats (weekday, hour of day, month,
+ * quarter or week of year) makes categories, not a time line: bars. A date on
+ * Columns alone is not enough: each date would be a line of its own, so a UI that wants lines there
+ * swaps rows and columns for the chart first (pivotkit-react does).
+ * @param {import("./view.js").View} view  the normalized view
+ * @param {import("./encode.js").Encoded} data
+ * @returns {"line" | "bar"}
+ */
+export function autoChartType(view, data) {
+    const derived = Array.isArray(view.derived) ? view.derived : [];
+    const isDate = (name) => {
+        const key = String(name).toLowerCase();
+        const d = derived.find((x) => x && typeof x.name === "string" && x.name.toLowerCase() === key);
+        // a grouping along the time line counts as a date; a repeating one and a number range do not
+        if (d && !TIMELINE_UNITS.includes(d.by)) {
+            return false;
+        }
+        return data.column(d ? d.field : name)?.type === "date";
+    };
+    return (Array.isArray(view.rows) ? view.rows : []).some(isDate) ? "line" : "bar";
+}
+
+/**
  * A plain ECharts option for the view's chart, themed by the host. The view's display settings
  * (chart.valueLabels, legend, title, smooth) are part of it, so an image of the chart shows them.
  * @param {import("./pivot.js").PivotResult} result
@@ -206,6 +232,9 @@ export function toEChartsOption(result, options) {
     expect(isPivotResult(result), "toEChartsOption(result): result must come from computePivot()");
     const theme = options.theme ?? {};
     const chart = { ...result.view.chart, ...(options.chart || {}) };
+    if (chart.type === "auto") {
+        chart.type = autoChartType(result.view, result.encoded);
+    }
     const locale = resolveLocale(result.view.formatting.locale, options.locale ?? result.locale);
     // the chart data the caller already has (toSeries of the same result and options), or made here
     const s = options.series ?? toSeries(result, options);
@@ -234,7 +263,8 @@ export function toEChartsOption(result, options) {
         const data = s.categories
             .map((name, i) => ({ name, value: s.totals[vi] ? s.totals[vi][i] : null }))
             .filter((d) => typeof d.value === "number" && d.value > 0);
-        const percent = (p) => `${formatterFor("number:1", locale)(p.percent)} %`;
+        // the share as the locale writes it: "12.5%" in English, "12,5 %" in German
+        const percent = (p) => formatterFor("percent100:1", locale)(p.percent);
         const inside = chart.labelPosition === "inside";
         // outside: the slice's name with what is chosen, on a line to the slice; inside: only the
         // number on the slice (the legend names the slices), the share when nothing is chosen
@@ -303,6 +333,8 @@ export function toEChartsOption(result, options) {
                 left: "center",
                 bottom: 0,
                 textStyle,
+                // the ends of the scale in the value's number format, as the cells and the tooltip
+                formatter: (v) => (typeof v === "number" ? fmt(v) : String(v)),
                 ...(theme.heatmapColors ? { inRange: { color: theme.heatmapColors } } : {})
             },
             // the numbers in the cells: by default while there are few enough cells

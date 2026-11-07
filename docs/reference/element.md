@@ -56,8 +56,8 @@ supported.
 | `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`.<br><small>Type: `number`; default: `1000`</small> |
 | `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
 | `storageKey` | `storage-key` | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again.<br><small>Type: `string`</small> |
-| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`, `"-settingInfo"`: those help switches off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded.<br><small>Type: `string[]`</small> |
-| `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user switches it in Options, Help. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
+| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded.<br><small>Type: `string[]`</small> |
+| `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user's "Show explanations" in Options, Help decides. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
 | `zoneInfo` | `zone-info` | The same for the "i" next to the zone titles.<br><small>Type: `"on"` or `"off"`</small> |
 | `settingInfo` | `setting-info` | The same for the "i" next to the settings that need explaining ("Show explanations").<br><small>Type: `"on"` or `"off"`</small> |
 | `sourceId` | `source-id` | The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).<br><small>Type: `string`</small> |
@@ -259,14 +259,15 @@ above.
 What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
 gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
 update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
-(about 10 % above these numbers):
+(a few per cent above these numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 5 | 461 KiB | 148 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 464 KiB | 151 KiB |
 | On the first chart (ECharts with bar, line, pie, heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
 | On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 20 KiB | 9 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
+| Right after the first render (the menus' panels and the texts only they show) | 1 | 48 KiB | 14 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

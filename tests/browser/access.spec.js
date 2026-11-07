@@ -1,5 +1,5 @@
 // Keyboard, focus and screen reader behaviour (WCAG 2.2 AA): every test here fails without its fix.
-import { chips, expect, tableRows, test } from "./fixtures.js";
+import { chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("keyboard and focus", () => {
     test("collapse and expand from the keyboard keep the focus on the toggle", async ({ page }) => {
@@ -106,7 +106,7 @@ test.describe("keyboard and focus", () => {
         await expect(page.locator(".pk-popover [data-pk-option]").first()).toBeFocused();
         await page.getByTestId("swap").focus();
         await expect(page.locator(".pk-popover")).toHaveCount(0);
-        await page.getByTestId("options").click();
+        await toolbar(page, "options");
         await expect(page.locator(".pk-popover")).toHaveCount(1);
         await page.evaluate(() => document.body.focus());
         await page.keyboard.press("Escape");
@@ -201,7 +201,7 @@ test.describe("names, roles and sizes", () => {
 });
 
 test.describe("notes", () => {
-    test("no note for an add; Undone names the step; notes sit under the table; a note stays while hovered", async ({ page }) => {
+    test("no note for an add; Undone names the step; notes sit in view, under the table when its end is on screen; a note stays while hovered", async ({ page }) => {
         await page.goto("?data=sales");
         await page.locator('.pk-field[data-field="Channel"] .pk-field-name').click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country", "Channel"]);
@@ -209,9 +209,14 @@ test.describe("notes", () => {
         await page.keyboard.press("ControlOrMeta+z");
         const toast = page.locator(".pk-toast");
         await expect(toast).toHaveText(/Undone: Channel added to Rows/);
-        const table = await page.getByTestId("pivot-table").boundingBox();
-        const box = await toast.boundingBox();
-        expect(box.y).toBeGreaterThanOrEqual(table.y + table.height);
+        // in view, at the bottom edge of what is on screen of the report; with the report's end on
+        // screen, under the table
+        await expect(toast).toBeInViewport({ ratio: 1 });
+        await page.locator(".pk-status").scrollIntoViewIfNeeded();
+        await expect.poll(async () => {
+            const table = await page.getByTestId("pivot-table").boundingBox();
+            return (await toast.boundingBox()).y - (table.y + table.height);
+        }).toBeGreaterThanOrEqual(0);
         await toast.hover();
         await page.waitForTimeout(6800);
         await expect(toast).toBeVisible();

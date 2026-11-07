@@ -6,8 +6,9 @@
 
 import React, { useEffect, useId, useRef, useState } from "react";
 import { VIEW_FILE_LIMITS } from "pivotkit-core";
-import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "./chart-types.js";
+import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
+import { activeIn } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Option } from "./popover.jsx";
@@ -15,13 +16,15 @@ import { Section, SettingInfo } from "./section.jsx";
 import { SHORTCUTS } from "./tips.js";
 import { TOTALS, totalNoEffect } from "./view-ops.js";
 
-function ChartTypeOptions({ view, labels, onChart, close }) {
+function ChartTypeOptions({ view, plan, labels, onChart, close }) {
     const current = chartTypeOf(view.chart);
     return CHART_TYPE_NAMES.map((p) => (
         <Option
             key={p}
             icon={CHART_TYPES[p].icon}
             checked={view.display === "chart" && current === p}
+            // what "Automatic" draws for this view now
+            hint={p === "auto" && plan ? fill(labels.chartAutoNow, { type: labels.chartTypes[plan.name] }) : undefined}
             onSelect={() => {
                 close();
                 onChart(p);
@@ -36,8 +39,6 @@ function ChartTypeOptions({ view, labels, onChart, close }) {
 /** The value labels a chart type offers: a share in percent is a pie's and a donut's. */
 const VALUE_LABELS = { slices: ["auto", "off", "value", "percent", "both"], other: ["auto", "off", "value"] };
 const LABEL_POSITIONS = ["outside", "inside"];
-/** The chart types drawn as slices of a circle (pivotkit-core's SLICE_CHART_TYPES). */
-const SLICES = ["pie", "donut"];
 const LEGENDS = ["auto", "bottom", "right", "off"];
 const AXIS_LABELS = ["auto", "all", "nth"];
 const GROUP_LABELS = ["auto", "on", "off"];
@@ -81,11 +82,13 @@ function ChartTitle({ title, labels, onDisplay }) {
  * How the chart is drawn: value labels, legend, title, smooth lines (line and area). Each choice
  * applies at once and the panel stays open, so the chart behind it shows the change.
  */
-function ChartDisplay({ view, labels, onDisplay }) {
+function ChartDisplay({ view, plan, labels, onDisplay }) {
     const chart = view.chart;
-    const pie = SLICES.includes(chart.type);
+    // the type drawn: an automatic chart's is the one the data chose
+    const drawn = plan ? plan.name : chartTypeOf(chart);
+    const pie = SLICE_TYPES.includes(drawn);
     // bars, lines and areas have a category axis
-    const axis = CHART_TYPES[chartTypeOf(chart)].axis;
+    const axis = CHART_TYPES[drawn].axis;
     const choices = pie ? VALUE_LABELS.slices : VALUE_LABELS.other;
     // a pie's "percent" on another type draws the value: it shows as "Value" there
     const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
@@ -151,21 +154,21 @@ function ChartDisplay({ view, labels, onDisplay }) {
                     </div>
                 </>
             ) : null}
-            {chart.type === "line" || chart.type === "area" ? <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">{labels.smoothLines}</Switch> : null}
+            {drawn === "line" || drawn === "area" ? <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">{labels.smoothLines}</Switch> : null}
         </Section>
     );
 }
 
 /** The chart type menu: the types (a pick closes it) and how the chart is drawn. */
-export function ChartTypePanel({ view, labels, onChart, onDisplay, close }) {
+export function ChartTypePanel({ view, plan, labels, onChart, onDisplay, close }) {
     return (
         <>
             <Section title={labels.chartType} id="chartType">
                 <div className="pk-choice-grid">
-                    <ChartTypeOptions view={view} labels={labels} onChart={onChart} close={close} />
+                    <ChartTypeOptions view={view} plan={plan} labels={labels} onChart={onChart} close={close} />
                 </div>
             </Section>
-            <ChartDisplay view={view} labels={labels} onDisplay={onDisplay} />
+            <ChartDisplay view={view} plan={plan} labels={labels} onDisplay={onDisplay} />
         </>
     );
 }
@@ -238,12 +241,10 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
                 <Option icon="chevronDown" onSelect={() => { close(); onExpand(); }} disabled={!folding.canExpand} reason={folding.why.expand ? labels[folding.why.expand] : undefined} testId="expand-all">{labels.expandAll}</Option>
                 <Option icon="chevronRight" onSelect={() => { close(); onCollapse(); }} disabled={!folding.canCollapse} reason={folding.why.collapse ? labels[folding.why.collapse] : undefined} testId="collapse-all">{labels.collapseAll}</Option>
             </Section>
-            {/* help: the tips and the three kinds of "i", each a switch unless the host decides */}
+            {/* help: the tips, and the "i" of settings, zones and fields: one switch, unless the host decides each */}
             <Section title={labels.help} id="help">
                 {tips.controls ? <Switch checked={tips.on} onChange={tips.onOn} testId="show-tips">{labels.showTips}</Switch> : null}
-                {help?.fieldInfo ? <Switch checked={help.fieldInfo.on} onChange={help.fieldInfo.set} testId="show-field-info">{labels.showFieldInfo}</Switch> : null}
-                {help?.zoneInfo ? <Switch checked={help.zoneInfo.on} onChange={help.zoneInfo.set} testId="show-zone-info">{labels.showZoneInfo}</Switch> : null}
-                {help?.settingInfo ? <Switch checked={help.settingInfo.on} onChange={help.settingInfo.set} testId="show-setting-info">{labels.showSettingInfo}</Switch> : null}
+                {help?.explanations ? <Switch checked={help.explanations.on} onChange={help.explanations.set} testId="show-explanations">{labels.showSettingInfo}</Switch> : null}
                 {tips.controls ? <Option icon="reset" onSelect={() => tips.onReset()} disabled={!tips.canReset} testId="reset-tips">{labels.resetTips}</Option> : null}
                 <details className="pk-more">
                     <summary className="pk-more-title" data-testid="shortcuts-title">{labels.shortcutsTitle}</summary>
@@ -254,20 +255,37 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
     );
 }
 
-function SaveView({ labels, onSave, close }) {
+/**
+ * Save the view under a name. The menu stays open after a save: the new entry shows in the list, and
+ * sharing ("Copy link") is one click away; the field is empty again and keeps the focus.
+ */
+function SaveView({ labels, onSave }) {
     const [name, setName] = useState("");
+    const field = useRef(/** @type {HTMLInputElement | null} */ (null));
     return (
         <form
             className="pk-inline-form"
             onSubmit={(e) => {
                 e.preventDefault();
                 if (name.trim()) {
-                    close();
-                    onSave(name.trim());
+                    const saved = onSave(name.trim());
+                    setName("");
+                    field.current?.focus({ preventScroll: true });
+                    // the host's new list renders the menu again: the field keeps the focus after it,
+                    // unless the user went on to another field
+                    Promise.resolve(saved).then(() =>
+                        requestAnimationFrame(() => {
+                            const el = field.current;
+                            const now = el ? activeIn(el) : null;
+                            if (el && el.isConnected && now !== el && !(now instanceof HTMLInputElement || now instanceof HTMLTextAreaElement)) {
+                                el.focus({ preventScroll: true });
+                            }
+                        })
+                    );
                 }
             }}
         >
-            <ClearInput type="text" value={name} onChange={setName} clearLabel={labels.clearText} placeholder={labels.viewName} aria-label={labels.viewName} maxLength={120} data-testid="saved-view-name" />
+            <ClearInput type="text" value={name} onChange={setName} clearLabel={labels.clearText} placeholder={labels.viewName} aria-label={labels.viewName} maxLength={120} data-testid="saved-view-name" inputRef={field} />
             <button type="submit" className="pk-btn pk-primary" disabled={!name.trim()}>
                 {labels.save}
             </button>
@@ -513,7 +531,7 @@ export function ViewsPanel({ templates, labels, onLoad, onSave, onDelete, close,
                 {onSave ? (
                     <>
                         <div className="pk-subtitle">{labels.saveView}</div>
-                        <SaveView labels={labels} onSave={onSave} close={close} />
+                        <SaveView labels={labels} onSave={onSave} />
                     </>
                 ) : null}
             </Section>

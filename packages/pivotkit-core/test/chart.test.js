@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PivotkitError, computePivot, encode, toEChartsOption, toSeries } from "../src/index.js";
+import { PivotkitError, autoChartType, computePivot, encode, normalize, toEChartsOption, toSeries } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -146,14 +146,17 @@ test("value labels: the value on bars and lines, value and share on a pie, numbe
     assert.equal(pie("auto").formatter, undefined);
     assert.equal(pie("off").show, false);
     assert.equal(pie("value").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10");
-    assert.equal(pie("percent").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 35.7 %");
-    assert.equal(pie("both").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10 (35.7 %)");
+    assert.equal(pie("percent").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 35.7%");
+    assert.equal(pie("both").formatter({ name: "North", value: 10, percent: 35.7 }), "North: 10 (35.7%)");
     // on the slices: the number only (the legend names the slices); the share when nothing is chosen
     const inside = (valueLabels) => toEChartsOption(r, { chart: { type: "pie", valueLabels, labelPosition: "inside" } }).series[0];
     assert.equal(inside("auto").label.position, "inside");
-    assert.equal(inside("auto").label.formatter({ name: "North", value: 10, percent: 35.7 }), "35.7 %");
+    assert.equal(inside("auto").label.formatter({ name: "North", value: 10, percent: 35.7 }), "35.7%");
     assert.equal(inside("value").label.formatter({ name: "North", value: 10, percent: 35.7 }), "10");
-    assert.equal(inside("both").label.formatter({ name: "North", value: 10, percent: 35.7 }), "10 (35.7 %)");
+    assert.equal(inside("both").label.formatter({ name: "North", value: 10, percent: 35.7 }), "10 (35.7%)");
+    // the share as the locale writes it: a space before the sign in German
+    const german = computePivot(data, { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], formatting: { locale: "de-DE" } });
+    assert.match(toEChartsOption(german, { chart: { type: "pie", valueLabels: "percent" } }).series[0].label.formatter({ name: "Nord", value: 10, percent: 35.7 }), /^Nord: 35,7\s%$/);
     assert.equal(inside("off").label.show, false);
     assert.equal(inside("value").labelLine.show, false);
     assert.equal(pie("value").position, undefined);
@@ -193,4 +196,37 @@ test("two row fields: the inner items name the categories, the outer ones are gr
     assert.equal(off.xAxis.data[0], "North / A");
     assert.equal(Array.isArray(toEChartsOption(r).xAxis), false);
     assert.equal(toEChartsOption(nested, { chart: { type: "pie" } }).xAxis, undefined);
+});
+
+test("auto: lines when a date or a date grouping is on Rows, else bars; a date on Columns alone is not enough", () => {
+    const month = { name: "Date (Month)", field: "Date", by: "yearMonth" };
+    const view = (v) => normalize(v, data).view;
+    assert.equal(autoChartType(view({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }), data), "bar");
+    assert.equal(autoChartType(view({ rows: ["Date"], values: [{ field: "Units", agg: "sum" }] }), data), "line");
+    assert.equal(autoChartType(view({ rows: ["Region", "Date (Month)"], derived: [month], values: [{ field: "Units", agg: "sum" }] }), data), "line");
+    assert.equal(autoChartType(view({ rows: ["Region"], cols: ["Date (Month)"], derived: [month], values: [{ field: "Units", agg: "sum" }] }), data), "bar");
+    // a grouping that repeats is categories, not a time line: bars; every one along the time line: lines
+    for (const by of ["weekday", "hour", "month", "quarter", "week"]) {
+        assert.equal(autoChartType(view({ rows: ["D"], derived: [{ name: "D", field: "Date", by }], values: [{ agg: "count" }] }), data), "bar", by);
+    }
+    for (const by of ["day", "yearWeek", "yearMonth", "yearQuarter", "year"]) {
+        assert.equal(autoChartType(view({ rows: ["D"], derived: [{ name: "D", field: "Date", by }], values: [{ agg: "count" }] }), data), "line", by);
+    }
+    // a number range of a number is no date
+    assert.equal(autoChartType(view({ rows: ["Units (bins)"], derived: [{ name: "Units (bins)", field: "Units", by: "bin", size: 2 }], values: [{ agg: "count" }] }), data), "bar");
+    // the view's default type is "auto", and the option draws it as the type it stands for
+    const byMonth = computePivot(data, { rows: ["Date (Month)"], derived: [month], values: [{ field: "Units", agg: "sum" }], display: "chart" });
+    assert.equal(byMonth.view.chart.type, "auto");
+    assert.deepEqual(toEChartsOption(byMonth).series.map((x) => x.type), ["line"]);
+    assert.deepEqual(toEChartsOption(r).series.map((x) => x.type), ["bar", "bar"]);
+    // a type the user chose stays
+    assert.deepEqual(toEChartsOption(byMonth, { chart: { type: "bar" } }).series.map((x) => x.type), ["bar"]);
+});
+
+test("heatmap: the colour scale writes its ends in the value's number format", () => {
+    const money = computePivot(data, { rows: ["Region"], cols: ["Product"], values: [{ field: "Price", agg: "sum", format: "currency:EUR" }], formatting: { locale: "de-DE" } });
+    const heat = toEChartsOption(money, { chart: { type: "heatmap" } });
+    assert.equal(typeof heat.visualMap.formatter, "function");
+    assert.equal(heat.visualMap.formatter(1234.5), heat.tooltip.valueFormatter(1234.5));
+    assert.match(heat.visualMap.formatter(1234.5), /1\.234,50\s€/);
 });

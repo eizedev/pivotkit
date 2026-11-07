@@ -12,7 +12,7 @@ const src = fileURLToPath(new URL("../src/", import.meta.url));
 
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
-        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_VERSION", "aggregatorsFor",
+        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
         "cellRows", "computePivot", "createHistory", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "formatter", "fromViewFile", "isFormat",
         "migrate", "normalize", "suggestDateUnit", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText"
     ]);

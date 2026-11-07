@@ -23,9 +23,9 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
   the cells, **Filters** what is left out of the whole report. The **i** next to a zone's title says
   what it does, with an example.
 - **The toolbar**: Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, Views and
-  Export. What does not fit the report's width moves into **More**, Reset and Redo first, then Layout,
-  Views, Options and the chart type; Table or Chart, Undo and Export always stay. Which buttons are in
-  More depends on the width only: a click on Layout never moves it.
+  Export. What does not fit the report's width moves into **More**, Reset first, then Layout, Views,
+  Options and the chart type; Table or Chart, Undo with Redo and Export always stay. Which buttons are
+  in More depends on the width only, the same in every language: a click on Layout never moves it.
 - **The result**: the table or the chart, with tips above it, **Enlarge** and **Full screen** at its
   top right, and a status line below it.
 
@@ -44,7 +44,7 @@ There are three ways, all with the same result:
 
 A date is grouped as soon as it is placed, by the span of its values: up to 62 days by day, up to two
 years by month ("Jan 2025"), up to six years by quarter, longer by year. The chip says so:
-"Created (Month)". See [Dates and number ranges](concepts/dates.md).
+"Created by month". See [Dates and number ranges](concepts/dates.md).
 
 ## What a field means
 
@@ -180,7 +180,10 @@ with no rows behind it opens nothing.
 ![A line chart of monthly revenue per category in the dark theme](assets/screenshots/chart.png)
 
 **Chart** in the toolbar shows the same report as a chart: bars, stacked bars, horizontal bars, lines,
-area, pie, donut or heatmap ("Chart type" in the toolbar). A click on a bar, a point or a heatmap cell opens
+area, pie, donut or heatmap (the button next to it). Until you pick one the type is **Automatic**:
+dates draw lines along the axis (also dates on Columns: the chart swaps rows and columns for itself),
+everything else bars. With a type you picked, a chart over dates gets a tip **Show as lines over
+time**; a pie of more than about 7 slices a tip **Switch to Bars**. A click on a bar, a point or a heatmap cell opens
 its rows, as in the table. Pointing at a category shows a tooltip with its whole name and one line per
 series with its colour and the formatted value; on a pie, the slice; on a heatmap, the cell's row and
 column and its value.
@@ -201,7 +204,7 @@ Two buttons at the top right of the result give it more room; neither is part of
 - **Enlarge** lets the table or the chart fill the report: the field list, the zones, the tips and
   the notes above the result step aside, and one line says which fields the report shows ("Rows:
   Team · Columns: Priority · Values: Count of Ticket"). The toolbar stays. **Escape** or the same
-  button (shown pressed) brings everything back.
+  button, which then reads **Reduce** (shown pressed), brings everything back.
 - **Full screen** puts the whole report on the screen. **Escape** or the button leaves it. It is
   offered only where the browser can do it (not, for example, in Safari on an iPhone).
 
@@ -210,7 +213,8 @@ Two buttons at the top right of the result give it more room; neither is part of
 - **Undo** (Ctrl+Z, on a Mac Cmd+Z) and **Redo** (Ctrl+Shift+Z or Ctrl+Y, Cmd+Shift+Z) step through
   every change. **Reset** goes back to the start view, as one step you can undo.
 - **Views** has two sections. **Saved views** loads a saved report; when the application allows it,
-  "Save current view" saves yours under a name (up to 120 characters; Enter saves), and your own saved
+  "Save current view" saves yours under a name (up to 120 characters; Enter saves; the menu stays
+  open with the new entry, so **Copy link** is one click away), and your own saved
   views can be deleted, after a confirmation. **Share** copies a link (when the application allows
   links) or the view as JSON, downloads it as a file (`.pivotkit.json`), and **Load view…** opens one
   from pasted text or a file; a view made for other data asks first. A line there says that a shared
@@ -244,8 +248,9 @@ line under it says why, only while it is greyed out:
 
 ### Status messages
 
-Notes such as "Undone: Region removed", "View “Sales” saved" or "Exported pivot.xlsx" appear in
-the status line under the table, never over the data, and a screen reader hears them. At most two
+Notes such as "Undone: Region removed", "View “Sales” saved" or "Exported pivot.xlsx" appear at
+the bottom right of the part of the report you see: under the table, or at the bottom of the window
+when the report reaches below it, and a screen reader hears them. At most two
 show at a time; each goes after 6 seconds, but stays while the pointer is on it or the focus is in it.
 A loaded view says so with **Undo** ("View loaded", "Opened the view from the link"); when parts of it
 did not fit ("View loaded; some parts did not fit this data") that is a warning: it goes like any
@@ -274,15 +279,15 @@ why) - up to 20 of them. It stays until you dismiss it with its **x** or load an
 Short tips above the result say what the report shows and what you can do next: that a top 5 changes
 what the totals mean, what 100 % is for a percentage, that a text field in Values is counted, that a
 date makes a column per day (with a button to group it by month), that a filter leaves nothing (with
-**Remove filter**), or that the view could be saved (**Save view** opens Views). At most two show at a time, the
-most important first, and never over the table. The notes that say the result is cut or empty (a top
+**Remove filter**), that the view could be saved (**Save view** opens Views; after a save it waits
+for more changes), that a chart over dates reads better as lines (**Show as lines over time**) or that
+a pie has too many slices (**Switch to Bars**). One shows at a time, the most important first; the
+next one waits until it is followed or dismissed. Never over the table. The notes that say the result is cut or empty (a top
 5, the first 50 categories of a chart, a filter that leaves nothing) always stay; they have no x.
 
 - The **x** of a tip (Tab reaches it) hides that tip; the report remembers it.
-- **Options**, **Help** has **Show tips**, to switch them all off and on, **Show field descriptions**
-  (the **i** of the fields; shown when the application describes its fields), **Show zone
-  explanations** (the **i** of the zones), **Show explanations** (the **i** next to the settings of
-  the menus) and **Show dismissed tips again**. The report remembers the switches like the tips.
+- **Options**, **Help** has **Show tips**, to switch them all off and on, **Show explanations** (every
+  **i**: of the fields, the zones and the settings of the menus) and **Show dismissed tips again**. The report remembers the switches like the tips.
 - **Options**, **Help**, **Keyboard shortcuts** lists the keys.
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](assets/screenshots/tips.png)
@@ -318,7 +323,10 @@ most important first, and never over the table. The notes that say the result is
 
 The report adapts to its own width. On a wide screen the field list is on the left and the zones in a
 2 x 2 grid. On a narrow one the field list opens as a drawer with **Fields** in the toolbar, menus open
-as sheets from the bottom, and toolbar buttons that do not fit move into **More**. The drawer closes
+as sheets from the bottom of the window (at most 82 % of its height, scrolling inside), and toolbar
+buttons that do not fit move into **More**, always in the same order (Reset, Layout, Views, Options,
+the chart type) and by the report's width, so the same buttons show in every language; **Redo** stays
+next to **Undo**. Row labels wrap between words; a table wider than the phone scrolls sideways. The drawer closes
 with its **x** ("Close field list"), Escape or a tap beside it, and by itself once a field is added
 from it, its "Filter…" opens or a drag starts, so you see where the field lands.
 
@@ -338,6 +346,11 @@ instead of squeezing the table into a sliver.
 - Every action has a button or a menu entry; drag and drop is never the only way.
 - Menus move with the arrow keys, **Home** and **End** jump to the first and the last entry, and Tab
   or Escape closes them.
+- The field list is one stop of **Tab**: **Up** and **Down** move between the fields (**Home**,
+  **End**), **Left** and **Right** to a field's grip, its **i** and its menu; **Enter** on a name adds
+  the field, **Shift+F10** (or the context menu key) opens its menu, **Space** on the grip picks it
+  up. A **Skip to the toolbar** link comes first. Options, Help, Keyboard shortcuts lists these keys.
+- On a touch screen the small buttons (×, **i**, a field's menu and grip, a tip's x) are at least 44 px.
 - A chip or a field handle is picked up with **Space**. **Left** and **Right** move it within a zone,
   **Up** and **Down** to the zone above or below; its position is announced ("Region is over Rows,
   position 2 of 3"). **Space** drops it, **Escape** cancels.

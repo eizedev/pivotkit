@@ -1,7 +1,7 @@
 /*
  * The filter popover of a field: "Remove filter" at the top while it filters, its values with row
  * counts (pivotkit-core's fieldItems), a search, select all and none, "only this value", and a
- * condition on the label. Changes are a draft until Apply, so one filter is one undo step; the × of the
+ * condition on the label by the field's type (conditionKind: text, a number's label; none for dates). Changes are a draft until Apply, so one filter is one undo step; the × of the
  * condition's text removes the condition at once. A field that is not placed yet (the field list's
  * "Filter…") is filtered on a draft that puts it into Filters: Apply places it with the selection,
  * Cancel leaves the report as it was.
@@ -13,7 +13,7 @@ import { ClearInput } from "./clear-input.jsx";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
-import { filtersOf, hasFilter, removeFilters, selectedItems, setItemFilter, setLabelFilter } from "./view-ops.js";
+import { filtersOf, hasFilter, removeFilters, selectedItems, setItemFilter, setLabelFilter, conditionKind } from "./view-ops.js";
 
 /** Values listed at once; the search finds the others. */
 export const FILTER_LIST_MAX = 300;
@@ -65,6 +65,8 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
         commit(next, { step: "filter", field: name });
     };
     const filtering = !base && hasFilter(view, field);
+    // a condition the type has none for (a loaded view's) still shows, so it can be taken off
+    const kind = conditionKind(encoded, view, field) ?? (label ? "text" : null);
     return (
         <form
             className="pk-filter"
@@ -122,9 +124,10 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                 })}
             </ul>
             {matching.length > shown.length ? <p className="pk-hint">{fill(labels.valuesShown, { shown: shown.length, total: matching.length.toLocaleString(locale) })}</p> : null}
+            {kind ? (
             <fieldset className="pk-condition">
-                <legend>{labels.condition}</legend>
-                <select value={op} onChange={(e) => setOp(e.target.value)} aria-label={labels.condition}>
+                <legend>{kind === "number" ? labels.conditionNumber : labels.condition}</legend>
+                <select value={op} onChange={(e) => setOp(e.target.value)} aria-label={kind === "number" ? labels.conditionNumber : labels.condition}>
                     <option value="">{labels.conditionNone}</option>
                     {CATALOG.labelOps.map((o) => (
                         <option key={o} value={o}>
@@ -151,6 +154,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                     />
                 ) : null}
             </fieldset>
+            ) : null}
             <div className="pk-popover-foot">
                 <button type="button" className="pk-btn" onClick={close}>
                     {labels.cancel}

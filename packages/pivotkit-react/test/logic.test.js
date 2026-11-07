@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, toGrid } from "pivotkit-core";
 import { decodeRow, drillRows, drillTable } from "../src/drill.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
+import { MENU_LABELS, menuLabels } from "../src/menu-labels.js";
 import { fromOrigin, placePopover } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { rowLabelOf, sliceRows, windowOf } from "../src/virtual.js";
@@ -31,7 +32,23 @@ test("labels: the locale picks the language, partial labels merge deeply, en and
     assert.equal(resolveLabels("en", JSON.parse('{"__proto__": {"polluted": 1}}')).polluted, undefined);
     const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
     assert.deepEqual(keys(LABELS.de), keys(LABELS.en));
+    // the menus' texts (loaded with the menus): the same keys too, none of them in the first load's
+    assert.deepEqual(keys(MENU_LABELS.de), keys(MENU_LABELS.en));
+    assert.deepEqual(Object.keys(MENU_LABELS.en).filter((k) => Object.hasOwn(LABELS.en, k)), []);
     assert.equal(fill("{a} of {b} {c}", { a: 1, b: "x" }), "1 of x {c}");
+});
+
+test("labels: the menus' texts come under the report's labels, and a host's text for one of them wins", () => {
+    const plain = menuLabels(resolveLabels("de-DE"));
+    assert.deepEqual([plain.cancel, plain.zones.rows, plain.drillCount.other], ["Abbrechen", "Zeilen", "{count} Zeilen"]);
+    const custom = menuLabels(resolveLabels("de-DE", { cancel: "Doch nicht", apply: 42, showAsNames: { runningTotal: "Kumuliert" }, core: { grandTotal: "Summe" } }));
+    // a text of the host's wins; one of the wrong type is ignored; a partial object merges
+    assert.deepEqual([custom.cancel, custom.apply, custom.showAsNames.runningTotal, custom.showAsNames.percentRunningTotal, custom.core.grandTotal], ["Doch nicht", "Anwenden", "Kumuliert", "% laufende Summe", "Summe"]);
+    // a language of the host's own: the English menu texts under it
+    assert.equal(menuLabels(resolveLabels("fr-FR", { lang: "fr", cancel: "Annuler" })).apply, "Apply");
+    assert.equal(menuLabels(resolveLabels("fr-FR", { lang: "fr", cancel: "Annuler" })).cancel, "Annuler");
+    // no prototype pollution through a key the first load does not have
+    assert.equal(menuLabels(resolveLabels("en", JSON.parse('{"__proto__": {"cancel": "x"}, "constructor": 1}'))).cancel, "Cancel");
 });
 
 test("virtual window: rows in view plus overscan, spacers for the rest", () => {

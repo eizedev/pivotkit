@@ -115,11 +115,13 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
  *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
- *   valueNames: string[], chartOptions?: Record<string, unknown> | null }} props
+ *   valueNames: string[], chartOptions?: Record<string, unknown> | null,
+ *   plan?: { name: string, chart: { type: string, stacked: boolean, horizontal: boolean } } }} props
  *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw;
- *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else
+ *   `chartOptions`: the host's plain JSON (chart-options.js, checked), merged over everything else;
+ *   `plan`: what to draw (chart-types.js chartPlan), the view's type resolved when it is "auto"
  */
-export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames, chartOptions }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames, chartOptions, plan }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -130,7 +132,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
     // n when the category axis writes every n-th label only: a note says so
     const [every, setEvery] = useState(1);
     const summaryId = useId();
-    const type = chartTypeOf(result.view.chart);
+    const type = plan ? plan.name : chartTypeOf(result.view.chart);
+    const drawAs = plan ? plan.chart : null;
     const latest = useRef({ series, onPoint, onInstance, type });
     useEffect(() => {
         latest.current = { series, onPoint, onInstance, type };
@@ -188,13 +191,13 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         }
         const style = getComputedStyle(root.current);
         // the series of the summary and the hints, not computed a second time
-        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}) });
+        const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
         const { axisEvery, ...drawn } = decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels });
         setEvery(axisEvery);
         // the host's chartOptions win over the view's display settings and the report's own styles
         chart.current.setOption(chartOptions ? mergeChartOptions(drawn, chartOptions) : drawn, { notMerge: true });
         // box: the axis labels, a pie and a heatmap are laid out again when the size changes
-    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions]);
+    }, [ready, result, series, labels, locale, themeName, root, box, chartOptions, drawAs]);
 
     const empty = result.view.values.length === 0;
     const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale }) : labels.noChartData;

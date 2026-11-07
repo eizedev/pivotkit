@@ -4,10 +4,16 @@
  * chart type pivotkit-core draws (CATALOG.chartTypes) and a label in every language.
  */
 
+import { autoChartType } from "pivotkit-core";
+
 /** @typedef {{ chart: { type: string, stacked: boolean, horizontal: boolean }, icon: string, axis: boolean }} ChartTypeEntry */
 
-/** @type {Readonly<Record<string, ChartTypeEntry>>} axis: drawn along a category axis (series hints apply) */
+/**
+ * @type {Readonly<Record<string, ChartTypeEntry>>} axis: drawn along a category axis (series hints
+ *   apply). "auto" is the view's default: the data decides (chartPlan), until the user picks a type.
+ */
 export const CHART_TYPES = Object.freeze({
+    auto: { chart: { type: "auto", stacked: false, horizontal: false }, icon: "sparkle", axis: true },
     bar: { chart: { type: "bar", stacked: false, horizontal: false }, icon: "chart", axis: true },
     stacked: { chart: { type: "bar", stacked: true, horizontal: false }, icon: "stacked", axis: true },
     horizontal: { chart: { type: "bar", stacked: false, horizontal: true }, icon: "horizontal", axis: true },
@@ -17,6 +23,9 @@ export const CHART_TYPES = Object.freeze({
     donut: { chart: { type: "donut", stacked: false, horizontal: false }, icon: "donut", axis: false },
     heatmap: { chart: { type: "heatmap", stacked: false, horizontal: false }, icon: "heatmap", axis: false }
 });
+
+/** The picker entries drawn as slices of a circle (pivotkit-core's SLICE_CHART_TYPES). */
+export const SLICE_TYPES = Object.freeze(["pie", "donut"]);
 
 /** The picker entries in their order. */
 export const CHART_TYPE_NAMES = Object.freeze(Object.keys(CHART_TYPES));
@@ -39,6 +48,27 @@ export function chartTypeOf(chart) {
         return chart.horizontal ? "horizontal" : "stacked";
     }
     return CHART_TYPE_NAMES.find((name) => CHART_TYPES[name].chart.type === chart.type) ?? "bar";
+}
+
+/**
+ * What the chart draws for a view. A type the user chose is drawn as it is. "auto" (the default)
+ * draws lines when a date is on Rows; with a date on Columns only it draws lines too, with rows and
+ * columns swapped for the chart alone (`swap`), so the dates run along the axis and the table keeps
+ * its layout; else bars (pivotkit-core's autoChartType decides).
+ * @param {{ rows: string[], cols: string[], derived: any[], chart: { type: string, stacked?: boolean, horizontal?: boolean } }} view
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @returns {{ name: string, auto: boolean, swap: boolean, chart: { type: string, stacked: boolean, horizontal: boolean } }}
+ *   `name`: the picker entry drawn (never "auto"); `chart`: the settings to draw with
+ */
+export function chartPlan(view, encoded) {
+    if (view.chart.type !== "auto") {
+        const name = chartTypeOf(view.chart);
+        return { name, auto: false, swap: false, chart: { type: view.chart.type, stacked: Boolean(view.chart.stacked), horizontal: Boolean(view.chart.horizontal) } };
+    }
+    const own = autoChartType(/** @type {any} */ (view), encoded);
+    const swap = own === "bar" && view.cols.length > 0 && autoChartType(/** @type {any} */ ({ ...view, rows: view.cols }), encoded) === "line";
+    const name = own === "line" || swap ? "line" : "bar";
+    return { name, auto: true, swap, chart: { ...CHART_TYPES[name].chart } };
 }
 
 /** Charts with more series than this get a hint to swap or filter. */

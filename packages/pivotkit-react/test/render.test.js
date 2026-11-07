@@ -4,7 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { LABELS, PivotReport } from "pivotkit-react";
+import { PivotReport } from "pivotkit-react";
+import { LABELS } from "pivotkit-react/labels";
 
 const rows = [
     { Region: "North", Product: "A", Units: 3 },
@@ -23,10 +24,12 @@ function render(props) {
     }
 }
 
-test("the package exports the component and the labels", async () => {
+test("the package exports the component, and the labels from pivotkit-react/labels with every text", async () => {
     const mod = await import("pivotkit-react");
-    assert.deepEqual(Object.keys(mod).sort(), ["LABELS", "PivotReport"]);
+    assert.deepEqual(Object.keys(mod).sort(), ["PivotReport"]);
     assert.deepEqual(Object.keys(LABELS), ["en", "de"]);
+    // the first load's texts and the menus' (loaded with the menus) in one object
+    assert.deepEqual([LABELS.en.zones.rows, LABELS.en.cancel, LABELS.de.showAsNames.runningTotal], ["Rows", "Cancel", "Laufende Summe"]);
 });
 
 test("a report renders its zones, fields and table, with no React warning", () => {

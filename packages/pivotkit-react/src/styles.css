@@ -15,6 +15,8 @@
     --pk-small: max(14px, 0.93em);
     /* the smallest hit area of a control (WCAG 2.5.8) */
     --pk-target: 24px;
+    /* the smallest hit area of a small control on a touch screen (a coarse pointer) */
+    --pk-target-touch: 44px;
     --pk-radius: 10px;
     --pk-radius-sm: 7px;
     --pk-row-h: 2.45em;
@@ -132,7 +134,10 @@
        zones, the tips and the result's least height need (use-big-result.js); a lower host box lets
        it grow, so the page scrolls */
     min-height: 320px;
+    /* clip, not hidden, where the browser has it: the root does not become a scroll container, so the
+       status notes (.pk-toast-dock) stay at the edge of the window while the report reaches past it */
     overflow: hidden;
+    overflow: clip;
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface);
@@ -190,6 +195,26 @@
 
 .pk-muted {
     color: var(--pk-muted);
+}
+
+/* the link past the field list to the toolbar: out of sight until the keyboard reaches it */
+.pk-skip {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 20;
+    padding: 0.4em 0.8em;
+    border: 1px solid var(--pk-accent);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface-raised);
+    color: var(--pk-accent);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* above the report's edge (the root clips it) until it has the focus */
+.pk-skip:not(:focus) {
+    transform: translateY(-300%);
 }
 
 .pk-hint {
@@ -512,9 +537,20 @@
     background: none;
     text-align: left;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     cursor: pointer;
+}
+
+/* a long name takes two lines, then ends in "…" (the whole name is its title) */
+.pk-field-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.3;
 }
 
 .pk-placed .pk-field-name {
@@ -590,9 +626,26 @@
     flex: none;
 }
 
+.pk-toolbar-pair {
+    display: inline-flex;
+    gap: 6px;
+}
+
 /* a little tighter than elsewhere: a wide report keeps every button in one line */
 .pk-toolbar .pk-btn {
-    padding-inline: 0.7em;
+    gap: 0.4em;
+    padding-inline: 0.6em;
+}
+
+/* a narrow report: tighter still, and no caret (the button says it opens a menu), so Undo, Redo,
+   Export and More share one line on a phone */
+.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-btn {
+    gap: 0.35em;
+    padding-inline: 0.55em;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-toolbar .pk-caret {
+    display: none;
 }
 
 .pk-sep {
@@ -1008,12 +1061,15 @@
     width: 340px;
 }
 
+/* at the bottom of the window, not of the report (which can reach past the window): every entry is
+   reachable, a long list scrolls inside the sheet */
 .pk-popover.pk-sheet {
     inset: auto 0 0 0;
     width: auto;
     max-width: none;
-    max-height: 82%;
-    position: absolute;
+    max-height: 82vh;
+    max-height: 82dvh;
+    position: fixed;
     border-radius: var(--pk-radius) var(--pk-radius) 0 0;
     padding: 10px 10px max(10px, env(safe-area-inset-bottom));
     animation: pk-sheet-in calc(var(--pk-duration) * 1.4) var(--pk-ease);
@@ -1025,6 +1081,11 @@
     z-index: 40;
     background: var(--pk-scrim);
     animation: pk-fade-in var(--pk-duration) ease-out;
+}
+
+/* a bottom sheet's scrim covers the window, as the sheet is placed in it */
+.pk-layer > .pk-scrim {
+    position: fixed;
 }
 
 .pk-section {
@@ -1675,14 +1736,14 @@
 
 /* A long row label wraps instead of pushing every value out of view on a phone: the row label
    columns (and the field names above them) share at most 40 % of the main area's width, each at
-   least 4.5em, and a value's name wraps beyond 30 %. A virtual table needs rows of one height (2.45em,
+   least 5.5em, and a value's name wraps beyond 30 %. A virtual table needs rows of one height (2.45em,
    too low for two lines of 1.45), so there a row label is cut with an ellipsis; its full text is the
    cell's title and, for a tapped label or a focused value, the status line (table.jsx: onRowLabel). */
 /* width: max-content keeps a label on one line when the table is merely wider than the report (its
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
     width: max-content;
-    max-width: max(4.5em, calc(40cqi / var(--pk-row-cols, 1)));
+    max-width: max(5.5em, calc(40cqi / var(--pk-row-cols, 1)));
 }
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
@@ -1690,10 +1751,25 @@
     max-width: max(6em, 30cqi);
 }
 
+/* a narrow report: a little less room around each cell, for the labels' least width below, and a
+   value's name wraps beyond 22 % (a word such as "Population" still fits) */
+.pk-root[data-pk-size="narrow"] .pk-table :is(th, td) {
+    padding-inline: 0.6em;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
+    max-width: max(5em, 22cqi);
+}
+
+/* a label wraps between words; at least 5.5em wide, so a common word ("Central", "Bangladesh") never
+   breaks; a longer one breaks at a hyphen of its own, and only a word longer than the column inside */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner, thead tr:last-child th.pk-colHeader) .pk-th-text {
     min-width: 0;
     white-space: normal;
     overflow-wrap: break-word;
+    /* labels are data, not the UI's language: a break only at a hyphen the label has itself */
+    -webkit-hyphens: manual;
+    hyphens: manual;
 }
 
 /* tr: as specific as the wrapping rule above, which the :is() list makes (0,4,3), and later */
@@ -2028,15 +2104,28 @@
     text-align: right;
 }
 
-/* toasts: in the status line under the table, never over the data */
+/* toasts: at the bottom edge of the report's visible part: under the table when the report's end is
+   on screen, else at the bottom of the window (sticky; the root clips without scrolling) */
+
+.pk-toast-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    height: 0;
+    flex: none;
+    /* takes no room: not even the gap of .pk-main before it */
+    margin-top: -10px;
+}
 
 .pk-toasts {
+    position: absolute;
+    right: 0;
+    bottom: 6px;
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 6px;
-    margin-left: auto;
-    min-width: 0;
+    max-width: 100%;
 }
 
 .pk-toast {
@@ -2044,6 +2133,7 @@
     align-items: center;
     gap: 0.5em;
     max-width: 100%;
+    box-shadow: var(--pk-shadow);
     padding: 0.15em 0.25em 0.15em 0.85em;
     border-radius: 999px;
     background: var(--pk-text);
@@ -2112,13 +2202,25 @@
     height: max(var(--pk-target), 1.7em);
 }
 
-/* a narrow report: the action goes below the text */
+/* a narrow report: the icon, the text and the x in one line, the action alone below them (a break
+   of the whole width before it) */
 .pk-root[data-pk-size="narrow"] .pk-tip {
     flex-wrap: wrap;
 }
 
 .pk-root[data-pk-size="narrow"] .pk-tip-text {
-    flex-basis: calc(100% - 4em);
+    flex: 1 1 0;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-tip.pk-has-action::after {
+    content: "";
+    order: 1;
+    flex-basis: 100%;
+    height: 0;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-tip > .pk-btn {
+    order: 2;
 }
 
 /* the "i" of a described field (fieldDefaults) and its description */
@@ -2752,4 +2854,14 @@
     border-radius: var(--pk-radius-sm);
     background: var(--pk-surface-2);
     padding: 4px;
+}
+
+/* ---- touch screens: the small controls get a hit area a finger finds (44 px) ---- */
+
+@media (pointer: coarse) {
+    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x) {
+        min-width: var(--pk-target-touch);
+        min-height: var(--pk-target-touch);
+    }
+
 }

@@ -5,9 +5,14 @@
  * shows its display name and, when the host describes it (fieldDefaults), an "i" with the description;
  * the search finds a field by its name, its display name and its description. A field not in the report
  * yet has "Filter…" in its menu: the filter opens at once, and Apply puts the field into Filters.
+ *
+ * For the keyboard the list is one stop of the Tab order (a roving tabindex): the arrow keys move up
+ * and down between the fields and left and right between a field's grip, name, "i" and menu; Enter
+ * on a name adds the field, Space on the grip picks it up, Shift+F10 (or the context menu key) opens
+ * the menu of the field in focus. A link before it skips to the toolbar.
  */
 
-import React, { useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useId, useMemo, useRef, useState } from "react";
 import { ClearInput } from "./clear-input.jsx";
 import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
@@ -16,11 +21,12 @@ import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { fieldAction } from "./names.js";
+import { SLOTS, opensMenu, roveTarget } from "./rove.js";
 import { MenuButton, Option } from "./popover.jsx";
 import { ZONES } from "./view-ops.js";
 
 
-function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, showInfo }) {
+function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, showInfo, stop }) {
     const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: name });
     const item = useRef(/** @type {HTMLLIElement | null} */ (null));
     const menu = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -32,10 +38,14 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
     // what a click does, said where it is said: the title and the accessible description
     const action = fieldAction(name, field.type, zones, labels);
     const describedBy = useId();
+    // the one control of the list in the Tab order (FieldPanel), -1 for every other
+    const slots = SLOTS.filter((x) => x !== "info" || (info && showInfo));
+    const own = stop && slots.includes(stop) ? stop : stop ? "name" : null;
+    const tab = (slot) => (own === slot ? 0 : -1);
     return (
         <li className={`pk-field${isDragging ? " pk-dragging" : ""}${zones.length ? " pk-placed" : ""}`} ref={ref} {...itemProps} data-field={field.name}>
             {/* the grip: dragged into a zone; a click opens the field's menu (Add to, Filter…) */}
-            <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: name })} title={labels.dragIntoZone} onClick={() => menu.current?.click()}>
+            <span className="pk-handle" {...handleProps} tabIndex={tab("handle")} data-pk-slot="handle" aria-label={fill(labels.dragHandle, { field: name })} title={labels.dragIntoZone} onClick={() => menu.current?.click()}>
                 <Icon name="grip" size={18} />
             </span>
             <span className={`pk-type pk-type-${field.type}`} title={typeLabel}>
@@ -45,6 +55,8 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
             <button
                 type="button"
                 className="pk-field-name"
+                tabIndex={tab("name")}
+                data-pk-slot="name"
                 onClick={() => {
                     if (action.kind) {
                         onAdd(field.name, action.zone);
@@ -59,7 +71,10 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
                 aria-description={info ? undefined : action.description || undefined}
                 aria-describedby={info ? describedBy : undefined}
             >
-                {name}
+                {/* two lines at most; the whole name on hover */}
+                <span className="pk-field-title" title={name}>
+                    {name}
+                </span>
             </button>
             {info ? (
                 <span id={describedBy} className="pk-sr">
@@ -76,8 +91,8 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
                 </span>
             ) : null}
             {/* after the badges: the "i" of every described field stands in one column */}
-            {info && showInfo ? <InfoButton info={info} name={name} labels={labels} /> : null}
-            <MenuButton label={fill(labels.fieldMenu, { field: name })} icon="more" className="pk-icon-btn pk-field-menu" testId={`field-menu-${field.name}`} buttonRef={menu}>
+            {info && showInfo ? <InfoButton info={info} name={name} labels={labels} tabIndex={tab("info")} slot="info" /> : null}
+            <MenuButton label={fill(labels.fieldMenu, { field: name })} icon="more" className="pk-icon-btn pk-field-menu" testId={`field-menu-${field.name}`} buttonRef={menu} tabIndex={tab("menu")} slot="menu">
                 {(close) => (
                     <>
                         {ZONES.map((zone) => (
@@ -117,10 +132,11 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
  * @param {{ fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, labels: import("./labels.js").UiLabels,
  *   onAdd: (field: string, zone: string) => void, onNote: (text: string) => void, drawer: boolean, open: boolean, onClose: () => void,
  *   onFilter?: (field: string, anchor: HTMLElement | null) => void, showInfo?: boolean,
- *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo> }} props
- *   `nameOf`: a field's display name; `info`: the host's descriptions by lower-case field name
+ *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo>, onSkip?: () => void }} props
+ *   `nameOf`: a field's display name; `info`: the host's descriptions by lower-case field name;
+ *   `onSkip`: the link past the list to the toolbar (not in the drawer, which the toolbar opens)
  */
-export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, info, showInfo = true }) {
+export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, drawer, open, onClose, nameOf, info, showInfo = true, onSkip }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
@@ -136,6 +152,42 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
         el.current = node;
         setNodeRef(node);
     };
+    // the field and control of the list that is in the Tab order (the last one focused)
+    const [stop, setStop] = useState(/** @type {{ field: string, slot: string } | null} */ (null));
+    const current = stop && shown.some((f) => f.name === stop.field) ? stop : shown.length ? { field: shown[0].name, slot: "name" } : null;
+    const list = useRef(/** @type {HTMLUListElement | null} */ (null));
+    const keysId = useId();
+    const onFocus = useCallback((e) => {
+        const control = /** @type {HTMLElement} */ (e.target).closest?.("[data-pk-slot]");
+        const row = control?.closest("[data-field]");
+        if (control && row && list.current?.contains(row)) {
+            setStop({ field: row.getAttribute("data-field") ?? "", slot: control.getAttribute("data-pk-slot") ?? "name" });
+        }
+    }, []);
+    const onListKey = (e) => {
+        const target = /** @type {HTMLElement} */ (e.target);
+        // keys of a menu or an "i" opened from a field (portals) and of a field being dragged are theirs
+        if (active || !list.current || !list.current.contains(target)) {
+            return;
+        }
+        const rows = /** @type {HTMLElement[]} */ ([...list.current.querySelectorAll(":scope > [data-field]")]);
+        const row = target.closest("[data-field]");
+        const at = { row: rows.indexOf(/** @type {HTMLElement} */ (row)), slot: target.closest("[data-pk-slot]")?.getAttribute("data-pk-slot") ?? "name" };
+        if (at.row < 0) {
+            return;
+        }
+        if (opensMenu(e)) {
+            e.preventDefault();
+            /** @type {HTMLElement | null} */ (rows[at.row].querySelector("[data-pk-slot='menu']"))?.click();
+            return;
+        }
+        const slotsOf = (i) => [...rows[i].querySelectorAll("[data-pk-slot]")].map((n) => n.getAttribute("data-pk-slot") ?? "");
+        const next = roveTarget(e.key, at, rows.length, slotsOf);
+        if (next) {
+            e.preventDefault();
+            /** @type {HTMLElement | null} */ (rows[next.row].querySelector(`[data-pk-slot='${next.slot}']`))?.focus();
+        }
+    };
     return (
         <aside
             className={`pk-panel${removing ? " pk-removing" : ""}${isOver && removing ? " pk-over" : ""}`}
@@ -145,6 +197,11 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
             aria-modal={modal ? true : undefined}
             onKeyDown={modal ? onKeyDown : undefined}
         >
+            {onSkip && !drawer ? (
+                <button type="button" className="pk-skip" onClick={onSkip} data-testid="skip-to-toolbar">
+                    {labels.skipToToolbar}
+                </button>
+            ) : null}
             <div className="pk-panel-head">
                 <h2 className="pk-panel-title">{labels.fields}</h2>
                 {drawer ? (
@@ -159,7 +216,8 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                 <span className="pk-sr">{labels.searchFields}</span>
                 <ClearInput type="search" value={query} placeholder={labels.searchFields} onChange={setQuery} clearLabel={labels.clearText} data-autofocus="" data-testid="field-search" />
             </label>
-            <ul className="pk-field-list">
+            {/* a list (role kept where list-style: none would drop it), named, with its keys as its description */}
+            <ul className="pk-field-list" ref={list} role="list" aria-label={labels.fields} aria-describedby={keysId} onFocus={onFocus} onKeyDown={onListKey} data-testid="field-list">
                 {shown.map((f) => (
                     <FieldItem
                         key={f.name}
@@ -170,12 +228,16 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, onFilter, dr
                         onNote={onNote}
                         onFilter={onFilter}
                         showInfo={showInfo}
+                        stop={current && current.field === f.name ? current.slot : null}
                         name={nameOf(f.name)}
                         // only a description makes the "i": a label alone needs no button
                         info={info.get(f.name.toLowerCase())?.description ? info.get(f.name.toLowerCase()) : undefined}
                     />
                 ))}
             </ul>
+            <p id={keysId} hidden>
+                {labels.fieldListKeys}
+            </p>
             {shown.length === 0 ? <p className="pk-hint">{fields.length ? fill(labels.noFieldMatch, { query }) : labels.emptyFields}</p> : null}
             {removing ? (
                 <div className="pk-remove-hint" aria-hidden="true">

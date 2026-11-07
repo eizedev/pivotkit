@@ -99,12 +99,12 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
-| `tips` | `"on" \| "off" \| string \| string[]` | `"on"` | The tips above the result (at most two at a time, each dismissible): all, none (and no switch in Options), or the tip ids allowed. The ids and when each shows are on the [documentation site](https://pivotkit.eize.dev/reference/react/#tips). |
+| `tips` | `"on" \| "off" \| string \| string[]` | `"on"` | The tips above the result (one at a time, the most important first, each dismissible): all, none (and no switch in Options), or the tip ids allowed. The ids and when each shows are on the [documentation site](https://pivotkit.eize.dev/reference/react/#tips). |
 | `storageKey` | `string` | | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. |
-| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off; `"-fieldInfo"`, `"-zoneInfo"`, `"-settingInfo"`: those help switches off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
+| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
 | `onTipDismiss` | `({ id, dismissed }) => void` | | Every dismissal, "Show tips" off and on, the other help switches, "Show dismissed tips again", with the whole list to store. |
 | `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file](https://pivotkit.eize.dev/reference/view-file/) of "Download view", `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
-| `fieldInfo`, `zoneInfo`, `settingInfo` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining ("Show explanations"); without them the user switches each in Options, Help (on by default, remembered like the tips). Screen readers keep the field descriptions either way. |
+| `fieldInfo`, `zoneInfo`, `settingInfo` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining, one kind each; without them the user's one switch "Show explanations" in Options, Help decides (on by default, remembered like the tips). Screen readers keep the field descriptions either way. |
 | `chartOptions` | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. Functions, values that are not JSON, and options that are markup or addresses (a string `formatter`, `rich`, `link`, `image`) are left out with a warning. [Charts](https://pivotkit.eize.dev/concepts/charts/#chartoptions-for-developers). |
 | `source` | `{ id, name? }` | | The data the report shows: it goes into the view files and links the report shares, and a view made for another `id` asks before it is loaded. [Sharing](https://pivotkit.eize.dev/concepts/sharing/#the-source-of-a-view-for-developers). |
 | `sources` | `{ id, name? }[]` | | The other data the host can show: a view made for one of them offers "Switch to “name” and load". |
@@ -113,9 +113,11 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `persistView` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storageKey`); a reload shows it again. |
 | `loading` | `boolean` | `false` | The host is loading data: the skeleton before the first data, the result covered on later loads. |
 
-Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
+Exports: `PivotReport` and the types `PivotReportProps`, `CellClick`,
 `ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
-`PartialLabels`. The stylesheet is `pivotkit-react/styles.css`.
+`PartialLabels`. The stylesheet is `pivotkit-react/styles.css`. `pivotkit-react/labels` exports
+`LABELS` (`{ en, de }`, every text), a subpath of its own: the menus' texts load with the menus, so
+the report's first load stays small.
 
 ## What the user can do
 
@@ -124,7 +126,7 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   Rows; a field in Columns or Filters moves to Rows, one in Rows stays and the status line says
   so, and the field's description says which); or use its menu "Add to Rows / Columns / Values / Filters". A date is grouped as soon as it
   is placed, by the span of its values: up to 62 days by day, up to two years by month ("Jan 2025"),
-  up to six years by quarter, longer by year; the chip says so ("Created (Month)").
+  up to six years by quarter, longer by year; the chip says so ("Created by month").
 - Chips: drag to reorder or to another zone, drag back to the field list or press x to remove (a note
   under the table offers Undo). A chip shows what is set on it: "3 of 4" for a filter, "Top 5", the
   sort, a value condition ("Sum of Revenue > 1,000"). The menu of a row or column field has sort (by
@@ -147,7 +149,7 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
 - Tips above the result say what a top N does to totals and percentages ("Country shows the top 5
   only: ..."), what 100 % is for a percentage, that a text field in Values is counted, what to do
   when a filter leaves nothing, nothing is in Values or a date makes a column per day, and how to open
-  a value; at most two at a time, each with an x, switched off or back in Options, which also lists
+  a value, and for charts: lines over dates, bars for a pie of many slices; one at a time, each with an x, switched off or back in Options, which also lists
   the keyboard shortcuts.
 - Field descriptions (`fieldDefaults`): an "i" next to a described field in the list and on its chips
   shows the description on hover, focus or tap, with "Learn more"; the chip menu and the headers show
@@ -161,11 +163,12 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   dragged into a zone with the mouse; the chips' menus do the same from the keyboard. One value's name
   is a single header over all of its columns, as in Excel. From 300 body rows on only the visible rows
   are rendered. The table is as wide as its columns; the row label columns share at most 40 % of the
-  report's main area (each at least 4.5em) and a value's name wraps beyond 30 %, so a long label wraps
+  report's main area (each at least 5.5em, so a common word never breaks) and a value's name wraps beyond 30 %, so a long label wraps between words
   and a phone still shows values next to it (from 300 rows on, where rows have one height, it is cut with an ellipsis: its full text is
   the cell's title, and the status line shows the whole row label of a tapped label or of the focused value).
-- Chart: bars, stacked bars, horizontal bars, lines, area, pie, donut, heatmap ("Chart type: Bars" in
-  the toolbar), a pie's or a donut's labels outside or inside the slices; a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
+- Chart: automatic until a type is picked (lines over dates, also dates on Columns, swapped for the
+  chart alone; else bars), bars, stacked bars, horizontal bars, lines, area, pie, donut, heatmap (the
+  type next to Table and Chart in the toolbar), a pie's or a donut's labels outside or inside the slices; a click on a bar, a point or a heatmap cell opens its rows. At most 50 categories are
   drawn, with a note; more than 8 series, or lines with the dates on Columns, get a hint with "Swap
   rows and columns" (also above the Columns zone). The tooltip is built as DOM nodes with the data's
   texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
@@ -251,7 +254,7 @@ html[data-theme="dark"] .pk-root {
 | `--pk-drop`, `--pk-drop-border` | `#dfe8fd`, `#868e9a` | A zone while something is dragged over it; the dashed edge of a zone (3:1) |
 | `--pk-note` | `#eef3fd` | Notes and hints above the result |
 | `--pk-scale-low`, `--pk-scale-mid`, `--pk-scale-high` | `#f8696b`, `#ffeb84`, `#63be7b` | A colour scale whose view names no colours |
-| `--pk-small`, `--pk-target` | `max(14px, 0.93em)`, `24px` | Secondary text, never below 14 px; the smallest hit area of a control |
+| `--pk-small`, `--pk-target`, `--pk-target-touch` | `max(14px, 0.93em)`, `24px`, `44px` | Secondary text, never below 14 px; the smallest hit area of a control; that of a small control on a touch screen |
 | `--pk-shadow-sm`, `--pk-scrim`, `--pk-scrim-light`, `--pk-knob` | | Chip shadow; behind sheets and the drawer; behind the drill-down; the knob of a switch |
 | `--pk-total`, `--pk-total-strong` | `#f4f6f9`, `#e9edf3` | Subtotal and grand total rows |
 | `--pk-danger`, `--pk-focus` | `#b42318`, `#2b5fd9` | Remove and errors; the focus ring |
@@ -278,7 +281,7 @@ attribute), passed as `labels`; there is no registry of languages.
 <PivotReport data={rows} locale="de-DE" labels={{ zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" } }} />
 ```
 
-All keys are in `LABELS.en` (`src/labels.js`); `{name}` placeholders are filled in. A count (`rowsCount`,
+All keys are in `LABELS.en` (`import { LABELS } from "pivotkit-react/labels"`; `src/labels.js` and `src/menu-labels.js`); `{name}` placeholders are filled in. A count (`rowsCount`,
 `drillCount`, `chartCategories`, `chartSeries`) is an object with one text per plural category of
 the language, picked with `Intl.PluralRules` for the labels' `lang`:
 `{ one: "{count} row", other: "{count} rows" }`; a language with more forms adds them (`few`,

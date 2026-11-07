@@ -86,7 +86,8 @@ export function MenuPanel({ name, loadingText, props }) {
     return (
         <div className="pk-menu-panel" ref={box}>
             {Panel ? (
-                <Panel {...props} />
+                // the menus' own texts (menu-labels.js) come with them, under the report's labels
+                <Panel {...props} labels={labels && mod ? mod.menuLabels(labels) : labels} />
             ) : failed && labels ? (
                 <div className="pk-menu-failed" role="alert" data-testid="menu-failed">
                     <p>{labels.menuFailed}</p>

@@ -92,7 +92,7 @@ test("a view file loads with its envelope; a newer format asks to update pivotki
     const newer = viewFromText(JSON.stringify({ format: "pivotkit-view", formatVersion: 2, view }), data);
     assert.equal(newer.failed, "newer");
     assert.match(LABELS.en.viewFailed.newer, /Update pivotkit/);
-    assert.match(LABELS.de.viewFailed.newer, /Aktualisieren Sie pivotkit/);
+    assert.match(LABELS.de.viewFailed.newer, /Zum Öffnen pivotkit aktualisieren/);
 });
 
 test("a view for other data asks first: its source, the fields this data does not have, another type", () => {

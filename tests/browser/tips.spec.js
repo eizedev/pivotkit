@@ -1,16 +1,17 @@
-// The tips above the result: at most two, dismissible with the keyboard, remembered per report,
+// The tips above the result: one at a time, dismissible with the keyboard, remembered per report,
 // switched off and back in Options, and the ones that act (remove a filter, group a date, save).
 // Every test here fails without its feature.
 import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 
-test("at most two tips; x dismisses one by keyboard, the focus goes to the next; a reload remembers it", async ({ page }) => {
+test("one tip at a time; x dismisses it by keyboard, the next one takes its place and the focus; a reload remembers it", async ({ page }) => {
     await page.goto("?data=sales");
     await page.getByTestId("field-menu-Product").click();
     await page.getByRole("menuitem", { name: "Add to Values" }).click();
     const tips = page.getByTestId("tips").locator(".pk-tip");
-    await expect(tips).toHaveCount(2);
+    // the most important one; the next waits
+    await expect(tips).toHaveCount(1);
     await expect(tips.nth(0)).toHaveAttribute("data-tip", "textValue");
-    await expect(tips.nth(1)).toHaveAttribute("data-tip", "cells");
+    await expect(page.getByTestId("tip-cells")).toHaveCount(0);
     // a screen reader hears them through the polite region that is always there
     await expect(page.getByTestId("tips-live")).toHaveAttribute("aria-live", "polite");
     await expect(page.getByTestId("tips-live")).toContainText("Product is text");
@@ -93,13 +94,13 @@ test("an ungrouped date with many columns: the tip groups it by month", async ({
     await page.getByRole("menuitem", { name: "Add to Rows" }).click();
     await page.getByTestId("field-menu-Created").click();
     await page.getByRole("menuitem", { name: "Add to Columns" }).click();
-    await page.getByTestId("chip-menu-Created (Month)").click();
+    await page.getByTestId("chip-menu-Created by month").click();
     await page.getByTestId("group-none").click();
     await expect.poll(() => chips(page, "cols")).toEqual(["Created"]);
     const tip = page.getByTestId("tip-dateUngrouped");
     await expect(tip).toContainText("Created makes a row or column for every date");
     await page.getByTestId("tip-action-dateUngrouped").click();
-    await expect.poll(() => chips(page, "cols")).toEqual(["Created (Month)"]);
+    await expect.poll(() => chips(page, "cols")).toEqual(["Created by month"]);
 });
 
 test("after several changes the tip offers to save the view as a template", async ({ page }) => {

@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyn
 import { computePivot, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { cleanChartOptions } from "./chart-options.js";
-import { MAX_CATEGORIES } from "./chart-types.js";
+import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows, drillTable } from "./drill.js";
@@ -31,7 +31,7 @@ import { HelpContext } from "./section.jsx";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
-import { ALL_TIPS, NO_FIELD_INFO, NO_SETTING_INFO, NO_ZONE_INFO, TIP_LIMIT, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
+import { ALL_TIPS, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
 import { useExport } from "./use-export.js";
@@ -304,6 +304,10 @@ function Report(props) {
     const changesRef = useRef(0);
     const [changes, setChanges] = useState(0);
     const [dragAt, setDragAt] = useState(/** @type {number | null} */ (null));
+    // `changes` when the view was last saved: the tip to save it waits for new changes
+    const [savedAt, setSavedAt] = useState(0);
+    // the menus' module once loaded: its texts are those of the "i" of the settings (help.labels)
+    const [menus, setMenus] = useState(/** @type {typeof import("./menus.js") | null} */ (null));
     // a tip's "Save view" opens the Views menu: a new number is a new request
     const [viewsRequest, setViewsRequest] = useState(0);
     // what a loaded view (a file, a link, a saved view) left out, for the area above the result; it
@@ -578,6 +582,20 @@ function Report(props) {
         }
     }, [encoded, view, locale, limits]);
     const result = computed.result;
+    // what the chart draws: the user's type, or the one the data suggests ("auto"), for which rows and
+    // columns may be swapped for the chart alone (dates on Columns run along the axis)
+    const plan = useMemo(() => chartPlan(view, encoded), [view, encoded]);
+    const chartComputed = useMemo(() => {
+        if (!plan.swap || view.display !== "chart" || !result) {
+            return computed;
+        }
+        try {
+            return { result: measured("computePivot", () => computePivot(encoded, swapAxes(view), { locale, limits })), error: null };
+        } catch (error) {
+            return { result: null, error };
+        }
+    }, [plan.swap, view, encoded, locale, limits, computed, result]);
+    const chartResult = chartComputed.result;
     const empty = isEmptyView(view);
     const gridState = useMemo(() => {
         if (!result || view.display !== "table" || empty) {
@@ -589,7 +607,7 @@ function Report(props) {
             return { grid: null, error };
         }
     }, [result, view.display, empty, locale, labels, limits]);
-    const error = source.error ?? computed.error ?? gridState.error;
+    const error = source.error ?? computed.error ?? gridState.error ?? (view.display === "chart" ? chartComputed.error : null);
 
     // fields: the data's columns for the list; the type of a chip is its source field's
     const fields = encoded.schema.fields;
@@ -627,7 +645,11 @@ function Report(props) {
 
     // the menus' panels, right after the first render: there before anyone opens a menu
     useEffect(() => {
-        loadMenus().catch(() => undefined);
+        let live = true;
+        loadMenus().then((m) => live && setMenus(() => m), () => undefined);
+        return () => {
+            live = false;
+        };
     }, []);
     // the report's least height: it grows past a host box too low for it (use-big-result.js)
     const mainRef = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -642,6 +664,8 @@ function Report(props) {
             return undefined;
         }
         const box = el.getBoundingClientRect();
+        // the width class before the first paint too: never a frame of the wide layout on a phone
+        setSize(sizeOf(box.width));
         const first = compactAt(sizeOf(box.width), box.height);
         setMeasuredShort(first);
         setShort(first);
@@ -870,6 +894,7 @@ function Report(props) {
         ? async (name) => {
               try {
                   await onSaveTemplate(name, view);
+                  setSavedAt(changesRef.current);
                   announce(fill(labels.toastSaved, { name }));
               } catch (e) {
                   announce(hostFailure(labels.toastSaveFailed, labels.toastSaveRejected, e), { tone: "error" });
@@ -946,15 +971,15 @@ function Report(props) {
 
     // the chart's series, once per result: drawn by the chart, read by its tips
     const series = useMemo(() => {
-        if (!result || view.display !== "chart" || view.values.length === 0) {
+        if (!chartResult || view.display !== "chart" || view.values.length === 0) {
             return null;
         }
         try {
-            return toSeries(result, { labels: labels.core, maxCategories: MAX_CATEGORIES });
+            return toSeries(chartResult, { labels: labels.core, maxCategories: MAX_CATEGORIES });
         } catch {
             return null;
         }
-    }, [result, view.display, view.values.length, labels]);
+    }, [chartResult, view.display, view.values.length, labels]);
 
     // tips: the host allows some or all, the user dismisses them (remembered per storageKey)
     const allowedKey = JSON.stringify(allowedTips(tipsProp));
@@ -984,23 +1009,25 @@ function Report(props) {
     const tipsOn = allowed !== "off" && !dismissed.includes(ALL_TIPS);
     // the i of the field descriptions and of the zones: the host forces them, else the user's switch
     const describedFields = [...info.values()].some((i) => i.description);
-    const fieldSwitch = helpSwitch(fieldInfoProp, dismissed, NO_FIELD_INFO);
-    const zoneSwitch = helpSwitch(zoneInfoProp, dismissed, NO_ZONE_INFO);
-    const settingSwitch = helpSwitch(settingInfoProp, dismissed, NO_SETTING_INFO);
+    // one switch of the user's ("Show explanations") for the three kinds; a host's prop forces its kind
+    const fieldSwitch = helpSwitch(fieldInfoProp, dismissed);
+    const zoneSwitch = helpSwitch(zoneInfoProp, dismissed);
+    const settingSwitch = helpSwitch(settingInfoProp, dismissed);
+    const explainUser = settingSwitch.user || zoneSwitch.user || (describedFields && fieldSwitch.user);
     // what the menus' sections and setting "i" read: folded or open (kept with the tips), shown or not
     const help = useMemo(
         () => ({
             explain: settingSwitch.on,
-            labels,
+            // with the menus' texts once they are loaded: the explanations are among them
+            labels: menus ? menus.menuLabels(labels) : labels,
             isOpen: (id) => sectionOpen(id, dismissed),
             setOpen: (id, open) => changeDismissed(withSection(dismissed, id, open), null)
         }),
-        [settingSwitch.on, labels, dismissed, changeDismissed]
+        [settingSwitch.on, labels, menus, dismissed, changeDismissed]
     );
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
-    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) });
-    const shownTips = activeTips(ctx, { allowed, dismissed, // a narrow or low report keeps its room for the result: one tip
-        limit: size === "narrow" || layoutFolded ? 1 : TIP_LIMIT }).map((t) => ({
+    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate), savedAt, chartPlan: plan });
+    const shownTips = activeTips(ctx, { allowed, dismissed }).map((t) => ({
         id: t.id,
         params: t.params,
         icon: t.entry.icon ?? "info",
@@ -1019,6 +1046,8 @@ function Report(props) {
             commit(groupField(view, params.source, params.unit, { name: groupingName(nameOf(params.source), params.unit, labels) }).view, { step: "group", field: nameOf(params.source) });
         } else if (action === "bars") {
             commit(setChart(view, "bar"), { step: "chart", type: "bar" });
+        } else if (action === "auto") {
+            commit(setChart(view, "auto"), { step: "chart", type: "auto" });
         } else if (action === "saveTemplate") {
             setViewsRequest((n) => n + 1);
         }
@@ -1086,12 +1115,14 @@ function Report(props) {
                                 drawer={size === "narrow"}
                                 open={drawerOpen}
                                 onClose={() => setDrawer(false)}
+                                onSkip={() => /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector(".pk-toolbar button:not([disabled])"))?.focus()}
                             />
                         </div>
                         {drawerOpen ? <div className="pk-scrim pk-drawer-scrim" onClick={() => setDrawer(false)} aria-hidden="true" /> : null}
                         <div className="pk-main" ref={mainRef}>
                             <Toolbar
                                 view={view}
+                                chartPlan={plan}
                                 labels={labels}
                                 size={size}
                                 canUndo={history.canUndo}
@@ -1124,9 +1155,7 @@ function Report(props) {
                                 canResetTips={dismissed.some((id) => !keptOnReset(id))}
                                 onResetTips={() => changeDismissed(dismissed.filter(keptOnReset), null)}
                                 help={{
-                                    fieldInfo: describedFields && fieldSwitch.user ? { on: fieldSwitch.on, set: (on) => toggle(NO_FIELD_INFO, on) } : null,
-                                    zoneInfo: zoneSwitch.user ? { on: zoneSwitch.on, set: (on) => toggle(NO_ZONE_INFO, on) } : null,
-                                    settingInfo: settingSwitch.user ? { on: settingSwitch.on, set: (on) => toggle(NO_SETTING_INFO, on) } : null
+                                    explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null
                                 }}
                                 viewsRequest={viewsRequest}
                             />
@@ -1192,7 +1221,8 @@ function Report(props) {
                                 <span className="pk-grow" />
                                 <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big.enlarged} onClick={big.toggleEnlarged} data-testid="enlarge">
                                     <Icon name="enlarge" size={14} />
-                                    <span className="pk-btn-text">{labels.enlarge}</span>
+                                    {/* says what a click does: Enlarge, or Reduce while enlarged (aria-pressed tells the state) */}
+                                    <span className="pk-btn-text">{big.enlarged ? labels.reduce : labels.enlarge}</span>
                                 </button>
                                 {big.fullOk ? (
                                     <button type="button" className="pk-btn pk-pressable pk-small-btn" aria-pressed={big.full} onClick={big.toggleFull} data-testid="full-screen">
@@ -1211,9 +1241,10 @@ function Report(props) {
                                     </div>
                                 ) : empty && view.display === "table" ? (
                                     <EmptyState labels={labels} templates={templates} onTemplate={loadTemplate} />
-                                ) : view.display === "chart" && result ? (
+                                ) : view.display === "chart" && chartResult ? (
                                     <PivotChart
-                                        result={result}
+                                        result={chartResult}
+                                        plan={plan}
                                         series={series}
                                         labels={labels}
                                         locale={locale}
@@ -1225,7 +1256,8 @@ function Report(props) {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));
                                         }}
-                                        onPoint={(p) => openCell({ rowPath: p.rowPath, colPath: p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
+                                        // a chart with rows and columns swapped names the view's paths the other way round
+                                        onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
                                     <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
@@ -1238,6 +1270,9 @@ function Report(props) {
                                         {fill(labels.rowLabel, { label: rowLabel })}
                                     </span>
                                 ) : null}
+                            </div>
+                            {/* the status notes at the bottom edge of what is on screen of the report */}
+                            <div className="pk-toast-dock">
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>
