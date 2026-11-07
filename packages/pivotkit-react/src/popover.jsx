@@ -19,14 +19,17 @@ export const LayerContext = createContext({ layer: /** @type {HTMLElement | null
 const OPTION = "[data-pk-option]:not([disabled])";
 
 /**
- * @param {{ open: boolean, anchor: React.RefObject<HTMLElement>, onClose: () => void, label: string,
- *   role?: "menu" | "dialog", align?: "start" | "end", className?: string, id?: string, children: React.ReactNode }} props
+ * @param {{ open: boolean, anchor: React.RefObject<HTMLElement>, onClose: () => void, label?: string,
+ *   role?: "menu" | "dialog" | "tooltip", align?: "start" | "end", className?: string, id?: string,
+ *   passive?: boolean, children: React.ReactNode }} props
+ *   `passive`: shown on hover or focus of its button (a description): the focus stays where it is,
+ *   never a bottom sheet
  */
-export function Popover({ open, anchor, onClose, label, role = "dialog", align = "start", className, id, children }) {
+export function Popover({ open, anchor, onClose, label, role = "dialog", align = "start", className, id, passive = false, children }) {
     const { layer, size } = useContext(LayerContext);
     const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
-    const sheet = size === "narrow";
+    const sheet = size === "narrow" && !passive;
 
     useIsoLayoutEffect(() => {
         if (!open) {
@@ -68,7 +71,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         closeRef.current = onClose;
     });
     useEffect(() => {
-        if (!open) {
+        if (!open || passive) {
             return undefined;
         }
         const el = ref.current;
@@ -92,7 +95,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 button.focus({ preventScroll: true });
             }
         };
-    }, [open, anchor]);
+    }, [open, anchor, passive]);
 
     if (!open || !layer) {
         return null;
@@ -133,14 +136,14 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 ref={ref}
                 id={id}
                 role={role}
-                aria-label={label}
+                aria-label={passive ? undefined : label}
                 aria-modal={sheet && role === "dialog" ? true : undefined}
                 className={`pk-popover${sheet ? " pk-sheet" : ""}${pos?.side === "above" ? " pk-above" : ""}${className ? ` ${className}` : ""}`}
                 style={style}
                 onKeyDown={onKeyDown}
-                onBlur={sheet ? undefined : onBlur}
+                onBlur={sheet || passive ? undefined : onBlur}
                 // a click on text inside keeps the focus here, not on the report around it
-                tabIndex={-1}
+                tabIndex={passive ? undefined : -1}
             >
                 {children}
             </div>

@@ -1,11 +1,10 @@
 /*
- * What a chart shows, in words: the text alternative of the chart canvas for screen readers, and the
- * hints the chart shows when it is hard to read (too many series, dates on the wrong axis, too many
- * categories). Pure functions of pivotkit-core's chart series, tested without a DOM.
+ * What a chart shows, in words: the text alternative of the chart canvas for screen readers. A pure
+ * function of pivotkit-core's chart series, tested without a DOM. (When a chart is hard to read, a
+ * tip says so: tips.js.)
  */
 
 import { formatter } from "pivotkit-core";
-import { CHART_TYPES, MANY_SERIES } from "./chart-types.js";
 import { fill, plural } from "./labels.js";
 
 /**
@@ -59,27 +58,6 @@ export function chartSummary(s, { type, rows, valueNames, labels, locale }) {
         const text = (p) => formatter(s.series[p.si].format, { locale })(p.v);
         parts.push(fill(labels.chartExtremes, { max: text(max), maxAt: where(max), min: text(min), minAt: where(min) }));
     }
-    parts.push(labels.chartTableHint);
+    parts.push(labels.tips.chartTable);
     return parts.join(" ");
-}
-
-/**
- * The hints a chart needs, in the order they are shown: each with its text and whether swapping rows
- * and columns helps.
- * @param {ReturnType<typeof import("pivotkit-core").toSeries>} s
- * @param {{ type: string, datesOnColumnsOnly: boolean, labels: import("./labels.js").UiLabels, locale: string }} options
- * @returns {Array<{ id: string, text: string, swap: boolean }>}
- */
-export function chartHints(s, { type, datesOnColumnsOnly, labels, locale }) {
-    const out = [];
-    const entry = CHART_TYPES[type];
-    if (entry && entry.axis && (type === "line" || type === "area") && datesOnColumnsOnly) {
-        out.push({ id: "dates", text: labels.chartDatesOnColumns, swap: true });
-    } else if (entry && entry.axis && s.series.length > MANY_SERIES) {
-        out.push({ id: "series", text: fill(labels.chartManySeries, { count: s.series.length.toLocaleString(locale) }), swap: true });
-    }
-    if (s.categoryCount > s.categories.length) {
-        out.push({ id: "capped", text: fill(labels.chartCapped, { shown: s.categories.length.toLocaleString(locale), total: s.categoryCount.toLocaleString(locale) }), swap: false });
-    }
-    return out;
 }

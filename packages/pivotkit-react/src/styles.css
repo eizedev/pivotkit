@@ -1619,12 +1619,6 @@
     padding: 10px;
 }
 
-.pk-chart-hints {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
 .pk-chart-box {
     position: relative;
     display: flex;
@@ -1862,7 +1856,127 @@
     opacity: 1;
 }
 
-/* notes above the result: what the top N means, the next step, how to open a value */
+/* tips above the result (tips.js): what the top N means, the next step, how to open a value */
+
+.pk-tips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: none;
+}
+
+.pk-tip {
+    flex-wrap: nowrap;
+    padding-right: 0.3em;
+    animation: pk-fade-in var(--pk-duration) ease-out;
+}
+
+.pk-tip > .pk-icon {
+    flex: none;
+}
+
+.pk-tip-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pk-tip > .pk-btn {
+    flex: none;
+}
+
+.pk-tip-x {
+    flex: none;
+    width: max(var(--pk-target), 1.7em);
+    height: max(var(--pk-target), 1.7em);
+}
+
+/* a narrow report: the action goes below the text */
+.pk-root[data-pk-size="narrow"] .pk-tip {
+    flex-wrap: wrap;
+}
+
+.pk-root[data-pk-size="narrow"] .pk-tip-text {
+    flex-basis: calc(100% - 4em);
+}
+
+/* the "i" of a described field (fieldDefaults) and its description */
+
+.pk-info {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: var(--pk-target);
+    height: var(--pk-target);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--pk-muted);
+    cursor: help;
+    transition: background var(--pk-duration), color var(--pk-duration);
+}
+
+.pk-info:hover,
+.pk-info[aria-expanded="true"] {
+    background: var(--pk-surface-3);
+    color: var(--pk-accent);
+}
+
+.pk-popover.pk-info-pop {
+    min-width: 0;
+    max-width: min(320px, calc(100vw - 16px));
+    padding: 8px 10px;
+}
+
+.pk-popover.pk-info-pop:not([role="dialog"]) {
+    pointer-events: none;
+}
+
+.pk-field-desc {
+    margin: 0;
+    font-size: var(--pk-small);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.pk-menu-desc {
+    padding: 6px 8px 8px;
+    border-bottom: 1px solid var(--pk-border);
+    color: var(--pk-muted);
+}
+
+.pk-learn-more {
+    color: var(--pk-accent);
+    font-weight: 600;
+}
+
+/* the keyboard shortcuts in Options */
+
+.pk-shortcuts {
+    display: grid;
+    gap: 4px;
+    margin: 4px 8px 6px;
+    font-size: var(--pk-small);
+}
+
+.pk-shortcut {
+    display: grid;
+    grid-template-columns: minmax(7em, auto) 1fr;
+    gap: 8px;
+}
+
+.pk-shortcut dt,
+.pk-shortcut dd {
+    margin: 0;
+}
+
+.pk-shortcut kbd {
+    padding: 0 0.35em;
+    border: 1px solid var(--pk-border);
+    border-radius: 4px;
+    background: var(--pk-surface-2);
+    font: inherit;
+}
 
 .pk-note {
     display: flex;
@@ -2068,4 +2182,9 @@
 
 .pk-search input:focus-visible {
     outline: none;
+}
+
+/* a described field: the "i" stands close to the name and its badges, so the name keeps its room */
+.pk-field > .pk-info {
+    margin-inline: -5px -3px;
 }

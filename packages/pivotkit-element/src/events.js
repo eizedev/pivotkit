@@ -11,7 +11,8 @@ export const EVENTS = Object.freeze({
     cellClick: "pivot-cell-click",
     templateSave: "pivot-template-save",
     templateDelete: "pivot-template-delete",
-    export: "pivot-export"
+    export: "pivot-export",
+    tipDismiss: "pivot-tip-dismiss"
 });
 
 /**

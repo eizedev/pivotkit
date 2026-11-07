@@ -5,12 +5,13 @@
  * (OVERFLOW_ORDER); Table | Chart, Undo and Export always stay, with their text.
  */
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "./chart-types.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { MenuButton, Option, Popover, Section } from "./popover.jsx";
+import { SHORTCUTS } from "./tips.js";
 
 /** The buttons that move into "More" when the toolbar is too narrow, first to go first. */
 export const OVERFLOW_ORDER = Object.freeze(["reset", "redo", "layout", "templates", "options", "chartType"]);
@@ -44,7 +45,29 @@ function ChartTypeOptions({ view, labels, onChart, close }) {
     ));
 }
 
-function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, close }) {
+/** The keyboard shortcuts, in words: "Ctrl + Z" (⌘ on a Mac). */
+function Shortcuts({ labels, mod }) {
+    const key = (k) => (k === "Mod" ? (mod === "⌘" ? "⌘" : labels.keys.Mod) : Object.hasOwn(labels.keys, k) ? labels.keys[k] : k);
+    return (
+        <dl className="pk-shortcuts" data-testid="shortcuts">
+            {SHORTCUTS.map((s) => (
+                <div key={s.text} className="pk-shortcut">
+                    <dt>
+                        {s.keys.map((k, i) => (
+                            <React.Fragment key={k}>
+                                {i ? " + " : null}
+                                <kbd>{key(k)}</kbd>
+                            </React.Fragment>
+                        ))}
+                    </dt>
+                    <dd>{labels.shortcuts[s.text]}</dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, close, tips, mod }) {
     return (
         <>
             <Section title={labels.totals}>
@@ -59,6 +82,22 @@ function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, close }) {
             <Section title={labels.zones.rows}>
                 <Option icon="chevronDown" onSelect={() => { close(); onExpand(); }}>{labels.expandAll}</Option>
                 <Option icon="chevronRight" onSelect={() => { close(); onCollapse(); }} disabled={view.rows.length < 2}>{labels.collapseAll}</Option>
+            </Section>
+            {tips.controls ? (
+                <Section title={labels.tipsTitle}>
+                    <label className="pk-switch">
+                        <input type="checkbox" checked={tips.on} onChange={(e) => tips.onOn(e.target.checked)} data-testid="show-tips" />
+                        <span className="pk-switch-track" aria-hidden="true" />
+                        <span>{labels.showTips}</span>
+                    </label>
+                    <Option icon="reset" onSelect={() => tips.onReset()} disabled={!tips.canReset} testId="reset-tips">{labels.resetTips}</Option>
+                </Section>
+            ) : null}
+            <Section title={labels.help}>
+                <details className="pk-more">
+                    <summary className="pk-more-title" data-testid="shortcuts-title">{labels.shortcutsTitle}</summary>
+                    <Shortcuts labels={labels} mod={mod} />
+                </details>
             </Section>
         </>
     );
@@ -194,8 +233,10 @@ function useOverflow(ref, key, max) {
  */
 export function Toolbar(props) {
     const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, onDisplay, onChart, onTotal, onExpand, onCollapse, templates, onLoadTemplate, onSaveTemplate, onDeleteTemplate, onExport, chartReady, onShowFields, layoutFolded, onLayout, zonesId } = props;
+    const tips = { controls: props.tipsControls, on: props.tipsOn, onOn: props.onTipsOn, canReset: props.canResetTips, onReset: props.onResetTips };
     const bar = useRef(/** @type {HTMLDivElement | null} */ (null));
     const more = useRef(/** @type {HTMLButtonElement | null} */ (null));
+    const templatesButton = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const [panel, setPanel] = useState(/** @type {"options" | "templates" | null} */ (null));
     // while the zones are folded, Layout stays in the toolbar: it is the way back to them
     const order = layoutFolded ? OVERFLOW_ORDER.filter((id) => id !== "layout") : OVERFLOW_ORDER;
@@ -206,11 +247,30 @@ export function Toolbar(props) {
         setPanel(null);
     }
     const closePanel = useCallback(() => setPanel(null), []);
+    // a tip asked for the Templates menu: "More" shows it when its button is in there, else the
+    // button is clicked (after the render, so the button is there)
+    const request = props.templatesRequest ?? 0;
+    const [seenRequest, setSeenRequest] = useState(request);
+    const [clickFor, setClickFor] = useState(0);
+    if (request !== seenRequest) {
+        setSeenRequest(request);
+        if (hidden.has("templates")) {
+            setPanel("templates");
+        } else {
+            setClickFor(request);
+        }
+    }
+    useEffect(() => {
+        const button = templatesButton.current;
+        if (clickFor > 0 && button && button.getAttribute("aria-expanded") !== "true") {
+            button.click();
+        }
+    }, [clickFor]);
     const preset = chartTypeOf(view.chart);
     const mod = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl+";
     const chartTypeText = fill(labels.chartTypeIs, { type: labels.chartTypes[preset] });
     const panels = {
-        options: (close) => <OptionsPanel view={view} labels={labels} onTotal={onTotal} onExpand={onExpand} onCollapse={onCollapse} close={close} />,
+        options: (close) => <OptionsPanel view={view} labels={labels} onTotal={onTotal} onExpand={onExpand} onCollapse={onCollapse} close={close} tips={tips} mod={mod} />,
         templates: (close) => <TemplatesPanel templates={templates} labels={labels} onLoad={onLoadTemplate} onSave={onSaveTemplate} onDelete={onDeleteTemplate} close={close} />
     };
     /**
@@ -265,7 +325,7 @@ export function Toolbar(props) {
         templates: {
             place: "end",
             button: () => (
-                <MenuButton key="templates" label={labels.templates} icon="bookmark" text={labels.templates} role="dialog" align="end" testId="templates">
+                <MenuButton key="templates" label={labels.templates} icon="bookmark" text={labels.templates} role="dialog" align="end" testId="templates" buttonRef={templatesButton}>
                     {panels.templates}
                 </MenuButton>
             ),

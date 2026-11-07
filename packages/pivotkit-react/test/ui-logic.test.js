@@ -3,9 +3,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
-import { chartHints, chartSummary } from "../src/chart-summary.js";
+import { chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
-import { MANY_SERIES, MAX_CATEGORIES, pieLabelRoom } from "../src/chart-types.js";
+import { pieLabelRoom } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
@@ -106,19 +106,6 @@ test("counts in words take the plural form of the language: 1 series, 1 Reihe", 
     // a form of the wrong type is ignored; a missing form falls back to "other"
     assert.equal(resolveLabels("en", { rowsCount: { one: 1 } }).rowsCount.one, "{count} row");
     assert.equal(plural({ other: "{count} things" }, 1, { lang: "en", locale: "en-US" }), "1 things");
-});
-
-test("chart hints: many series, dates on columns for lines, the category cap", () => {
-    const rows = [];
-    for (let c = 0; c < MANY_SERIES + 2; c++) rows.push({ R: "r", C: `c${c}`, V: c });
-    const many = toSeries(computePivot(encode(rows), { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }] }));
-    assert.deepEqual(chartHints(many, { type: "bar", datesOnColumnsOnly: false, labels: en, locale: "en-US" }).map((h) => [h.id, h.swap]), [["series", true]]);
-    assert.deepEqual(chartHints(many, { type: "pie", datesOnColumnsOnly: false, labels: en, locale: "en-US" }), [], "a pie has no series to tell apart");
-    assert.deepEqual(chartHints(many, { type: "line", datesOnColumnsOnly: true, labels: en, locale: "en-US" }).map((h) => h.id), ["dates"]);
-    const wide = Array.from({ length: MAX_CATEGORIES + 5 }, (_, i) => ({ K: `k${i}`, V: i }));
-    const capped = toSeries(computePivot(encode(wide), { rows: ["K"], values: [{ field: "V", agg: "sum" }] }), { maxCategories: MAX_CATEGORIES });
-    const hints = chartHints(capped, { type: "bar", datesOnColumnsOnly: false, labels: en, locale: "en-US" });
-    assert.equal(hints.at(-1).text, `Showing the first ${MAX_CATEGORIES} of ${MAX_CATEGORIES + 5} categories. Add a filter or Top N to choose them.`);
 });
 
 test("value names: plain aggregator words, show-as renames the value", () => {

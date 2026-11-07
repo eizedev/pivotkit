@@ -65,7 +65,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
 | `templates` | | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. |
 | `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. |
-| `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat?, order? } }` | | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns. |
+| `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and format a field gets in Values; `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns; `label`, `description`, `href`, `type`: its display name, its description behind an "i" with "Learn more" (https), its column type (pivotkit-core's `fieldDefaultsFromSchema` reads them from an OpenAPI document). |
 | `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
 | `limits` | | `Partial<Limits>` | | pivotkit-core's limits; a layout or data over them shows a message in place of the result. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
@@ -76,11 +76,14 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
+| `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, no switch in Options) or the tip ids allowed, comma-separated. |
+| `storageKey` | `storage-key` | `string` | | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; one key per element on a page. |
+| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off). |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
 is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, labels, field defaults and limits are properties only. A view is user input either
+Data, templates, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
 way: pivotkit-core normalizes it against the data and it cannot run code.
 
 The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
@@ -134,6 +137,7 @@ would for the data itself.
 | `pivot-template-save` | `{ name, view, respondWith }` | "Save current view" (with `save-templates`). |
 | `pivot-template-delete` | `{ name, respondWith }` | Delete of a template marked `deletable`, after the user confirmed in the menu. |
 | `pivot-export` | `{ kind, fileName, blob }` | Every exported file (`"xlsx"`, `"csv"`, `"png"`) before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say). |
+| `pivot-tip-dismiss` | `{ id, dismissed }` | A tip dismissed (`id`), all tips off (`"*"`) or back on (`null`), with every dismissed id, for a page that stores them and sets `dismissedTips`. |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)

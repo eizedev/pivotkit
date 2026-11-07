@@ -27,12 +27,14 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "drill-down", prop: "drillDown", kind: "on-unless-false" },
     { attr: "drill-down-limit", prop: "drillDownLimit", kind: "number" },
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },
+    { attr: "tips", prop: "tips", kind: "string" },
+    { attr: "storage-key", prop: "storageKey", kind: "string" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);
 
 /** Properties without an attribute: objects and arrays a host sets from script. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits"]);
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 

@@ -19,5 +19,6 @@ const keepCsv = (f: ExportFile): boolean => f.kind !== "csv" || f.blob.size < 0 
 export const elements = [
     <PivotReport key="a" {...props} onCellClick={onCell} onViewChange={(v: View) => v.rows.length} onSaveTemplate={(name: string, v: View) => [name, v]} labels={partial} />,
     <PivotReport key="b" data={[]} dataKey="v1" defaultView={start} fieldDefaults={defaults} onDeleteTemplate={deleteLater} onExport={keepCsv} />,
-    <PivotReport key="c" view={start} onViewChange={() => undefined} labels={wrong} />
+    <PivotReport key="c" view={start} onViewChange={() => undefined} labels={wrong} />,
+    <PivotReport key="d" data={[]} tips={["top", "cells"]} storageKey="sales" dismissedTips={["values"]} onTipDismiss={(c) => c.dismissed.length + (c.id ?? "").length} fieldDefaults={{ Units: { label: "Units sold", description: "How many.", href: "https://example.org", type: "number" } }} />
 ];

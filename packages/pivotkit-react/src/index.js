@@ -37,6 +37,13 @@
  * @property {Array<string | number | boolean | null>} [order]  the field's own order of items on Rows or
  *   Columns ("Spring", "Summer", "Autumn", "Winter"): a field placed there is sorted in it, and its
  *   menu offers it as "Custom order"; items not listed come after, by label
+ * @property {string} [label]  the name shown for the field (chips, headers, value names, exports,
+ *   chart, drill-down); views and templates keep the field's own name. At most 120 characters
+ * @property {string} [description]  plain text shown with an "i" next to the field, in its menu and on
+ *   its headers; at most 1,000 characters, control characters become spaces
+ * @property {string} [href]  an https link shown as "Learn more" with the description; other links are dropped
+ * @property {"string" | "number" | "date" | "boolean"} [type]  the type the field's column is read as
+ *   (pivotkit-core's encode `types`): numbers sent as text, dates as numbers
  */
 
 /**
@@ -71,7 +78,9 @@
  *   "saved" is shown when it returns or the promise it returns resolves, an error when it throws or rejects
  * @property {(name: string) => unknown} [onDeleteTemplate]  deletes a template marked
  *   `deletable`; the entry goes when it returns (or its promise resolves)
- * @property {Record<string, FieldDefaults>} [fieldDefaults]  per field name: aggregator and format of a new value, custom order
+ * @property {Record<string, FieldDefaults>} [fieldDefaults]  per field name: aggregator and format of a new
+ *   value, custom order, display name, description, column type; pivotkit-core's fieldDefaultsFromSchema
+ *   builds it from a JSON Schema or OpenAPI document
  * @property {(cell: CellClick) => void} [onCellClick]
  * @property {boolean} [drillDown]  the panel with the rows behind a clicked value (default true)
  * @property {number} [drillDownLimit]  rows passed to the panel and onCellClick (default 1000)
@@ -87,6 +96,19 @@
  * @property {string} [fileName]  name of exported files without extension (default "pivot"); made safe
  * @property {(file: ExportFile) => unknown} [onExport]  every exported file before its download;
  *   returning false skips the download (the host keeps the file, for example to upload it)
+ * @property {"on" | "off" | string | string[]} [tips]  the tips above the result: "on" (default), "off"
+ *   (none, and no switch in Options), or the ids of the tips allowed (an array, or a comma-separated text)
+ * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per
+ *   report on a page); without it they are remembered until the page is loaded again
+ * @property {string[]} [dismissedTips]  dismissed tip ids from the host's own storage ("*": all tips off)
+ * @property {(change: TipDismiss) => void} [onTipDismiss]  every dismissal, "Show tips" and
+ *   "Show dismissed tips again", with the whole list, for a host that stores it itself
+ */
+
+/**
+ * @typedef {object} TipDismiss
+ * @property {string | null} id  the tip dismissed, "*" when every tip was switched off, null when tips came back
+ * @property {string[]} dismissed  every dismissed id now, to pass back as `dismissedTips`
  */
 
 export { PivotReport } from "./PivotReport.jsx";

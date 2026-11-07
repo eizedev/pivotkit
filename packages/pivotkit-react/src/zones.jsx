@@ -8,11 +8,12 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { fieldItems } from "pivotkit-core";
+import { fieldItems, fieldLabel } from "pivotkit-core";
 import { AxisMenu, ValueMenu, ZONE_ICON } from "./chip-menus.jsx";
 import { layoutSummary, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
+import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { MenuButton } from "./popover.jsx";
 import { ZONES, filterZoneFields, filtersOf, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
@@ -101,7 +102,7 @@ function Badges({ state, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, orderOf }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, orderOf, info }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const chipRef = useRef(/** @type {HTMLElement | null} */ (null));
     const ref = (el) => {
@@ -144,13 +145,14 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                 >
                     {(close) =>
                         zone === "values" ? (
-                            <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} />
+                            <ValueMenu view={view} index={index} types={types} labels={labels} commit={commit} close={close} onRemove={remove} info={info} />
                         ) : (
-                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} orderOf={orderOf} />
+                            <AxisMenu view={view} zone={zone} index={index} field={field} types={types} labels={labels} commit={commit} close={close} openFilter={openFilter} chipRef={chipRef} onRemove={remove} orderOf={orderOf} info={info} />
                         )
                     }
                 </MenuButton>
             )}
+            {info ? <InfoButton info={info} name={info.label ?? text} labels={labels} className="pk-chip-info" /> : null}
             <button type="button" className="pk-chip-x" onClick={remove} aria-label={fill(labels.removeField, { field: text })} title={fill(labels.removeField, { field: text })}>
                 <Icon name="x" size={14} />
             </button>
@@ -202,9 +204,11 @@ function Zone({ zone, entries, labels, children, action }) {
 export function zoneEntries(view, types, labels) {
     const typeOf = (f) => types.get(String(sourceOf(view, f)).toLowerCase()) ?? "string";
     const seen = new Map();
-    const axis = (zone) => view[zone].map((f, i) => ({ id: `chip:${zone}:${f}`, field: f, text: f, type: typeOf(f), index: i }));
+    // a field's display name (fieldDefaults label); a grouping keeps the name it was given
+    const text = (f) => fieldLabel(f, labels.core);
+    const axis = (zone) => view[zone].map((f, i) => ({ id: `chip:${zone}:${f}`, field: f, text: text(f), type: typeOf(f), index: i }));
     return {
-        filters: filterZoneFields(view).map((f, i) => ({ id: `chip:filters:${f}`, field: f, text: f, type: typeOf(f), index: i })),
+        filters: filterZoneFields(view).map((f, i) => ({ id: `chip:filters:${f}`, field: f, text: text(f), type: typeOf(f), index: i })),
         cols: axis("cols"),
         rows: axis("rows"),
         values: view.values.map((v, i) => {
@@ -241,10 +245,12 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
  *   commit: (view: object, note?: any) => void, openFilter: (field: string, anchor: HTMLElement) => void,
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
- *   id: string, folded: boolean, onShow: () => void, orderOf?: (field: string) => unknown[] | undefined }} props
- *   `folded`: the compact layout's one line; `orderOf`: the host's custom order of a source field
+ *   id: string, folded: boolean, onShow: () => void, orderOf?: (field: string) => unknown[] | undefined,
+ *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined }} props
+ *   `folded`: the compact layout's one line; `orderOf`: the host's custom order of a source field;
+ *   `infoOf`: the host's description of a field (its source field's for a grouping)
  */
-export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, orderOf }) {
+export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, orderOf, infoOf }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -355,6 +361,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             state={zone === "values" ? null : states.get(e.field)}
                             locale={locale}
                             orderOf={orderOf}
+                            info={e.field ? infoOf?.(e.field) : undefined}
                         />
                     ))}
                 </Zone>

@@ -4,7 +4,8 @@
  * for its rows (a cell with no rows behind it is not clickable; the arrow keys still stop on it). Header cells with a field name or a value name can be dragged into a zone with the
  * mouse; the same moves are in the chips' menus. From VIRTUAL_FROM body rows on only the visible rows
  * are rendered (virtual.js). The table keeps the focus where it was when a group is expanded or
- * collapsed: on the same toggle.
+ * collapsed: on the same toggle. A header of a field the host describes (fieldDefaults) carries the
+ * description as its tooltip and accessible description.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -55,10 +56,10 @@ function firstValueCell(grid) {
 }
 
 /** A header cell that can be dragged into a zone: a field name in the corner or a value name. */
-function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope }) {
+function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope, description }) {
     const { setNodeRef, isDragging, itemProps } = useDragSource(`table:${source.zone}:${source.index}:${source.field ?? ""}`, source);
     return (
-        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind}>
+        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind} title={description} aria-description={description}>
             {children}
             <Icon name="grip" size={12} className="pk-th-grip" />
         </th>
@@ -79,9 +80,10 @@ function Toggle({ toggle, text, labels, onToggle }) {
 
 /**
  * @param {{ grid: import("pivotkit-core").Grid, view: any, labels: import("./labels.js").UiLabels,
- *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: unknown, hintId?: string }} props
+ *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: unknown, hintId?: string,
+ *   infoOf?: (field: string) => { description?: string } | undefined }} props
  */
-export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId }) {
+export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, infoOf }) {
     const wrap = useRef(/** @type {HTMLDivElement | null} */ (null));
     const table = useRef(/** @type {HTMLTableElement | null} */ (null));
     const bodyCount = grid.rows.length - grid.headerRows;
@@ -229,7 +231,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "corner" && cell.field) {
             const zone = view.rows.includes(cell.field) ? "rows" : "cols";
             return (
-                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.field }}>
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.text }} description={infoOf?.(cell.field)?.description}>
                     {content}
                 </DraggableHeader>
             );
@@ -237,7 +239,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "colHeader" && cell.valueIndex !== undefined && r === grid.headerRows - 1) {
             const spec = view.values[cell.valueIndex];
             return (
-                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }}>
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }} description={spec?.field ? infoOf?.(spec.field)?.description : undefined}>
                     {content}
                 </DraggableHeader>
             );

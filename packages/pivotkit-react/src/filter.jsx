@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { CATALOG, fieldItems } from "pivotkit-core";
+import { CATALOG, fieldItems, fieldLabel } from "pivotkit-core";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
@@ -55,7 +55,7 @@ function FilterBody({ view, field, encoded, locale, labels, commit, close }) {
         let next = setItemFilter(view, field, all.filter((v) => selected.has(keyOf(v))), all);
         next = setLabelFilter(next, field, op ? { op, value: text } : null);
         close();
-        commit(next, { step: "filter", field });
+        commit(next, { step: "filter", field: fieldLabel(field, labels.core) });
     };
     return (
         <form
@@ -66,7 +66,7 @@ function FilterBody({ view, field, encoded, locale, labels, commit, close }) {
             }}
         >
             <div className="pk-popover-head">
-                <h3>{fill(labels.filterTitle, { field })}</h3>
+                <h3>{fill(labels.filterTitle, { field: fieldLabel(field, labels.core) })}</h3>
                 <span className="pk-muted">{fill(labels.selected, { count: selected.size.toLocaleString(locale) })}</span>
             </div>
             <label className="pk-search">
@@ -131,7 +131,7 @@ function FilterBody({ view, field, encoded, locale, labels, commit, close }) {
 export function FilterPopover({ target, onClose, view, encoded, locale, labels, commit }) {
     const anchor = useMemo(() => ({ current: target ? target.anchor : null }), [target]);
     return (
-        <Popover open={Boolean(target)} anchor={anchor} onClose={onClose} label={target ? fill(labels.filterTitle, { field: target.field }) : ""} className="pk-filter-popover">
+        <Popover open={Boolean(target)} anchor={anchor} onClose={onClose} label={target ? fill(labels.filterTitle, { field: fieldLabel(target.field, labels.core) }) : ""} className="pk-filter-popover">
             {target ? <FilterBody key={target.field} view={view} field={target.field} encoded={encoded} locale={locale} labels={labels} commit={commit} close={onClose} /> : null}
         </Popover>
     );

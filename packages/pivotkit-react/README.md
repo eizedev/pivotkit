@@ -83,7 +83,7 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `templates` | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that template. Names need not be unique: every entry is shown in order (a saved template may have a preset's name), and `onDeleteTemplate` gets the name. |
 | `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "Saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the template." (`labels.toastSaveRejected`). |
 | `onDeleteTemplate` | `(name) => unknown` | | Deletes a template marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
-| `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and its menu offers it as "Custom order"; items not listed follow by label. |
+| `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and its menu offers it as "Custom order"; items not listed follow by label. `label` is the name shown for the field everywhere (chips, headers, value names, drill-down, chart, exports; views keep the field name); `description` (plain text) shows behind an "i" next to the field, in its chip menu and on its headers, with `href` (https) as "Learn more"; `type` is the column type it is read as. A field without them looks as without `fieldDefaults`. pivotkit-core's `fieldDefaultsFromSchema` builds it from a JSON Schema or OpenAPI document. |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. A blank cell with no rows behind it is not clickable. |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`. |
@@ -96,10 +96,14 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
+| `tips` | `"on" \| "off" \| string \| string[]` | `"on"` | The tips above the result (at most two at a time, each dismissible): all, none (and no switch in Options), or the tip ids allowed. The ids and when each shows are on the [documentation site](https://pivotkit.eize.dev/reference/react/#tips). |
+| `storageKey` | `string` | | Remembers dismissed tips in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. |
+| `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off). |
+| `onTipDismiss` | `({ id, dismissed }) => void` | | Every dismissal, "Show tips" off and on, "Show dismissed tips again", with the whole list to store. |
 | `onExport` | `({ kind, fileName, blob }) => unknown` | | Every exported file (`"xlsx"`, `"csv"` or `"png"`, the name with its extension, the file) before it is downloaded; returning `false` skips the download, so the host can keep the file (upload it, say). |
 
 Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps`, `CellClick`,
-`ExportFile`, `Template`, `FieldDefaults`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
+`ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
 `PartialLabels`. The stylesheet is `pivotkit-react/styles.css`.
 
 ## What the user can do
@@ -121,8 +125,14 @@ Exports: `PivotReport`, `LABELS` (`{ en, de }`), and the types `PivotReportProps
   bars), its name, and move; Remove stays at the foot of every menu.
 - Filters: values with row counts, search, select all or none, "only this value", a text condition
   (contains, begins with, ...). A field in the Filters zone filters the whole report.
-- Notes above the result say what a top N does to totals and percentages ("Country shows the top 5
-  only: ..."), what to do next when nothing is in Values, and how to open a value.
+- Tips above the result say what a top N does to totals and percentages ("Country shows the top 5
+  only: ..."), what 100 % is for a percentage, that a text field in Values is counted, what to do
+  when a filter leaves nothing, nothing is in Values or a date makes a column per day, and how to open
+  a value; at most two at a time, each with an x, switched off or back in Options, which also lists
+  the keyboard shortcuts.
+- Field descriptions (`fieldDefaults`): an "i" next to a described field in the list and on its chips
+  shows the description on hover, focus or tap, with "Learn more"; the chip menu and the headers show
+  it too, and the field search finds it.
 - Drill-down: a click on a value opens a panel with the rows behind it (a blank cell with no rows
   behind it opens nothing; the arrow keys still stop on it), formatted as the table
   formats them: dates as dates (with the time when the column has times), numbers in the locale,

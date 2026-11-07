@@ -16,7 +16,10 @@ el.height = "100%";
 el.height = 480;
 el.saveTemplates = true;
 el.drillDown = false;
-el.fieldDefaults = { Units: { agg: "average", format: "number:1" } };
+el.fieldDefaults = { Units: { agg: "average", format: "number:1", label: "Units sold", description: "How many.", href: "https://example.org", type: "number" } };
+el.tips = "top,cells";
+el.storageKey = "sales";
+el.dismissedTips = ["top"];
 // @ts-expect-error a theme is light, dark or auto
 el.theme = "blue";
 // @ts-expect-error data is an array of objects
@@ -37,6 +40,12 @@ el.addEventListener("pivot-template-delete", (e) => e.detail.respondWith(Promise
 document.addEventListener("pivot-export", (e) => {
     const file: ExportFile = e.detail;
     if (file.kind === "csv") e.preventDefault();
+});
+
+el.addEventListener("pivot-tip-dismiss", (e) => {
+    const list: string[] = e.detail.dismissed;
+    el.dismissedTips = list;
+    return e.detail.id;
 });
 
 const eventName: keyof PivotReportEventMap = EVENTS.viewChange;

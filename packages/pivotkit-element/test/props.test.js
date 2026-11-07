@@ -79,3 +79,11 @@ test("label names the report's region and is reflected", () => {
     assert.deepEqual(def("label"), { attr: "label", prop: "label", kind: "string" });
     assert.equal(toAttribute(def("label"), "Tickets"), "Tickets");
 });
+
+test("tips and storage-key are text attributes; the tip list is read by the report", () => {
+    assert.equal(fromAttribute(def("tips"), "off"), "off");
+    assert.equal(fromAttribute(def("tips"), "top,cells"), "top,cells");
+    assert.equal(fromAttribute(def("tips"), null), undefined);
+    assert.equal(toAttribute(def("storage-key"), "sales"), "sales");
+    assert.ok(OBJECT_PROPS.includes("dismissedTips"), "a list is a property");
+});

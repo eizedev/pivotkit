@@ -2,16 +2,15 @@
  * The chart: pivotkit-core's ECharts option on an ECharts instance of the host's echarts package (a
  * peer dependency). ECharts is loaded on first use (echarts.js: only the chart types and components the
  * core builds), so a report that never shows a chart does not load it. Colours come from the --pk-* tokens.
- * At most MAX_CATEGORIES categories are drawn. The canvas has a text alternative (chart-summary.js),
- * and hints say when the chart is hard to read, with "Swap rows and columns" where that helps.
+ * At most MAX_CATEGORIES categories are drawn (the series come from PivotReport, which also reads
+ * them for the tips). The canvas has a text alternative (chart-summary.js).
  */
 
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
-import { toEChartsOption, toSeries } from "pivotkit-core";
-import { chartHints, chartSummary } from "./chart-summary.js";
+import React, { useEffect, useId, useRef, useState } from "react";
+import { fieldLabel, toEChartsOption } from "pivotkit-core";
+import { chartSummary } from "./chart-summary.js";
 import { tooltipFormatter } from "./chart-tooltip.js";
 import { MAX_CATEGORIES, chartTypeOf, pieLabelRoom } from "./chart-types.js";
-import { Icon } from "./icons.jsx";
 import { chartThemeFrom } from "./theme.js";
 
 /** @type {Promise<any> | null} */
@@ -70,12 +69,14 @@ export function decorate(option, style, height = 480, doc = undefined) {
 }
 
 /**
- * @param {{ result: import("pivotkit-core").PivotResult, labels: import("./labels.js").UiLabels, locale: string,
+ * @param {{ result: import("pivotkit-core").PivotResult, series: ReturnType<typeof import("pivotkit-core").toSeries> | null,
+ *   labels: import("./labels.js").UiLabels, locale: string,
  *   themeName: string, root: React.RefObject<HTMLElement>, onInstance: (chart: any) => void,
  *   onPoint: (point: { rowPath: any[], colPath: any[], valueIndex: number, value: unknown }) => void,
- *   onSwap: () => void, datesOnColumnsOnly: boolean, valueNames: string[] }} props
+ *   valueNames: string[] }} props
+ *   `series`: pivotkit-core's toSeries with MAX_CATEGORIES, null when there is nothing to draw
  */
-export function PivotChart({ result, labels, locale, themeName, root, onInstance, onPoint, onSwap, datesOnColumnsOnly, valueNames }) {
+export function PivotChart({ result, series, labels, locale, themeName, root, onInstance, onPoint, valueNames }) {
     const el = useRef(/** @type {HTMLDivElement | null} */ (null));
     const chart = useRef(/** @type {any} */ (null));
     const [ready, setReady] = useState(false);
@@ -83,14 +84,6 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
     // the canvas height a pie's label room follows (pieLabelRoom); other types do not need it
     const [pieHeight, setPieHeight] = useState(0);
     const summaryId = useId();
-    // the series as drawn: the core's chart data with the category cap
-    const series = useMemo(() => {
-        try {
-            return toSeries(result, { labels: labels.core, maxCategories: MAX_CATEGORIES });
-        } catch {
-            return null;
-        }
-    }, [result, labels]);
     const type = chartTypeOf(result.view.chart);
     const latest = useRef({ series, onPoint, onInstance, type });
     useEffect(() => {
@@ -157,26 +150,9 @@ export function PivotChart({ result, labels, locale, themeName, root, onInstance
     }, [ready, result, series, labels, locale, themeName, root, pieHeight]);
 
     const empty = result.view.values.length === 0;
-    const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows, valueNames, labels, locale }) : labels.noChartData;
-    const hints = series && !empty ? chartHints(series, { type, datesOnColumnsOnly, labels, locale }) : [];
+    const summary = series && !empty ? chartSummary(series, { type, rows: result.view.rows.map((f) => fieldLabel(f, labels.core)), valueNames, labels, locale }) : labels.noChartData;
     return (
         <div className="pk-chart-wrap">
-            {hints.length ? (
-                <div className="pk-chart-hints" data-testid="chart-hints">
-                    {hints.map((h) => (
-                        <p key={h.id} className="pk-note" data-hint={h.id}>
-                            <Icon name="info" size={16} />
-                            <span>{h.text}</span>
-                            {h.swap ? (
-                                <button type="button" className="pk-btn pk-small-btn" onClick={onSwap}>
-                                    <Icon name="swap" size={14} />
-                                    <span className="pk-btn-text">{labels.swap}</span>
-                                </button>
-                            ) : null}
-                        </p>
-                    ))}
-                </div>
-            ) : null}
             <div className="pk-chart-box">
                 <div ref={el} className="pk-chart" data-testid="pivot-chart" role="img" aria-label={labels.chart} aria-describedby={summaryId} />
                 <p id={summaryId} className="pk-sr" data-testid="chart-summary">

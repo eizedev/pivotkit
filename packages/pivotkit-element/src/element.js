@@ -40,6 +40,16 @@ export { EVENTS };
  *   and for the field's own numbers in the drill-down unless `drillFormat` is set
  * @property {string} [drillFormat]  the format of the field's values in the drill-down ("text": an identifier as it is)
  * @property {Array<string | number | boolean | null>} [order]  the field's own order of items on Rows or Columns
+ * @property {string} [label]  the name shown for the field; views keep the field's own name
+ * @property {string} [description]  plain text shown with an "i" next to the field, in its menu and on its headers
+ * @property {string} [href]  an https link shown as "Learn more" with the description
+ * @property {"string" | "number" | "date" | "boolean"} [type]  the type the field's column is read as
+ */
+
+/**
+ * @typedef {object} TipDismiss  the detail of pivot-tip-dismiss
+ * @property {string | null} id  the tip dismissed, "*" when every tip was switched off, null when tips came back
+ * @property {string[]} dismissed  every dismissed id now: set it as `dismissedTips` next time
  */
 
 /**
@@ -239,6 +249,22 @@ export class PivotReportElement extends Base {
         this.#write("save-templates", value);
     }
 
+    /** "on" (default), "off", or a comma-separated list of the tip ids allowed. */
+    get tips() {
+        return /** @type {string | undefined} */ (this.#read("tips"));
+    }
+    set tips(value) {
+        this.#write("tips", value);
+    }
+
+    /** Remembers dismissed tips in localStorage under this key; give each report on a page its own. */
+    get storageKey() {
+        return /** @type {string | undefined} */ (this.#read("storage-key"));
+    }
+    set storageKey(value) {
+        this.#write("storage-key", value);
+    }
+
     // ---- views: properties, also set by the JSON attributes view and default-view ----
 
     /** Controlled: the view to show; set it again from every pivot-view-change. Undefined: uncontrolled. */
@@ -295,12 +321,20 @@ export class PivotReportElement extends Base {
         this.#set("labels", value);
     }
 
-    /** Per field name: the aggregator and format of a new value. */
+    /** Per field name: the aggregator and format of a new value, display name, description, column type. */
     get fieldDefaults() {
         return /** @type {Record<string, FieldDefaults> | undefined} */ (this.#values.fieldDefaults);
     }
     set fieldDefaults(value) {
         this.#set("fieldDefaults", value);
+    }
+
+    /** Dismissed tip ids from the page's own storage (from pivot-tip-dismiss); "*" switches every tip off. */
+    get dismissedTips() {
+        return /** @type {string[] | undefined} */ (this.#values.dismissedTips);
+    }
+    set dismissedTips(value) {
+        this.#set("dismissedTips", value);
     }
 
     /** pivotkit-core's limits (rows, cells, ...). */
@@ -424,7 +458,11 @@ export class PivotReportElement extends Base {
             height: this.height,
             limits: v.limits,
             fileName: this.fileName,
-            label: this.label
+            label: this.label,
+            tips: this.tips,
+            storageKey: this.storageKey,
+            dismissedTips: Array.isArray(v.dismissedTips) ? v.dismissedTips : undefined,
+            onTipDismiss: this.#onTipDismiss
         };
     }
 
@@ -444,6 +482,11 @@ export class PivotReportElement extends Base {
 
     /** @param {string} name */
     #onDeleteTemplate = (name) => request(this, EVENTS.templateDelete, { name });
+
+    /** @param {TipDismiss} change */
+    #onTipDismiss = (change) => {
+        emit(this, EVENTS.tipDismiss, change);
+    };
 
     /** false (no download) when a listener called preventDefault() @param {ExportFile} file */
     #onExport = (file) => emit(this, EVENTS.export, file, { cancelable: true });

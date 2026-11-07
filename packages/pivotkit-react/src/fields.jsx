@@ -1,13 +1,17 @@
 /*
  * The field list: every column of the data with its type, searchable, each one draggable into a zone,
  * with a quick add (click: numbers go to Values, everything else to Rows) and a menu for every zone.
- * Dropping a chip here removes it from the report. On a narrow report it is a modal drawer.
+ * Dropping a chip here removes it from the report. On a narrow report it is a modal drawer. A field
+ * shows its display name and, when the host describes it (fieldDefaults), an "i" with the description;
+ * the search finds a field by its name, its display name and its description.
  */
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useId, useMemo, useRef, useState } from "react";
 import { useModal } from "./dom.js";
 import { useActiveDrag, useDragSource, useDropTarget } from "./dnd.jsx";
+import { fieldMatches } from "./field-info.js";
 import { Icon, TYPE_ICON } from "./icons.jsx";
+import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { fieldAction } from "./names.js";
 import { MenuButton, Option } from "./popover.jsx";
@@ -15,14 +19,15 @@ import { ZONES } from "./view-ops.js";
 
 const ZONE_ICON = { rows: "rows", cols: "cols", values: "sigma", filters: "filter" };
 
-function FieldItem({ field, labels, zones, onAdd, onNote }) {
-    const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: field.name });
+function FieldItem({ field, labels, zones, onAdd, onNote, name, info }) {
+    const { setNodeRef, isDragging, itemProps, handleProps } = useDragSource(`field:${field.name}`, { kind: "field", field: field.name, type: field.type, label: name });
     const typeLabel = labels.types[field.type] ?? field.type;
     // what a click does, said where it is said: the title and the accessible description
-    const action = fieldAction(field.name, field.type, zones, labels);
+    const action = fieldAction(name, field.type, zones, labels);
+    const describedBy = useId();
     return (
         <li className={`pk-field${isDragging ? " pk-dragging" : ""}${zones.length ? " pk-placed" : ""}`} ref={setNodeRef} {...itemProps} data-field={field.name}>
-            <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: field.name })} title={labels.fieldsHint}>
+            <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: name })} title={labels.fieldsHint}>
                 <Icon name="grip" size={18} />
             </span>
             <span className={`pk-type pk-type-${field.type}`} title={typeLabel}>
@@ -36,16 +41,26 @@ function FieldItem({ field, labels, zones, onAdd, onNote }) {
                     if (action.kind) {
                         onAdd(field.name, action.zone);
                     } else {
-                        onNote(fill(labels.alreadyIn, { field: field.name, zone: labels.zones[action.zone] }));
+                        onNote(fill(labels.alreadyIn, { field: name, zone: labels.zones[action.zone] }));
                     }
                 }}
                 // no title without an action: it would become the description
                 title={action.description ? `${action.name} \u2013 ${action.description}` : undefined}
                 aria-label={zones.length ? action.name : undefined}
-                aria-description={action.description || undefined}
+                // a description of the field joins the action's (aria-describedby wins over aria-description)
+                aria-description={info ? undefined : action.description || undefined}
+                aria-describedby={info ? describedBy : undefined}
             >
-                {field.name}
+                {name}
             </button>
+            {info ? (
+                <>
+                    <span id={describedBy} className="pk-sr">
+                        {[action.description, info.description].filter(Boolean).join(". ")}
+                    </span>
+                    <InfoButton info={info} name={name} labels={labels} />
+                </>
+            ) : null}
             {zones.length ? (
                 <span className="pk-badges" aria-hidden="true">
                     {zones.map((z) => (
@@ -55,7 +70,7 @@ function FieldItem({ field, labels, zones, onAdd, onNote }) {
                     ))}
                 </span>
             ) : null}
-            <MenuButton label={fill(labels.fieldMenu, { field: field.name })} icon="more" className="pk-icon-btn pk-field-menu" testId={`field-menu-${field.name}`}>
+            <MenuButton label={fill(labels.fieldMenu, { field: name })} icon="more" className="pk-icon-btn pk-field-menu" testId={`field-menu-${field.name}`}>
                 {(close) =>
                     ZONES.map((zone) => (
                         <Option
@@ -78,16 +93,18 @@ function FieldItem({ field, labels, zones, onAdd, onNote }) {
 
 /**
  * @param {{ fields: Array<{ name: string, type: string }>, placed: Map<string, string[]>, labels: import("./labels.js").UiLabels,
- *   onAdd: (field: string, zone: string) => void, onNote: (text: string) => void, drawer: boolean, open: boolean, onClose: () => void }} props
+ *   onAdd: (field: string, zone: string) => void, onNote: (text: string) => void, drawer: boolean, open: boolean, onClose: () => void,
+ *   nameOf: (field: string) => string, info: Map<string, import("./field-info.js").FieldInfo> }} props
+ *   `nameOf`: a field's display name; `info`: the host's descriptions by lower-case field name
  */
-export function FieldPanel({ fields, placed, labels, onAdd, onNote, drawer, open, onClose }) {
+export function FieldPanel({ fields, placed, labels, onAdd, onNote, drawer, open, onClose, nameOf, info }) {
     const [query, setQuery] = useState("");
     const active = useActiveDrag();
     const { setNodeRef, isOver } = useDropTarget("panel", { kind: "panel" });
     const shown = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return q ? fields.filter((f) => f.name.toLowerCase().includes(q)) : fields;
-    }, [fields, query]);
+        return q ? fields.filter((f) => fieldMatches(f.name, q, info.get(f.name.toLowerCase()))) : fields;
+    }, [fields, query, info]);
     const removing = active && active.kind !== "field";
     const modal = drawer && open;
     const el = useRef(/** @type {HTMLElement | null} */ (null));
@@ -121,7 +138,17 @@ export function FieldPanel({ fields, placed, labels, onAdd, onNote, drawer, open
             </label>
             <ul className="pk-field-list">
                 {shown.map((f) => (
-                    <FieldItem key={f.name} field={f} labels={labels} zones={placed.get(f.name.toLowerCase()) ?? []} onAdd={onAdd} onNote={onNote} />
+                    <FieldItem
+                        key={f.name}
+                        field={f}
+                        labels={labels}
+                        zones={placed.get(f.name.toLowerCase()) ?? []}
+                        onAdd={onAdd}
+                        onNote={onNote}
+                        name={nameOf(f.name)}
+                        // only a description makes the "i": a label alone needs no button
+                        info={info.get(f.name.toLowerCase())?.description ? info.get(f.name.toLowerCase()) : undefined}
+                    />
                 ))}
             </ul>
             {shown.length === 0 ? <p className="pk-hint">{fields.length ? fill(labels.noFieldMatch, { query }) : labels.emptyFields}</p> : null}

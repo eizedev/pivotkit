@@ -1,6 +1,7 @@
 /*
  * The rows behind a clicked value, in a side panel over the report: the cell's labels as the title,
- * the number of rows, and the first rows (the limit of the drill-down) as a table. It is modal: the
+ * the number of rows, and the first rows (the limit of the drill-down) as a table, its headers with the
+ * fields' display names and descriptions (fieldDefaults). It is modal: the
  * focus moves in, Tab stays inside, Escape (wherever the focus is) and the close button close it, and
  * the focus goes back to the value that opened it.
  */
@@ -11,7 +12,7 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 
 /**
- * @param {{ drill: { title: string, count: number, columns: Array<{ name: string, numeric: boolean }>, rows: string[][] } | null,
+ * @param {{ drill: { title: string, count: number, columns: Array<{ name: string, numeric: boolean, label?: string, description?: string }>, rows: string[][] } | null,
  *   onClose: () => void, labels: import("./labels.js").UiLabels, locale: string }} props
  */
 export function DrillPanel({ drill, onClose, labels, locale }) {
@@ -52,8 +53,8 @@ export function DrillPanel({ drill, onClose, labels, locale }) {
                         <thead>
                             <tr>
                                 {drill.columns.map((c) => (
-                                    <th key={c.name} scope="col" className={c.numeric ? "pk-num" : undefined}>
-                                        {c.name}
+                                    <th key={c.name} scope="col" className={c.numeric ? "pk-num" : undefined} title={c.description} aria-description={c.description}>
+                                        {c.label ?? c.name}
                                     </th>
                                 ))}
                             </tr>
