@@ -61,3 +61,22 @@ export async function toolbar(page, testId) {
     await page.getByTestId("more").click();
     await page.getByTestId(`more-${testId}`).click();
 }
+
+/**
+ * Opens the report's zones when they are folded, once the report has settled: it folds or opens them
+ * while it measures itself after the first renders, so the layout is read twice, apart, before.
+ */
+export async function openZones(page) {
+    const root = page.locator(".pk-root").first();
+    let last = "";
+    await expect
+        .poll(async () => {
+            const now = String(await root.getAttribute("data-pk-layout"));
+            const same = now === last;
+            last = now;
+            return same;
+        }, { intervals: [250, 250, 250, 500] })
+        .toBe(true);
+    if (last === "compact") await page.getByTestId("layout-summary").click();
+    await expect(page.locator(".pk-zone").first()).toBeVisible();
+}

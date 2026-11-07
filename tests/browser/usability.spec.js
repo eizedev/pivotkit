@@ -1,6 +1,6 @@
 // What a business user sees: words instead of bare icons, notes that explain, charts that stay
 // readable. Every test here fails without its fix.
-import { chips, expect, tableRows, test, toolbar } from "./fixtures.js";
+import { chips, expect, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
 test("narrow: every toolbar button keeps its text; the rest is in a labelled More menu", async ({ page }) => {
     for (const width of [640, 390]) {
@@ -83,11 +83,7 @@ test("a chip on a phone keeps its badges whole and a few characters of the field
             await page.setViewportSize({ width, height: 1600 });
             await page.goto(`?data=endoflife&preset=${preset}&lang=${lang}&height=1200`);
             // the stacked zones of a phone need more room than some of these reports have: opened by hand
-            await page.locator(".pk-zones, [data-testid='layout-summary']").first().waitFor();
-            const line = page.getByTestId("layout-summary");
-            // it may open by itself while the report measures itself: then the click is not needed
-            if (await line.count()) await line.click({ timeout: 3000 }).catch(() => undefined);
-            await expect(page.locator(".pk-zone").first()).toBeVisible();
+            await openZones(page);
             const text = page.locator(`[data-zone="rows"] .pk-chip[data-chip="${field}"] .pk-chip-label .pk-btn-text`);
             // measured once the layout has settled (the report measures its least height after the first render)
             const measure = () => text.evaluate((el) => {
@@ -213,9 +209,7 @@ test("where the Columns zone is too narrow, the swap button is an icon with its 
     await page.setViewportSize({ width: 340, height: 900 });
     await page.goto("?data=tickets&lang=de&height=1200");
     // a phone's stacked zones may need more than the box: opened by hand
-    await page.locator(".pk-zones, [data-testid='layout-summary']").first().waitFor();
-    const line = page.getByTestId("layout-summary");
-    if (await line.count()) await line.click({ timeout: 3000 }).catch(() => undefined);
+    await openZones(page);
     const swap = page.getByTestId("swap");
     await expect(swap).toHaveAccessibleName("Zeilen und Spalten tauschen");
     await expect(swap).toHaveAttribute("title", "Zeilen und Spalten tauschen");
