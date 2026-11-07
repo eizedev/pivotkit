@@ -23,7 +23,10 @@ import { isPlainObject } from "./util.js";
 export const VIEW_FILE_FORMAT = "pivotkit-view";
 /** The format version this package writes and reads; a newer one is refused. */
 export const VIEW_FILE_VERSION = 1;
-/** Where the JSON Schema of format version 1 is published. */
+/**
+ * Where the JSON Schema of format version 1 is published; the same file ships in this package as
+ * "pivotkit-core/schema/view-file-1.json". A file names it in `$schema` (toViewFile's `schemaUrl`).
+ */
 export const VIEW_FILE_SCHEMA = "https://pivotkit.eize.dev/schema/view-file-1.json";
 
 /**
@@ -44,6 +47,8 @@ const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean", "null"
  * @property {{ name: string, version: string }} [generator]  the program that wrote it
  * @property {{ id?: string, name?: string }} [source]  the data the view was made for
  * @property {import("./encode.js").Encoded} [data]  the data: source.fields lists the fields the view uses with their types
+ * @property {string | null} [schemaUrl]  the `$schema` written: VIEW_FILE_SCHEMA by default, a host's own
+ *   copy of the schema, or null (or "") to leave `$schema` out. Reading never depends on it
  * @typedef {object} ViewFileRead
  * @property {Record<string, unknown> | null} view  the view as parsed, not normalized; null when nothing can be used
  * @property {boolean} envelope  the document was a view file, not a bare view
@@ -130,7 +135,7 @@ function fieldsOf(data) {
 
 /**
  * A view as a view file (an object; viewFileText() writes it). Keys in their canonical order:
- * $schema, format, formatVersion, name, description (only when not empty), createdAt (only when
+ * $schema (unless `meta.schemaUrl` is null), format, formatVersion, name, description (only when not empty), createdAt (only when
  * given), generator (when given), source, extensions, view. `options.link` gives the profile a link
  * carries: format, formatVersion, source.id, name (when not empty) and view; nothing that grows with
  * the data (fields) or changes on every export (createdAt).
@@ -159,6 +164,7 @@ export function toViewFile(view, meta = {}, options = {}) {
     const created = when && !Number.isNaN(when.getTime()) ? when.toISOString() : null;
     const generator = meta.generator && typeof meta.generator.name === "string" ? { name: plainText(meta.generator.name, VIEW_FILE_LIMITS.name), version: plainText(meta.generator.version, VIEW_FILE_LIMITS.name) } : null;
     const sourceName = plainText(meta.source?.name, VIEW_FILE_LIMITS.name);
+    const schema = meta.schemaUrl === undefined ? VIEW_FILE_SCHEMA : typeof meta.schemaUrl === "string" ? meta.schemaUrl.trim() : "";
     const known = fieldsOf(meta.data);
     const fields = meta.data
         ? viewFileFields(view)
@@ -167,7 +173,7 @@ export function toViewFile(view, meta = {}, options = {}) {
               .map((f) => ({ name: f.name, type: typeof f.type === "string" ? f.type : "string" }))
         : null;
     return {
-        $schema: VIEW_FILE_SCHEMA,
+        ...(schema ? { $schema: schema } : {}),
         format: VIEW_FILE_FORMAT,
         formatVersion: VIEW_FILE_VERSION,
         name,

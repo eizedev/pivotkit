@@ -125,6 +125,10 @@
  *   and links it shares, and a view made for another source asks before it is loaded
  * @property {ViewSource[]} [sources]  the other data the host can show: a view made for one of them
  *   offers "Switch to <name> and load" (with `onSourceSwitch`)
+ * @property {string | null} [schemaUrl]  the `$schema` of the view files the report writes: by default
+ *   https://pivotkit.eize.dev/schema/view-file-1.json, a host's own copy of the schema (it ships in
+ *   pivotkit-core as "pivotkit-core/schema/view-file-1.json"), or null or "" to leave it out; loading a
+ *   view never depends on it
  * @property {(request: SourceSwitch) => void} [onSourceSwitch]  the user chose to switch to the data a
  *   view was made for and load it there: the host shows that data and the view (as its start view)
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before

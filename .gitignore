@@ -5,6 +5,8 @@ coverage/
 # the documentation site: the shared design (copied in by the eizedev/brand action) and the live demo
 docs/assets/site.css
 docs/playground/
+# the view file schema, copied from packages/pivotkit-core/schema/ by scripts/docs-demo.js
+docs/schema/
 .DS_Store
 ._*
 .claude/*

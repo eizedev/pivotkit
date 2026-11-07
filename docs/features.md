@@ -124,6 +124,7 @@ version is [What pivotkit does](overview.md).
 - The Views menu: Saved views and Share ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - Copy link (with `shareLink`), Copy view as JSON, Download view (.pivotkit.json), Load view… from text, a link or a file ([sharing](concepts/sharing.md)).
 - What is shared is a view file: the view with its name, the data it was made for (`source`) and the fields it uses, in a documented, versioned format with a JSON Schema ([view file format](reference/view-file.md)).
+- The JSON Schema ships in pivotkit-core (`pivotkit-core/schema/view-file-1.json`) and is published on this site; `$schema` points to it, to a host's own copy (`schemaUrl` / `schema-url`) or is left out ([view file format](reference/view-file.md#the-fields)).
 - A downloaded view is named `<name>.pivotkit.json` after the view's name, else the data's name, else `fileName` ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - The Share section says that a shared view holds the values chosen in its filters ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - A view made for other data (another `source.id`, fields missing or of another type) asks before it loads: Load anyway, Cancel, or Switch to its data and load (`sources`, `onSourceSwitch`) ([sharing](concepts/sharing.md#before-a-view-for-other-data-is-loaded)).
@@ -194,7 +195,7 @@ Every setting of a host, as the React prop and the element's attribute (objects 
 - Data: `data`, `dataKey` (property), `encoded` (React only), `timeZone` / `time-zone`, `limits` (property).
 - The view: `view` / `view` (JSON) controlled with `onViewChange` (event `pivot-view-change`), `defaultView` / `default-view` (JSON) uncontrolled.
 - Saved views: `templates` (property), `onSaveTemplate` / `save-templates` (event `pivot-template-save`), `onDeleteTemplate` (event `pivot-template-delete`).
-- Source of the data: `source` / `source-id` and `source-name`, `sources` (property), `onSourceSwitch` (event `pivot-source-switch`).
+- Source of the data: `source` / `source-id` and `source-name`, `sources` (property), `onSourceSwitch` (event `pivot-source-switch`); the view files' `$schema`: `schemaUrl` / `schema-url`.
 - Fields: `fieldDefaults` (property): `agg`, `format`, `drillFormat` (the drill-down's format), `order`, `label`, `description`, `href` (the "Learn more" link), `type`.
 - Drill-down: `drillDown` / `drill-down`, `drillDownLimit` / `drill-down-limit`, `onCellClick` (event `pivot-cell-click`).
 - Texts and look: `locale` / `locale`, `labels` (property), `theme` / `theme`, `height` / `height`, `label` / `label`, `className` (React only).

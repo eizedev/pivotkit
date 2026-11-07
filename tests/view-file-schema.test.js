@@ -1,12 +1,25 @@
-// The JSON Schema of the view file (docs/schema/view-file-1.json, published at VIEW_FILE_SCHEMA) and
-// pivotkit-core's writer agree: the address, the format and its version, the limits, and every key a
-// written file has is described there.
+// The JSON Schema of the view file (pivotkit-core/schema/view-file-1.json, published at VIEW_FILE_SCHEMA
+// as the copy scripts/docs-demo.js makes) and pivotkit-core's writer agree: the address, the format and
+// its version, the limits, and every key a written file has is described there.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, encode, normalize, toViewFile } from "pivotkit-core";
 
-const schema = JSON.parse(readFileSync(new URL("../docs/schema/view-file-1.json", import.meta.url), "utf8"));
+const file = new URL("../packages/pivotkit-core/schema/view-file-1.json", import.meta.url);
+const schema = JSON.parse(readFileSync(file, "utf8"));
+
+test("one schema: the package ships it, the site's copy (scripts/docs-demo.js) is the same bytes", async () => {
+    const pkg = JSON.parse(readFileSync(new URL("../packages/pivotkit-core/package.json", import.meta.url), "utf8"));
+    assert.equal(pkg.exports["./schema/view-file-1.json"], "./schema/view-file-1.json");
+    assert.ok(pkg.files.includes("schema"));
+    const demo = readFileSync(new URL("../scripts/docs-demo.js", import.meta.url), "utf8");
+    assert.match(demo, /packages\/pivotkit-core\/schema\//);
+    const copy = new URL("../docs/schema/view-file-1.json", import.meta.url);
+    if (existsSync(copy)) {
+        assert.deepEqual(readFileSync(copy), readFileSync(file), "docs/schema/ is a stale copy: npm run docs:demo");
+    }
+});
 
 test("the schema file is the one the files name, for the format and version the core writes", () => {
     assert.equal(schema.$id, VIEW_FILE_SCHEMA);

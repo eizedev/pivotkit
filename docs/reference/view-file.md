@@ -12,7 +12,9 @@ links, and **Load view…** reads it ([Sharing](../concepts/sharing.md)). pivotk
 it with `toViewFile` and `fromViewFile`.
 
 Its JSON Schema is published at `https://pivotkit.eize.dev/schema/view-file-1.json`
-([view-file-1.json](../schema/view-file-1.json)); every file names it in `$schema`.
+([view-file-1.json](../schema/view-file-1.json)) and ships in pivotkit-core as
+`pivotkit-core/schema/view-file-1.json` (the same bytes), so a host or an editor can use it without
+the website. A file names it in `$schema`; reading never depends on that key.
 
 ## An example
 
@@ -44,7 +46,7 @@ The `view` is abbreviated here; a written file holds the whole normalized view.
 
 | Key | Required | What |
 | --- | --- | --- |
-| `$schema` | no | The schema's address, `https://pivotkit.eize.dev/schema/view-file-1.json`. |
+| `$schema` | no | The schema's address: `https://pivotkit.eize.dev/schema/view-file-1.json` by default, a host's own copy (`toViewFile`'s `schemaUrl`, pivotkit-react's `schemaUrl` prop, the element's `schema-url` attribute), or left out (`null`, `""`). A reader ignores it. |
 | `format` | yes | `"pivotkit-view"`: marks a view file. |
 | `formatVersion` | yes | `1`: the version of the envelope. |
 | `name` | no | What the view shows, for people; plain text, at most 256 characters. pivotkit-react writes the name of the saved view or file the view came from, else `""`. |

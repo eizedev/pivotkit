@@ -20,6 +20,7 @@ First release.
 - Attributes `tips` ("on", "off" or a comma-separated list of tip ids) and `storage-key`, the property
   `dismissedTips` and the event `pivot-tip-dismiss` (`{ id, dismissed }`), as pivotkit-react's tips
   props; `fieldDefaults` takes `label`, `description`, `href` and `type`.
+- The attribute `schema-url` (pivotkit-react's `schemaUrl`: the `$schema` of the view files; `""` for none).
 - Attributes `setting-info` (the "i" next to the settings, as pivotkit-react's `settingInfo`),
   `source-id` and `source-name` (the data shown, for the shared view files and the check before a
   view for other data loads), the property `sources` and the event `pivot-source-switch`

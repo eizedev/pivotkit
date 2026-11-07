@@ -38,6 +38,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "setting-info", prop: "settingInfo", kind: "on-off" },
     { attr: "source-id", prop: "sourceId", kind: "string" },
     { attr: "source-name", prop: "sourceName", kind: "string" },
+    { attr: "schema-url", prop: "schemaUrl", kind: "string" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);

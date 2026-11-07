@@ -264,6 +264,7 @@ function Report(props) {
         source: sourceProp,
         sources,
         onSourceSwitch,
+        schemaUrl,
         loading = false
     } = props;
     // the data the view is made for (the host's source), for the view files and the check before a load
@@ -750,7 +751,7 @@ function Report(props) {
     // sharing: a link (when the host allows it), the view as a view file (JSON, a file); and loading one
     const base = shareBase(shareLink, here()?.href);
     /** The view as a view file (pivotkit-core's toViewFile): its name, the source, the fields it uses. */
-    const viewFile = () => viewFileText(toViewFile(view, { name: viewName ?? "", createdAt: new Date(), generator: { name: "pivotkit-react", version: VERSION }, source: { id: sourceId, name: sourceName }, data: encoded }));
+    const viewFile = () => viewFileText(toViewFile(view, { name: viewName ?? "", createdAt: new Date(), generator: { name: "pivotkit-react", version: VERSION }, source: { id: sourceId, name: sourceName }, data: encoded, ...(schemaUrl !== undefined ? { schemaUrl } : {}) }));
     const share = {
         canLink: base !== null,
         prepare: base !== null ? () => void loadLink().catch(() => undefined) : undefined,

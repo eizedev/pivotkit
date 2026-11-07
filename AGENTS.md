@@ -14,7 +14,7 @@ builds depend on it.
   `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`, with the capped inflate of
   `src/inflate.js`); only those import fflate; every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
-  (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`). `view-file.js` is the view file, the one format a view is shared in (file, JSON, link): `toViewFile`, `fromViewFile`, `viewFileText`, `viewFileName`, `viewFileFields`; its JSON Schema is `docs/schema/view-file-1.json` (`tests/view-file-schema.test.js` keeps both in step).
+  (show-as.js); `CATALOG` (catalog.js) lists them for a UI. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`). `view-file.js` is the view file, the one format a view is shared in (file, JSON, link): `toViewFile`, `fromViewFile`, `viewFileText`, `viewFileName`, `viewFileFields`; its JSON Schema is `schema/view-file-1.json` of the package (exported, shipped; `scripts/docs-demo.js` copies it to `docs/schema/` for the site; `tests/view-file-schema.test.js` keeps schema and writer in step).
 - `packages/pivotkit-react/` - the React 18/19 UI on the core: `<PivotReport>`. JSX in `src/` with
   JSDoc types, built by esbuild (`build.js`) into `dist/` (JSX as `React.createElement`, every
   dependency left as an import) and `dist/styles.css`. React, ReactDOM and ECharts are peer

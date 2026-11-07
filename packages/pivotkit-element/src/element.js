@@ -327,6 +327,17 @@ export class PivotReportElement extends Base {
         this.#write("source-id", value);
     }
 
+    /**
+     * The `$schema` of the view files the report writes: a URL (a self-hosted copy of the schema), or
+     * "" to leave it out; unset, pivotkit's published schema.
+     */
+    get schemaUrl() {
+        return /** @type {string | undefined} */ (this.#read("schema-url"));
+    }
+    set schemaUrl(value) {
+        this.#write("schema-url", value);
+    }
+
     /** The name of the data shown, for people ("Sales 2026"); with source-id. */
     get sourceName() {
         return /** @type {string | undefined} */ (this.#read("source-name"));
@@ -572,6 +583,7 @@ export class PivotReportElement extends Base {
             settingInfo: this.settingInfo,
             source: this.sourceId ? { id: this.sourceId, name: this.sourceName } : undefined,
             sources: Array.isArray(v.sources) ? v.sources : undefined,
+            schemaUrl: this.schemaUrl,
             onSourceSwitch: this.#onSourceSwitch
         };
     }

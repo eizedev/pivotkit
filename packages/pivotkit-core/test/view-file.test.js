@@ -54,6 +54,21 @@ test("without a description, a time or data the keys are left out, and the text 
     assert.equal(toViewFile(view, { createdAt: "yesterday" }).createdAt, undefined);
 });
 
+test("$schema: the published schema by default, a host's own address, or left out; reading never needs it", () => {
+    assert.equal(toViewFile(view).$schema, VIEW_FILE_SCHEMA);
+    const own = toViewFile(view, { schemaUrl: "https://reports.example.com/schema/view-file-1.json" });
+    assert.equal(own.$schema, "https://reports.example.com/schema/view-file-1.json");
+    assert.equal(Object.keys(own)[0], "$schema");
+    for (const off of [null, "", "  "]) {
+        const none = toViewFile(view, { schemaUrl: off });
+        assert.equal(Object.hasOwn(none, "$schema"), false);
+        assert.deepEqual(Object.keys(none).slice(0, 2), ["format", "formatVersion"]);
+        assert.deepEqual(fromViewFile(viewFileText(none)).view, view);
+    }
+    // any $schema, or none, reads the same
+    assert.deepEqual(fromViewFile({ ...toViewFile(view), $schema: "urn:anything" }).view, view);
+});
+
 test("the link profile carries format, version, source id, name and view, nothing that grows with the data", () => {
     const link = toViewFile(view, { name: "Units", description: "d", createdAt: new Date(), generator: { name: "x", version: "1" }, source: { id: "sales", name: "Sales" }, data }, { link: true });
     assert.deepEqual(Object.keys(link), ["format", "formatVersion", "source", "name", "view"]);

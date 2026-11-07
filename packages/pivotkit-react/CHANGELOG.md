@@ -44,6 +44,8 @@ First release.
   first render as the start, and on a fragment change as one undoable step), Copy view as JSON,
   Download view (.pivotkit.json) (`onExport` kind `"json"`), Load view… from a pasted view file, JSON,
   a link or a file, and a line on what a shared view gives away (`sharePrivacy`).
+- The prop `schemaUrl`: the `$schema` of the view files the report writes (a self-hosted copy of the
+  schema, or `null` / `""` for none); loading never depends on it.
 - Views are shared as pivotkit-core's view file: the envelope with the view's name, its source and
   the fields it uses, `generator` with this package's version from its `package.json`; a link carries
   its link profile. A bare view and a link with one still load; a newer format or view version is

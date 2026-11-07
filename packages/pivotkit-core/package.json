@@ -34,10 +34,12 @@
       "types": "./types/link.d.ts",
       "default": "./src/link.js"
     },
+    "./schema/view-file-1.json": "./schema/view-file-1.json",
     "./package.json": "./package.json"
   },
   "files": [
     "src",
+    "schema",
     "types",
     "README.md",
     "CHANGELOG.md",

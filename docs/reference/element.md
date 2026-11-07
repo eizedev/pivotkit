@@ -62,6 +62,7 @@ supported.
 | `settingInfo` | `setting-info` | The same for the "i" next to the settings that need explaining ("Show explanations").<br><small>Type: `"on"` or `"off"`</small> |
 | `sourceId` | `source-id` | The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).<br><small>Type: `string`</small> |
 | `sourceName` | `source-name` | The name of the data for people ("Sales 2026"), with `source-id`.<br><small>Type: `string`</small> |
+| `schemaUrl` | `schema-url` | The `$schema` of the view files the report writes: a URL (a self-hosted copy of the schema), `""` for none; unset, pivotkit's published schema.<br><small>Type: `string`</small> |
 | `sources` |  | The other data the page can show: a view made for one of them offers "Switch to “name” and load", a `pivot-source-switch` event.<br><small>Type: `{ id, name? }[]`</small> |
 | `chartOptions` |  | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings; functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)).<br><small>Type: `object`</small> |
 | `shareLink` | `share-link` | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)).<br><small>Type: `boolean` or `string`; default: off</small> |
