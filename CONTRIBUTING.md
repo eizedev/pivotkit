@@ -76,22 +76,30 @@ changelog. A new public function is exported from `src/index.js` (or `src/export
 
 ## Releasing
 
-Nothing is published yet, and there is no npm account for the packages. The release workflow
-(`.github/workflows/release.yml`) is prepared but skipped until it is switched on. To switch it on
-once:
+Nothing is published yet. The release workflow (`.github/workflows/release.yml`) is prepared but
+skipped until it is switched on. A trusted publisher is configured in a package's settings on npm, so
+each package is published once by hand before the workflow takes over. Once:
 
-1. Make the repository public: npm provenance is not available for private repositories (npm's
-   documentation, "Trusted publishers").
-2. Create the packages on npm and configure trusted publishing for each: this repository, the
-   workflow file `release.yml` and the environment `npm`. No npm token is stored in GitHub. The
-   split into a "build" and a "publish" job keeps the OIDC token away from the dependencies; it does
-   not prove the tarball: "build" runs the dev dependencies that make `dist/`, and provenance attests
-   the workflow and the commit, not that `dist/` is unaltered. "publish" checks only that the
-   tarball's name and version match the tag.
-3. In the repository settings, create the environment `npm` with required reviewers and deployments
+1. Make the repository public: npm generates no provenance for private repositories (npm's
+   documentation, "Generating provenance statements").
+2. Publish the first version of each package by hand, in the order `pivotkit-core`, `pivotkit-react`,
+   `pivotkit-element`, from tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`,
+   `npm pack -w <package>`), with an npm account that has two-factor authentication:
+   `npm publish <tarball> --access public`. Provenance is not in `publishConfig`: the workflow
+   asks for it with `--provenance`, which needs the CI's OIDC token.
+3. Configure trusted publishing for each package on npm: owner `eizedev`, repository `pivotkit`,
+   workflow file `release.yml`, environment `npm`. No npm token is stored in GitHub. A new trusted
+   publisher must publish once within two days, or it expires (npm's documentation, "Trusted
+   publishers"), so set it up when the next release is ready. Then set the package's publishing
+   access to "Require two-factor authentication and disallow tokens". The split of the workflow into
+   a "build" and a "publish" job keeps the OIDC token away from the dependencies; it does not prove
+   the tarball: "build" runs the dev dependencies that make `dist/`, and provenance attests the
+   workflow and the commit, not that `dist/` is unaltered. "publish" checks only that the tarball's
+   name and version match the tag.
+4. In the repository settings, create the environment `npm` with required reviewers and deployments
    from tags only (deployment branch and tag rule `*@*`).
-4. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
-5. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
+5. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
+6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
 
 Then for each release of a package, in the order `pivotkit-core`, `pivotkit-react`,
 `pivotkit-element` (pivotkit-react depends on a published pivotkit-core; the element bundles both):
