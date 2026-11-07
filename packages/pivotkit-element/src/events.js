@@ -12,7 +12,8 @@ export const EVENTS = Object.freeze({
     templateSave: "pivot-template-save",
     templateDelete: "pivot-template-delete",
     export: "pivot-export",
-    tipDismiss: "pivot-tip-dismiss"
+    tipDismiss: "pivot-tip-dismiss",
+    sourceSwitch: "pivot-source-switch"
 });
 
 /**

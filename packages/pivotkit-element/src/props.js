@@ -35,12 +35,15 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "loading", prop: "loading", kind: "flag" },
     { attr: "field-info", prop: "fieldInfo", kind: "on-off" },
     { attr: "zone-info", prop: "zoneInfo", kind: "on-off" },
+    { attr: "setting-info", prop: "settingInfo", kind: "on-off" },
+    { attr: "source-id", prop: "sourceId", kind: "string" },
+    { attr: "source-name", prop: "sourceName", kind: "string" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);
 
 /** Properties without an attribute: objects and arrays a host sets from script. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips", "chartOptions"]);
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips", "chartOptions", "sources"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 

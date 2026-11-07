@@ -8,7 +8,7 @@ The pivot report builder of [pivotkit-react](https://github.com/eizedev/pivotkit
 `<pivot-report>`, for pages without React: Angular apps, PHP and other server-rendered pages, plain
 HTML. It brings its own React 18.3.1 and ReactDOM, pivotkit-react, [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme)
 and @dnd-kit, and renders into an open shadow root. Everything the React component does (field list,
-drag and drop, table and chart, filters, drill-down, undo, templates, export) works the same; the
+drag and drop, table and chart, filters, drill-down, undo, saved and shared views, export) works the same; the
 [pivotkit-react README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#what-the-user-can-do) describes it.
 
 Version 0.1.0: `npm install pivotkit-element`, or serve its `dist/` directory as below. Try it in the
@@ -65,7 +65,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `dataKey` | | `string \| number` | | The identity of `data`: a new array with the same key is not encoded again. |
 | `view` | `view` (JSON) | view | | Controlled: the view to show, see below. |
 | `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
-| `templates` | | `{ name, view, deletable? }[]` | `[]` | The Templates menu; the first three are also offered in the empty state. |
+| `templates` | | `{ name, view, deletable? }[]` | `[]` | The saved views of the Views menu; the first three are also offered in the empty state. |
 | `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. |
 | `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href`, `type`: its display name, its description behind an "i" with "Learn more" (https), its column type (pivotkit-core's `fieldDefaultsFromSchema` reads them from an OpenAPI document). |
 | `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
@@ -80,8 +80,10 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`. |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, no switch in Options) or the tip ids allowed, comma-separated. |
 | `storageKey` | `storage-key` | `string` | | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; one key per element on a page. |
-| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-fieldInfo"`, `"-zoneInfo"`: those help switches off). |
-| `fieldInfo`, `zoneInfo` | `field-info`, `zone-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions and of the zones; unset, the user switches them in Options, Help. |
+| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-fieldInfo"`, `"-zoneInfo"`, `"-settingInfo"`: those help switches off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
+| `fieldInfo`, `zoneInfo`, `settingInfo` | `field-info`, `zone-info`, `setting-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining; unset, the user switches them in Options, Help. |
+| `sourceId`, `sourceName` | `source-id`, `source-name` | `string` | | The data shown: it goes into the shared [view files](https://pivotkit.eize.dev/reference/view-file/) and links, and a view made for another source asks before it loads. |
+| `sources` | | `{ id, name? }[]` | | The other data the page can show: a view made for one of them offers "Switch to “name” and load" (`pivot-source-switch`). |
 | `chartOptions` | | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. |
 | `shareLink` | `share-link` | `boolean \| string` | off | "Copy link" and shared links: the attribute alone for the page's address without its query, a value as the base URL. |
 | `persistView` | `persist-view` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storage-key`). |
@@ -90,7 +92,7 @@ a console warning with both versions (`PivotReportElement.version`). Without `cu
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
 is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
+Data, templates, sources, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
 way: pivotkit-core normalizes it against the data and it cannot run code.
 
 The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
@@ -142,14 +144,15 @@ would for the data itself.
 | `pivot-view-change` | `{ view }` | Every change of the view, normalized. |
 | `pivot-cell-click` | `{ row, col, value, valueIndex, text, count, rows }` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects). |
 | `pivot-template-save` | `{ name, view, respondWith }` | "Save current view" (with `save-templates`). |
-| `pivot-template-delete` | `{ name, respondWith }` | Delete of a template marked `deletable`, after the user confirmed in the menu. |
-| `pivot-export` | `{ kind, fileName, blob }` | Every exported file (`"xlsx"`, `"csv"`, `"png"`) before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say). |
+| `pivot-template-delete` | `{ name, respondWith }` | Delete of a saved view marked `deletable`, after the user confirmed in the menu. |
+| `pivot-export` | `{ kind, fileName, blob }` | Every exported file (`"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view") before its download. Cancelable: `preventDefault()` skips the download, the page keeps the blob (to upload it, say). |
 | `pivot-tip-dismiss` | `{ id, dismissed }` | A tip dismissed (`id`), all tips off (`"*"`) or back on (`null`), with every dismissed id, for a page that stores them and sets `dismissedTips`. |
+| `pivot-source-switch` | `{ source, view, name }` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view`. |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" (or removes the entry)
 when the promise resolves, and an error with its message when it rejects (a rejection without a
-message shows "The server could not save the template.", `labels.toastSaveRejected`). Without `respondWith` (no
+message shows "The server could not save the view.", `labels.toastSaveRejected`). Without `respondWith` (no
 listener, or `respondWith` after an `await`) the action counts as done at once and the element logs a
 console warning, since the user is told "saved" or "deleted" either way. The page then sets
 `templates` to the new list.
@@ -240,7 +243,7 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
 | First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 5 | 461 KiB | 148 KiB |
-| On the first chart (ECharts with bar, line, pie, heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
 | On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 20 KiB | 9 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
 

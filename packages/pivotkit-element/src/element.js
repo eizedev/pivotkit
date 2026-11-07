@@ -27,7 +27,7 @@ export { EVENTS };
  */
 
 /**
- * @typedef {object} Template  an entry of the Templates menu
+ * @typedef {object} Template  a saved view of the Views menu
  * @property {string} name
  * @property {PivotView} view
  * @property {boolean} [deletable]  offers a delete button (pivot-template-delete)
@@ -65,7 +65,7 @@ export { EVENTS };
 
 /**
  * @typedef {object} ExportFile  the detail of pivot-export
- * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view (Templates, "Download view")
+ * @property {"xlsx" | "csv" | "png" | "json"} kind  "json": the view file (Views, "Download view")
  * @property {string} fileName  with the extension ("pivot.xlsx")
  * @property {Blob} blob
  */
@@ -83,6 +83,20 @@ export { EVENTS };
  * @property {string} name
  * @property {(result: unknown) => void} respondWith  as for pivot-template-save: the entry goes when
  *   the promise resolves (the host then sets `templates` without it)
+ */
+
+/**
+ * @typedef {object} SourceEntry  data the page can show (`sources`), as the report names it
+ * @property {string} id
+ * @property {string} [name]
+ */
+
+/**
+ * @typedef {object} SourceSwitch  the detail of pivot-source-switch: the user chose to switch to the
+ *   data a loaded view was made for; show that data and set `defaultView` to `view`
+ * @property {SourceEntry} source  the entry of `sources`
+ * @property {PivotView} view  the view as the file has it (made for that data, not normalized here)
+ * @property {string} [name]  the view's name in the file
  */
 
 /** The tag the package defines. */
@@ -241,7 +255,7 @@ export class PivotReportElement extends Base {
         this.#write("drill-down-limit", value);
     }
 
-    /** Offers "Save current view" in the Templates menu; a save is a pivot-template-save event. */
+    /** Offers "Save current view" in the Views menu; a save is a pivot-template-save event. */
     get saveTemplates() {
         return /** @type {boolean} */ (this.#read("save-templates"));
     }
@@ -295,6 +309,30 @@ export class PivotReportElement extends Base {
     }
     set zoneInfo(value) {
         this.#write("zone-info", value);
+    }
+
+    /** "on" or "off" decides the "i" next to the settings ("Show explanations"); unset, the user switches it. */
+    get settingInfo() {
+        return /** @type {"on" | "off" | undefined} */ (this.#read("setting-info"));
+    }
+    set settingInfo(value) {
+        this.#write("setting-info", value);
+    }
+
+    /** The id of the data shown ("sales"): it goes into the view files and links, a view for another source asks first. */
+    get sourceId() {
+        return /** @type {string | undefined} */ (this.#read("source-id"));
+    }
+    set sourceId(value) {
+        this.#write("source-id", value);
+    }
+
+    /** The name of the data shown, for people ("Sales 2026"); with source-id. */
+    get sourceName() {
+        return /** @type {string | undefined} */ (this.#read("source-name"));
+    }
+    set sourceName(value) {
+        this.#write("source-name", value);
     }
 
     /** The page is loading the data: the report shows its skeleton (attribute loading). */
@@ -386,6 +424,17 @@ export class PivotReportElement extends Base {
     }
     set chartOptions(value) {
         this.#set("chartOptions", value);
+    }
+
+    /**
+     * The other data the page can show, as { id, name }: a view made for one of them offers "Switch to
+     * <name> and load" (event pivot-source-switch).
+     */
+    get sources() {
+        return /** @type {SourceEntry[] | undefined} */ (this.#values.sources);
+    }
+    set sources(value) {
+        this.#set("sources", value);
     }
 
     /** pivotkit-core's limits (rows, cells, ...). */
@@ -519,7 +568,11 @@ export class PivotReportElement extends Base {
             persistView: this.persistView,
             loading: this.loading,
             fieldInfo: this.fieldInfo,
-            zoneInfo: this.zoneInfo
+            zoneInfo: this.zoneInfo,
+            settingInfo: this.settingInfo,
+            source: this.sourceId ? { id: this.sourceId, name: this.sourceName } : undefined,
+            sources: Array.isArray(v.sources) ? v.sources : undefined,
+            onSourceSwitch: this.#onSourceSwitch
         };
     }
 
@@ -543,6 +596,11 @@ export class PivotReportElement extends Base {
     /** @param {TipDismiss} change */
     #onTipDismiss = (change) => {
         emit(this, EVENTS.tipDismiss, change);
+    };
+
+    /** @param {SourceSwitch} request */
+    #onSourceSwitch = (request) => {
+        emit(this, EVENTS.sourceSwitch, request);
     };
 
     /** false (no download) when a listener called preventDefault() @param {ExportFile} file */

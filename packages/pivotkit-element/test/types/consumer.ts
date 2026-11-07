@@ -48,6 +48,17 @@ el.addEventListener("pivot-tip-dismiss", (e) => {
     return e.detail.id;
 });
 
+// the data shown, the data the page can switch to, and the switch a loaded view asks for
+el.sourceId = "sales";
+el.sourceName = "Sales";
+el.sources = [{ id: "weather", name: "Weather" }];
+el.settingInfo = "off";
+el.addEventListener("pivot-source-switch", (e) => {
+    const id: string = e.detail.source.id;
+    el.defaultView = e.detail.view;
+    return id;
+});
+
 const eventName: keyof PivotReportEventMap = EVENTS.viewChange;
 const sameEventName: keyof PivotReportEventMap = EVENTS_ONLY.viewChange;
 const ctor: CustomElementConstructor | undefined = define("my-report") ?? defineOnly("other-report");

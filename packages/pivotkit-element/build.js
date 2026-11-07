@@ -117,15 +117,18 @@ async function licenses(metafile) {
  * for the chart's display settings with axis and group labels, sharing a view, the skeleton, the
  * clear buttons, the zone explanations, the help switches and the filter states (148.1 measured,
  * about 3 % headroom). fflate is a chunk the export and the link share: export 10 (9.3 measured),
- * link 7 (6.7 measured). The menu panels only used on demand could load later (issue #34).
+ * link 7 (6.7 measured). The menus' panels (the chip menus, chart type, Options, Views, the filter
+ * and the drill-down) load on demand, right after the report's first render (pivotkit-react's
+ * menus.js, issue #34): with the view files, the explanations, Enlarge and Full screen the first load
+ * is 150.4 measured, the menus 9.2 (budget 11).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 11 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
  * each group of dynamic imports with what they add ("chart": ECharts, "export": XLSX and CSV, "link":
- * a view in a link, pivotkit-core/link with fflate's deflate and inflate).
+ * a view in a link, pivotkit-core/link with fflate's deflate and inflate, "menus": the menus' panels).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -147,9 +150,9 @@ export function loadGroups(metafile) {
     };
     const initial = closure(["dist/index.js"]);
     const dynamic = [...initial].flatMap((f) => (metafile.outputs[f]?.imports ?? []).filter((i) => i.kind === "dynamic-import").map((i) => i.path));
-    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : "export");
+    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : "export");
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link"]) {
+    for (const name of ["chart", "export", "link", "menus"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }

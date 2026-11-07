@@ -80,7 +80,7 @@ test("the chart chunks hold the chart types pivotkit-react's echarts.js imports,
     assert.deepEqual([...drawn].sort(), ["bar", "heatmap", "line", "pie"]);
 });
 
-test("a page loads React, the report and the core first; ECharts and the export only on demand", () => {
+test("a page loads React, the report and the core first; ECharts, the export and the menus only on demand", () => {
     const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
     const initial = inputsOf(groups.initial);
     for (const name of ["react-dom/cjs/react-dom.production.min.js", "react/cjs/react.production.min.js", "@dnd-kit/core/", "pivotkit-react/dist/index.js", "pivotkit-core/src/pivot.js", "src/element.js"]) {
@@ -98,6 +98,9 @@ test("a page loads React, the report and the core first; ECharts and the export 
     assert.ok(inputsOf(groups.link).some((i) => i.includes("pivotkit-core/src/link.js")));
     assert.ok(inputsOf(groups.link).some((i) => i.includes("fflate/")));
     assert.ok(!initial.some((i) => i.includes("pivotkit-core/src/link.js")), "the link module is in the first load");
+    // the menus' panels (chip menus, chart type, Options, Views, filter, drill-down) load on demand
+    assert.ok(inputsOf(groups.menus).some((i) => i.includes("pivotkit-react/dist/menus.js")));
+    assert.ok(!initial.some((i) => i.includes("pivotkit-react/dist/menus.js")), "the menus are in the first load");
 });
 
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {
