@@ -53,6 +53,9 @@ export async function tableRows(page) {
  * all buttons. `testId` is the button's ("redo", "reset", "options", "views", "chart-type").
  */
 export async function toolbar(page, testId) {
+    // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
+    await page.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     const own = page.getByTestId(testId);
     if (await own.count()) {
         await own.click();

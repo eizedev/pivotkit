@@ -127,9 +127,9 @@ the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (b
 field list as a drawer from the toolbar and shows menus as bottom sheets (at the bottom of the
 window, at most 82 % of its height, scrolling inside). Toolbar buttons move into "More" by a fixed
 priority (`OVERFLOW_ORDER`: Reset, Layout, Views, Options, the chart type) and the toolbar's width
-measured against the room each button takes with the longest built-in text (`TOOLBAR_ROOM` in
-`overflow.js`), so English and German show the same buttons; only a host's longer labels make it
-measure further. The zones stack, one line
+measured against the room each button takes with the longest of its texts in English, German and the
+report's own labels, measured in the font the toolbar is drawn in (`toolbarRoom` in `overflow.js`),
+so English and German show the same buttons in every browser. Decided before the first paint. The zones stack, one line
 each, whenever the area next to the field list is narrower than 640 px (a container query on that
 area: the narrow layout, and a medium one such as a half-width card of 650 px). "Swap rows and
 columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the
