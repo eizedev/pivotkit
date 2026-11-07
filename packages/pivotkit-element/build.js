@@ -124,10 +124,12 @@ async function licenses(metafile) {
  * (pivotkit-react's menu-labels.js), which made room in the first load for the automatic chart type,
  * the field list's keys and the touch targets; then the explanations of the settings too (gzip on Node 24 measured the first
  * load 0.3 higher than on 22): first load 151.0 measured, the menus 13.8, their budget raised to 15
- * for the texts moved there.
+ * for the texts moved there. The templates (shared and my views, publish, the browser store with
+ * pivotkit-core/templates) load with the menus, and the texts and actions of save and delete moved
+ * there with them: first load 151.4 measured (Node 26), the menus 16.1, their budget raised to 17.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 15 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 10, link: 7, menus: 17 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

@@ -27,9 +27,12 @@ export { EVENTS };
  */
 
 /**
- * @typedef {object} Template  a saved view of the Views menu
- * @property {string} name
- * @property {PivotView} view
+ * @typedef {object} Template  a saved view of the Views menu: a view, or a view file (its text or object)
+ * @property {string} [name]  shown in the menu; default the view file's name
+ * @property {PivotView} [view]
+ * @property {Record<string, unknown> | string} [file]  a view file ("pivotkit-view") instead of `view`
+ * @property {"shared" | "user"} [scope]  the group: "Shared views" or "My views"; default "user"
+ *   for a deletable entry, else "shared"
  * @property {boolean} [deletable]  offers a delete button (pivot-template-delete)
  */
 
@@ -74,6 +77,7 @@ export { EVENTS };
  * @typedef {object} TemplateSave  the detail of pivot-template-save
  * @property {string} name
  * @property {PivotView} view  the normalized view to store
+ * @property {"shared" | "user"} scope  where it goes: "user", the user's own views
  * @property {(result: unknown) => void} respondWith  call it in the listener with the promise of the
  *   host's save: "Saved" shows when it resolves, the error's message when it rejects
  */
@@ -81,8 +85,17 @@ export { EVENTS };
 /**
  * @typedef {object} TemplateDelete  the detail of pivot-template-delete
  * @property {string} name
+ * @property {"shared" | "user"} scope  the entry's group
  * @property {(result: unknown) => void} respondWith  as for pivot-template-save: the entry goes when
  *   the promise resolves (the host then sets `templates` without it)
+ */
+
+/**
+ * @typedef {object} TemplatePublish  the detail of pivot-template-publish (with `can-publish`)
+ * @property {string} name
+ * @property {PivotView} view  the user's view to publish as a shared view
+ * @property {(result: unknown) => void} respondWith  as for pivot-template-save: "Published" shows
+ *   when the promise resolves (the host then sets `templates` with the new shared entry)
  */
 
 /**
@@ -263,6 +276,25 @@ export class PivotReportElement extends Base {
         this.#write("save-templates", value);
     }
 
+    /**
+     * "browser": the user's own views ("My views") are kept in this browser's localStorage under the
+     * storage key, when the page does not take the saves (save-templates).
+     */
+    get templateStore() {
+        return /** @type {string | undefined} */ (this.#read("template-store"));
+    }
+    set templateStore(value) {
+        this.#write("template-store", value);
+    }
+
+    /** Offers "Publish as shared view" on the user's views; a publish is a pivot-template-publish event. */
+    get canPublish() {
+        return /** @type {boolean} */ (this.#read("can-publish"));
+    }
+    set canPublish(value) {
+        this.#write("can-publish", value);
+    }
+
     /** "on" (default), "off", or a comma-separated list of the tip ids allowed. */
     get tips() {
         return /** @type {string | undefined} */ (this.#read("tips"));
@@ -271,7 +303,10 @@ export class PivotReportElement extends Base {
         this.#write("tips", value);
     }
 
-    /** Remembers dismissed tips in localStorage under this key; give each report on a page its own. */
+    /**
+     * Remembers dismissed tips in localStorage under this key (and, with template-store="browser",
+     * the user's views); give each report on a page its own.
+     */
     get storageKey() {
         return /** @type {string | undefined} */ (this.#read("storage-key"));
     }
@@ -568,6 +603,9 @@ export class PivotReportElement extends Base {
             templates: Array.isArray(v.templates) ? v.templates : [],
             onSaveTemplate: this.saveTemplates ? this.#onSaveTemplate : undefined,
             onDeleteTemplate: this.#onDeleteTemplate,
+            onPublishTemplate: this.#onPublishTemplate,
+            canPublish: this.canPublish,
+            templateStore: this.templateStore === "browser" ? /** @type {const} */ ("browser") : undefined,
             fieldDefaults: v.fieldDefaults,
             onCellClick: this.#onCellClick,
             onExport: this.#onExport,
@@ -611,11 +649,14 @@ export class PivotReportElement extends Base {
         emit(this, EVENTS.cellClick, cell);
     };
 
-    /** @param {string} name @param {PivotView} view */
-    #onSaveTemplate = (name, view) => request(this, EVENTS.templateSave, { name, view });
+    /** @param {string} name @param {PivotView} view @param {{ scope: "shared" | "user" }} where */
+    #onSaveTemplate = (name, view, where) => request(this, EVENTS.templateSave, { name, view, scope: where.scope });
 
-    /** @param {string} name */
-    #onDeleteTemplate = (name) => request(this, EVENTS.templateDelete, { name });
+    /** @param {string} name @param {{ scope: "shared" | "user" }} where */
+    #onDeleteTemplate = (name, where) => request(this, EVENTS.templateDelete, { name, scope: where.scope });
+
+    /** @param {string} name @param {PivotView} view */
+    #onPublishTemplate = (name, view) => request(this, EVENTS.templatePublish, { name, view });
 
     /** @param {TipDismiss} change */
     #onTipDismiss = (change) => {

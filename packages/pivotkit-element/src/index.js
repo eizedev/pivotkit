@@ -23,6 +23,7 @@ import { define } from "./element.js";
  * @typedef {import("./element.js").ExportFile} ExportFile
  * @typedef {import("./element.js").TemplateSave} TemplateSave
  * @typedef {import("./element.js").TemplateDelete} TemplateDelete
+ * @typedef {import("./element.js").TemplatePublish} TemplatePublish
  * @typedef {import("./global.js").PivotReportEventMap} PivotReportEventMap
  */
 

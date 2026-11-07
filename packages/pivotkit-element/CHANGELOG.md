@@ -12,6 +12,10 @@ First release.
 
 ### Added
 
+- Templates as pivotkit-react's: `templates` entries with `scope` and `file`, the attributes
+  `template-store` (`"browser"`: "My views" in localStorage, no event for its saves and deletes) and
+  `can-publish`, the event `pivot-template-publish` (`{ name, view, respondWith }`), and `scope` in
+  the details of `pivot-template-save` and `pivot-template-delete`.
 - Attributes `share-link`, `persist-view`, `loading`, `field-info` and `zone-info`, and the property
   `chartOptions`, as pivotkit-react's props; `pivot-export` also for a downloaded view (`kind`
   `"json"`). pivotkit-core's link module is a chunk of its own, loaded on the first link; the size

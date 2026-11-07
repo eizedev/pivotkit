@@ -101,6 +101,9 @@ test("a page loads React, the report and the core first; ECharts, the export and
     // the menus' panels (chip menus, chart type, Options, Views, filter, drill-down) load on demand
     assert.ok(inputsOf(groups.menus).some((i) => i.includes("pivotkit-react/dist/menus.js")));
     assert.ok(!initial.some((i) => i.includes("pivotkit-react/dist/menus.js")), "the menus are in the first load");
+    // the templates' reader (pivotkit-core/templates, for the browser store) comes with the menus
+    assert.ok(inputsOf(groups.menus).some((i) => i.includes("pivotkit-core/src/templates.js")));
+    assert.ok(!initial.some((i) => i.includes("pivotkit-core/src/templates.js")), "pivotkit-core/templates is in the first load");
 });
 
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {

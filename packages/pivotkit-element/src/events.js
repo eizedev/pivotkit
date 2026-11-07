@@ -11,6 +11,7 @@ export const EVENTS = Object.freeze({
     cellClick: "pivot-cell-click",
     templateSave: "pivot-template-save",
     templateDelete: "pivot-template-delete",
+    templatePublish: "pivot-template-publish",
     export: "pivot-export",
     tipDismiss: "pivot-tip-dismiss",
     sourceSwitch: "pivot-source-switch"
