@@ -276,7 +276,10 @@ texts, with the menus, or when the locale changes to German) by relative dynamic
 code they share in `dist/chunks/`.
 A bundler follows these imports with no setting. A host that copies files by hand (an import map, a
 folder of assets) deploys the whole `dist/` folder: without `dist/menus.js` and `dist/chunks/` the
-report works, but its menus say "This menu could not be loaded." with **Try again**.
+report works, but its menus say "This menu could not be loaded." with **Try again**. Without
+`dist/menu-texts-de.js` (or when it cannot load: offline, a Content-Security-Policy that blocks it)
+a German report's menus open in English and work; the next menu that opens tries the German texts
+again.
 
 ## Layout
 

@@ -23,7 +23,7 @@ import { Icon, TYPE_ICON } from "./icons.jsx";
 import { copyText, safeFileName, saveBlob } from "./files.js";
 import { errorText, fill, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
-import { MenuPanel, loadMenus } from "./lazy-menus.jsx";
+import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
 import { issueLines, linkNow, linkParam, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, withLinkParam, writeStoredView } from "./share.js";
 import { HelpContext } from "./help.js";
@@ -330,8 +330,9 @@ function Report(props) {
     const [savedAt, setSavedAt] = useState(0);
     // the menus' module once loaded: its texts are those of the "i" of the settings (help.labels)
     const [menus, setMenus] = useState(/** @type {typeof import("./menus.js") | null} */ (null));
-    // the language whose menu texts are loaded with them (the help's labels follow it)
-    const [menusLang, setMenusLang] = useState(/** @type {string | null} */ (null));
+    // a language's menu texts arrived or failed: the help's labels follow (counted, to render again)
+    const [, setTexts] = useState(0);
+    useEffect(() => onMenuTexts(() => setTexts((n) => n + 1)), []);
     // a tip's "Save view" opens the Views menu: a new number is a new request
     const [viewsRequest, setViewsRequest] = useState(0);
     // what a loaded view (a file, a link, a saved view) left out, for the area above the result; it
@@ -697,7 +698,6 @@ function Report(props) {
             (m) => {
                 if (live) {
                     setMenus(() => m);
-                    setMenusLang(lang);
                 }
             },
             () => undefined
@@ -1105,16 +1105,23 @@ function Report(props) {
     const settingSwitch = helpSwitch(settingInfoProp, dismissed);
     const explainUser = settingSwitch.user || zoneSwitch.user || (describedFields && fieldSwitch.user);
     // what the menus' sections and setting "i" read: folded or open (kept with the tips), shown or not
+    // with the menus' texts once they are loaded (the explanations are among them); while the
+    // language changes, the last ones until the new language's are here, never English in between
+    const ready = menus ? menusNow(labels.lang) : null;
+    const withTexts = ready ? ready.menuLabels(labels) : null;
+    const [keptTexts, setKeptTexts] = useState(/** @type {any} */ (null));
+    if (withTexts && withTexts !== keptTexts) {
+        setKeptTexts(withTexts);
+    }
+    const helpLabels = withTexts ?? keptTexts ?? labels;
     const help = useMemo(
         () => ({
             explain: settingSwitch.on,
-            // with the menus' texts once they are loaded: the explanations are among them
-            labels: menus && menusLang ? menus.menuLabels(labels) : labels,
+            labels: helpLabels,
             isOpen: (id) => sectionOpen(id, dismissed),
             setOpen: (id, open) => changeDismissed(withSection(dismissed, id, open), null)
         }),
-        // menusLang: the texts of a language loaded later, so menuLabels gives them
-        [settingSwitch.on, labels, menus, menusLang, dismissed, changeDismissed]
+        [settingSwitch.on, helpLabels, dismissed, changeDismissed]
     );
     // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
     // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session

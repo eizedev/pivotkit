@@ -67,6 +67,65 @@ test("the menus' German texts load only for a German report, also when the langu
     await expect(host.getByTestId("section-help")).toHaveText("Hilfe und Tipps");
 });
 
+test("a language change while a menu is open keeps the menu and its focus, and changes its texts", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const host = page.locator("#views");
+    await expect(host.locator(".pk-root")).toBeVisible();
+    await tool(host, "options");
+    await host.getByTestId("show-tips").focus();
+    await page.evaluate(() => {
+        document.getElementById("views").locale = "de-DE";
+    });
+    await expect(host.getByTestId("section-help")).toHaveText("Hilfe");
+    await expect(host.getByTestId("show-tips")).toBeFocused();
+});
+
+test("two reports on one page, English and German: each menu in its language, and back from German to English", async ({ page }) => {
+    await page.goto("pages/element-two.html");
+    const sales = page.locator("#sales");
+    const tickets = page.locator("#tickets");
+    await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "de");
+    await tool(sales, "options");
+    await expect(sales.getByTestId("section-help")).toHaveText("Help");
+    await page.keyboard.press("Escape");
+    await tool(tickets, "options");
+    await expect(tickets.getByTestId("section-help")).toHaveText("Hilfe");
+    await page.keyboard.press("Escape");
+    // the English report stays English after the German texts loaded
+    await tool(sales, "options");
+    await expect(sales.getByTestId("section-help")).toHaveText("Help");
+    await page.keyboard.press("Escape");
+    await page.evaluate(() => {
+        document.getElementById("tickets").locale = "en-US";
+    });
+    await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "en");
+    await tool(tickets, "options");
+    await expect(tickets.getByTestId("section-help")).toHaveText("Help");
+});
+
+// a partial copy of dist/, a Content-Security-Policy or a dropped connection: the German texts do not
+// load (plain: the failed request is logged), the menu opens in English and works, and the next
+// menu that opens tries the German texts again
+plain("when the German menu texts cannot load, the menus open in English, work, and the next menu tries again", async ({ page }) => {
+    let blocked = true;
+    await page.route(/\/chunks\/menu-texts-de-[^/]+\.js$/, (route) => (blocked ? route.abort() : route.continue()));
+    await page.goto("pages/element-two.html");
+    const tickets = page.locator("#tickets");
+    await expect(tickets.locator(".pk-root")).toHaveAttribute("lang", "de");
+    await tool(tickets, "options");
+    const help = tickets.getByTestId("section-help");
+    await expect(help).toHaveText("Help");
+    // it works: the section folds and opens
+    await help.click();
+    await expect(help).toHaveAttribute("aria-expanded", "false");
+    await help.click();
+    await expect(help).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    blocked = false;
+    await tool(tickets, "options");
+    await expect(tickets.getByTestId("section-help")).toHaveText("Hilfe");
+});
+
 test.describe("two elements on one page", () => {
     test("both render in their own shadow root, with their own language, theme and data", async ({ page }) => {
         await page.goto("pages/element-two.html");

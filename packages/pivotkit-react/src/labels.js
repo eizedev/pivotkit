@@ -645,7 +645,7 @@ export const de = {
     groupsExpanded: { one: "{count} Gruppe aufgeklappt", other: "{count} Gruppen aufgeklappt" }
 };
 
-/** @type {Readonly<{ en: typeof en, de: typeof en }>} the texts of the first load; the menus' are MENU_LABELS (menu-labels.js) */
+/** @type {Readonly<{ en: typeof en, de: typeof en }>} the texts of the first load; the menus' are in menu-labels.js (English) and menu-labels-<lang>.js (menu-texts.js) */
 export const LABELS = Object.freeze({ en, de });
 
 /**

@@ -51,7 +51,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The menus' German texts are a file of their own, `dist/menu-texts-de.js`, loaded with the menus
   only for a German report, or when the locale changes to German
   ([#73](https://github.com/eizedev/pivotkit/issues/73)). A menu waits for them ("Loading…"), so it
-  never shows English first; a host's `labels` still win. The menus' sections and the "i" of the
+  never shows English first, and keeps its texts (and its state and focus) while the language
+  changes with it open; when the file cannot load, the menus open in English and the next menu tries
+  again. A host's `labels` still win; `labels` with `lang: "de"` load the file too. The loading line
+  is announced to screen readers. The menus' sections and the "i" of the
   settings (`section.jsx`) load with the menus, not with the report; their context is `help.js`.
   The element's menus are 2.7 KiB gzip smaller for every page that is not German. `LABELS` of
   `pivotkit-react/labels` is unchanged. A host that copies `dist/` by hand copies the new file too

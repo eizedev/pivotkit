@@ -20,7 +20,9 @@ export function useExport(context) {
     return async (kind) => {
         try {
             // loaded: no await before the copy (see above)
-            const menus = menusNow() ?? (await loadMenus());
+            // with the menus' texts of the report's language: the notes of a copy say it in that language
+            const lang = context.labels.lang;
+            const menus = menusNow(lang) ?? (await loadMenus(lang));
             await menus.runExport(kind, context);
         } catch (e) {
             // the menus could not load (runExport says itself what went wrong in an export)

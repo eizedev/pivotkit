@@ -142,7 +142,9 @@ async function licenses(metafile) {
  * menus) took the first load to 152.2 measured, budget 152.5. The menus' German texts then became a
  * chunk of their own, loaded with the menus for a German report only ("texts", 4.0 measured, budget
  * 4.5; a German page loads it on top of the menus), and the menus' sections moved out of the first
- * load into the menus (#73): first load 152.0, the menus 17.9 measured; the budgets stay as they were.
+ * load into the menus (#73): first load 152.2, the menus 17.9 measured; the budgets stay as they were:
+ * the menus' headroom is kept for the chip menu's sections (issue #57), which land next; after them
+ * the menus' budget goes down to what is measured then plus a margin.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 21, texts: 4.5 };
