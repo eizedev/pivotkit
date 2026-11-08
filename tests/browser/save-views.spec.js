@@ -36,8 +36,13 @@ for (const width of [1280, 1440]) {
         if (await bar.getByTestId("more").count()) {
             await bar.getByTestId("more").click();
             await expect(page.getByTestId("more-views")).toHaveCount(0);
+            // the trade-off: at 1280 px the chart type is the button that makes room for Views
+            await expect(page.getByTestId("more-chart-type")).toHaveCount(width === 1280 ? 1 : 0);
             await page.keyboard.press("Escape");
         }
+        // the name never shrinks below its 4em: a few letters always show
+        const em = await bar.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+        expect((await bar.getByTestId("view-name").boundingBox()).width).toBeGreaterThanOrEqual(4 * em - 0.5);
         // the name sits before Views and never pushes it out of the toolbar's line
         const name = await bar.getByTestId("view-name").boundingBox();
         const views = await bar.getByTestId("views").boundingBox();
@@ -57,6 +62,8 @@ test("Save writes the loaded view under its name; the toolbar marks unsaved chan
     await page.getByTestId("saved-view-name").fill("Mine");
     await page.getByTestId("saved-view-name").press("Enter");
     await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
+    // the menu stays open after the save, with the next step (Copy link) one click away
+    await expect(page.getByTestId("views")).toHaveAttribute("aria-expanded", "true");
     // the view shown is the saved one now: its name next to Views, no mark
     await expect(page.getByTestId("view-name")).toHaveText("Mine");
     await expect(page.getByTestId("view-changed")).toHaveCount(0);

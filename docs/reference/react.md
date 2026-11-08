@@ -282,7 +282,8 @@ The report adapts to its own width, not the window's: wide (1024 px and more) ha
 the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (below 640 px) opens the
 field list as a drawer from the toolbar and shows menus as bottom sheets (at the bottom of the
 window, at most 82 % of its height, scrolling inside). Toolbar buttons move into "More" by a fixed
-priority (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views last) and the toolbar's width
+priority (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views last: Views shows from a
+window about 1280 px wide, where the chart type is in "More") and the toolbar's width
 measured against the room each button takes with the longest of its texts in English, German and the
 report's own labels, measured in the font the toolbar is drawn in (`toolbarRoom` in `overflow.js`),
 so English and German show the same buttons in every browser. Decided before the first paint. The zones stack, one line

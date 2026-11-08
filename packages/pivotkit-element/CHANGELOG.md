@@ -20,7 +20,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 ### Changed
 
 - pivotkit-react's toolbar: Views is the last button to move into "More", so it stays in the toolbar
-  on a desktop; New is in the Views menu only.
+  from about 1280 px (the chart type moves into "More" before it); New is in the Views menu only.
 
 ### Fixed
 

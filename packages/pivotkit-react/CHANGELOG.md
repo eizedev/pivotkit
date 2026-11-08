@@ -35,10 +35,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
-- Views stays in the toolbar on a desktop: it is the last button to move into "More"
-  (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views), so it shows wherever one button
-  besides Undo, Redo and Export fits (in the playground from a window 1280 px wide), with the loaded
-  view's name before it. Options and the chart type move into "More" before Views.
+- Views stays in the toolbar from a window about 1280 px wide: it is the last button to move into
+  "More" (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views), so it shows wherever one
+  button besides Undo, Redo and Export fits, with the loaded view's name before it. Options and the
+  chart type move into "More" before Views: at about 1280 px the chart type is in "More", from
+  about 1440 px both show. The name is cut with "…" but never below 4em.
 
 - The forms of a row or column field's menu (number ranges, Top N, value condition) remove what
   they set with **Remove** (was "Clear"; label key `removeSetting`, was `clear`), and Apply with an

@@ -187,8 +187,9 @@ the report's first load stays small.
   [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
   asks first), Export (XLSX and CSV of the table, PNG of the chart; all off with "Add a field first."
   while no field is placed). Every button has its text; when the report is too narrow, Reset,
-  Layout, Options, the chart type and Views last move one by one into a "More" menu, by the width only;
-  the view's name takes the room left and is cut with "…".
+  Layout, Options, the chart type and Views last move one by one into a "More" menu, by the width only
+  (Views shows from about 1280 px, the chart type then in "More"); the view's name takes the room
+  left and is cut with "…", never below 4em.
 - Save writes the loaded view under its name in one click: a view of the browser store in its place,
   a user's view of the host through `onSaveTemplate` (`scope: "user"`), a shared view through
   `onPublishTemplate` when `canPublish`, after "Replace the shared view “…” for everyone?". It is

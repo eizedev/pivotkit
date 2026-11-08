@@ -699,14 +699,16 @@
     flex: 1;
 }
 
-/* the name of the view loaded, next to Views: it takes the room left and is cut with "…", so it never
-   moves a button into "More"; a dot while the view has unsaved changes */
+/* the name of the view loaded, next to Views: it takes the room left and is cut with "…", never
+   below 4em, so a few letters always show; where even that does not fit, useOverflow (toolbar.jsx)
+   moves the next button of OVERFLOW_ORDER into "More", Views last. A dot while the view has
+   unsaved changes */
 .pk-toolbar > .pk-view-name {
     display: inline-flex;
     flex: 0 1 auto;
     align-items: center;
     gap: 0.4em;
-    min-width: 0;
+    min-width: 4em;
     max-width: 18em;
     min-height: var(--pk-target);
     padding: 0 0.3em;
