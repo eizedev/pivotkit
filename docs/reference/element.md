@@ -76,7 +76,7 @@ supported.
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
 is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, sources, labels, field defaults and limits are properties only. A view is user input either
+Data, templates, sources, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
 way: pivotkit-core normalizes it against the data and it cannot run code.
 
 The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
@@ -158,7 +158,10 @@ a new history.
 ## Events
 
 Every event is a `CustomEvent` that bubbles and is composed: a listener on the element, on a parent
-or on the document gets it, with `event.target` the element.
+or on the document gets it, with `event.target` the element. So does every other script on the page:
+the details carry the view and, for `pivot-cell-click`, the page's own row objects behind the cell.
+A page that shows data some of its scripts must not read keeps those scripts off the page, as it
+would for the data itself.
 
 | Event | What |
 | --- | --- |
@@ -324,10 +327,10 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
 | First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 468 KiB | 152 KiB |
-| On the first chart (ECharts with bar, line, pie, heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 602 KiB | 204 KiB |
-| On the first XLSX or CSV export (pivotkit-core's export, and fflate as a chunk it shares with the link) | 2 | 24 KiB | 11 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 602 KiB | 204 KiB |
+| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
-| Right after the first render (the menus' panels and the texts only they show) | 1 | 68 KiB | 20 KiB |
+| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the texts only they show) | 1 | 68 KiB | 20 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

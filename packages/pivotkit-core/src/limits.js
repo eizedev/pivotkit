@@ -5,8 +5,8 @@
  * computed exactly before the aggregation starts; `cells` in toGrid() and
  * toSeries(), which are dense (rows x columns) and would otherwise allocate gigabytes for two
  * high-cardinality fields; `cacheEntries` per encoded data set. The defaults are sized for a browser
- * tab and the about 100,000 rows the engine is designed for (the core README, "Limits", has the
- * numbers behind them). Every function that takes `options.limits` merges it over these defaults.
+ * tab and the about 100,000 rows the engine is designed for (docs/concepts/limits.md, "Why the
+ * defaults are what they are", has the numbers behind them). Every function that takes `options.limits` merges it over these defaults.
  */
 
 import { PivotkitError } from "./errors.js";

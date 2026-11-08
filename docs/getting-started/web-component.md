@@ -107,8 +107,9 @@ document.getElementById("report").data = JSON.parse(document.getElementById("rep
 
 `JSON_HEX_TAG` writes `<` and `>` as `\u003C` and `\u003E`, so a value containing `</script>` cannot end
 the block. A start view fits in the attribute:
-`default-view='<?= htmlspecialchars(json_encode($view), ENT_QUOTES) ?>'`. Data never goes into an
-attribute.
+`default-view='<?= htmlspecialchars(json_encode($view), ENT_QUOTES) ?>'` (`ENT_QUOTES` also encodes
+`'`, which PHP before 8.1 leaves alone by default and the attribute's quotes need). Data never goes
+into an attribute.
 
 ## Angular
 
@@ -123,6 +124,7 @@ import type { PivotView } from "pivotkit-element";
 @Component({
     selector: "app-ticket-report",
     standalone: true,
+    // <pivot-report> is no Angular component: the schema lets the template use it
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     template: `
         <pivot-report

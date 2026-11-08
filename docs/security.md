@@ -72,7 +72,8 @@ reference depth and the number of schema objects it reads.
 
 ## Content-Security-Policy
 
-The web component was measured in Chromium, Firefox and WebKit with this policy in a `<meta>` element:
+The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,
+Firefox and WebKit of Playwright 1.64.1, with this policy in a `<meta>` element:
 
 ```text
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'
@@ -81,8 +82,14 @@ default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect
 - The report renders and is styled: its constructed stylesheet is not blocked by `style-src 'self'`,
   and the inline styles React sets through the CSSOM are not blocked either.
 - The chart works: ECharts loads from its chunk and draws on a canvas; nothing needs `'unsafe-eval'`.
-- The XLSX, CSV and PNG exports download.
-- No violation is reported, and the test checks that the policy is in force.
+  Its tooltip shows on hover without a violation: pivotkit-react builds it as DOM nodes with styles
+  set through the CSSOM and the data's texts as `textContent`, instead of ECharts' default HTML string
+  with inline `style` attributes (which `style-src-attr` would refuse).
+- The XLSX and PNG exports download (a blob URL on an `<a download>`; no `fetch` of `data:`); CSV
+  takes the same path as XLSX.
+- No violation is reported (`securitypolicyviolation`) and nothing is logged; the test checks that the
+  policy is in force by adding an inline `<style>`, which is refused.
+- The `<style>` fallback is tested on its own page (constructable stylesheets removed), without CSP.
 
 Not covered: browsers without constructable stylesheets fall back to a `<style>` element, which needs
 `style-src 'unsafe-inline'` (the element has no nonce option); only the `<meta>` form of the policy was

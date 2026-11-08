@@ -18,7 +18,8 @@ npm install pivotkit-react react react-dom echarts
 ```
 
 React, ReactDOM and Apache ECharts are **peer dependencies**: your app provides them, so the page has
-one copy of each. pivotkit-core and @dnd-kit come with the package.
+one copy of each. pivotkit-core (a caret range) and `@dnd-kit/core` and `@dnd-kit/sortable` (pinned
+exactly) come with the package.
 
 | Peer | Range | Why it is a peer |
 | --- | --- | --- |

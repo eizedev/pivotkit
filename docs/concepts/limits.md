@@ -68,14 +68,60 @@ over it and reports it as an issue.
 | `collapsed` | 10,000 | Collapsed groups. |
 | `topCount` | 1,000,000 | The `count` of a top N filter. |
 
-The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for; the
-[pivotkit-core README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#limits)
-has the measurements behind each number. `groups` can be raised to 2^27 at most. A host that takes
-data or views from untrusted users can lower them, for example
+The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for;
+[what each limit counts](#what-each-limit-counts) and [why the defaults are what they
+are](#why-the-defaults-are-what-they-are) are below. `groups` can be raised to 2^27 at most. A host
+that takes data or views from untrusted users can lower them, for example
 `{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
 
 The XLSX export adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a larger grid
 throws) and 32,767 characters per cell (longer text is cut).
+
+### What each limit counts
+
+| Limit | Counts | When |
+| --- | --- | --- |
+| `rows` | Rows `encode` accepts. | Before any column is built. |
+| `groups` | Nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals. | The distinct leaves of an axis before its first node is made, then each node before it is made. |
+| `pivotCells` | Cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included. | A lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored. |
+| `work` | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell. | Exactly, after the filters and before the key trees are built. |
+| `cells` | Cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`). | Before the grid or the series is built. |
+| `cacheEntries` | Derived columns and sort orders kept per data set. | On each new entry; the least recently used go first. |
+| `axisFields`, `values`, `json`, `name`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | The size of a view and its parts. | In `normalize`: more is dropped as an issue. |
+
+`error.details.value` is the count when the limit was hit: for a limit counted while it grows, the
+first count above `max`, not the total. `groups` must stay at or below 2^27 (134,217,728): cell keys
+are row node id x column count + column node id and stay exact in a double only up to there; a larger
+value is `INVALID_OPTION`.
+
+Not counted: the data itself (the host's rows and the encoded columns, rows x columns; `rows` caps the
+rows, the number of columns is not limited), "show values as" and sorting after the aggregation (they
+grow with the cells, which `pivotCells` bounds), and the time a pivot within the limits takes.
+
+### Why the defaults are what they are
+
+Measured in Node 26 on arm64; other engines and machines differ.
+
+- `rows`: the encoded columns take about 4 to 12 bytes per row and column, the host's row objects
+  more; a million rows is ten times the design size.
+- `axisFields`: each row updates (row fields + 1) x (column fields + 1) cells per value, 81 at 8 x 8
+  and 1,089 at 32 x 32; a report nested deeper than eight levels per axis is hard to read anyway.
+- `groups`: a key tree keeps about 400 bytes per node, so the trees stay at about 200 MB. A table
+  shows at most one row per row node, and more than `cells` allows does not render either.
+- `pivotCells`: 100,000 rows that are all distinct pairs on three row and two column fields make
+  1.2 million; a view of many fields with many values each is refused within a fraction of a second.
+  At the defaults the largest pivots measured (495,000 rows, one row and one column field of 240,000
+  values each, with and without "show values as") took 0.8 to 2.6 s and grew the process memory (RSS)
+  by up to about 1.5 GB.
+- `work`: per cell update, a sum takes about 2.5 ns and no memory beyond its cells; a median 9 to 11
+  ns and 10 to 18 bytes; a unique count of distinct values 65 to 80 ns and 28 to 42 bytes. 100 million
+  updates of a sum take a fraction of a second; the weight of 10 keeps the entries of medians and
+  unique counts at 10 million, about 400 MB at most. 100,000 rows on three row and two column fields
+  with five values make 6 million.
+- `values`: each value is a column per column item; more than 16 side by side cannot be read, and
+  `work` bounds what they cost.
+- `cacheEntries`: a derived column takes 12 bytes per row, so 16 entries of a million rows stay at
+  about 200 MB.
 
 In the UI, a layout over a limit shows a message in place of the result that says which limit and
 what to change, for example "This layout makes more than 500,000 groups of rows and columns. Remove a
@@ -92,6 +138,8 @@ the cost of time and memory; see the [performance numbers](../reference/react.md
 
 - **A bad view never throws.** `normalize` drops what it cannot use and reports each issue with its
   path; every function that takes a view normalizes it first.
+- **Issues and error messages quote the view and the data**: field names, items, column spellings.
+  Both come from users, so show them as text (React's `{text}`, `textContent`), never as HTML.
 - **A programmer error throws** a `PivotkitError` with a `code`:
 
 | `code` | When |

@@ -35,7 +35,8 @@ on the first chart. pivotkit-element bundles the parts it uses.
 ## Node
 
 pivotkit-core runs in **Node 22 or later**; CI tests Node 22 and 24. The engine's sources use only what
-browsers and Node share (no `process`, no `Buffer`), so the same code runs in both.
+browsers and Node share (no `process`, no `Buffer`), so the same code runs in both; the browser tests
+run it in Chromium, Firefox and WebKit through pivotkit-react.
 
 ## Phones and touch
 

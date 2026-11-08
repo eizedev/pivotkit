@@ -25,7 +25,7 @@ Two settings decide how a report reads:
 | German | `de`, `de-DE`, `de-AT`, `de-CH`, ... | `LABELS.de` |
 
 `LABELS` is exported by pivotkit-react's subpath `pivotkit-react/labels` (`import { LABELS } from "pivotkit-react/labels"`; a subpath of its own, so the report's first load does not carry the menus' texts); its keys are the
-reference for every text. The report's `lang` attribute follows the labels, so screen readers use the
+reference for every text (in the source: `src/labels.js` and `src/menu-labels.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
 right voice.
 
 ## Changing single texts

@@ -22,7 +22,7 @@ whole report. A field in a zone is a **chip**; its menu changes how it is shown.
 
 | To put a field into a zone | How |
 | --- | --- |
-| Drag | Drag the field into a zone. The lists and the page scroll while you drag. |
+| Drag | Drag the field into a zone. The lists and the page scroll while you drag, and the field you drag is drawn above everything. |
 | Click | Click the field, or press Enter on it: numbers go to Values, everything else to Rows. |
 | Menu | Open the field's menu (the three dots, or a click on the grip left of the field, which says "Drag into a zone") and choose **Add to Rows**, **Columns**, **Values** or **Filters**. |
 

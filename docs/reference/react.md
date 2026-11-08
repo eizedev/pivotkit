@@ -286,7 +286,8 @@ priority (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views last: 
 window about 1280 px wide, where the chart type is in "More") and the toolbar's width
 measured against the room each button takes with the longest of its texts in English, German and the
 report's own labels, measured in the font the toolbar is drawn in (`toolbarRoom` in `overflow.js`),
-so English and German show the same buttons in every browser. Decided before the first paint. The zones stack, one line
+so English and German show the same buttons in every browser. Decided before the first paint. The
+name of the view loaded takes the room left and is cut with "…", never below 4em. The zones stack, one line
 each, whenever the area next to the field list is narrower than 640 px (a container query on that
 area: the narrow layout, and a medium one such as a half-width card of 650 px). "Swap rows and
 columns" shows its icon only, with its name for screen readers and as a tooltip, when the head of the

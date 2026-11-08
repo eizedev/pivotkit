@@ -33,7 +33,8 @@ line under it says why, only while it is greyed out.
 
 Notes such as "Undone: Region removed", "View “Sales” saved" or "Exported pivot.xlsx" appear at the
 bottom right of the part of the report you see: under the table, or at the bottom of the window when
-the report reaches below it. A screen reader hears them.
+the report reaches below it. A screen reader hears them. Adding a field shows none: the chip is the
+feedback.
 
 | Kind | Example | Stays |
 | --- | --- | --- |
