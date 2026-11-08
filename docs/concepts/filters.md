@@ -68,7 +68,10 @@ Each field on rows or columns is sorted on its own:
 The menu of a row or column field writes these entries ([Sorting](../use/filters.md#sorting) has the
 menu as people see it): "A to Z" and "Z to A" a `label` sort, "Largest … first" and "Smallest …
 first" a `value` sort naming the value (without a value the sort counts rows), "Custom order" a
-`custom` sort. "Custom order" is offered when the view has a custom sort for the field or the host
+`custom` sort. A click on a header of the table writes the same entries
+([sort with a click on a header](../use/filters.md#sort-with-a-click-on-a-header)): a value's name a
+`value` sort of the innermost row field (`desc`, then `asc`, then no entry), a row field's name a
+`label` sort. "Custom order" is offered when the view has a custom sort for the field or the host
 gives the field an order: `fieldDefaults: { Season: { order: ["Spring", "Summer", "Autumn", "Winter"]
 } }`. A field with such an order is sorted in it as soon as it is placed on Rows or Columns, as a
 `custom` sort in the view, so a saved template keeps it. A view or template that has the field on
