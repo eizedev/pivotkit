@@ -5,7 +5,9 @@ import { PivotReport, type CellClick, type ExportFile, type FieldDefaults, type 
 import { LABELS } from "pivotkit-react/labels";
 import type { View } from "pivotkit-core";
 
-const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }];
+const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }, { file: '{"format":"pivotkit-view","formatVersion":1,"name":"From a file","view":{}}', scope: "shared" }, { name: "Mine", view: {}, scope: "user", deletable: true }];
+const publish = (name: string, view: ViewInput): Promise<string> => Promise.resolve(`${name}:${view.rows?.length ?? 0}`);
+const store: PivotReportProps = { templates, templateStore: "browser", storageKey: "sales", canPublish: true, onPublishTemplate: publish, onSaveTemplate: (name, view, where) => [name, view.rows, where.scope], onDeleteTemplate: (name, where) => where.scope === "shared" && name };
 const onCell = (c: CellClick): number => c.count + c.rows.length + c.row.length;
 const props: PivotReportProps = { data: [{ Region: "North", Units: 3 }], templates, theme: "dark", locale: "de-DE", height: 480, limits: { cells: 10_000 } };
 const de: string = LABELS.de.zones.rows;
@@ -19,6 +21,7 @@ const deleteLater = async (name: string): Promise<void> => void name;
 const keepCsv = (f: ExportFile): boolean => f.kind !== "csv" || f.blob.size < 0 || f.fileName === "";
 
 export const elements = [
+    <PivotReport key="s" data={[]} {...store} />,
     <PivotReport key="a" {...props} onCellClick={onCell} onViewChange={(v: View) => v.rows.length} onSaveTemplate={(name: string, v: View) => [name, v]} labels={partial} />,
     <PivotReport key="b" data={[]} dataKey="v1" defaultView={start} fieldDefaults={defaults} onDeleteTemplate={deleteLater} onExport={keepCsv} />,
     <PivotReport key="c" view={start} onViewChange={() => undefined} labels={wrong} />,

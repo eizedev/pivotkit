@@ -163,7 +163,8 @@ test("a popover inside a transformed ancestor is placed from that ancestor's ori
 });
 
 test("a host that refuses to save a view: its own message when it gives one, a plain note when not", () => {
-    const { en, de } = LABELS;
+    // the texts of save, delete and publish load with the Views menu
+    const { en, de } = MENU_LABELS;
     const save = (e, l = en) => hostFailure(l.toastSaveFailed, l.toastSaveRejected, e);
     assert.equal(save(new Error("Name taken")), "The view could not be saved: Name taken");
     assert.equal(save("Quota reached"), "The view could not be saved: Quota reached");

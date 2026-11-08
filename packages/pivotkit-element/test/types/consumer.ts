@@ -6,7 +6,7 @@ import { EVENTS as EVENTS_ONLY, define as defineOnly } from "pivotkit-element/el
 const el: PivotReportElement = document.createElement("pivot-report");
 const found: PivotReportElement | null = document.querySelector("pivot-report");
 const start: PivotView = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
-const templates: Template[] = [{ name: "By region", view: start, deletable: true }];
+const templates: Template[] = [{ name: "By region", view: start, scope: "user", deletable: true }];
 
 el.data = [{ Region: "North", Units: 3 }];
 el.defaultView = start;
@@ -35,7 +35,11 @@ el.addEventListener("pivot-cell-click", (e) => {
     return cell.count + cell.rows.length;
 });
 el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(fetch(`/templates/${e.detail.name}`, { method: "PUT", body: JSON.stringify(e.detail.view) })));
-el.addEventListener("pivot-template-delete", (e) => e.detail.respondWith(Promise.resolve(e.detail.name)));
+el.addEventListener("pivot-template-delete", (e) => e.detail.respondWith(Promise.resolve(`${e.detail.name}:${e.detail.scope}`)));
+el.addEventListener("pivot-template-publish", (e) => e.detail.respondWith(fetch(`/shared/${e.detail.name}`, { method: "PUT", body: JSON.stringify(e.detail.view) })));
+el.templateStore = "browser";
+el.canPublish = true;
+el.templates = [{ file: { format: "pivotkit-view", formatVersion: 1, name: "From a file", view: {} }, scope: "shared" }];
 // composed: a listener on the document knows the detail too
 document.addEventListener("pivot-export", (e) => {
     const file: ExportFile = e.detail;

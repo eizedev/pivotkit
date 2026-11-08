@@ -77,7 +77,7 @@ export function safeHref(value) {
  * @param {object} root
  * @param {string} ref
  */
-function pointer(root, ref) {
+export function pointer(root, ref) {
     if (typeof ref !== "string" || !ref.startsWith("#")) {
         return undefined;
     }
@@ -191,9 +191,15 @@ function typeOf(s) {
     return list.length === 1 && typeof list[0] === "string" ? list[0] : undefined;
 }
 
-/** The row schema `options.schema` names in an OpenAPI (or Swagger) document. */
-function namedSchema(doc, name) {
-    expect(typeof name === "string" && name.trim() !== "", "fieldDefaultsFromSchema: an OpenAPI document needs options.schema, the name of a schema or a local $ref");
+/**
+ * The schema `name` names in an OpenAPI (or Swagger) document: a schema of `components.schemas` (or
+ * `definitions`), or a local `$ref` ("#/components/schemas/Release"); undefined when there is none.
+ * @param {object} doc
+ * @param {unknown} name
+ * @param {string} [caller]  the function named in the error
+ */
+export function namedSchema(doc, name, caller = "fieldDefaultsFromSchema") {
+    expect(typeof name === "string" && name.trim() !== "", `${caller}: an OpenAPI document needs options.schema, the name of a schema or a local $ref`);
     if (name.startsWith("#")) {
         return pointer(doc, name);
     }

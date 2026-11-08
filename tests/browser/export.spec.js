@@ -179,3 +179,37 @@ test.describe("drill-down panel", () => {
         await expect(page.locator(".pk-toasts")).toContainText("1.000 von 4.000 Zeilen als JSON kopiert");
     });
 });
+
+test.describe("what a copy says, and the Export menu's sections", () => {
+    test("a copy from the drill-down is said on top of the panel, in plain words", async ({ page }) => {
+        await captureClipboard(page);
+        await page.goto("?data=tickets");
+        await page.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();
+        await page.getByTestId("drill-panel").getByTestId("drill-export").click();
+        await page.getByTestId("drill-copy").click();
+        const toast = page.locator(".pk-toast").last();
+        await expect(toast).toContainText("tab-separated, pastes into Excel or Google Sheets as columns");
+        // seen, not hidden behind the open panel
+        const shown = await toast.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return hit === el || el.contains(hit);
+        });
+        expect(shown).toBe(true);
+    });
+
+    test("Download and Copy fold like the other menus' sections, remembered; the i says what Copy table gives", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await toolbar(page, "export");
+        await page.getByTestId("setting-info-copyTable").focus();
+        await expect(page.locator(".pk-info-pop")).toContainText("tab-separated, pastes into Excel or Google Sheets as columns");
+        await page.getByTestId("section-exportDownload").click();
+        await expect(page.getByTestId("section-exportDownload")).toHaveAttribute("aria-expanded", "false");
+        await expect(page.getByTestId("export-xlsx")).toBeHidden();
+        await page.keyboard.press("Escape");
+        await page.reload();
+        await toolbar(page, "export");
+        await expect(page.getByTestId("export-xlsx")).toBeHidden();
+        await expect(page.getByTestId("export-copy-table")).toBeVisible();
+    });
+});

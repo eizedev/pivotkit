@@ -9,7 +9,7 @@ A **view** is the whole report as a small JSON object: which fields are on rows 
 values are computed and how, the filters, the sort, the totals, table or chart. The same object is
 
 - the start preset you pass to the report (`defaultView`, or `default-view` on the element),
-- the saved view people save and load (the host's `templates`),
+- the template people save and load (the host's `templates`: shared views and their own),
 - one step of the undo history,
 - what `onViewChange` (or `pivot-view-change`) hands you on every change.
 
@@ -93,11 +93,14 @@ reports. The UI normalizes every view it gets.
 
 ## Saved views in the UI
 
-The report's **Views** menu lists what you pass in `templates` (`{ name, view, deletable? }`) under
-**Saved views** and offers the first three in the empty state. With `onSaveTemplate` (or
+The report's **Views** menu lists what you pass in `templates` in two groups, **Shared views** and
+**My views**, and offers the first three in the empty state. With `onSaveTemplate` (or
 `save-templates` on the element) people save the current view under a name; your code stores it and
-passes the new list back. The menu stays open after a save, with the name field empty again. Entries marked `deletable` get a delete button with a confirmation. Names
-need not be unique. The menu's second section, **Share**, copies or downloads the view as a
+passes the new list back, or the browser keeps them (`templateStore="browser"`). The menu stays open
+after a save, with the name field empty again. Entries marked `deletable` get a delete button with a
+confirmation; with `canPublish` people publish one of their views as a shared view. Names need not be
+unique. [Templates and shared views](templates.md) describes the groups, where templates are kept and
+how to provide them. The menu's last section, **Share**, copies or downloads the view as a
 [view file](../reference/view-file.md) and loads one ([sharing](sharing.md)).
 
 ## Versions

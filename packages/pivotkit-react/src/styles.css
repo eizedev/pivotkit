@@ -21,6 +21,7 @@
     --pk-radius-sm: 7px;
     --pk-row-h: 2.45em;
     --pk-panel-w: 268px;
+    --pk-rail-w: 40px;
     --pk-duration: 180ms;
     --pk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     --pk-heat-low: #eaf1fb;
@@ -134,10 +135,8 @@
        zones, the tips and the result's least height need (use-big-result.js); a lower host box lets
        it grow, so the page scrolls */
     min-height: 320px;
-    /* clip, not hidden, where the browser has it: the root does not become a scroll container, so the
-       status notes (.pk-toast-dock) stay at the edge of the window while the report reaches past it */
-    overflow: hidden;
-    overflow: clip;
+    /* not clipped: the popovers' layer (.pk-layer) is in the root, and Safari clips a fixed popover
+       to a clipping ancestor; the layout inside clips instead (.pk-layout) */
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface);
@@ -363,6 +362,12 @@
 
 .pk-layout {
     position: relative;
+    /* clip, not hidden, where the browser has it: no scroll container, so the status notes
+       (.pk-toast-dock) stay at the edge of the window while the report reaches past it; the root's
+       round corners, inside its border */
+    overflow: hidden;
+    overflow: clip;
+    border-radius: calc(var(--pk-radius) - 1px);
     display: grid;
     grid-template-columns: var(--pk-panel-w) minmax(0, 1fr);
     flex: 1;
@@ -372,6 +377,40 @@
 /* medium: the field list at most 244 px wide; derived here, so --pk-panel-w stays the host's token */
 .pk-root[data-pk-size="medium"] .pk-layout {
     grid-template-columns: min(var(--pk-panel-w), 244px) minmax(0, 1fr);
+}
+
+/* the field list collapsed to a rail: "Fields" upright and a search button (not on a narrow report) */
+.pk-root[data-pk-fields] .pk-layout {
+    grid-template-columns: var(--pk-rail-w) minmax(0, 1fr);
+}
+
+.pk-rail {
+    align-items: center;
+    padding: 8px 0;
+}
+
+.pk-rail-open {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 6em;
+    padding: 8px 0;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: none;
+    color: var(--pk-text);
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.pk-rail-open:hover {
+    background: var(--pk-surface-3);
+}
+
+.pk-rail-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
 }
 
 .pk-panel-slot {
@@ -1342,6 +1381,11 @@
     gap: 2px;
 }
 
+/* the Views menu's groups stand in the popover as its own sections */
+.pk-views {
+    display: contents;
+}
+
 .pk-switch {
     display: flex;
     align-items: center;
@@ -2177,7 +2221,8 @@
 .pk-toast-dock {
     position: sticky;
     bottom: 0;
-    z-index: 30;
+    /* above the drill-down panel (45): its copies and exports are said there too */
+    z-index: 46;
     height: 0;
     flex: none;
     /* takes no room: not even the gap of .pk-main before it */

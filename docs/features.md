@@ -44,6 +44,7 @@ version is [What pivotkit does](overview.md).
 - Layout keeps its name and its place; it shows pressed while the zones are open (`aria-pressed`), and in More it is an entry with a check ([guide](guide.md#small-screens)).
 - A report without a height of the host's, lower than its toolbar, zones, tips and the result's least height (240 px, 280 px narrow) need, grows so the page scrolls; with a height (a card) it stays inside and the table scrolls; `grow` / `grow` decides it either way ([layout](reference/react.md#layout)).
 - A menu whose code could not be loaded (offline, `dist/chunks/` not deployed) says so with Try again ([files](reference/react.md#files-the-package-loads)).
+- « next to "Fields" collapses the field list to a rail of about 40 px ("Fields" upright and a search button, `aria-expanded`); the rail opens it, its search button opens it with the focus in the search field; the focus stays on the button in the place of the one pressed; a chip dropped on the rail leaves the report, and while one is dragged the rail reads "Drop here to remove" (announced); remembered with the tips (`storageKey`); `fieldList` / `field-list` (`"open"`, `"collapsed"`; another value is ignored with a console warning) starts it so, over the stored choice; not on a narrow report (the drawer); Enlarge hides the rail too ([guide](guide.md#more-room-for-the-result)).
 - Enlarge, at the top right of the result: the result fills the report, the field list, zones, tips and notes step aside, one line names the fields; Escape or the button brings them back; not part of the view ([guide](guide.md#more-room-for-the-result)).
 - While enlarged the button reads Reduce (Verkleinern) and is highlighted; its name says what a click does, so it is no toggle button (no `aria-pressed`); the drill-down's Enlarge works the same ([guide](guide.md#more-room-for-the-result)).
 - Full screen, next to it: the whole report on the screen (Fullscreen API, also in the web component's shadow root); Escape leaves it; not offered where the browser cannot ([guide](guide.md#more-room-for-the-result)).
@@ -131,11 +132,12 @@ version is [What pivotkit does](overview.md).
 - Copy table (the table as shown, tab-separated, headers and totals) and Copy data as JSON (labels and raw values) put the table on the clipboard; where the page does not allow copying a note says so ([guide](guide.md#undo-saved-views-and-export)).
 - Every file and every copy passes `onExport` first (`xlsx`, `csv`, `png`, `json` for a downloaded view file, `copy-table`, `copy-json`, and the drill-down's `drill-copy`, `drill-json`, `drill-csv`, `drill-xlsx`) ([React props](reference/react.md#props)).
 - The CSV is UTF-8 with a byte order mark; the XLSX sheet is named after `fileName` (valid for Excel, at most 31 characters); the PNG is at twice the screen's resolution on the report's background colour ([guide](guide.md#undo-saved-views-and-export)).
+- The Export menus (the toolbar's and the drill-down's) have the sections Download and Copy, which fold like the other menus' sections and are remembered with them; Copy table and the drill-down's Copy say in their "i" and in the note after the copy that it is tab-separated and pastes into Excel or Google Sheets as columns; the notes show above the open drill-down panel ([guide](guide.md#undo-saved-views-and-export)).
 - The export menu explains Excel, CSV, Copy table and Copy data as JSON with an "i" each; the chart image says "Switch to Chart first." while the table is shown ([guide](guide.md#undo-saved-views-and-export)).
 
 ## Sharing
 
-- The Views menu: Saved views and Share ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
+- The Views menu: Shared views, My views and Share ([sharing](concepts/sharing.md#in-the-views-menu-for-the-people-who-use-the-report)).
 - Copy link (with `shareLink`), Copy view as JSON, Download view (.pivotkit.json), Load view… from text, a link or a file ([sharing](concepts/sharing.md)).
 - What is shared is a view file: the view with its name, the data it was made for (`source`) and the fields it uses, in a documented, versioned format with a JSON Schema ([view file format](reference/view-file.md)).
 - The JSON Schema ships in pivotkit-core (`pivotkit-core/schema/view-file-1.json`) and is published on this site; `$schema` points to it, to a host's own copy (`schemaUrl` / `schema-url`) or is left out ([view file format](reference/view-file.md#the-fields)).
@@ -155,7 +157,18 @@ version is [What pivotkit does](overview.md).
 
 ## Saved views
 
-- The host's `templates`, under Saved views in the Views menu: load, save under a name (up to 120 characters, Enter saves), delete with a confirmation; the host stores them ([views](concepts/views.md#saved-views-in-the-ui)).
+- The host's `templates` in two groups of the Views menu, Shared views and My views (`scope`; without it a `deletable` entry is the user's own); a group without entries is not shown ([templates](concepts/templates.md)).
+- An entry is a view or a view file (`file`, its object or text; the entry's name defaults to the file's) ([templates](concepts/templates.md#what-a-template-is)).
+- Load with one click, save under a name (up to 120 characters, Enter saves), delete with a confirmation in place ([views](concepts/views.md#saved-views-in-the-ui)).
+- Where someone can change shared views (a deletable shared entry, or Publish), a shared view that cannot be deleted has an "i": "Only admins can change shared views." (`labels.settingInfo.sharedView`; hidden with Show explanations off) ([templates](concepts/templates.md)).
+- Every name in the Views menu is plain text, at most 120 characters; a deletable entry without `scope` is listed under My views, with a console warning once ([templates](concepts/templates.md#what-a-template-is)).
+- A published view is sent normalized against the data; the host's server checks who may save, publish or delete ([templates](concepts/templates.md#your-application-keeps-them-callbacks)).
+- "Publish as shared view" on each of the user's views with `canPublish` / `can-publish`, after a confirmation in place; `onPublishTemplate` (event `pivot-template-publish`) ([templates](concepts/templates.md#your-application-keeps-them-callbacks)).
+- `onSaveTemplate` and `onDeleteTemplate` get the scope (`{ scope }`; the element's events `detail.scope`) ([templates](concepts/templates.md#your-application-keeps-them-callbacks)).
+- After a delete, a publish or Cancel the focus goes back to the entry in that place ([templates](concepts/templates.md)).
+- `templateStore="browser"` / `template-store="browser"`: My views in the browser's localStorage per `storageKey`, per data (`source`), at most 100 views and 500,000 characters (a save only: a store over them can always shrink; a longer text is not read), a delete changed in another tab meanwhile says so, read after hydration; the menu says they are only in this browser; `onSaveTemplate` wins ([templates](concepts/templates.md#the-browser-keeps-my-views-templatestorebrowser)).
+- pivotkit-core/templates: `parseTemplates` reads a list of templates, capped, names plain text; `templatesFromSchema` reads the extension `x-pivotkit-views` of an OpenAPI document or JSON Schema (pivotkit's own convention) ([templates](concepts/templates.md#templates-in-an-openapi-document-x-pivotkit-views)).
+- The playground lists the views of the endoflife.date OpenAPI document (a demo extension of its copy) under Shared views and keeps My views in the browser ([templates](concepts/templates.md#templates-in-an-openapi-document-x-pivotkit-views)).
 - After Save the Views menu stays open with the new entry, the name field empty and Copy link one click away ([views](concepts/views.md)).
 - The name field has an ×; Escape in it empties it first, then closes the menu ([guide](guide.md#menus-and-text-fields)).
 
@@ -211,7 +224,7 @@ Every setting of a host, as the React prop and the element's attribute (objects 
 
 - Data: `data`, `dataKey` (property), `encoded` (React only), `timeZone` / `time-zone`, `limits` (property).
 - The view: `view` / `view` (JSON) controlled with `onViewChange` (event `pivot-view-change`), `defaultView` / `default-view` (JSON) uncontrolled.
-- Saved views: `templates` (property), `onSaveTemplate` / `save-templates` (event `pivot-template-save`), `onDeleteTemplate` (event `pivot-template-delete`).
+- Saved views: `templates` (property), `onSaveTemplate` / `save-templates` (event `pivot-template-save`), `onDeleteTemplate` (event `pivot-template-delete`), `onPublishTemplate` (event `pivot-template-publish`) with `canPublish` / `can-publish`, `templateStore` / `template-store`.
 - Source of the data: `source` / `source-id` and `source-name`, `sources` (property), `onSourceSwitch` (event `pivot-source-switch`); the view files' `$schema`: `schemaUrl` / `schema-url`.
 - Fields: `fieldDefaults` (property): `agg`, `format`, `drillFormat` (the drill-down's format), `order`, `label`, `description`, `href` (the "Learn more" link), `type`.
 - Drill-down: `drillDown` / `drill-down`, `drillDownLimit` / `drill-down-limit`, `onCellClick` (event `pivot-cell-click`).

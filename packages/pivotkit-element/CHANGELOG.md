@@ -12,6 +12,12 @@ First release.
 
 ### Added
 
+- The attribute `field-list` (`"open"`, `"collapsed"`): the field list collapsed to a rail, as
+  pivotkit-react's `fieldList`.
+- Templates as pivotkit-react's: `templates` entries with `scope` and `file`, the attributes
+  `template-store` (`"browser"`: "My views" in localStorage, no event for its saves and deletes) and
+  `can-publish`, the event `pivot-template-publish` (`{ name, view, respondWith }`), and `scope` in
+  the details of `pivot-template-save` and `pivot-template-delete`.
 - `pivot-export` also for every copy and the drill-down's exports: kinds `copy-table`, `copy-json`,
   `drill-copy`, `drill-json`, `drill-csv`, `drill-xlsx`; a copy has `text`, a drill-down export
   `rows: { shown, count }`; `preventDefault()` keeps a copy from the clipboard as it keeps a file
@@ -19,7 +25,6 @@ First release.
   unchanged); the menus' budget is 17.5 KiB (16.4 measured), the export's 11.5 (10.6 with the rows
   export, TSV and JSON); the size check follows the chunks a chunk loads (the export is loaded from
   the menus).
-
 - Attributes `share-link`, `persist-view`, `loading`, `field-info` and `zone-info`, and the property
   `chartOptions`, as pivotkit-react's props; `pivot-export` also for a downloaded view (`kind`
   `"json"`). pivotkit-core's link module is a chunk of its own, loaded on the first link; the size

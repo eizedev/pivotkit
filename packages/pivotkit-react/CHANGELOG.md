@@ -23,6 +23,43 @@ First release.
 
 ### Added
 
+- The Export menus (the toolbar's and the drill-down's) fold their sections Download and Copy
+  (`exportDownload`, `exportCopy`), remembered as the other sections. Copy table and the drill-down's
+  Copy say in their "i" and their note that the copy is tab-separated and pastes into Excel or Google
+  Sheets as columns. The status notes show above the drill-down panel, so its copies and exports are
+  seen. The popovers' layer is no longer inside a clipping box: the report's layout clips its content
+  instead of the report, so Safari no longer cuts a popover (the filter from the field list) at the
+  report's edge.
+- The field list collapses to a rail of about 40 px (`--pk-rail-w`): « next to "Fields"
+  (`collapseFields`, `aria-expanded`), the rail with "Fields" upright (`expandFields`) and a search
+  button that opens the list with the focus in its search field; a chip dropped on the rail leaves
+  the report (the rail reads "Drop here to remove" while one is dragged); another `fieldList` value
+  is ignored with a console warning; the choice is kept with the tips (`-fields`); `fieldList` (`"open"`, `"collapsed"`)
+  starts it so. Not on a narrow report (the drawer); Enlarge hides it. The check and merge of
+  `chartOptions` and the report's marks on the chart's option load with ECharts
+  (`dist/echarts.js`), so the first load stays small; the `chartOptions` warning comes when the chart
+  is drawn.
+- Templates in two groups of the Views menu, "Shared views" and "My views" (labels `sharedViews`,
+  `myViews`; "Gemeinsame Ansichten", "Meine Ansichten"), each shown only with entries ("My views"
+  also while people can save; `noViews` when there is nothing at all). `templates` entries take
+  `scope` (`"shared"` or `"user"`; without it a `deletable` entry is the user's own) and `file`, a
+  view file instead of `view` (its name the default). A shared entry that cannot be deleted has an
+  "i": "Only admins can change shared views." (`labels.settingInfo.sharedView`), where someone can
+  change shared views (a deletable shared entry, or Publish). Every name is plain text, at most 120
+  characters; a deletable entry without `scope` is listed under My views with a console warning once.
+  A published view is sent normalized against the data. `onSaveTemplate`
+  gets `{ scope: "user" }` and `onDeleteTemplate` `{ scope }`. `canPublish` with `onPublishTemplate`
+  offers "Publish as shared view" on the user's views, asked in place (`publishView`,
+  `publishConfirm`, `publishAction`, `toastPublished`, `toastPublishFailed`,
+  `toastPublishRejected`). After a delete, a publish or Cancel the focus goes back to the entry in
+  that place. `templateStore="browser"` keeps the user's views in localStorage
+  (`pivotkit:views:<storageKey>`) as view files per data (`source`), at most 100 views and 500,000
+  characters for a save (a delete is never refused; a text over the cap is not read), a delete
+  changed in another tab meanwhile refused (`storeChanged`), read after hydration, with a note that they stay in this browser (`storeNote`) and
+  the reasons a save is refused (`storeFull`, `storeTooLarge`, `storeRefused`); the host's
+  `onSaveTemplate` wins. The texts of save and delete (`toastSaved`, `toastDeleted`,
+  `toastSaveFailed`, `toastDeleteFailed`, `toastSaveRejected`, `toastDeleteRejected`) load with the
+  menus, as does the browser store with pivotkit-core/templates, so the first load stays small.
 - The drill-down panel: Enlarge fills the report with it (Reduce or Escape brings it back, a second
   Escape closes it; the focus stays on the button; not on a narrow report, not part of the view),
   columns as wide as their content with a long text wrapping, and an Export menu: Copy (the rows as
@@ -44,7 +81,6 @@ First release.
   first), its head and Apply and Cancel always in view.
 - Enlarge of the result and of the drill-down: the name says what a click does (Enlarge, Reduce), so
   the button is no toggle (no `aria-pressed`); the highlight shows the state.
-
 - Sort by value and Top N by any value that gives numbers: the sort section lists "Largest … first"
   and "Smallest … first" for each such value, Top N has a "by" select; the first value is the
   default. A value condition on a row or column field ("Value filter…" in the Filters section of its
@@ -70,8 +106,7 @@ First release.
   every entry of a list); it wins over the view's settings; functions, values that are not JSON and
   the ECharts options that are markup or addresses (a string `formatter` at any depth, `rich`, `link`,
   `sublink`, `image`, the tooltip's element) are left out with a warning.
-- The Views menu (labels `views`, `savedViews`, `share`; "Ansichten" in German) with two sections:
-  Saved views (the host's `templates`, "Save current view") and Share: Copy link (with `shareLink`:
+- The Views menu (labels `views`, `share`; "Ansichten" in German) with the templates and Share: Copy link (with `shareLink`:
   `true` or a base URL; the view in the fragment, `#pivot=` or `#pivot-<storageKey>=`, only that
   entry changed so a hash route stays; `true` links to the page without its query; read after the
   first render as the start, and on a fragment change as one undoable step), Copy view as JSON,

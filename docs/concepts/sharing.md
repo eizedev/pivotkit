@@ -14,8 +14,8 @@ not fit is left out and said in plain words.
 
 ## In the Views menu (for the people who use the report)
 
-The Views menu has two sections: **Saved views** (the host's `templates` and "Save current view") and
-**Share**:
+The Views menu lists the templates (**Shared views** and **My views** with "Save current view", see
+[Templates and shared views](templates.md)), then **Share**:
 
 - **Copy link** (when the application allows links): an address with the view in it. Whoever opens
   it sees the same report on the same data; Reset still goes to the application's start view.
@@ -33,7 +33,7 @@ The Views menu has two sections: **Saved views** (the host's `templates` and "Sa
 - Under the entries a line says what a shared view gives away: "A view holds the names of fields and,
   in its filters, the values chosen there: share it only where those may be seen."
 
-![The Views menu with Saved views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu.png)
+![The Views menu with Shared views, My views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu.png)
 
 Where a page does not allow the clipboard, the report says so and points to Download view.
 

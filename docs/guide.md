@@ -223,6 +223,16 @@ PNG. All of it is in [Charts](concepts/charts.md).
 
 ## More room for the result
 
+**«** next to "Fields" collapses the field list to a slim rail at the side of the report that shows
+"Fields" and a search button: the zones and the result get its room. A click on the rail opens the
+list again; the search button opens it with the cursor in the search field. A chip dragged onto the
+rail leaves the report, as on the open list: while one is dragged, the rail reads "Drop here to
+remove". The report remembers the choice (with the tips); an
+application can start the list open or collapsed. On a phone the field list is a drawer, as before
+([small screens](#small-screens)).
+
+![The field list collapsed to a rail with "Fields" and a search button](assets/screenshots/field-rail.png)
+
 Two buttons at the top right of the result give it more room; neither is part of the view.
 
 - **Enlarge** lets the table or the chart fill the report: the field list, the zones, the tips and
@@ -236,10 +246,14 @@ Two buttons at the top right of the result give it more room; neither is part of
 
 - **Undo** (Ctrl+Z, on a Mac Cmd+Z) and **Redo** (Ctrl+Shift+Z or Ctrl+Y, Cmd+Shift+Z) step through
   every change. **Reset** goes back to the start view, as one step you can undo.
-- **Views** has two sections. **Saved views** loads a saved report; when the application allows it,
+- **Views** lists the saved reports in two groups. **Shared views** are the same for everyone who uses
+  the report; where someone can change them, an "i" next to one says who (by default "Only admins can change shared views."). **My views** are your own:
   "Save current view" saves yours under a name (up to 120 characters; Enter saves; the menu stays
-  open with the new entry, so **Copy link** is one click away), and your own saved
-  views can be deleted, after a confirmation. **Share** copies a link (when the application allows
+  open with the new entry, so **Copy link** is one click away), and your own views can be deleted,
+  after a confirmation. When the application allows it, the arrow next to one of your views
+  publishes it as a shared view, after a confirmation. When the report keeps your views in the
+  browser, the menu says so: they are only in this browser on this device, and gone when the site's
+  data is cleared. **Share** copies a link (when the application allows
   links) or the view as JSON, downloads it as a file (`.pivotkit.json`), and **Load view…** opens one
   from pasted text or a file; a view made for other data asks first. A line there says that a shared
   view holds the values chosen in its filters: [Sharing and keeping a view](concepts/sharing.md).
@@ -263,7 +277,9 @@ Two buttons at the top right of the result give it more room; neither is part of
   group marked as such (the shape is in [pivotkit-core's `toJson`](reference/core.md)). It is not the
   view: Views, **Copy view as JSON** copies how the report is built, not its numbers. Where the page
   does not allow copying (an address without https, a frame without the permission) a note says so:
-  "This page does not allow copying. Download a file instead."
+  "This page does not allow copying. Download a file instead." A copy says what it gave: "Table
+  copied: tab-separated, pastes into Excel or Google Sheets as columns", in the drill-down "Copied 25
+  rows: …". The menu's sections, **Download** and **Copy**, fold like the other menus' sections.
 
 ![The Export menu: Excel workbook, CSV file and chart image under Download; Copy table and Copy data as JSON under Copy](assets/screenshots/export-menu.png)
 

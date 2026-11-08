@@ -129,9 +129,16 @@ async function licenses(metafile) {
  * Enlarge and Export menu: first load 151.0 measured (no more than before), the menus 16.4, budget
  * 17.5; the export (now loaded from the menus, so the groups follow dynamic imports of the chunks
  * too) with the rows export, TSV and JSON 10.6, budget 11.5. Both load on demand, never first.
+ * The templates (shared and my views, publish, the browser store with pivotkit-core/templates) load
+ * with the menus, with the texts and actions of save and delete; the check of chartOptions and the
+ * marks on the chart's option (chart-decorate.js with the tooltip) moved to the chart
+ * (dist/echarts.js), which made room for the collapsible field list: first load 150.3 measured
+ * (Node 26), the chart 203.5, the menus 18.9 with the Export menu and the templates both, budget 20
+ * (about 5 % over). The menus load right after the first render, before a menu opens, so they count
+ * against every page that shows a report; the first load stays at its budget.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 11.5, link: 7, menus: 17.5 };
+export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 11.5, link: 7, menus: 20 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

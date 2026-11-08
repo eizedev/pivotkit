@@ -11,9 +11,8 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computePivot, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
+import { computePivot, encode, normalize, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
-import { cleanChartOptions } from "./chart-options.js";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
@@ -22,7 +21,7 @@ import { displayNames, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { copyText, safeFileName, saveBlob } from "./files.js";
-import { errorText, fill, hostFailure, plural, resolveLabels } from "./labels.js";
+import { errorText, fill, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
@@ -31,7 +30,9 @@ import { HelpContext } from "./section.jsx";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
-import { ALL_TIPS, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
+import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
+import { templateEntries, viewsName } from "./templates.js";
+import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
@@ -110,21 +111,30 @@ function outerPaths(result) {
     return out;
 }
 
-/** The browser's localStorage, or null where it is missing or blocked (a sandboxed frame throws). */
-function localStore() {
-    try {
-        return typeof window !== "undefined" && window.localStorage ? window.localStorage : null;
-    } catch {
-        return null;
-    }
-}
-
 /** The tab's sessionStorage, or null where it is missing or blocked. */
 function sessionStore() {
     try {
         return typeof window !== "undefined" && window.sessionStorage ? window.sessionStorage : null;
     } catch {
         return null;
+    }
+}
+
+/** What the console was told already, so a developer's mistake is said once per page. */
+const warned = new Set();
+const warnOnce = (text) => {
+    if (!warned.has(text)) {
+        warned.add(text);
+        console.warn(text);
+    }
+};
+
+/** A host's chartOptions as a text that changes only when they do, or the object itself (a cycle). */
+function optionsKey(options) {
+    try {
+        return JSON.stringify(options ?? null, (k, v) => (["function", "symbol", "bigint"].includes(typeof v) ? `\u0000${typeof v}` : v));
+    } catch {
+        return options;
     }
 }
 
@@ -241,6 +251,9 @@ function Report(props) {
         templates = [],
         onSaveTemplate,
         onDeleteTemplate,
+        onPublishTemplate,
+        canPublish = false,
+        templateStore,
         onCellClick,
         drillDown = true,
         drillDownLimit = DRILL_LIMIT,
@@ -270,6 +283,7 @@ function Report(props) {
         onSourceSwitch,
         schemaUrl,
         grow: growProp,
+        fieldList,
         loading = false
     } = props;
     // past its box only without a height of the host's (or when the host asks for it): a card with a
@@ -371,14 +385,11 @@ function Report(props) {
     const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
     const view = history.view;
 
-    // the host's chartOptions: plain JSON only, compared by value; what it drops is a developer's mistake
-    const chartOptionsKey = JSON.stringify(cleanChartOptions(chartOptions));
-    const cleanOptions = useMemo(() => /** @type {{ options: Record<string, unknown> | null, problems: string[] }} */ (JSON.parse(chartOptionsKey)), [chartOptionsKey]);
-    useEffect(() => {
-        if (cleanOptions.problems.length) {
-            console.warn(`pivotkit: chartOptions entries left out (only plain JSON, and no markup, addresses or text templates): ${cleanOptions.problems.slice(0, 5).join("; ")}${cleanOptions.problems.length > 5 ? `; and ${cleanOptions.problems.length - 5} more` : ""}`);
-        }
-    }, [cleanOptions]);
+    // the host's chartOptions, compared by value (a function or another value JSON cannot hold counts
+    // as its kind); the chart checks them (chart-options.js, loaded with ECharts) before it draws
+    const chartOptionsKey = optionsKey(chartOptions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stableChartOptions = useMemo(() => chartOptions, [chartOptionsKey]);
 
     const stepText = useCallback(
         (note) => {
@@ -895,30 +906,31 @@ function Report(props) {
         },
         [commit, labels, announce, limits, locale]
     );
-    // the host's callbacks may return a promise: the note comes when it is kept
-    const saveTemplate = onSaveTemplate
-        ? async (name) => {
-              try {
-                  await onSaveTemplate(name, view);
-                  setSavedAt(changesRef.current);
-                  announce(fill(labels.toastSaved, { name }));
-              } catch (e) {
-                  announce(hostFailure(labels.toastSaveFailed, labels.toastSaveRejected, e), { tone: "error" });
-              }
-          }
-        : null;
-    const deleteTemplate = onDeleteTemplate
-        ? async (name) => {
-              try {
-                  await onDeleteTemplate(name);
-                  announce(fill(labels.toastDeleted, { name }));
-                  return true;
-              } catch (e) {
-                  announce(hostFailure(labels.toastDeleteFailed, labels.toastDeleteRejected, e), { tone: "error" });
-                  return false;
-              }
-          }
-        : null;
+    // the browser store (templateStore="browser"): the user's own views in localStorage under the
+    // storageKey; read after hydration, as the tips. Its views are read with the menus' module
+    // (view-store.js), loaded right after the first render
+    const viewStore = templateStore === "browser";
+    const storeName = viewsName(storageKey);
+    const subscribeViews = useCallback((callback) => (viewStore ? subscribeItem(storeName, callback) : () => {}), [viewStore, storeName]);
+    const viewsText = useSyncExternalStore(subscribeViews, () => (viewStore ? readItem(storeName, localStore()) : null), () => null);
+    const entries = useMemo(() => templateEntries(templates, viewStore && menus ? menus.storedViews(viewsText, sourceId) : [], Boolean(onDeleteTemplate)), [templates, viewStore, menus, viewsText, sourceId, onDeleteTemplate]);
+    // what the Views menu needs to save, delete and publish (toolbar-panels.jsx: viewActions): the
+    // host's callbacks, else the browser store; the notes come when they are kept
+    const templateActions = {
+        view,
+        announce,
+        locale,
+        sourceId,
+        viewsText,
+        store: viewStore,
+        keep: (text) => writeItem(storeName, localStore(), text),
+        onSave: onSaveTemplate,
+        onDelete: onDeleteTemplate,
+        onPublish: canPublish ? onPublishTemplate : undefined,
+        // a view leaves the report checked against the data, never as it was stored
+        normalized: (v) => normalize(v, encoded, { limits }).view,
+        onSaved: () => setSavedAt(changesRef.current)
+    };
 
     const onKeyDown = (e) => {
         const target = /** @type {HTMLElement} */ (e.target);
@@ -1031,8 +1043,24 @@ function Report(props) {
         }),
         [settingSwitch.on, labels, menus, dismissed, changeDismissed]
     );
+    // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
+    // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session
+    const [fieldsSession, setFieldsSession] = useState(/** @type {boolean | null} */ (null));
+    useEffect(() => {
+        if (fieldList !== undefined && fieldList !== "open" && fieldList !== "collapsed") {
+            warnOnce(`pivotkit: fieldList ${JSON.stringify(String(fieldList)).slice(0, 40)} is neither "open" nor "collapsed"; the user's choice decides`);
+        }
+    }, [fieldList]);
+    const railed = size !== "narrow" && fieldsCollapsed(fieldsSession, fieldList, dismissed);
+    const collapseFields = (next) => {
+        if (fieldList === "open" || fieldList === "collapsed") {
+            setFieldsSession(next);
+        } else {
+            changeDismissed(next ? [...dismissed, FIELDS_COLLAPSED] : dismissed.filter((d) => d !== FIELDS_COLLAPSED), null);
+        }
+    };
     const toggle = (id, on) => changeDismissed(on ? dismissed.filter((d) => d !== id) : [...dismissed, id], on ? null : id);
-    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate), savedAt, chartPlan: plan });
+    const ctx = tipContext({ view, result, encoded, failed: Boolean(error), empty, typeOf, fields: labels.core.fields, series, tableShown: Boolean(showTable), drilled: hinted, changes, dragAt, canSave: Boolean(onSaveTemplate) || viewStore, savedAt, chartPlan: plan });
     const shownTips = activeTips(ctx, { allowed, dismissed }).map((t) => ({
         id: t.id,
         params: t.params,
@@ -1079,6 +1107,7 @@ function Report(props) {
             data-pk-size={size}
             data-pk-layout={layoutFolded ? "compact" : undefined}
             data-pk-enlarged={big.enlarged ? "" : undefined}
+            data-pk-fields={railed ? "collapsed" : undefined}
             data-pk-fit={grow ? undefined : "contain"}
             lang={labels.lang}
             // a named region, not <main>: the host's page has its own main landmark around the report
@@ -1121,6 +1150,8 @@ function Report(props) {
                                 drawer={size === "narrow"}
                                 open={drawerOpen}
                                 onClose={() => setDrawer(false)}
+                                collapsed={railed}
+                                onCollapse={collapseFields}
                                 onSkip={() => /** @type {HTMLElement | null | undefined} */ (root.current?.querySelector(".pk-toolbar button:not([disabled])"))?.focus()}
                             />
                         </div>
@@ -1145,10 +1176,9 @@ function Report(props) {
                                 onCollapse={collapseAll}
                                 folding={folding}
                                 share={share}
-                                templates={templates}
+                                templates={entries}
                                 onLoadTemplate={loadTemplate}
-                                onSaveTemplate={saveTemplate}
-                                onDeleteTemplate={deleteTemplate}
+                                templateActions={templateActions}
                                 onExport={doExport}
                                 prepareExport={prepareExporters}
                                 chartReady={view.display === "chart" && chartReady}
@@ -1248,7 +1278,7 @@ function Report(props) {
                                         <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
-                                    <EmptyState labels={labels} templates={templates} onTemplate={loadTemplate} />
+                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} />
                                 ) : view.display === "chart" && chartResult ? (
                                     <PivotChart
                                         result={chartResult}
@@ -1259,7 +1289,7 @@ function Report(props) {
                                         themeName={themeName}
                                         root={root}
                                         valueNames={view.values.map((v) => valueLabel(v, labels))}
-                                        chartOptions={cleanOptions.options}
+                                        chartOptions={stableChartOptions}
                                         onInstance={(c) => {
                                             chartRef.current = c;
                                             setChartReady(Boolean(c));
@@ -1284,11 +1314,12 @@ function Report(props) {
                                 <Toasts toasts={toasts} dismiss={dismiss} pause={pause} closeLabel={labels.close} />
                             </div>
                         </div>
+                        {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
+                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
                 </PivotDnd>
-                {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
                 <div className="pk-layer" ref={setLayer}>
                     {/* a fixed probe at 0, 0: where fixed popovers start (popover.jsx) */}
                     <span className="pk-origin" aria-hidden="true" />

@@ -30,7 +30,8 @@ one copy of the core only when the ranges overlap.
 | `echarts` | `>=6.1.0 <7` | About 1 MB; a host that draws its own charts already has it, and its security updates stay with the host. It is loaded on the first chart (`dist/echarts.js`: bar, line, pie and heatmap, the components they use and the canvas renderer, imported by name so a bundler keeps only these), so a report that never shows a chart does not load it. |
 
 `dist/index.js` is an ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
-`pivotkit-core/export`, `@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
+`pivotkit-core/export`, `pivotkit-core/link`, `pivotkit-core/templates` (with the menus),
+`@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
 `./echarts.js` next to it, whose imports `echarts/core`, `echarts/charts`, `echarts/components` and
 `echarts/renderers` stay bare too (named imports only). A host's bundler resolves them; a page without a bundler
 maps each to a file with an import map (`tests/browser/pages/build.js` builds such a page, and the
@@ -56,9 +57,9 @@ export function TicketReport({ rows, saved, saveTemplate, deleteTemplate }) {
             dataKey="tickets"
             view={view}
             onViewChange={setView}
-            templates={[...presets, ...saved.map((t) => ({ ...t, deletable: true }))]}
+            templates={[...presets, ...saved.map((t) => ({ ...t, scope: "user", deletable: true }))]}
             onSaveTemplate={(name, v) => saveTemplate({ name, view: v })}
-            onDeleteTemplate={(name) => deleteTemplate(name)}
+            onDeleteTemplate={(name, { scope }) => deleteTemplate(name, scope)}
             fieldDefaults={{ "Lead hours": { agg: "average", format: "duration:h" } }}
             onCellClick={({ row, col, count }) => console.log(row, col, count)}
             locale="de-DE"
@@ -82,9 +83,12 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `view` | view | | Controlled: the view to show. Pass back what `onViewChange` gives; the undo history stays in the report however often the host renders. A view the host changes on its own becomes one undo step. |
 | `defaultView` | view | empty | Uncontrolled: the start view. |
 | `onViewChange` | `(view) => void` | | Every change, as a normalized view. |
-| `templates` | `{ name, view, deletable? }[]` | `[]` | The saved views of the Views menu; the first three are also offered in the empty state. `deletable: true` shows a delete button for that entry. Names need not be unique: every entry is shown in order (a saved view may have a preset's name), and `onDeleteTemplate` gets the name. |
-| `onSaveTemplate` | `(name, view) => unknown` | | Shows "Save current view". "View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). |
-| `onDeleteTemplate` | `(name) => unknown` | | Deletes a saved view marked `deletable`, after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
+| `templates` | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu in two groups by `scope`: "Shared views" (`"shared"`) and "My views" (`"user"`); without `scope` a `deletable` entry is the user's own, every other one shared. `file`: a view file (object or text) instead of `view`, its name the default. The first three are also offered in the empty state. `deletable: true` shows a delete button for that entry; a shared one without it has an "i": "Only admins can change shared views." Names need not be unique: every entry is shown in order (a saved view may have a preset's name), and `onDeleteTemplate` gets the name. [Templates and shared views](https://pivotkit.eize.dev/concepts/templates/). |
+| `onSaveTemplate` | `(name, view, { scope }) => unknown` | | Shows "Save current view" under My views (`scope` is `"user"`). "View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). It wins over `templateStore`. |
+| `onDeleteTemplate` | `(name, { scope }) => unknown` | | Deletes a template marked `deletable` (`scope`: its group), after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
+| `onPublishTemplate` | `(name, view) => unknown` | | With `canPublish`: "Publish as shared view" next to each of the user's views, after a confirmation in place; the host adds it to its shared views. "View “…” published", a failure as for `onSaveTemplate`. |
+| `canPublish` | `boolean` | `false` | The user may publish views for everyone (an admin, as the host decides). The report only shows what the host allows: the server must check who may save, publish or delete. |
+| `templateStore` | `"browser"` | | The report keeps "My views" in `localStorage` under `pivotkit:views:<storageKey>`, per data (`source`): only this browser and device, lost when the site's data is cleared, not shared (the menu says so); at most 100 views and 500,000 characters; read after hydration. `onSaveTemplate` wins. |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. Another aggregator picked in the value's menu keeps `format` while the result is in the field's unit (an average to a median), not for a count; a format the user chose stays the same way. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and so is a field on Rows or Columns of a view or template without a sort entry for it; its menu offers "Custom order" and "Custom order, reversed", and "A to Z" stays a sort entry of its own; items not listed follow by label. `label` is the name shown for the field everywhere (chips, headers, value names, drill-down, chart, exports; views keep the field name); `description` (plain text) shows behind an "i" next to the field, in its chip menu and on its headers, with `href` (https) as "Learn more"; `type` is the column type it is read as. A field without them looks as without `fieldDefaults`. pivotkit-core's `fieldDefaultsFromSchema` builds it from a JSON Schema or OpenAPI document. |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` | | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. A blank cell with no rows behind it is not clickable. |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
@@ -95,12 +99,13 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` above the report (`<html>`, or a shadow root's host), then `prefers-color-scheme`, and changes with them. |
 | `height` | `number \| string` | `640` | The report's height, pixels or a CSS length; the table and the field list scroll inside it. With a height the report stays inside it; without one it grows past 640 px when it needs more (see Layout). |
 | `grow` | `"on" \| "off"` | by `height` | Grow past the height to keep the result's least height: `"on"` without `height`, `"off"` with it. |
+| `fieldList` | `"open" \| "collapsed"` | the user's choice | The field list of a wide report open or collapsed to a rail (« and the rail; remembered with the tips); with it, the user can still change it until the page is loaded again. |
 | `limits` | `Partial<Limits>` | | pivotkit-core's limits. Data over `limits.rows`, or a layout over `limits.work`, `limits.groups`, `limits.pivotCells` or `limits.cells`, shows a message in place of the result that says what to change (`labels.tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`). A field beyond `limits.axisFields` or `limits.values` is refused with a note (`zoneFull`); a saved view with more loads the fields that fit and says so above the result (`viewTrimmed`). |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` | | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
 | `tips` | `"on" \| "off" \| string \| string[]` | `"on"` | The tips above the result (one at a time, the most important first, each dismissible): all, none (and no switch in Options), or the tip ids allowed. The ids and when each shows are on the [documentation site](https://pivotkit.eize.dev/reference/react/#tips). |
-| `storageKey` | `string` | | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. |
+| `storageKey` | `string` | | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` (`pivotkit:tips:<key>`); one key per report on a page. Without it they stay dismissed until the page is loaded again. With `templateStore="browser"` the user's own views are kept under `pivotkit:views:<key>` too. |
 | `dismissedTips` | `string[]` | | Dismissed tip ids from the host's own storage (`"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
 | `onTipDismiss` | `({ id, dismissed }) => void` | | Every dismissal, "Show tips" off and on, the other help switches, "Show dismissed tips again", with the whole list to store. |
 | `onExport` | `({ kind, fileName, blob, text, rows }) => unknown` | | Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file](https://pivotkit.eize.dev/reference/view-file/) of "Download view", `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded, and every copy before it goes on the clipboard (`"copy-table"`, `"copy-json"` from Export; `"drill-copy"`, `"drill-json"`, `"drill-csv"`, `"drill-xlsx"` from the drill-down panel; a copy has its `text` and the `fileName` it would have as a file, a drill-down export `rows: { shown, count }`); returning `false` skips the download or the copy, so the host can keep the file (upload it, say). |
@@ -114,7 +119,7 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `loading` | `boolean` | `false` | The host is loading data: the skeleton before the first data, the result covered on later loads. |
 
 Exports: `PivotReport` and the types `PivotReportProps`, `CellClick`,
-`ExportFile`, `Template`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
+`ExportFile`, `Template`, `TemplateScope`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
 `PartialLabels`. The stylesheet is `pivotkit-react/styles.css`. `pivotkit-react/labels` exports
 `LABELS` (`{ en, de }`, every text), a subpath of its own: the menus' texts load with the menus, so
 the report's first load stays small.
@@ -175,7 +180,7 @@ the report's first load stays small.
   `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
   Reset to the start view, Layout (a toggle with `aria-pressed`: the zones open or folded into one
-  line), Options, Views (Saved views and Share: link, JSON, the
+  line), Options, Views (Shared views, My views with save, delete and publish, and Share: link, JSON, the
   [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
   asks first), Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when
   the report is too narrow, Reset, Redo, Layout, Views, Options and the chart type move one by one

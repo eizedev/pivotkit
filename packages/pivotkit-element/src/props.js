@@ -28,6 +28,8 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "drill-down", prop: "drillDown", kind: "on-unless-false" },
     { attr: "drill-down-limit", prop: "drillDownLimit", kind: "number" },
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },
+    { attr: "template-store", prop: "templateStore", kind: "string" },
+    { attr: "can-publish", prop: "canPublish", kind: "flag" },
     { attr: "tips", prop: "tips", kind: "string" },
     { attr: "storage-key", prop: "storageKey", kind: "string" },
     { attr: "share-link", prop: "shareLink", kind: "flag-or-url" },
@@ -40,6 +42,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "source-name", prop: "sourceName", kind: "string" },
     { attr: "schema-url", prop: "schemaUrl", kind: "string" },
     { attr: "grow", prop: "grow", kind: "on-off" },
+    { attr: "field-list", prop: "fieldList", kind: "string" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);

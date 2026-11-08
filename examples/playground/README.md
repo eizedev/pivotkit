@@ -19,7 +19,11 @@ page shows the attribution of the picked data set in its header.
 Generated data, for the tests and the benchmarks: IT tickets (team, priority, status, created, lead
 hours), sales (region, country, product, month, revenue, units) and assets per source system. The
 rows come from a fixed seed, so every machine and every test run sees the same numbers; each of these
-data sets has three start presets. Templates you save stay in this browser (localStorage).
+data sets has three start presets. The Views menu lists the presets as shared views, and for
+endoflife.date also the views of its OpenAPI document (`x-pivotkit-views`, a demo extension the
+playground adds to its copy in `src/shared-views.js`; `data/endoflife-openapi.json` stays the API's
+document); views you save stay in this browser (`templateStore="browser"`), and the playground lets
+everyone publish one as a shared view (`canPublish`), kept in this browser too, since it has no server.
 
 ```bash
 npm ci
@@ -40,13 +44,13 @@ without it the report follows the system). The footer shows the engine timings o
 and the last `onCellClick`. The Data and Start dropdowns write `data` and `start` into the address,
 and every change of the report writes its view into the fragment (`#pivot-playground=`, pivotkit's
 share format, read back by the report's `shareLink`), so a reload keeps the report. Copy link in
-Templates copies `data`, `start`, `rows` (generated data) and the view: the playground passes that URL
+Views copies `data`, `start`, `rows` (generated data) and the view: the playground passes that URL
 as `shareLink`, so the viewer's language, theme and height stay out of it.
 
 The report is controlled (`view` + `onViewChange`) and the page renders again on every engine timing,
 as a host does; the tickets data set gives "Lead hours" an average through `fieldDefaults`, the
 assets data set shows its "Inventory number" as it is in the drill-down (`drillFormat: "text"`),
-and saved templates are `deletable`, the presets are not. `?data=markup` is a small data set with labels that
+and published views are `deletable`, the presets are not. `?data=markup` is a small data set with labels that
 look like HTML, for the browser test that nothing is rendered as markup.
 
 The browser tests in [tests/browser](../../tests/browser/) run against this build and the test pages

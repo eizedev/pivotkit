@@ -94,6 +94,8 @@ test.describe("two elements on one page", () => {
         const [save] = await events(page, "pivot-template-save");
         expect(save.detail.name).toBe("Mine");
         expect(save.detail.view.rows).toEqual(["Region", "Country"]);
+        // a save goes to the user's own views
+        expect(save.detail.scope).toBe("user");
         await tool(sales, "views");
         await sales.getByTestId("saved-view-name").fill("fail");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
@@ -104,7 +106,7 @@ test.describe("two elements on one page", () => {
         await expect(sales.locator(".pk-toasts")).toContainText("View “Mine” deleted");
         await tool(sales, "views");
         await expect(sales.getByTestId("saved-view-Mine")).toHaveCount(0);
-        expect((await events(page, "pivot-template-delete"))[0].detail.name).toBe("Mine");
+        expect((await events(page, "pivot-template-delete"))[0].detail).toEqual({ name: "Mine", scope: "user" });
         // the other element has no save-templates: its Templates menu offers no save
         await page.keyboard.press("Escape");
         const tickets = page.locator("#tickets");

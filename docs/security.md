@@ -20,6 +20,15 @@ channel described in the repository's
   `normalize()` against the data, and what was left out is said in plain words. A link is capped at
   32,000 characters and its view at 1,000,000 characters, enforced while it is inflated (1 KiB of
   input at a time), so a small crafted link can neither make a large allocation nor keep the page busy ([Sharing](concepts/sharing.md)).
+- Templates are views too. Every name in the Views menu, the host's `templates` included, is plain
+  text (control, bidi and zero-width characters removed, at most 120 characters). A list read with
+  `parseTemplates` (from a server, the browser store or an OpenAPI document's `x-pivotkit-views`) has
+  its text (5,000,000 characters) and its entries (500) capped before it is read, own properties
+  only; the browser store's text is not parsed at all above 500,000 characters. Every view is
+  normalized when it is loaded, and a published view leaves the report normalized.
+  `templatesFromSchema` follows local references only and fetches nothing. The report only shows
+  what the host allows (`canPublish`, `deletable`): the host's server must check who may save,
+  publish or delete, and validate every view it receives ([Templates and shared views](concepts/templates.md)).
 - `chartOptions` is the host's, but often JSON from a server: only plain JSON values pass, prototype
   keys and functions are dropped, depth and size are capped, and the ECharts options that are markup
   or addresses (a string `formatter`, `rich`, `link`, `image` and the tooltip's element) are dropped

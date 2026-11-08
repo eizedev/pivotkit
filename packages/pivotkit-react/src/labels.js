@@ -172,15 +172,8 @@ export const en = {
     toastRedone: "Redone: {step}",
     toastReset: "Back to the start view",
     toastExported: "Exported {file}",
-    toastSaved: "View “{name}” saved",
     toastLoaded: "View “{name}” loaded",
-    toastDeleted: "View “{name}” deleted",
     toastExportFailed: "Export failed: {message}",
-    toastSaveFailed: "The view could not be saved: {message}",
-    toastDeleteFailed: "The view could not be deleted: {message}",
-    // the host refused without saying why (a rejected promise without a message)
-    toastSaveRejected: "The server could not save the view.",
-    toastDeleteRejected: "The server could not delete the view.",
     // what an undo step was, for "Undone: ..."
     steps: {
         added: "{field} added to {zone}",
@@ -273,6 +266,9 @@ export const en = {
     panel: "Field list",
     showFields: "Fields",
     hideFields: "Close field list",
+    // the field list folded to a rail on a wide report, and opened again
+    collapseFields: "Collapse the field list",
+    expandFields: "Show the field list",
     dropToRemove: "Drop here to remove",
     // while the report waits for its data or a shared view
     loadingReport: "Loading the report…",
@@ -502,14 +498,8 @@ export const de = {
     toastRedone: "Wiederholt: {step}",
     toastReset: "Zurück zur Startansicht",
     toastExported: "{file} exportiert",
-    toastSaved: "Ansicht „{name}“ gespeichert",
     toastLoaded: "Ansicht „{name}“ geladen",
-    toastDeleted: "Ansicht „{name}“ gelöscht",
     toastExportFailed: "Export fehlgeschlagen: {message}",
-    toastSaveFailed: "Die Ansicht konnte nicht gespeichert werden: {message}",
-    toastDeleteFailed: "Die Ansicht konnte nicht gelöscht werden: {message}",
-    toastSaveRejected: "Der Server konnte die Ansicht nicht speichern.",
-    toastDeleteRejected: "Der Server konnte die Ansicht nicht löschen.",
     steps: {
         added: "{field} zu {zone} hinzugefügt",
         removed: "{field} entfernt",
@@ -597,6 +587,8 @@ export const de = {
     panel: "Feldliste",
     showFields: "Felder",
     hideFields: "Feldliste schließen",
+    collapseFields: "Feldliste einklappen",
+    expandFields: "Feldliste anzeigen",
     dropToRemove: "Zum Entfernen hier ablegen",
     loadingReport: "Bericht wird geladen…",
     loadingMenu: "Wird geladen…",

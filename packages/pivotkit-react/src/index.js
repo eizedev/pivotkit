@@ -21,10 +21,19 @@
  */
 
 /**
- * @typedef {object} Template
- * @property {string} name
- * @property {ViewInput} view
+ * @typedef {object} Template  an entry of the Views menu: a view, or a view file
+ * @property {string} [name]  shown in the menu; default the view file's name (an entry without a name is left out)
+ * @property {ViewInput} [view]
+ * @property {Record<string, unknown> | string} [file]  a view file ("pivotkit-view", its object or text)
+ *   instead of `view`, read by pivotkit-core's fromViewFile
+ * @property {"shared" | "user"} [scope]  the group: "Shared views" (for everyone) or "My views" (the
+ *   user's own); default "user" for a deletable entry, else "shared"
  * @property {boolean} [deletable]  shows a delete button when onDeleteTemplate is set (default false)
+ */
+
+/**
+ * @typedef {object} TemplateScope  where a template is or goes
+ * @property {"shared" | "user"} scope
  */
 
 /**
@@ -81,11 +90,19 @@
  * @property {ViewInput} [view]  controlled: the view to show; pass back what onViewChange gives
  * @property {ViewInput} [defaultView]  uncontrolled: the start view; the report keeps the view itself
  * @property {(view: View) => void} [onViewChange]  every change, normalized
- * @property {Template[]} [templates]
- * @property {(name: string, view: View) => unknown} [onSaveTemplate]  shows "Save" when set;
- *   "saved" is shown when it returns or the promise it returns resolves, an error when it throws or rejects
- * @property {(name: string) => unknown} [onDeleteTemplate]  deletes a template marked
- *   `deletable`; the entry goes when it returns (or its promise resolves)
+ * @property {Template[]} [templates]  the entries of the Views menu, in two groups by `scope`
+ * @property {(name: string, view: View, where: TemplateScope) => unknown} [onSaveTemplate]  shows
+ *   "Save" when set (`where.scope` is "user"); "saved" is shown when it returns or the promise it
+ *   returns resolves, an error when it throws or rejects. It wins over `templateStore`
+ * @property {(name: string, where: TemplateScope) => unknown} [onDeleteTemplate]  deletes a template
+ *   marked `deletable` (`where.scope`: its group); the entry goes when it returns (or its promise resolves)
+ * @property {(name: string, view: ViewInput) => unknown} [onPublishTemplate]  with `canPublish`:
+ *   "Publish as shared view" on each of the user's views; the host makes it a shared entry of
+ *   `templates`; "published" is shown when it returns or its promise resolves
+ * @property {boolean} [canPublish]  the user may publish views for everyone (an admin); default false
+ * @property {"browser"} [templateStore]  "browser": the user's own views are kept in this browser's
+ *   localStorage under `storageKey` (only this browser and device, lost when the site's data is
+ *   cleared), when `onSaveTemplate` is not set
  * @property {Record<string, FieldDefaults>} [fieldDefaults]  per field name: aggregator and format of a new
  *   value, custom order, display name, description, column type; pivotkit-core's fieldDefaultsFromSchema
  *   builds it from a JSON Schema or OpenAPI document
@@ -112,7 +129,8 @@
  * @property {"on" | "off" | string | string[]} [tips]  the tips above the result: "on" (default), "off"
  *   (none, and no switch in Options), or the ids of the tips allowed (an array, or a comma-separated text)
  * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per
- *   report on a page); without it they are remembered until the page is loaded again
+ *   report on a page); without it they are remembered until the page is loaded again. The browser
+ *   store of `templateStore` keeps the user's views under it too
  * @property {string[]} [dismissedTips]  dismissed tip ids from the host's own storage ("*": all tips off,
  *   "-explanations": "Show explanations" of Options → Help off;
  *   "open:<section>" and "closed:<section>": a menu section the user opened or folded)
@@ -145,6 +163,9 @@
  *   view never depends on it
  * @property {(request: SourceSwitch) => void} [onSourceSwitch]  the user chose to switch to the data a
  *   view was made for and load it there: the host shows that data and the view (as its start view)
+ * @property {"open" | "collapsed"} [fieldList]  the field list of a wide or medium report open or
+ *   collapsed to a rail; without it the user's choice («, remembered with the tips per storageKey)
+ *   decides. With it the user can still change it until the page is loaded again
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
  *   the first data) or covers its result (later loads)
  */

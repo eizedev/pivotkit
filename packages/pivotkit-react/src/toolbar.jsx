@@ -152,7 +152,7 @@ function useOverflow(ref, key, narrow, max, texts) {
  * @param {any} props  see PivotReport for what each one does
  */
 export function Toolbar(props) {
-    const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, onDisplay, onChart, onChartDisplay, onTotal, onExpand, onCollapse, folding, templates, onLoadTemplate, onSaveTemplate, onDeleteTemplate, onExport, chartReady, onShowFields, layoutFolded, onLayout, zonesId, share } = props;
+    const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, onDisplay, onChart, onChartDisplay, onTotal, onExpand, onCollapse, folding, templates, onLoadTemplate, templateActions, onExport, chartReady, onShowFields, layoutFolded, onLayout, zonesId, share } = props;
     const tips = { controls: props.tipsControls, on: props.tipsOn, onOn: props.onTipsOn, canReset: props.canResetTips, onReset: props.onResetTips };
     const bar = useRef(/** @type {HTMLDivElement | null} */ (null));
     const more = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -197,7 +197,7 @@ export function Toolbar(props) {
     const panels = {
         // the panels load with the chip menus (menus.js), on demand
         options: (close) => <MenuPanel name="OptionsPanel" loadingText={labels.loadingMenu} props={{ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help: props.help }} />,
-        views: (close) => <MenuPanel name="ViewsPanel" loadingText={labels.loadingMenu} props={{ templates, labels, onLoad: onLoadTemplate, onSave: onSaveTemplate, onDelete: onDeleteTemplate, close, share }} />,
+        views: (close) => <MenuPanel name="ViewsPanel" loadingText={labels.loadingMenu} props={{ templates, labels, onLoad: onLoadTemplate, actions: templateActions, close, share }} />,
         chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, labels, onChart, onDisplay: onChartDisplay, close }} />
     };
     /**
