@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, emptyView, encode, migrate, normalize, toGrid, validate, VIEW_VERSION } from "../src/index.js";
+import { computePivot, emptyView, encode, migrate, normalize, toGrid, validate, VIEW_ISSUE_CODES, VIEW_VERSION } from "../src/index.js";
 import { SALES } from "./fixtures.js";
+import { ISSUE_CASES, issuesOf } from "./issue-cases.js";
 
 const data = encode(SALES);
 /** The normalized view alone; the issues are checked through validate(). */
@@ -315,4 +316,20 @@ test("an inner row field sorts by a value within each group, also when two value
     // within each bin the regions by count, largest first; ties by label in the same direction, blank last
     assert.deepEqual(r.rowRoot.children[0].children.map((c) => c.key), ["North", "West", "South"]);
     assert.deepEqual(r.rowRoot.children[1].children.map((c) => c.key), ["South", "North", null]);
+});
+
+test("every issue has a code of VIEW_ISSUE_CODES, and each code is reported by its case", () => {
+    assert.deepEqual(Object.keys(ISSUE_CASES).sort(), [...VIEW_ISSUE_CODES].sort());
+    for (const code of Object.keys(ISSUE_CASES)) {
+        const issues = issuesOf(code, data);
+        assert.ok(issues.length > 0, code);
+        for (const issue of issues) {
+            assert.ok(VIEW_ISSUE_CODES.includes(issue.code), `${code}: ${JSON.stringify(issue)}`);
+            assert.equal(typeof issue.message, "string");
+            for (const value of Object.values(issue.params ?? {})) {
+                assert.ok(typeof value === "number" || (typeof value === "string" && value.length <= 100), `${code}: params ${JSON.stringify(issue.params)}`);
+            }
+        }
+        assert.ok(issues.some((i) => i.code === code), `${code}: ${JSON.stringify(issues)}`);
+    }
 });

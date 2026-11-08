@@ -89,7 +89,35 @@ pivotkit treats every view as untrusted, wherever it comes from:
   against [limits](limits.md#limits) before anything is allocated.
 
 `normalize(view, data)` in pivotkit-core returns the checked view and the issues; `validate` only
-reports. The UI normalizes every view it gets.
+reports. The UI normalizes every view it gets and shows what it dropped as a warning above the result,
+in plain words ([what people see](../use/behaviour.md#parts-of-a-view-that-were-not-used)).
+
+### Issues (for developers)
+
+An issue is `{ path, message, code, params }`:
+
+| Member | What |
+| --- | --- |
+| `path` | Where in the view: `rows[1]`, `values[0].conditional.colors`, `chart.legend`, `""` for the whole view. |
+| `message` | An English sentence for developers and logs, such as `unknown field "Planet"`; its wording may change. |
+| `code` | What kind of problem, one of `VIEW_ISSUE_CODES`: a stable name to say it in your own words. |
+| `params` | What such a text needs, when there is something: `field` (a field name), `value` (the setting or item as given, as text, at most 100 characters), `agg` (an aggregator), `type` (a field type), `max` (a limit), `zone` (the data's time zone). |
+
+| Codes | When |
+| --- | --- |
+| `notView`, `notJson`, `tooLarge`, `badVersion`, `newerVersion`, `noMigration` | Nothing of the view can be used: the empty view instead. |
+| `unknownKey` | A key a view does not have (a template's `name` among them). |
+| `notList`, `tooMany`, `tooManyItems`, `itemType` | A list that is none, longer than the [limits](limits.md#limits), or an item that does not fit the field's type. |
+| `unknownField`, `placedTwice`, `sortedTwice` | A field the data does not have; a field twice on the axes or in the sort. |
+| `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
+| `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |
+| `unknownFormat`, `badLabel`, `unknownShowAs`, `showAsNotAdditive`, `showAsNotNumber`, `unknownConditional`, `conditionalNotNumber`, `colorScaleColors`, `dataBarColor` | A value's format, name, "show as" and colours. |
+| `unknownFilterType`, `filterNoItems`, `filterLabelOp`, `filterText`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2` | A filter. |
+| `sortNoItems` | A custom sort order without items. |
+| `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |
+| `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
+
+A later version may add codes: show a general text for one you do not know.
 
 ## Saved views in the UI
 

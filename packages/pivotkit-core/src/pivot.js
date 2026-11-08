@@ -39,7 +39,7 @@ import { normalize } from "./view.js";
 /**
  * @typedef {object} PivotResult
  * @property {import("./view.js").View} view       the normalized view
- * @property {Array<{ path: string, message: string }>} issues  what normalize() dropped, and a time zone mismatch
+ * @property {import("./view.js").Issue[]} issues  what normalize() dropped, and a time zone mismatch
  * @property {string} locale                        resolved: view, then options, then "en-US"
  * @property {string} timeZone                      the data's time zone
  * @property {import("./encode.js").Encoded} encoded
@@ -262,7 +262,9 @@ export function computePivot(data, viewInput, options) {
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
         issues.push({
             path: "formatting.timeZone",
-            message: `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`
+            message: `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`,
+            code: "timeZoneMismatch",
+            params: { value: view.formatting.timeZone, zone: data.timeZone }
         });
     }
     const columnOf = columnResolver(data, view);

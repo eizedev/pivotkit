@@ -6,6 +6,15 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- Every issue of `normalize()`, `migrate()`, `validate()` and `computePivot()` has a `code` (one of
+  the new export `VIEW_ISSUE_CODES`, such as `"unknownField"` or `"colorScaleColors"`) and, where a
+  text needs them, `params` (`field`, `value`, `agg`, `type`, `max`, `zone`; a value from the view at
+  most 100 characters), so a UI can say each one in its own words
+  ([#56](https://github.com/eizedev/pivotkit/issues/56)). The English `message` stays as it was. New
+  type `IssueParams`.
+
 ### Changed
 
 - The README, the package's page on npm, is a short landing page: what pivotkit-core is, one screenshot,

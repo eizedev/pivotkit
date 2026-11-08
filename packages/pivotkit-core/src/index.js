@@ -30,6 +30,7 @@
  * @typedef {import("./view.js").DerivedSpec} DerivedSpec
  * @typedef {import("./view.js").SortSpec} SortSpec
  * @typedef {import("./view.js").Issue} Issue
+ * @typedef {import("./view.js").IssueParams} IssueParams
  * @typedef {import("./pivot.js").PivotResult} PivotResult
  * @typedef {import("./tree.js").PivotNode} PivotNode
  * @typedef {import("./grid.js").Grid} Grid
@@ -48,7 +49,7 @@
  */
 
 export { encode } from "./encode.js";
-export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION } from "./view.js";
+export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION, VIEW_ISSUE_CODES } from "./view.js";
 export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";

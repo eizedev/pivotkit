@@ -15,7 +15,7 @@
 
 import { labelOf } from "./labels.js";
 import { toWallMs } from "./time.js";
-import { finite, get } from "./util.js";
+import { finite, get, shown } from "./util.js";
 
 export const LABEL_OPS = Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "endsWith"]);
 export const VALUE_OPS = Object.freeze(["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"]);
@@ -101,16 +101,16 @@ export function itemFor(type, value) {
 function normalizeItems(flt, spec, f, path, ctx) {
     const items = get(flt, "items");
     if (!Array.isArray(items)) {
-        return ctx.issue(path, "needs a list of items");
+        return ctx.issue(path, "needs a list of items", "filterNoItems");
     }
     if (items.length > ctx.limits.items) {
-        ctx.issue(`${path}.items`, `more than ${ctx.limits.items} items`);
+        ctx.issue(`${path}.items`, `more than ${ctx.limits.items} items`, "tooManyItems", { max: ctx.limits.items });
     }
     spec.items = [];
     for (const item of items.slice(0, ctx.limits.items)) {
         const converted = itemFor(f.type, item);
         if (converted === undefined) {
-            ctx.issue(`${path}.items`, `item ${JSON.stringify(item)} does not fit the ${f.type} field`);
+            ctx.issue(`${path}.items`, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
         } else {
             spec.items.push(converted);
         }
@@ -122,10 +122,10 @@ function normalizeLabel(flt, spec, _f, path, ctx) {
     const op = oneOf(get(flt, "op"), LABEL_OPS);
     const value = get(flt, "value");
     if (!op) {
-        return ctx.issue(path, `unknown label operator ${JSON.stringify(get(flt, "op"))}`);
+        return ctx.issue(path, `unknown label operator ${JSON.stringify(get(flt, "op"))}`, "filterLabelOp", { value: shown(get(flt, "op")) });
     }
     if (typeof value !== "string" || value.length > 1000) {
-        return ctx.issue(path, "needs a text value");
+        return ctx.issue(path, "needs a text value", "filterText");
     }
     return Object.assign(spec, { op, value });
 }
@@ -135,7 +135,7 @@ function measureOf(flt, path, ctx, view) {
     const byIn = get(flt, "by");
     const by = byIn === undefined ? ctx.defaultRef(view) : ctx.valueRef(byIn, `${path}.by`);
     if (by && ctx.resultType(by) !== "number") {
-        ctx.issue(`${path}.by`, `${by.agg} gives no number to filter by`);
+        ctx.issue(`${path}.by`, `${by.agg} gives no number to filter by`, "filterNotNumber", { agg: by.agg });
         return null;
     }
     return by;
@@ -148,7 +148,7 @@ function normalizeTop(flt, spec, _f, path, ctx, view) {
     }
     const count = finite(get(flt, "count"));
     if (count === null || count < 1 || count > ctx.limits.topCount || !Number.isInteger(count)) {
-        return ctx.issue(path, "needs a whole count of 1 or more");
+        return ctx.issue(path, "needs a whole count of 1 or more", "filterCount", { max: ctx.limits.topCount });
     }
     const bottom = get(flt, "bottom");
     return Object.assign(spec, { by, count, bottom: typeof bottom === "boolean" ? bottom : false });
@@ -162,13 +162,13 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
     const op = oneOf(get(flt, "op"), VALUE_OPS);
     const value = finite(get(flt, "value"));
     if (!op || value === null) {
-        return ctx.issue(path, "needs an operator and a number");
+        return ctx.issue(path, "needs an operator and a number", "filterValue");
     }
     Object.assign(spec, { by, op, value });
     if (op === "between" || op === "notBetween") {
         const value2 = finite(get(flt, "value2"));
         if (value2 === null) {
-            return ctx.issue(path, `${op} needs value2`);
+            return ctx.issue(path, `${op} needs value2`, "filterValue2", { value: op });
         }
         spec.value2 = value2;
     }

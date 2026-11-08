@@ -73,12 +73,13 @@ A view is the report as JSON; [Views and saved views](../concepts/views.md) desc
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported with its path. Nothing in a view runs as code. |
-| `validate(view, schema, { limits })` | `{ valid, errors }` | Everything `normalize` would drop or change, against the same `limits` (`errors` are `normalize`'s issues, `{ path, message }`). |
+| `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported as an issue `{ path, message, code, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
+| `validate(view, schema, { limits })` | `{ valid, errors }` | Everything `normalize` would drop or change, against the same `limits` (`errors` are `normalize`'s issues). |
 | `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
 | `emptyView()` | `View` | A new, empty report. |
 | `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`; `type` is `"date"` for a grouping by day, `"number"` for every other unit and for number ranges). |
 | `VIEW_VERSION` | `number` | The view version this release writes. |
+| `VIEW_ISSUE_CODES` | `string[]` | Every `code` an issue of `normalize`, `migrate`, `validate` or `computePivot` can have ([Issues](../concepts/views.md#issues-for-developers)). |
 
 ### View files
 
@@ -109,7 +110,7 @@ The `PivotResult` has, among others:
 | Member | What |
 | --- | --- |
 | `view` | The normalized view. |
-| `issues` | What `normalize` dropped, and a time zone that differs from the data's. |
+| `issues` | What `normalize` dropped, and a time zone that differs from the data's (`code: "timeZoneMismatch"`). |
 | `locale`, `timeZone` | The resolved locale and the data's time zone. |
 | `rows` | The source row indices left after all filters. |
 | `rowRoot`, `colRoot`, `rowNodes`, `colNodes` | The key trees and their nodes. |
@@ -246,7 +247,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 
 ## Types
 
-`View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `Encoded`, `Column`,
+`View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `IssueParams`, `Encoded`, `Column`,
 `ColumnType`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
 `Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults`, `PivotkitErrorCode`, `ViewFileMeta`, `ViewFileRead`,
 `ViewFileCompatibility` and `ViewFileSource`, from `pivotkit-core`.

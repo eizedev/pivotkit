@@ -34,6 +34,22 @@ export const get = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) 
 /** The number, or null for anything that is not a finite number. */
 export const finite = (value) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 
+/**
+ * A value from a view as an issue's params show it: a text as it is, anything else as JSON, at most
+ * 100 characters (an issue quotes user input; it must stay short).
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function shown(value) {
+    let text;
+    try {
+        text = typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
+    } catch {
+        text = String(value);
+    }
+    return text.length > 100 ? `${text.slice(0, 99)}…` : text;
+}
+
 /** "#abc" or "#aabbcc" -> "aabbcc" */
 export function hexDigits(hex) {
     return hex.length === 4 ? hex.slice(1).split("").map((x) => x + x).join("") : hex.slice(1);

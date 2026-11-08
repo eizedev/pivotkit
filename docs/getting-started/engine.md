@@ -39,7 +39,7 @@ const input = {
     formatting: { locale: "en-US" }
 };
 
-const { view, issues } = normalize(input, data); // issues: what was dropped, with its path
+const { view, issues } = normalize(input, data); // issues: what was dropped: path, message, code
 const result = computePivot(data, view);          // normalizes again, so raw user input is fine too
 const grid = toGrid(result);                      // grid.rows[r][c]: { text, value, rowSpan, colSpan, total, ... }
 const xlsx = toXlsx(grid);                        // Uint8Array, opens in Excel, LibreOffice and Numbers
@@ -53,7 +53,8 @@ The steps:
    dates (including ISO strings). Column names match case-insensitively, so `Region` and `region`
    above are one field.
 2. **`normalize(view, data)`** checks a view against the data: unknown fields, aggregators or formats
-   are dropped and listed in `issues`. You do not have to call it; every function that takes a view
+   are dropped and listed in `issues`, each with its path and a `code` to say it in your own words
+   ([Issues](../concepts/views.md#issues-for-developers)). You do not have to call it; every function that takes a view
    normalizes it first.
 3. **`computePivot(data, view)`** builds the row and column trees with subtotals and totals.
 4. **`toGrid(result)`** lays the result out as table rows with merged header cells, formatted text and
