@@ -135,7 +135,7 @@ async function licenses(metafile) {
  * (dist/echarts.js), which made room for the collapsible field list: first load 150.3 measured
  * (Node 26), the chart 203.5, the menus 18.9 with the Export menu and the templates both, budget 20
  * (about 5 % over). Save, Save as with its question before a name is replaced, New and the export's
- * entries off for an empty report brought the menus to 20.1 (first load 151.1), budget 21. The menus
+ * entries off for an empty report brought the menus to 20.4 (first load 151.4), budget 21. The menus
  * load right after the first render, before a menu opens, so they count against every page that shows
  * a report; the first load stays at its budget.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
