@@ -38,7 +38,7 @@ pivotkit is a pivot report builder for the web: the engine `pivotkit-core`, the 
 
 - One React component, `<PivotReport>`, for React 18 and 19 ([React](getting-started/react.md)).
 - The web component `<pivot-report>` for pages without React: Angular, PHP, plain HTML ([web component](getting-started/web-component.md)).
-- Runs in PowerShell Universal on the React it provides ([PowerShell Universal](getting-started/react.md#powershell-universal)).
+- Runs in PowerShell Universal on the React it provides ([PowerShell Universal](getting-started/react.md#powershell-universal)), ready-made as `New-UDPivotReport` in [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/).
 - The engine alone, in the browser or in Node: pivots, grids, chart options, XLSX and CSV ([engine](getting-started/engine.md)).
 - The report is a JSON view: store it, pass it back, controlled or not ([views](concepts/views.md)).
 - A view is user input: names only, checked against fixed lists and limits, never run ([security](security.md)).

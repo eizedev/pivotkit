@@ -35,7 +35,7 @@ hide:
 
 - [**React**](getting-started/react.md)<br>`<PivotReport>` for React 18 and 19. React and ECharts come from your app, so the page has one copy of each.
 - [**Web component**](getting-started/web-component.md)<br>`<pivot-report>` with its own React, for Angular, PHP and plain HTML pages. ECharts loads on the first chart.
-- [**PowerShell Universal**](getting-started/react.md#powershell-universal)<br>pivotkit-react runs on the React 18.3.1 that PowerShell Universal provides to its components.
+- [**PowerShell Universal**](getting-started/react.md#powershell-universal)<br>pivotkit-react runs on the React 18.3.1 that PowerShell Universal provides to its components; the module [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/) brings it ready-made as `New-UDPivotReport`.
 - [**Engine only**](getting-started/engine.md)<br>`pivotkit-core`: pivot tables, grids, chart options and XLSX/CSV export in plain JavaScript, in the browser or in Node.
 
 </div>

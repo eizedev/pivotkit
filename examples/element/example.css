@@ -35,10 +35,11 @@ select {
 main {
     padding: 0 16px 16px;
 }
-/* the report's height: 640 px wide; on a phone the zones stack above the table, so the report takes
-   the screen's height (the page scrolls to it, the table scrolls inside it) */
+/* the report's height: the window's height minus the header and the event line, at least 640 px; on a
+   phone the zones stack above the table, so the report takes the screen's height (the page scrolls to
+   it, the table scrolls inside it) */
 pivot-report {
-    height: 640px;
+    height: max(640px, calc(100svh - 104px));
 }
 @media (max-width: 639px) {
     pivot-report {

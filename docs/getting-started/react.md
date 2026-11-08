@@ -126,9 +126,11 @@ pivotkit-react fits that model: React and ECharts stay outside the package, the 
 history when the host renders it again on every change. The browser tests run it on a host page that
 takes React from an import map and renders again all the time, the way PowerShell Universal does.
 
-A ready-made PowerShell Universal component module is not part of pivotkit. A component of your own
-bundles pivotkit-react with pivotkit-core, @dnd-kit and ECharts, and leaves React and ReactDOM to
-PowerShell Universal.
+A ready-made module is
+[PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/)
+(`New-UDPivotReport`, a separate project): the report with saved and shared views, roles, and the app's
+theme. A component of your own bundles pivotkit-react with pivotkit-core, @dnd-kit and ECharts, and
+leaves React and ReactDOM to PowerShell Universal.
 
 ## Next
 

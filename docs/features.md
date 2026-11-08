@@ -216,7 +216,7 @@ version is [What pivotkit does](overview.md).
 - `theme` (auto follows the page's `data-theme`, then the system), `height`, `label` (the name of the report's region), `locale`, `timeZone`, `fileName`, `className` ([React props](reference/react.md#props)).
 - React: `<PivotReport>`, controlled or not, rendered on every host change ([React](getting-started/react.md)).
 - Web component: `<pivot-report>` in a shadow root, attributes and `pivot-*` events ([element](reference/element.md)).
-- PowerShell Universal: pivotkit-react on its React 18.3.1 ([PowerShell Universal](getting-started/react.md#powershell-universal)).
+- PowerShell Universal: pivotkit-react on its React 18.3.1 ([PowerShell Universal](getting-started/react.md#powershell-universal)), ready-made as `New-UDPivotReport` in [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/).
 - `loading` shows the skeleton before the first data and covers the result on later loads ([React props](reference/react.md#props)).
 
 ## Props and attributes
