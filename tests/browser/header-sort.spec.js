@@ -1,7 +1,7 @@
 // Sorting by a click on a table header (#55): a value's name sorts the innermost row field by it
 // (largest first, smallest first, off), a row field's name toggles A to Z and Z to A; aria-sort, the
 // arrow, the keyboard, Undo, and the same in the web component.
-import { test, expect, chips, tableRows } from "./fixtures.js";
+import { test, expect, chips, drag, tableRows } from "./fixtures.js";
 
 /** Region in Rows, Units in Values. */
 async function regionUnits(page) {
@@ -59,24 +59,41 @@ test.describe("sorting by a click on a header", () => {
         const header = page.getByRole("columnheader", { name: "Region" });
         const button = header.getByRole("button", { name: "Region" });
         const start = await names(page);
-        // A to Z is the default: in use, not chosen, so its arrow shows only on hover and focus
-        await expect(header).toHaveAttribute("aria-sort", "ascending");
+        // A to Z is the default, not a chosen sort: no aria-sort (one header at a time), the arrow only on hover and focus
+        await expect(header).not.toHaveAttribute("aria-sort");
         await expect(button).not.toHaveClass(/pk-sorted/);
         await button.click();
         await expect(header).toHaveAttribute("aria-sort", "descending");
         await expect.poll(() => names(page)).toEqual([...start].reverse());
         await expect(page.getByTestId("sort-status")).toHaveText("Region sorted: Z to A");
         await button.click();
-        await expect(header).toHaveAttribute("aria-sort", "ascending");
+        await expect(header).not.toHaveAttribute("aria-sort");
         await expect.poll(() => names(page)).toEqual(start);
+        await expect(page.getByTestId("sort-status")).toHaveText("Region sorted: A to Z");
 
         await page.getByTestId("undo").click();
         await expect(header).toHaveAttribute("aria-sort", "descending");
         await expect.poll(() => names(page)).toEqual([...start].reverse());
         await expect(page.getByText("Undone: sort of Region")).toBeVisible();
         await page.getByTestId("undo").click();
-        await expect(header).toHaveAttribute("aria-sort", "ascending");
+        await expect(header).not.toHaveAttribute("aria-sort");
         await expect.poll(() => names(page)).toEqual(start);
+    });
+
+    test("a sorted value's name and the default A to Z: only the chosen sort has aria-sort", async ({ page }) => {
+        await regionUnits(page);
+        await page.getByRole("columnheader", { name: "Sum of Units" }).getByRole("button").click();
+        await expect(page.locator('[data-testid="pivot-table"] thead th[aria-sort]')).toHaveCount(1);
+        await expect(page.getByRole("columnheader", { name: "Sum of Units" })).toHaveAttribute("aria-sort", "descending");
+    });
+
+    test("a header with its button still drags into a zone, and the drag does not sort", async ({ page }) => {
+        await regionUnits(page);
+        const header = page.locator('[data-testid="pivot-table"] thead th[data-kind="corner"]', { hasText: "Region" });
+        await drag(page, header, page.locator('[data-zone="cols"]'));
+        await expect.poll(() => chips(page, "cols")).toEqual(["Region"]);
+        await expect.poll(() => chips(page, "rows")).toEqual([]);
+        await expect(page.getByTestId("sort-status")).toHaveText("");
     });
 
     test("Enter and Space on the focused header sort; the focus stays on it", async ({ page }) => {
@@ -106,6 +123,8 @@ test.describe("sorting by a click on a header", () => {
         await expect(table.locator("thead .pk-th-sort")).toHaveCount(4);
         await expect(table.locator("thead tr:last-child th.pk-colHeader.pk-grand .pk-th-sort")).toHaveCount(2);
         await expect(table.locator("thead tr:last-child th.pk-colHeader:not(.pk-grand) .pk-th-sort")).toHaveCount(0);
+        // a value's name under a category says where it sorts
+        await expect(table.locator("thead tr:last-child th.pk-colHeader:not(.pk-grand) .pk-th-text").first()).toHaveAttribute("title", "Sort by this value in the Grand Total column");
         // the button is no wider than its text and arrow: the cell's edges stay free (a future resize handle)
         const total = table.locator("thead tr:last-child th.pk-colHeader.pk-grand").first();
         const [cell, button] = await Promise.all([total.boundingBox(), total.locator(".pk-th-sort").boundingBox()]);
@@ -125,4 +144,19 @@ test("the web component sorts by a click on a header too", async ({ page }) => {
         .toContainEqual({ field: "Country", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } });
     await page.keyboard.press("ControlOrMeta+z");
     await expect(header).not.toHaveAttribute("aria-sort");
+});
+
+test("a host that controls the view: the header's sort goes through onViewChange and stays over the host's renders", async ({ page }) => {
+    await page.goto("pages/host.html");
+    const header = page.getByRole("columnheader", { name: "Sum of Revenue" });
+    await header.getByRole("button", { name: "Sum of Revenue" }).click();
+    await expect(header).toHaveAttribute("aria-sort", "descending");
+    // the page renders again every 200 ms with the view it got from onViewChange
+    const before = Number(await page.getByTestId("host-renders").textContent());
+    await expect.poll(async () => Number(await page.getByTestId("host-renders").textContent())).toBeGreaterThan(before + 4);
+    await expect(header).toHaveAttribute("aria-sort", "descending");
+    await header.getByRole("button", { name: "Sum of Revenue" }).click();
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+    await page.getByTestId("undo").click();
+    await expect(header).toHaveAttribute("aria-sort", "descending");
 });

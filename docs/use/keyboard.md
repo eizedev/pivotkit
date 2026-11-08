@@ -30,8 +30,8 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
   label of the row the focus is on, or of a label you tap.
 - A chip's name says what is set on it: the filter ("3 of 4"), the top N, the whole value condition,
   the sort.
-- A header that sorts says its order ("sorted descending"); after a click on it the new order is read
-  out ("Region sorted: Z to A").
+- The header whose sort you chose says its order ("sorted descending"); after a click on a header
+  the new order is read out ("Region sorted: Z to A").
 - The chart has a text alternative: type, values, counts, highest and lowest value.
 - Status messages ("Undone: Region removed", "View “Sales” saved") are read out
   ([status messages](behaviour.md#status-messages)).

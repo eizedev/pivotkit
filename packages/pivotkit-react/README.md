@@ -166,7 +166,7 @@ the report's first load stays small.
 - Table: sticky header and row labels, groups expand and collapse, subtotals and grand totals on and
   off (Options), a click on a value opens its rows. A click (or Enter) on a value's name sorts the
   innermost row field by it (largest first, smallest first, off), on a row field's name A to Z and Z
-  to A: the chip menu's sort entry, with an arrow and `aria-sort`. Field names and value names in the
+  to A: the chip menu's sort entry, with an arrow and `aria-sort` on the chosen one. Field names and value names in the
   header can be dragged into a zone with the mouse; the chips' menus do the same from the keyboard. One value's name
   is a single header over all of its columns, as in Excel. From 300 body rows on only the visible rows
   are rendered. The table is as wide as its columns; the row label columns share at most 40 % of the

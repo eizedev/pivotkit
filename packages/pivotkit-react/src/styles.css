@@ -1953,6 +1953,13 @@
     opacity: 0.6;
 }
 
+/* no hover on a touch screen: a faint arrow says the name sorts */
+@media (hover: none) {
+    .pk-th-arrow {
+        opacity: 0.35;
+    }
+}
+
 .pk-th-sort.pk-sorted .pk-th-arrow {
     opacity: 1;
     color: var(--pk-accent);
@@ -3057,7 +3064,7 @@
 /* ---- touch screens: the small controls get a hit area a finger finds (44 px) ---- */
 
 @media (pointer: coarse) {
-    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x) {
+    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort) {
         min-width: var(--pk-target-touch);
         min-height: var(--pk-target-touch);
     }
