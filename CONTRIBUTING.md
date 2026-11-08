@@ -82,9 +82,10 @@ changelog. A new public function is exported from `src/index.js` (or `src/export
 
 ## Releasing
 
-Nothing is published yet. The release workflow (`.github/workflows/release.yml`) is prepared but
-skipped until it is switched on. A trusted publisher is configured in a package's settings on npm, so
-each package is published once by hand before the workflow takes over. Once:
+Version 0.1.0 of each package was published by hand. The release workflow
+(`.github/workflows/release.yml`) is prepared but skipped until it is switched on. A trusted publisher
+is configured in a package's settings on npm, so each package is published once by hand before the
+workflow takes over. Once:
 
 1. Make the repository public: npm generates no provenance for private repositories (npm's
    documentation, "Generating provenance statements").
@@ -120,6 +121,10 @@ Then for each release of a package, in the order `pivotkit-core`, `pivotkit-reac
    it has no publishing right. The `publish` job waits for an environment reviewer, then publishes
    only that tarball with an npm provenance attestation, with npm 11.21.1 (trusted publishing needs
    11.5.1 or later and Node 22.14.0 or later).
+4. Publish a GitHub release for each tag, with a short text and a link to the package's CHANGELOG.
+   Publishing a release also publishes the documentation site from its tag
+   (`.github/workflows/docs.yml`); the site is never published from main, so it describes what is on
+   npm. To publish it again by hand: Actions > Docs site > Run workflow with the input `tag`.
 
 `npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
 `dist/`, `types/`, and for pivotkit-element `dist/THIRD_PARTY_LICENSES.txt`); it fails while a
