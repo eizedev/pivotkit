@@ -6,6 +6,7 @@ import { computePivot, encode, toSeries } from "pivotkit-core";
 import { MANY_SERIES, MAX_CATEGORIES, chartPlan } from "../src/chart-types.js";
 import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-info.js";
 import { LABELS, resolveLabels } from "../src/labels.js";
+import { LABELS as ALL_LABELS } from "../src/all-labels.js";
 import { valueLabel } from "../src/names.js";
 import { swapAxes } from "../src/view-ops.js";
 import {
@@ -50,6 +51,9 @@ test("tips: every entry has a text and, with an action, a button text, in Englis
                 assert.ok(tipActionText(entry, params, labels).length > 3, `${labels.lang} ${entry.id} action`);
             }
         }
+    }
+    // the shortcuts' texts load with the menus (Options, Help shows them)
+    for (const labels of [ALL_LABELS.en, ALL_LABELS.de]) {
         assert.deepEqual(Object.keys(labels.shortcuts).sort(), SHORTCUTS.map((s) => s.text).sort());
     }
     assert.equal(new Set(TIP_IDS).size, TIP_IDS.length, "ids are unique");

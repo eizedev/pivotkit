@@ -15,7 +15,7 @@ import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
 import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { sortText } from "./names.js";
+import { refLabel, sortText } from "./names.js";
 import { headerSortState, headerSortTarget, nextHeaderSort } from "./view-ops.js";
 import { VIRTUAL_FROM, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
 
@@ -286,10 +286,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             setSortNote(fill(labels.headerSorted, { field, order: words(next) }));
         };
         return {
-            // aria-sort only on the header whose sort was chosen: one at a time (WAI-ARIA APG)
-            sort: state.chosen ? state.order : null,
+            // aria-sort only on the header whose sort was chosen (a custom order too): one at a time (WAI-ARIA APG)
+            sort: state.chosen || state.order === "other" ? state.order : null,
             content: (
-                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} title={fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
+                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} title={target.ref && next ? fill(next.order === "desc" ? labels.headerSortDesc : labels.headerSortAsc, { value: refLabel(view, target.ref, labels) }) : fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
                     <span className="pk-th-text">{cell.text}</span>
                     <Icon name={down ? "arrowDown" : "arrowUp"} size={14} className="pk-th-arrow" />
                 </button>

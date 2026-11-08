@@ -122,7 +122,7 @@ menu. Both write the same sort, which **Undo** takes back.
   order. A Z to A you chose before is not kept.
 - The arrow next to the name shows the sort you chose: down for largest first or Z to A, up for
   smallest first or A to Z. Pointing at the name, or the focus on it, shows the arrow of the next
-  click, and the tooltip says what it does ("Sort Region: Largest Sum of Revenue first"). On a touch
+  click, and the tooltip says what it does ("Sort by Sum of Revenue: largest first", "Sort Region: Z to A"). On a touch
   screen a faint arrow marks every name that sorts.
 - With a field in Columns, only the value names of the **Grand Total** column sort: the sort goes by
   the whole row, not by one column. Without the grand total column the value names do not sort.
@@ -130,8 +130,8 @@ menu. Both write the same sort, which **Undo** takes back.
   Rows is empty.
 - Only the name is the button, not the whole header cell. A name can still be dragged into a zone.
 - With the keyboard: **Tab** to the name, then **Enter** or **Space**. A screen reader hears the
-  sort on the one header whose sort you chose ("sorted descending"; the default A to Z is not
-  announced on a header) and the new order ("Region sorted: Largest Sum of Revenue
+  sort on the one header whose sort you chose ("sorted descending"; a field in its own order
+  "sorted other"; the default A to Z is not announced on a header) and the new order ("Region sorted: Largest Sum of Revenue
   first").
 
 ### Sort in the field's menu

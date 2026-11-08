@@ -182,6 +182,16 @@ export const en = {
     shortcutsTitle: "Keyboard shortcuts",
     // the keys of the shortcuts; "Mod" is Ctrl, or ⌘ on a Mac
     keys: { Mod: "Ctrl", Shift: "Shift", "Arrow keys": "Arrow keys", Enter: "Enter", Space: "Space", Escape: "Escape", F10: "F10" },
+    shortcuts: {
+        undo: "Undo",
+        redo: "Redo",
+        move: "Move between values in the table",
+        open: "Open the rows behind a value; sort by a header; open a menu",
+        drag: "Pick up a field or chip, and drop it",
+        close: "Close a menu, a panel or a tip",
+        fields: "In the field list: up and down between fields, left and right to a field's grip, its “i” and its menu",
+        fieldMenu: "Open the menu of the field in focus"
+    },
     valueLabels: "Value labels",
     valueLabelNames: { auto: "Automatic", off: "Off", value: "Value", percent: "Percent", both: "Value and percent" },
     legend: "Legend",
@@ -388,6 +398,16 @@ export const de = {
     help: "Hilfe",
     shortcutsTitle: "Tastenkürzel",
     keys: { Mod: "Strg", Shift: "Umschalt", "Arrow keys": "Pfeiltasten", Enter: "Eingabe", Space: "Leertaste", Escape: "Esc", F10: "F10" },
+    shortcuts: {
+        undo: "Rückgängig",
+        redo: "Wiederholen",
+        move: "Zwischen den Werten der Tabelle wechseln",
+        open: "Die Zeilen hinter einem Wert öffnen; nach einer Überschrift sortieren; ein Menü öffnen",
+        drag: "Ein Feld oder einen Chip aufnehmen und ablegen",
+        close: "Ein Menü, ein Fenster oder einen Tipp schließen",
+        fields: "In der Feldliste: auf und ab zwischen den Feldern, links und rechts zum Griff eines Felds, seinem „i“ und seinem Menü",
+        fieldMenu: "Das Menü des Felds im Fokus öffnen"
+    },
     valueLabels: "Wertbeschriftung",
     valueLabelNames: { auto: "Automatisch", off: "Aus", value: "Wert", percent: "Prozent", both: "Wert und Prozent" },
     legend: "Legende",

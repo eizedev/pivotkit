@@ -113,6 +113,8 @@ export const en = {
     sortValueAsc: "Smallest {value} first",
     // a click on a table header: its tooltip (what the next click does) and what a screen reader hears after it
     headerSort: "Sort {field}: {order}",
+    headerSortDesc: "Sort by {value}: largest first",
+    headerSortAsc: "Sort by {value}: smallest first",
     headerSorted: "{field} sorted: {order}",
     units: {
         year: "Year", yearQuarter: "Quarter", yearMonth: "Month", yearWeek: "Week", day: "Day",
@@ -239,7 +241,7 @@ export const en = {
         afterDrag: "Undo takes the last step back. Every field and chip also has a menu with the same moves.",
         saveTemplate: "Save this view to open it again later?",
         menus: "Every field also has a menu, and the toolbar has Undo.",
-        cells: "Click a value, or press Enter on it, to see the rows behind it. The arrow keys move between values."
+        cells: "Click a value, or press Enter on it, to see the rows behind it; click a header to sort. The arrow keys move between values."
     },
     tipActions: {
         removeFilters: "Remove filter",
@@ -251,16 +253,6 @@ export const en = {
     },
     dismissTip: "Dismiss tip",
     tipsTitle: "Tips",
-    shortcuts: {
-        undo: "Undo",
-        redo: "Redo",
-        move: "Move between values in the table",
-        open: "Open the rows behind a value; sort by a header; open a menu",
-        drag: "Pick up a field or chip, and drop it",
-        close: "Close a menu, a panel or a tip",
-        fields: "In the field list: up and down between fields, left and right to a field's grip, its “i” and its menu",
-        fieldMenu: "Open the menu of the field in focus"
-    },
     // the first stop of the report for the keyboard: past the field list to the toolbar
     skipToToolbar: "Skip to the toolbar",
     // field descriptions (fieldDefaults)
@@ -454,6 +446,8 @@ export const de = {
     sortValueDesc: "Größte {value} zuerst",
     sortValueAsc: "Kleinste {value} zuerst",
     headerSort: "{field} sortieren: {order}",
+    headerSortDesc: "Nach {value} sortieren: größte zuerst",
+    headerSortAsc: "Nach {value} sortieren: kleinste zuerst",
     headerSorted: "{field} sortiert: {order}",
     units: {
         year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
@@ -569,7 +563,7 @@ export const de = {
         afterDrag: "Rückgängig nimmt den letzten Schritt zurück. Jedes Feld und jeder Chip hat auch ein Menü mit denselben Schritten.",
         saveTemplate: "Diese Ansicht speichern, um sie später wieder zu öffnen?",
         menus: "Jedes Feld hat auch ein Menü, und die Werkzeugleiste hat Rückgängig.",
-        cells: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen. Die Pfeiltasten wechseln zwischen den Werten."
+        cells: "Auf einen Wert klicken oder darauf Eingabe drücken, um die Zeilen dahinter zu sehen; auf eine Überschrift klicken, um zu sortieren. Die Pfeiltasten wechseln zwischen den Werten."
     },
     tipActions: {
         removeFilters: "Filter entfernen",
@@ -581,16 +575,6 @@ export const de = {
     },
     dismissTip: "Tipp ausblenden",
     tipsTitle: "Tipps",
-    shortcuts: {
-        undo: "Rückgängig",
-        redo: "Wiederholen",
-        move: "Zwischen den Werten der Tabelle wechseln",
-        open: "Die Zeilen hinter einem Wert öffnen; nach einer Spaltenüberschrift sortieren; ein Menü öffnen",
-        drag: "Ein Feld oder einen Chip aufnehmen und ablegen",
-        close: "Ein Menü, ein Fenster oder einen Tipp schließen",
-        fields: "In der Feldliste: auf und ab zwischen den Feldern, links und rechts zum Griff eines Felds, seinem „i“ und seinem Menü",
-        fieldMenu: "Das Menü des Felds im Fokus öffnen"
-    },
     skipToToolbar: "Zur Werkzeugleiste springen",
     aboutField: "Über {field}",
     learnMore: "Mehr erfahren",

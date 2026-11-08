@@ -30,7 +30,7 @@ test.describe("sorting by a click on a header", () => {
         const start = await names(page);
         expect(start).toEqual(az(start));
         await expect(header).not.toHaveAttribute("aria-sort");
-        await expect(button).toHaveAttribute("title", "Sort Region: Largest Sum of Units first");
+        await expect(button).toHaveAttribute("title", "Sort by Sum of Units: largest first");
 
         await button.click();
         await expect(header).toHaveAttribute("aria-sort", "descending");
@@ -40,7 +40,7 @@ test.describe("sorting by a click on a header", () => {
         await expect(page.getByTestId("sort-status")).toHaveText("Region sorted: Largest Sum of Units first");
         // the same sort entry the chip menu writes: its name says so
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName("Region, sorted Largest Sum of Units first");
-        await expect(button).toHaveAttribute("title", "Sort Region: Smallest Sum of Units first");
+        await expect(button).toHaveAttribute("title", "Sort by Sum of Units: smallest first");
 
         await button.click();
         await expect(header).toHaveAttribute("aria-sort", "ascending");
@@ -52,6 +52,28 @@ test.describe("sorting by a click on a header", () => {
         await expect.poll(() => names(page)).toEqual(start);
         await expect(page.getByTestId("sort-status")).toHaveText("Region sorted: A to Z");
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName("Region");
+        // the third click goes back to the field's order: the tooltip says so
+        await expect(button).toHaveAttribute("title", "Sort by Sum of Units: largest first");
+        await button.click();
+        await button.click();
+        await expect(button).toHaveAttribute("title", "Sort Region: A to Z");
+    });
+
+    test("the table's tip says that a header sorts", async ({ page }) => {
+        await regionUnits(page);
+        await expect(page.getByTestId("tip-cells")).toContainText("click a header to sort");
+    });
+
+    test("a field in the host's own order: its name has aria-sort other; a click sorts it A to Z", async ({ page }) => {
+        await page.goto("?data=weather&empty");
+        await page.locator('.pk-field[data-field="Season"] .pk-field-name').click();
+        await expect.poll(() => chips(page, "rows")).toEqual(["Season"]);
+        const header = page.getByRole("columnheader", { name: "Season" });
+        await expect(header).toHaveAttribute("aria-sort", "other");
+        await expect(page.locator('[data-testid="pivot-table"] thead th[aria-sort]')).toHaveCount(1);
+        await header.getByRole("button", { name: "Season" }).click();
+        await expect(header).toHaveAttribute("aria-sort", "ascending");
+        await expect.poll(() => names(page)).toEqual(az(["Spring", "Summer", "Autumn", "Winter"]));
     });
 
     test("a row field's name toggles Z to A and A to Z; each click is a step Undo takes back", async ({ page }) => {
