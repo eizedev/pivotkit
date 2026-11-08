@@ -199,13 +199,3 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
 - Add a UI framework or an animation library to `pivotkit-react`; it has its own CSS.
 - Put secrets, host names or real data into code, examples or tests; the one exception is the public
   data of `examples/playground/data/`, with its licence and attribution in `SOURCES.md`.
-
-## Exceptions to the repository standards
-
-Confirmed by the owner on 2026-11-06, each temporary:
-
-- Docs website (pivotkit.eize.dev): built on every pull request, published only once the repository is
-  public (GitHub Pages needs that on GitHub Free) and the repository variable `PAGES_ENABLED` is
-  `true`.
-- Secret scanning, push protection, private vulnerability reporting and rulesets: not available while
-  the repository is private on GitHub Free; switched on when it becomes public.
