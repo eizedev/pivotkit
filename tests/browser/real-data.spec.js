@@ -352,6 +352,9 @@ test.describe("learning tasks", () => {
     test("weather: top 5 sunniest cities", async ({ page }) => {
         await open(page, "data=weather&preset=1");
         await page.getByTestId("chip-menu-City").click();
+        // the template's top 3, said in one line; Change opens its form
+        await expect(page.getByTestId("top-state").locator(".pk-state-text")).toHaveText("Top 3 by Sunshine hours per day");
+        await page.getByTestId("top-change").click();
         await page.getByTestId("top-count").fill("5");
         await page.getByRole("button", { name: "Apply" }).click();
         const ranked = Object.entries(Object.groupBy(weather, (x) => x.City)).map(([c, l]) => [c, avg(l.map((x) => x["Sunshine h"]))]).sort((a, b) => b[1] - a[1]);
@@ -371,6 +374,7 @@ test.describe("learning tasks", () => {
     test("countries: Apply with no count removes the top 3, and Undo brings it back", async ({ page }) => {
         await open(page, "data=countries&preset=0");
         await page.getByTestId("chip-menu-Country").click();
+        await page.getByTestId("top-change").click();
         await page.getByTestId("top-count").fill("");
         await page.getByTestId("top-count").press("Enter");
         await expect(page.getByTestId("tip-top")).toHaveCount(0);
@@ -386,6 +390,8 @@ test.describe("learning tasks", () => {
     test("earthquakes: ranges of 1, then the depth in ranges of 100", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
         await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await expect(page.getByTestId("bin-state").locator(".pk-state-text")).toHaveText("Ranges of 0.5 from 4.5");
+        await page.getByTestId("bin-change").click();
         await page.getByTestId("bin-size").fill("1");
         await page.getByTestId("bin-size").press("Enter");
         expect((await row(page, "Grand Total"))[1]).toBe(int(quakes.length));
@@ -396,6 +402,7 @@ test.describe("learning tasks", () => {
         await page.getByTestId("field-menu-Depth km").click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
         await page.getByTestId("chip-menu-Depth km").click();
+        await page.getByTestId("bin-open").click();
         await page.getByTestId("bin-size").fill("100");
         await page.getByTestId("bin-size").press("Enter");
         expect((await row(page, "0 – 100"))[1]).toBe(int(quakes.filter((x) => x["Depth km"] < 100).length));
@@ -526,6 +533,7 @@ test.describe("what the real data showed (#21 to #26)", () => {
     test("Apply with no range size removes the ranges, as Remove does", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
         await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("bin-change").click();
         await page.getByTestId("bin-size").fill("");
         await page.getByTestId("bin-size").press("Enter");
         await expect(page.getByTestId("chip-menu-Magnitude")).toBeVisible();
@@ -540,11 +548,13 @@ test.describe("what the real data showed (#21 to #26)", () => {
     test("a new range size keeps the start; Starting at moves it", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
         await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("bin-change").click();
         await expect(page.getByTestId("bin-start")).toHaveValue("4.5");
         await page.getByTestId("bin-size").fill("1");
         await page.getByTestId("bin-size").press("Enter");
         expect((await row(page, "4.5 – 5.5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5.5).length));
         await page.getByTestId("chip-menu-Magnitude (by 1)").click();
+        await page.getByTestId("bin-change").click();
         await page.getByTestId("bin-start").fill("4");
         await page.getByTestId("bin-start").press("Enter");
         expect((await row(page, "4 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
@@ -553,6 +563,7 @@ test.describe("what the real data showed (#21 to #26)", () => {
     test("Starting at: empty is 0; a start too far from the values is refused with a note", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
         await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("bin-change").click();
         // the ranges of 0.5 from 1e17 cannot be told apart: every row would be "(blank)"
         await page.getByTestId("bin-start").fill("1e17");
         await expect(page.getByTestId("bin-problem")).toContainText("Ranges from 100,000,000,000,000,000 cannot hold this field's values");

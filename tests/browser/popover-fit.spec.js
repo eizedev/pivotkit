@@ -56,7 +56,7 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
         await page.keyboard.press("Escape");
     }
     await page.getByTestId("chip-menu-Team").click();
-    await page.getByText("Value filter…").click();
+    await page.getByText("Value condition…").click();
     await insideWindow(page);
     await expect(page.getByTestId("value-filter-apply")).toBeInViewport();
     await page.keyboard.press("Escape");

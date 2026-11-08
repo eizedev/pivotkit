@@ -69,9 +69,25 @@ test("a chart draws 50 categories at most and says so", async ({ page }) => {
 test("top N: its own badge on the chip and a note that totals cover the shown items only", async ({ page }) => {
     await page.goto("?data=sales");
     await page.getByTestId("chip-menu-Country").click();
+    // nothing set: one item, the form opens on it with the focus in the count
+    await expect(page.getByTestId("top-count")).toHaveCount(0);
+    await page.getByTestId("top-open").click();
+    await expect(page.getByTestId("top-count")).toBeFocused();
     await page.getByTestId("top-count").fill("2");
     await page.getByRole("button", { name: "Apply" }).click();
+    // Apply closes the menu, the focus back on the chip
+    await expect(page.getByTestId("chip-menu-Country")).toBeFocused();
     await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Country"] [data-testid="top-badge"]')).toHaveText("Top 2");
+    // the menu says it in one line with Change and Remove
+    await page.getByTestId("chip-menu-Country").click();
+    await expect(page.getByTestId("top-state").locator(".pk-state-text")).toHaveText("Top 2 by Sum of Revenue");
+    await page.getByTestId("top-change").click();
+    await expect(page.getByTestId("top-count")).toHaveValue("2");
+    await page.getByTestId("top-cancel").click();
+    await expect(page.getByTestId("top-change")).toBeFocused();
+    await page.getByTestId("top-remove").click();
+    await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Country"] [data-testid="top-badge"]')).toHaveCount(0);
+    await page.getByTestId("undo").click();
     await expect(page.getByTestId("tip-top")).toHaveText("Country shows the top 2 only: totals and percentages cover these items, not all of them.");
 });
 

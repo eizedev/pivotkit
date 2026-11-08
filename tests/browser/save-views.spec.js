@@ -2,7 +2,7 @@
 // mark while it has unsaved changes (gone after New and Reset), Save under that name (the browser store in its place, a shared
 // view only for a user who may publish), Save as asking before it replaces a view of the same name,
 // New (an empty report) that Undo takes back; and the Export menu off for an empty report.
-import { chips, expect, test, toolbar } from "./fixtures.js";
+import { chips, expect, test, toolbar, openShare } from "./fixtures.js";
 
 /** The names of the entries of "My views", in order. */
 const mine = (scope) => scope.locator('[data-section="myViews"] [data-pk-entry] [data-pk-option]').allInnerTexts();
@@ -350,6 +350,7 @@ test("a view from a file or a link has a name but is not among the saved views: 
     await expect(page.locator(".pk-toasts")).toContainText("View “Tmp” saved");
     const file = await page.evaluate(() => ({ ...JSON.parse(localStorage.getItem("pivotkit:views:playground"))[0], name: "From a file" }));
     await toolbar(page, "views");
+    await openShare(page);
     await page.getByTestId("load-view").click();
     await page.getByTestId("load-view-text").fill(JSON.stringify(file));
     await page.getByTestId("load-view-apply").click();

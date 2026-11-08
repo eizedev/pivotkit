@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, test, toolbar } from "./fixtures.js";
+import { chips, expect, test, toolbar, openSection, openShare } from "./fixtures.js";
 
 /** A switch of a menu (its checkbox is drawn as a track): by keyboard, as a person reaches it. */
 async function flip(locator) {
@@ -29,6 +29,8 @@ test.describe("chart display", () => {
         await page.getByTestId("chart-bar").click();
         await expect(page.getByTestId("pivot-chart")).toBeVisible();
         await toolbar(page, "chart-type");
+        // the display settings are folded at first; opened once, they stay open
+        await openSection(page, "chartDisplay");
         await page.getByTestId("labels-value").click();
         await page.getByTestId("legend-right").click();
         // a choice applies at once and the menu stays open
@@ -71,6 +73,7 @@ test.describe("sharing a view", () => {
         await page.getByRole("button", { name: "Remove Country" }).click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("copy-link").click();
         await expect(page.locator(".pk-toasts")).toContainText("Link copied");
         const link = await page.evaluate(() => /** @type {any} */ (window).__copied);
@@ -102,6 +105,7 @@ test.describe("sharing a view", () => {
         // the entry is replaced, not added again
         await expect.poll(() => (new URL(page.url()).hash.match(/pivot-playground=/g) ?? []).length).toBe(1);
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("copy-link").click();
         const link = await page.evaluate(() => /** @type {any} */ (window).__copied);
         expect(new URL(link).hash).toMatch(/^#\/reports\/a\?tab=2&pivot-playground=1\./);
@@ -134,6 +138,7 @@ test.describe("sharing a view", () => {
         await captureClipboard(page);
         await page.goto("?data=sales");
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("copy-json").click();
         await expect(page.locator(".pk-toasts")).toContainText("View copied as JSON");
         // a view file: the envelope with the source and the fields the view uses, the view inside
@@ -149,6 +154,7 @@ test.describe("sharing a view", () => {
         expect(copied.endsWith("}\n")).toBe(true);
         // the Share section says what a shared view gives away
         await toolbar(page, "views");
+        await openShare(page);
         await expect(page.getByTestId("share-privacy")).toBeVisible();
         const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("download-view").click()]);
         // named after the data (no view name yet), as <slug>.pivotkit.json
@@ -158,6 +164,7 @@ test.describe("sharing a view", () => {
 
         // paste: a view with a field this data does not have
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("load-view").click();
         await expect(page.getByTestId("load-view-text")).toBeFocused();
         await page.getByTestId("load-view-text").fill("{ nope");
@@ -185,6 +192,7 @@ test.describe("sharing a view", () => {
 
         // a file: the one downloaded above
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("load-view").click();
         await page.getByTestId("load-view-file").setInputFiles(file);
         await expect(page.locator(".pk-toasts")).toContainText("View loaded");
@@ -196,6 +204,7 @@ test.describe("sharing a view", () => {
         const file = JSON.stringify({ $schema: "https://pivotkit.eize.dev/schema/view-file-1.json", format: "pivotkit-view", formatVersion: 1, name: "Sunshine", source: { id: "weather", name: "Weather", fields: [{ name: "City", type: "string" }] }, extensions: {}, view: { rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] } });
         const open = async () => {
             await toolbar(page, "views");
+            await openShare(page);
             await page.getByTestId("load-view").click();
             await page.getByTestId("load-view-text").fill(file);
             await page.getByTestId("load-view-apply").click();
@@ -225,6 +234,7 @@ test.describe("sharing a view", () => {
     test("a view file of a newer format is refused with the advice to update pivotkit", async ({ page }) => {
         await page.goto("?data=sales");
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("load-view").click();
         await page.getByTestId("load-view-text").fill(JSON.stringify({ format: "pivotkit-view", formatVersion: 2, view: { rows: ["Region"] } }));
         await page.getByTestId("load-view-apply").click();
@@ -396,6 +406,7 @@ test.describe("a link for other data and a load check by keyboard", () => {
     test("the load check takes the focus when it replaces the form", async ({ page, browserName }) => {
         await page.goto("?data=sales");
         await toolbar(page, "views");
+        await openShare(page);
         await page.getByTestId("load-view").click();
         await page.getByTestId("load-view-text").fill(JSON.stringify({ format: "pivotkit-view", formatVersion: 1, source: { id: "weather" }, view: { rows: ["City"] } }));
         await page.getByTestId("load-view-apply").click();

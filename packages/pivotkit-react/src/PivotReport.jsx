@@ -1274,7 +1274,9 @@ function Report(props) {
                                 canResetTips={dismissed.some((id) => !keptOnReset(id))}
                                 onResetTips={() => changeDismissed(dismissed.filter(keptOnReset), null)}
                                 help={{
-                                    explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null
+                                    explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null,
+                                    // the list with the sections' states, for "Reset menu sections" (the menus do the rest)
+                                    sections: [dismissed, changeDismissed]
                                 }}
                                 viewsRequest={viewsRequest}
                             />

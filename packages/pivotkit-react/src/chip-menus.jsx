@@ -1,20 +1,24 @@
 /*
- * The menus of the chips. A field on Rows or Columns: sort (by label, or largest or smallest first by
- * any value that gives numbers), date grouping, number ranges, top N (by a chosen value), filter with a
- * value condition, move. A value: how it is summarized (the common aggregators first, the statistics folded
- * away), what it is shown as, number format, highlight, name, move. The entries come from
- * pivotkit-core's CATALOG; Remove is pinned to the foot of the menu so it is never scrolled away.
+ * The menus of the chips. A field on Rows or Columns, by how often each is used: sort (by label, or
+ * largest or smallest first by any value that gives numbers), filters (the values, a value condition),
+ * top N (by a chosen value), date grouping or number ranges, move. A value: how it is summarized (the
+ * common aggregators first, the statistics folded away), what it is shown as, number format,
+ * highlight, name, move. A setting that takes a form (ranges, top N, a value condition) shows what is
+ * set in one line with Change and Remove, or one item when nothing is; its form opens on a click. The
+ * field's description is behind the "i" at the menu's top. The entries come from pivotkit-core's
+ * CATALOG; Remove is pinned to the foot of the menu so it is never scrolled away.
  */
 
-import React, { useId, useState } from "react";
+import React, { useContext, useEffect, useId, useRef, useState } from "react";
 import { CATALOG, aggregatorsFor, fieldLabel, isFormat } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { ZONE_ICON } from "./icons.jsx";
-import { FieldDescription } from "./info.jsx";
+import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { numberText, parseNumber } from "./numbers.js";
-import { filterText, groupingName, refLabel, valueLabel } from "./names.js";
+import { filterText, groupingName, refLabel, sortText, valueLabel } from "./names.js";
 import { Option } from "./popover.jsx";
+import { HelpContext } from "./help.js";
 import { Section, SettingInfo } from "./section.jsx";
 import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortEntry, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
 
@@ -90,7 +94,7 @@ function NumberField({ value, onChange, problem, label, testId, className = "pk-
  * Number ranges: their size and where they start (Excel's "Starting at"). An empty start is 0, as its placeholder says; a start whose ranges
  * could not hold the field's numbers (`range`, see binProblem) is refused with a note under the input.
  */
-function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
+function BinForm({ grouping, labels, onApply, onClear, onCancel, range, locale }) {
     const [size, setSize] = useState(numberText(grouping?.size, locale));
     const [start, setStart] = useState(numberText(grouping?.origin, locale));
     const [tried, setTried] = useState(false);
@@ -135,11 +139,7 @@ function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
             <button type="submit" className="pk-btn pk-primary" disabled={far}>
                 {labels.apply}
             </button>
-            {onClear ? (
-                <button type="button" className="pk-btn" onClick={onClear} data-testid="bin-remove">
-                    {labels.removeSetting}
-                </button>
-            ) : null}
+            <CancelButton labels={labels} onCancel={onCancel} testId="bin-cancel" />
         </form>
     );
 }
@@ -171,7 +171,7 @@ function MeasurePick({ choices, names, index, onChange, label, prefix, testId })
 /** The index of a reference in the choices; the first (the default) when it is not there. */
 const choiceIndex = (choices, ref) => Math.max(0, choices.findIndex((c) => sameRef(c, ref)));
 
-function TopForm({ top, labels, choices, names, onApply, locale }) {
+function TopForm({ top, labels, choices, names, onApply, onCancel, locale }) {
     const [count, setCount] = useState(numberText(top?.count ?? 10, locale));
     const [bottom, setBottom] = useState(Boolean(top?.bottom));
     const [by, setBy] = useState(() => choiceIndex(choices, top?.by));
@@ -200,7 +200,7 @@ function TopForm({ top, labels, choices, names, onApply, locale }) {
             <NumberField value={count} onChange={setCount} problem={counted.problem} label={labels.topCount} testId="top-count" className="pk-field-label pk-narrow-input" />
             <MeasurePick choices={choices} names={names} index={by} onChange={setBy} label={labels.topBy} prefix={labels.topBy} testId="top-by" />
             <button type="submit" className="pk-btn pk-primary">{labels.apply}</button>
-            {top ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="top-remove">{labels.removeSetting}</button> : null}
+            <CancelButton labels={labels} onCancel={onCancel} testId="top-cancel" />
         </form>
     );
 }
@@ -209,7 +209,7 @@ function TopForm({ top, labels, choices, names, onApply, locale }) {
  * A value condition on a field ("Sum of Revenue greater than 1000"): the value it goes by, an operator
  * of pivotkit-core's CATALOG.valueOps and one number, or two for between.
  */
-function ValueFilterForm({ condition, labels, choices, names, onApply, locale }) {
+function ValueFilterForm({ condition, labels, choices, names, onApply, onCancel, locale }) {
     const [by, setBy] = useState(() => choiceIndex(choices, condition?.by));
     const [op, setOp] = useState(condition?.op ?? ">");
     const [first, setFirst] = useState(numberText(condition?.value, locale));
@@ -251,8 +251,57 @@ function ValueFilterForm({ condition, labels, choices, names, onApply, locale })
                 <NumberField value={second} onChange={setSecond} problem={b.problem} label={`${labels.valueFilterTo} ${labels.valueFilterNumber}`} shown={labels.valueFilterTo} shownClass="pk-muted" testId="value-filter-number2" className="pk-field-label pk-narrow-input" />
             ) : null}
             <button type="submit" className="pk-btn pk-primary" data-testid="value-filter-apply">{labels.apply}</button>
-            {condition ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="value-filter-remove">{labels.removeSetting}</button> : null}
+            <CancelButton labels={labels} onCancel={onCancel} testId="value-filter-cancel" />
         </form>
+    );
+}
+
+function CancelButton({ labels, onCancel, testId }) {
+    return (
+        <button type="button" className="pk-btn" onClick={onCancel} data-testid={testId}>
+            {labels.cancel}
+        </button>
+    );
+}
+
+/**
+ * A setting a form changes: what is set in one line with Change and Remove ("Top 10 by Quakes"), or
+ * one item (`start`, "Show top items…") when nothing is (`text` null); the form opens in its place with
+ * the focus in its first field, and Cancel brings the line back with the focus on it. Apply and Remove
+ * close the menu, as every choice of it does.
+ * @param {{ text: string | null, start: string, icon: string, labels: any, onRemove?: () => void, testId: string,
+ *   form: (cancel: () => void) => React.ReactNode }} props
+ */
+function Editable({ text, start, icon, labels, onRemove, testId, form }) {
+    const [editing, setEditing] = useState(false);
+    const box = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const was = useRef(false);
+    useEffect(() => {
+        if (editing !== was.current) {
+            was.current = editing;
+            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(editing ? "input, select" : "button"))?.focus();
+        }
+    }, [editing]);
+    return (
+        <div ref={box} className="pk-editable">
+            {editing ? (
+                form(() => setEditing(false))
+            ) : text ? (
+                <div className="pk-inline-form pk-state-line" data-testid={`${testId}-state`}>
+                    <span className="pk-state-text">{text}</span>
+                    <button type="button" className="pk-link" onClick={() => setEditing(true)} data-testid={`${testId}-change`}>
+                        {labels.change}
+                    </button>
+                    <button type="button" className="pk-link" onClick={onRemove} data-testid={`${testId}-remove`}>
+                        {labels.removeSetting}
+                    </button>
+                </div>
+            ) : (
+                <Option icon={icon} onSelect={() => setEditing(true)} testId={`${testId}-open`}>
+                    {start}
+                </Option>
+            )}
+        </div>
     );
 }
 
@@ -316,16 +365,26 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         const grouped = unit ? groupingName(sourceName, unit, labels, size) : null;
         commit(groupField(view, field, unit, { size, origin, name: grouped ?? undefined }).view, { step: "group", field: sourceName });
     };
+    // what is set, in one line: "Top 10 by Quakes", "Ranges of 0.5 from 4.5"
+    const number = (x) => x.toLocaleString(locale, { maximumFractionDigits: 6 });
+    const topText = top ? `${fill(top.bottom ? labels.bottomBadge : labels.topBadge, { count: number(top.count) })} ${fill(labels.by, { value: topPick.names[choiceIndex(topPick.choices, top.by)] })}` : null;
+    const binsText = grouping?.by === "bin" ? fill(labels.binsState, { size: number(grouping.size), start: number(grouping.origin ?? 0) }) : null;
     const unitOption = (u) => (
         <Option key={u} checked={grouping?.by === u} onSelect={() => regroup(u)} testId={`group-${u}`} hint={labels.unitHints[u] || undefined}>
             {labels.units[u] ?? u}
         </Option>
     );
+    const bins = grouping?.by === "bin" ? grouping : null;
+    const filtered = hasFilter(view, field);
+    const setTop = (t) => {
+        close();
+        commit(setTopFilter(view, field, t, top), { step: "top", field: name });
+    };
     return (
         <>
             <div className="pk-menu-body">
-                {info ? <FieldDescription info={info} labels={labels} className="pk-field-desc pk-menu-desc" /> : null}
-                <Section title={labels.sort} id="sort">
+                {/* the field's description behind an "i" at the top, instead of a paragraph there */}
+                <Section title={labels.sort} id="sort" state={sort ? sortText(view, sort, labels) : null} changed={Boolean(sort)} extra={info ? <InfoButton info={info} name={fieldLabel(source, labels.core)} labels={labels} className="pk-menu-info" testId="menu-info" /> : null}>
                     <Option checked={isSort("label", "asc")} icon="sortAsc" onSelect={() => doSort("label", "asc")}>{sourceType === "date" ? labels.sortOldest : labels.sortLabelAsc}</Option>
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
                     {/* by each value that gives numbers, largest and smallest first */}
@@ -338,8 +397,27 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     {customItems ? <Option checked={isSort("custom", "asc")} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
                     {customItems ? <Option checked={isSort("custom", "desc")} icon="sortDesc" onSelect={() => doSort("custom", "desc")} testId="sort-custom-desc">{labels.sortCustomDesc}</Option> : null}
                 </Section>
+                <Section title={labels.zones.filters} id="filters" state={filtered ? filterText(view, field, state, labels, locale) : null} changed={filtered}>
+                    {/* what the filters keep, in the accent colour, and Remove; then the two ways to filter, as equals */}
+                    {filtered ? (
+                        <div className="pk-inline-form pk-state-line" data-testid="filter-state">
+                            <span className="pk-state-text">{filterText(view, field, state, labels, locale)}</span>
+                            <button type="button" className="pk-link" onClick={() => { close(); commit(removeFilters(view, field), { step: "filter", field: name }); }} data-testid="remove-filter">
+                                {labels.removeSetting}
+                            </button>
+                        </div>
+                    ) : null}
+                    <Option icon="filter" onSelect={() => { close(); openFilter(field, chipRef.current); }} testId="open-filter">
+                        {labels.chooseValues}
+                    </Option>
+                    {/* a condition on a value of the field's items: "Sum of Revenue greater than 1000" */}
+                    <Editable text={null} start={labels.valueFilter} icon="sigma" labels={labels} testId="value-filter" form={(cancel) => <ValueFilterForm condition={condition} labels={labels} choices={conditionPick.choices} names={conditionPick.names} locale={locale} onCancel={cancel} onApply={(c) => { close(); commit(setValueFilter(view, field, c, condition), { step: "filter", field: name }); }} />} />
+                </Section>
+                <Section title={labels.topN} id="topN" state={top ? topText : null} changed={Boolean(top)}>
+                    <Editable text={top ? topText : null} start={labels.topStart} icon="top" labels={labels} onRemove={() => setTop(null)} testId="top" form={(cancel) => <TopForm top={top} labels={labels} choices={topPick.choices} names={topPick.names} locale={locale} onCancel={cancel} onApply={setTop} />} />
+                </Section>
                 {sourceType === "date" ? (
-                    <Section title={labels.groupBy} id="groupBy">
+                    <Section title={labels.groupBy} id="groupBy" state={grouping ? labels.units[grouping.by] ?? grouping.by : null} changed={Boolean(grouping)}>
                         <div className="pk-subtitle">{labels.groupTimeline}</div>
                         <div className="pk-choice-grid">{CATALOG.timelineUnits.map(unitOption)}</div>
                         <div className="pk-subtitle">{labels.groupCyclic}</div>
@@ -348,34 +426,10 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     </Section>
                 ) : null}
                 {sourceType === "number" ? (
-                    <Section title={labels.bins} id="bins">
-                        <BinForm grouping={grouping?.by === "bin" ? grouping : null} labels={labels} range={rangeOf?.(source) ?? null} locale={locale} onApply={(size, origin) => regroup("bin", size, origin)} onClear={grouping ? () => regroup(null) : null} />
+                    <Section title={labels.bins} id="bins" state={binsText} changed={Boolean(bins)}>
+                        <Editable text={binsText} start={labels.binsStart} icon="number" labels={labels} onRemove={() => regroup(null)} testId="bin" form={(cancel) => <BinForm grouping={bins} labels={labels} range={rangeOf?.(source) ?? null} locale={locale} onCancel={cancel} onApply={(size, origin) => regroup("bin", size, origin)} onClear={bins ? () => regroup(null) : null} />} />
                     </Section>
                 ) : null}
-                <Section title={labels.topN} id="topN">
-                    <TopForm top={top} labels={labels} choices={topPick.choices} names={topPick.names} locale={locale} onApply={(t) => { close(); commit(setTopFilter(view, field, t, top), { step: "top", field: name }); }} />
-                </Section>
-                <Section title={labels.zones.filters} id="filters">
-                    {/* a filter says what it keeps, in the accent colour, and can go right below */}
-                    {hasFilter(view, field) ? (
-                        <>
-                            <Option icon="filter" tone="accent" onSelect={() => { close(); openFilter(field, chipRef.current); }} testId="open-filter">
-                                {filterText(view, field, state, labels, locale)}
-                            </Option>
-                            <Option icon="x" onSelect={() => { close(); commit(removeFilters(view, field), { step: "filter", field: name }); }} testId="remove-filter">
-                                {labels.removeFilter}
-                            </Option>
-                        </>
-                    ) : (
-                        <Option icon="filter" onSelect={() => { close(); openFilter(field, chipRef.current); }} testId="open-filter">
-                            {labels.filter}
-                        </Option>
-                    )}
-                    {/* a condition on a value of the field's items: "Sum of Revenue greater than 1000" */}
-                    <More title={labels.valueFilter} open={Boolean(condition)}>
-                        <ValueFilterForm condition={condition} labels={labels} choices={conditionPick.choices} names={conditionPick.names} locale={locale} onApply={(c) => { close(); commit(setValueFilter(view, field, c, condition), { step: "filter", field: name }); }} />
-                    </More>
-                </Section>
                 <MoveSection view={view} zone={zone} index={index} count={view[zone].length} labels={labels} commit={commit} close={close} text={name} type={sourceType} />
             </div>
             <RemoveFoot labels={labels} onRemove={onRemove} close={close} />
@@ -398,6 +452,9 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
         commit(updateValue(view, index, patch, { defaults: spec.field ? defaultsOf?.(spec.field) : undefined }), { step: "value", field: name });
     };
     const [rename, setRename] = useState(spec.label ?? "");
+    const { explain } = useContext(HelpContext);
+    // the "i" at the top: the field's description, and (with the explanations on) why a value has no filter
+    const about = [info?.description, explain ? labels.settingInfo.valuesFilter : null].filter(Boolean).join(" ");
     const aggOption = (a) => (
         <Option key={a} checked={spec.agg === a} onSelect={() => set({ agg: a })} testId={`agg-${a}`}>
             {labels.core.aggregators[a] ?? a}
@@ -416,8 +473,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
     return (
         <>
             <div className="pk-menu-body">
-                {info ? <FieldDescription info={info} labels={labels} className="pk-field-desc pk-menu-desc" /> : null}
-                <Section title={labels.aggregation} id="summarize">
+                <Section title={labels.aggregation} id="summarize" state={labels.core.aggregators[spec.agg] ?? spec.agg} extra={about ? <InfoButton info={{ description: about, href: info?.href }} name={name} labels={labels} className="pk-menu-info" testId="menu-info" /> : null}>
                     <div className="pk-choice-grid">{common.map(aggOption)}</div>
                     {rare.length ? (
                         <More title={labels.moreStatistics} open={rare.includes(spec.agg)}>
@@ -426,7 +482,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                     ) : null}
                 </Section>
                 {numeric ? (
-                    <Section title={labels.showAs} id="showAs" info="showAs">
+                    <Section title={labels.showAs} id="showAs" info="showAs" state={spec.showAs ? labels.showAsNames[spec.showAs.type] ?? spec.showAs.type : labels.showAsNone} changed={Boolean(spec.showAs)}>
                         <div className="pk-choice-grid">
                             <Option checked={!spec.showAs} onSelect={() => set({ showAs: null })} testId="showas-none">{labels.showAsNone}</Option>
                             {COMMON_SHOW_AS.map(showAsOption)}
@@ -450,7 +506,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                     </Section>
                 ) : null}
                 {numeric ? (
-                    <Section title={labels.format} id="format">
+                    <Section title={labels.format} id="format" state={spec.format ? labels.formats[spec.format] ?? labels.formats[spec.format.split(":")[0]] ?? spec.format : labels.formatAuto} changed={Boolean(spec.format) && spec.format !== (spec.field ? defaultsOf?.(spec.field)?.format : undefined)}>
                         <div className="pk-choice-grid">
                             <Option checked={!spec.format} onSelect={() => set({ format: null })}>{labels.formatAuto}</Option>
                             {FORMAT_CHOICES.map(formatOption)}
@@ -461,7 +517,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                     </Section>
                 ) : null}
                 {numeric ? (
-                    <Section title={labels.conditional} id="highlight">
+                    <Section title={labels.conditional} id="highlight" state={spec.conditional ? (spec.conditional.type === "dataBar" ? labels.dataBar : labels.colorScale) : labels.conditionalNone} changed={Boolean(spec.conditional)}>
                         <div className="pk-choice-grid">
                             <Option checked={!spec.conditional} onSelect={() => set({ conditional: null })}>{labels.conditionalNone}</Option>
                             {/* no colours: pivotkit-core's DEFAULT_THEME gives them, as in Excel */}
@@ -474,7 +530,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                         </div>
                     </Section>
                 ) : null}
-                <Section title={labels.rename} id="name">
+                <Section title={labels.rename}>
                     <form className="pk-inline-form" onSubmit={(e) => { e.preventDefault(); set({ label: rename.trim() || null }); }}>
                         {/* the × gives the value its default name back at once (one undo step); the default is the placeholder */}
                         <ClearInput
@@ -490,9 +546,6 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
                         />
                         <button type="submit" className="pk-btn pk-primary">{labels.apply}</button>
                     </form>
-                </Section>
-                <Section title={labels.zones.filters} id="valueFilters">
-                    <p className="pk-hint pk-menu-hint" data-testid="values-filter-hint">{labels.valuesFilterHint}</p>
                 </Section>
                 <MoveSection view={view} zone="values" index={index} count={view.values.length} labels={labels} commit={commit} close={close} text={name} type={type} />
             </div>

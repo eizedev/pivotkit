@@ -294,8 +294,10 @@ export function fieldsCollapsed(session, forced, dismissed) {
 
 /**
  * The sections of the menus that fold, and whether each is open until the user folds or opens it:
- * the frequent ones open, the rest folded. The user's choice is kept in the same list (and storage)
- * as the tips, as "open:<id>" or "closed:<id>" where it differs from this default.
+ * what a first-time user needs open, the rest folded (a folded section's title says what it holds).
+ * The user's choice is kept in the same list (and storage) as the tips, as "open:<id>" or
+ * "closed:<id>" where it differs from this default; "Show dismissed tips again" keeps it, "Reset menu
+ * sections" (Options → Help) clears it.
  */
 export const SECTIONS = Object.freeze({
     // a value's menu
@@ -303,8 +305,6 @@ export const SECTIONS = Object.freeze({
     showAs: true,
     format: false,
     highlight: false,
-    name: false,
-    valueFilters: false,
     move: false,
     // a field's menu on Rows or Columns
     sort: true,
@@ -314,7 +314,6 @@ export const SECTIONS = Object.freeze({
     filters: true,
     // the toolbar's menus
     totals: true,
-    folding: true,
     help: true,
     // the Export menus (the toolbar's and the drill-down's)
     exportDownload: true,
@@ -322,9 +321,9 @@ export const SECTIONS = Object.freeze({
     thisView: true,
     sharedViews: true,
     myViews: true,
-    share: true,
+    share: false,
     chartType: true,
-    chartDisplay: true
+    chartDisplay: false
 });
 
 /** Whether a section is open: the user's choice in the list, else its default. */
@@ -346,7 +345,7 @@ export function withSection(dismissed, id, open) {
 }
 
 /** An entry of the list that is a section's state. */
-const isSection = (id) => /^(open|closed):/.test(id) && Object.hasOwn(SECTIONS, id.slice(id.indexOf(":") + 1));
+export const isSection = (id) => /^(open|closed):/.test(id) && Object.hasOwn(SECTIONS, id.slice(id.indexOf(":") + 1));
 
 /** Entries "Show dismissed tips again" keeps: the switches and the sections' states. */
 export const keptOnReset = (id) => SWITCHES.includes(id) || isSection(id);

@@ -13,6 +13,7 @@ import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
+import { withoutSections } from "./sections.js";
 import { SHORTCUTS } from "./tips.js";
 import { TOTALS, totalNoEffect } from "./view-ops.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
@@ -94,8 +95,18 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
     const choices = pie ? VALUE_LABELS.slices : VALUE_LABELS.other;
     // a pie's "percent" on another type draws the value: it shows as "Value" there
     const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
+    // folded, the title names the settings that are not the default ("Legend, Title"), else "Automatic"
+    const changed = [
+        [valueLabels !== "auto", labels.valueLabels],
+        [pie && (chart.labelPosition ?? "outside") !== "outside", labels.labelPosition],
+        [chart.legend !== "auto", labels.legend],
+        [Boolean(chart.title), labels.chartTitle],
+        [axis && chart.axisLabels !== "auto", labels.axisLabels],
+        [axis && view.rows.length >= 2 && chart.groupLabels !== "auto", labels.groupLabels],
+        [(drawn === "line" || drawn === "area") && chart.smooth, labels.smoothLines]
+    ].flatMap(([on, name]) => (on ? [name] : []));
     return (
-        <Section title={labels.chartDisplay} id="chartDisplay">
+        <Section title={labels.chartDisplay} id="chartDisplay" state={changed.join(", ") || labels.formatAuto} changed={changed.length > 0}>
             <div className="pk-subtitle">{labels.valueLabels}</div>
             <div className="pk-choice-grid">
                 {choices.map((v) => (
@@ -224,6 +235,16 @@ function Switch({ checked, onChange, testId, children, disabled, reason, info, n
     );
 }
 
+/** "Reset menu sections": every section open or folded as at first, the tips as they are; off while nothing differs. */
+function ResetSections({ list, change, labels }) {
+    const rest = withoutSections(list);
+    return (
+        <Option icon="reset" onSelect={() => change(rest, null)} disabled={rest.length === list.length} testId="reset-sections">
+            {labels.resetSections}
+        </Option>
+    );
+}
+
 export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help }) {
     return (
         <>
@@ -238,7 +259,7 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
                     );
                 })}
             </Section>
-            <Section title={labels.zones.rows} id="folding">
+            <Section title={labels.zones.rows}>
                 {/* each only when it would change something; when not, a line says why */}
                 <Option icon="chevronDown" onSelect={() => { close(); onExpand(); }} disabled={!folding.canExpand} reason={folding.why.expand ? labels[folding.why.expand] : undefined} testId="expand-all">{labels.expandAll}</Option>
                 <Option icon="chevronRight" onSelect={() => { close(); onCollapse(); }} disabled={!folding.canCollapse} reason={folding.why.collapse ? labels[folding.why.collapse] : undefined} testId="collapse-all">{labels.collapseAll}</Option>
@@ -248,6 +269,8 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
                 {tips.controls ? <Switch checked={tips.on} onChange={tips.onOn} testId="show-tips">{labels.showTips}</Switch> : null}
                 {help?.explanations ? <Switch checked={help.explanations.on} onChange={help.explanations.set} testId="show-explanations">{labels.showSettingInfo}</Switch> : null}
                 {tips.controls ? <Option icon="reset" onSelect={() => tips.onReset()} disabled={!tips.canReset} testId="reset-tips">{labels.resetTips}</Option> : null}
+                {/* the sections' folding is kept apart from the tips: its own way back to the start */}
+                {help?.sections ? <ResetSections list={help.sections[0]} change={help.sections[1]} labels={labels} /> : null}
                 <details className="pk-more">
                     <summary className="pk-more-title" data-testid="shortcuts-title">{labels.shortcutsTitle}</summary>
                     <Shortcuts labels={labels} mod={mod} />
@@ -717,8 +740,9 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
             ) : null}
             {mine.length || canSaveAs(can) || !shared.length ? (
                 <Section title={labels.myViews} id="myViews">
-                    {mine.length ? mine : <p className="pk-hint">{labels.noViews}</p>}
-                    {store ? (
+                    {/* empty: one line, with the store's note in short */}
+                    {mine.length ? mine : <p className="pk-hint" data-testid={store ? "store-note" : undefined}>{store ? labels.noViewsStore : labels.noViews}</p>}
+                    {store && mine.length ? (
                         <p className="pk-hint pk-menu-hint" data-testid="store-note">
                             {labels.storeNote}
                         </p>

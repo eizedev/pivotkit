@@ -20,14 +20,16 @@ test.describe("the playground's Views menu", () => {
         await expect(info).toHaveAccessibleName("About Tickets per team and priority");
         await info.focus();
         await expect(page.locator(".pk-info-pop")).toContainText("Only admins can change shared views.");
-        // where my views are kept, said where they are saved
-        await expect(page.getByTestId("store-note")).toHaveText("Kept in this browser only: not on other devices, and gone when the site's data is cleared.");
+        // no view of mine yet: one line, which says where they are kept
+        await expect(page.getByTestId("store-note")).toHaveText("None yet. Saved views stay in this browser only.");
 
         await page.getByTestId("saved-view-name").fill("Mine");
         await page.getByTestId("saved-view-name").press("Enter");
         await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
         await toolbar(page, "views");
         expect(await group(page, "myViews")).toEqual(["Mine"]);
+        // with views of mine, the whole note under them
+        await expect(page.getByTestId("store-note")).toHaveText("Kept in this browser only: not on other devices, and gone when the site's data is cleared.");
         // in localStorage under the report's storageKey, as view files naming their data
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:playground") ?? "null"));
         expect(stored).toEqual([expect.objectContaining({ format: "pivotkit-view", name: "Mine", source: { id: "tickets" } })]);

@@ -17,7 +17,7 @@ test.describe("without descriptions", () => {
         expect(await page.locator(".pk-field-name[aria-describedby]").count()).toBe(0);
         expect(await page.locator(".pk-table th[title], .pk-table th[aria-description]").count()).toBe(0);
         await page.getByTestId("chip-menu-Region").click();
-        await expect(page.locator(".pk-chip-menu .pk-menu-desc")).toHaveCount(0);
+        await expect(page.locator(".pk-chip-menu").getByTestId("menu-info")).toHaveCount(0);
         // the field list rows are as high as before: one line each
         const heights = await page.locator(".pk-field").evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().height)))]);
         expect(heights).toHaveLength(1);
@@ -77,11 +77,16 @@ test.describe("descriptions of the real data", () => {
     test("chips, their menus, the table headers and the drill-down carry the description", async ({ page }) => {
         await page.goto("?data=countries&preset=0");
         await expect(page.locator('.pk-chip[data-chip="Sum of Population"] .pk-info')).toBeVisible();
+        // in a chip's menu the description is behind an i at its top, not a paragraph there
         await page.getByTestId("chip-menu-Sum of Population").click();
-        await expect(page.locator(".pk-chip-menu .pk-menu-desc")).toContainText("Population, total");
+        const menuInfo = page.locator(".pk-chip-menu").getByTestId("menu-info");
+        await expect(menuInfo).toHaveAccessibleDescription(/Population, total/);
         await page.keyboard.press("Escape");
         await page.getByTestId("chip-menu-Region").click();
-        await expect(page.locator(".pk-chip-menu .pk-menu-desc")).toContainText("The World Bank's region");
+        await expect(menuInfo).toHaveAccessibleName("About Region");
+        await menuInfo.click();
+        await expect(page.locator(".pk-info-pop")).toContainText("The World Bank's region");
+        await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         const header = page.locator(".pk-table th", { hasText: "Sum of Population" });
         await expect(header).toHaveAttribute("aria-description", /midyear estimates/);

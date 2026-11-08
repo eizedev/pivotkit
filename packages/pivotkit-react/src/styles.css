@@ -1218,13 +1218,29 @@
     cursor: pointer;
 }
 
+/* a control, not a caption: the text's colour; folded, what it holds at its end, muted, with a dot
+   (pk-section-mark) when that is not the default */
 .pk-root .pk-section-toggle {
+    color: var(--pk-text);
+}
+
+/* with .pk-badge-cut: one line, an ellipsis */
+.pk-section-state {
+    margin-left: auto;
     color: var(--pk-muted);
+    font-weight: 400;
+}
+
+/* the dot of a folded section that is not the default, and what a section of the field menu has set
+   (in a .pk-inline-form row, with Change and Remove) */
+.pk-section-mark,
+.pk-state-text {
+    color: var(--pk-accent);
+    font-weight: 600;
 }
 
 .pk-root .pk-section-toggle:hover {
     background: var(--pk-surface-3);
-    color: var(--pk-text);
 }
 
 .pk-section.pk-folded {
@@ -2457,12 +2473,6 @@
     overflow-wrap: anywhere;
 }
 
-.pk-menu-desc {
-    padding: 6px 8px 8px;
-    border-bottom: 1px solid var(--pk-border);
-    color: var(--pk-muted);
-}
-
 .pk-learn-more {
     color: var(--pk-accent);
     font-weight: 600;
@@ -2735,11 +2745,6 @@
     margin: 0;
     padding: 2px 8px 6px;
     font-size: var(--pk-small);
-}
-
-.pk-remove-filter {
-    align-self: flex-start;
-    margin-bottom: 6px;
 }
 
 .pk-load-view .pk-hint {
@@ -3066,7 +3071,7 @@
 /* ---- touch screens: the small controls get a hit area a finger finds (44 px) ---- */
 
 @media (pointer: coarse) {
-    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort) {
+    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort, .pk-section-toggle) {
         min-width: var(--pk-target-touch);
         min-height: var(--pk-target-touch);
     }

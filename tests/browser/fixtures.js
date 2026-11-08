@@ -92,3 +92,12 @@ export async function openZones(page) {
     if (last === "compact") await page.getByTestId("layout-summary").click();
     await expect(page.locator(".pk-zone").first()).toBeVisible();
 }
+
+/** Opens a section of an open menu when it is folded (the report remembers it once opened). */
+export async function openSection(scope, id) {
+    const title = scope.getByTestId(`section-${id}`);
+    if ((await title.getAttribute("aria-expanded")) === "false") await title.click();
+}
+
+/** Opens the Share section of an open Views menu: folded at first. */
+export const openShare = (scope) => openSection(scope, "share");

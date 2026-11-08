@@ -29,15 +29,22 @@ export function SettingInfo({ id, name }) {
 
 /**
  * A titled group of options. With an `id` of SECTIONS (tips.js) its title is a button that folds it;
- * `info` is the id of an explanation shown as an "i" next to the title.
- * @param {{ title: React.ReactNode, children: React.ReactNode, id?: string, info?: string }} props
+ * folded, the title says what the section holds (`state`, muted at its end) and marks a setting that
+ * is not the default (`changed`). `info` is the id of an explanation shown as an "i" next to the
+ * title; `extra` goes at the head's end (the field's "i" in a chip menu).
+ * @param {{ title: React.ReactNode, children: React.ReactNode, id?: string, info?: string, state?: string | null, changed?: boolean, extra?: React.ReactNode }} props
  */
-export function Section({ title, children, id, info }) {
+export function Section({ title, children, id, info, state, changed, extra }) {
     const titleId = useId();
     const bodyId = useId();
     const { isOpen, setOpen } = useContext(HelpContext);
     const name = typeof title === "string" ? title : "";
-    const infoButton = info ? <SettingInfo id={info} name={name} /> : null;
+    const head = (
+        <>
+            {info ? <SettingInfo id={info} name={name} /> : null}
+            {extra}
+        </>
+    );
     if (!id) {
         return (
             <div className="pk-section" role="group" aria-labelledby={titleId}>
@@ -45,7 +52,7 @@ export function Section({ title, children, id, info }) {
                     <div className="pk-section-title" id={titleId}>
                         {title}
                     </div>
-                    {infoButton}
+                    {head}
                 </div>
                 {children}
             </div>
@@ -56,10 +63,24 @@ export function Section({ title, children, id, info }) {
         <div className={`pk-section${open ? "" : " pk-folded"}`} role="group" aria-labelledby={titleId} data-section={id}>
             <div className="pk-section-head">
                 <button type="button" className="pk-section-title pk-section-toggle" id={titleId} aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(id, !open)} data-testid={`section-${id}`}>
-                    <Icon name={open ? "chevronDown" : "chevronRight"} size={14} />
-                    <span>{title}</span>
+                    <Icon name={open ? "chevronDown" : "chevronRight"} size={18} />
+                    {/* folded: what it holds, read after the title ("Number format, Automatic") */}
+                    <span className="pk-section-name">
+                        {title}
+                        {!open && state ? <span className="pk-sr">,</span> : null}
+                    </span>
+                    {!open && state ? (
+                        <span className="pk-section-state pk-badge-cut" data-testid={`section-state-${id}`}>
+                            {changed ? (
+                                <span className="pk-section-mark" aria-hidden="true">
+                                    {"● "}
+                                </span>
+                            ) : null}
+                            {state}
+                        </span>
+                    ) : null}
                 </button>
-                {infoButton}
+                {head}
             </div>
             <div id={bodyId} className="pk-section-body" hidden={!open}>
                 {children}

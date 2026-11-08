@@ -28,7 +28,8 @@ export const en = {
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views.",
-        newReport: "Takes every field out, to start over. Undo brings them back; saved views stay."
+        newReport: "Takes every field out, to start over. Undo brings them back; saved views stay.",
+        valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."
     },
     moveLeft: "Move left",
     moveRight: "Move right",
@@ -40,6 +41,8 @@ export const en = {
     sharedViews: "Shared views",
     myViews: "My views",
     noViews: "No saved views yet.",
+    // My views of the browser store while it is empty: one line with the storage note's gist
+    noViewsStore: "None yet. Saved views stay in this browser only.",
     publishView: "Publish {name} as a shared view",
     publishConfirm: "Publish “{name}” as a shared view? Everyone who uses this report sees it.",
     publishAction: "Publish",
@@ -127,14 +130,18 @@ export const en = {
         quarter: "Q1 of every year", month: "Jan of every year", week: "W03 of every year", weekday: "Mon to Sun", hour: "00:00 to 23:00",
         bin: ""
     },
-    bins: "Group numbers into ranges",
+    bins: "Number ranges",
+    binsStart: "Group into ranges…",
+    binsState: "Ranges of {size} from {start}",
     binSize: "Range size",
     binStart: "Starting at",
     binStartFar: "Ranges from {start} cannot hold this field's values ({min} to {max}): every row would be blank. Pick a start closer to them.",
     apply: "Apply",
-    // removes what a form of the field menu set: its ranges, its Top N, its value condition
+    // what is set in a section of the field menu (its ranges, its Top N, its filters): change it, remove it
+    change: "Change",
     removeSetting: "Remove",
-    topN: "Show only the top items",
+    topN: "Top items",
+    topStart: "Show top items…",
     topCount: "Count",
     bottom: "Bottom",
     topBy: "by",
@@ -178,6 +185,8 @@ export const en = {
     // the "i" of the settings, the zones and the field descriptions
     showSettingInfo: "Show explanations",
     resetTips: "Show dismissed tips again",
+    // every menu section open or folded as at first (the tips stay as they are)
+    resetSections: "Reset menu sections",
     help: "Help",
     shortcutsTitle: "Keyboard shortcuts",
     // the keys of the shortcuts; "Mod" is Ctrl, or ⌘ on a Mac
@@ -226,14 +235,14 @@ export const en = {
     numberInvalid: "Enter a number, such as {example}.",
     countInvalid: "Enter a whole number of 1 or more.",
     sizeInvalid: "Enter a number above 0, such as {example}.",
-    valueFilter: "Value filter…",
+    chooseValues: "Choose values…",
+    valueFilter: "Value condition…",
     valueFilterBy: "Value",
     valueFilterOp: "Condition",
     valueFilterNumber: "Number",
     valueFilterTo: "and",
     valueOps: { "=": "equals", "!=": "does not equal", ">": "greater than", ">=": "greater than or equal to", "<": "less than", "<=": "less than or equal to", between: "between", notBetween: "not between" },
     removeFilter: "Remove filter",
-    valuesFilterHint: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters.",
     // collapsible sections of the menus
     moreFormats: "More formats"
 };

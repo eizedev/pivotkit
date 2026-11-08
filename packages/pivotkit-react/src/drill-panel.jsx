@@ -92,13 +92,13 @@ export function DrillPanel({ drill, onClose, labels, locale, exportContext }) {
                                             </p>
                                         ) : null}
                                         {/* the same sections as the toolbar's Export menu, folded or open with them */}
-                                        <Section title={labels.exportCopy} id="exportCopy">
-                                            <ExportOption icon="copy" text={labels.drillCopy} info="drillCopy" onSelect={run("drill-copy", close)} testId="drill-copy" />
-                                            <ExportOption icon="copy" text={labels.drillJson} info="drillJson" onSelect={run("drill-json", close)} testId="drill-json" />
-                                        </Section>
                                         <Section title={labels.exportDownload} id="exportDownload">
                                             <ExportOption icon="file" text={labels.drillCsv} onSelect={run("drill-csv", close)} testId="drill-csv" />
                                             <ExportOption icon="file" text={labels.drillXlsx} onSelect={run("drill-xlsx", close)} testId="drill-xlsx" />
+                                        </Section>
+                                        <Section title={labels.exportCopy} id="exportCopy">
+                                            <ExportOption icon="copy" text={labels.drillCopy} info="drillCopy" onSelect={run("drill-copy", close)} testId="drill-copy" />
+                                            <ExportOption icon="copy" text={labels.drillJson} info="drillJson" onSelect={run("drill-json", close)} testId="drill-json" />
                                         </Section>
                                     </>
                                 )}

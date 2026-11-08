@@ -2,6 +2,7 @@
 // time, what a host allows, what is stored; how a host's labels and descriptions are cleaned.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { withoutSections } from "../src/sections.js";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { MANY_SERIES, MAX_CATEGORIES, chartPlan } from "../src/chart-types.js";
 import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-info.js";
@@ -335,4 +336,22 @@ test("menu sections: open or folded by default, the user's choice kept in the ti
     assert.deepEqual(cleanDismissed(["open:format", "closed:summarize", "open:nothing", "open:", "closed:__proto__"]), ["open:format", "closed:summarize"]);
     // a section without a default is open
     assert.equal(sectionOpen("unknown", []), true);
+});
+
+test("menu sections: Share and the chart's display settings start folded; the folds that hid almost nothing are gone", () => {
+    assert.equal(sectionOpen("share", []), false);
+    assert.equal(sectionOpen("chartDisplay", []), false);
+    for (const id of ["summarize", "showAs", "sort", "filters", "topN", "totals", "help", "exportDownload", "exportCopy", "thisView", "sharedViews"]) {
+        assert.equal(sectionOpen(id, []), true, id);
+    }
+    // Options → Rows, the value's Name and its Filters hint fold no more: a stored state of theirs is dropped
+    assert.deepEqual(cleanDismissed(["open:name", "open:valueFilters", "closed:folding", "open:share"]), ["open:share"]);
+});
+
+test("Reset menu sections: every section as at first, the tips and switches kept; Show dismissed tips again keeps the sections", () => {
+    const list = [ALL_TIPS, "values", "open:format", "closed:summarize", FIELDS_COLLAPSED];
+    assert.deepEqual(withoutSections(list), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
+    assert.equal(sectionOpen("format", withoutSections(list)), false);
+    assert.equal(sectionOpen("summarize", withoutSections(list)), true);
+    assert.deepEqual(list.filter(keptOnReset), [ALL_TIPS, "open:format", "closed:summarize", FIELDS_COLLAPSED]);
 });

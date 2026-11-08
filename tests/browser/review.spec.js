@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, test, toolbar } from "./fixtures.js";
+import { chips, expect, test, toolbar, openShare } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -84,6 +84,7 @@ test.describe("phone", () => {
         const v = await views.boundingBox();
         expect(v.y + v.height).toBeLessThanOrEqual(844 + 1);
         await views.click();
+        await openShare(page);
         await expect(page.getByTestId("copy-json")).toBeVisible();
     });
 
@@ -200,6 +201,7 @@ test("a save closes the Views menu, the focus back on Views; the saved view is m
     await expect(page.getByTestId("views")).toBeFocused();
     await toolbar(page, "views");
     await expect(page.getByTestId("saved-view-Mine")).toHaveAttribute("aria-current", "true");
+    await openShare(page);
     await expect(page.getByTestId("copy-link")).toBeVisible();
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");
     await page.keyboard.press("Escape");
