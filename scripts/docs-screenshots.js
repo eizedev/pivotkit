@@ -158,9 +158,10 @@ const SHOTS = [
     },
     { name: "chart", query: "data=sales&preset=1", size: WIDE, chart: true },
     {
-        // the report as a host gives it on a phone: its own height, the page scrolled to it
+        // the report as a host gives it on a phone: its own height, the page scrolled to it; below the
+        // narrow layout's 820 px (COMPACT_HEIGHT_NARROW), so its zones start folded into one line
         name: "phone",
-        query: "data=tickets&height=820",
+        query: "data=tickets&height=800",
         size: PHONE,
         open: (page) => page.locator(".pk-root").evaluate((el) => {
             el.style.scrollMarginTop = "12px";
