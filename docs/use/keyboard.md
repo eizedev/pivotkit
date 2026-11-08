@@ -40,6 +40,8 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
 
 ## Focus
 
+- A menu takes the focus when it opens (its first entry), with or without reduced motion, and gives
+  it back to its button when it closes.
 - The drill-down, the field drawer and the bottom sheets keep the focus inside while open and give it
   back when they close.
 - After a chip is removed the focus goes to the neighbouring chip, or to the zone.
@@ -52,7 +54,8 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
 - Text is at least 14 px, and controls at least 24 x 24 px.
 - On a touch screen the small buttons (×, **i**, a field's menu and grip, a tip's x) are at least
   44 px.
-- Contrast is checked in both themes; reduced motion switches the animations off.
+- Contrast is checked in both themes; reduced motion switches the animations and transitions off:
+  a menu or popover appears at once, in its place.
 
 !!! note "For developers"
     How Escape works when the report sits in a dialog of the host page is in the

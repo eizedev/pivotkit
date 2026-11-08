@@ -26,6 +26,21 @@ test.describe("keyboard and focus", () => {
         await expect(page.locator('[data-zone="cols"]')).toBeFocused();
     });
 
+    test("with reduced motion a chip menu, a field's menu and a toolbar menu take the focus when they open", async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.goto("?data=sales");
+        await page.locator('[data-testid="pivot-table"]').waitFor();
+        const inMenu = () => page.evaluate(() => Boolean(document.activeElement?.closest(".pk-popover")));
+        for (const id of ["chip-menu-Region", "chip-menu-Sum of Revenue", "field-menu-Units", "export"]) {
+            await page.getByTestId(id).focus();
+            await page.keyboard.press("Enter");
+            await expect(page.locator(".pk-popover")).toBeVisible();
+            await expect.poll(inMenu, { message: id }).toBe(true);
+            await page.keyboard.press("Escape");
+            await expect(page.getByTestId(id)).toBeFocused();
+        }
+    });
+
     test("a field from the field list moves into a zone with the keyboard, with its position announced", async ({ page }) => {
         await page.goto("?data=sales");
         const handle = page.locator('.pk-field[data-field="Channel"] .pk-handle');

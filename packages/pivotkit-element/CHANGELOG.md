@@ -10,6 +10,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - pivotkit-react's popovers appear at their final size and place
   ([#91](https://github.com/eizedev/pivotkit/issues/91)).
+- With reduced motion pivotkit-react's menus take the focus when they open
+  ([#78](https://github.com/eizedev/pivotkit/issues/78)).
 
 ## [0.2.0] - 2026-11-08
 

@@ -2976,12 +2976,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    /* nothing moves: no animation (a short one still shows its first frame, a popover scaled down), and
+       no transition at all (a duration here would also apply to every element without a transition of
+       its own, transition-property being "all" by default: a popover shown from visibility: hidden
+       stayed hidden for a frame and could not take the focus). No code waits for their end events. */
     .pk-root *,
     .pk-root *::before,
     .pk-root *::after {
-        animation-duration: 1ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 1ms !important;
+        animation: none !important;
+        transition: none !important;
     }
 }
 

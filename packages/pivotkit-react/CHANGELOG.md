@@ -13,6 +13,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   the window's edge (a classic scroll bar, as on Windows; a transformed host element), it narrowed a
   little on every placement, over about a second; it now takes its own width (`width: max-content`,
   capped as before) and is placed inside the window without its scroll bars.
+- With reduced motion a chip's menu (and every other menu) takes the focus when it opens
+  ([#78](https://github.com/eizedev/pivotkit/issues/78)). The reduced-motion rule gave every element a
+  transition of 1 ms, also those without one of their own (`transition-property` is `all` by
+  default), so a popover shown from `visibility: hidden` was still hidden in the frame its focus
+  moved; reduced motion now turns animations and transitions off (`animation: none`,
+  `transition: none`), so nothing moves at all.
 
 ## [0.2.0] - 2026-11-08
 
