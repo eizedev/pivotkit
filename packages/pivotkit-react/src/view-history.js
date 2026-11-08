@@ -12,6 +12,14 @@
  * new history from the view the report shows, so new data with the same columns keeps undo.
  */
 
+/**
+ * The saved view a step's tag names, for the data shown now: none when it was loaded for another
+ * source (one with the same columns keeps the history, not the name).
+ * @param {any} tag
+ * @param {string | undefined} sourceId
+ */
+export const tagFor = (tag, sourceId) => (tag && tag.sourceId === sourceId ? tag : null);
+
 /** Steps kept for undo. */
 export const HISTORY_LIMIT = 100;
 

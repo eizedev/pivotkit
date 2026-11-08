@@ -296,3 +296,83 @@ test("a view from a file or a link has a name but is not among the saved views: 
     await expect(page.getByTestId("save-loaded")).toBeDisabled();
     await expect(page.getByTestId("save-loaded")).toContainText("Not saved yet. Use Save as.");
 });
+
+test("web component: a slow save that answers after New or after another view is loaded names neither", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const report = page.locator("#views");
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await page.evaluate(() => {
+        const el = document.getElementById("views");
+        el.saveTemplates = true;
+        el.templates = [...el.templates, { name: "Host mine", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" }];
+        el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(new Promise((done) => setTimeout(done, 500))));
+    });
+    // Save as "Slow", then New before the host answers: the empty report gets no name
+    await elementViews(report);
+    await report.getByTestId("saved-view-name").fill("Slow");
+    await report.getByTestId("saved-view-name").press("Enter");
+    await page.keyboard.press("Escape");
+    if (await report.getByTestId("new").count()) await report.getByTestId("new").click();
+    else {
+        await report.getByTestId("more").click();
+        await report.getByTestId("more-new").click();
+    }
+    await expect(report.getByTestId("empty-state")).toBeVisible();
+    await expect(report.locator(".pk-toasts")).toContainText("View “Slow” saved");
+    await expect(report.getByTestId("view-name")).toHaveCount(0);
+    // load "Host mine", Save as "Later", then load "Team view" before the answer: it keeps its own name
+    await elementViews(report);
+    await report.getByTestId("saved-view-Host mine").click();
+    await elementViews(report);
+    await report.getByTestId("saved-view-name").fill("Later");
+    await report.getByTestId("saved-view-name").press("Enter");
+    await report.getByTestId("saved-view-Team view").click();
+    await expect(report.locator(".pk-toasts")).toContainText("View “Later” saved");
+    await expect(report.getByTestId("view-name")).toHaveText("Team view");
+    await expect(report.getByTestId("view-changed")).toHaveCount(0);
+});
+
+test("web component: Publish and Save over a shared view hand over the view in the same form, the host's orders included", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const report = page.locator("#views");
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await page.evaluate(() => {
+        const el = document.getElementById("views");
+        const regions = [...new Set(el.data.map((r) => r.Region))].reverse();
+        el.fieldDefaults = { Region: { order: regions } };
+        // a user's view of the host without a sort of its own: Publish sends it as the report shows it
+        el.templates = [...el.templates, { name: "Plain", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" }];
+    });
+    await elementViews(report);
+    await report.getByTestId("publish-view-Plain").click();
+    await report.getByTestId("confirm-publish").click();
+    await expect(report.locator(".pk-toasts")).toContainText("View “Plain” published");
+    // the page made it a shared view; Save over it: the view shown, with the same custom order
+    await elementViews(report);
+    await report.locator('[data-section="sharedViews"]').getByTestId("saved-view-Plain").click();
+    await elementViews(report);
+    await report.getByTestId("save-loaded").click();
+    await report.getByTestId("confirm-replace-shared").click();
+    await expect.poll(() => page.evaluate(() => window.__events.filter((e) => e.type === "pivot-template-publish").length)).toBe(2);
+    const [published, saved] = (await page.evaluate(() => window.__events)).filter((e) => e.type === "pivot-template-publish");
+    const regionSort = (v) => v.sort.find((s) => s.field === "Region");
+    expect(regionSort(published.detail.view)).toEqual(expect.objectContaining({ by: "custom" }));
+    expect(regionSort(saved.detail.view)).toEqual(regionSort(published.detail.view));
+    expect(saved.detail.view).toEqual(published.detail.view);
+});
+
+test("the view's name is a button of the toolbar: Tab reaches it, Enter opens Views", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "Safari's Tab skips buttons unless the user turns that on");
+    await page.goto("?data=tickets");
+    await toolbar(page, "views");
+    await page.getByTestId("saved-view-Median lead time by month").click();
+    const name = page.getByTestId("view-name");
+    await expect(name).toHaveText("Median lead time by month");
+    await expect(name).toHaveRole("button");
+    await page.getByTestId("undo").focus();
+    for (let i = 0; i < 10 && !(await name.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+    await expect(name).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("section-thisView")).toBeVisible();
+    await expect(page.getByTestId("save-loaded")).toHaveText("Save “Median lead time by month”");
+});

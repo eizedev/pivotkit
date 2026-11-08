@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computePivot, emptyView, encode, normalize, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
+import { computePivot, emptyView, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
@@ -38,6 +38,7 @@ import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
 import { useViewHistory } from "./use-view-history.js";
+import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import { VERSION } from "./version.js";
 import {
@@ -394,7 +395,7 @@ function Report(props) {
     const view = history.view;
     // the saved view shown: the history step's, when it was loaded for the data shown now (another
     // source with the same columns keeps the history, not the name)
-    const loadedView = history.tag && history.tag.sourceId === sourceId ? history.tag : null;
+    const loadedView = tagFor(history.tag, sourceId);
     const viewName = loadedView?.name ?? null;
     const unsaved = Boolean(loadedView) && savedKeys[savedKeyOf(loadedView)] !== history.viewKey;
 
@@ -962,19 +963,25 @@ function Report(props) {
         onSave: onSaveTemplate,
         onDelete: onDeleteTemplate,
         onPublish: canPublish ? onPublishTemplate : undefined,
-        // a view leaves the report checked against the data, never as it was stored
-        normalized: (v) => normalize(v, encoded, { limits }).view,
+        // a view leaves the report checked against the data, never as it was stored, and in the form a
+        // save hands over (the view as shown: normalized, with the host's orders), so Publish and
+        // Save send the same view
+        normalized: (v) => JSON.parse(history.keyOf(v)),
         loaded: loadedView,
         empty,
         /**
-         * A save kept: the view as it was when the save was clicked (`key`) is that saved view now; the
-         * report shows it, or a change of it made while a slow host saved.
+         * A save kept: the view as it was when the save was clicked (`key`) is that saved view now. The
+         * view shown takes its name only while it is still that view: a slow host may answer after
+         * New, another view loaded or a change, and none of those may become the saved view.
          */
         onSaved: (/** @type {any} */ saved, /** @type {string} */ key) => {
             setSavedAt(changesRef.current);
             const tag = { ...saved, sourceId };
             remember(tag, key);
-            latest.current.history.setTag(tag);
+            const now = latest.current.history;
+            if (now.viewKey === key) {
+                now.setTag(tag);
+            }
         },
         viewKey: history.viewKey,
         onNew: newReport,

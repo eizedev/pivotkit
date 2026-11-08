@@ -23,10 +23,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   (the report no longer shows that view), Undo and Redo move it with the view. A view of the browser
   store is known by its name and the data it names, so two views of one name (one saved without
   named data) stay apart; another source with the same columns keeps the view but not its name. A
-  reload with `persistView` keeps the view, not its name. New labels: `newReport`, `newEmpty`,
+  reload with `persistView` keeps the view, not its name. A save that answers after New, another
+  view loaded or a change names nothing it did not save. New labels: `newReport`, `newEmpty`,
   `unsavedChanges`, `steps.new`, and in the menus `thisView`, `saveNamed`, `saveAs`,
   `saveSharedLocked`, `saveNotInViews`, `replaceConfirm`, `replaceSharedConfirm`, `replaceAction`,
   `newAlready`, `settingInfo.newReport`.
+- Publish as shared view hands over the view in the same form as Save: normalized against the data,
+  with the host's custom orders (`fieldDefaults.order`) the report shows.
 - Host notes: Save and Save as call `onSaveTemplate(name, view, { scope: "user" })` and
   `onPublishTemplate(name, view)` with a name that exists: the host replaces the view of that name
   (an upsert by name), it does not add a second one.

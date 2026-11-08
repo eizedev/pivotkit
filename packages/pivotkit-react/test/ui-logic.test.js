@@ -12,7 +12,7 @@ import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
 import { MENU_LABELS } from "../src/menu-labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
-import { HISTORY_LIMIT, createState, record, redo, reset, settle, undo } from "../src/view-history.js";
+import { HISTORY_LIMIT, createState, record, redo, reset, settle, tagFor, undo } from "../src/view-history.js";
 
 const en = LABELS.en;
 
@@ -391,6 +391,30 @@ test("history: each step carries the saved view it shows; Undo and Redo move it 
     // the same view with another tag (a save, the same view loaded): no step
     const saved = record(back, "x2", "saved", { name: "Y" });
     assert.deepEqual([saved.past.length, saved.tag.name], [back.past.length, "Y"]);
+});
+
+test("history tags: a new schema starts without one, a change from outside keeps it, another source's is no name, a save keeps the redo steps", () => {
+    const x = { name: "X", sourceId: "sales" };
+    const s = record(createState("schema", "start"), "x", "view “X”", x);
+    // another schema: a new history from the view shown, no saved view
+    const fresh = settle(s, { schema: "other", start: "start", shown: "x", outside: "change from outside" });
+    assert.equal(fresh.tag, null);
+    // the host passed another view: a step from outside, the tag stays with the view before it
+    const outside = settle(s, { schema: "schema", start: "start", shown: "y", outside: "change from outside" });
+    assert.deepEqual([outside.present, outside.tag, undo(outside).state.tag], ["y", x, x]);
+    // Undo into a step loaded for another source: the step keeps its tag, the report shows no name
+    const tickets = record(record(createState("schema", "start"), "t", "view “T”", { name: "T", sourceId: "tickets" }), "t2", "Team added");
+    const back = undo(tickets).state;
+    assert.equal(back.tag.name, "T");
+    assert.equal(tagFor(back.tag, "sales"), null);
+    assert.equal(tagFor(back.tag, "tickets"), back.tag);
+    assert.equal(tagFor(null, undefined), null);
+    // a save while Redo has steps: the view and the redo steps stay, only the tag of the view shown
+    const undone = undo(record(s, "x2", "Region added")).state;
+    const saved = record(undone, "x", "saved", { name: "Y", sourceId: "sales" });
+    assert.deepEqual([saved.future.length, saved.tag.name], [1, "Y"]);
+    assert.deepEqual([redo(saved).state.present, redo(saved).state.tag], ["x2", x], "the step redone keeps its own tag");
+    assert.equal(undo(redo(saved).state).state.tag.name, "Y");
 });
 
 test("toolbar: which buttons go into More follows the width and a fixed priority, never the texts", async () => {
