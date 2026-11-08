@@ -137,10 +137,12 @@ async function licenses(metafile) {
  * (about 5 % over). Save, Save as with its question before a name is replaced, New and the export's
  * entries off for an empty report brought the menus to 20.4 (first load 151.4), budget 21. The menus
  * load right after the first render, before a menu opens, so they count against every page that shows
- * a report; the first load stays at its budget.
+ * a report; the first load stays at its budget. Sorting with a click on a table header (#55: the
+ * header buttons, their state and the texts; the table renders first, so it cannot wait for the
+ * menus) took the first load to 152.2 measured, budget 152.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152, chart: 221, export: 11.5, link: 7, menus: 21 };
+export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

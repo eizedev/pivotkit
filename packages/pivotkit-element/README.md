@@ -250,11 +250,11 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 464 KiB | 151 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 595 KiB | 201 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 468 KiB | 152 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 602 KiB | 204 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
-| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 13 KiB | 6 KiB |
-| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the texts only they show) | 1 | 56 KiB | 16 KiB |
+| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
+| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the texts only they show) | 1 | 68 KiB | 20 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart
