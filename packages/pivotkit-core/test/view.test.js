@@ -277,3 +277,42 @@ test("chart display settings: value labels, legend, title and smooth lines, chec
     // a view of before these settings reads with their defaults
     assert.deepEqual(norm({ chart: { type: "line" } }).chart, { ...emptyView().chart, type: "line" });
 });
+
+test("a colour scale in the theme's colours normalizes to itself without an issue", () => {
+    // normalize writes the theme's scale as colors: []; a view kept or shared after it (the UI, a link,
+    // a view file) passes normalize again and must not report the list as a dropped part
+    for (const conditional of [{ type: "colorScale" }, { type: "colorScale", colors: [] }, { type: "colorScale", colors: null }]) {
+        const first = normalize({ rows: ["Region"], values: [{ field: "Units", agg: "sum", conditional }] }, data);
+        assert.deepEqual(first.issues, []);
+        assert.deepEqual(first.view.values[0].conditional, { type: "colorScale", colors: [] });
+        const again = normalize(first.view, data);
+        assert.deepEqual(again.issues, []);
+        assert.deepEqual(again.view, first.view);
+    }
+    // one colour, or one that is no colour, is still reported
+    assert.equal(normalize({ values: [{ field: "Units", agg: "sum", conditional: { type: "colorScale", colors: ["#ff0000"] } }] }, data).issues[0].path, "values[0].conditional.colors");
+});
+
+test("an inner row field sorts by a value within each group, also when two values share field and aggregator", () => {
+    const view = {
+        rows: ["Units (by 5)", "Region"],
+        derived: [{ name: "Units (by 5)", field: "Units", by: "bin", size: 5, origin: 0 }],
+        values: [
+            { field: "Units", agg: "count", label: "Rows", conditional: { type: "colorScale" } },
+            { field: "Units", agg: "count", label: "Share", showAs: { type: "percentOfGrandTotal", axis: "rows" } }
+        ],
+        sort: [
+            { field: "Units (by 5)", by: "value", order: "desc", value: { field: "Units", agg: "count" } },
+            { field: "Region", by: "value", order: "desc", value: { field: "Units", agg: "count" } }
+        ]
+    };
+    const { view: n, issues } = normalize(view, data);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(normalize(n, data), { view: n, issues: [] });
+    const r = computePivot(data, n);
+    // bins by count, largest first: 0 - 5 (Units 3, 2, 1, 4) before 5 - 10 (5, 7, 6)
+    assert.deepEqual(r.rowRoot.children.map((c) => c.key), [0, 5, null]);
+    // within each bin the regions by count, largest first; ties by label in the same direction, blank last
+    assert.deepEqual(r.rowRoot.children[0].children.map((c) => c.key), ["North", "West", "South"]);
+    assert.deepEqual(r.rowRoot.children[1].children.map((c) => c.key), ["South", "North", null]);
+});

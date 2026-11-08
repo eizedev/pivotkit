@@ -117,7 +117,7 @@ dates. Such a value keeps Summarize by, Name and Move.
 `conditional` colours the cells of a value, as Excel's conditional formatting does:
 
 - `{ "type": "colorScale", "colors": ["#f8696b", "#ffeb84", "#63be7b"] }`: two or three colours from
-  low to high. Without `colors` the theme's scale is used (`--pk-scale-low`, `-mid`, `-high` in the
+  low to high. Without `colors`, or with an empty list, the theme's scale is used (`--pk-scale-low`, `-mid`, `-high` in the
   UI).
 - `{ "type": "dataBar", "color": "#638ec6" }`: a bar in each cell, its length the cell's place between
   the smallest and the largest cell of that value.

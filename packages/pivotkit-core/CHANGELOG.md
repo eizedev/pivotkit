@@ -6,6 +6,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- `normalize()` reads a colour scale with an empty `colors` list as the theme's scale without an
+  issue. normalize writes that list itself, so a normalized view with a colour scale in the theme's
+  colours (kept by the UI, in a link or a view file) reported "values[0].conditional.colors" as a
+  part that was not used.
+
 ## [0.1.0] - 2026-11-07
 
 First release.

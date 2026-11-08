@@ -263,7 +263,9 @@ function conditionalOf(cond, path, ctx) {
     if (type === "colorScale") {
         const colors = get(cond, "colors");
         const list = Array.isArray(colors) ? colors.filter((c) => typeof c === "string" && COLOR.test(c)).slice(0, 3) : [];
-        if (Array.isArray(colors) && (list.length !== colors.length || list.length < 2)) {
+        // an empty list is the theme's scale, as no list is: normalize writes it so, and a normalized
+        // view must pass normalize again unchanged
+        if (Array.isArray(colors) && colors.length > 0 && (list.length !== colors.length || list.length < 2)) {
             ctx.issue(`${path}.colors`, "two or three colours as #rgb or #rrggbb");
         }
         return { type, colors: list.length >= 2 ? list : [] };
