@@ -185,8 +185,6 @@ export const de = {
     showTips: "Tipps zeigen",
     showSettingInfo: "Erklärungen zeigen",
     resetTips: "Ausgeblendete Tipps wieder zeigen",
-    resetSections: "Menübereiche zurücksetzen",
-    resetSectionsDone: "Menübereiche zurückgesetzt",
     sectionChanged: ", geändert",
     help: "Hilfe",
     shortcutsTitle: "Tastenkürzel",

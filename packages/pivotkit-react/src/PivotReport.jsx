@@ -31,7 +31,7 @@ import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
 import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
 import { templateEntries, viewsName } from "./templates.js";
-import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
+import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
 import { activeIn } from "./dom.js";
@@ -1052,7 +1052,7 @@ function Report(props) {
     const zoneSwitch = helpSwitch(zoneInfoProp, dismissed);
     const settingSwitch = helpSwitch(settingInfoProp, dismissed);
     const explainUser = settingSwitch.user || zoneSwitch.user || (describedFields && fieldSwitch.user);
-    // what the menus' sections and setting "i" read: folded or open (kept with the tips), shown or not
+    // what the setting "i" read: shown or not
     // with the menus' texts once they are loaded (the explanations are among them); while the
     // language changes, the last ones until the new language's are here, never English in between
     const ready = menus ? menusNow(labels.lang) : null;
@@ -1065,11 +1065,9 @@ function Report(props) {
     const help = useMemo(
         () => ({
             explain: settingSwitch.on,
-            labels: helpLabels,
-            isOpen: (id) => sectionOpen(id, dismissed),
-            setOpen: (id, open) => changeDismissed(withSection(dismissed, id, open), null)
+            labels: helpLabels
         }),
-        [settingSwitch.on, helpLabels, dismissed, changeDismissed]
+        [settingSwitch.on, helpLabels]
     );
     // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
     // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session
@@ -1222,9 +1220,7 @@ function Report(props) {
                                 canResetTips={dismissed.some((id) => !keptOnReset(id))}
                                 onResetTips={() => changeDismissed(dismissed.filter(keptOnReset), null)}
                                 help={{
-                                    explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null,
-                                    // the list with the sections' states, for "Reset menu sections" (the menus do the rest)
-                                    sections: [dismissed, changeDismissed]
+                                    explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null
                                 }}
                                 viewsRequest={viewsRequest}
                             />

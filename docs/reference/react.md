@@ -46,7 +46,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
 | `onExport` | `({ kind, fileName, blob, text, rows }) => unknown` |  | Every exported file before it is downloaded, and every copy before it goes on the clipboard; returning `false` skips it. [More](#prop-onexport) |
 | `tips` | `"on"` or `"off"` or `string` or `string[]` | `"on"` | The [tips](#tips) above the result: `"on"`, `"off"` (none, and no switch in Options), or the ids of the tips allowed, as an array or a comma-separated text. |
-| `storageKey` | `string` |  | Remembers the dismissed tips, the help switches and the menu sections the user opened or folded in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. [More](#prop-storagekey) |
+| `storageKey` | `string` |  | Remembers the dismissed tips and the help switches in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. [More](#prop-storagekey) |
 | `dismissedTips` | `string[]` |  | Dismissed tip ids from the host's own storage. [More](#prop-dismissedtips) |
 | `onTipDismiss` | `({ id, dismissed }) => void` |  | Every change of the dismissed tips, with the whole list to store and pass back as `dismissedTips`. [More](#prop-ontipdismiss) |
 | `fieldInfo` | `"on"` or `"off"` |  | The "i" of the field descriptions (field list, chips; the tooltip of the table headers): `"on"` or `"off"` decides it, whatever the user's switch says. [More](#prop-fieldinfo) |
@@ -151,19 +151,19 @@ Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file]
 
 Type: `string`.
 
-Remembers the dismissed tips, the help switches and the menu sections the user opened or folded in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again. Read after the first render, so server rendering and hydration match. With `templateStore="browser"` the user's own views are kept under `pivotkit:views:<key>` too.
+Remembers the dismissed tips and the help switches in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again. Read after the first render, so server rendering and hydration match. With `templateStore="browser"` the user's own views are kept under `pivotkit:views:<key>` too.
 
 ### `dismissedTips` { #prop-dismissedtips }
 
 Type: `string[]`.
 
-Dismissed tip ids from the host's own storage; `"*"` means the user switched all tips off, `"-explanations"` that the user switched off "Show explanations" (Options, Help); `"open:<section>"` and `"closed:<section>"` a menu section the user opened or folded against its default. A new list (by value) replaces the report's.
+Dismissed tip ids from the host's own storage; `"*"` means the user switched all tips off, `"-explanations"` that the user switched off "Show explanations" (Options, Help). Entries of other shapes (`"open:<section>"` and `"closed:<section>"` of the menu sections that folded before) are dropped. A new list (by value) replaces the report's.
 
 ### `onTipDismiss` { #prop-ontipdismiss }
 
 Type: `({ id, dismissed }) => void`.
 
-Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), "Show explanations" off (`"-explanations"`), a switch on, a section opened or folded, "Show dismissed tips again" (`id` `null`; the switches and the sections stay) or "Reset menu sections" (`id` `null`; every `open:` and `closed:` entry goes, the tips and switches stay), with the whole list to store and pass back as `dismissedTips`.
+Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), "Show explanations" off (`"-explanations"`), a switch on, or "Show dismissed tips again" (`id` `null`; the switches stay), with the whole list to store and pass back as `dismissedTips`.
 
 ### `fieldInfo` { #prop-fieldinfo }
 
@@ -226,8 +226,8 @@ important first. Three are **notices**: they say that the result is cut or empty
 have no x, count against no limit and stay with `tips="off"` and "Show tips" off. The others are
 **tips**: one at a time, the most important first; the next one waits until it is followed or
 dismissed. Each has an x that dismisses it (Tab reaches it; the focus then goes to the next tip).
-Options, Help has "Show tips", "Show explanations", "Show dismissed tips again", "Reset menu
-sections" and the keyboard shortcuts. A screen reader hears new notes through a
+Options, Help has "Show tips", "Show explanations", "Show dismissed tips again" and the keyboard
+shortcuts. A screen reader hears new notes through a
 polite live region. In the order they are shown, and when:
 
 | Id | Kind | Shown when | Button |
@@ -371,6 +371,7 @@ with Enter or when the field is left, and Escape in a field gives back what appl
 | A field on Rows or Columns | Sort (A to Z, Z to A side by side), sort by its one value, Filter, Top items, Move to, Remove field | Sort by value (two or more values, or a custom order), Filter, Group (dates), Number ranges (numbers), Top items, Move to |
 | A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
 | Options | Totals, Rows (Expand all, Collapse all), Help | Keyboard shortcuts |
+| Views | This view (Save "…", Save as…, New, empty report), Shared views, My views (each entry with its Publish and Delete as items next to it), Share | Save as, Share (a menu), Load view, the question before a delete, a publish or a Save over a shared view |
 
 The chip menus have a search above their first level: it finds a choice of any level by its text and
 the titles above it, and opens a level by its title; Enter runs a hit the arrow keys reached, not the
@@ -378,17 +379,8 @@ text typed.
 
 A menu keeps the mouse wheel to itself: a wheel turn that nothing inside it can scroll further is
 stopped, so the table or the page behind never scrolls (`overscroll-behavior: contain` does the same
-for touch). A menu is at most as high as the window, and scrolls inside. The sections of the other
-menus fold with their title (a button with `aria-expanded`); their default and the user's choice:
-
-| Menu | Open | Folded |
-| --- | --- | --- |
-| Views | This view, Shared views, My views | Share |
-| Chart type | Chart type | Display |
-| Export, the drill-down's Export | every section | |
-
-What the user opens or folds is kept with the tips (`storageKey`, `dismissedTips`); a stored state of
-a section that no longer folds is dropped.
+for touch). A menu is at most as high as the window, and scrolls inside. No menu folds: the chart
+type menu and the Export menus are flat lists in titled groups (`role="group"` with its title).
 
 An "i" next to a setting explains it on hover, focus or tap: the totals, Show as, Excel and CSV
 in the export menu, Labels and Group labels of the chart. It is the same button as a field's "i"; its

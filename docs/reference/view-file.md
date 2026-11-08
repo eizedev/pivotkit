@@ -145,7 +145,7 @@ opens.
 
 A view holds field names and, in its filters, the items chosen there: those are values of the data
 (a customer's name, a country). A file, a copied view and a link give them to whoever gets them. The
-Share section of the Views menu says so: "A view holds the names of fields and, in its filters, the
+Share level of the Views menu says so: "A view holds the names of fields and, in its filters, the
 values chosen there: share it only where those may be seen." A link keeps the view in the URL
 fragment, which browsers do not send to the server, but it stays in the browser's history and
 wherever the link is pasted.

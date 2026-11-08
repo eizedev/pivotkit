@@ -2,7 +2,7 @@
 // time it shows for a view and foldable, the technical path below each line for developers, German
 // too, and the core's short message (or English) when the plain words cannot be loaded.
 import { test as plain } from "@playwright/test";
-import { expect, test, toolbar, openShare } from "./fixtures.js";
+import { expect, openSaveAs, openShare, test, toolbar } from "./fixtures.js";
 
 /** A view for the sales data with a value whose colour scale has one colour and a legend place the chart does not know. */
 const VIEW = {
@@ -123,6 +123,7 @@ const MANY = {
 test("a saved view with many unused parts shows the first three, the rest on a button; said once", async ({ page }) => {
     await page.goto("?data=sales");
     await toolbar(page, "views");
+    await openSaveAs(page);
     await page.getByTestId("saved-view-name").fill("Many");
     await page.getByTestId("saved-view-name").press("Enter");
     await expect(page.locator(".pk-toasts")).toContainText("View “Many” saved");
@@ -133,7 +134,7 @@ test("a saved view with many unused parts shows the first three, the rest on a b
     }, MANY);
     await page.reload();
     await toolbar(page, "views");
-    await page.locator('[data-section="myViews"] [data-testid="saved-view-Many"]').click();
+    await page.locator('[data-testid="topic-myViews"] [data-testid="saved-view-Many"]').click();
     const warning = page.getByTestId("view-issues");
     await expect(warning.getByTestId("unused-title")).toHaveText("9 parts of this view could not be used");
     const items = warning.getByTestId("unused-item");

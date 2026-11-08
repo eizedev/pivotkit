@@ -202,7 +202,7 @@ test.describe("drill-down panel", () => {
     });
 });
 
-test.describe("what a copy says, and the Export menu's sections", () => {
+test.describe("what a copy says, and the Export menu's groups", () => {
     test("a copy from the drill-down is said on top of the panel, in plain words", async ({ page }) => {
         await captureClipboard(page);
         await page.goto("?data=tickets");
@@ -220,18 +220,15 @@ test.describe("what a copy says, and the Export menu's sections", () => {
         expect(shown).toBe(true);
     });
 
-    test("Download and Copy fold like the other menus' sections, remembered; the i says what Copy table gives", async ({ page }) => {
+    test("Download and Copy are titled groups that do not fold; the i says what Copy table gives", async ({ page }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "export");
         await page.getByTestId("setting-info-copyTable").focus();
         await expect(page.locator(".pk-info-pop")).toContainText("tab-separated, pastes into Excel or Google Sheets as columns");
-        await page.getByTestId("section-exportDownload").click();
-        await expect(page.getByTestId("section-exportDownload")).toHaveAttribute("aria-expanded", "false");
-        await expect(page.getByTestId("export-xlsx")).toBeHidden();
-        await page.keyboard.press("Escape");
-        await page.reload();
-        await toolbar(page, "export");
-        await expect(page.getByTestId("export-xlsx")).toBeHidden();
-        await expect(page.getByTestId("export-copy-table")).toBeVisible();
+        await expect(page.getByRole("group", { name: "Download" })).toBeVisible();
+        await expect(page.getByRole("group", { name: "Copy" })).toBeVisible();
+        // nothing folds: no title is a button
+        await expect(page.locator(".pk-popover button.pk-section-title, .pk-popover [data-section]")).toHaveCount(0);
+        await expect(page.getByTestId("export-xlsx")).toBeVisible();
     });
 });

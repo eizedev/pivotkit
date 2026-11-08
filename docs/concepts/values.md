@@ -40,7 +40,7 @@ appear more than once (the sum and the average of a cost, say).
 | `var`, `varp` | Var, VarP | numbers | Variance of a sample, of a population. |
 | `first`, `last` | First, Last | every field | The value of the first or last row in data order. |
 
-The report's value menu offers sum, count, average, minimum and maximum first and folds the rest
+The report's value menu offers sum, count, average, minimum and maximum first and puts the rest
 under "More statistics". A value is named after its aggregator and field ("Sum of Revenue") unless
 the view gives it a `label`. `aggregatorsFor(type)` in pivotkit-core lists what fits a field type, and
 `fieldDefaults` in the UI picks the aggregator a field gets when it is added (an average for a

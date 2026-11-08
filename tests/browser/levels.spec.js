@@ -187,3 +187,59 @@ test.describe("the search of a menu", () => {
         await expect(menu.getByTestId("topic-summarize")).toBeVisible();
     });
 });
+
+test.describe("the Views menu in levels", () => {
+    test("a flat list to scan; Save as… and Share open levels; an entry's Delete is reached by the arrow keys and asks in a level", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await toolbar(page, "views");
+        const menu = page.getByRole("menu", { name: "Views" });
+        await expect(menu).toMatchAriaSnapshot(`
+          - menu "Views":
+            - group "This view":
+              - menuitem "Save current view…"
+              - menuitem /New, empty report/
+            - group "Shared views":
+              - menuitem "Tickets per team and priority"
+              - menuitem "Median lead time by month"
+              - menuitem "Open work per team (chart)"
+            - group "My views"
+            - menuitem "Share"
+        `);
+        // no fold anywhere: every group is there at once
+        await expect(page.locator(".pk-popover button.pk-section-title")).toHaveCount(0);
+        // Save as… by keyboard: its level with the name field, saved with Enter
+        await expect(page.getByTestId("save-as")).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("level-title")).toHaveText("Views › Save current view");
+        await expect(page.getByTestId("saved-view-name")).toBeFocused();
+        await page.keyboard.type("Mine");
+        await page.keyboard.press("Enter");
+        await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
+        await toolbar(page, "views");
+        // the entry, then its Publish and its Delete, by the arrow keys
+        await page.getByTestId("saved-view-Mine").focus();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.getByTestId("publish-view-Mine")).toBeFocused();
+        await page.keyboard.press("ArrowDown");
+        await expect(page.getByTestId("delete-view-Mine")).toBeFocused();
+        await expect(page.getByTestId("delete-view-Mine")).toHaveAccessibleName("Delete Mine");
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("level-title")).toHaveText("Views › Delete");
+        await expect(page.getByTestId("confirm-delete")).toBeFocused();
+        // Escape: back to the entry, nothing deleted
+        await page.keyboard.press("Escape");
+        await expect(page.getByTestId("saved-view-Mine")).toBeFocused();
+        // Share: its level, the privacy note under its entries
+        await page.keyboard.press("End");
+        await expect(page.getByTestId("topic-share")).toBeFocused();
+        await page.keyboard.press("ArrowRight");
+        await expect(page.getByTestId("level-title")).toHaveText("Views › Share");
+        await expect(page.getByTestId("share-privacy")).toBeVisible();
+        await page.getByTestId("load-view").click();
+        await expect(page.getByTestId("level-title")).toHaveText("Views › Load view");
+        await expect(page.getByTestId("load-view-text")).toBeFocused();
+        // Back from Load view goes to Share, on its entry
+        await page.getByTestId("level-back").click();
+        await expect(page.getByTestId("load-view")).toBeFocused();
+    });
+});

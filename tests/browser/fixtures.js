@@ -93,14 +93,16 @@ export async function openZones(page) {
     await expect(page.locator(".pk-zone").first()).toBeVisible();
 }
 
-/** Opens a section of an open menu when it is folded (the report remembers it once opened). */
-export async function openSection(scope, id) {
-    const title = scope.getByTestId(`section-${id}`);
-    if ((await title.getAttribute("aria-expanded")) === "false") await title.click();
+/** Opens the Share level of an open Views menu (its row on the first level). */
+export async function openShare(scope) {
+    if (!(await scope.getByTestId("level-share").count())) await openLevel(scope, "share");
 }
 
-/** Opens the Share section of an open Views menu: folded at first. */
-export const openShare = (scope) => openSection(scope, "share");
+/** Opens the Save as level of an open Views menu ("Save as…", or "Save current view…"). */
+export async function openSaveAs(scope) {
+    await scope.getByTestId("save-as").click();
+    await expect(scope.getByTestId("saved-view-name")).toBeVisible();
+}
 
 /**
  * Opens a topic's level in an open menu in levels: its row on the first level ("filter", "top",

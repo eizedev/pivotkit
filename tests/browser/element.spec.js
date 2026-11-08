@@ -4,7 +4,7 @@
 // strict Content-Security-Policy. Playwright's CSS locators reach into open shadow roots.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
-import { expect, test } from "./fixtures.js";
+import { expect, openSaveAs, test } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -186,6 +186,7 @@ test.describe("two elements on one page", () => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");
         await tool(sales, "views");
+        await openSaveAs(sales);
         await sales.getByTestId("saved-view-name").fill("Mine");
         await sales.getByRole("button", { name: "Save", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("View “Mine” saved");
@@ -196,11 +197,12 @@ test.describe("two elements on one page", () => {
         expect(save.detail.scope).toBe("user");
         // the view shown is "Mine" now: the field saves it under another name, its button says so
         await tool(sales, "views");
+        await openSaveAs(sales);
         await sales.getByTestId("saved-view-name").fill("fail");
         await sales.getByRole("button", { name: "Save as", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("the server said no");
         await tool(sales, "views");
-        await sales.getByRole("button", { name: "Delete Mine" }).click();
+        await sales.getByRole("menuitem", { name: "Delete Mine" }).click();
         await sales.getByTestId("confirm-delete").click();
         await expect(sales.locator(".pk-toasts")).toContainText("View “Mine” deleted");
         await tool(sales, "views");

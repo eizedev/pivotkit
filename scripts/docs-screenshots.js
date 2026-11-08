@@ -198,8 +198,6 @@ const SHOTS = [
         chart: true,
         open: async (page) => {
             await toolbar(page, "chart-type");
-            // folded at first: opened as a user would
-            await page.getByTestId("section-chartDisplay").click();
             await page.getByTestId("legend-bottom").click();
         }
     },
@@ -210,8 +208,7 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
-            // folded at first: opened as a user would
-            await page.getByTestId("section-share").click();
+            await page.getByTestId("topic-share").click();
         }
     },
     {
@@ -221,13 +218,13 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
+            await page.getByTestId("save-as").click();
             await page.getByTestId("saved-view-name").fill("Supported cycles of my products");
             await page.getByTestId("saved-view-name").press("Enter");
             await page.locator(".pk-toast").first().waitFor();
             // a save closes the menu: open it again, with the saved view marked as the one loaded
             await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
             await toolbar(page, "views");
-            await page.getByTestId("saved-view-name").blur();
         }
     },
     {
@@ -243,12 +240,13 @@ const SHOTS = [
         }
     },
     {
-        // This view in the Views menu: Save for one of my views, changed, the Save as field and New
+        // This view in the Views menu: Save for one of my views, changed, Save as… and New
         name: "views-this-view",
         query: "data=tickets",
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
+            await page.getByTestId("save-as").click();
             await page.getByTestId("saved-view-name").fill("Open work by team");
             await page.getByTestId("saved-view-name").press("Enter");
             await page.locator(".pk-toast").first().waitFor();
@@ -321,7 +319,6 @@ const SHOTS = [
         open: async (page) => {
             await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
             await toolbar(page, "chart-type");
-            await page.getByTestId("section-chartDisplay").click();
         }
     },
     {
@@ -349,7 +346,7 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
-            await page.getByTestId("section-share").click();
+            await page.getByTestId("topic-share").click();
             await page.getByTestId("load-view").click();
             const file = toViewFile({ rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] }, { name: "Sunshine per city", source: { id: "weather", name: "Weather" } });
             await page.getByTestId("load-view-text").fill(JSON.stringify(file));

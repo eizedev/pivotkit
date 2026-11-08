@@ -2,7 +2,6 @@
 // time, what a host allows, what is stored; how a host's labels and descriptions are cleaned.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { withoutSections } from "../src/sections.js";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { MANY_SERIES, MAX_CATEGORIES, chartPlan } from "../src/chart-types.js";
 import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-info.js";
@@ -11,7 +10,7 @@ import { LABELS as ALL_LABELS } from "../src/all-labels.js";
 import { valueLabel } from "../src/names.js";
 import { swapAxes } from "../src/view-ops.js";
 import {
-    ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, SWITCHES, helpSwitch, keptOnReset, sectionOpen, withSection, NOTICE_IDS, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
+    ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, SWITCHES, helpSwitch, keptOnReset, NOTICE_IDS, parseStored, SHORTCUTS, TIPS, TIP_IDS, TIP_LIMIT, TIP_THRESHOLDS, activeTips, allowedTips, cleanDismissed, readDismissed, storageName, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed
 } from "../src/tips.js";
 
 const en = LABELS.en;
@@ -303,8 +302,8 @@ test("help switches: the host's on or off decides, else the user's list; Show di
     assert.deepEqual(helpSwitch("off", []), { on: false, user: false });
     // the earlier separate switches are no entries any more
     assert.deepEqual(cleanDismissed(["-fieldInfo", "-zoneInfo", "-settingInfo", "nope", ALL_TIPS, NO_EXPLANATIONS, NO_EXPLANATIONS]), [ALL_TIPS, NO_EXPLANATIONS]);
-    // "Show dismissed tips again" keeps the switches and the sections' states, takes the tips back
-    assert.deepEqual([ALL_TIPS, NO_EXPLANATIONS, "open:share", "values"].filter(keptOnReset), [ALL_TIPS, NO_EXPLANATIONS, "open:share"]);
+    // "Show dismissed tips again" keeps the switches, takes the tips back
+    assert.deepEqual([ALL_TIPS, NO_EXPLANATIONS, "values"].filter(keptOnReset), [ALL_TIPS, NO_EXPLANATIONS]);
 });
 
 test("the field list collapsed: the user's choice in this session, else the host's fieldList, else the stored list", () => {
@@ -321,39 +320,9 @@ test("the field list collapsed: the user's choice in this session, else the host
     assert.equal(keptOnReset(FIELDS_COLLAPSED), true);
 });
 
-test("menu sections: open or folded by default, the user's choice kept in the tips' list only where it differs", () => {
-    assert.equal(sectionOpen("exportDownload", []), true);
-    assert.equal(sectionOpen("share", []), false);
-    const opened = withSection([], "share", true);
-    assert.deepEqual(opened, ["open:share"]);
-    assert.equal(sectionOpen("share", opened), true);
-    // back to its default: no entry
-    assert.deepEqual(withSection(opened, "share", false), []);
-    const folded = withSection(["values"], "exportDownload", false);
-    assert.deepEqual(folded, ["values", "closed:exportDownload"]);
-    assert.equal(sectionOpen("exportDownload", folded), false);
-    // stored entries survive cleaning; unknown sections and shapes do not
-    assert.deepEqual(cleanDismissed(["open:share", "closed:exportDownload", "open:nothing", "open:", "closed:__proto__"]), ["open:share", "closed:exportDownload"]);
-    // a section without a default is open
-    assert.equal(sectionOpen("unknown", []), true);
-});
-
-test("menu sections: Share and the chart's display settings start folded; the chip menus and Options fold no more", () => {
-    assert.equal(sectionOpen("share", []), false);
-    assert.equal(sectionOpen("chartDisplay", []), false);
-    for (const id of ["exportDownload", "exportCopy", "thisView", "sharedViews", "myViews", "chartType"]) {
-        assert.equal(sectionOpen(id, []), true, id);
-    }
-    // the folds that are gone (the chip menus and Options have levels now, the earlier folds of
-    // Options → Rows, a value's Name and its Filters hint): a stored state of theirs is dropped
-    const gone = ["summarize", "showAs", "format", "highlight", "move", "sort", "groupBy", "bins", "topN", "filters", "totals", "help", "name", "valueFilters", "folding"];
-    assert.deepEqual(cleanDismissed([...gone.map((id) => `closed:${id}`), ...gone.map((id) => `open:${id}`), "open:share"]), ["open:share"]);
-});
-
-test("Reset menu sections: every section as at first, the tips and switches kept; Show dismissed tips again keeps the sections", () => {
-    const list = [ALL_TIPS, "values", "open:share", "closed:exportDownload", FIELDS_COLLAPSED];
-    assert.deepEqual(withoutSections(list), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
-    assert.equal(sectionOpen("share", withoutSections(list)), false);
-    assert.equal(sectionOpen("exportDownload", withoutSections(list)), true);
-    assert.deepEqual(list.filter(keptOnReset), [ALL_TIPS, "open:share", "closed:exportDownload", FIELDS_COLLAPSED]);
+test("no menu folds any more: a stored state of a section (open: or closed:) is dropped when the list is read", () => {
+    const gone = ["summarize", "format", "filters", "totals", "help", "exportDownload", "exportCopy", "thisView", "sharedViews", "myViews", "share", "chartType", "chartDisplay"];
+    const stored = [ALL_TIPS, ...gone.map((id) => `closed:${id}`), ...gone.map((id) => `open:${id}`), "values", FIELDS_COLLAPSED];
+    assert.deepEqual(cleanDismissed(stored), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
+    assert.deepEqual(parseStored(JSON.stringify(stored)), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
 });

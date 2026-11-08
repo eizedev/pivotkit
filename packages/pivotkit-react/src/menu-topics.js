@@ -18,9 +18,12 @@ import { TOTALS, filterState, measureChoices, totalNoEffect, updateValue, withMe
  * One choice of a topic: a menu item. `change` gives the next view and the history's note, or `run`
  * does what it does; `closes`: the menu closes after it (the chip it belongs to is replaced, or moves
  * away). `checkbox`: a switch (`checked` on or off) instead of one of several; `disabled` with the
- * `reason`; `info`: the id of its explanation (labels.settingInfo).
+ * `reason`; `info`: the id of its explanation (labels.settingInfo). `open`: the id of a topic whose
+ * level it opens (after `run`; Back puts the focus on `backTo`, else on the choice), instead of applying; `actions`: an entry's own actions next to it
+ * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now.
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any }, run?: () => void, checked?: boolean,
- *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string }} Choice
+ *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
+ *   open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
  */
 
 /**
@@ -28,10 +31,11 @@ import { TOTALS, filterState, measureChoices, totalNoEffect, updateValue, withMe
  * below the other (`titled`: under its title), "menu" a row that opens a level with its choices,
  * "panel" a row that opens a level with a form (the menu's component draws it, by the topic's id).
  * `state` is what is set, in short, on the row's right; `changed` marks a setting that is not the
- * default; `info` the id of an explanation next to the level's title.
+ * default; `info` the id of an explanation next to the level's title. `hidden`: a level a choice
+ * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices.
  * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
- *   icon?: string, titled?: boolean, info?: string }} Topic
+ *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string }} Topic
  */
 
 /** The formats the value menu offers first, and those under "More formats"; any other format of a view still works. */
@@ -244,15 +248,15 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
 /**
  * The topics of the Options menu: the totals (each a switch; one that would change nothing in this
  * view is off, with the reason), Expand all and Collapse all (each only when it changes something,
- * else with the reason), and help: Show tips, Show explanations, Show dismissed tips again, Reset
- * menu sections, and the keyboard shortcuts (a level). What each does is the report's (`act`).
+ * else with the reason), and help: Show tips, Show explanations, Show dismissed tips again, and the
+ * keyboard shortcuts (a level). What each does is the report's (`act`).
  * @param {{ view: any, labels: any, folding: { canExpand: boolean, canCollapse: boolean, why: { expand?: string | null, collapse?: string | null } },
- *   tips: { controls: boolean, on: boolean, canReset: boolean }, explanations?: { on: boolean } | null, sections?: { can: boolean } | null,
+ *   tips: { controls: boolean, on: boolean, canReset: boolean }, explanations?: { on: boolean } | null,
  *   act: { total: (key: string, on: boolean) => void, expand: () => void, collapse: () => void, tipsOn: (on: boolean) => void,
- *   resetTips: () => void, explain: (on: boolean) => void, resetSections: () => void } }} input
+ *   resetTips: () => void, explain: (on: boolean) => void } }} input
  * @returns {Topic[]}
  */
-export function optionTopics({ view, labels, folding, tips, explanations, sections, act }) {
+export function optionTopics({ view, labels, folding, tips, explanations, act }) {
     /** @type {Choice[]} */
     const help = [];
     if (tips.controls) {
@@ -263,9 +267,6 @@ export function optionTopics({ view, labels, folding, tips, explanations, sectio
     }
     if (tips.controls) {
         help.push({ id: "reset-tips", text: labels.resetTips, icon: "reset", disabled: !tips.canReset, run: act.resetTips });
-    }
-    if (sections) {
-        help.push({ id: "reset-sections", text: labels.resetSections, icon: "reset", disabled: !sections.can, run: act.resetSections });
     }
     return [
         {
@@ -302,6 +303,30 @@ export function optionTopics({ view, labels, folding, tips, explanations, sectio
 }
 
 /**
+ * The ids of the Views menu's entries: by their group, their name and how often the name came
+ * before in that group, so an entry keeps its id when one before it is deleted, and two entries of
+ * one name are told apart.
+ * @param {Array<{ scope: string, name: string }>} templates
+ */
+export function entryIds(templates) {
+    const seen = new Map();
+    return templates.map((t) => {
+        const key = `${t.scope}:${t.name}`;
+        seen.set(key, (seen.get(key) ?? 0) + 1);
+        return `entry:${key}:${seen.get(key)}`;
+    });
+}
+
+/**
+ * The entry the focus goes to once the entry at `place` of a group is deleted: the next one, else
+ * the one before it; undefined when it was the only one.
+ * @template T
+ * @param {T[]} list
+ * @param {number} place
+ */
+export const afterDelete = (list, place) => list[place + 1] ?? list[place - 1];
+
+/**
  * One entry of a menu's search: a choice of a topic (with the path to it), or a topic's level.
  * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice }} SearchEntry
  */
@@ -314,7 +339,9 @@ export function optionTopics({ view, labels, folding, tips, explanations, sectio
  */
 export function searchEntries(topics) {
     return topics.flatMap((topic) =>
-        topic.kind === "panel"
+        topic.hidden
+            ? []
+            : topic.kind === "panel"
             ? [{ id: `open-${topic.id}`, text: topic.title, path: "", topic }]
             : (topic.groups ?? []).flatMap((g) => g.choices.map((choice) => ({ id: choice.id, text: choice.text, path: [topic.title, g.title].filter(Boolean).join(" › "), topic, choice })))
     );

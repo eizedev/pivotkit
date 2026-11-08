@@ -50,15 +50,14 @@ The type button shows the type ("Automatic", "Bars"; for a screen reader "Chart 
 
 ## Display settings
 
-The chart type menu has a **Display** section under the chart types, folded at first: its title says
-which settings differ from the start ("Legend, Title", else "Automatic"); a click opens it and the
-report remembers that ([long menus](layout.md#menus-that-are-long)). Each choice applies at once and the menu stays open, so
+The chart type menu has its **Display** settings under the chart types, one flat list
+([long menus](layout.md#menus-that-are-long)). Each choice applies at once and the menu stays open, so
 the chart behind it shows the change. The settings stay with the report: in saved views, links and the
 chart image, also when the chart type changes. An **i** next to Labels and to Group labels explains
 them.
 
-![The chart type menu with its Display section: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
-![The chart type menu with its Display section: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
+![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-light.png#only-light)
+![The chart type menu with its Display settings: value labels, legend, title](../assets/screenshots/chart-display-dark.png#only-dark)
 
 | Setting | Choices | Default |
 | --- | --- | --- |

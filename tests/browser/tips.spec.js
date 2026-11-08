@@ -116,7 +116,8 @@ test("after several changes the tip offers to save the view as a template", asyn
     await page.getByTestId("swap").click();
     await expect(page.getByTestId("tip-saveTemplate")).toBeVisible();
     await page.getByTestId("tip-action-saveTemplate").click();
-    await expect(page.getByTestId("saved-view-name")).toBeVisible();
+    // the Views menu opens with its first entry, Save current view…, in focus
+    await expect(page.getByTestId("save-as")).toBeFocused();
 });
 
 test("after the first drag: Undo and the menus", async ({ page }) => {

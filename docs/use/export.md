@@ -23,8 +23,8 @@ with all its decimals and the formats; the CSV and the copy hold the numbers as 
 While no field is placed there is nothing to export: every entry is greyed out with "Add a field
 first." under it, and nothing is downloaded or copied.
 
-The menu has two sections, **Download** and **Copy**, in that order also in the drill-down's Export
-menu; they fold like the other menus' sections and the report remembers them. An
+The menu has two titled groups, **Download** and **Copy**, in that order also in the drill-down's
+Export menu. An
 **i** next to Excel, CSV, Copy table and Copy data as JSON says what each holds.
 
 ## What each one holds

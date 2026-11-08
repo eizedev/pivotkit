@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
-import { chipMenu, chips, drag, expect, openLevel, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, drag, expect, openLevel, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("building a report", () => {
     test("the empty state explains the first steps; fields are added by drag and by menu", async ({ page }) => {
@@ -222,20 +222,21 @@ test.describe("filter, table and chart", () => {
         await page.goto("?data=tickets");
         await page.getByRole("button", { name: "Remove Priority" }).click();
         await toolbar(page, "views");
+        await openSaveAs(page);
         await page.getByTestId("saved-view-name").fill("Teams only");
         await page.getByRole("button", { name: "Save", exact: true }).click();
         // "saved" comes when the host's promise is kept
         await expect(page.locator(".pk-toasts")).toContainText("View “Teams only” saved");
         await toolbar(page, "views");
         // a preset of the host has no delete button
-        await expect(page.getByRole("button", { name: "Delete Open work per team (chart)" })).toHaveCount(0);
+        await expect(page.getByRole("menuitem", { name: "Delete Open work per team (chart)" })).toHaveCount(0);
         await page.getByTestId("saved-view-Open work per team (chart)").click();
         await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
         await toolbar(page, "views");
         await page.getByTestId("saved-view-Teams only").click();
         await expect.poll(() => chips(page, "cols")).toEqual([]);
         await toolbar(page, "views");
-        await page.getByRole("button", { name: "Delete Teams only" }).click();
+        await page.getByRole("menuitem", { name: "Delete Teams only" }).click();
         // asked in place, no window.confirm (a dialog would fail the test through the console check)
         await expect(page.getByText("Delete “Teams only”?")).toBeVisible();
         await page.getByTestId("confirm-delete").click();
@@ -247,18 +248,19 @@ test.describe("filter, table and chart", () => {
         await page.goto("?data=tickets");
         const preset = "Tickets per team and priority";
         await toolbar(page, "views");
+        await openSaveAs(page);
         await page.getByTestId("saved-view-name").fill(preset);
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await expect(page.locator(".pk-toasts")).toContainText(`View “${preset}” saved`);
         await toolbar(page, "views");
         // the host's preset and the user's template of the same name, one delete button (the saved one)
         await expect(page.getByTestId(`saved-view-${preset}`)).toHaveCount(2);
-        await page.getByRole("button", { name: `Delete ${preset}` }).click();
-        await expect(page.getByTestId("confirm-delete")).toHaveCount(1);
-        await expect(page.getByTestId(`saved-view-${preset}`)).toHaveCount(1);
+        await page.getByRole("menuitem", { name: `Delete ${preset}` }).click();
+        // the question names it, in a level of its own
+        await expect(page.getByTestId("delete-confirm")).toContainText(`Delete “${preset}”?`);
         await page.getByTestId("confirm-delete").click();
         await expect(page.getByTestId(`saved-view-${preset}`)).toHaveCount(1);
-        await expect(page.getByRole("button", { name: `Delete ${preset}` })).toHaveCount(0);
+        await expect(page.getByRole("menuitem", { name: `Delete ${preset}` })).toHaveCount(0);
     });
 });
 

@@ -43,24 +43,28 @@ save, or when Undo brings the report back to the view as it was saved. While Vie
 
 ## The Views menu
 
-**Views** in the toolbar starts with **This view** (save and start over), then lists the saved
-reports in two groups, then **Share** (folded at first: a click on its title opens it, and the report
-remembers that). Each entry loads its view with one click; the first three are
-also offered in the empty report. The view you loaded has a check mark in its group.
+**Views** in the toolbar is one list to scan: **This view** (save and start over), then the saved
+reports in two groups, then **Share**. Each entry loads its view with one click; the first three are
+also offered in the empty report. The view you loaded has a check mark in its group. **Save as…**
+(**Save current view…** before a view is loaded), **Share** and the questions before a delete or a
+publish open a level of their own in the menu's place, titled "Views › Share" and so on; **‹ Back** or
+Escape goes back to the entry it came from. The keys are those of the other menus
+([keyboard](keyboard.md#keys)): the arrow keys move through the list, Enter loads a view or opens a
+level, Tab closes the menu.
 
-![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
-![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-dark.png#only-dark)
+![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share](../assets/screenshots/views-menu-light.png#only-light)
+![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share](../assets/screenshots/views-menu-dark.png#only-dark)
 
 | Group | What |
 | --- | --- |
-| **This view** | **Save “…”** for the view you loaded, the name field (**Save current view**, or **Save as…** once a view is loaded) and **New, empty report**. |
+| **This view** | **Save “…”** for the view you loaded, **Save current view…** (**Save as…** once a view is loaded), which opens the name field, and **New, empty report**. |
 | **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who (by default "Only admins can change shared views."). |
-| **My views** | Your own. **Save current view** saves the report under a name; your views can be deleted, and published for everyone where the application allows it. |
+| **My views** | Your own. **Save current view…** saves the report under a name; your views can be deleted, and published for everyone where the application allows it. |
 
 A group without entries is not shown; My views shows while you can save.
 
-![This view in the Views menu: Save for the loaded view, the Save as field and New, empty report](../assets/screenshots/views-this-view-light.png#only-light)
-![This view in the Views menu: Save for the loaded view, the Save as field and New, empty report](../assets/screenshots/views-this-view-dark.png#only-dark)
+![This view in the Views menu: Save for the loaded view, Save as… and New, empty report](../assets/screenshots/views-this-view-light.png#only-light)
+![This view in the Views menu: Save for the loaded view, Save as… and New, empty report](../assets/screenshots/views-this-view-dark.png#only-dark)
 
 ### Save your changes
 
@@ -80,13 +84,15 @@ Quick enough to keep a report for later before you leave.
 | "Not saved yet. Use Save as." | The view came from a file or a link: it is not among the saved views. |
 | "Add a field first." | The report is empty; an empty report is never saved over a view. |
 
-Where you may publish views, **Save** on a shared view asks first, in place: "Replace the shared view
-“…” for everyone?" - **Replace** saves it for everyone, **Cancel** changes nothing.
+Where you may publish views, **Save** on a shared view asks first, in a level of its own: "Replace the
+shared view “…” for everyone?" - **Replace** saves it for everyone, **Cancel** goes back and changes
+nothing.
 
 ### Save under a name
 
 1. Open **Views**.
-2. Type a name under **Save current view** (**Save as…** once a view is loaded), up to 120 characters.
+2. Choose **Save current view…** (**Save as…** once a view is loaded) and type a name, up to 120
+   characters.
 3. Press **Save** (**Save as**) or Enter. The button is greyed out while the name is empty.
 
 When one of your views already has that name, the report asks in place of the field: "“…” exists.
@@ -95,7 +101,7 @@ not replace anything, brings the field back with the name in it, so you can chan
 of the same name stays as it is: Save as saves your own.
 
 Every save closes the menu, the same for **Save “…”**, **Save current view** and **Save as**, and the
-focus goes back to **Views** (or **More**); a note says "View “…” saved". The name field has an **×**; Escape in it empties it first, then closes the menu. Every name is shown
+focus goes back to **Views** (or **More**); a note says "View “…” saved". The name field has an **×**; Escape in it empties it first, then goes back to the list. Every name is shown
 as plain text.
 
 ### Start over with an empty report
@@ -107,10 +113,12 @@ entry in Views says the same.
 
 ### Delete or publish one of your views
 
-- The delete button next to one of your views asks in place before the view goes.
+- The delete button next to one of your views asks first, in a level of its own ("Delete “…”?"),
+  before the view goes. The arrow keys reach it right after the view's name.
 - Where the application allows it, the arrow next to one of your views publishes it as a shared view,
-  for everyone, after a confirmation in place.
-- After a delete, a publish or Cancel the focus goes back to the entry in that place.
+  for everyone, after the same kind of question.
+- After a publish or Cancel the focus goes back to where you asked; after a delete to the view that
+  takes its place in the list (the one after it, else the one before).
 
 ### Views kept in this browser
 
@@ -122,10 +130,10 @@ could not be deleted: the views were changed in another tab; open the menu again
 
 ## Share a view
 
-![The Views menu with Shared views, My views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu-light.png#only-light)
-![The Views menu with Shared views, My views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu-dark.png#only-dark)
+![The Share level of the Views menu: Copy link, Copy view as JSON, Download view, Load view and what a view gives away](../assets/screenshots/share-menu-light.png#only-light)
+![The Share level of the Views menu: Copy link, Copy view as JSON, Download view, Load view and what a view gives away](../assets/screenshots/share-menu-dark.png#only-dark)
 
-The **Share** section of the Views menu (folded until you open it once):
+**Share**, the last entry of the Views menu, opens its level:
 
 | Entry | Gives |
 | --- | --- |
@@ -140,7 +148,7 @@ allow the clipboard, the report says so and points to Download view.
 
 ## Load a view
 
-1. **Views**, **Load view…**.
+1. **Views**, **Share**, **Load view…** (a level of its own; **‹ Back** goes back to Share).
 2. Paste a view file, a view's JSON or a link and press **Load** (greyed out while the box is empty),
    or press **Choose file…**, which loads the file at once.
 

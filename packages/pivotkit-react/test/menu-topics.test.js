@@ -7,7 +7,7 @@ import { LABELS } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { setItemFilter, setTopFilter, setValueFilter } from "../src/menu-ops.js";
-import { axisTopics, optionTopics, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
+import { afterDelete, axisTopics, entryIds, optionTopics, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -137,18 +137,19 @@ test("Options: totals as switches (off with the reason where they change nothing
     const calls = [];
     const act = new Proxy({}, { get: (_, name) => (...args) => calls.push([name, ...args]) });
     const view = norm({ rows: ["Region"], values: [units] });
-    const topics = optionTopics({ view, labels: MENU.en, folding: { canExpand: false, canCollapse: true, why: { expand: "expandNothing" } }, tips: { controls: true, on: true, canReset: false }, explanations: { on: false }, sections: { can: true }, act });
+    const topics = optionTopics({ view, labels: MENU.en, folding: { canExpand: false, canCollapse: true, why: { expand: "expandNothing" } }, tips: { controls: true, on: true, canReset: false }, explanations: { on: false }, act });
     assert.deepEqual(topics.map((t) => [t.id, t.kind]), [["totals", "inline"], ["rows", "inline"], ["help", "inline"], ["shortcuts", "panel"]]);
     const col = choice(byId(topics, "totals"), "total-grandTotalColumn");
     assert.deepEqual([col.checkbox, col.disabled, col.reason, col.info], [true, true, "Needs a field in Columns.", "grandTotalColumn"]);
     choice(byId(topics, "totals"), "total-grandTotalRow").run();
     choice(byId(topics, "help"), "show-explanations").run();
-    choice(byId(topics, "help"), "reset-sections").run();
-    assert.deepEqual(calls, [["total", "grandTotalRow", false], ["explain", true], ["resetSections"]]);
+    assert.deepEqual(calls, [["total", "grandTotalRow", false], ["explain", true]]);
+    // nothing folds any more: no "Reset menu sections"
+    assert.deepEqual(byId(topics, "help").groups[0].choices.map((c) => c.id), ["show-tips", "show-explanations", "reset-tips"]);
     assert.deepEqual([choice(byId(topics, "rows"), "expand-all").disabled, choice(byId(topics, "rows"), "expand-all").reason], [true, "Nothing is collapsed."]);
     assert.equal(choice(byId(topics, "help"), "reset-tips").disabled, true);
     // a host that decides the tips and explanations itself: no switches for them
-    const hosted = optionTopics({ view, labels: MENU.en, folding: { canExpand: true, canCollapse: true, why: {} }, tips: { controls: false, on: true, canReset: false }, explanations: null, sections: null, act });
+    const hosted = optionTopics({ view, labels: MENU.en, folding: { canExpand: true, canCollapse: true, why: {} }, tips: { controls: false, on: true, canReset: false }, explanations: null, act });
     assert.deepEqual(byId(hosted, "help").groups[0].choices, []);
 });
 
@@ -192,4 +193,14 @@ test("a row's name says its state and a change in words, not only with the dot",
     assert.equal(rowName("Filter", "1 of 3", true, MENU.en.sectionChanged), "Filter, 1 of 3, changed");
     assert.equal(rowName("Move to", undefined, false, MENU.en.sectionChanged), "Move to");
     assert.equal(rowName("Filter", "Alle", false, MENU.de.sectionChanged), "Filter, Alle");
+});
+
+test("the Views menu's entries: ids by group, name and repeat; after a delete the focus goes to the next entry, else the one before", () => {
+    const ids = entryIds([{ scope: "shared", name: "Sales" }, { scope: "user", name: "Sales" }, { scope: "user", name: "Sales" }, { scope: "user", name: "Mine" }]);
+    assert.deepEqual(ids, ["entry:shared:Sales:1", "entry:user:Sales:1", "entry:user:Sales:2", "entry:user:Mine:1"]);
+    // the entries after a deleted one keep their ids
+    assert.deepEqual(entryIds([{ scope: "user", name: "Mine" }]), ["entry:user:Mine:1"]);
+    assert.equal(afterDelete([4, 5, 6], 1), 6);
+    assert.equal(afterDelete([4, 5, 6], 2), 5);
+    assert.equal(afterDelete([4], 0), undefined);
 });

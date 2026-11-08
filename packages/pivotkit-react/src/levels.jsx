@@ -149,11 +149,12 @@ export function MenuList({ label, labelledBy, className, close, children, testId
  * @param {{ id: string, text: React.ReactNode, onSelect: () => void, checked?: boolean, checkbox?: boolean,
  *   hint?: string, icon?: string, danger?: boolean, testId?: string, start?: boolean, plain?: string,
  *   label?: string, className?: string, disabled?: boolean, reason?: string, haspopup?: "menu" | "dialog", level?: string,
- *   description?: string | null, children?: React.ReactNode }} props
+ *   description?: string | null, current?: boolean, children?: React.ReactNode }} props
  *   `plain`: the text type-ahead matches; `start`: takes Tab first; `level`: the topic it opens;
- *   `description`: an explanation a screen reader reads with it (the "i" next to it shows it)
+ *   `description`: an explanation a screen reader reads with it (the "i" next to it shows it);
+ *   `current`: the entry shown now (the view loaded), with a check and aria-current
  */
-export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, children }) {
+export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, danger, testId, start, plain, label, className, disabled, reason, haspopup, level, description, current, children }) {
     const role = checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio";
     const reasonId = useId();
     const describedBy = [disabled && reason ? reasonId : null, description ? `${reasonId}-d` : null].filter(Boolean).join(" ") || undefined;
@@ -166,6 +167,7 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
             aria-haspopup={haspopup}
             aria-disabled={disabled || undefined}
             aria-describedby={describedBy}
+            aria-current={current ? "true" : undefined}
             tabIndex={-1}
             className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${disabled ? " pk-disabled" : ""}${className ? ` ${className}` : ""}`}
             data-pk-option=""
@@ -176,7 +178,7 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
             data-testid={testId ?? id}
             onClick={disabled ? undefined : onSelect}
         >
-            <span className="pk-option-icon">{checked ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
+            <span className="pk-option-icon">{checked || current ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">
                 {text}
                 {disabled && reason ? (
@@ -205,16 +207,29 @@ export function MenuItem({ id, text, onSelect, checked, checkbox, hint, icon, da
 function ChoiceItem({ choice: c, onPick, start }) {
     const { explain, labels } = useContext(HelpContext);
     const text = c.info && explain && labels?.settingInfo && Object.hasOwn(labels.settingInfo, c.info) ? labels.settingInfo[c.info] : null;
-    const item = <MenuItem id={c.id} text={c.text} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} disabled={c.disabled} reason={c.reason} description={text} start={start} onSelect={() => onPick(c)} />;
-    return text ? (
+    const item = (
+        <MenuItem id={c.id} testId={c.testId} text={c.text} hint={c.hint} icon={c.icon} checked={c.checked} checkbox={c.checkbox} current={c.current} disabled={c.disabled} reason={c.reason} description={text} start={start} haspopup={c.open ? "dialog" : undefined} className={c.open ? "pk-topic-row" : undefined} onSelect={() => onPick(c)}>
+            {c.open ? <Icon name="chevronRight" size={16} className="pk-topic-chevron" /> : null}
+        </MenuItem>
+    );
+    if (!text && !c.actions?.length) {
+        return item;
+    }
+    return (
         <div role="none" className="pk-setting-row">
             {item}
-            <span aria-hidden="true">
-                <SettingInfo id={/** @type {string} */ (c.info)} name={c.text} tabIndex={-1} />
-            </span>
+            {/* an entry's own actions (delete, publish): items of the menu, next to it */}
+            {(c.actions ?? []).map((a) => (
+                <button key={a.id} type="button" role="menuitem" tabIndex={-1} className="pk-icon-btn" aria-label={a.label} title={a.label} aria-haspopup={a.open ? "dialog" : undefined} data-pk-item={a.id} data-pk-text={a.label} data-testid={a.testId ?? a.id} onClick={() => onPick(a)}>
+                    <Icon name={/** @type {any} */ (a.icon)} />
+                </button>
+            ))}
+            {text ? (
+                <span aria-hidden="true">
+                    <SettingInfo id={/** @type {string} */ (c.info)} name={c.text} tabIndex={-1} />
+                </span>
+            ) : null}
         </div>
-    ) : (
-        item
     );
 }
 
@@ -254,7 +269,7 @@ function TopicRow({ topic, labels, onOpen }) {
 /** The choices of a topic's groups as menu items, each group with its title. */
 function Groups({ topic, onPick }) {
     const ids = useId();
-    return (topic.groups ?? []).map((g, i) => {
+    const groups = (topic.groups ?? []).map((g, i) => {
         const items = g.choices.map((c) => <ChoiceItem key={c.id} choice={c} start={c.checked} onPick={onPick} />);
         return g.title ? (
             <React.Fragment key={i}>
@@ -271,6 +286,16 @@ function Groups({ topic, onPick }) {
             </div>
         );
     });
+    return (
+        <>
+            {groups}
+            {topic.note ? (
+                <p className="pk-hint pk-menu-hint" role="none" data-testid={topic.noteId}>
+                    {topic.note}
+                </p>
+            ) : null}
+        </>
+    );
 }
 
 /**
@@ -279,6 +304,9 @@ function Groups({ topic, onPick }) {
  */
 function TopicFirst({ topic, labels, onPick, onOpen }) {
     const titleId = useId();
+    if (topic.hidden) {
+        return null;
+    }
     if (topic.kind === "menu" || topic.kind === "panel") {
         return <TopicRow topic={topic} labels={labels} onOpen={onOpen} />;
     }
@@ -314,6 +342,11 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
                     <ChoiceItem key={c.id} choice={c} onPick={onPick} />
                 ))}
             </div>
+            {topic.note ? (
+                <p className="pk-hint pk-menu-hint" role="none" data-testid={topic.noteId}>
+                    {topic.note}
+                </p>
+            ) : null}
         </>
     );
 }
@@ -342,17 +375,19 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
 /**
  * A menu in levels.
  * @param {{ name: string, labels: any, topics: import("./menu-topics.js").Topic[], close: () => void,
- *   onPick: (choice: import("./menu-topics.js").Choice) => void, panel: (id: string, back: () => void) => React.ReactNode,
- *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, locale?: string }} props
+ *   onPick: (choice: import("./menu-topics.js").Choice) => void, panel: (id: string, back: (focus?: string) => void) => React.ReactNode,
+ *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, locale?: string, focusAgain?: unknown }} props
  *   `onPick`: applies a choice (the menu then goes back to its first level, unless the choice closes
- *   it); `panel`: the form of a "panel" topic; `foot`: items after the topics (Remove field)
+ *   it); `panel`: the form of a "panel" topic, with `back` (one level back, the focus where the level
+ *   was opened from, or `focus`); `foot`: items after the topics (Remove field); `focusAgain`: when it
+ *   changes, the focus goes once more where the last step sent it (that element may come later)
  */
-export function LevelMenu({ name, labels, topics, close, onPick, panel, head, foot, search = false, locale }) {
-    // the level shown (a topic's id, or null for the first level) and where the focus goes once it
-    // shows: "level" its first control, "search" the search, "row:<topic>" the row it came from,
-    // "item:<choice>" a choice on the first level
-    const [nav, setNav] = useState(/** @type {{ level: string | null, focus: string | null }} */ ({ level: null, focus: null }));
-    const level = nav.level;
+export function LevelMenu({ name, labels, topics, close, onPick, panel, head, foot, search = false, locale, focusAgain }) {
+    // the levels open (a topic's id with the focus that goes back to where it was opened from; none:
+    // the first level) and where the focus goes once it shows: "level" the level's first control,
+    // "search" the search, "row:<topic>" a topic's row, "item:<choice>" a choice
+    const [nav, setNav] = useState(/** @type {{ stack: Array<{ level: string, from: string }>, focus: string | null }} */ ({ stack: [], focus: null }));
+    const level = nav.stack.length ? nav.stack[nav.stack.length - 1].level : null;
     const [query, setQuery] = useState("");
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
     const titleId = useId();
@@ -374,16 +409,27 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                   : el.querySelector(kind === "row" ? `[data-pk-level="${CSS.escape(id)}"]` : `[data-pk-item="${CSS.escape(id)}"]`) ?? el.querySelector(ITEM);
         target?.focus({ preventScroll: true });
         target?.scrollIntoView?.({ block: "nearest" });
-    }, [nav]);
-    const open = (id) => {
+        // `focusAgain` changes when what the focus goes to may have come later (a view deleted)
+    }, [nav, focusAgain]);
+    const open = (id, from = `row:${id}`) => {
         setQuery("");
-        setNav({ level: id, focus: "level" });
+        setNav({ stack: [...nav.stack, { level: id, from }], focus: "level" });
     };
-    const back = () => setNav({ level: null, focus: `row:${level ?? ""}` });
+    /** One level back, the focus where the level was opened from (or `focus`). */
+    const back = (/** @type {string | undefined} */ focus = undefined) => {
+        const top = nav.stack[nav.stack.length - 1];
+        setNav({ stack: nav.stack.slice(0, -1), focus: focus ?? top?.from ?? null });
+    };
     const pick = (choice) => {
+        if (choice.open) {
+            // a choice that asks or takes a form first: its level
+            choice.run?.();
+            open(choice.open, choice.backTo ?? `item:${choice.id}`);
+            return;
+        }
         if (!choice.closes) {
             // the summary shows the new state, the focus on the row of the topic (or the search)
-            setNav({ level: null, focus: query ? "search" : level ? `row:${level}` : `item:${choice.id}` });
+            setNav({ stack: [], focus: query ? "search" : nav.stack.length ? nav.stack[0].from : `item:${choice.id}` });
             setQuery("");
         }
         onPick(choice);
@@ -456,12 +502,12 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
             {topic ? (
                 <>
                     <div className="pk-level-head">
-                        <button type="button" className="pk-link pk-level-back" onClick={back} aria-label={fill(labels.backTo, { name })} data-testid="level-back">
+                        <button type="button" className="pk-link pk-level-back" onClick={() => back()} aria-label={fill(labels.backTo, { name })} data-testid="level-back">
                             <Icon name="chevronRight" size={16} className="pk-flip" />
                             {labels.back}
                         </button>
                         <h3 id={titleId} className="pk-level-title" data-testid="level-title">
-                            {fill(labels.levelTitle, { name, topic: topic.title })}
+                            {fill(labels.levelTitle, { name, topic: topic.levelTitle ?? topic.title })}
                         </h3>
                         {topic.info ? <SettingInfo id={topic.info} name={topic.title} /> : null}
                     </div>
@@ -504,7 +550,13 @@ export function useLater(wait = 450) {
         cancel();
         run?.();
     };
-    useEffect(() => cancel, []);
+    // the menu closing (a click outside it, Tab) or the level going applies what waits, as leaving
+    // the field does; Escape in the field takes it back first (cancel)
+    const latest = useRef(now);
+    useEffect(() => {
+        latest.current = now;
+    });
+    useEffect(() => () => latest.current(), []);
     return {
         later: (/** @type {() => void} */ fn) => {
             cancel();
@@ -543,9 +595,16 @@ export function useAppliedText(applied, apply, wait = 450) {
     const flush = () => {
         later.cancel();
         if (live.current.text !== live.current.seen) {
+            live.current.seen = live.current.text;
             live.current.apply(live.current.text);
         }
     };
+    // a name waits for Enter or the field's blur; the menu closing first (a click outside) applies it too
+    const flushLatest = useRef(flush);
+    useEffect(() => {
+        flushLatest.current = flush;
+    });
+    useEffect(() => () => flushLatest.current(), []);
     return {
         text,
         set: (/** @type {string} */ value) => {

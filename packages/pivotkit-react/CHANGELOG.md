@@ -33,9 +33,16 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Options: the totals and help switches are menu items (`menuitemcheckbox`); one that would change
   nothing is `aria-disabled` with its reason, so the arrow keys still reach it; the "i" next to a
   total is for the pointer, its text is the item's description; Keyboard shortcuts is a level.
-- The chip menus and Options no longer fold: `SECTIONS` keeps the sections of Views, Chart type and
-  Export only. A stored state of a section that is gone (`open:format`, `closed:totals`, …) is
-  dropped when the list is read, and **Reset menu sections** acts on the sections that still fold.
+- The Views menu is in levels too: its first level is the flat list to scan (This view with Save “…”,
+  Save as… and New, Shared views, My views, Share); Save as…, Share (copy link, copy JSON, download,
+  Load view…) and the questions before a delete, a publish or a Save over a shared view open levels of
+  their own. An entry's Publish and Delete are items next to it, reached by the arrow keys; after a
+  delete the focus goes to the entry that takes its place.
+- No menu folds any more: the chart type menu (its Display settings shown at once) and the Export
+  menus are flat lists in titled groups. The folding (`SECTIONS`, `open:<section>` and
+  `closed:<section>` in the tips' list) and **Reset menu sections** are gone; a stored state of a
+  section is dropped when the list is read, and `dismissedTips` and `onTipDismiss` carry only tips and
+  switches.
 - Text fields, searches and selects in the menus have an edge of 3:1 contrast in both themes: the new
   token `--pk-input-border`.
 - Labels of the menus (a host's `labels` for them): new `back`, `backTo`, `levelTitle`, `searchMenu`,
@@ -45,7 +52,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `valueOpAny`, `nameHint`; changed: `valueOps` is the comparison inside the sentence ("is greater
   than", German "größer als"), `groupCyclic` reads "Same period every year"; gone (no longer shown):
   `chooseValues`, `valueFilter`, `change`, `removeSetting`, `topStart`, `binsStart`, `filterIs`,
-  `groupBy`. A host's text for a key that is gone is ignored.
+  `groupBy`, `resetSections`, `resetSectionsDone`. A host's text for a key that is gone is ignored.
 
 ### Fixed
 

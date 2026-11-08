@@ -1,28 +1,30 @@
 // Templates: the Views menu's two groups (shared views and the user's own), the browser store
 // (templateStore="browser"), "Publish as shared view", the templates of an OpenAPI document
 // (x-pivotkit-views) in the playground, and the same in the web component.
-import { expect, test, toolbar } from "./fixtures.js";
+import { expect, openSaveAs, test, toolbar } from "./fixtures.js";
 
 /** The names of the entries of a group of the Views menu ("sharedViews" or "myViews"), in order. */
-const group = (scope, id) => scope.locator(`[data-section="${id}"] [data-pk-entry] [data-pk-option]`).allInnerTexts();
+const group = (scope, id) => scope.getByTestId(`topic-${id}`).locator('[data-pk-item^="entry:"]').allInnerTexts();
 
 test.describe("the playground's Views menu", () => {
     test("shared views and my views: the i says who changes shared views, the browser store keeps mine", async ({ page }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "views");
-        await expect(page.getByTestId("section-sharedViews")).toHaveText("Shared views");
-        await expect(page.getByTestId("section-myViews")).toHaveText("My views");
+        await expect(page.getByTestId("topic-title-sharedViews")).toHaveText("Shared views");
+        await expect(page.getByTestId("topic-title-myViews")).toHaveText("My views");
         expect(await group(page, "sharedViews")).toEqual(["Tickets per team and priority", "Median lead time by month", "Open work per team (chart)"]);
         // a shared view nobody here may change: no delete, no publish; the i explains it
-        await expect(page.locator('[data-section="sharedViews"] [data-testid^="delete-view-"]')).toHaveCount(0);
-        await expect(page.locator('[data-section="sharedViews"] [data-testid^="publish-view-"]')).toHaveCount(0);
-        const info = page.locator('[data-section="sharedViews"] [data-testid="setting-info-sharedView"]').first();
-        await expect(info).toHaveAccessibleName("About Tickets per team and priority");
-        await info.focus();
+        await expect(page.locator('[data-testid="topic-sharedViews"] [data-testid^="delete-view-"]')).toHaveCount(0);
+        await expect(page.locator('[data-testid="topic-sharedViews"] [data-testid^="publish-view-"]')).toHaveCount(0);
+        // (for the pointer; a screen reader reads its text with the entry, the arrow keys stay on the entries)
+        const info = page.locator('[data-testid="topic-sharedViews"] [data-testid="setting-info-sharedView"]').first();
+        await expect(page.getByTestId("saved-view-Tickets per team and priority")).toHaveAccessibleDescription("Only admins can change shared views.");
+        await info.hover();
         await expect(page.locator(".pk-info-pop")).toContainText("Only admins can change shared views.");
         // no view of mine yet: one line, which says where they are kept
         await expect(page.getByTestId("store-note")).toHaveText("None yet. Saved views stay in this browser only.");
 
+        await openSaveAs(page);
         await page.getByTestId("saved-view-name").fill("Mine");
         await page.getByTestId("saved-view-name").press("Enter");
         await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
@@ -62,22 +64,24 @@ test.describe("the playground's Views menu", () => {
     test("publish: a view of mine becomes a shared view, after asking; the host may delete it", async ({ page }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "views");
+        await openSaveAs(page);
         await page.getByTestId("saved-view-name").fill("For the team");
         await page.getByTestId("saved-view-name").press("Enter");
         await toolbar(page, "views");
         await expect(page.getByTestId("saved-view-For the team")).toBeVisible();
-        await page.getByRole("button", { name: "Publish For the team as a shared view" }).click();
+        await page.getByRole("menuitem", { name: "Publish For the team as a shared view" }).click();
         await expect(page.getByText("Publish “For the team” as a shared view? Everyone who uses this report sees it.")).toBeVisible();
         await expect(page.getByTestId("confirm-publish")).toBeFocused();
         await page.keyboard.press("Enter");
         await expect(page.locator(".pk-toasts")).toContainText("View “For the team” published");
         // the host's new shared entry: deletable (the playground's user is its admin), no i
         await expect.poll(() => group(page, "sharedViews")).toContain("For the team");
-        const shared = page.locator('[data-section="sharedViews"] [data-pk-entry]').filter({ hasText: "For the team" });
+        // the entry's row: the entry with its actions next to it
+        const shared = page.getByTestId("topic-sharedViews").locator(".pk-setting-row").filter({ hasText: "For the team" });
         await expect(shared.getByTestId("setting-info-sharedView")).toHaveCount(0);
         await expect(shared.getByTestId("publish-view-For the team")).toHaveCount(0);
         // the focus is back on the entry that was published
-        await expect(page.locator('[data-section="myViews"]').getByTestId("saved-view-For the team")).toBeFocused();
+        await expect(page.locator('[data-testid="topic-myViews"]').getByTestId("saved-view-For the team")).toBeFocused();
         await shared.getByTestId("delete-view-For the team").click();
         await page.getByTestId("confirm-delete").click();
         await expect(page.locator(".pk-toasts")).toContainText("View “For the team” deleted");
@@ -99,13 +103,14 @@ test.describe("the playground's Views menu", () => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto("?data=tickets&lang=de");
         await toolbar(page, "views");
-        await expect(page.getByTestId("section-sharedViews")).toHaveText("Gemeinsame Ansichten");
-        await expect(page.getByTestId("section-myViews")).toHaveText("Meine Ansichten");
+        await expect(page.getByTestId("topic-title-sharedViews")).toHaveText("Gemeinsame Ansichten");
+        await expect(page.getByTestId("topic-title-myViews")).toHaveText("Meine Ansichten");
+        await openSaveAs(page);
         await page.getByTestId("saved-view-name").fill("Meins");
         await page.getByTestId("saved-view-name").press("Enter");
         await expect(page.locator(".pk-toasts")).toContainText("Ansicht „Meins“ gespeichert");
         await toolbar(page, "views");
-        const publish = page.getByRole("button", { name: "Meins als gemeinsame Ansicht veröffentlichen" });
+        const publish = page.getByRole("menuitem", { name: "Meins als gemeinsame Ansicht veröffentlichen" });
         await publish.scrollIntoViewIfNeeded();
         const box = await publish.boundingBox();
         // inside the window, and big enough to tap
@@ -131,8 +136,9 @@ test("web component: templates from view files, the browser store, publish and d
     expect(await group(report, "sharedViews")).toEqual(["From a view file", "Team view"]);
     // the shared view an admin may delete has a delete button instead of the i
     await expect(report.getByTestId("delete-view-Team view")).toBeVisible();
-    await expect(report.locator('[data-section="sharedViews"] [data-testid="setting-info-sharedView"]')).toHaveCount(1);
+    await expect(report.locator('[data-testid="topic-sharedViews"] [data-testid="setting-info-sharedView"]')).toHaveCount(1);
     // no save-templates: the browser store takes the save, no event
+    await openSaveAs(report);
     await report.getByTestId("saved-view-name").fill("Mine");
     await report.getByTestId("saved-view-name").press("Enter");
     await expect(report.locator(".pk-toasts")).toContainText("View “Mine” saved");
@@ -142,7 +148,7 @@ test("web component: templates from view files, the browser store, publish and d
     await report.getByTestId("confirm-publish").click();
     await expect(report.locator(".pk-toasts")).toContainText("View “Mine” published");
     await expect.poll(() => group(report, "sharedViews")).toEqual(["From a view file", "Team view", "Mine"]);
-    await report.locator('[data-section="sharedViews"]').getByTestId("delete-view-Team view").click();
+    await report.locator('[data-testid="topic-sharedViews"]').getByTestId("delete-view-Team view").click();
     await report.getByTestId("confirm-delete").click();
     await expect.poll(() => group(report, "sharedViews")).toEqual(["From a view file", "Mine"]);
     const events = await page.evaluate(() => window.__events);
@@ -166,6 +172,6 @@ test("no i about admins where nobody here can change shared views", async ({ pag
         await sales.getByTestId("more").click();
         await sales.getByTestId("more-views").click();
     }
-    await expect(sales.locator('[data-section="sharedViews"] [data-pk-entry]').first()).toBeVisible();
+    await expect(sales.locator('[data-testid="topic-sharedViews"] [data-pk-item^="entry:"]').first()).toBeVisible();
     await expect(sales.locator('[data-testid="setting-info-sharedView"]')).toHaveCount(0);
 });

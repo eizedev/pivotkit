@@ -292,52 +292,8 @@ export function fieldsCollapsed(session, forced, dismissed) {
     return session ?? (forced === "collapsed" || forced === "open" ? forced === "collapsed" : dismissed.includes(FIELDS_COLLAPSED));
 }
 
-/**
- * The sections of the menus that fold, and whether each is open until the user folds or opens it:
- * what a first-time user needs open, the rest folded (a folded section's title says what it holds).
- * The chip menus and Options have levels instead (levels.jsx): the states stored for their sections
- * are no entries any more, and the next write leaves them out (cleanDismissed).
- * The user's choice is kept in the same list (and storage) as the tips, as "open:<id>" or
- * "closed:<id>" where it differs from this default; "Show dismissed tips again" keeps it, "Reset menu
- * sections" (Options → Help) clears it.
- */
-export const SECTIONS = Object.freeze({
-    // the Export menus (the toolbar's and the drill-down's)
-    exportDownload: true,
-    exportCopy: true,
-    // the Views menu
-    thisView: true,
-    sharedViews: true,
-    myViews: true,
-    share: false,
-    // the chart type menu
-    chartType: true,
-    chartDisplay: false
-});
-
-/** Whether a section is open: the user's choice in the list, else its default. */
-export function sectionOpen(id, dismissed) {
-    if (dismissed.includes(`open:${id}`)) {
-        return true;
-    }
-    if (dismissed.includes(`closed:${id}`)) {
-        return false;
-    }
-    return Object.hasOwn(SECTIONS, id) ? SECTIONS[id] : true;
-}
-
-/** The list with a section opened or folded: an entry only where it differs from the default. */
-export function withSection(dismissed, id, open) {
-    const rest = dismissed.filter((d) => d !== `open:${id}` && d !== `closed:${id}`);
-    const def = Object.hasOwn(SECTIONS, id) ? SECTIONS[id] : true;
-    return open === def ? rest : [...rest, `${open ? "open" : "closed"}:${id}`];
-}
-
-/** An entry of the list that is a section's state. */
-export const isSection = (id) => /^(open|closed):/.test(id) && Object.hasOwn(SECTIONS, id.slice(id.indexOf(":") + 1));
-
-/** Entries "Show dismissed tips again" keeps: the switches and the sections' states. */
-export const keptOnReset = (id) => SWITCHES.includes(id) || isSection(id);
+/** Entries "Show dismissed tips again" keeps: the switches. */
+export const keptOnReset = (id) => SWITCHES.includes(id);
 
 /**
  * Whether one kind of "i" shows: the host's "on" or "off" forces it (and the user's switch leaves it
@@ -483,7 +439,7 @@ export function allowedTips(value) {
 
 /** Dismissed ids from anywhere (storage, a host): known ids and the switches only, once each. */
 export function cleanDismissed(value) {
-    return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && (SWITCHES.includes(id) || TIP_IDS.includes(id) || isSection(id))))] : [];
+    return Array.isArray(value) ? [...new Set(value.filter((id) => typeof id === "string" && (SWITCHES.includes(id) || TIP_IDS.includes(id))))] : [];
 }
 
 /** The localStorage key of a report's tips: one per `storageKey`, so two reports never share one. */

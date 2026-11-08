@@ -3,7 +3,7 @@
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openLevel, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
 async function onlyValue(page, value) {
@@ -131,16 +131,21 @@ test.describe("clearing text fields", () => {
         await expect(page.locator(".pk-panel .pk-clear-x")).toHaveCount(0);
     });
 
-    test("Escape in a menu's field empties it first; the next Escape closes the menu", async ({ page }) => {
+    test("Escape in a menu's field empties it first; the next Escape goes back a level, then closes the menu", async ({ page }) => {
         await page.goto("?data=sales");
         await toolbar(page, "views");
+        await openSaveAs(page);
         const name = page.getByTestId("saved-view-name");
+        await expect(name).toBeFocused();
         await name.fill("Mine");
         await name.press("Escape");
         await expect(name).toHaveValue("");
         await expect(name).toBeVisible();
         await name.press("Escape");
         await expect(name).toHaveCount(0);
+        await expect(page.getByTestId("save-as")).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".pk-popover")).toHaveCount(0);
     });
 });
 
@@ -463,46 +468,35 @@ test.describe("menus in levels", () => {
         await expect(page.locator(".pk-has-bar").first()).toBeVisible();
     });
 
-    test("Reset menu sections brings the sections that still fold back to their start; the folding survives a reload", async ({ page }) => {
-        await page.goto("?data=sales");
-        await toolbar(page, "options");
-        await expect(page.getByTestId("reset-sections")).toBeDisabled();
-        await page.keyboard.press("Escape");
-        await toolbar(page, "export");
-        await page.getByTestId("section-exportCopy").click();
-        await expect(page.getByTestId("section-exportCopy")).toHaveAttribute("aria-expanded", "false");
-        await page.keyboard.press("Escape");
-        await page.reload();
-        await toolbar(page, "export");
-        await expect(page.getByTestId("section-exportCopy")).toHaveAttribute("aria-expanded", "false");
-        await page.keyboard.press("Escape");
-        await toolbar(page, "options");
-        await expect(page.getByTestId("reset-sections")).toBeEnabled();
-        await page.getByTestId("reset-sections").click();
-        // the entry turned off keeps the focus (it stays in the menu), the status says what happened
-        await expect(page.getByTestId("reset-sections")).toBeDisabled();
-        await expect(page.getByTestId("reset-sections")).toBeFocused();
-        await expect(page.getByTestId("reset-sections-status")).toHaveText("Menu sections reset");
-        await page.keyboard.press("Escape");
-        await toolbar(page, "export");
-        await expect(page.getByTestId("section-exportCopy")).toHaveAttribute("aria-expanded", "true");
-    });
-
-    test("the chip menus and Options fold no more; Share and the chart's display start folded", async ({ page }) => {
+    test("no menu folds any more: no title is a fold, Options has no Reset menu sections, a stored fold is dropped", async ({ page }) => {
+        // a fold stored before (with the tips, under the playground's storageKey) is left out on the next write
+        await page.addInitScript(() => {
+            if (!sessionStorage.getItem("seeded")) {
+                sessionStorage.setItem("seeded", "1");
+                localStorage.setItem("pivotkit:tips:playground", JSON.stringify(["closed:share", "open:format"]));
+            }
+        });
         await page.goto("?data=sales");
         await chipMenu(page, "Region");
         await expect(page.locator(".pk-chip-menu [data-section]")).toHaveCount(0);
         await page.keyboard.press("Escape");
+        for (const menu of ["options", "views", "export", "chart-type"]) {
+            await toolbar(page, menu);
+            // no title is a button that folds
+            await expect(page.locator(".pk-popover [data-section], .pk-popover button.pk-section-title")).toHaveCount(0);
+            await page.keyboard.press("Escape");
+        }
         await toolbar(page, "options");
-        await expect(page.locator(".pk-popover [data-section]")).toHaveCount(0);
-        await expect(page.getByTestId("expand-all")).toBeVisible();
+        await expect(page.getByTestId("reset-sections")).toHaveCount(0);
         await page.keyboard.press("Escape");
-        await toolbar(page, "views");
-        await expect(page.getByTestId("section-share")).toHaveAttribute("aria-expanded", "false");
-        await page.keyboard.press("Escape");
+        // the chart type's Display settings are a titled group, shown at once
         await toolbar(page, "chart-type");
-        await expect(page.getByTestId("section-chartDisplay")).toHaveAttribute("aria-expanded", "false");
-        await expect(page.getByTestId("section-state-chartDisplay")).toHaveText("Automatic");
+        await expect(page.getByRole("group", { name: "Display" })).toBeVisible();
+        await page.keyboard.press("Escape");
+        // Show tips off writes the list: the stored folds are not in it
+        await toolbar(page, "options");
+        await page.getByTestId("show-tips").click();
+        await expect.poll(() => page.evaluate(() => localStorage.getItem("pivotkit:tips:playground"))).toBe(JSON.stringify(["*"]));
     });
 
     test("the wheel over a menu never scrolls the table or the page behind it", async ({ page }) => {

@@ -8,12 +8,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
-- pivotkit-react's chip menus and Options are in levels: a first level that says what each topic
+- pivotkit-react's chip menus, Options and Views are in levels, and no menu folds any more (Reset
+  menu sections is gone; stored folds are dropped): a first level that says what each topic
   holds, a level of its own per topic with **‹ Back**, every choice applied at once, a search over all
   levels of a chip's menu; ARIA menus with one Tab stop, the arrow keys and type-ahead. The label
   changes are pivotkit-react's (some menu labels new, `valueOps` and `groupCyclic` reworded,
-  `chooseValues`, `valueFilter`, `change`, `removeSetting`, `topStart`, `binsStart`, `filterIs` and
-  `groupBy` gone); the new token `--pk-input-border` can be set on the element like every `--pk-*`
+  `chooseValues`, `valueFilter`, `change`, `removeSetting`, `topStart`, `binsStart`, `filterIs`,
+  `groupBy`, `resetSections` and `resetSectionsDone` gone); the new token `--pk-input-border` can be set on the element like every `--pk-*`
   token. No new attribute or event. Size: the menus 27.6 KiB measured (budget 29), their German texts
   4.7 (budget 5.2), the first load 149.6 (budget 151, for the levels' rules in the stylesheet).
 

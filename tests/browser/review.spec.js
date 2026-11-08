@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openShare, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openSaveAs, openShare, test, toolbar } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -208,6 +208,7 @@ test("a save closes the Views menu, the focus back on Views; the saved view is m
     }
     await expect(page.getByTestId("tip-saveTemplate")).toBeVisible();
     await page.getByTestId("tip-action-saveTemplate").click();
+    await openSaveAs(page);
     await page.getByTestId("saved-view-name").fill("Mine");
     await page.getByTestId("saved-view-name").press("Enter");
     await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
@@ -216,7 +217,11 @@ test("a save closes the Views menu, the focus back on Views; the saved view is m
     await expect(page.getByTestId("saved-view-Mine")).toHaveAttribute("aria-current", "true");
     await openShare(page);
     await expect(page.getByTestId("copy-link")).toBeVisible();
+    await page.keyboard.press("Escape");
+    // the name field starts empty again
+    await openSaveAs(page);
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("tip-saveTemplate")).toHaveCount(0);
 });

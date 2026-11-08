@@ -1075,25 +1075,6 @@
     max-width: min(400px, calc(100vw - 16px));
 }
 
-.pk-more {
-    margin-top: 2px;
-}
-
-.pk-more-title {
-    display: flex;
-    align-items: center;
-    min-height: max(var(--pk-target), 2.2em);
-    padding: 0 0.6em;
-    border-radius: var(--pk-radius-sm);
-    color: var(--pk-accent);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.pk-more-title:hover {
-    background: var(--pk-surface-3);
-}
-
 .pk-subtitle {
     padding: 4px 8px 2px;
     color: var(--pk-muted);
@@ -1190,55 +1171,9 @@
     font-weight: 650;
 }
 
-/* a section that folds: its title is the button */
-.pk-section-toggle {
-    display: inline-flex;
-    flex: 1;
-    align-items: center;
-    gap: 0.35em;
-    min-height: var(--pk-target);
-    padding: 2px 6px;
-    border: 0;
-    border-radius: var(--pk-radius-sm);
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-}
-
-/* a control, not a caption: the text's colour; folded, what it holds at its end, muted, with a dot
-   (pk-section-mark) when that is not the default */
-.pk-root .pk-section-toggle {
-    color: var(--pk-text);
-}
-
-/* with .pk-badge-cut: one line, an ellipsis */
-.pk-section-state {
-    margin-left: auto;
-    color: var(--pk-muted);
-    font-weight: 400;
-}
-
-/* the dot of a setting that is not the default (a folded section, a row of a menu in levels) */
+/* the dot of a setting that is not the default (a row of a menu in levels) */
 .pk-section-mark {
     color: var(--pk-accent);
-}
-
-.pk-root .pk-section-toggle:hover {
-    background: var(--pk-surface-3);
-}
-
-.pk-section.pk-folded {
-    padding-bottom: 2px;
-}
-
-.pk-section-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.pk-section-body[hidden] {
-    display: none;
 }
 
 /* a setting with its "i": one line, the "i" at its end */
@@ -1603,17 +1538,6 @@
 .pk-level-form > .pk-hint {
     flex-basis: 100%;
     margin: 0;
-}
-
-.pk-template {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-
-/* the Views menu's groups stand in the popover as its own sections */
-.pk-views {
-    display: contents;
 }
 
 .pk-switch {
@@ -2709,18 +2633,12 @@
     font-weight: 600;
 }
 
-.pk-template.pk-confirm {
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 4px 6px;
-}
-
 .pk-confirm-text {
     flex: 1 1 100%;
     font-weight: 600;
 }
 
-/* Save as onto a name that is taken: the question in place of the field */
+/* a question before a change: in place of the field (Save as onto a name that is taken) or in a level of its own */
 .pk-save-confirm {
     display: flex;
     flex-wrap: wrap;
@@ -3245,7 +3163,7 @@
 /* ---- touch screens: the small controls get a hit area a finger finds (44 px) ---- */
 
 @media (pointer: coarse) {
-    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort, .pk-section-toggle) {
+    .pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x, .pk-toast-x, .pk-issues-x, .pk-th-sort) {
         min-width: var(--pk-target-touch);
         min-height: var(--pk-target-touch);
     }

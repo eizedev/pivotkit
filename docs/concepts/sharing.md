@@ -14,7 +14,7 @@ not fit is left out and said in plain words.
 
 ## In the Views menu (for the people who use the report)
 
-The **Share** section of the Views menu - Copy link, Copy view as JSON, Download view, Load view… -
+The **Share** level of the Views menu - Copy link, Copy view as JSON, Download view, Load view… -
 and what people see while a view loads are on [Views, saving and sharing](../use/views.md#share-a-view)
 under Use a report. For the host:
 

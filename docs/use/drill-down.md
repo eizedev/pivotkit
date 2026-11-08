@@ -36,7 +36,7 @@ rows or download them.
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-light.png#only-light)
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-dark.png#only-dark)
 
-The panel's **Export** menu, in two sections, **Copy** and **Download**:
+The panel's **Export** menu, in two groups, **Copy** and **Download**:
 
 | Entry | Gives |
 | --- | --- |
@@ -51,7 +51,6 @@ The panel's **Export** menu, in two sections, **Copy** and **Download**:
 - A copy says what it gave ("Copied 25 rows: …"); the notes show above the open panel.
 - Text a spreadsheet would run as a formula gets a leading `'`, as in every export
   ([security](../security.md#exports)).
-- The sections fold like those of the toolbar's Export menu, and the report remembers them.
 
 !!! note "For developers"
     `drillDown` turns the panel off, `drillDownLimit` sets how many rows it gets, `onCellClick` gives

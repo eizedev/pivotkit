@@ -105,7 +105,7 @@ squeezing the table into a sliver.
 
 ## Menus that are long
 
-The menu of a chip and **Options** are in levels, so their first level stays short:
+The menu of a chip, **Options** and **Views** are in levels, so their first level stays short:
 
 - The first level has one row per topic with what is set on its right, muted ("Filter · All",
   "Number format · Automatic"); a dot in the accent colour before it means the setting is not the one
@@ -126,17 +126,10 @@ The menu of a chip and **Options** are in levels, so their first level stays sho
   not scroll; scrolling a long menu by touch stops at its end too. A menu is never higher than the
   window; what does not fit scrolls inside it.
 
-The other menus (Views, Chart type, Export and the drill-down's Export) have sections that fold with
-their title, a button (44 px high on a touch screen). A folded section says at its end what it holds;
-the report remembers what you open and fold (with the tips, under the report's storage), **Show
-dismissed tips again** leaves it as it is, and **Options**, **Help**, **Reset menu sections** folds and
-opens every section as at first (greyed out while nothing differs).
-
-| Menu | Open | Folded |
-| --- | --- | --- |
-| Views | This view, Shared views, My views | Share |
-| Chart type | Chart type | Display |
-| Export, the drill-down's Export | all | |
+**Views** is in levels too: its first level is the list of views to scan (This view, Shared views, My
+views, Share); Save as…, Share and the questions before a delete or a publish open levels of their
+own ([views](views.md#the-views-menu)). The chart type menu and the Export menus are flat lists in
+titled groups. No menu folds.
 
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }
@@ -163,8 +156,7 @@ table.
   filter that leaves nothing) always stay; they have no x.
 - **Options**, **Help** has **Show tips**, to switch them all off and on, **Show explanations** (every
   **i**: of the fields, the zones and the settings of the menus), **Show dismissed tips again**
-  (greyed out until you dismissed a tip; the menus' sections stay as you folded them) and **Reset
-  menu sections**. The report remembers the switches like the tips.
+  (greyed out until you dismissed a tip). The report remembers the switches like the tips.
 - **Options**, **Help**, **Keyboard shortcuts** lists the keys ([keyboard](keyboard.md)).
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-light.png#only-light)

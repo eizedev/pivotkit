@@ -20,7 +20,7 @@ channel described in the repository's
   `normalize()` against the data, and what was left out is said in plain words. A link is capped at
   32,000 characters and its view at 1,000,000 characters, enforced while it is inflated (1 KiB of
   input at a time), so a small crafted link can neither make a large allocation nor keep the page busy ([Sharing](concepts/sharing.md)).
-- The tips' list in `localStorage` (dismissed tips, the help switches, the menu sections' folding) is
+- The tips' list in `localStorage` (dismissed tips, the help switches) is
   read as JSON and kept only where an entry is one of the known ids; anything else, or text that is
   no JSON, reads as an empty list.
 - Templates are views too. Every name in the Views menu, the host's `templates` included, is plain

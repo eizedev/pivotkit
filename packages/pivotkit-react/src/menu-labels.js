@@ -206,10 +206,7 @@ export const en = {
     // the "i" of the settings, the zones and the field descriptions
     showSettingInfo: "Show explanations",
     resetTips: "Show dismissed tips again",
-    // every menu section open or folded as at first (the tips stay as they are)
-    resetSections: "Reset menu sections",
-    resetSectionsDone: "Menu sections reset",
-    // read after a folded section's state when it is not the default (its dot)
+    // read after the state of a menu row when it is not the default (its dot)
     sectionChanged: ", changed",
     help: "Help",
     shortcutsTitle: "Keyboard shortcuts",
