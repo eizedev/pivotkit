@@ -120,6 +120,20 @@ test("the menus' German texts load only for a German report: neither in the firs
     assert.ok(!text(groups.initial).includes('className:"pk-section-head"'), "the menus' sections are in the first load");
 });
 
+test("the plain words of a view's unused parts load only when a view has such parts", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    // a text of each language (English and German), in the chunk and nowhere else
+    for (const words of ["the default colours are used", "die Standardfarben werden verwendet"]) {
+        assert.ok(text(groups.unused).includes(words), `the unused parts' chunk lacks "${words}"`);
+        for (const other of ["initial", "menus", "texts"]) {
+            assert.ok(!text(groups[other]).includes(words), `"${words}" is in ${other}`);
+        }
+    }
+    // the warning's frame is in the first load: its title before the texts arrive
+    assert.ok(text(groups.initial).includes("parts of this view could not be used"));
+});
+
 test("what runs only after a click in a menu, or on a drawn chart, is not in the first load", async () => {
     // pivotkit-react's own build: which of its modules index.js loads first (the element bundles that dist/)
     const react = await esbuild.build({ ...reactOptions, write: false, metafile: true, logLevel: "silent" });

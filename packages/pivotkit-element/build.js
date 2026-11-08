@@ -158,15 +158,21 @@ async function licenses(metafile) {
  * rounded: chart 211, export 11.5, link 7.3, menus 24, texts 4.9. The first load is the exception:
  * every page pays it, so its budget stays about 1 KiB above what CI measures (149 over 148.1), and a
  * feature that needs more raises it on purpose.
+ * A view's unused parts in plain words (#56): pivotkit-core's issues got a code and the texts' params
+ * (0.6 KiB in the first load, the core is bundled whole) and the report the warning's frame (its
+ * title, fold, live region and line layout, 0.5 KiB); the words themselves are the group "unused"
+ * (English and German, 3.9 measured, CI about 4.2, budget 4.4), loaded only when a view has such
+ * parts. First load 148.9 measured on a Mac (CI about 149.2), so its budget went to 150.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 149, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9 };
+export const SIZE_BUDGET_KIB = { initial: 150, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9, unused: 4.4 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
  * each group of dynamic imports with what they add ("chart": ECharts, "export": XLSX and CSV, "link":
  * a view in a link, pivotkit-core/link with fflate's deflate and inflate, "menus": the menus' panels,
- * "texts": the menus' texts of a language besides English).
+ * "texts": the menus' texts of a language besides English, "unused": the plain words of a view's
+ * unused parts, English and every other language).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -200,9 +206,10 @@ export function loadGroups(metafile) {
         }
     };
     scan(initial);
-    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : "export");
+    const groupOf = (file) =>
+        /[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : /[\\/]unused-texts-[^\\/]+$/.test(file) ? "unused" : "export";
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus", "texts"]) {
+    for (const name of ["chart", "export", "link", "menus", "texts", "unused"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }
