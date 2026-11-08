@@ -174,9 +174,9 @@ pivot-report { height: 640px; }
 <pivot-report height="100%"></pivot-report>
 ```
 
-## Next
+## Next steps { #next }
 
 - [Element reference](../reference/element.md): every attribute, property and event, controlled and
   uncontrolled use, CSP and bundle size.
 - [Theming](../reference/theming.md): the `--pk-*` tokens, set on the element.
-- [Using the report](../guide.md).
+- [Use a report](../use/index.md): what the people using it can do.

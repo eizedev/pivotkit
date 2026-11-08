@@ -15,7 +15,7 @@ JSON files, native Excel export; as a JavaScript core, a React component and a w
 | | |
 | --- | --- |
 | Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
-| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): getting started, a guide for the people using the report, the API reference, a [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) (weather, countries, earthquakes, Nobel laureates, software end of life) |
+| Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): [Use a report](https://pivotkit.eize.dev/use/) for the people who build reports, [Embed pivotkit](https://pivotkit.eize.dev/embed/) and the API reference for developers, a [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) (weather, countries, earthquakes, Nobel laureates, software end of life) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
 Version 0.1.0 of each package, on npm.
@@ -72,9 +72,8 @@ step and what the UI edits. It is treated as user input: it cannot run code, and
 `LIMITS` keep its memory use bounded. See [pivotkit-core](packages/pivotkit-core/) for the API, the
 view, the limits and the export, and [pivotkit-react](packages/pivotkit-react/) for the component's
 props, theming tokens and labels, and [pivotkit-element](packages/pivotkit-element/) for the
-element's properties, events, theming, CSP and bundle size. [What pivotkit does](https://pivotkit.eize.dev/overview/)
-has it on one page for users and developers; the [feature list](https://pivotkit.eize.dev/features/)
-every feature, also the small behaviours, with links to the details.
+element's properties, events, theming, CSP and bundle size. The [documentation site](https://pivotkit.eize.dev/) has it on one page for users and developers; the
+[feature list](https://pivotkit.eize.dev/features/) every feature at a glance, with links to the details.
 
 ## Development
 

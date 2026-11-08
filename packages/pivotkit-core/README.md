@@ -2,7 +2,7 @@
 
 Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/core/) - the API reference, the view and its concepts, and a [guide to the engine](https://pivotkit.eize.dev/getting-started/engine/).
 
-What pivotkit does, in short: [overview](https://pivotkit.eize.dev/overview/); every feature, also the small behaviours: [feature list](https://pivotkit.eize.dev/features/).
+What pivotkit does, in short: the [start page](https://pivotkit.eize.dev/), with an entry for the people who build reports ([Use a report](https://pivotkit.eize.dev/use/)) and one for developers ([Embed pivotkit](https://pivotkit.eize.dev/embed/)); every feature at a glance: [feature list](https://pivotkit.eize.dev/features/).
 
 The pivot engine of pivotkit, in plain JavaScript without UI: typed encoding of your rows, pivot tables
 with subtotals and totals, "show values as", filters, date grouping and number bins, a grid with merged

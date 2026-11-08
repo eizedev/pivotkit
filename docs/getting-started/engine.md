@@ -108,7 +108,7 @@ A view from a browser is user input. It cannot run code, and the [limits](../con
 keep its memory use bounded; a view that would need more throws `PivotkitError` with the code
 `LIMIT_EXCEEDED`, which a server answers with an error instead of a report.
 
-## Next
+## Next steps { #next }
 
 - [pivotkit-core reference](../reference/core.md): every function and its options.
 - [Views and saved views](../concepts/views.md): the view's keys.

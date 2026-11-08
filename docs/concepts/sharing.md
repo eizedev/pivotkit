@@ -14,55 +14,31 @@ not fit is left out and said in plain words.
 
 ## In the Views menu (for the people who use the report)
 
-The Views menu lists the templates (**Shared views** and **My views** with "Save current view", see
-[Templates and shared views](templates.md)), then **Share**:
+The **Share** section of the Views menu - Copy link, Copy view as JSON, Download view, Load view… -
+and what people see while a view loads are on [Views, saving and sharing](../use/views.md#share-a-view)
+under Use a report. For the host:
 
-- **Copy link** (when the application allows links): an address with the view in it. Whoever opens
-  it sees the same report on the same data; Reset still goes to the application's start view.
-- **Copy view as JSON**: the [view file](../reference/view-file.md) as text, for a message or a
-  ticket.
-- **Download view (.pivotkit.json)**: the view file, named `<name>.pivotkit.json` after the view's
-  name (the saved view or file it came from), else the data's name (`source.name`), else the host's
-  `fileName` (`pivot.pivotkit.json` without one).
-- **Load view…**: paste a view file, a view's JSON or a link and press **Load** (greyed out while the
-  box is empty), or **Choose file…**, which loads the file at once. Nothing changes until it is
-  loaded; it is one step that Undo takes back. A text of more than 1,000,000 characters, or a file of
-  more than 1,000,000 bytes, is refused before it is parsed ("This is too large for a view."); a text
-  that is no view says why ("This is neither a view in JSON nor a pivotkit link.", "This view comes
-  from a newer version of pivotkit and cannot be read here. Update pivotkit to open it.").
-- Under the entries a line says what a shared view gives away: "A view holds the names of fields and,
-  in its filters, the values chosen there: share it only where those may be seen."
-
-![The Views menu with Shared views, My views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu.png)
-
-Where a page does not allow the clipboard, the report says so and points to Download view.
+- **Copy link** shows only with `shareLink` ([Links](#links-for-developers)).
+- **Download view** names the file `<name>.pivotkit.json` after the view's name, else `source.name`,
+  else `fileName` (`pivot.pivotkit.json` without one); it passes `onExport` (`"json"`) first.
+- **Load view…** caps the text at 1,000,000 characters and a file at 1,000,000 bytes before it is
+  parsed, reads a view file, a bare view's JSON or a link, and normalizes what it gets against the
+  data; a view file of a newer format or view version is refused
+  ([reading a view file](../reference/view-file.md#reading-a-view-file)).
 
 ### Before a view for other data is loaded
 
-When the view was made for another source (its `source.id` is not the report's `source.id`), or uses
-fields this data does not have or has with another type, the panel asks before anything changes:
-"This view may not fit this data", with what does not fit ("It was made for “Weather”.", "Fields this
-data does not have: “City”.", "Fields of another type here: “Units”."), and the choices **Load
-anyway**, **Cancel** (back to the form) and, when the host can show that data (its `sources` and
-`onSourceSwitch`), **Switch to “Weather” and load**: the host shows the other data and the view on it.
-Names from the file are shown as text only. The check takes the focus when it appears.
-
-A link does the same: one in the page's address made for another source, or using fields this data
-does not have, opens only after the same question, shown above the result ("The link's view may not
-fit this data"): **Load anyway**, **Cancel** (the report keeps its start view; the same link given
-again asks again) and **Switch to … and load** where the host allows. A link at the page's load does
-not take the focus; one opened later in the tab is a step Undo takes back once loaded.
+A loaded view or a link asks before it is applied when its `source.id` is not the report's
+`source.id`, or when it uses fields this data does not have or has with another type
+([what people see](../use/views.md#before-a-view-for-other-data-is-loaded)). **Switch to … and load**
+is offered when the host lists that source in `sources` and handles `onSourceSwitch`
+([below](#the-source-of-a-view-for-developers)). Names from the file are shown as text only.
 
 ### After the load
 
-The load is one step that Undo takes back. Switching to other data and loading there starts the report
-on that data anew (a new history: Undo begins there); the check says so under its button. A note in the status line says it was loaded, with Undo,
-and goes after a few seconds: "View loaded", or "View loaded; some parts did not fit this data" (a
-warning, not an error). What was left out stays in the collapsible area above the result, "Some parts
-of the view were not used", until it is dismissed with its × or another view is loaded ("fields this
-data does not have (“Planet”)", "1 other setting"). A saved view that has more fields in a zone than
-the limits allow is said there the same way. Real errors (a damaged link, a host that could not save)
-stay in the status line until they are closed.
+The load is one undo step; switching to other data starts a new history there. What was left out is
+said in plain words above the result ([after the load](../use/views.md#after-the-load)); a saved view
+with more fields in a zone than the limits allow is reported the same way.
 
 ## The source of a view (for developers)
 

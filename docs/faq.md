@@ -82,7 +82,7 @@ English and German; any other language is a labels object you pass. See
 
 Yes. Every action has a button or a menu entry, chips move with the keyboard, the table's values are
 reachable with the arrow keys, and the chart has a text alternative. See
-[Using the report](guide.md#keyboard-and-screen-readers).
+[Keyboard and screen readers](use/keyboard.md).
 
 ## Several reports on one page?
 

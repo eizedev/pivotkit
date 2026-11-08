@@ -11,27 +11,40 @@ edit_uri = "edit/main/docs/"
 copyright = "MIT licensed"
 extra_css = ["assets/site.css"]
 nav = [
-  { "Overview" = "index.md" },
-  { "What pivotkit does" = "overview.md" },
-  { "Feature list" = "features.md" },
+  { "Home" = "index.md" },
   { "Live demo" = "demo.md" },
-  { "Learn with real data" = "learn.md" },
-  { "Getting started" = [
-    { "React" = "getting-started/react.md" },
-    { "Web component" = "getting-started/web-component.md" },
-    { "Engine only" = "getting-started/engine.md" },
+  { "Use a report" = [
+    { "Overview" = "use/index.md" },
+    { "Quick start" = "use/quick-start.md" },
+    { "Learn with real data" = "learn.md" },
+    { "Fields, zones and the table" = "use/fields.md" },
+    { "Values and formats" = "use/values.md" },
+    { "Filters, top N and sorting" = "use/filters.md" },
+    { "Charts" = "use/charts.md" },
+    { "The rows behind a number" = "use/drill-down.md" },
+    { "Views, saving and sharing" = "use/views.md" },
+    { "Export and copy" = "use/export.md" },
+    { "Keyboard and screen readers" = "use/keyboard.md" },
+    { "Small screens, menus and tips" = "use/layout.md" },
+    { "Behaviour reference" = "use/behaviour.md" },
   ] },
-  { "Using the report" = "guide.md" },
-  { "Concepts" = [
-    { "Views and saved views" = "concepts/views.md" },
-    { "Templates and shared views" = "concepts/templates.md" },
-    { "Values: aggregators, show as, formats" = "concepts/values.md" },
-    { "Dates and number ranges" = "concepts/dates.md" },
-    { "Filters, top N and sorting" = "concepts/filters.md" },
-    { "Field descriptions and names" = "concepts/fields.md" },
-    { "Charts" = "concepts/charts.md" },
-    { "Sharing and keeping a view" = "concepts/sharing.md" },
-    { "Locale, time zones, limits and errors" = "concepts/limits.md" },
+  { "Embed pivotkit" = [
+    { "Overview" = "embed/index.md" },
+    { "Getting started: React" = "getting-started/react.md" },
+    { "Getting started: web component" = "getting-started/web-component.md" },
+    { "Getting started: engine only" = "getting-started/engine.md" },
+    { "Recipes" = "embed/recipes.md" },
+    { "Concepts" = [
+      { "Views and saved views" = "concepts/views.md" },
+      { "Templates and shared views" = "concepts/templates.md" },
+      { "Values: aggregators, show as, formats" = "concepts/values.md" },
+      { "Dates and number ranges" = "concepts/dates.md" },
+      { "Filters, top N and sorting" = "concepts/filters.md" },
+      { "Field descriptions and names" = "concepts/fields.md" },
+      { "Charts" = "concepts/charts.md" },
+      { "Sharing and keeping a view" = "concepts/sharing.md" },
+      { "Locale, time zones, limits and errors" = "concepts/limits.md" },
+    ] },
   ] },
   { "Reference" = [
     { "pivotkit-core" = "reference/core.md" },
@@ -40,6 +53,7 @@ nav = [
     { "View file format" = "reference/view-file.md" },
     { "Theming" = "reference/theming.md" },
     { "Localisation" = "reference/localisation.md" },
+    { "Feature list" = "features.md" },
   ] },
   { "Security" = "security.md" },
   { "Browser support" = "browser-support.md" },
@@ -48,8 +62,6 @@ nav = [
 
 [project.theme]
 language = "en"
-# overrides/partials/source.html: the repository link without the GitHub API call of the theme
-custom_dir = "overrides"
 logo = "assets/icon.svg"
 favicon = "assets/icon.svg"
 # Fonts come from the system; nothing is loaded from Google.
@@ -88,5 +100,37 @@ pymdownx.highlight = {}
 pymdownx.superfences = {}
 pymdownx.inlinehilite = {}
 pymdownx.tabbed = { alternate_style = true }
+# collapsible blocks (???) for details below a page's steps and tables
+pymdownx.details = {}
 # the "Learn with real data" page shows the marked sections of the playground's data/sources.js
 pymdownx.snippets = { base_path = ["examples/playground/data"], check_paths = true }
+
+# Pages that moved keep their address: the old page (and each of its sections, by its anchor) sends
+# the reader to the new place.
+[project.plugins.redirects.redirect_maps]
+"overview.md" = "index.md"
+"overview.md#what-pivotkit-does" = "index.md"
+"overview.md#for-the-people-who-use-a-report" = "index.md#for-the-people-who-build-reports"
+"overview.md#for-developers" = "index.md#for-developers"
+"guide.md" = "use/index.md"
+"guide.md#using-the-report" = "use/index.md"
+"guide.md#the-parts" = "use/fields.md#the-parts"
+"guide.md#adding-fields" = "use/fields.md#adding-fields"
+"guide.md#what-a-field-means" = "use/fields.md#what-a-field-means"
+"guide.md#chips" = "use/fields.md#chips"
+"guide.md#values" = "use/values.md"
+"guide.md#filters" = "use/filters.md"
+"guide.md#the-table" = "use/fields.md#the-table"
+"guide.md#the-rows-behind-a-number" = "use/drill-down.md"
+"guide.md#the-chart" = "use/charts.md"
+"guide.md#more-room-for-the-result" = "use/layout.md#more-room-for-the-result"
+"guide.md#undo-saved-views-and-export" = "use/views.md"
+"guide.md#status-messages" = "use/behaviour.md#status-messages"
+"guide.md#parts-of-a-view-that-were-not-used" = "use/behaviour.md#parts-of-a-view-that-were-not-used"
+"guide.md#when-the-report-cannot-show-anything" = "use/behaviour.md#when-the-report-cannot-show-anything"
+"guide.md#tips" = "use/layout.md#tips"
+"guide.md#menus-and-text-fields" = "use/layout.md#menus-and-text-fields"
+"guide.md#menus-that-are-long" = "use/layout.md#menus-that-are-long"
+"guide.md#small-screens" = "use/layout.md#small-screens"
+"guide.md#keyboard-and-screen-readers" = "use/keyboard.md"
+"guide.md#in-german" = "use/layout.md#in-german"

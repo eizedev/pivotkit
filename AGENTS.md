@@ -67,8 +67,9 @@ builds depend on it.
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
   `scripts/docs-screenshots.js` from the playground. `docs/playground/` (the live demo, copied by
-  `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. `overrides/partials/source.html` replaces the theme's repository link with one
-  that does not ask api.github.com for stars and the latest release on every page view. The
+  `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The theme's
+  repository link in the header asks api.github.com for the repository's stars, forks and latest
+  release (cached by the theme in the reader's browser), as on the other eizedev sites. The
   package READMEs ship to npm: links from them to the site are absolute (`https://pivotkit.eize.dev/...`).
 - `assets/` - icon, README header and social preview, generated in eizedev/brand (`pivotkit/`); changed
   there, never here.
@@ -166,9 +167,18 @@ uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # t
   described on the documentation site (`docs/`); a change of the UI takes the screenshots again
   (`npm run docs:screenshots`). Conventional Commits with the package as scope (`feat(core): ...`).
 - Every feature, also a small behaviour (what an "×" does, when a menu entry is disabled and why, what
-  a status message says), is documented on the site, on its detail page and in the feature list
-  (`docs/features.md`, grouped by area, each entry linking to its details); `docs/overview.md` keeps
-  the short version for users and developers.
+  a status message says), is documented on the site, on its detail page. The site has two audiences:
+  `docs/use/` is for the people who build reports (one page per task: what you do in two or three
+  lines, then steps or a table, then the details, folded in `???` blocks where they are long; plain
+  words, a prop name only in a "For developers" box), `docs/embed/`, `docs/getting-started/`,
+  `docs/concepts/` and `docs/reference/` are for developers (a props table keeps one short line per
+  prop; the full text goes into its section under "Props in detail"). `docs/features.md` is the
+  feature list: one row per area that links to the pages, never a second copy of the behaviour; the
+  start page `docs/index.md` keeps the short version for both audiences.
+- Screenshots come in pairs, `<name>-light.png` and `<name>-dark.png` (`scripts/docs-screenshots.js`
+  takes both), shown with `#only-light` and `#only-dark`. A page that moves keeps its address: a
+  redirect in `zensical.toml` (`[project.plugins.redirects.redirect_maps]`, one entry per old section
+  anchor too).
 - A view that comes from outside the host's code (a link, pasted or loaded JSON, the tab's storage) is
   user input like any other: it passes `normalize()` against the data, its size is capped before it
   is decoded or parsed, and what was dropped is said in plain words. The host's `chartOptions` is

@@ -2,10 +2,13 @@
 // with Playwright's Chromium, so they show the current UI. Build the playground first:
 //
 //   npm run build:playground && node scripts/docs-screenshots.js
+//   SHOTS=quick-rows,chart node scripts/docs-screenshots.js   # only these shots
 //
-// Every shot is one entry in SHOTS: the playground's URL parameters, the window size and what to open
-// before the picture is taken. The generated data has a fixed seed and the real data is a committed
-// snapshot, so the numbers are the same on every run.
+// Every shot is one entry in SHOTS: the playground's URL parameters, a view for the fragment, the
+// window size, whether to wait for the chart and what to open before the picture is taken. Each shot is taken in both themes,
+// `<name>-light.png` and `<name>-dark.png`, which the pages show with `#only-light` and `#only-dark`.
+// The generated data has a fixed seed and the real data is a committed snapshot, so the numbers are
+// the same on every run.
 import { chromium } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
@@ -21,6 +24,7 @@ const port = Number(process.env.PLAYGROUND_PORT ?? 4174);
 const base = `http://127.0.0.1:${port}/`;
 
 const WIDE = { width: 1440, height: 900 };
+const THEMES = ["light", "dark"];
 const PHONE = { width: 390, height: 844 };
 
 /** The three largest countries per region as bars: the regions are the group labels under the axis. */
@@ -41,6 +45,22 @@ const VALUE_FILTER = encodeViewLink({
     sort: [{ field: "Region", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } }]
 });
 
+/** The quick start's steps, clicked from the empty report: Region to Rows, Revenue to Values, Category to Columns. */
+const QUICK_STEPS = [
+    (page) => page.locator('.pk-field[data-field="Region"] .pk-field-name').click(),
+    (page) => page.locator('.pk-field[data-field="Revenue"] .pk-field-name').click(),
+    async (page) => {
+        await page.getByTestId("field-menu-Category").click();
+        await page.getByRole("menuitem", { name: "Add to Columns" }).click();
+    }
+];
+
+/** Clicks the first `count` steps of the quick start; status notes the clicks leave are hidden. */
+async function quick(page, count) {
+    for (const step of QUICK_STEPS.slice(0, count)) await step(page);
+    await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+}
+
 /** Clicks a toolbar button, or its entry in "More" when the report is too narrow for it. */
 async function toolbar(page, testId) {
     const own = page.getByTestId(testId);
@@ -52,20 +72,44 @@ async function toolbar(page, testId) {
     await page.getByTestId(`more-${testId}`).click();
 }
 
-/** @type {{ name: string, query: string, size: typeof WIDE, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
+/** @type {{ name: string, query: string, hash?: string, size: typeof WIDE, chart?: boolean, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
+    // the quick start (docs/use/quick-start.md): the sales data from an empty report to a chart
+    { name: "quick-empty", query: "data=sales&empty", size: WIDE },
+    { name: "quick-rows", query: "data=sales&empty", size: WIDE, open: (page) => quick(page, 1) },
+    { name: "quick-values", query: "data=sales&empty", size: WIDE, open: (page) => quick(page, 2) },
+    { name: "quick-columns", query: "data=sales&empty", size: WIDE, open: (page) => quick(page, 3) },
+    {
+        name: "quick-filter",
+        query: "data=sales&empty",
+        size: WIDE,
+        open: async (page) => {
+            await quick(page, 3);
+            await page.getByTestId("chip-menu-Region").click();
+            await page.getByTestId("open-filter").click();
+        }
+    },
+    {
+        name: "quick-chart",
+        query: "data=sales&empty",
+        size: WIDE,
+        open: async (page) => {
+            await quick(page, 3);
+            await page.getByTestId("show-chart").click();
+            await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
+        }
+    },
     // the hero of the start page: real data (the weather of 14 cities)
-    { name: "report-light", query: "data=weather&theme=light", size: WIDE },
-    { name: "report-dark", query: "data=weather&theme=dark", size: WIDE },
+    { name: "report", query: "data=weather", size: WIDE },
     {
         name: "value-menu",
-        query: "data=sales&theme=light",
+        query: "data=sales",
         size: WIDE,
         open: (page) => page.getByTestId("chip-menu-Sum of Revenue").click()
     },
     {
         name: "filter",
-        query: "data=sales&theme=light",
+        query: "data=sales",
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
@@ -74,7 +118,7 @@ const SHOTS = [
     },
     {
         name: "drill-down",
-        query: "data=tickets&theme=light",
+        query: "data=tickets",
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-table"] td.pk-clickable').nth(2).click();
@@ -84,7 +128,7 @@ const SHOTS = [
     {
         // the drill-down enlarged, its Export menu open
         name: "drill-export",
-        query: "data=tickets&theme=light",
+        query: "data=tickets",
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-table"] td.pk-clickable').last().click();
@@ -96,18 +140,18 @@ const SHOTS = [
     },
     {
         name: "export-menu",
-        query: "data=tickets&theme=light",
+        query: "data=tickets",
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("export").click();
             await page.getByTestId("export-copy-table").waitFor();
         }
     },
-    { name: "chart", query: "data=sales&preset=1&theme=dark", size: WIDE },
+    { name: "chart", query: "data=sales&preset=1", size: WIDE, chart: true },
     {
         // the report as a host gives it on a phone: its own height, the page scrolled to it
         name: "phone",
-        query: "data=tickets&theme=light&height=820",
+        query: "data=tickets&height=820",
         size: PHONE,
         open: (page) => page.locator(".pk-root").evaluate((el) => {
             el.style.scrollMarginTop = "12px";
@@ -116,24 +160,25 @@ const SHOTS = [
     },
     {
         name: "chart-display",
-        query: "data=sales&preset=1&theme=light",
+        query: "data=sales&preset=1",
         size: WIDE,
+        chart: true,
         open: async (page) => {
             await toolbar(page, "chart-type");
             await page.getByTestId("legend-bottom").click();
         }
     },
-    { name: "chart-groups", query: `data=countries&theme=light#pivot-playground=${GROUPED}`, size: WIDE },
+    { name: "chart-groups", query: "data=countries", hash: GROUPED, size: WIDE, chart: true },
     {
         name: "share-menu",
-        query: "data=sales&theme=light",
+        query: "data=sales",
         size: WIDE,
         open: (page) => toolbar(page, "views")
     },
     {
         // Shared views (the presets and the views of the OpenAPI document) and My views with one saved
         name: "views-menu",
-        query: "data=endoflife&theme=light",
+        query: "data=endoflife",
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
@@ -146,7 +191,7 @@ const SHOTS = [
     {
         // the field list collapsed to a rail: the zones and the result take its room
         name: "field-rail",
-        query: "data=sales&theme=light",
+        query: "data=sales",
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("collapse-fields").click();
@@ -155,7 +200,7 @@ const SHOTS = [
     },
     {
         name: "filter-state",
-        query: "data=sales&theme=light",
+        query: "data=sales",
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
@@ -169,7 +214,7 @@ const SHOTS = [
     },
     {
         name: "value-filter",
-        query: `data=sales&theme=light#pivot-playground=${VALUE_FILTER}`,
+        query: "data=sales", hash: VALUE_FILTER,
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
@@ -180,7 +225,8 @@ const SHOTS = [
     {
         // a donut with the numbers on its slices, the chart type menu open at its Labels choice
         name: "donut-labels",
-        query: `data=sales&theme=light#pivot-playground=${encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "compact" }], display: "chart", chart: { type: "donut", valueLabels: "value", labelPosition: "inside" } })}`,
+        query: "data=sales",
+        hash: encodeViewLink({ rows: ["Region"], values: [{ field: "Revenue", agg: "sum", format: "compact" }], display: "chart", chart: { type: "donut", valueLabels: "value", labelPosition: "inside" } }),
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
@@ -190,7 +236,7 @@ const SHOTS = [
     {
         // Options: totals that change nothing say why, an "i" explains each, Help has its four switches
         name: "explanations",
-        query: "data=tickets&theme=light",
+        query: "data=tickets",
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "options");
@@ -201,14 +247,14 @@ const SHOTS = [
     {
         // Enlarge: the result fills the report, the fields in one line above it
         name: "enlarged",
-        query: "data=weather&theme=light",
+        query: "data=weather",
         size: WIDE,
         open: (page) => page.getByTestId("enlarge").click()
     },
     {
         // a view file made for other data: asked before it is loaded
         name: "load-check",
-        query: "data=sales&theme=light",
+        query: "data=sales",
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
@@ -219,34 +265,34 @@ const SHOTS = [
             await page.getByTestId("load-check").waitFor();
         }
     },
-    { name: "german", query: "data=sales&lang=de&theme=light", size: WIDE },
+    { name: "german", query: "data=sales&lang=de", size: WIDE },
     // a field's description (fieldDefaults) opened from its "i", and the tips above the table
     {
         name: "field-info",
-        query: "data=countries&preset=0&theme=light",
+        query: "data=countries&preset=0",
         size: WIDE,
         open: async (page) => {
             await page.locator('.pk-field[data-field="Population"] .pk-info').click();
             await page.locator(".pk-info-pop a").waitFor();
         }
     },
-    { name: "tips", query: "data=countries&preset=0&theme=light", size: WIDE },
+    { name: "tips", query: "data=countries&preset=0", size: WIDE },
     // "Learn with real data": one template of each real data set
-    { name: "learn-weather", query: "data=weather&preset=0&theme=light", size: WIDE },
-    { name: "learn-countries", query: "data=countries&preset=0&theme=light", size: WIDE },
+    { name: "learn-weather", query: "data=weather&preset=0", size: WIDE },
+    { name: "learn-countries", query: "data=countries&preset=0", size: WIDE },
     {
         name: "learn-earthquakes",
-        query: "data=earthquakes&preset=2&theme=light",
+        query: "data=earthquakes&preset=2",
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: /^Russia/ }).locator("td").nth(1).click();
             await page.getByTestId("drill-panel").waitFor();
         }
     },
-    { name: "learn-nobel", query: "data=nobel&preset=0&theme=light", size: WIDE },
+    { name: "learn-nobel", query: "data=nobel&preset=0", size: WIDE },
     {
         name: "learn-endoflife",
-        query: "data=endoflife&preset=4&theme=light",
+        query: "data=endoflife&preset=4",
         size: WIDE,
         open: async (page) => {
             await page.locator('[data-testid="pivot-table"] tbody tr[data-r]').filter({ hasText: "Nexus Repository" }).locator("td").last().click();
@@ -259,30 +305,35 @@ const server = spawn(process.execPath, [new URL("examples/playground/serve.js", 
 try {
     await mkdir(out, { recursive: true });
     const browser = await chromium.launch();
-    for (const shot of SHOTS) {
-        const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce" });
-        // the server needs a moment on the first request
-        for (let i = 0; ; i++) {
-            try {
-                await page.goto(`${base}?${shot.query}`);
-                break;
-            } catch (error) {
-                if (i > 20) throw error;
-                await page.waitForTimeout(250);
+    const only = process.env.SHOTS?.split(",");
+    for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
+        for (const theme of THEMES) {
+            const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
+            const url = `${base}?${shot.query}&theme=${theme}${shot.hash ? `#pivot-playground=${shot.hash}` : ""}`;
+            // the server needs a moment on the first request
+            for (let i = 0; ; i++) {
+                try {
+                    await page.goto(url);
+                    break;
+                } catch (error) {
+                    if (i > 20) throw error;
+                    await page.waitForTimeout(250);
+                }
             }
+            await page.locator(".pk-root").waitFor();
+            // a real data set loads first: the skeleton goes when the report has its data
+            await page.getByTestId("skeleton").waitFor({ state: "detached" });
+            // the playground's footer shows timings that differ on every run
+            await page.addStyleTag({ content: ".pg-foot { visibility: hidden; }" });
+            if (shot.chart) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
+            if (shot.open) await shot.open(page);
+            // fonts, the chart's first frame, the popover's position
+            await page.waitForTimeout(600);
+            const name = `${shot.name}-${theme}.png`;
+            await page.screenshot({ path: `${out}${name}` });
+            await page.close();
+            console.log(name);
         }
-        await page.locator(".pk-root").waitFor();
-        // a real data set loads first: the skeleton goes when the report has its data
-        await page.getByTestId("skeleton").waitFor({ state: "detached" });
-        // the playground's footer shows timings that differ on every run
-        await page.addStyleTag({ content: ".pg-foot { visibility: hidden; }" });
-        if (shot.query.includes("preset=1") || shot.query.includes(GROUPED)) await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
-        if (shot.open) await shot.open(page);
-        // fonts, the chart's first frame, the popover's position
-        await page.waitForTimeout(600);
-        await page.screenshot({ path: `${out}${shot.name}.png` });
-        await page.close();
-        console.log(`${shot.name}.png`);
     }
     await browser.close();
 } finally {

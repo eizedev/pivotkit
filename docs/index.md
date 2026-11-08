@@ -14,15 +14,9 @@ hide:
 
 <p class="hero-lead">A pivot report builder for the web, with Excel's PivotTable as the reference: people drag fields into rows, columns and values, filter, drill into the rows behind a number, switch to a chart and export to Excel - and the whole report is a small JSON object you can save, share as a link or a file and load again.</p>
 
-<p class="hero-install"><code>npm install pivotkit-react react react-dom echarts</code></p>
-
-[Get started](getting-started/react.md){ .md-button .md-button--primary }
-[Using the report](guide.md){ .md-button title="For the people who build reports: fields, filters, charts, export" }
+[I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: fields, filters, charts, export" }
+[I embed pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine" }
 [Try the live demo](demo.md){ .md-button }
-[Learn with real data](learn.md){ .md-button }
-[What pivotkit does](overview.md){ .md-button }
-[Feature list](features.md){ .md-button }
-[Source on GitHub](https://github.com/eizedev/pivotkit){ .md-button }
 
 </div>
 
@@ -31,85 +25,76 @@ hide:
 
 <small>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information ([attribution](learn.md#query-it-live)).</small>
 
-<div class="cards" markdown>
+<div class="grid" markdown>
 
-- [**React**](getting-started/react.md)<br>`<PivotReport>` for React 18 and 19. React and ECharts come from your app, so the page has one copy of each.
-- [**Web component**](getting-started/web-component.md)<br>`<pivot-report>` with its own React, for Angular, PHP and plain HTML pages. ECharts loads on the first chart.
-- [**PowerShell Universal**](getting-started/react.md#powershell-universal)<br>pivotkit-react runs on the React 18.3.1 that PowerShell Universal provides to its components; the module [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/) brings it ready-made as `New-UDPivotReport`.
-- [**Engine only**](getting-started/engine.md)<br>`pivotkit-core`: pivot tables, grids, chart options and XLSX/CSV export in plain JavaScript, in the browser or in Node.
+<div markdown>
+
+## For the people who build reports
+
+<span id="what-people-can-do-with-it"></span>
+
+Start with the [quick start](use/quick-start.md) (your first report in six steps), then
+[learn with real data](learn.md). Every task has a page of its own:
+
+- Drag fields into **Rows**, **Columns**, **Values** and **Filters**, or use the menu every field
+  has: drag and drop is never the only way ([fields and zones](use/fields.md)).
+- Sum, count, average, median, minimum, maximum, distinct count and the usual statistics; show a
+  value as a share of a total, a running total, a difference or a rank ([values](use/values.md)).
+- Dates are grouped by year, quarter, month, week, day or hour as soon as they are placed; numbers
+  go into ranges ([dates and ranges](use/values.md#dates-and-number-ranges)).
+- Filter a field by its values with their row counts, a text condition, a value condition ("Sum of
+  Revenue > 1,000") or its top N; the menu says what a filter keeps ([filters](use/filters.md)).
+- Click a number to see the rows behind it, then copy or download them ([drill-down](use/drill-down.md)).
+- Switch to a chart: the type follows the data (lines over dates, else bars) until you pick bars,
+  lines, area, pie, donut or heatmap, with value labels, legend, title and group labels
+  ([charts](use/charts.md)).
+- Undo and redo every step; Reset goes back to the start. Pick a shared view or one of your own under
+  Views, save yours, publish it for everyone where allowed, or share it as a link, as JSON or as a
+  view file; a view for other data asks first ([views and sharing](use/views.md)).
+- Export the table to Excel or CSV and the chart to PNG, or copy the table into a spreadsheet
+  ([export and copy](use/export.md)).
+- Enlarge the result or put the report on the full screen; tips, one at a time, say what the report
+  shows and what to do next; an "i" explains each zone, field and setting that needs it, long menus
+  fold their sections, and every text field in a menu has an × that empties it
+  ([small screens, menus and tips](use/layout.md)).
+- Works with a keyboard and a screen reader, from a phone to a wide screen
+  ([keyboard](use/keyboard.md)), in English and German, light and dark.
 
 </div>
 
-## Three packages
+<div markdown>
 
-| Package | What it is | Use it when |
-| --- | --- | --- |
-| [`pivotkit-react`](reference/react.md) | The report builder as a React component: field list, drag and drop, table and chart, filters, drill-down, undo, saved views and sharing, export. | Your page is a React app (or a host that renders React components). |
-| [`pivotkit-element`](reference/element.md) | The same report builder as the web component `<pivot-report>`, with React bundled inside a shadow root. | Your page has no React: Angular, PHP and other server-rendered pages, plain HTML. |
-| [`pivotkit-core`](reference/core.md) | The engine without UI: typed encoding, pivot computation, subtotals and totals, "show values as", filters, date grouping, grids, ECharts options, XLSX and CSV. | You draw your own UI, or build reports on a server. |
+## For developers
 
-## Quick start
+<span id="quick-start"></span><span id="three-packages"></span>
 
-=== "React"
+```bash
+npm install pivotkit-react react react-dom echarts
+```
 
-    ```jsx
-    import { PivotReport } from "pivotkit-react";
-    import "pivotkit-react/styles.css";
+Start with [Embed pivotkit](embed/index.md): which package fits, and a first report in a few lines.
 
-    <PivotReport
-        data={rows}
-        defaultView={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }}
-        onViewChange={save}
-    />
-    ```
+- One React component, `<PivotReport>`, for React 18 and 19 ([React](getting-started/react.md)).
+- The web component `<pivot-report>` for pages without React: Angular, PHP, plain HTML ([web component](getting-started/web-component.md)).
+- Runs in PowerShell Universal on the React it provides ([PowerShell Universal](getting-started/react.md#powershell-universal)), ready-made as `New-UDPivotReport` in [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/).
+- The engine alone, in the browser or in Node: pivots, grids, chart options, XLSX and CSV ([engine](getting-started/engine.md)).
+- The report is a JSON view: store it, pass it back, controlled or not ([views](concepts/views.md)).
+- A view is user input: names only, checked against fixed lists and limits, never run ([security](security.md)).
+- Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
+- `chartOptions` merges plain JSON over the ECharts option, for what the menus do not offer ([charts](concepts/charts.md#chartoptions-for-developers)).
+- `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it ([sharing](concepts/sharing.md)).
+- Templates in two groups, shared views and my views, kept by the host's callbacks or by the browser (`templateStore`), also from an OpenAPI document's `x-pivotkit-views` ([templates](concepts/templates.md)).
+- `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
+- `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
+- Every file and every copy passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
+- Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)); every text replaceable, English and German built in ([localisation](reference/localisation.md)).
+- Designed for about 100,000 rows; heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
 
-=== "Web component"
+</div>
 
-    `/assets/pivotkit-element/dist/` is the package's `dist/` directory, copied from
-    `node_modules/pivotkit-element/dist/` after `npm install pivotkit-element`
-    ([details](getting-started/web-component.md)).
+</div>
 
-    ```html
-    <script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
-    <pivot-report default-view='{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]}'></pivot-report>
-    <script type="module">
-        const report = document.querySelector("pivot-report");
-        report.data = rows;
-        report.addEventListener("pivot-view-change", (e) => save(e.detail.view));
-    </script>
-    ```
-
-=== "Engine"
-
-    ```js
-    import { encode, computePivot, toGrid } from "pivotkit-core";
-    import { toXlsx } from "pivotkit-core/export";
-
-    const data = encode(rows);
-    const result = computePivot(data, { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] });
-    const xlsx = toXlsx(toGrid(result));   // Uint8Array
-    ```
-
-`rows` is an array of plain objects, one per record. Each key is a field the user can drag.
-
-## What people can do with it
-
-- Drag fields into **Rows**, **Columns**, **Values** and **Filters**, or use the menu on every field:
-  drag and drop is never the only way.
-- Sum, count, average, median, minimum, maximum, distinct count and the usual statistics; show a value
-  as a percentage of a total, a running total, a difference or a rank.
-- Group dates by year, quarter, month, week, day or hour, and numbers into ranges.
-- Filter by values with their row counts, by a text condition, by a value condition or to the top N.
-- Click a number to see the rows behind it.
-- Switch to a bar, line, area, pie, donut or heatmap chart, with value labels, legend, title and group labels.
-- Undo and redo every step, save the report as a view, share it as a link, as JSON or as a view file,
-  export to Excel, CSV and PNG.
-- Use it with a keyboard and a screen reader, in English or German, light or dark, from a phone to a
-  wide screen.
-
-[Using the report](guide.md) describes all of it for the people who use the report; [What pivotkit
-does](overview.md) has it on one page for users and developers, and the [feature list](features.md)
-every behaviour with its details.
+Every behaviour, also the small ones, is in the [feature list](features.md), with a link to its page.
 
 ## Designed for
 
@@ -122,8 +107,9 @@ every behaviour with its details.
 
 ## License
 
-MIT. Charts are drawn with [Apache ECharts](https://echarts.apache.org/) (Apache-2.0); pivotkit-element
-bundles React, ReactDOM, @dnd-kit, ECharts, zrender, tslib and fflate under their own licenses, listed
-in its `dist/THIRD_PARTY_LICENSES.txt`. Icon and header are made in
+MIT. The source is on [GitHub](https://github.com/eizedev/pivotkit). Charts are drawn with
+[Apache ECharts](https://echarts.apache.org/) (Apache-2.0); pivotkit-element bundles React, ReactDOM,
+@dnd-kit, ECharts, zrender, tslib and fflate under their own licenses, listed in its
+`dist/THIRD_PARTY_LICENSES.txt`. Icon and header are made in
 [eizedev/brand](https://github.com/eizedev/brand) and licensed
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

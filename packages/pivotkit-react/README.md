@@ -1,8 +1,8 @@
 # pivotkit-react
 
-Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/react/) - getting started, every prop, theming, localisation, a [guide for the people using the report](https://pivotkit.eize.dev/guide/) and a [live demo](https://pivotkit.eize.dev/demo/).
+Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/react/) - getting started, every prop, theming, localisation, [Use a report](https://pivotkit.eize.dev/use/) for the people who build reports and a [live demo](https://pivotkit.eize.dev/demo/).
 
-What pivotkit does, in short: [overview](https://pivotkit.eize.dev/overview/); every feature, also the small behaviours: [feature list](https://pivotkit.eize.dev/features/).
+What pivotkit does, in short: the [start page](https://pivotkit.eize.dev/), with an entry for the people who build reports ([Use a report](https://pivotkit.eize.dev/use/)) and one for developers ([Embed pivotkit](https://pivotkit.eize.dev/embed/)); every feature at a glance: [feature list](https://pivotkit.eize.dev/features/).
 
 The pivot report builder of pivotkit as a React 18/19 component: a searchable field list, four drop
 zones (Rows, Columns, Values, Filters) with drag and drop and a menu on every field, table and chart

@@ -13,7 +13,8 @@ report's **Views** menu lists them in two groups:
 - **My views** - the user's own: saved with **Save current view**, kept by your application or by the
   browser.
 
-![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu.png)
+![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
+![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-dark.png#only-dark)
 
 Each entry loads its view with one click. An entry that can be deleted has a delete button (asked
 in place before it goes). Where someone can change shared views here (a shared entry is `deletable`,
