@@ -353,26 +353,51 @@ Neither is part of the view.
 
 ## Menus
 
+The menus of a chip and Options are menus in levels: the first level is an ARIA menu (`role="menu"`
+with `menuitem`, `menuitemradio`, `menuitemcheckbox`, `group` and `separator`; one Tab stop with a
+roving `tabindex`, the arrow keys, Home and End, type-ahead), each row with what is set on its right
+and ", changed" in its name where it is not the default. Enter or the right arrow opens a topic's
+level in the menu's place: a level of choices is a menu again (labelled by its title, "Month ›
+Group"), a level with form controls (Filter, Top items, Number ranges, Name, Keyboard shortcuts) a
+`group` labelled by its heading. Escape or the left arrow goes back, with the focus on the row the
+level came from; Escape on the first level closes the menu and the focus goes back to its button;
+Tab closes it and moves on from the button. The popover around them is a non-modal dialog (it holds
+the field's name with its "i" and the search, which a menu cannot hold). Every choice applies at
+once; a number applies about half a second after the typing stops (or with Enter), a value's name
+with Enter or when the field is left, and Escape in a field gives back what applies.
+
+| Menu | First level | Levels |
+| --- | --- | --- |
+| A field on Rows or Columns | Sort (A to Z, Z to A side by side), sort by its one value, Filter, Top items, Move to, Remove field | Sort by value (two or more values, or a custom order), Filter, Group (dates), Number ranges (numbers), Top items, Move to |
+| A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
+| Options | Totals, Rows (Expand all, Collapse all), Help | Keyboard shortcuts |
+
+The chip menus have a search above their first level: it finds a choice of any level by its text and
+the titles above it, and opens a level by its title; Enter runs a hit the arrow keys reached, not the
+text typed.
+
 A menu keeps the mouse wheel to itself: a wheel turn that nothing inside it can scroll further is
 stopped, so the table or the page behind never scrolls (`overscroll-behavior: contain` does the same
-for touch). A menu is at most as high as the window, and scrolls inside. Its sections fold with their
-title (a button with `aria-expanded`); their default and the user's choice:
+for touch). A menu is at most as high as the window, and scrolls inside. The sections of the other
+menus fold with their title (a button with `aria-expanded`); their default and the user's choice:
 
 | Menu | Open | Folded |
 | --- | --- | --- |
-| A value | Summarize by, Show as | Number format, Highlight, Name, Filters, Move |
-| A field on Rows or Columns | Sort, Group dates by, Group numbers into ranges, Show only the top items, Filters | Move |
-| Options, Views, Chart type | every section | |
+| Views | This view, Shared views, My views | Share |
+| Chart type | Chart type | Display |
+| Export, the drill-down's Export | every section | |
 
-What the user opens or folds is kept with the tips (`storageKey`, `dismissedTips`). Rarely used
-entries sit behind a link inside their section: "More statistics", "More calculations", "More
-formats" (whole number, compact, bytes, durations).
+What the user opens or folds is kept with the tips (`storageKey`, `dismissedTips`); a stored state of
+a section that no longer folds is dropped.
 
-An "i" next to a setting explains it on hover, focus or tap: the totals, Show as, Along, Excel and CSV
+An "i" next to a setting explains it on hover, focus or tap: the totals, Show as, Excel and CSV
 in the export menu, Labels and Group labels of the chart. It is the same button as a field's "i"; its
-name is "About <setting>". A menu row stays one line. Options, Help, "Show explanations" (or
-`settingInfo`) hides them all. An entry that would change nothing is disabled, and a short line under
-it says why, only while it is disabled: the grand total row needs a field in Rows, the grand total
+name is "About <setting>". A menu row stays one line. Next to an item of a menu in levels (the
+totals) the "i" is for the pointer: the item carries its text as its description, so the arrow keys
+stay on the items. Options, Help, "Show explanations" (or
+`settingInfo`) hides them all. An entry that would change nothing is disabled (in a menu in levels
+`aria-disabled`, so the arrow keys still reach it), and a short line under it says why, only while it
+is disabled: the grand total row needs a field in Rows, the grand total
 column one in Columns, row subtotals two or more fields in Rows, column subtotals two or more in
 Columns; Expand all and Collapse all; the chart image "Switch to Chart first."; a pie's Labels while
 value labels are off. The export menu is a dialog, so Tab reaches each format's "i".

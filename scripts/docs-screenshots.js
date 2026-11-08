@@ -95,7 +95,7 @@ const SHOTS = [
         open: async (page) => {
             await quick(page, 3);
             await page.getByTestId("chip-menu-Region").click();
-            await page.getByTestId("open-filter").click();
+            await page.getByTestId("topic-filter").click();
         }
     },
     {
@@ -110,19 +110,42 @@ const SHOTS = [
     },
     // the hero of the start page: real data (the weather of 14 cities)
     { name: "report", query: "data=weather", size: WIDE },
+    // a value's menu: its first level, one row per topic with what is set
     {
         name: "value-menu",
         query: "data=sales",
         size: WIDE,
         open: (page) => page.getByTestId("chip-menu-Sum of Revenue").click()
     },
+    // a field's menu: its first level, sort side by side, then a row per topic
+    {
+        name: "field-menu",
+        query: "data=sales",
+        size: WIDE,
+        open: (page) => page.getByTestId("chip-menu-Region").click()
+    },
+    // the Filter level of a field's menu: the values with their counts, the conditions
     {
         name: "filter",
         query: "data=sales",
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
-            await page.getByTestId("open-filter").click();
+            await page.getByTestId("topic-filter").click();
+        }
+    },
+    // the Group level of a date: one column, the example on the right, under its two headings
+    {
+        name: "group-level",
+        query: "data=sales&empty",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("field-menu-Month").click();
+            await page.getByRole("menuitem", { name: "Add to Rows" }).click();
+            await page.locator('.pk-field[data-field="Revenue"] .pk-field-name').click();
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await page.locator('[data-zone="rows"] .pk-chip-label').click();
+            await page.getByTestId("topic-group").click();
         }
     },
     {
@@ -249,13 +272,13 @@ const SHOTS = [
         query: "data=sales",
         size: WIDE,
         open: async (page) => {
+            // Only West, then back: the Filter row says what the filter keeps, with its dot
             await page.getByTestId("chip-menu-Region").click();
-            await page.getByTestId("open-filter").click();
-            const west = page.locator(".pk-filter-popover .pk-value", { hasText: "West" });
+            await page.getByTestId("topic-filter").click();
+            const west = page.locator(".pk-chip-menu .pk-value", { hasText: "West" });
             await west.hover();
             await west.locator(".pk-only").click();
-            await page.getByTestId("filter-apply").click();
-            await page.getByTestId("chip-menu-Region").click();
+            await page.getByTestId("level-back").click();
         }
     },
     {
@@ -264,19 +287,23 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
-            // the condition in a line of its own with Change and Remove, the menu scrolled to its Filters section
-            await page.getByTestId("open-filter").evaluate((el) => el.closest(".pk-section").scrollIntoView({ block: "start" }));
+            // the Filter level scrolled to the condition on a value, written as a sentence
+            await page.getByTestId("topic-filter").click();
+            await page.getByTestId("value-condition").scrollIntoViewIfNeeded();
         }
     },
     {
-        // a field's menu with its Top N in one line: "Top 3 by Sum of Population · Change · Remove"
+        // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…
         name: "top-items",
         query: "data=countries&preset=0",
         size: WIDE,
-        open: (page) => page.getByTestId("chip-menu-Country").click()
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Country").click();
+            await page.getByTestId("topic-top").click();
+        }
     },
     {
-        // a value's menu on a phone: a sheet at the bottom, folded sections with their state
+        // a value's menu on a phone: a sheet at the bottom, its first level with what each topic holds
         name: "phone-value-menu",
         query: "data=sales",
         size: PHONE,
@@ -298,7 +325,7 @@ const SHOTS = [
         }
     },
     {
-        // Options: totals that change nothing say why, an "i" explains each, Help has its four switches
+        // Options: totals that change nothing say why, an "i" explains each, Help with its switches
         name: "explanations",
         query: "data=tickets",
         size: WIDE,

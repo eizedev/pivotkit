@@ -51,7 +51,7 @@ The panel's **Export** menu, in two sections, **Copy** and **Download**:
 - A copy says what it gave ("Copied 25 rows: …"); the notes show above the open panel.
 - Text a spreadsheet would run as a formula gets a leading `'`, as in every export
   ([security](../security.md#exports)).
-- The sections fold like the other menus' sections, and the report remembers them.
+- The sections fold like those of the toolbar's Export menu, and the report remembers them.
 
 !!! note "For developers"
     `drillDown` turns the panel off, `drillDownLimit` sets how many rows it gets, `onCellClick` gives

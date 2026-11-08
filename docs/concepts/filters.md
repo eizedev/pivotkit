@@ -81,18 +81,17 @@ to Z" in the menu is then kept as a sort entry of its own, so the host's order d
 ## Filters in the UI
 
 The filter, the value condition and Top N as people use them - the list of values with their row
-counts, the text condition, **Value condition…**, **Show top items…**, numbers typed in the
-report's language, what Remove takes away - are on [Filters, top N and sorting](../use/filters.md)
+counts, the text condition, the condition on a value, **Top items**, numbers typed in the
+report's language, what Remove filter takes away - are on [Filters, top N and sorting](../use/filters.md)
 under Use a report. What they write into the view:
 
 | In the UI | In the view |
 | --- | --- |
 | Values ticked in the filter | An `exclude` filter of the values **not** ticked, as Excel does: a value that appears in later data is shown. With every value ticked, the field has no item filter at all. |
 | Text condition, Condition on the label | A `label` filter. |
-| Value condition… | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
-| Show top items… | A `top` filter, `by` the value chosen. |
-| Remove (next to "Filter: …") | Removes the field's `include`, `exclude` and `label` filters; `value` and `top` stay. |
-| Remove (next to a value condition) | Removes that `value` filter. |
+| Condition on a value ("Keep Region items whose Sum of Revenue is greater than …") | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. "is anything" removes that `value` filter. |
+| Top items (Top 3, Top 5, Top 10, Top N…) | A `top` filter, `by` the value chosen; Off removes it. |
+| Remove filter (in the Filter level) | Removes the field's `include`, `exclude`, `label` and `value` filters; `top` stays. |
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

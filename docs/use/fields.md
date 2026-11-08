@@ -77,19 +77,31 @@ filters and its sort with it.
 
 ### The menu of a row or column field
 
-Sections that hold a setting say it first, in one line, with **Change** and **Remove**; one with
-nothing set shows a single item whose form opens on a click. When the field has a description, the
-menu's first row is its name with an **i**.
+The menu is in levels. Its first level is short: the field's name (with an **i** when the field has a
+description), a search, and one row per topic with what is set on its right ("Filter · All",
+"Top items · Off"). A row opens the topic's own level in the menu's place, titled with the field's
+name ("Month › Group"); **‹ Back**, Escape or the left arrow key go back to the row it came from.
+A setting that is not the one the report starts with has a dot before it ("Filter · ● 4 of 12"), and
+a screen reader hears ", changed" after it.
 
-| Section | What it offers |
+![A field's menu: sort A to Z and Z to A side by side, sort by the value, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-light.png#only-light)
+![A field's menu: sort A to Z and Z to A side by side, sort by the value, then Filter, Top items and Move to, each with what is set](../assets/screenshots/field-menu-dark.png#only-dark)
+
+| Topic | What it offers |
 | --- | --- |
-| **Sort** | By label; "Largest Sum of Revenue first" and "Smallest Sum of Revenue first" for each value that gives a number, so with two values you choose which one orders the items; "Custom order" and "Custom order, reversed" when the field has one, such as the seasons in the order of the year ([sorting](filters.md#sorting)). |
-| **Filters** | What the values and the text condition keep, with **Remove**; the value condition in a line of its own with **Change** and **Remove**, else **Value condition…**; **Choose values…** ([filters](filters.md)). |
-| **Top items** | "Top 10 by Sum of Revenue · Change · Remove", or **Show top items…**: top or bottom N by a value you choose ([top N](filters.md#top-n)). |
-| Date grouping (dates) | Along the time line: year, quarter, month, week, day; or across years: quarter, month, week of the year, weekday, hour ([dates](values.md#dates-and-number-ranges)). |
-| **Number ranges** (numbers) | "Ranges of 0.5 from 4.5 · Change · Remove", or **Group into ranges…**: their size and where they start ([ranges](values.md#number-ranges)). |
-| **Move** | To another zone. |
-| **Remove field** | Always at the foot. |
+| **Sort** | A to Z and Z to A side by side (a date: Oldest and Newest), on the first level. |
+| Sort by value | "Largest Sum of Revenue first" and "Smallest Sum of Revenue first", on the first level when the report has one value; with more values, or a custom order, a level **Sort by value** with a pair for each value that gives a number and "Custom order" and "Custom order, reversed" when the field has one, such as the seasons in the order of the year ([sorting](filters.md#sorting)). Its row names the sort in use. |
+| **Filter** | A level with the values to keep, a condition on their names and a condition on a value, written as a sentence ([filters](filters.md)). Its row says what the filter keeps: "4 of 12", "contains “an”", "Sum of Revenue > 1,000". |
+| **Group** (dates) | A level: along the time line year, quarter, month, week, day; the same period every year: quarter, month, week of the year, weekday, hour; or no grouping ([dates](values.md#dates-and-number-ranges)). |
+| **Number ranges** (numbers) | A level with the size of the ranges and where they start ([ranges](values.md#number-ranges)). |
+| **Top items** | A level: Off, Top 3, Top 5, Top 10, or **Top N…** with a count of your own, top or bottom, by a value you choose ([top N](filters.md#top-n)). |
+| **Move to** | A level: another zone, left or right. |
+| **Remove field** | The menu's last entry. |
+
+Every choice applies at once: the table behind the menu changes while it is open, and each change
+is one step Undo takes back. A choice in a list goes back to the first level, with the focus on the
+row, which now says the new setting; a choice that makes the chip another one (a grouping, a move)
+closes the menu.
 
 The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 

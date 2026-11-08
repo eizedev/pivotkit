@@ -11,7 +11,8 @@ at the bottom, a note above the result, an empty table.
 ## Greyed-out buttons and entries
 
 A button or menu entry that would do nothing is greyed out. Where the reason is not obvious, a short
-line under it says why, only while it is greyed out.
+line under it says why, only while it is greyed out. In a menu in levels (a chip's menu, Options) the
+arrow keys still stop on it, so a screen reader hears the reason.
 
 | Entry | Available when |
 | --- | --- |
@@ -21,7 +22,7 @@ line under it says why, only while it is greyed out.
 | Export, every entry | a field is placed ("Add a field first.") |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |
-| Options, Help, **Reset menu sections** | a menu section is open or folded other than at first |
+| Options, Help, **Reset menu sections** | a section of the Views, Chart type or Export menu is open or folded other than at first |
 | Options, **Expand all**, **Collapse all** | it changes something; the line under it says why not ("Nothing is collapsed.", "Needs two or more fields in Rows.", "Every group is collapsed already.") |
 | Options, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout; the line under it says what it needs |
 | Views, **Save “…”** | a saved view is loaded and you may change it: greyed out for a shared view you may not change ("Shared view: you cannot change it. Use Save as."), for a view opened from a file or a link ("Not saved yet. Use Save as.") and while no field is placed ("Add a field first.") |

@@ -7,8 +7,8 @@ description: Give the result of a pivotkit report more room (field rail, Enlarge
 
 The report adapts to the room it has: the field list folds away, the zones fold into one line, menus
 open from the bottom on a phone. **Enlarge** and **Full screen** give the result all the room. Tips
-above the result say what the report shows; an **i** explains a setting; long menus fold their
-sections.
+above the result say what the report shows; an **i** explains a setting; a chip's menu says on its
+first level what is set and opens each topic in a level of its own.
 
 ## More room for the result
 
@@ -88,44 +88,58 @@ squeezing the table into a sliver.
 ## Menus and text fields
 
 - A setting that needs explaining has an **i** next to it: pointing at it or moving the focus to it
-  shows the explanation, a tap opens it. It is the same **i** everywhere (totals, Show as, Along, the
-  export formats, the chart's Labels and Group labels), so every menu row stays one line.
+  shows the explanation, a tap opens it. It is the same **i** everywhere (totals, Show as, the
+  export formats, the chart's Labels and Group labels), so every menu row stays one line. Next to an
+  item of Options it is for the pointer: a screen reader reads the explanation with the item.
   **Options**, **Help**, **Show explanations** hides them all.
 - Every text field in a menu - the field search, a value's name, "Starting at" of number ranges, a
   saved view's name, the text of a filter condition, the box of Load view - has an **×** while it
   holds text. It empties the field and keeps the focus there; Ctrl+Z in the field brings the text
   back.
-- **Escape** in such a field empties it first; the next Escape closes the menu.
+- **Escape** in such a field empties it first; the next Escape closes the menu (in a level of a
+  chip's menu, where a field applies as you type, Escape gives back what applies and then goes back
+  a level).
 - While the report waits for its data, or opens a shared link, it shows grey shapes where the
   toolbar, the zones and the table will be, and a screen reader hears "Loading the report…". A large
   data set (more than 10,000 rows) shows them for a moment too, while it is read.
 
 ## Menus that are long
 
+The menu of a chip and **Options** are in levels, so their first level stays short:
+
+- The first level has one row per topic with what is set on its right, muted ("Filter · All",
+  "Number format · Automatic"); a dot in the accent colour before it means the setting is not the one
+  the report starts with ("Number format · ● Currency"), and a screen reader hears "Number format,
+  Currency, changed". A topic with only a few choices has them right there: A to Z and Z to A, a
+  value's Highlight, the totals and help switches of Options.
+- A row opens the topic's level in the menu's place, titled with the field's name ("Month ›
+  Group"). **‹ Back**, Escape or the left arrow key go back to the row it came from.
+- Every choice applies at once: the table behind the menu changes while it is open, and each change
+  is one step Undo takes back. A number applies a moment after you stop typing (or with Enter), a
+  value's name with Enter or when you leave the field; Escape in a field gives back what applies.
+- The search above a chip menu's first level finds any choice of any level, with where it is
+  ("Percent · Number format"), and the levels by their titles; the arrow keys move into the hits and
+  Enter runs one. "Nothing found" says when there is none.
+- Entries few people need come last in their level, under a heading: **More statistics**, **More
+  calculations**, **More formats** (whole number, compact, bytes, durations).
 - A menu keeps the mouse wheel to itself: at its end it stops, the table or the page behind it does
   not scroll; scrolling a long menu by touch stops at its end too. A menu is never higher than the
   window; what does not fit scrolls inside it.
-- Entries few people need sit behind a link in their section: **More statistics**, **More
-  calculations**, **More formats** (whole number, compact, bytes, durations).
 
-Sections fold with their title, a button (44 px high on a touch screen). The ones used most are
-open. A folded section says at its end what it holds, muted ("Number format · Automatic",
-"Highlight · None"), so you see what is set without opening it. A dot in the accent colour before it
-means the setting is not the one the report starts with ("Number format · ● Currency"); a screen
-reader hears "Number format, Currency, changed". The report remembers what you open and fold (with the tips, under the report's storage),
-**Show dismissed tips again** leaves it as it is, and **Options**, **Help**, **Reset menu sections**
-folds and opens every section as at first (greyed out while nothing differs).
+The other menus (Views, Chart type, Export and the drill-down's Export) have sections that fold with
+their title, a button (44 px high on a touch screen). A folded section says at its end what it holds;
+the report remembers what you open and fold (with the tips, under the report's storage), **Show
+dismissed tips again** leaves it as it is, and **Options**, **Help**, **Reset menu sections** folds and
+opens every section as at first (greyed out while nothing differs).
 
 | Menu | Open | Folded |
 | --- | --- | --- |
-| A value's menu | Summarize by, Show as | Number format, Highlight, Move (Name does not fold) |
-| A row or column field's menu | Sort, Filters, Top items, the date grouping, number ranges | Move |
 | Views | This view, Shared views, My views | Share |
 | Chart type | Chart type | Display |
-| Options, Export, the drill-down's Export | all (Options, Rows does not fold) | |
+| Export, the drill-down's Export | all | |
 
-![A value's menu on a phone: a sheet at the bottom, Number format folded with "Currency" and its dot, Highlight with "None"](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
-![A value's menu on a phone: a sheet at the bottom, Number format folded with "Currency" and its dot, Highlight with "None"](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }
+![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
+![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }
 
 ## Tips
 

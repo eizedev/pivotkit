@@ -5,51 +5,51 @@ description: Leave values out of a pivotkit report - the filter with its values 
 
 # Filters, top N and sorting
 
-A filter leaves rows out of the report. Open a field's menu and choose **Choose values…**: tick the
-values to keep, or set a condition on their labels. A field in **Filters** filters the whole report; a
-field on Rows or Columns filters its own items. **Value condition…** and **Show top items…** keep the
-items whose value meets a condition, or the largest N.
+A filter leaves rows out of the report. Open a field's menu and choose **Filter**: tick the values to
+keep, set a condition on their names, or keep the items whose value meets a condition. A field in
+**Filters** filters the whole report; a field on Rows or Columns filters its own items. **Top items**
+keeps the largest (or smallest) N.
 
-The menu of a row or column field shows first what is set, one line per setting: "Filter: 15 of 45 ·
-Remove", "Sum of Revenue > 1,000 · Change · Remove", "Top 10 by Sum of Revenue · Change · Remove". When nothing is set, one item stands there instead
-("Show top items…"); a click opens its form in place.
+The menu's first level says on the Filter row what the filter keeps ("All", "4 of 12", "contains
+“an”", "Sum of Revenue > 1,000"), with a dot when it filters; the chip says the same.
 
 ## Filter by values
 
-1. Open the field's menu and choose **Choose values…** (a chip in **Filters** opens the filter with a
-   click).
+1. Open the field's menu and choose **Filter** (a chip in **Filters** opens the filter with a click).
 2. Untick the values to leave out, or click **Only** next to a value to keep it alone. **Select all**
    and **Select none** act on what the search finds.
-3. Press **Apply**. **Cancel** or Escape leaves the filter as it was.
+3. Each change applies at once; **‹ Back** or Escape goes back to the menu's first level, and Undo
+   takes a change back.
 
-![The filter of the Region field: values with row counts, a search, select all or none, and a text condition](../assets/screenshots/filter-light.png#only-light)
-![The filter of the Region field: values with row counts, a search, select all or none, and a text condition](../assets/screenshots/filter-dark.png#only-dark)
+![The Filter level of the Region field: how many items are picked, the values with row counts, a search, select all or none, the text condition and the condition on a value](../assets/screenshots/filter-light.png#only-light)
+![The Filter level of the Region field: how many items are picked, the values with row counts, a search, select all or none, the text condition and the condition on a value](../assets/screenshots/filter-dark.png#only-dark)
 
-| In the filter | What it does |
+| In the Filter level | What it does |
 | --- | --- |
-| The values | Each with its row count; "N selected" at the top. At most 300 are listed; below them "300 of 1,045 values; search to find more" says that the search finds the rest. |
+| The first line | How many of the field's items the list keeps ("4 of 5 items picked"), said again by a screen reader as it changes; **Remove filter** next to it while the field is filtered: it removes the values, the text condition and the condition on a value (Top N stays). |
+| The values | Each with its row count. At most 300 are listed; below them "300 of 1,045 values; search to find more" says that the search finds the rest. |
 | Search | Narrows the list; **Select all** and **Select none** then act on the values it finds (all of them, also those past the first 300). |
 | **Only** | Next to each value: keeps that one alone. |
-| Text condition | A condition on the labels: is, is not, contains, does not contain, begins with, ends with. For a text field it reads "Text condition", for a number "Condition on the label" (the number as the table writes it). A date (or a grouping of one) and a yes/no field have none: their items are chosen in the list; a condition a loaded view brings still shows, so it can be removed. |
-| **Remove filter** | At the top of the filter while the field is filtered. |
+| Text condition | A condition on the names: is, is not, contains, does not contain, begins with, ends with. For a text field it reads "Text condition", for a number "Condition on the label" (the number as the table writes it). It applies a moment after you stop typing, or with Enter; its **×** removes it at once. A date (or a grouping of one) and a yes/no field have none: their items are chosen in the list; a condition a loaded view brings still shows, so it can be removed. |
+| Condition on a value | A sentence: "Keep Region items whose Sum of Revenue is greater than …" ([below](#value-filter)). |
 
 Details:
 
-- Your choice is a draft until **Apply**.
 - The report remembers the values you left out, not the ones you kept, as Excel does: a value that is
   new in later data shows up. With every value ticked, the field is not filtered at all.
-- The **×** in the text of a condition removes the condition at once; the values you ticked stay a
-  draft until you apply them.
-- While a field is filtered by its values or a text condition, its menu says what they keep, above
-  **Choose values…**: "Filter: 15 of 45" or "Filter: contains “an”", with **Remove** next to it, which
-  removes the values and the text condition (a value condition and Top N stay). Remove closes the
-  menu; the focus goes back to the chip. Folded, the Filters title says it in short: "15 of 45".
+- The first line counts the items the list keeps; a condition can keep fewer of them, and the table
+  shows which.
+- Escape in a text field gives back the text that applies; with nothing to give back it goes back a
+  level.
+- The filter of a field in **Filters** (a click on its chip, or **Filter…** in the field list) is a
+  popover of its own: there the values and the condition are a draft until **Apply**, and **Remove
+  filter** stands at its top while the field is filtered.
 - A field keeps its filters when it moves between Rows, Columns and Filters. Moved to Values, it
   leaves its filters behind. A field that leaves the report (its **x**, **Remove field**, or dragged
   back to the field list) takes its filters and its sort with it.
 
-![A filtered field's menu: Filter: 1 of 5 in the accent colour with Remove, then Choose values and Value condition](../assets/screenshots/filter-state-light.png#only-light)
-![A filtered field's menu: Filter: 1 of 5 in the accent colour with Remove, then Choose values and Value condition](../assets/screenshots/filter-state-dark.png#only-dark)
+![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-light.png#only-light)
+![A filtered field's menu: the Filter row says 1 of 5 with its dot](../assets/screenshots/filter-state-dark.png#only-dark)
 
 ### Filter a field that is not in the report
 
@@ -59,46 +59,44 @@ filter.
 
 ## Value condition { #value-filter }
 
-**Value condition…** in the menu of a row or column field keeps the items whose value meets a
-condition: "regions with more than 2,000,000 revenue". A click opens its form in the menu, with the
-focus in its first field; **Cancel** closes the form and puts the focus back on **Value condition…**.
+The last part of the Filter level keeps the items whose value meets a condition, written as a
+sentence: "Keep Region items whose Sum of Revenue is greater than 2,000,000".
 
 1. Pick the value it compares (a choice appears when the report has several values that give
-   numbers; the first one is chosen).
-2. Pick an operator: equals, does not equal, greater than, greater than or equal to, less than, less
-   than or equal to, between, not between.
-3. Type the number, two for between, and **Apply**.
+   numbers; the first one is chosen; with no value it is the count of rows).
+2. Pick the comparison: is, is not, is greater than, is at least, is less than, is at most, is
+   between, is not between. **is anything** takes the condition off.
+3. Type the number, two for between. It applies a moment after you stop typing, or with Enter; the
+   value and the comparison apply at once once a number is there.
 
-![The menu of Region: the value condition "Sum of Revenue > 2,000,000" in a line of its own with Change and Remove](../assets/screenshots/value-filter-light.png#only-light)
-![The menu of Region: the value condition "Sum of Revenue > 2,000,000" in a line of its own with Change and Remove](../assets/screenshots/value-filter-dark.png#only-dark)
+![The Filter level of Region scrolled to the condition on a value: Keep Region items whose Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-light.png#only-light)
+![The Filter level of Region scrolled to the condition on a value: Keep Region items whose Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-dark.png#only-dark)
 
 - The chip then shows it in short, "Sum of Revenue > 1,000" (a long one ends in "…"; its whole text
-  is in the chip's name for screen readers and in its tooltip), and so does the menu: "Filter: Sum of
-  Revenue > 1,000".
+  is in the chip's name for screen readers and in its tooltip), and so does the Filter row of the
+  menu.
 - The number is compared with the value as it is computed - the sum, the count, the average - not
   with a "show as" percentage and not with what its format shows: for "Revenue as % of grand total",
   0.25 is no condition on 25 %, 1000 is one on the sum of revenue.
 - Between keeps the items from the smaller to the larger number, in whatever order they were typed;
-  the chip writes the smaller one first.
-- Once set, the menu shows it in a line of its own, "Sum of Revenue > 1,000 · Change · Remove":
-  **Change** opens the form with it (changing it replaces it; Apply with no number removes it),
-  **Remove** removes only the condition. Each is one step Undo takes back.
-- A field that holds no number says so under the number.
+  the chip writes the smaller one first. Nothing changes until both numbers are there.
+- Text that is no number says so under the field, and nothing applies; Escape gives back the number
+  that applies. Each change is one step Undo takes back.
 - A view may hold more than one value condition or top N for a field (from a link, say): the menu
   edits the first one and leaves the others as they are. A condition whose value is no longer among
-  the report's values keeps it: the form offers it next to the values, chosen.
+  the report's values keeps it: the level offers it next to the values, chosen.
 
 ## Top N
 
-**Show top items…** in the same menu (section **Top items**) opens a form: **Top** or **Bottom**, how
-many, and by which value (a choice when the report has several values that give numbers; the first
-value is the default), then **Apply**. Once set, the section says it in one line, "Top 10 by Sum of
-Revenue", with **Change** (the form again, filled in) and **Remove**; Apply with no count removes it
-too. Each is one undo step. Apply and Remove close the menu and put the focus back on the chip;
-**Cancel** closes the form and puts it back on the line.
+**Top items** in the same menu opens its level: **Off**, **Top 3**, **Top 5**, **Top 10**, or
+**Top N…** with **Top** or **Bottom** and a count of your own, and the value it goes by (a choice when
+the report has several values that give numbers; the first value is the default). A choice applies at
+once and the level stays open; a count applies a moment after you stop typing, or with Enter. The
+menu's row then says it, "Top 10 by Sum of Revenue", and the chip shows "Top 10". Each change is one
+step Undo takes back.
 
-![The menu of Country: Top items says "Top 3 by Sum of Population" with Change and Remove](../assets/screenshots/top-items-light.png#only-light)
-![The menu of Country: Top items says "Top 3 by Sum of Population" with Change and Remove](../assets/screenshots/top-items-dark.png#only-dark)
+![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population](../assets/screenshots/top-items-light.png#only-light)
+![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population](../assets/screenshots/top-items-dark.png#only-dark)
 
 - Top N and value filters work within each item of the field above, as in Excel: with Region and
   Country on Rows, "top 3 countries" keeps three countries per region. Totals then add up the items
@@ -113,15 +111,15 @@ too. Each is one undo step. Apply and Remove close the menu and put the focus ba
 
 ## Numbers in the menus
 
-Numbers in the menus (value condition, Top N, number ranges) are typed as the report's language writes
+Numbers in the menus (the condition on a value, Top N, number ranges) are typed as the report's language writes
 them: "1.000,5" or "1000,5" in German, "1,000.5" in English; a plain number with a point ("1000.5")
 is read in every language. Anything else is no number, and the field says so under it ("Enter a
 number, such as 1,234.5.") instead of guessing.
 
 ## Sorting
 
-Click a name in the table's header to sort, or use the **Sort** section of a row or column field's
-menu. Both write the same sort, which **Undo** takes back.
+Click a name in the table's header to sort, or use the sort of a row or column field's menu. Both
+write the same sort, which **Undo** takes back.
 
 ### Sort with a click on a header
 
@@ -148,15 +146,15 @@ menu. Both write the same sort, which **Undo** takes back.
 
 ### Sort in the field's menu
 
-The **Sort** section of a row or column field's menu:
+The first level of a row or column field's menu:
 
 | Entry | Sorts |
 | --- | --- |
-| A to Z, Z to A (dates: Oldest first, Newest first) | By the item's label: text in natural order for the language ("Item 2" before "Item 10"), numbers and dates by value. This is the default. Blank sorts last. |
-| Largest Sum of Revenue first, Smallest Sum of Revenue first | By a value, one pair for each value that gives a number, with the value's name; without a value, by the number of rows. Items are sorted within their group. |
-| Custom order, Custom order, reversed | In an order of its own, such as the seasons in the order of the year; offered when the application gives the field an order or a view brought one. |
+| A to Z, Z to A side by side (dates: Oldest, Newest) | By the item's label: text in natural order for the language ("Item 2" before "Item 10"), numbers and dates by value. This is the default. Blank sorts last. |
+| Largest Sum of Revenue first, Smallest Sum of Revenue first | By a value, with the value's name; without a value, by the number of rows. Items are sorted within their group. With one value both stand on the first level; with more, a pair for each value that gives a number is in the level **Sort by value**, whose row names the sort in use. |
+| Custom order, Custom order, reversed | In an order of its own, such as the seasons in the order of the year; in the level **Sort by value**, offered when the application gives the field an order or a view brought one. |
 
-- The entry in use has a check mark.
+- The entry in use is marked: a check mark, or the raised segment of A to Z and Z to A.
 - A value gives no number to sort by when it lists distinct values, takes the first or last entry of
   a text, or the average, median, minimum or maximum of dates; the menu leaves those out.
 - A field with an order of its own is sorted in it as soon as it is placed on Rows or Columns; choose

@@ -12,24 +12,31 @@ field twice (the sum and the average of a cost, say).
 
 ## The menu of a value
 
-![The menu of a value: Summarize by, Show as, Number format and Remove field](../assets/screenshots/value-menu-light.png#only-light)
-![The menu of a value: Summarize by, Show as, Number format and Remove field](../assets/screenshots/value-menu-dark.png#only-dark)
+![The menu of a value: its first level with Summarize by, Show as and Number format and what each is set to, Highlight side by side, Name, Move to and Remove field](../assets/screenshots/value-menu-light.png#only-light)
+![The menu of a value: its first level with Summarize by, Show as and Number format and what each is set to, Highlight side by side, Name, Move to and Remove field](../assets/screenshots/value-menu-dark.png#only-dark)
 
-| Section | What it offers |
+The menu is in levels, as a field's is ([the menu of a field](fields.md#the-menu-of-a-row-or-column-field)):
+its first level says in one row per topic what is set, and a row opens its own level, titled with the
+value's name ("Sum of Revenue › Number format").
+
+| Topic | What it offers |
 | --- | --- |
-| **Summarize by** (open; the **i** at its end) | Sum, count, average, minimum, maximum; the statistics (median, distinct count, standard deviation, variance, first, last) under **More statistics** ([below](#summarize-by)). |
-| **Show as** (open) | The value itself, % of grand total, % of row total, % of column total; differences, running totals and ranks under **More calculations**. |
-| **Number format** (folded) | Automatic, number (also with no or two decimals), currency, percent; whole number, compact (1.2K), bytes and durations from hours or seconds under **More formats**. |
-| **Highlight** (folded) | None, a colour scale or data bars, in the theme's colours. |
-| **Name** | Type a name and **Apply**. |
-| **Move** (folded) | To another zone. |
+| **Summarize by** | A level: sum, count, average, minimum, maximum; under them, under **More statistics**, median, distinct count, standard deviation, variance, first, last ([below](#summarize-by)). |
+| **Show as** | A level: the value itself, % of grand total, % of row total, % of column total; under **More calculations** differences, running totals and ranks, and **Along** for those that walk along Rows or Columns. The **i** next to its title explains it. |
+| **Number format** | A level: Automatic, number (also with no or two decimals), currency, percent; under **More formats** whole number, compact (1.2K), bytes and durations from hours or seconds; each with an example on its right. |
+| **Highlight** | None, Colour scale and Data bars side by side on the first level, in the theme's colours. |
+| **Name** | A level with the name: it applies with Enter or when you leave the field. |
+| **Move to** | A level: another zone, left or right. |
+| **Remove field** | The menu's last entry. |
 
-Folded sections open with their title and say what they hold while folded ("Number format ·
-Automatic"); a dot marks one that is not at its default ([long menus](layout.md#menus-that-are-long)).
-The menu's first row is the value's name with an **i**: it holds the field's description, when the
-application gives one (with **Learn more** when there is a page about it), and, while **Show
-explanations** is on, a paragraph that says values are not filtered here: filter a field on Rows or
-Columns through its menu, or move a field to Filters. With neither, the row is not there.
+A choice applies at once and goes back to the first level, with the focus on its row; another way
+to summarize closes the menu (the value is another chip then). The rows say what is set ("Number
+format · ● Currency"); the dot marks a setting that is not the one the report starts with, and a
+screen reader hears ", changed". The menu's first row is the value's name with an **i**: it holds
+the field's description, when the application gives one (with **Learn more** when there is a page
+about it), and, while **Show explanations** is on, a paragraph that says values are not filtered
+here: filter a field on Rows or Columns through its menu, or move a field to Filters. With neither,
+the name stands alone.
 
 ## Summarize by
 
@@ -69,9 +76,9 @@ Sum, Count, Average, Minimum and Maximum come first; the others are under **More
 | Rank, smallest first; Rank, largest first | 1 for the smallest, or for the largest. |
 
 - The header then says it: "% of grand total of Revenue".
-- Differences, running totals and ranks walk along Rows or Columns within each group: the **Along**
-  switch (Rows or Columns) sets the direction. An **i** next to Show as and next to Along explains
-  them.
+- Differences, running totals and ranks walk along Rows or Columns within each group: **Along**
+  (Rows or Columns, at the end of the Show as level) sets the direction. The **i** next to the level's
+  title explains Show as.
 - A running total needs a value that adds up (a sum or a count); on an average or a median it is
   refused, since a running "total" of averages means nothing. A saved view or a link that asks for one
   shows the plain value instead, and the report says so above the result: "this “Show as” needs a sum
@@ -116,17 +123,23 @@ Totals are not highlighted. The Excel export keeps both as Excel's own condition
 
 ## Name
 
-Type a name and **Apply**. The **×** gives the value its default name back at once ("Sum of
-Revenue", shown as the placeholder), as one step Undo takes back.
+Type a name; it applies with Enter (the menu goes back to its first level) or when you leave the
+field. Escape gives back the name that applies; with nothing to give back it goes back a level. The
+**×** gives the value its default name back at once ("Sum of Revenue", shown as the placeholder), as
+one step Undo takes back.
 
 ## Dates and number ranges
 
 A date on Rows or Columns is grouped as soon as it is placed, by the span of its values: up to 62
 days by day, up to two years by month, up to six years by quarter, longer by year. The chip names the
-grouping in words: "Created by month", in German "Erstellt nach Monat". Its menu, **Group dates by**, changes
-the unit.
+grouping in words: "Created by month", in German "Erstellt nach Monat". The **Group** level of its
+menu changes the unit: one column, each unit with an example of its labels on its right, under two
+headings. A choice applies and closes the menu (the chip is another field then).
 
-| **Along the time line** | Label | **Compare periods across years** | Label |
+![The Group level of a date: along the time line year to day, the same period every year, each with an example](../assets/screenshots/group-level-light.png#only-light)
+![The Group level of a date: along the time line year to day, the same period every year, each with an example](../assets/screenshots/group-level-dark.png#only-dark)
+
+| **Along the time line** | Label | **Same period every year** | Label |
 | --- | --- | --- | --- |
 | Year | 2025 | Quarter of year | Q1 |
 | Quarter | Q1 2025 | Month of year | Jan |
@@ -141,15 +154,15 @@ are the same in every language.
 
 ### Number ranges
 
-**Group into ranges…** in the menu of a number field on Rows or Columns (section **Number ranges**)
-opens a form: the size of the ranges and where they start, **Starting at**, then **Apply**. The chip
-then reads "Amount (by 100)", and the menu says it in one line, "Ranges of 100 from 0", with **Change**
-(the form again, filled in) and **Remove**.
+**Number ranges** in the menu of a number field on Rows or Columns opens its level: the size of the
+ranges and where they start, **Starting at**, then **Apply** (both numbers apply together; the field
+becomes another one, so the menu closes). The chip then reads "Amount (by 100)", and the menu's row
+says it, "Ranges of 100 from 0"; its level opens filled in, with **Remove ranges**.
 
 - A range includes its lower bound and excludes the upper one.
 - A new size keeps the start; an empty start is 0. The **×** of Starting at empties it.
-- **Remove**, or Apply with no size, takes the ranges away again (one step Undo takes back).
-  **Cancel** closes the form without a change.
+- **Remove ranges**, or Apply with no size, takes the ranges away again (one step Undo takes back).
+  **‹ Back** or Escape leaves the level without a change.
 - A start so far from the field's numbers that every row would be blank is refused with a note under
   it.
 - Range labels use the language's thousands separators ("10,000 – 20,000"), except when every range
