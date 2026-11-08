@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cellRows, computePivot, encode } from "pivotkit-core";
 import { exportDrill, rowsText } from "../src/drill-export.js";
-import { drillTable } from "../src/drill.js";
+import { drillTable } from "../src/drill-table.js";
 import { LABELS } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, menuLabels } from "../src/menu-labels.js";

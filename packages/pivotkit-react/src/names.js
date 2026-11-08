@@ -125,29 +125,3 @@ const SUMMARY_ORDER = Object.freeze(["rows", "cols", "values", "filters"]);
 export function layoutSummary(entries, labels) {
     return SUMMARY_ORDER.filter((zone) => entries[zone] && entries[zone].length).map((zone) => ({ zone, title: labels.zones[zone], fields: entries[zone].map((e) => e.text).join(", ") }));
 }
-
-/**
- * What the filter of a field keeps, for its menu: "Filter: 15 of 45", "Filter: contains “abc”",
- * "Filter: Sum of Revenue > 1,000"; null without a filter.
- * @param {any} view
- * @param {string} field
- * @param {{ summary: { shown: number, total: number } | null } | null | undefined} state  the chip's state (zones.jsx)
- * @param {import("./labels.js").UiLabels} labels
- * @param {string} locale
- */
-export function filterText(view, field, state, labels, locale) {
-    const same = (f) => typeof f.field === "string" && f.field.toLowerCase() === field.toLowerCase();
-    const parts = [];
-    if (state && state.summary) {
-        parts.push(fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) }));
-    }
-    for (const f of view.filters.filter(same)) {
-        if (f.type === "label") {
-            const op = Object.hasOwn(labels.labelOps, f.op) ? labels.labelOps[f.op] : f.op;
-            parts.push(`${op} “${f.value}”`);
-        } else if (f.type === "value") {
-            parts.push(valueConditionText(view, f, labels, locale));
-        }
-    }
-    return parts.length ? fill(labels.filterIs, { filter: parts.join(", ") }) : null;
-}

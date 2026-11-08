@@ -72,6 +72,26 @@ test.describe("Export menu: copies", () => {
 });
 
 test.describe("drill-down panel", () => {
+    // the panel's table is built by the menus' code (drill-table.js): a click before it is here is not lost
+    test("a value clicked before the menus have loaded opens its rows once they are here", async ({ page }) => {
+        let release = () => {};
+        const held = new Promise((resolve) => (release = resolve));
+        await page.route(/\/chunks\/menus-[^/]+\.js$/, async (route) => {
+            await held;
+            await route.continue();
+        });
+        await page.goto("?data=tickets");
+        const cell = page.locator('[data-testid="pivot-table"] td.pk-clickable').first();
+        await cell.click();
+        const panel = page.getByTestId("drill-panel");
+        await expect(panel).toHaveCount(0);
+        release();
+        await expect(panel).toBeVisible();
+        await expect(panel.locator(".pk-drill-path")).not.toBeEmpty();
+        await expect(panel.getByTestId("drill-count")).toContainText(/\d/);
+        await expect(panel.locator("tbody tr").first()).toBeVisible();
+        await expect(panel.getByRole("button", { name: "Close" })).toBeFocused();
+    });
     test("Enlarge fills the report, Escape brings it back with the focus kept, then closes", async ({ page }) => {
         await page.goto("?data=tickets");
         await page.locator('[data-testid="pivot-table"] td.pk-clickable').first().click();

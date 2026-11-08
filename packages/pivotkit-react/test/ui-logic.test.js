@@ -6,7 +6,7 @@ import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotki
 import { decorate } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
-import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "../src/chart-types.js";
+import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "../src/chart-layout.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
@@ -345,7 +345,7 @@ test("heatmap row names: every one when a line fits each row, else every n-th", 
 });
 
 test("category axis labels: all straight when they fit, slanted, else every n-th; the modes force one", async () => {
-    const { categoryLabelLayout, CATEGORY_LABEL_WIDTH } = await import("../src/chart-types.js");
+    const { categoryLabelLayout, CATEGORY_LABEL_WIDTH } = await import("../src/chart-layout.js");
     const short = ["A", "B", "C"];
     assert.deepEqual(categoryLabelLayout(short, { width: 800, height: 400 }), { rotate: 0, interval: 0, every: 1, width: CATEGORY_LABEL_WIDTH, overflow: "truncate" });
     const countries = Array.from({ length: 21 }, (_, i) => `Country number ${i}`);
@@ -371,7 +371,7 @@ test("the tooltip's title is the category's whole name when the axis writes it s
 });
 
 test("auto group labels need room: a phone-sized chart writes the whole names instead", async () => {
-    const { groupLabelsFit } = await import("../src/chart-types.js");
+    const { groupLabelsFit } = await import("../src/chart-layout.js");
     assert.equal(groupLabelsFit(21, 3, { width: 1100, height: 420 }), true);
     assert.equal(groupLabelsFit(21, 3, { width: 350, height: 180 }), false, "390 px phone");
     assert.equal(groupLabelsFit(200, 1, { width: 1100, height: 420 }), false, "groups of one category are too narrow");
@@ -465,7 +465,7 @@ test("field list keys: up and down between fields, left and right between a fiel
 });
 
 test("filter: the condition on the labels by the field's type, none for dates and yes/no", async () => {
-    const { conditionKind } = await import("../src/view-ops.js");
+    const { conditionKind } = await import("../src/menu-ops.js");
     const data = encode([{ Region: "North", Units: 3, Day: "2026-01-05", Done: true }]);
     const view = { derived: [{ name: "Day by month", field: "Day", by: "yearMonth" }, { name: "Units (by 2)", field: "Units", by: "bin", size: 2 }] };
     assert.equal(conditionKind(data, view, "Region"), "text");

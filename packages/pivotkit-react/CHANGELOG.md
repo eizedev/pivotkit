@@ -72,6 +72,16 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   host's text for it is no longer used. The `dismissedTips` entries `open:`/`closed:` of `name`,
   `valueFilters` and `folding` are dropped.
 
+- What runs only after a click in a menu loads with the menus, not with the report
+  ([#73](https://github.com/eizedev/pivotkit/issues/73)): the view changes only the menus make and
+  the filter's summary (`menu-ops.js`), sharing's Copy link, Copy view as JSON, Download view and
+  Load view (`share-actions.js`), the drill-down's table (`drill-table.js`, built when the panel
+  opens), and the texts only these show (the totals and their reasons, Expand and Collapse all's
+  notes, the filter's text conditions, sharing's notes, `toastExported`, `chartDisplay`) move to
+  `menu-labels.js`. The chart's label layout (`chart-layout.js`) loads with ECharts. A host's
+  `labels` for them still win, `LABELS` of `pivotkit-react/labels` is unchanged, and the files of
+  `dist/` stay the same; a value clicked before the menus are there opens its rows once they are.
+
 - The menus' German texts are a file of their own, `dist/menu-texts-de.js`, loaded with the menus
   only for a German report, or when the locale changes to German
   ([#73](https://github.com/eizedev/pivotkit/issues/73)). A menu waits for them ("Loading…"), so it

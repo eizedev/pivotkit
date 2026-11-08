@@ -3,12 +3,17 @@ import assert from "node:assert/strict";
 import { computePivot, encode, normalize, toGrid } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
-    selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
-    binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding, TOTALS, totalNoEffect,
-    setValueFilter, measureChoices, numericResult, sameRef, withMeasure, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
+    selectedItems, setChart, setSort, swapAxes, toggleCollapsed, numberRange, withHostOrders, zoneOverLimit,
+    setChartDisplay, rowFolding, numericResult, sameRef, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
 } from "../src/view-ops.js";
-import { filterText, refLabel, sortText, valueConditionText } from "../src/names.js";
+import {
+    binProblem, filterText, hasFilter, measureChoices, removeFilters, setItemFilter, setLabelFilter, setTopFilter,
+    setValueFilter, totalNoEffect, TOTALS, updateValue, withMeasure
+} from "../src/menu-ops.js";
+import { refLabel, sortText, valueConditionText } from "../src/names.js";
 import { LABELS, fill } from "../src/labels.js";
+import { en as menuEn } from "../src/menu-labels.js";
+import { de as menuDe } from "../src/menu-labels-de.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
 const data = encode([
@@ -17,6 +22,8 @@ const data = encode([
     { Region: "West", Product: "A", Units: 1, Date: "2026-02-20" }
 ]);
 const norm = (v) => normalize(v, data).view;
+// the labels the menus see (menuLabels): the first load's with the menus' own texts
+const MENU = { en: { ...LABELS.en, ...menuEn }, de: { ...LABELS.de, ...menuDe } };
 const empty = norm({});
 
 test("adding a field: an axis takes it from the other axis, Values adds a value, Filters an empty filter", () => {
@@ -315,15 +322,15 @@ test("Remove filter takes the item list and the text condition, keeps Top N and 
 });
 
 test("the menu says what a filter keeps: shown of total, the text condition, the value condition", () => {
-    const labels = LABELS.en;
+    const labels = MENU.en;
     let v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
     assert.equal(filterText(v, "Region", null, labels, "en-US"), null);
     v = setLabelFilter(v, "Region", { op: "contains", value: "or" });
     assert.equal(filterText(v, "Region", { summary: { shown: 15, total: 1045 } }, labels, "en-US"), "Filter: 15 of 1,045, contains “or”");
-    assert.equal(filterText(v, "region", null, LABELS.de, "de-DE"), "Filter: enthält “or”");
+    assert.equal(filterText(v, "region", null, MENU.de, "de-DE"), "Filter: enthält “or”");
     v = norm(setValueFilter(v, "Region", { by: { field: "Units", agg: "sum" }, op: ">", value: 1000 }));
     assert.equal(filterText(v, "Region", null, labels, "en-US"), "Filter: Sum of Units > 1,000, contains “or”");
-    assert.equal(filterText(v, "Region", null, LABELS.de, "de-DE"), "Filter: Summe von Units > 1.000, enthält “or”");
+    assert.equal(filterText(v, "Region", null, MENU.de, "de-DE"), "Filter: Summe von Units > 1.000, enthält “or”");
 });
 
 test("a value condition: set, changed, removed; it keeps the field's other filters and names its value", () => {
@@ -429,8 +436,8 @@ test("expand all and collapse all are offered only when they change something, a
     }
     assert.deepEqual(rowFolding(all, outer), { canExpand: true, canCollapse: false, collapsed: 3, open: 0, why: { expand: null, collapse: "collapseAllDone" } });
     for (const key of ["expandNothing", "collapseNeedsRows", "collapseAllDone"]) {
-        assert.equal(typeof LABELS.en[key], "string");
-        assert.equal(typeof LABELS.de[key], "string");
+        assert.equal(typeof MENU.en[key], "string");
+        assert.equal(typeof MENU.de[key], "string");
     }
 });
 
@@ -442,8 +449,8 @@ test("a total that would change nothing in the view is named with the reason", (
     const two = norm({ rows: ["Region", "Product"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
     assert.equal(totalNoEffect(two, "rowSubtotals"), null);
     for (const key of ["needsRowField", "needsColField", "needsRowFields", "needsColFields"]) {
-        assert.equal(typeof LABELS.en[key], "string");
-        assert.equal(typeof LABELS.de[key], "string");
+        assert.equal(typeof MENU.en[key], "string");
+        assert.equal(typeof MENU.de[key], "string");
     }
 });
 

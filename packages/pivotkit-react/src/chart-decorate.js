@@ -1,12 +1,12 @@
 /*
  * The report's marks on pivotkit-core's ECharts option: the theme's colours (the --pk-* tokens),
  * rounded bars, tooltips built as DOM nodes (chart-tooltip.js, so a strict Content-Security-Policy
- * allows them) and the axis labels laid out for the chart's size (chart-types.js). Only a drawn chart
+ * allows them) and the axis labels laid out for the chart's size (chart-layout.js). Only a drawn chart
  * needs it: it loads with ECharts (echarts.js).
  */
 
 import { tooltipFormatter } from "./chart-tooltip.js";
-import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-types.js";
+import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 
 /** A copy of an object without the given keys. */
 const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));

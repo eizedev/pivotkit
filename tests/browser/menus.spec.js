@@ -201,6 +201,18 @@ test.describe("menus explain themselves", () => {
     });
 });
 
+// Options' totals that would change nothing, with their reasons: texts that load with the menus, in the report's language
+test("a total that would change nothing is off and says why, in English and in German", async ({ page }) => {
+    await page.goto("?data=sales");
+    await toolbar(page, "options");
+    await expect(page.getByTestId("total-colSubtotals")).toBeDisabled();
+    await expect(page.getByTestId("total-colSubtotals-reason")).toHaveText("Needs two or more fields in Columns.");
+    await page.goto("?data=sales&lang=de");
+    await toolbar(page, "options");
+    await expect(page.getByTestId("total-colSubtotals-reason")).toHaveText("Braucht zwei oder mehr Felder in Spalten.");
+    await expect(page.getByText("Teilergebnisse der Spalten")).toBeVisible();
+});
+
 test.describe("sort, top N and value conditions by a chosen value", () => {
     /** Region in Rows, Units and Revenue in Values; the body rows without the grand total, as [region, units, revenue]. */
     async function twoValues(page) {

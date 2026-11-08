@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toGrid } from "pivotkit-core";
-import { decodeRow, drillRows, drillTable } from "../src/drill.js";
+import { decodeRow, drillRows } from "../src/drill.js";
+import { drillTable } from "../src/drill-table.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";

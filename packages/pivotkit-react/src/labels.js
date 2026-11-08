@@ -94,11 +94,6 @@ export const en = {
     views: "Views",
     exportLabel: "Export",
     options: "Options",
-    totals: "Totals",
-    grandTotalRow: "Grand total row",
-    grandTotalColumn: "Grand total column",
-    rowSubtotals: "Row subtotals",
-    colSubtotals: "Column subtotals",
     expand: "Expand {label}",
     collapse: "Collapse {label}",
     showAs: "Show as",
@@ -137,7 +132,6 @@ export const en = {
     filterTitle: "Filter {field}",
     // the condition on the labels of a field: text, or a number's label
     condition: "Text condition",
-    labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
     // result
     emptyTitle: "Build your report in three steps",
     emptySteps: [
@@ -182,7 +176,6 @@ export const en = {
     toastReset: "Back to the start view",
     // New's step said in the status line, and its entry in the Views menu
     newEmpty: "New, empty report",
-    toastExported: "Exported {file}",
     toastLoaded: "View “{name}” loaded",
     toastExportFailed: "Export failed: {message}",
     // what an undo step was, for "Undone: ..."
@@ -279,15 +272,9 @@ export const en = {
     // a menu whose panel could not be loaded (offline, or the host did not deploy dist/chunks/)
     menuFailed: "This menu could not be loaded.",
     tryAgain: "Try again",
-    // chart display (the chart type menu)
-    chartDisplay: "Display",
     axisEvery: "One label in every {n} is shown; point at a bar or point for its name.",
     // the × in a text field
     clearText: "Clear",
-    toastLinkCopied: "Link copied",
-    toastJsonCopied: "View copied as JSON",
-    toastCopyFailed: "This page does not allow copying. Use “Download view” instead.",
-    toastLinkTooLong: "This view is too large for a link. Use “Download view” instead.",
     toastViewLoaded: "View loaded",
     toastViewLoadedPartly: "View loaded; some parts did not fit this data",
     toastLinkOpened: "Opened the view from the link",
@@ -312,7 +299,6 @@ export const en = {
         file: "The file could not be read."
     },
     // filters
-    filterIs: "Filter: {filter}",
     valueConditions: { compare: "{value} {op} {number}", between: "{value} between {from} and {to}", notBetween: "{value} not between {from} and {to}" },
     // the i next to each zone's title (shown while explanations are on)
     zoneInfo: {
@@ -321,21 +307,11 @@ export const en = {
         values: "Values are the numbers in the cells, summed, counted or averaged for each row and column. Example: Revenue in Values shows the revenue of each region.",
         filters: "Filters keep only some items of a field in the whole report, without a row or column for it. Example: Country in Filters with only Germany selected."
     },
-    // Options: expand and collapse all, and the totals that would change nothing (their reason)
-    expandNothing: "Nothing is collapsed.",
-    collapseNeedsRows: "Needs two or more fields in Rows.",
-    needsRowField: "Needs a field in Rows.",
-    needsColField: "Needs a field in Columns.",
-    needsRowFields: "Needs two or more fields in Rows.",
-    needsColFields: "Needs two or more fields in Columns.",
     // the result area: bigger, and the full screen
     enlarge: "Enlarge",
     // the same button while the result is enlarged
     reduce: "Reduce",
-    fullScreen: "Full screen",
-    collapseAllDone: "Every group is collapsed already.",
-    groupsCollapsed: { one: "{count} group collapsed", other: "{count} groups collapsed" },
-    groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" }
+    fullScreen: "Full screen"
 };
 
 export const de = {
@@ -427,11 +403,6 @@ export const de = {
     views: "Ansichten",
     exportLabel: "Export",
     options: "Optionen",
-    totals: "Summen",
-    grandTotalRow: "Gesamtzeile",
-    grandTotalColumn: "Gesamtspalte",
-    rowSubtotals: "Teilergebnisse der Zeilen",
-    colSubtotals: "Teilergebnisse der Spalten",
     expand: "{label} aufklappen",
     collapse: "{label} zuklappen",
     showAs: "Anzeigen als",
@@ -467,7 +438,6 @@ export const de = {
     filterSummary: "{shown} von {total}",
     filterTitle: "{field} filtern",
     condition: "Textbedingung",
-    labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", endsWith: "endet mit" },
     emptyTitle: "Den Bericht in drei Schritten bauen",
     emptySteps: [
         "Ein Feld wie Team oder Region in Zeilen ziehen.",
@@ -506,7 +476,6 @@ export const de = {
     toastRedone: "Wiederholt: {step}",
     toastReset: "Zurück zur Startansicht",
     newEmpty: "Neuer, leerer Bericht",
-    toastExported: "{file} exportiert",
     toastLoaded: "Ansicht „{name}“ geladen",
     toastExportFailed: "Export fehlgeschlagen: {message}",
     steps: {
@@ -594,13 +563,8 @@ export const de = {
     loadingMenu: "Wird geladen…",
     menuFailed: "Dieses Menü konnte nicht geladen werden.",
     tryAgain: "Erneut versuchen",
-    chartDisplay: "Darstellung",
     axisEvery: "Jede {n}. Beschriftung wird gezeigt; auf einen Balken oder Punkt zeigen, um seinen Namen zu sehen.",
     clearText: "Leeren",
-    toastLinkCopied: "Link kopiert",
-    toastJsonCopied: "Ansicht als JSON kopiert",
-    toastCopyFailed: "Diese Seite erlaubt kein Kopieren. Stattdessen „Ansicht herunterladen“ verwenden.",
-    toastLinkTooLong: "Diese Ansicht ist zu groß für einen Link. Stattdessen „Ansicht herunterladen“ verwenden.",
     toastViewLoaded: "Ansicht geladen",
     toastViewLoadedPartly: "Ansicht geladen; einige Teile passen nicht zu diesen Daten",
     toastLinkOpened: "Ansicht aus dem Link geöffnet",
@@ -623,7 +587,6 @@ export const de = {
         badLink: "Dieser Link ist beschädigt oder kein pivotkit-Link.",
         file: "Die Datei konnte nicht gelesen werden."
     },
-    filterIs: "Filter: {filter}",
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
     zoneInfo: {
         rows: "Zeilen gruppieren den Bericht nach einem Feld: Jeder Eintrag bekommt eine Zeile. Beispiel: Region in Zeilen listet Nord, Süd und West untereinander.",
@@ -631,18 +594,9 @@ export const de = {
         values: "Werte sind die Zahlen in den Zellen, summiert, gezählt oder gemittelt für jede Zeile und Spalte. Beispiel: Umsatz in Werte zeigt den Umsatz jeder Region.",
         filters: "Filter behalten nur einige Einträge eines Felds im ganzen Bericht, ohne Zeile oder Spalte dafür. Beispiel: Land in Filter mit nur Deutschland ausgewählt."
     },
-    expandNothing: "Nichts ist zugeklappt.",
-    collapseNeedsRows: "Braucht zwei oder mehr Felder in Zeilen.",
-    needsRowField: "Braucht ein Feld in Zeilen.",
-    needsColField: "Braucht ein Feld in Spalten.",
-    needsRowFields: "Braucht zwei oder mehr Felder in Zeilen.",
-    needsColFields: "Braucht zwei oder mehr Felder in Spalten.",
     enlarge: "Vergrößern",
     reduce: "Verkleinern",
-    fullScreen: "Vollbild",
-    collapseAllDone: "Alle Gruppen sind schon zugeklappt.",
-    groupsCollapsed: { one: "{count} Gruppe zugeklappt", other: "{count} Gruppen zugeklappt" },
-    groupsExpanded: { one: "{count} Gruppe aufgeklappt", other: "{count} Gruppen aufgeklappt" }
+    fullScreen: "Vollbild"
 };
 
 /** @type {Readonly<{ en: typeof en, de: typeof en }>} the texts of the first load; the menus' are in menu-labels.js (English) and menu-labels-<lang>.js (menu-texts.js) */

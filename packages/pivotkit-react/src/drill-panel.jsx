@@ -9,9 +9,10 @@
  * (drill-export.js).
  */
 
-import React, { useContext, useEffect, useId, useRef, useState } from "react";
+import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useModal } from "./dom.js";
 import { exportDrill } from "./drill-export.js";
+import { drillOf } from "./drill-table.js";
 import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { LayerContext, MenuButton } from "./popover.jsx";
@@ -19,18 +20,17 @@ import { ExportOption } from "./toolbar-panels.jsx";
 import { Section } from "./section.jsx";
 import { prepareExporters } from "./export-run.js";
 
-/**
- * @typedef {{ title: string, name: string, count: number, locale: string, indices: ArrayLike<number>, formats: Record<string, string>,
- *   columns: Array<{ name: string, numeric: boolean, label?: string, description?: string }>, rows: string[][] }} Drill
- */
+/** @typedef {import("./drill-table.js").Drill} Drill */
 
 /**
- * @param {{ drill: Drill | null, onClose: () => void, labels: import("./labels.js").UiLabels, locale: string,
+ * @param {{ drill: import("./drill-table.js").DrillSource | null, onClose: () => void, labels: import("./labels.js").UiLabels, locale: string,
  *   exportContext?: { encoded: import("pivotkit-core").Encoded, onExport?: (file: import("./export-run.js").ExportFile) => unknown,
  *     announce: (text: string, extra?: { tone?: "error" }) => void, root: React.RefObject<HTMLElement | null> } }} props
  */
-export function DrillPanel({ drill, onClose, labels, locale, exportContext }) {
+export function DrillPanel({ drill: source, onClose, labels, locale, exportContext }) {
     const id = useId();
+    // the rows as the table shows them, the title from the cell's labels (drill-table.js)
+    const drill = useMemo(() => (source ? drillOf(source, labels) : null), [source, labels]);
     const panel = useRef(/** @type {HTMLDivElement | null} */ (null));
     const [big, setBig] = useState(false);
     // a narrow report's panel fills it already: no Enlarge there

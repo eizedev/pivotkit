@@ -13,7 +13,8 @@ import { ClearInput } from "./clear-input.jsx";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
-import { filtersOf, hasFilter, removeFilters, selectedItems, setItemFilter, setLabelFilter, conditionKind } from "./view-ops.js";
+import { filtersOf, selectedItems } from "./view-ops.js";
+import { conditionKind, hasFilter, removeFilters, setItemFilter, setLabelFilter } from "./menu-ops.js";
 
 /** Values listed at once; the search finds the others. */
 export const FILTER_LIST_MAX = 300;

@@ -247,7 +247,33 @@ export const en = {
     valueOps: { "=": "equals", "!=": "does not equal", ">": "greater than", ">=": "greater than or equal to", "<": "less than", "<=": "less than or equal to", between: "between", notBetween: "not between" },
     removeFilter: "Remove filter",
     // collapsible sections of the menus
-    moreFormats: "More formats"
+    moreFormats: "More formats",
+    // Options: the totals, and why one would change nothing; expand and collapse all, and what they did
+    totals: "Totals",
+    grandTotalRow: "Grand total row",
+    grandTotalColumn: "Grand total column",
+    rowSubtotals: "Row subtotals",
+    colSubtotals: "Column subtotals",
+    needsRowField: "Needs a field in Rows.",
+    needsColField: "Needs a field in Columns.",
+    needsRowFields: "Needs two or more fields in Rows.",
+    needsColFields: "Needs two or more fields in Columns.",
+    expandNothing: "Nothing is collapsed.",
+    collapseNeedsRows: "Needs two or more fields in Rows.",
+    collapseAllDone: "Every group is collapsed already.",
+    groupsCollapsed: { one: "{count} group collapsed", other: "{count} groups collapsed" },
+    groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" },
+    // the chart type menu: how the chart is drawn
+    chartDisplay: "Display",
+    // the filter: its text conditions, and what a chip menu says it keeps
+    labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
+    filterIs: "Filter: {filter}",
+    // what sharing and the exports said (share-actions.js, export-run.js)
+    toastExported: "Exported {file}",
+    toastLinkCopied: "Link copied",
+    toastJsonCopied: "View copied as JSON",
+    toastCopyFailed: "This page does not allow copying. Use “Download view” instead.",
+    toastLinkTooLong: "This view is too large for a link. Use “Download view” instead."
 };
 
 /**

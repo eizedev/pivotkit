@@ -11,21 +11,20 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computePivot, emptyView, encode, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
+import { computePivot, emptyView, encode, fieldLabel, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
-import { DRILL_LIMIT, drillRows, drillTable } from "./drill.js";
+import { DRILL_LIMIT, drillRows } from "./drill.js";
 import { displayNames, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
-import { copyText, safeFileName, saveBlob } from "./files.js";
 import { errorText, fill, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
-import { issueLines, linkNow, linkParam, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, withLinkParam, writeStoredView } from "./share.js";
+import { issueLines, linkNow, linkParam, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { HelpContext } from "./help.js";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
@@ -40,7 +39,6 @@ import { useResolvedTheme } from "./use-theme.js";
 import { useViewHistory } from "./use-view-history.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
-import { VERSION } from "./version.js";
 import {
     addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
@@ -79,24 +77,6 @@ function measured(name, fn) {
         }
     }
     return out;
-}
-
-/** "Region: North · Product: A" for a cell's paths. */
-function pathTitle(result, rowPath, colPath, labels) {
-    const parts = [];
-    const items = [];
-    const add = (axis, fields, path) => {
-        const node = findNode(result, axis, path);
-        for (let n = node; n && n.parent; n = n.parent) {
-            const item = result.label(axis, n, labels.core);
-            parts.unshift(`${fieldLabel(fields[n.depth - 1], labels.core)}: ${item}`);
-            items.unshift(item);
-        }
-    };
-    add("cols", result.colFields, colPath);
-    add("rows", result.rowFields, rowPath);
-    // the items alone name the drill-down's files and sheet: "Central – Jul 2026"
-    return { title: parts.length ? parts.join(" · ") : labels.core.grandTotal, name: items.length ? items.join(" – ") : labels.core.grandTotal };
 }
 
 /** Every key path of the row tree down to the second-last level: what "collapse all" collapses. */
@@ -320,7 +300,7 @@ function Report(props) {
     const zonesId = useId();
     const [drawer, setDrawer] = useState(false);
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement, base?: object } | null} */ (null));
-    const [drill, setDrill] = useState(/** @type {import("./drill-panel.jsx").Drill | null} */ (null));
+    const [drill, setDrill] = useState(/** @type {import("./drill-table.js").DrillSource | null} */ (null));
     const [hinted, setHinted] = useState(false);
     // changes of the view in this session, and their number at the first drag (for the tips)
     const changesRef = useRef(0);
@@ -841,96 +821,38 @@ function Report(props) {
                     const d = defaultsFor(fieldDefaults, name);
                     return d ? (d.drillFormat ?? d.format) : undefined;
                 };
-                const table = drillTable(encoded, indices, { locale: result.locale, labels: labels.core, formatOf });
-                const columns = table.columns.map((c) => ({ ...c, label: nameOf(c.name), description: infoOf(c.name)?.description }));
-                // the same formats for the panel's exports (pivotkit-core's rows exporters)
-                const formats = Object.fromEntries(table.columns.map((c) => [c.name, formatOf(c.name)]).filter(([, f]) => typeof f === "string"));
-                setDrill({ ...pathTitle(result, rowPath, colPath, labels), count, rows: table.rows, columns, indices, formats, locale: result.locale });
+                // the panel's table is drill-table.js's, with the menus: here only what it is made of
+                setDrill({ result, rowPath, colPath, count, indices, formatOf, nameOf, infoOf });
             }
         },
-        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, labels, encoded, fieldDefaults, nameOf, infoOf]
+        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, fieldDefaults, nameOf, infoOf]
     );
 
     const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });
 
-    // sharing: a link (when the host allows it), the view as a view file (JSON, a file); and loading one
+    // sharing: a link (when the host allows it), the view as a view file (JSON, a file), loading one;
+    // what each does is share-actions.js's, loaded with the menus
     const base = shareBase(shareLink, here()?.href);
-    /** The view as a view file (pivotkit-core's toViewFile): its name, the source, the fields it uses. */
-    const viewFile = () => viewFileText(toViewFile(view, { name: viewName ?? "", createdAt: new Date(), generator: { name: "pivotkit-react", version: VERSION }, source: { id: sourceId, name: sourceName }, data: encoded, ...(schemaUrl !== undefined ? { schemaUrl } : {}) }));
+    /** @type {import("./share-actions.js").ShareContext} */
     const share = {
         canLink: base !== null,
         prepare: base !== null ? () => void loadLink().catch(() => undefined) : undefined,
-        copyLink: async () => {
-            const target = shareBase(shareLink, here()?.href);
-            if (target === null) {
-                return;
-            }
-            let text;
-            try {
-                text = (linkNow() ?? (await loadLink())).encodeViewLink(toViewFile(view, { name: viewName ?? undefined, source: { id: sourceId } }, { link: true }));
-            } catch (e) {
-                announce(e && /** @type {any} */ (e).code === "LIMIT_EXCEEDED" ? labels.toastLinkTooLong : fill(labels.error, { message: String(e) }), { tone: "error" });
-                return;
-            }
-            const ok = await copyText(withLinkParam(target, param, text), root.current);
-            announce(ok ? labels.toastLinkCopied : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
-        },
-        copyJson: async () => {
-            const ok = await copyText(viewFile(), root.current);
-            announce(ok ? labels.toastJsonCopied : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
-        },
-        download: () => {
-            // "<name>.pivotkit.json": the view's name, else the data's, else the host's fileName
-            const file = viewFileName(viewName || sourceName || safeFileName(fileName));
-            const blob = new Blob([viewFile()], { type: "application/json" });
-            // the host sees the file first, as every export (kind "json"); false keeps it from the download
-            if (onExport?.({ kind: "json", fileName: file, blob }) === false) {
-                return;
-            }
-            saveBlob(blob, file, root.current?.ownerDocument ?? document);
-            announce(fill(labels.toastExported, { file }));
-        },
-        /**
-         * @param {string} text
-         * @returns {Promise<string | null | { lines: string[], load: () => void, switchTo?: { name: string, run: () => void } }>}
-         *   why nothing was loaded, null when it was, or what to ask first (a view for other data)
-         */
-        loadText: async (text) => {
-            let loaded = viewFromText(text, encoded, { limits, sourceId });
-            if (loaded.failed === "notJson") {
-                // a link (or its "#pivot=..." part) pasted instead of JSON
-                const t = text.trim();
-                const fromUrl = t.includes("#") ? readLinkParam(t.slice(t.indexOf("#")), param) ?? readLinkParam(t.slice(t.indexOf("#")), "pivot") : null;
-                const payload = fromUrl ?? (t.startsWith("1.") ? t : null);
-                if (!payload) {
-                    return labels.viewFailed.notJson;
-                }
-                try {
-                    const decoded = (linkNow() ?? (await loadLink())).decodeViewLink(payload);
-                    loaded = decoded.view ? viewFromObject(decoded.view, encoded, { limits, sourceId }) : { view: null, issues: [], failed: "badLink", file: null };
-                } catch {
-                    return labels.viewFailed.badLink;
-                }
-            }
-            if (!loaded.view) {
-                return labels.viewFailed[loaded.failed ?? "notView"] ?? labels.viewFailed.notView;
-            }
-            const ready = /** @type {import("./share.js").LoadedView} */ (loaded);
-            const check = loadCheck(ready, labels, Array.isArray(sources) ? sources : []);
-            if (!check) {
-                applyLoaded(ready);
-                return null;
-            }
-            const target = check.switchTo;
-            return {
-                lines: check.lines,
-                load: () => applyLoaded(ready),
-                switchTo:
-                    target && typeof onSourceSwitch === "function"
-                        ? { name: target.name, run: () => onSourceSwitch({ source: { id: target.id, name: target.name }, view: /** @type {Record<string, unknown>} */ (ready.file?.view ?? ready.view), name: ready.file?.name || undefined }) }
-                        : undefined
-            };
-        }
+        view,
+        viewName,
+        sourceId,
+        sourceName,
+        schemaUrl,
+        encoded,
+        shareLink,
+        param,
+        root,
+        fileName,
+        onExport,
+        announce,
+        limits,
+        sources,
+        onSourceSwitch,
+        applyLoaded
     };
 
     const loadTemplate = useCallback(
@@ -1046,17 +968,18 @@ function Report(props) {
     // Expand all and Collapse all: offered when they change something, and they say what they did
     const outer = useMemo(() => (result ? outerPaths(result) : []), [result]);
     const folding = rowFolding(view, outer);
-    const expandAll = () => {
+    // `texts`: the Options menu's labels, with the menus' texts that say what was done
+    const expandAll = (texts) => {
         const count = view.collapsed.rows.length;
         commit(setCollapsed(view, "rows", null), { step: "collapse" });
-        announce(plural(labels.groupsExpanded, count, { lang: labels.lang, locale }));
+        announce(plural(texts.groupsExpanded, count, { lang: labels.lang, locale }));
     };
-    const collapseAll = () => {
+    const collapseAll = (texts) => {
         if (!result) {
             return;
         }
         commit(setCollapsed(view, "rows", outer), { step: "collapse" });
-        announce(plural(labels.groupsCollapsed, folding.open, { lang: labels.lang, locale }));
+        announce(plural(texts.groupsCollapsed, folding.open, { lang: labels.lang, locale }));
     };
 
     // the chart's series, once per result: drawn by the chart, read by its tips

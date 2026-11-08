@@ -14,8 +14,9 @@ import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
 import { withoutSections } from "./sections.js";
+import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tips.js";
-import { TOTALS, totalNoEffect } from "./view-ops.js";
+import { totalNoEffect, TOTALS } from "./menu-ops.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { storeViews } from "./view-store.js";
 
@@ -280,8 +281,8 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
             </Section>
             <Section title={labels.zones.rows}>
                 {/* each only when it would change something; when not, a line says why */}
-                <Option icon="chevronDown" onSelect={() => { close(); onExpand(); }} disabled={!folding.canExpand} reason={folding.why.expand ? labels[folding.why.expand] : undefined} testId="expand-all">{labels.expandAll}</Option>
-                <Option icon="chevronRight" onSelect={() => { close(); onCollapse(); }} disabled={!folding.canCollapse} reason={folding.why.collapse ? labels[folding.why.collapse] : undefined} testId="collapse-all">{labels.collapseAll}</Option>
+                <Option icon="chevronDown" onSelect={() => { close(); onExpand(labels); }} disabled={!folding.canExpand} reason={folding.why.expand ? labels[folding.why.expand] : undefined} testId="expand-all">{labels.expandAll}</Option>
+                <Option icon="chevronRight" onSelect={() => { close(); onCollapse(labels); }} disabled={!folding.canCollapse} reason={folding.why.collapse ? labels[folding.why.collapse] : undefined} testId="collapse-all">{labels.collapseAll}</Option>
             </Section>
             {/* help: the tips, and the "i" of settings, zones and fields: one switch, unless the host decides each */}
             <Section title={labels.help} id="help">
@@ -533,24 +534,25 @@ function LoadView({ labels, onLoadText, close }) {
 /** Share this view: a link (when the host allows links), the JSON, a file; and load one. */
 function ShareSection({ labels, share, close }) {
     const [loading, setLoading] = useState(false);
+    const act = shareActions(share, labels);
     if (loading) {
         return (
             <Section title={labels.loadView.replace(/…$/, "")}>
-                <LoadView labels={labels} onLoadText={share.loadText} close={close} />
+                <LoadView labels={labels} onLoadText={act.loadText} close={close} />
             </Section>
         );
     }
     return (
         <Section title={labels.share} id="share">
             {share.canLink ? (
-                <Option icon="link" onSelect={() => { close(); share.copyLink(); }} testId="copy-link">
+                <Option icon="link" onSelect={() => { close(); act.copyLink(); }} testId="copy-link">
                     {labels.copyLink}
                 </Option>
             ) : null}
-            <Option icon="copy" onSelect={() => { close(); share.copyJson(); }} testId="copy-json">
+            <Option icon="copy" onSelect={() => { close(); act.copyJson(); }} testId="copy-json">
                 {labels.copyJson}
             </Option>
-            <Option icon="download" onSelect={() => { close(); share.download(); }} testId="download-view">
+            <Option icon="download" onSelect={() => { close(); act.download(); }} testId="download-view">
                 {labels.downloadView}
             </Option>
             <Option icon="upload" onSelect={() => setLoading(true)} testId="load-view">

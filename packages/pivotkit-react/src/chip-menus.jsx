@@ -16,11 +16,12 @@ import { ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { numberText, parseNumber } from "./numbers.js";
-import { filterText, groupingName, refLabel, sortText, valueConditionText, valueLabel } from "./names.js";
+import { groupingName, refLabel, sortText, valueConditionText, valueLabel } from "./names.js";
 import { Option } from "./popover.jsx";
 import { HelpContext } from "./help.js";
 import { Section, SettingInfo } from "./section.jsx";
-import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortEntry, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
+import { ZONES, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
+import { binProblem, filterText, hasFilter, measureChoices, setTopFilter, setValueFilter, updateValue, withMeasure } from "./menu-ops.js";
 
 /** The formats the value menu offers first, and those behind "More formats"; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "currency", "percent"].filter(isFormat);
