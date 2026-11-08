@@ -1,4 +1,4 @@
-// Save, Save as and New in the Views menu and the toolbar: the loaded view's name next to Views with a
+// Save, Save as and New in the Views menu, Views in the toolbar of a desktop window: the loaded view's name next to Views with a
 // mark while it has unsaved changes (gone after New and Reset), Save under that name (the browser store in its place, a shared
 // view only for a user who may publish), Save as asking before it replaces a view of the same name,
 // New (an empty report) that Undo takes back; and the Export menu off for an empty report.
@@ -9,14 +9,42 @@ const mine = (scope) => scope.locator('[data-section="myViews"] [data-pk-entry] 
 /** The browser store of the playground's report, parsed. */
 const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:playground") ?? "null"));
 
-/** Opens the Views menu of an element (its own button, or through "More"). */
+/** Opens the Views menu of an element (its own button, or through "More"); an open one stays open. */
 async function elementViews(report) {
     const views = report.getByTestId("views");
-    if (await views.count()) await views.click();
+    if (await views.count()) {
+        if ((await views.getAttribute("aria-expanded")) !== "true") await views.click();
+    }
     else {
         await report.getByTestId("more").click();
         await report.getByTestId("more-views").click();
     }
+}
+
+for (const width of [1280, 1440]) {
+    test(`a desktop window ${width} px wide: Views stays in the toolbar with a view loaded, next to its name`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("?data=tickets");
+        await toolbar(page, "views");
+        await page.getByTestId("saved-view-Median lead time by month").click();
+        await page.keyboard.press("Escape");
+        await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
+        // Views is the last button to move into "More": a first-time user finds where to save
+        const bar = page.locator(".pk-toolbar");
+        await expect(bar.getByTestId("views")).toBeVisible();
+        await expect(bar.getByTestId("view-name")).toBeVisible();
+        if (await bar.getByTestId("more").count()) {
+            await bar.getByTestId("more").click();
+            await expect(page.getByTestId("more-views")).toHaveCount(0);
+            await page.keyboard.press("Escape");
+        }
+        // the name sits before Views and never pushes it out of the toolbar's line
+        const name = await bar.getByTestId("view-name").boundingBox();
+        const views = await bar.getByTestId("views").boundingBox();
+        const box = await bar.boundingBox();
+        expect(name.x + name.width).toBeLessThanOrEqual(views.x);
+        expect(views.x + views.width).toBeLessThanOrEqual(box.x + box.width);
+    });
 }
 
 test("Save writes the loaded view under its name; the toolbar marks unsaved changes", async ({ page }) => {
@@ -94,7 +122,8 @@ test("New and Reset take the loaded view's name away; Undo brings the view and i
     const before = await chips(page, "values");
     expect(before.length).toBeGreaterThan(0);
 
-    await toolbar(page, "new");
+    await toolbar(page, "views");
+    await page.getByTestId("new-report").click();
     await expect(page.getByTestId("empty-state")).toContainText("Build your report in three steps");
     await expect(page.locator(".pk-toasts")).toContainText("New, empty report");
     await expect(page.getByTestId("view-name")).toHaveCount(0);
@@ -312,11 +341,8 @@ test("web component: a slow save that answers after New or after another view is
     await report.getByTestId("saved-view-name").fill("Slow");
     await report.getByTestId("saved-view-name").press("Enter");
     await page.keyboard.press("Escape");
-    if (await report.getByTestId("new").count()) await report.getByTestId("new").click();
-    else {
-        await report.getByTestId("more").click();
-        await report.getByTestId("more-new").click();
-    }
+    await elementViews(report);
+    await report.getByTestId("new-report").click();
     await expect(report.getByTestId("empty-state")).toBeVisible();
     await expect(report.locator(".pk-toasts")).toContainText("View “Slow” saved");
     await expect(report.getByTestId("view-name")).toHaveCount(0);

@@ -17,14 +17,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   through `onPublishTemplate` with `canPublish`, after "Replace the shared view “…” for everyone?").
   It is off with the reason for a shared view the user may not change, for a view from a file or a
   link and while the report is empty. **Save as…** is the name field (its button "Save as"): a
-  name that exists among the user's views asks "“…” exists. Replace it?" first. **New** (in the
-  menu, and "New" next to Reset in the toolbar, German "Neuer Bericht") empties the report to the
-  start screen in one step. The name belongs to the history's steps: New and Reset take it away
+  name that exists among the user's views asks "“…” exists. Replace it?" first. **New, empty report** (in
+  the menu) empties the report to the start screen in one step. The name belongs to the history's steps: New and Reset take it away
   (the report no longer shows that view), Undo and Redo move it with the view. A view of the browser
   store is known by its name and the data it names, so two views of one name (one saved without
   named data) stay apart; another source with the same columns keeps the view but not its name. A
   reload with `persistView` keeps the view, not its name. A save that answers after New, another
-  view loaded or a change names nothing it did not save. New labels: `newReport`, `newEmpty`,
+  view loaded or a change names nothing it did not save. New labels: `newEmpty`,
   `unsavedChanges`, `steps.new`, and in the menus `thisView`, `saveNamed`, `saveAs`,
   `saveSharedLocked`, `saveNotInViews`, `replaceConfirm`, `replaceSharedConfirm`, `replaceAction`,
   `newAlready`, `settingInfo.newReport`.
@@ -35,6 +34,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   (an upsert by name), it does not add a second one.
 
 ### Changed
+
+- Views stays in the toolbar on a desktop: it is the last button to move into "More"
+  (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views), so it shows wherever one button
+  besides Undo, Redo and Export fits (in the playground from a window 1280 px wide), with the loaded
+  view's name before it. Options and the chart type move into "More" before Views.
 
 - The forms of a row or column field's menu (number ranges, Top N, value condition) remove what
   they set with **Remove** (was "Clear"; label key `removeSetting`, was `clear`), and Apply with an

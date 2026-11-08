@@ -82,8 +82,6 @@ export const en = {
     redo: "Redo",
     reset: "Reset",
     resetHint: "Back to the start view",
-    // New: an empty report, the start screen (toolbar and Views menu)
-    newReport: "New",
     // next to Views: the name of the view loaded, and the mark while it has changes not saved
     unsavedChanges: "Unsaved changes",
     swap: "Swap rows and columns",
@@ -425,7 +423,6 @@ export const de = {
     redo: "Wiederholen",
     reset: "Zurücksetzen",
     resetHint: "Zurück zur Startansicht",
-    newReport: "Neuer Bericht",
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
     layout: "Anordnung",

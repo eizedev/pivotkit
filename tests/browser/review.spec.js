@@ -13,6 +13,8 @@ const BY_MONTH = { name: "Month by month", field: "Month", by: "yearMonth" };
 
 test.describe("the chart type the data suggests", () => {
     test("no type chosen: dates on Columns draw lines with the months along the axis; the table keeps its layout", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart" }));
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await expect(page.getByTestId("chart-summary")).toContainText(/^Lines: Sum of Revenue by Month by month\./);
@@ -25,6 +27,8 @@ test.describe("the chart type the data suggests", () => {
     });
 
     test("a type the user chose stays, with a one-click suggestion that draws lines over time", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "bar" } }));
         await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
         const tip = page.getByTestId("tip-chartOverTime");

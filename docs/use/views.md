@@ -17,7 +17,7 @@ their own data.
 | **Undo** | Ctrl+Z, on a Mac Cmd+Z | Takes back the last change. |
 | **Redo** | Ctrl+Shift+Z or Ctrl+Y, on a Mac Cmd+Shift+Z | Repeats it. |
 | **Reset** | | Goes back to the start view, as one step you can undo. |
-| **New** | | Empties the report: no fields, the three first steps. One step you can undo; greyed out while the report is empty. |
+| **New, empty report** (in Views) | | Empties the report: no fields, the three first steps. One step you can undo; greyed out while the report is empty. |
 
 Every change is a step: placing a field, a filter, a chart setting, loading a view. Saved views are
 not changed by any of them, only by saving.
@@ -97,10 +97,10 @@ as plain text.
 
 ### Start over with an empty report
 
-**New** next to Reset in the toolbar (in **More** on a narrow screen), or **New, empty report** in
-Views, empties the report: no fields, the three first steps and up to three saved views to start
-from. "New, empty report" appears with **Undo**, which brings the report back. Saved views are not
-changed. The **i** next to the entry in Views says the same.
+**New, empty report** in Views (under This view, with Save and Save as) empties the report: no
+fields, the three first steps and up to three saved views to start from. "New, empty report" appears
+with **Undo**, which brings the report back. Saved views are not changed. The **i** next to the
+entry in Views says the same.
 
 ### Delete or publish one of your views
 

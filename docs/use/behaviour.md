@@ -17,7 +17,7 @@ line under it says why, only while it is greyed out.
 | --- | --- |
 | Undo, Redo | there is a step to take back or to repeat |
 | Reset | the report differs from the start view |
-| New (toolbar), Views, **New, empty report** | a field is placed ("The report is empty already.") |
+| Views, **New, empty report** | a field is placed ("The report is empty already.") |
 | Export, every entry | a field is placed ("Add a field first.") |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |

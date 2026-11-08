@@ -50,7 +50,8 @@ export async function tableRows(page) {
 
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "reset", "new", "options", "views", "chart-type").
+ * all buttons. `testId` is the button's ("redo", "reset", "options", "views", "chart-type"). A menu
+ * that is open already (Views stays open after a save) stays open: a click on its button would close it.
  */
 export async function toolbar(page, testId) {
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
@@ -58,14 +59,14 @@ export async function toolbar(page, testId) {
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     const own = page.getByTestId(testId);
     if (await own.count()) {
-        await own.click();
+        if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
     } else {
         await page.getByTestId("more").click();
         await page.getByTestId(`more-${testId}`).click();
     }
     // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
     // so a test that moves the focus inside does not lose it to that
-    if (!["redo", "reset", "new", "layout"].includes(testId)) {
+    if (!["redo", "reset", "layout"].includes(testId)) {
         await expect.poll(() => page.evaluate(() => {
             const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
             return Boolean(deep(document)?.closest(".pk-popover"));

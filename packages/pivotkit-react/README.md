@@ -179,15 +179,15 @@ the report's first load stays small.
   texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
   `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
-  Reset to the start view, New (an empty report, the start screen; Reset and New are one step Undo
-  takes back, and both take the loaded view's name away, which Undo brings back), Layout (a toggle
+  Reset to the start view (one step Undo takes back; it takes the loaded view's name away, which
+  Undo brings back), Layout (a toggle
   with `aria-pressed`: the zones open or folded into one line), Options, the name of the view loaded (a saved view, a view file, a link)
-  with a dot while it has unsaved changes, Views (This view: Save, Save as, New; Shared views, My
+  with a dot while it has unsaved changes, Views (This view: Save, Save as, New, an empty report that Undo takes back; Shared views, My
   views with delete and publish, and Share: link, JSON, the
   [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
   asks first), Export (XLSX and CSV of the table, PNG of the chart; all off with "Add a field first."
-  while no field is placed). Every button has its text; when the report is too narrow, Reset, New,
-  Layout, Views, Options and the chart type move one by one into a "More" menu, by the width only;
+  while no field is placed). Every button has its text; when the report is too narrow, Reset,
+  Layout, Options, the chart type and Views last move one by one into a "More" menu, by the width only;
   the view's name takes the room left and is cut with "…".
 - Save writes the loaded view under its name in one click: a view of the browser store in its place,
   a user's view of the host through `onSaveTemplate` (`scope: "user"`), a shared view through
