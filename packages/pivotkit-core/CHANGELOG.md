@@ -10,8 +10,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - The README, the package's page on npm, is a short landing page: what pivotkit-core is, one screenshot,
   install, one example and a table of links into the
-  [documentation site](https://pivotkit.eize.dev/), which holds the details. Nothing was dropped:
-  what only the README said is on the site now.
+  [documentation site](https://pivotkit.eize.dev/), which holds the details.
 
 ### Fixed
 

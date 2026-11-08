@@ -49,45 +49,32 @@ property of the UI) merges your values over them. A resource limit is counted be
 guards is allocated, or while it grows, and stops with `LIMIT_EXCEEDED`; a view limit drops what is
 over it and reports it as an issue.
 
-| Limit | Default | Guards |
-| --- | --- | --- |
-| `rows` | 1,000,000 | Rows `encode` accepts. |
-| `groups` | 500,000 | Groups of rows and columns `computePivot` makes, subtotals and grand totals included. |
-| `pivotCells` | 2,000,000 | Cells `computePivot` aggregates, subtotals and totals included. |
-| `work` | 100,000,000 | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x values; a median or a unique count counts 10 times. |
-| `cells` | 2,000,000 | Cells of a grid and data points of a chart. |
-| `cacheEntries` | 16 | Derived columns and sort orders kept per data set; the least recently used go first. |
-| `axisFields` | 8 | Fields per axis (rows, columns). |
-| `values` | 16 | Values. |
-| `json` | 5,000,000 | Characters of the serialized view. |
-| `name` | 256 | Length of a name in a view. |
-| `filters` | 128 | Filters. |
-| `items` | 100,000 | Items in one filter. |
-| `derived` | 64 | Derived fields. |
-| `sort` | 64 | Sort entries. |
-| `collapsed` | 10,000 | Collapsed groups. |
-| `topCount` | 1,000,000 | The `count` of a top N filter. |
+| Limit | Default | Counts | When |
+| --- | --- | --- | --- |
+| `rows` | 1,000,000 | Rows `encode` accepts. | Before any column is built. |
+| `groups` | 500,000 | Nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals. | The distinct leaves of an axis before its first node is made, then each node before it is made. |
+| `pivotCells` | 2,000,000 | Cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included. | A lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored. |
+| `work` | 100,000,000 | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell. | Exactly, after the filters and before the key trees are built. |
+| `cells` | 2,000,000 | Cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`). | Before the grid or the series is built. |
+| `cacheEntries` | 16 | Derived columns and sort orders kept per data set. | On each new entry; the least recently used go first. |
+| `axisFields` | 8 | Fields per axis (rows, columns). | In `normalize`: more is dropped as an issue. |
+| `values` | 16 | Values. | In `normalize`. |
+| `json` | 5,000,000 | Characters of the serialized view. | In `normalize`. |
+| `name` | 256 | Length of a name in a view. | In `normalize`. |
+| `filters` | 128 | Filters. | In `normalize`. |
+| `items` | 100,000 | Items in one filter. | In `normalize`. |
+| `derived` | 64 | Derived fields. | In `normalize`. |
+| `sort` | 64 | Sort entries. | In `normalize`. |
+| `collapsed` | 10,000 | Collapsed groups. | In `normalize`. |
+| `topCount` | 1,000,000 | The `count` of a top N filter. | In `normalize`. |
 
 The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for;
-[what each limit counts](#what-each-limit-counts) and [why the defaults are what they
-are](#why-the-defaults-are-what-they-are) are below. `groups` can be raised to 2^27 at most. A host
+[why the defaults are what they are](#why-the-defaults-are-what-they-are) is below. `groups` can be raised to 2^27 at most. A host
 that takes data or views from untrusted users can lower them, for example
 `{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
 
 The XLSX export adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a larger grid
 throws) and 32,767 characters per cell (longer text is cut).
-
-### What each limit counts
-
-| Limit | Counts | When |
-| --- | --- | --- |
-| `rows` | Rows `encode` accepts. | Before any column is built. |
-| `groups` | Nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals. | The distinct leaves of an axis before its first node is made, then each node before it is made. |
-| `pivotCells` | Cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included. | A lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored. |
-| `work` | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell. | Exactly, after the filters and before the key trees are built. |
-| `cells` | Cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`). | Before the grid or the series is built. |
-| `cacheEntries` | Derived columns and sort orders kept per data set. | On each new entry; the least recently used go first. |
-| `axisFields`, `values`, `json`, `name`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | The size of a view and its parts. | In `normalize`: more is dropped as an issue. |
 
 `error.details.value` is the count when the limit was hit: for a limit counted while it grows, the
 first count above `max`, not the total. `groups` must stay at or below 2^27 (134,217,728): cell keys

@@ -72,9 +72,13 @@ builds depend on it.
   release (cached by the theme in the reader's browser), as on the other eizedev sites.
 - `packages/*/README.md` - the npm package pages: short landing pages (what the package is, one
   screenshot, install with its peers, one example, a table of links into the site, the license).
-  Details live only on the site; a README repeats none of them, so a fact added to a README belongs
-  on its docs page instead. Links and images in them are absolute (`https://pivotkit.eize.dev/...`),
-  since npm shows them outside the repository.
+  The install facts (command, peer ranges, the 0.x caret-range note, supported browsers and Node,
+  serving the whole `dist/`) and the one example are repeated there on purpose and must match
+  `package.json` and the site; everything else lives only on the site, so a fact added to a README
+  belongs on its docs page instead. Links and images in them are absolute
+  (`https://pivotkit.eize.dev/...`), since npm shows them outside the repository. The page paths and
+  heading anchors they link to are a contract, since a published npm README cannot be changed:
+  `scripts/check-readme-links.js` checks them against the built site in the docs workflow.
 - `assets/` - icon, README header and social preview, generated in eizedev/brand (`pivotkit/`); changed
   there, never here.
 
@@ -98,6 +102,7 @@ npm run docs:demo                   # build the playground and copy it into docs
 npm run docs:screenshots            # build the playground and take docs/assets/screenshots/ again
 curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
 uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # the site on http://localhost:8000 (build --strict as CI)
+node scripts/check-readme-links.js site   # after `zensical build`: the READMEs' links to the site resolve (as CI)
 ```
 
 ## Rules that matter here

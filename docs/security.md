@@ -73,7 +73,7 @@ reference depth and the number of schema objects it reads.
 ## Content-Security-Policy
 
 The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,
-Firefox and WebKit of Playwright 1.64.1, with this policy in a `<meta>` element:
+Firefox and WebKit of the Playwright version pinned in `package.json`, with this policy in a `<meta>` element:
 
 ```text
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'

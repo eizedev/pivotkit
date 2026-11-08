@@ -32,7 +32,7 @@ import { toXlsx, toCsv } from "pivotkit-core/export";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
-    { region: "South", product: "B", units: 7, date: "2026-02-14" }
+    { Region: "South", Product: "B", Units: 7, Date: "2026-02-14" }
 ]);
 
 // the view is the report as JSON: save it, send it to the browser, undo it

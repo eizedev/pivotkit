@@ -84,8 +84,8 @@ through the element.
 | `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
 
 Both themes meet WCAG contrast: 4.5:1 for text, 3:1 for interface colours such as borders, the focus
-ring and the dashed edge of a zone. A test checks every pair of the defaults. When you change
-colours, keep those ratios.
+ring and the dashed edge of a zone. A test (`test/contrast.test.js` of pivotkit-react) checks every
+pair of the defaults. When you change colours, keep those ratios.
 
 ## Sizes and motion
 

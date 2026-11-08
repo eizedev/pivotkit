@@ -25,8 +25,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - The README, the package's page on npm, is a short landing page: what pivotkit-element is, one screenshot,
   install, one example and a table of links into the
-  [documentation site](https://pivotkit.eize.dev/), which holds the details. Nothing was dropped:
-  what only the README said is on the site now.
+  [documentation site](https://pivotkit.eize.dev/), which holds the details.
 - pivotkit-react's toolbar: Views is the last button to move into "More", so it stays in the toolbar
   from about 1280 px (the chart type moves into "More" before it); New is in the Views menu only.
   Every save closes the Views menu; the question before a view is replaced has the focus on Cancel;

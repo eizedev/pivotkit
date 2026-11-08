@@ -381,7 +381,7 @@ and call `preventDefault()`, or close the report's layer first. The keys of the 
 ## Performance
 
 The pivot is computed once per view and the table body is virtualized. Approximate numbers, measured
-by hand in the playground on one Mac (Chromium, Firefox and WebKit from Playwright 1.64.1 on
+by hand in the playground on one Mac (Chromium, Firefox and WebKit from the Playwright version pinned in `package.json`, on
 darwin/arm64); no test backs them and other machines differ, in ms:
 
 | Rows | `encode` (once) | `computePivot` | `toGrid` | Change to next frame |

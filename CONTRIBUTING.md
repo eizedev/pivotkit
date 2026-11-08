@@ -47,25 +47,24 @@ dependency except `fflate` for the XLSX zip; keep it that way.
 
 ## Package commands
 
+The commands for the whole repository (lint, types, tests, coverage, benchmark, bundle size,
+playground, browser tests, React 19) are in [AGENTS.md](AGENTS.md#commands). Per package:
+
 ```bash
 npm test -w pivotkit-core              # node --test
 npm run coverage -w pivotkit-core      # the same with a coverage report
 npm run types -w pivotkit-core         # type check and generated .d.ts in types/
-npm run bench -w pivotkit-core         # timings for 2k, 4k and 100k rows
 
 npm run build -w pivotkit-react        # dist/index.js and dist/styles.css (esbuild)
 npm test -w pivotkit-react             # build, then node --test: view changes, history, keyboard moves, labels, chart text, files, server render, contrast
-npm run coverage -w pivotkit-react     # the same with coverage of the .js modules (the .jsx components are covered by the browser tests, without a number)
 
 npm run build -w pivotkit-element      # pivotkit-react's dist, then dist/ of this package (esbuild)
-npm run size -w pivotkit-element       # the same, with the size of what a page loads, checked against the budget
 npm test -w pivotkit-element           # build, then node --test: attributes, events, stylesheet, bundle, Node import
 npm run types -w pivotkit-element      # tsc: types/ from the JSDoc, plus src/global.d.ts and src/jsx.d.ts
-
-npm run playground                     # the playground with rebuilds on http://localhost:5173
-npm run test:browser                   # Playwright in Chromium, Firefox and WebKit: the playground, a host page with React from an import map, a shadow root, the element pages
-PIVOTKIT_REACT=19 npm run test:browser # the same on React 19, after npm ci --prefix tests/react19
 ```
+
+`npm run coverage -w pivotkit-react` covers its `.js` modules; the `.jsx` components are covered by
+the browser tests, without a number.
 
 pivotkit-react's build compiles JSX to `React.createElement`, so the host needs `react` and
 `react-dom` only (no JSX runtime), and keeps every dependency as an import for the host's bundler.

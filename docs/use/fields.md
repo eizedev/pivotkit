@@ -91,7 +91,7 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 
 ## The table
 
-- The header and the row labels stay in place while you scroll.
+- The header and the row labels stay in place (sticky) while you scroll.
 - Groups expand and collapse with the arrow next to them. **Options** has **Expand all** and
   **Collapse all** for the groups of Rows (groups of Columns open and close with their arrows only).
   Each is offered only when it changes something; otherwise a line under it says why ("Nothing is

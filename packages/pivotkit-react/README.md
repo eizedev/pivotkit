@@ -24,7 +24,8 @@ npm install pivotkit-react react react-dom echarts
 | `react`, `react-dom` | `>=18.2 <20` | Hooks break with two copies of React in one page. Tested on React 18 and 19. |
 | `echarts` | `>=6.1.0 <7` | About 1 MB, and its security updates stay with your app. Loaded on the first chart only. |
 
-pivotkit-core (a caret range) and @dnd-kit come with the package. In 0.x a caret range spans patch
+TypeScript declarations are included. pivotkit-core (a caret range) and @dnd-kit come with the
+package. In 0.x a caret range spans patch
 versions only (`^0.1.0` is 0.1.x): an app that also imports pivotkit-core itself must use a version
 inside that range, since npm shares one copy only when the ranges overlap.
 

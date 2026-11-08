@@ -2,7 +2,7 @@
 
 The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as one web component,
 `<pivot-report>`, for pages without React: Angular apps, PHP and other server-rendered pages, plain
-HTML. It brings its own React 18.3.1, [pivotkit-react](https://www.npmjs.com/package/pivotkit-react),
+HTML. It brings its own React ([which version](https://pivotkit.eize.dev/browser-support/#react)), [pivotkit-react](https://www.npmjs.com/package/pivotkit-react),
 [pivotkit-core](https://www.npmjs.com/package/pivotkit-core) and @dnd-kit, renders into an open shadow
 root and loads ECharts on the first chart. Everything the React component does works the same: field
 list, drag and drop, table and chart, filters, drill-down, undo, saved and shared views, export.
