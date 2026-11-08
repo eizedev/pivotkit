@@ -437,9 +437,11 @@ test.describe("a result taller than its area scrolls inside it", () => {
             const last = empty.locator(".pk-empty-actions .pk-btn").last();
             await expect(last).toHaveText(/^Start with /);
             expect(await wheelTo(page, last)).toBe(true);
-            // and the title at the top is reachable again
+            // and the title at the top is reachable again: the wheel back up (Firefox scrolls it
+            // smoothly, over a few frames) reaches the top, where the title is in view
             await page.mouse.wheel(0, -2000);
-            await expect.poll(() => wheelTo(page, empty.locator("h2"))).toBe(true);
+            await expect.poll(() => page.locator(".pk-result").evaluate((el) => el.scrollTop)).toBe(0);
+            expect(await wheelTo(page, empty.locator("h2"))).toBe(true);
         });
     }
 
