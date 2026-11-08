@@ -106,6 +106,11 @@ function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
             className="pk-inline-form pk-bin-form"
             onSubmit={(e) => {
                 e.preventDefault();
+                // an empty size removes the ranges, as Remove does
+                if (onClear && size.trim() === "") {
+                    onClear();
+                    return;
+                }
                 setTried(true);
                 if (n !== null && s !== null && !far) {
                     onApply(n, s);
@@ -131,8 +136,8 @@ function BinForm({ grouping, labels, onApply, onClear, range, locale }) {
                 {labels.apply}
             </button>
             {onClear ? (
-                <button type="button" className="pk-btn" onClick={onClear}>
-                    {labels.clear}
+                <button type="button" className="pk-btn" onClick={onClear} data-testid="bin-remove">
+                    {labels.removeSetting}
                 </button>
             ) : null}
         </form>
@@ -177,6 +182,11 @@ function TopForm({ top, labels, choices, names, onApply, locale }) {
             className="pk-inline-form"
             onSubmit={(e) => {
                 e.preventDefault();
+                // an empty count removes the Top N, as Remove does
+                if (top && count.trim() === "") {
+                    onApply(null);
+                    return;
+                }
                 setTried(true);
                 if (counted.value !== null) {
                     onApply({ count: counted.value, bottom, by: choices[by] });
@@ -190,7 +200,7 @@ function TopForm({ top, labels, choices, names, onApply, locale }) {
             <NumberField value={count} onChange={setCount} problem={counted.problem} label={labels.topCount} testId="top-count" className="pk-field-label pk-narrow-input" />
             <MeasurePick choices={choices} names={names} index={by} onChange={setBy} label={labels.topBy} prefix={labels.topBy} testId="top-by" />
             <button type="submit" className="pk-btn pk-primary">{labels.apply}</button>
-            {top ? <button type="button" className="pk-btn" onClick={() => onApply(null)}>{labels.clear}</button> : null}
+            {top ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="top-remove">{labels.removeSetting}</button> : null}
         </form>
     );
 }
@@ -214,6 +224,11 @@ function ValueFilterForm({ condition, labels, choices, names, onApply, locale })
             className="pk-inline-form pk-value-filter"
             onSubmit={(e) => {
                 e.preventDefault();
+                // no number removes the condition, as Remove does
+                if (condition && first.trim() === "" && second.trim() === "") {
+                    onApply(null);
+                    return;
+                }
                 setTried(true);
                 if (ok) {
                     onApply({ by: choices[by], op, value: /** @type {number} */ (a.value), ...(between ? { value2: /** @type {number} */ (b.value) } : {}) });
@@ -236,7 +251,7 @@ function ValueFilterForm({ condition, labels, choices, names, onApply, locale })
                 <NumberField value={second} onChange={setSecond} problem={b.problem} label={`${labels.valueFilterTo} ${labels.valueFilterNumber}`} shown={labels.valueFilterTo} shownClass="pk-muted" testId="value-filter-number2" className="pk-field-label pk-narrow-input" />
             ) : null}
             <button type="submit" className="pk-btn pk-primary" data-testid="value-filter-apply">{labels.apply}</button>
-            {condition ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="value-filter-clear">{labels.clear}</button> : null}
+            {condition ? <button type="button" className="pk-btn" onClick={() => onApply(null)} data-testid="value-filter-remove">{labels.removeSetting}</button> : null}
         </form>
     );
 }

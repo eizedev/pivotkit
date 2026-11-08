@@ -144,7 +144,7 @@ population, filtered to 2024 and to the top 3 countries of each region.
 - Read it: East Asia & Pacific comes first; its three largest countries (China 1.4B, Indonesia
   283.5M, Japan 124M) add up to 1.8B. South Asia follows with India (1.5B).
 - Try this: click the arrow before a region to collapse it; the subtotal stays.
-- Try this: remove the top 3 (the chip menu of "Country", **Clear** under Top and Count). Every country shows,
+- Try this: remove the top 3 (the chip menu of "Country", **Remove** under Top and Count). Every country shows,
   and the region totals are the regions' populations.
 
 **What share of the world's CO2 comes from each region?** Regions on rows, five years on columns,

@@ -160,6 +160,28 @@ test.describe("earthquakes", () => {
         await page.getByTestId("show-table").click();
         expect((await row(page, "Jul 2025"))[1]).toBe(int(quakes.filter((x) => x.Time.startsWith("2025-07")).length));
     });
+
+    test("a colour scale, ranges by count and the regions in each range by count: nothing dropped", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        await page.getByTestId("chip-menu-Quakes").click();
+        await page.getByTestId("section-highlight").click();
+        await page.getByTestId("cond-colorScale").click();
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("sort-value-desc-0").click();
+        await page.getByTestId("field-menu-Region").click();
+        await page.getByRole("menuitem", { name: "Add to Rows" }).click();
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByTestId("sort-value-desc-0")).toHaveText("Largest Quakes first");
+        await page.getByTestId("sort-value-desc-0").click();
+        // the regions of the first range (4.5 to 5, the most quakes) by their count, largest first
+        const first = Object.entries(Object.groupBy(quakes.filter((x) => x.Magnitude < 5), (x) => x.Region))
+            .map(([region, list]) => [region, list.length])
+            .sort((a, b) => b[1] - a[1]);
+        await expect.poll(async () => (await tableRows(page)).slice(0, 3).map((r) => r.at(-3))).toEqual(first.slice(0, 3).map(([region]) => region));
+        expect((await tableRows(page))[0].at(-2)).toBe(int(first[0][1]));
+        // the colour scale in the theme's colours is no part of the view that was not used
+        await expect(page.getByTestId("view-issues")).toHaveCount(0);
+    });
 });
 
 test.describe("Nobel laureates", () => {
@@ -334,14 +356,29 @@ test.describe("learning tasks", () => {
         expect((await tableRows(page)).map((r) => r[0])).toEqual([...ranked.slice(0, 5).map(([c]) => c), "Grand Total"]);
     });
 
-    test("countries: clearing the top 3 shows every country of a region", async ({ page }) => {
+    test("countries: removing the top 3 shows every country of a region", async ({ page }) => {
         await open(page, "data=countries&preset=0");
         await page.getByTestId("chip-menu-Country").click();
-        await page.getByRole("button", { name: "Clear" }).click();
+        await page.getByTestId("top-remove").click();
         await expect(page.getByTestId("tip-top")).toHaveCount(0);
         const southAsia = countries.filter((x) => x.Year === 2024 && x.Region === "South Asia");
         const rows = await tableRows(page);
         expect(rows.filter((r) => southAsia.some((c) => r.includes(c.Country)))).toHaveLength(southAsia.length);
+    });
+
+    test("countries: Apply with no count removes the top 3, and Undo brings it back", async ({ page }) => {
+        await open(page, "data=countries&preset=0");
+        await page.getByTestId("chip-menu-Country").click();
+        await page.getByTestId("top-count").fill("");
+        await page.getByTestId("top-count").press("Enter");
+        await expect(page.getByTestId("tip-top")).toHaveCount(0);
+        await expect(page.getByTestId("top-count-problem")).toHaveCount(0);
+        // the focus goes back to the chip, as after any change in its menu
+        await expect(page.getByTestId("chip-menu-Country")).toBeFocused();
+        const southAsia = countries.filter((x) => x.Year === 2024 && x.Region === "South Asia");
+        await expect.poll(async () => (await tableRows(page)).filter((r) => southAsia.some((c) => r.includes(c.Country))).length).toBe(southAsia.length);
+        await page.getByTestId("undo").click();
+        await expect(page.getByTestId("tip-top")).toHaveCount(1);
     });
 
     test("earthquakes: ranges of 1, then the depth in ranges of 100", async ({ page }) => {
@@ -480,6 +517,20 @@ test.describe("what the real data showed (#21 to #26)", () => {
         await page.keyboard.press("ArrowRight");
         await page.keyboard.press("Enter");
         await expect(page.getByTestId("drill-count")).toHaveText(`${strong.length} rows`);
+    });
+
+    test("Apply with no range size removes the ranges, as Remove does", async ({ page }) => {
+        await open(page, "data=earthquakes&preset=0");
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("bin-size").fill("");
+        await page.getByTestId("bin-size").press("Enter");
+        await expect(page.getByTestId("chip-menu-Magnitude")).toBeVisible();
+        await expect(page.getByTestId("bin-size-problem")).toHaveCount(0);
+        await page.getByTestId("undo").click();
+        await expect(page.getByTestId("chip-menu-Magnitude (by 0.5)")).toBeVisible();
+        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
+        await page.getByTestId("bin-remove").click();
+        await expect(page.getByTestId("chip-menu-Magnitude")).toBeVisible();
     });
 
     test("a new range size keeps the start; Starting at moves it", async ({ page }) => {

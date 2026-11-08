@@ -136,7 +136,7 @@ pick the value (when there are several), an operator such as "greater than" or "
 number, written as in your language ("1.000,5" in German); a field that holds no number says so under
 it. The number is compared with the sum (or count, or average) itself, not with a percentage the
 value is shown as. The chip then shows it, "Sum of Revenue > 1,000", and so does the menu ("Filter: Sum of
-Revenue > 1,000"); open the form again to change it, **Clear** to remove it.
+Revenue > 1,000"); open the form again to change it, **Remove** (or Apply with no number) to remove it.
 
 ![The menu of Region with its value condition: Sum of Revenue greater than 2,000,000](assets/screenshots/value-filter.png)
 

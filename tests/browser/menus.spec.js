@@ -258,9 +258,9 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await page.getByTestId("value-filter-apply").click();
         // the smaller number first, as the engine compares
         await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
-        // Clear takes it away; Undo brings it back
+        // Remove takes it away; Undo brings it back
         await page.getByTestId("chip-menu-Region").click();
-        await page.getByTestId("value-filter-clear").click();
+        await page.getByTestId("value-filter-remove").click();
         await expect(badge).toHaveCount(0);
         await expect.poll(async () => (await regionRows(page)).length).toBe(rows.length);
         await page.getByTestId("undo").click();

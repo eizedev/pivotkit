@@ -74,12 +74,13 @@ version is [What pivotkit does](overview.md).
 - Values with row counts, search, Select all, Select none, Only; a condition on the labels by the field's type: "Text condition" for text, "Condition on the label" for a number, none for a date or a grouping of one and a yes/no field ([filters](concepts/filters.md)).
 - At most 300 values listed, then "300 of 1,045 values; search to find more"; Select all and Select none act on what the search finds; "N selected" at the top ([filters](concepts/filters.md#filters-in-the-ui)).
 - The values left out are stored (`exclude`), so values new in later data show; every value ticked removes the filter ([filters](concepts/filters.md#filters-in-the-ui)).
-- A value condition, "Value filter…" in a row or column field's menu: a value, an operator (equals to not between) and one or two numbers; the chip and the menu show it as "Sum of Revenue > 1,000"; Clear removes it ([filters](concepts/filters.md#filters-in-the-ui)).
+- A value condition, "Value filter…" in a row or column field's menu: a value, an operator (equals to not between) and one or two numbers; the chip and the menu show it as "Sum of Revenue > 1,000"; Remove, or Apply with no number, removes it ([filters](concepts/filters.md#filters-in-the-ui)).
 - The chip menu says what the filter keeps ("Filter: 15 of 45", "Filter: contains “an”") in the accent colour, with "Remove filter" right below ([guide](guide.md#filters)).
 - The filter popover has "Remove filter" at its top while the field is filtered ([guide](guide.md#filters)).
 - The × of the text condition removes it at once; the values chosen stay a draft ([guide](guide.md#filters)).
 - "Filter…" of a field not placed opens its filter at once; Apply places it in Filters, Cancel changes nothing ([guide](guide.md#filters)).
 - A field keeps its filter when it moves between Filters, Rows and Columns ([filters](concepts/filters.md)).
+- Remove in a field menu's form (value condition, Top N, ranges) takes away what it set, and so does Apply with an empty number; one undo step ([filters](concepts/filters.md#filters-in-the-ui)).
 - Numbers in the menus (value condition, Top N, ranges) are typed as the report's language writes them ("1.000,5" in German), a plain "1000.5" everywhere; anything else gets a note under the field ([filters](concepts/filters.md#filters-in-the-ui)).
 - A value condition compares the raw aggregated value, not a "show as" percentage; between writes the smaller number first ([filters](concepts/filters.md#filters-in-the-ui)).
 - Top or bottom N by a value the user picks (the first one by default), with a notice what it does to totals ([filters](concepts/filters.md#filters-in-the-ui)).
@@ -88,7 +89,7 @@ version is [What pivotkit does](overview.md).
 
 - A date is grouped as it is placed, by the span of its values ([dates](concepts/dates.md)).
 - A grouping is named in words: "Created by month", in German "Erstellt nach Monat" ([dates](concepts/dates.md)).
-- Along the time line or across years; numbers into ranges with "Starting at", whose × empties it ([dates](concepts/dates.md)).
+- Along the time line or across years; numbers into ranges with "Starting at", whose × empties it; Remove, or Apply with no size, takes the ranges away ([dates](concepts/dates.md)).
 
 ## Chart
 

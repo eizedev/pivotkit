@@ -98,7 +98,8 @@ export const en = {
     binStart: "Starting at",
     binStartFar: "Ranges from {start} cannot hold this field's values ({min} to {max}): every row would be blank. Pick a start closer to them.",
     apply: "Apply",
-    clear: "Clear",
+    // removes what a form of the field menu set: its ranges, its Top N, its value condition
+    removeSetting: "Remove",
     topN: "Show only the top items",
     topCount: "Count",
     bottom: "Bottom",
@@ -279,7 +280,7 @@ export const de = {
     binStart: "Beginnt bei",
     binStartFar: "Bereiche ab {start} können die Werte dieses Felds ({min} bis {max}) nicht fassen: Jede Zeile wäre leer. Einen Beginn näher an den Werten wählen.",
     apply: "Anwenden",
-    clear: "Löschen",
+    removeSetting: "Entfernen",
     topN: "Nur die obersten Einträge zeigen",
     topCount: "Anzahl",
     bottom: "Unterste",
