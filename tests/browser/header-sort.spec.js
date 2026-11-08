@@ -123,8 +123,6 @@ test.describe("sorting by a click on a header", () => {
         await expect(table.locator("thead .pk-th-sort")).toHaveCount(4);
         await expect(table.locator("thead tr:last-child th.pk-colHeader.pk-grand .pk-th-sort")).toHaveCount(2);
         await expect(table.locator("thead tr:last-child th.pk-colHeader:not(.pk-grand) .pk-th-sort")).toHaveCount(0);
-        // a value's name under a category says where it sorts
-        await expect(table.locator("thead tr:last-child th.pk-colHeader:not(.pk-grand) .pk-th-text").first()).toHaveAttribute("title", "Sort by this value in the Grand Total column");
         // the button is no wider than its text and arrow: the cell's edges stay free (a future resize handle)
         const total = table.locator("thead tr:last-child th.pk-colHeader.pk-grand").first();
         const [cell, button] = await Promise.all([total.boundingBox(), total.locator(".pk-th-sort").boundingBox()]);

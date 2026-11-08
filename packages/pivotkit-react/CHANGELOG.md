@@ -17,8 +17,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   The header whose sort was chosen carries `aria-sort` (one at a time; the default A to Z none); an
   arrow marks the chosen order and, on hover and focus, the next one, and a faint arrow every name
   that sorts on a touch screen, where the name is a 44 px target; a screen reader hears the new
-  order. A value's name under a column item says in its tooltip that the grand total column's sorts.
-  New labels: `headerSort` (the tooltip), `headerSorted` (what is read out) and `headerSortTotal`;
+  order. New labels: `headerSort` (the tooltip) and `headerSorted` (what is read out);
   `shortcuts.open` names it.
 - Save, Save as and New for views
   ([#60](https://github.com/eizedev/pivotkit/issues/60)). The toolbar shows the name of the view

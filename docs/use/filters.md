@@ -125,9 +125,7 @@ menu. Both write the same sort, which **Undo** takes back.
   click, and the tooltip says what it does ("Sort Region: Largest Sum of Revenue first"). On a touch
   screen a faint arrow marks every name that sorts.
 - With a field in Columns, only the value names of the **Grand Total** column sort: the sort goes by
-  the whole row, not by one column. The value names under each column item say so in their tooltip
-  ("Sort by this value in the Grand Total column"). Without the grand total column the value names
-  do not sort.
+  the whole row, not by one column. Without the grand total column the value names do not sort.
 - A value that gives no number to sort by (below) does not sort; neither does a value's name while
   Rows is empty.
 - Only the name is the button, not the whole header cell. A name can still be dragged into a zone.

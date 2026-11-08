@@ -303,13 +303,11 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         const sticky = c < grid.rowHeaderColumns;
         const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${sticky ? " pk-sticky" : ""}`;
         const target = onSort && r === grid.headerRows - 1 ? headerSortTarget(view, cell, typeOf) : null;
-        // a value's name under a column item: it would sort as the grand total column's does
-        const totalHint = (h) => (onSort && h.colPath?.length && view.totals.grandTotalColumn && headerSortTarget(view, { ...h, colPath: [] }, typeOf) ? fill(labels.headerSortTotal, { total: labels.core.grandTotal }) : undefined);
         const sorting = target ? sortButton(cell, target) : null;
         const content = (
             <span className="pk-th-content">
                 {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
-                {sorting ? sorting.content : <span className="pk-th-text" title={totalHint(cell)}>{cell.text}</span>}
+                {sorting ? sorting.content : <span className="pk-th-text">{cell.text}</span>}
             </span>
         );
         const props = { className, style: stickyStyle(c, top), colSpan: cell.colSpan, rowSpan: cell.rowSpan, scope: cell.kind === "colHeader" ? "col" : undefined };

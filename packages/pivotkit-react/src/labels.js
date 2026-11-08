@@ -114,7 +114,6 @@ export const en = {
     // a click on a table header: its tooltip (what the next click does) and what a screen reader hears after it
     headerSort: "Sort {field}: {order}",
     headerSorted: "{field} sorted: {order}",
-    headerSortTotal: "Sort by this value in the {total} column",
     units: {
         year: "Year", yearQuarter: "Quarter", yearMonth: "Month", yearWeek: "Week", day: "Day",
         quarter: "Quarter of year", month: "Month of year", week: "Week of year", weekday: "Weekday", hour: "Hour of day",
@@ -456,7 +455,6 @@ export const de = {
     sortValueAsc: "Kleinste {value} zuerst",
     headerSort: "{field} sortieren: {order}",
     headerSorted: "{field} sortiert: {order}",
-    headerSortTotal: "In der Spalte {total} nach diesem Wert sortieren",
     units: {
         year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
         quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
