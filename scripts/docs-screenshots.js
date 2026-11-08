@@ -45,6 +45,15 @@ const VALUE_FILTER = encodeViewLink({
     sort: [{ field: "Region", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } }]
 });
 
+/** A view that asks for more than the earthquakes data and the report can give: the warning above the result. */
+const UNUSED = encodeViewLink({
+    rows: ["Region"],
+    values: [{ field: "Time", agg: "count", label: "Quakes", conditional: { type: "colorScale", colors: ["#d33"] } }, { field: "Magnitude", agg: "max", format: "magnitude" }],
+    filters: [{ field: "Region", type: "top", count: 10, by: { field: "Time", agg: "count" } }],
+    sort: [{ field: "Region", by: "value", order: "desc" }],
+    chart: { legend: "left" }
+});
+
 /** The quick start's steps, clicked from the empty report: Region to Rows, Revenue to Values, Category to Columns. */
 const QUICK_STEPS = [
     (page) => page.locator('.pk-field[data-field="Region"] .pk-field-name').click(),
@@ -318,6 +327,17 @@ const SHOTS = [
             await page.getByTestId("load-view-text").fill(JSON.stringify(file));
             await page.getByTestId("load-view-apply").click();
             await page.getByTestId("load-check").waitFor();
+        }
+    },
+    {
+        // a view with parts the report cannot use: the warning, open, each part in plain words
+        name: "unused-parts",
+        query: "data=earthquakes",
+        hash: UNUSED,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("unused-item").first().locator("strong").waitFor();
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
         }
     },
     { name: "german", query: "data=sales&lang=de", size: WIDE },

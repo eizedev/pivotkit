@@ -1,0 +1,92 @@
+/*
+ * The texts of unused-texts.js in German: a chunk of its own, loaded with it only for a German report
+ * (unused-load.js). English stands in for a text this file lacks, or when it fails to load.
+ */
+
+/** @type {import("./unused-texts.js").UnusedTexts} */
+export const de = {
+    item: "{subject}: {text}",
+    view: "Die Ansicht",
+    sections: {
+        sort: "Sortierung",
+        derived: "Gruppierungen",
+        totals: "Summen",
+        collapsed: "Zugeklappte Gruppen",
+        display: "Tabelle oder Diagramm",
+        chart: "Diagramm",
+        formatting: "Formatierung"
+    },
+    settings: {
+        display: "Darstellung",
+        type: "Diagrammtyp",
+        valueLabels: "Wertbeschriftung",
+        legend: "Legendenposition",
+        axisLabels: "Achsenbeschriftung",
+        groupLabels: "Gruppenbeschriftung",
+        labelPosition: "Beschriftungsposition",
+        other: "Einstellung"
+    },
+    dropped: {
+        rows: "es wird in Zeilen weggelassen",
+        cols: "es wird in Spalten weggelassen",
+        values: "dieser Wert wird weggelassen",
+        filters: "dieser Filter wird weggelassen",
+        sort: "die übliche Reihenfolge gilt",
+        derived: "diese Gruppierung wird weggelassen",
+        other: "es wird weggelassen"
+    },
+    codes: {
+        notView: "das ist keine pivotkit-Ansicht - der Bericht beginnt leer",
+        notJson: "das ist kein gültiges JSON - der Bericht beginnt leer",
+        tooLarge: "die Ansicht ist zu groß - der Bericht beginnt leer",
+        badVersion: "die Ansicht hat eine unbekannte Version - der Bericht beginnt leer",
+        newerVersion: "die Ansicht stammt aus einem neueren pivotkit - der Bericht beginnt leer; aktualisieren Sie pivotkit, um sie zu öffnen",
+        noMigration: "die Ansicht lässt sich nicht auf diese Version bringen - der Bericht beginnt leer",
+        unknownKey: "diese Einstellung ist hier unbekannt - sie wird ignoriert",
+        notList: "das ist keine Liste - nichts davon wird verwendet",
+        tooMany: "mehr als {max} Einträge - nur die ersten {max} werden verwendet",
+        tooManyItems: "mehr als {max} Einträge - nur die ersten {max} werden verwendet",
+        itemType: "der Eintrag „{value}“ passt nicht zu einem Feld vom Typ {type} - er wird weggelassen",
+        unknownField: "die Daten haben kein Feld „{field}“ - {dropped}",
+        unknownFieldHere: "die Daten haben kein Feld mit diesem Namen - {dropped}",
+        placedTwice: "das Feld steht zweimal in Zeilen oder Spalten - nur sein erster Platz gilt",
+        groupingNoName: "die Gruppierung hat keinen Namen - sie wird weggelassen",
+        groupingNameTaken: "die Daten haben schon ein Feld mit diesem Namen - die Gruppierung wird weggelassen",
+        groupingNoSource: "die Daten haben kein Feld „{field}“ zum Gruppieren - die Gruppierung wird weggelassen",
+        groupingUnknown: "die Gruppierung „{value}“ ist unbekannt - sie wird weggelassen",
+        binsNeedNumber: "Bereiche brauchen ein Zahlenfeld, „{field}“ ist keines - die Gruppierung wird weggelassen",
+        groupingNeedsDate: "eine Datumsgruppierung braucht ein Datumsfeld, „{field}“ ist keines - die Gruppierung wird weggelassen",
+        binSize: "Bereiche brauchen eine Größe über null - die Gruppierung wird weggelassen",
+        notValueRef: "das ist kein Wert - {dropped}",
+        unknownAggregator: "die Berechnung „{value}“ ist unbekannt - {dropped}",
+        aggregatorNeedsField: "{agg} braucht ein Feld - {dropped}",
+        aggregatorType: "{agg} geht nicht mit „{field}“ ({type}) - {dropped}",
+        unknownFormat: "das Zahlenformat „{value}“ ist unbekannt - das übliche Format gilt",
+        badLabel: "der Name ist leer oder länger als {max} Zeichen - der übliche Name gilt",
+        unknownShowAs: "„Anzeigen als“ „{value}“ ist unbekannt - der Wert wird ohne Berechnung gezeigt",
+        showAsNotAdditive: "dieses „Anzeigen als“ braucht eine Summe oder Anzahl, nicht {agg} - der Wert wird ohne Berechnung gezeigt",
+        showAsNotNumber: "{agg} ergibt keine Zahl für einen Anteil - der Wert wird ohne Berechnung gezeigt",
+        unknownConditional: "die Farbformatierung „{value}“ ist unbekannt - der Wert wird ohne Farben gezeigt",
+        conditionalNotNumber: "Farben brauchen einen Zahlenwert - der Wert wird ohne Farben gezeigt",
+        colorScaleColors: "die Farbskala braucht zwei oder drei Farben - die Standardfarben werden verwendet",
+        dataBarColor: "die Balkenfarbe ist keine Farbe - die Standardfarbe wird verwendet",
+        unknownFilterType: "die Filterart „{value}“ ist unbekannt - dieser Filter wird weggelassen",
+        filterNoItems: "der Filter nennt keine Einträge - er wird weggelassen",
+        filterLabelOp: "die Textbedingung „{value}“ ist unbekannt - dieser Filter wird weggelassen",
+        filterText: "die Textbedingung hat keinen Text - dieser Filter wird weggelassen",
+        filterNotNumber: "{agg} ergibt keine Zahl zum Filtern - dieser Filter wird weggelassen",
+        filterCount: "„Oberste“ braucht eine ganze Zahl von 1 bis {max} - dieser Filter wird weggelassen",
+        filterValue: "die Bedingung braucht einen Vergleich und eine Zahl - dieser Filter wird weggelassen",
+        filterValue2: "„{value}“ braucht eine zweite Zahl - dieser Filter wird weggelassen",
+        sortNoItems: "die eigene Reihenfolge nennt keine Einträge - die übliche Reihenfolge gilt",
+        sortedTwice: "das Feld wird zweimal sortiert - nur seine erste Sortierung gilt",
+        badTotals: "die Summen lassen sich nicht lesen - die üblichen Summen werden gezeigt",
+        collapsedPath: "eine zugeklappte Gruppe passt nicht zu den Feldern - sie wird aufgeklappt gezeigt",
+        unknownSetting: "{setting} „{value}“ ist unbekannt - die Voreinstellung gilt",
+        badTitle: "der Titel ist leer oder länger als {max} Zeichen - das Diagramm hat keinen Titel",
+        unknownLocale: "die Sprache „{value}“ ist unbekannt - die Sprache des Berichts gilt",
+        unknownTimeZone: "die Zeitzone „{value}“ ist unbekannt - die Zeitzone der Daten gilt",
+        timeZoneMismatch: "die Ansicht wurde für die Zeitzone {value} gemacht, die Daten sind in {zone} - Zeiten gelten in {zone}"
+    },
+    other: "dieser Teil konnte nicht verwendet werden - er wird weggelassen"
+};

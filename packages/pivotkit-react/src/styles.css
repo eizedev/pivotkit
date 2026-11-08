@@ -1666,40 +1666,50 @@
 
 /* ---- result ---- */
 
-.pk-issues {
-    display: flex;
+/* a view's unused parts (unused.jsx): a notice (.pk-note) that folds, its lines in plain words, the
+   technical path small below each */
+.pk-note.pk-issues {
     align-items: flex-start;
-    gap: 6px;
-    padding: 0.3em 0.3em 0.3em 0.8em;
-    border: 1px solid var(--pk-border);
-    border-radius: var(--pk-radius-sm);
-    background: var(--pk-surface-2);
-    font-size: var(--pk-small);
+    flex-wrap: nowrap;
+    padding-right: 0.3em;
+}
+
+.pk-issues > .pk-icon {
+    flex: none;
+    margin-top: 0.3em;
 }
 
 .pk-issues > details {
     flex: 1;
     min-width: 0;
-    padding: 0.2em 0;
+}
+
+.pk-issues summary {
+    padding: 0.15em 0;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pk-issues ul {
+    margin: 0.2em 0 0.3em;
+    padding-left: 1.2em;
+}
+
+.pk-issues li + li {
+    margin-top: 0.35em;
+}
+
+.pk-issues-path {
+    display: block;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    overflow-wrap: anywhere;
 }
 
 .pk-issues-x {
     flex: none;
     width: var(--pk-target);
     height: var(--pk-target);
-}
-
-.pk-issues summary {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    cursor: pointer;
-    color: var(--pk-muted);
-}
-
-.pk-issues ul {
-    margin: 0.4em 0 0;
-    padding-left: 1.4em;
 }
 
 /* above the result: Enlarge and Full screen at its right; while enlarged, the fields in one line */

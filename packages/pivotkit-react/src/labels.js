@@ -12,7 +12,9 @@ import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
  * only, so they stay out of the first load).
- * @typedef {typeof en & import("./menu-labels.js").MenuTexts} UiLabels
+ * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts }} UiLabels
+ *   `unused`: the texts of a view's unused parts (unused-texts.js), loaded when a view has such parts;
+ *   a host's are kept aside as the menus' are
  */
 
 export const en = {
@@ -149,7 +151,10 @@ export const en = {
     tooMuchWork: "This layout needs {value} cell updates, more than the limit of {max}. Remove a field from Rows or Columns, or a value such as a median or a unique count.",
     zoneFull: "{zone} holds at most {max} fields. Remove one first.",
     viewTrimmed: "“{name}” has more than {max} fields in {zone}; the report shows the first {max}.",
-    issues: "Some parts of the view were not used:",
+    // the warning above the result: parts of a view the report could not use (unused.jsx; each part's
+    // own line in plain words loads with unused-texts.js), and the technical line under each
+    unusedParts: { one: "{count} part of this view could not be used", other: "{count} parts of this view could not be used" },
+    unusedPath: "For developers:",
     dismissIssues: "Dismiss",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
@@ -286,9 +291,6 @@ export const en = {
     loadCheckChanged: "Fields of another type here: {fields}.",
     // a link in the page's address for other data: asked before it is opened
     linkCheckTitle: "The link's view may not fit this data",
-    viewMissingFields: "fields this data does not have ({fields})",
-    viewOtherIssue: "{count} other setting",
-    viewOtherIssues: "{count} other settings",
     viewFailed: {
         empty: "Paste a view or choose a file first.",
         tooLarge: "This is too large for a view.",
@@ -454,7 +456,8 @@ export const de = {
     tooMuchWork: "Diese Anordnung braucht {value} Zellberechnungen, mehr als die Grenze von {max}. Ein Feld aus Zeilen oder Spalten entfernen oder einen Wert wie Median oder Anzahl eindeutiger Werte.",
     zoneFull: "{zone} nimmt höchstens {max} Felder auf. Zuerst eines entfernen.",
     viewTrimmed: "„{name}“ hat mehr als {max} Felder in {zone}; der Bericht zeigt die ersten {max}.",
-    issues: "Einige Teile der Ansicht wurden nicht verwendet:",
+    unusedParts: { one: "{count} Teil dieser Ansicht konnte nicht verwendet werden", other: "{count} Teile dieser Ansicht konnten nicht verwendet werden" },
+    unusedPath: "Für Entwickler:",
     dismissIssues: "Ausblenden",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",
@@ -575,9 +578,6 @@ export const de = {
     loadCheckMissing: "Felder, die diese Daten nicht haben: {fields}.",
     loadCheckChanged: "Felder mit anderem Typ hier: {fields}.",
     linkCheckTitle: "Die Ansicht des Links passt vielleicht nicht zu diesen Daten",
-    viewMissingFields: "Felder, die diese Daten nicht haben ({fields})",
-    viewOtherIssue: "{count} weitere Einstellung",
-    viewOtherIssues: "{count} weitere Einstellungen",
     viewFailed: {
         empty: "Zuerst eine Ansicht einfügen oder eine Datei wählen.",
         tooLarge: "Das ist zu groß für eine Ansicht.",

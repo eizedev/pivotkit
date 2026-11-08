@@ -1,12 +1,12 @@
 // Sharing a view without a DOM: the link in the fragment, the tab's stored view, a view loaded from
-// JSON, what was left out in plain words, and the host's chartOptions.
+// JSON (what was left out is unused.test.js), and the host's chartOptions.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, toViewFile, viewFileText } from "pivotkit-core";
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { CHART_OPTIONS_CAPS, cleanChartOptions, mergeChartOptions } from "../src/chart-options.js";
 import { LABELS } from "../src/labels.js";
-import { issueLines, linkParam, loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
+import { linkParam, loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3 },
@@ -70,15 +70,14 @@ test("a loaded view is normalized against the data; a template file gives its vi
     assert.deepEqual(template.view.cols, ["Product"]);
     const partly = viewFromObject({ rows: ["Region", "Country"], cols: ["City"], chart: { legend: "left" } }, data);
     assert.deepEqual(partly.view.rows, ["Region"]);
-    assert.deepEqual(issueLines(partly.issues, LABELS.en), ["fields this data does not have (“Country”, “City”)", "1 other setting"]);
-    assert.match(issueLines(partly.issues, LABELS.de)[0], /^Felder, die diese Daten nicht haben/);
+    assert.deepEqual(partly.issues.map((i) => i.code), ["unknownField", "unknownField", "unknownSetting"]);
+    // the view as given stays with it: the plain words of what was left out name its parts
+    assert.deepEqual(partly.file?.view, { rows: ["Region", "Country"], cols: ["City"], chart: { legend: "left" } });
     assert.deepEqual(viewFromText("", data).failed, "empty");
     assert.deepEqual(viewFromText("not json", data).failed, "notJson");
     assert.deepEqual(viewFromText("[1]", data).failed, "notView");
     assert.deepEqual(viewFromText(JSON.stringify({ version: 99, rows: ["Region"] }), data).failed, "newer");
     assert.deepEqual(viewFromText("x".repeat(1_000_001), data).failed, "tooLarge");
-    // unknown keys (a template's extra fields) are nothing to tell the user
-    assert.deepEqual(issueLines([{ path: "name", message: "unknown key" }], LABELS.en), []);
 });
 
 test("a view file loads with its envelope; a newer format asks to update pivotkit", () => {

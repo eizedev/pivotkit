@@ -139,50 +139,6 @@ const quoteNames = (names) => {
     return names.length > 5 ? `${shown} …` : shown;
 };
 
-/** A field name from an issue message ('unknown field "Region"'), or null. */
-const fieldOf = (message) => /^unknown field (".*")$/.exec(message)?.[1];
-
-/**
- * What normalize() left out, in plain words for the person who loaded the view: the fields the data
- * does not have by name, the rest counted. The core's messages stay for developers (onViewChange gets
- * the view only).
- * @param {import("pivotkit-core").Issue[]} issues
- * @param {import("./labels.js").UiLabels} labels
- * @returns {string[]}  one line per kind, at most a few
- */
-export function issueLines(issues, labels) {
-    const missing = [];
-    let other = 0;
-    for (const issue of issues) {
-        if (issue.message === "unknown key") {
-            // a key this version does not know (a template's "name"): nothing the person can act on
-            continue;
-        }
-        const quoted = fieldOf(issue.message);
-        let name;
-        try {
-            name = quoted ? JSON.parse(quoted) : null;
-        } catch {
-            name = null;
-        }
-        if (typeof name === "string") {
-            if (!missing.includes(name)) {
-                missing.push(name);
-            }
-        } else {
-            other += 1;
-        }
-    }
-    const lines = [];
-    if (missing.length) {
-        lines.push(fill(labels.viewMissingFields, { fields: quoteNames(missing) }));
-    }
-    if (other) {
-        lines.push(fill(other === 1 ? labels.viewOtherIssue : labels.viewOtherIssues, { count: other }));
-    }
-    return lines;
-}
-
 /**
  * @typedef {object} LoadedView
  * @property {import("pivotkit-core").View | null} view  normalized against the data; null when nothing can be used

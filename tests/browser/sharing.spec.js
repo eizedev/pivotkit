@@ -181,7 +181,7 @@ test.describe("sharing a view", () => {
         const note = page.locator(".pk-toast").filter({ hasText: "View loaded; some parts did not fit this data" });
         await expect(note).toBeVisible();
         await expect(note).not.toHaveClass(/pk-error/);
-        await expect(page.getByTestId("view-issues")).toContainText("fields this data does not have (“Planet”)");
+        await expect(page.getByTestId("view-issues")).toContainText("Planet: the data has no field of this name - it is left out of Rows");
         await expect(note).toHaveCount(0, { timeout: 10_000 });
         await expect(page.getByTestId("view-issues")).toBeVisible();
         await page.getByTestId("dismiss-issues").click();
@@ -400,7 +400,7 @@ test.describe("a link for other data and a load check by keyboard", () => {
         await expect(page.getByTestId("link-check")).toBeVisible();
         await page.getByTestId("link-check").getByTestId("load-anyway").click();
         await expect.poll(() => chips(page, "rows")).toEqual([]);
-        await expect(page.getByTestId("view-issues")).toContainText("“City”");
+        await expect(page.getByTestId("view-issues")).toContainText("City: the data has no field of this name");
     });
 
     test("the load check takes the focus when it replaces the form", async ({ page, browserName }) => {

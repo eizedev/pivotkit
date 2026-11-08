@@ -8,6 +8,24 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- A view's unused parts as a warning in plain words
+  ([#56](https://github.com/eizedev/pivotkit/issues/56)). What a template, a link, a loaded file or
+  the host's view asks for and the data or this version cannot give is a notice above the result,
+  open the first time it shows for a view and folded with its title: "2 parts of this view could not
+  be used", one line per part with what it is about in bold (the value's name, the field, the part
+  of the report), what is wrong and what is used instead ("Quakes: the colour scale needs two or
+  three colours - the default colours are used"), and below it, small, the path and pivotkit-core's
+  message for developers. A screen reader hears the title once; it never takes the focus; its x
+  dismisses it and returns the focus to the report. The words for every issue code (pivotkit-core's
+  `VIEW_ISSUE_CODES`) load on demand when a view has such parts (`unused-texts.js`, German in a file
+  of its own); until then, or when they fail, each line shows the core's English message, and a
+  German report falls back to English. A code a newer pivotkit-core adds gets a general text.
+  Labels: `unusedParts` (the title, a count) and `unusedPath` ("For developers:") are new; the texts
+  of the lines are `labels.unused` (`codes`, `dropped`, `sections`, `settings`, `view`, `other`,
+  `item`), which a host overrides as any label and which `pivotkit-react/labels` has in `LABELS`.
+  Hosts that override labels: `issues` is gone (the title is `unusedParts` now, with the count in
+  it), and so are `viewMissingFields`, `viewOtherIssue` and `viewOtherIssues` (each part has its own
+  line now).
 - Sorting with a click on a table header
   ([#55](https://github.com/eizedev/pivotkit/issues/55)). A value's name sorts the innermost row
   field by that value: largest first, smallest first, then the field's own order again; a row

@@ -47,6 +47,7 @@ const PATHS = {
     cols: "M6 4v16M12 4v16M18 4v16",
     sigma: "M18 5H6l6 7-6 7h12",
     info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 11v5M12 8h.01",
+    warn: "M12 4 2.8 20h18.4ZM12 10v4.5M12 17.5h.01",
     image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01",
     file: "M6 3h8l4 4v14H6zM14 3v4h4",
     newFile: "M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6",

@@ -25,8 +25,8 @@ Two settings decide how a report reads:
 | German | `de`, `de-DE`, `de-AT`, `de-CH`, ... | `LABELS.de` |
 
 `LABELS` is exported by pivotkit-react's subpath `pivotkit-react/labels` (`import { LABELS } from "pivotkit-react/labels"`; a subpath of its own, so the report's first load does not carry the menus' texts); its keys are the
-reference for every text (in the source: `src/labels.js`, `src/menu-labels.js` and
-`src/menu-labels-de.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
+reference for every text (in the source: `src/labels.js`, `src/menu-labels.js`,
+`src/menu-labels-de.js`, `src/unused-texts.js` and `src/unused-texts-de.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
 right voice.
 
 The texts only the menus show load with the menus, right after the first render: English with them,
@@ -36,6 +36,17 @@ whole German object of a host's) loads it too, any other `lang` takes the Englis
 `labels`. A menu waits for its language's texts and shows "Loading…" until then, never English first;
 while the language changes with a menu open, the menu keeps its texts until the new ones are there.
 A host's text for a menu entry wins over the built-in one in every language.
+
+The words that say a view's [unused parts](../use/behaviour.md#parts-of-a-view-that-were-not-used)
+(`labels.unused`) load only when a view has such parts: English with German as a second small file
+for a German report. Until they are there, or when they cannot be loaded, each line shows
+pivotkit-core's short English message; German falls back to English. The warning's title
+(`unusedParts`, a count) and the prefix of its technical line (`unusedPath`) are part of the first load.
+`labels.unused.codes` has one text per issue code (`VIEW_ISSUE_CODES` of pivotkit-core) with the
+placeholders `{field}`, `{value}`, `{agg}`, `{type}`, `{max}`, `{zone}`, `{setting}` and `{dropped}`
+(what the report does instead, from `labels.unused.dropped` by the part of the view); `other` is the
+text for a code it does not know, `item` puts the subject and the text together
+(`"{subject}: {text}"`).
 
 ## Changing single texts
 

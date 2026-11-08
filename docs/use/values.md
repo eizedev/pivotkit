@@ -74,8 +74,8 @@ Sum, Count, Average, Minimum and Maximum come first; the others are under **More
   them.
 - A running total needs a value that adds up (a sum or a count); on an average or a median it is
   refused, since a running "total" of averages means nothing. A saved view or a link that asks for one
-  shows the plain value instead, and the report says so above the result: "Some parts of the view
-  were not used" ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
+  shows the plain value instead, and the report says so above the result: "this “Show as” needs a sum
+  or a count, not Average - the plain value is shown" ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
 
 ## Number format
 

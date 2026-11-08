@@ -180,8 +180,9 @@ not take the focus; one opened later in the tab is a step Undo takes back once l
 
 - A note says it was loaded, with **Undo**, and goes after a few seconds: "View loaded", "Opened the
   view from the link", or "View loaded; some parts did not fit this data" (a warning, not an error).
-- What was left out stays above the result, "Some parts of the view were not used", until you
-  dismiss it with its **×** or load another view ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
+- What was left out stays above the result as a warning, "2 parts of this view could not be used",
+  open with one line per part in plain words, until you dismiss it with its **×** or load another
+  view ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
   A saved view that has more fields in a zone than the limits allow is said there the same way.
 - Real errors (a damaged link, an application that could not save) stay in the status line until
   you close them.

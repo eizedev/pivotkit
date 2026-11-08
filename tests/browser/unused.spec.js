@@ -1,0 +1,104 @@
+// A view with parts the report cannot use: a warning above the result in plain words, open the first
+// time it shows for a view and foldable, the technical path below each line for developers, German
+// too, and the core's short message (or English) when the plain words cannot be loaded.
+import { test as plain } from "@playwright/test";
+import { expect, test, toolbar, openShare } from "./fixtures.js";
+
+/** A view for the sales data with a value whose colour scale has one colour and a legend place the chart does not know. */
+const VIEW = {
+    rows: ["Region"],
+    values: [{ field: "Units", agg: "sum", label: "Quakes", conditional: { type: "colorScale", colors: ["red"] } }],
+    chart: { legend: "left" }
+};
+
+/** Loads a view as pasted JSON (Views → Share → Load). */
+async function paste(page, view) {
+    await toolbar(page, "views");
+    await openShare(page);
+    await page.getByTestId("load-view").click();
+    await page.getByTestId("load-view-text").fill(JSON.stringify(view));
+    await page.getByTestId("load-view-apply").click();
+}
+
+test("a view with unused parts shows a warning, open, each part in plain words with the technical path below", async ({ page }) => {
+    await page.goto("?data=sales");
+    await paste(page, VIEW);
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+    await expect(warning.locator("details")).toHaveAttribute("open", "");
+    const items = warning.getByTestId("unused-item");
+    await expect(items.first()).toContainText("Quakes: the colour scale needs two or three colours - the default colours are used");
+    await expect(items.nth(1)).toContainText("Chart: the legend position “left” is unknown - the default is used");
+    // the path and the core's message, small, for developers
+    await expect(items.first().getByTestId("unused-path")).toHaveText("For developers: values[0].conditional.colors two or three colours as #rgb or #rrggbb");
+    await expect(items.first().locator("strong")).toHaveText("Quakes");
+    // a screen reader hears the title once, in the live region; the warning does not take the focus
+    await expect(page.getByTestId("unused-live")).toHaveText("2 parts of this view could not be used");
+    expect(await warning.evaluate((el) => el.contains(el.getRootNode().activeElement))).toBe(false);
+    // the view's usable parts are there
+    await expect(page.getByTestId("pivot-table")).toContainText("North");
+});
+
+test("the warning folds by its title, with the mouse and the keyboard, and stays folded for that view", async ({ page }) => {
+    await page.goto("?data=sales");
+    await paste(page, VIEW);
+    const warning = page.getByTestId("view-issues");
+    const title = warning.getByTestId("unused-title");
+    await expect(warning.getByTestId("unused-item").first()).toBeVisible();
+    await title.click();
+    await expect(warning.locator("details")).not.toHaveAttribute("open", "");
+    await expect(warning.getByTestId("unused-item").first()).toBeHidden();
+    // the title stays and says how many parts
+    await expect(title).toBeVisible();
+    await title.focus();
+    await page.keyboard.press("Enter");
+    await expect(warning.getByTestId("unused-item").first()).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(warning.getByTestId("unused-item").first()).toBeHidden();
+    // a change that keeps the view's unused parts keeps it folded
+    await page.getByTestId("swap").click();
+    await expect(warning.locator("details")).not.toHaveAttribute("open", "");
+    // another view with other unused parts opens it again
+    await paste(page, { rows: ["Region"], values: [{ field: "Units", agg: "sum", format: "money" }] });
+    await expect(warning.getByTestId("unused-title")).toHaveText("1 part of this view could not be used");
+    await expect(warning.locator("details")).toHaveAttribute("open", "");
+    await expect(warning.getByTestId("unused-item")).toContainText("Sum of Units: the number format “money” is unknown - the usual format is used");
+    // dismissed, it goes, and the focus goes to the report
+    await page.getByTestId("dismiss-issues").click();
+    await expect(warning).toHaveCount(0);
+    await expect(page.locator(".pk-root")).toBeFocused();
+});
+
+test("in German, the warning and its lines are German", async ({ page }) => {
+    await page.goto("?data=sales&lang=de");
+    await paste(page, VIEW);
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-title")).toHaveText("2 Teile dieser Ansicht konnten nicht verwendet werden");
+    await expect(warning.getByTestId("unused-item").first()).toContainText("Quakes: die Farbskala braucht zwei oder drei Farben - die Standardfarben werden verwendet");
+    await expect(warning.getByTestId("unused-item").nth(1)).toContainText("Diagramm: Legendenposition „left“ ist unbekannt - die Voreinstellung gilt");
+    await expect(warning.getByTestId("unused-path").first()).toContainText("Für Entwickler: values[0].conditional.colors");
+});
+
+// a host that did not deploy the chunks, or a connection that drops: the core's short messages stay
+// (the failed request is a console error, so these tests do not use the fixture that fails on one)
+plain("without the plain words, each line keeps the core's short message and its path", async ({ page }) => {
+    await page.route(/\/chunks\/unused-texts-[^/]+\.js$/, (route) => route.abort());
+    await page.goto("?data=sales");
+    await paste(page, VIEW);
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+    const first = warning.getByTestId("unused-item").first();
+    await expect(first).toContainText("two or three colours as #rgb or #rrggbb");
+    await expect(first.getByTestId("unused-path")).toHaveText("For developers: values[0].conditional.colors");
+    await expect(first.locator("strong")).toHaveCount(0);
+});
+
+plain("without the German texts, a German report says its unused parts in English", async ({ page }) => {
+    await page.route(/\/chunks\/unused-texts-de-[^/]+\.js$/, (route) => route.abort());
+    await page.goto("?data=sales&lang=de");
+    await paste(page, VIEW);
+    const warning = page.getByTestId("view-issues");
+    // the title is part of the first load: German
+    await expect(warning.getByTestId("unused-title")).toHaveText("2 Teile dieser Ansicht konnten nicht verwendet werden");
+    await expect(warning.getByTestId("unused-item").first()).toContainText("Quakes: the colour scale needs two or three colours - the default colours are used");
+});
