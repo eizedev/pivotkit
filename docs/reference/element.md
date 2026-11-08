@@ -167,9 +167,9 @@ or on the document gets it, with `event.target` the element.
 | `pivot-template-save` | "Save current view" (with `save-templates`); `scope` is `"user"`.<br><small>`detail`: `{ name, view, scope, respondWith }`</small> |
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group (`"shared"` or `"user"`). Not sent for a view of the browser store.<br><small>`detail`: `{ name, scope, respondWith }`</small> |
 | `pivot-template-publish` | "Publish as shared view" on one of the user's views (with `can-publish`), after the user confirmed: add it to the shared views and set `templates`.<br><small>`detail`: `{ name, view, respondWith }`</small> |
-| `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say).<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
+| `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard; cancelable. [More](#event-pivot-export)<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
-| `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view` (as the file has it, not normalized). Switching starts the report anew: Undo begins there. The view is untrusted input like any loaded view (it comes from a file or a link): hand it only to a report as its start view, which normalizes it, never run or render anything from it.<br><small>`detail`: `{ source, view, name }`</small> |
+| `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" or "Published" (or removes the entry)
@@ -192,6 +192,22 @@ report.addEventListener("pivot-template-save", (e) => {
     );
 });
 ```
+
+## Events in detail
+
+The events whose line in the table ends in "More", in full.
+
+### `pivot-export` { #event-pivot-export }
+
+`detail`: `{ kind, fileName, blob, text, rows }`.
+
+Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say).
+
+### `pivot-source-switch` { #event-pivot-source-switch }
+
+`detail`: `{ source, view, name }`.
+
+"Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view` (as the file has it, not normalized). Switching starts the report anew: Undo begins there. The view is untrusted input like any loaded view (it comes from a file or a link): hand it only to a report as its start view, which normalizes it, never run or render anything from it.
 
 ## Styles
 

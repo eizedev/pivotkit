@@ -7,8 +7,7 @@ description: For the people who build reports with pivotkit in an application - 
 
 These pages are for the people who build reports with pivotkit in an application. You need no
 programming: you drag fields, pick from menus and read the result. Everything here works the same in
-every application that uses pivotkit (the React component and the web component); the
-[live demo](../demo.md) is a good place to follow along.
+every application that uses pivotkit; the [live demo](../demo.md) is a good place to follow along.
 
 ## Where to start
 
@@ -38,7 +37,8 @@ every application that uses pivotkit (the React component and the web component)
 <small>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information ([attribution](../learn.md#query-it-live)).</small>
 
 !!! note "For developers"
-    Putting the report into your application is described under [Embed pivotkit](../embed/index.md);
+    These pages hold for the React component and the web component alike. Putting the report into
+    your application is described under [Embed pivotkit](../embed/index.md);
     every setting named on these pages in a "For developers" box is in the
     [pivotkit-react reference](../reference/react.md#props) and the
     [element reference](../reference/element.md#properties-and-attributes).

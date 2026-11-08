@@ -55,8 +55,9 @@ unique, and every name is shown as plain text.
 ### Views kept in this browser
 
 When the report keeps your views in the browser, the menu says so: they are only in this browser on
-this device, and gone when the site's data is cleared. At most 100 views are kept; a delete made in
-another tab meanwhile is said when you delete here.
+this device, and gone when the site's data is cleared. At most 100 views are kept. When the views were
+changed in another tab since you opened the menu, a delete here deletes nothing and says so: "The view
+could not be deleted: the views were changed in another tab; open the menu again".
 
 ## Share a view
 
