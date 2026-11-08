@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish the site from, e.g. pivotkit-react@0.1.1"
+        description: "Release tag to publish the site from (e.g. pivotkit-react@0.1.1), or main for a preview"
         required: true
 
 permissions:
@@ -36,6 +36,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # a run by hand publishes only a release tag that exists, or main as a preview: never another
+      # branch, which would put unreviewed pages on the site (the environment checks only the ref the
+      # workflow runs on, not what it checks out)
+      - name: Check the tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if [ "$TAG" = main ]; then exit 0; fi
+          if ! [[ "$TAG" =~ ^pivotkit-(core|react|element)@[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::tag must be a release tag such as pivotkit-react@0.2.0, or main"; exit 1
+          fi
+          git ls-remote --exit-code --tags "$REPO" "refs/tags/$TAG" > /dev/null || { echo "::error::no tag $TAG"; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

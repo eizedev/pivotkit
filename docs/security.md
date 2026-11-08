@@ -99,6 +99,12 @@ Module scripts from another origin (a CDN) are fetched with CORS: the server mus
 `<script integrity>` of the entry; the chunks it imports later cannot carry a hash, so pin a version in
 the URL, or host `dist/` yourself.
 
+## This documentation site
+
+The theme's script in the header of this site asks api.github.com for the repository's stars, forks and
+latest release, from the reader's browser. pivotkit itself, in your app, sends nothing to a third party:
+it loads only its own chunks from where you host it.
+
 ## Dependencies
 
 - pivotkit-core has one runtime dependency: [fflate](https://github.com/101arrowz/fflate) for the XLSX
