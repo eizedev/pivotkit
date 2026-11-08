@@ -143,11 +143,13 @@ async function licenses(metafile) {
  * chunk of their own, loaded with the menus for a German report only ("texts", 4.0 measured, budget
  * 4.5; a German page loads it on top of the menus), and the menus' sections moved out of the first
  * load into the menus (#73): first load 152.2, the menus 17.9 measured; the budgets stay as they were:
- * the menus' headroom is kept for the chip menu's sections (issue #57), which land next; after them
- * the menus' budget goes down to what is measured then plus a margin.
+ * the menus' headroom was kept for the chip menu's sections (issue #57). With them (each setting in
+ * one line, the folded sections' states, Reset menu sections) the menus are 18.9 measured, the first
+ * load unchanged at 152.2 (the CSS they need stays in the one stylesheet; it was made smaller to fit),
+ * so the menus' budget goes down to 19.5: about 3 % over, as CI measures some 0.3 more than a Mac.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 21, texts: 4.5 };
+export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 19.5, texts: 4.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
