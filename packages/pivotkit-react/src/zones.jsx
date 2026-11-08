@@ -115,19 +115,14 @@ function Badges({ state, view, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf, rangeOf, info, showInfo }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf, rangeOf, info, showInfo, encoded }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
-    const chipRef = useRef(/** @type {HTMLElement | null} */ (null));
-    const ref = (el) => {
-        chipRef.current = el;
-        setNodeRef(el);
-    };
     const badges = state ? <Badges state={state} view={view} labels={labels} locale={locale} /> : null;
     const words = stateWords(state, view, labels, locale);
     const name = words ? `${text}, ${words}` : undefined;
     const remove = () => onRemove(zone, index, text);
     return (
-        <li ref={ref} style={style} className={`pk-chip pk-chip-${zone}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
+        <li ref={setNodeRef} style={style} className={`pk-chip pk-chip-${zone}${isDragging ? " pk-dragging" : ""}`} {...itemProps} data-chip={text}>
             <span className="pk-handle" {...handleProps} aria-label={fill(labels.dragHandle, { field: text })}>
                 <Icon name="grip" size={16} />
             </span>
@@ -159,9 +154,9 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                 >
                     {(close) =>
                         zone === "values" ? (
-                            <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info }} />
+                            <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info, locale }} />
                         ) : (
-                            <MenuPanel name="AxisMenu" loadingText={labels.loadingMenu} props={{ view, zone, index, field, types, labels, commit, close, openFilter, chipRef, onRemove: remove, defaultsOf, rangeOf, locale, info, state }} />
+                            <MenuPanel name="AxisMenu" loadingText={labels.loadingMenu} props={{ view, zone, index, field, types, labels, commit, close, onRemove: remove, defaultsOf, rangeOf, locale, info, state, encoded }} />
                         )
                     }
                 </MenuButton>
@@ -386,6 +381,7 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             rangeOf={rangeOf}
                             info={e.field ? infoOf?.(e.field) : undefined}
                             showInfo={showInfo}
+                            encoded={encoded}
                         />
                     ))}
                 </Zone>

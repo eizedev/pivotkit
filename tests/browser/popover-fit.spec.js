@@ -55,10 +55,14 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
         await insideWindow(page);
         await page.keyboard.press("Escape");
     }
+    // the Filter level, the longest: its value condition at the end is reached by scrolling inside it
     await page.getByTestId("chip-menu-Team").click();
-    await page.getByText("Value condition…").click();
+    await page.getByTestId("topic-filter").click();
     await insideWindow(page);
-    await expect(page.getByTestId("value-filter-apply")).toBeInViewport();
+    await page.getByTestId("value-filter-op").scrollIntoViewIfNeeded();
+    await expect(page.getByTestId("value-filter-op")).toBeInViewport();
+    await insideWindow(page);
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     for (const menu of ["views", "options", "export"]) {
         await toolbar(page, menu);
@@ -74,10 +78,7 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
  */
 async function infoBoxes(page, { ms = 700, rect = false } = {}) {
     await page.getByTestId("chip-menu-Sum of Revenue").click();
-    const section = page.getByTestId("section-showAs");
-    if ((await section.getAttribute("aria-expanded")) === "false") {
-        await section.click();
-    }
+    await page.getByTestId("topic-showAs").click();
     await page.getByTestId("setting-info-showAs").click();
     return page.evaluate(
         ({ ms, rect }) =>

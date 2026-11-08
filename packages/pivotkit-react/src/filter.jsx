@@ -19,23 +19,21 @@ import { conditionKind, hasFilter, removeFilters, setItemFilter, setLabelFilter 
 /** Values listed at once; the search finds the others. */
 export const FILTER_LIST_MAX = 300;
 
-const keyOf = (v) => JSON.stringify(v);
+/** A value as a key of the set of values picked. */
+export const keyOf = (v) => JSON.stringify(v);
 
-function FilterBody({ view: current, base, field, encoded, locale, labels, commit, close }) {
-    // the view the filter applies to: the report's, or a draft with the field placed in Filters
-    const view = base ?? current;
-    const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
-    const all = useMemo(() => (info ? info.items.map((i) => i.value) : []), [info]);
-    const [selected, setSelected] = useState(() => new Set(selectedItems(view, field, all).map(keyOf)));
+/**
+ * The values of a field to pick from: a search, Select all and Select none (of what the search
+ * shows), and, in a part that scrolls (`children` after them), each value with its row count and
+ * "Only". `selected` holds the keys (keyOf) of the values picked; `onChange` gets the next set. The
+ * filter popover keeps it as a draft until Apply, the Filter level of a chip menu applies it at once.
+ * @param {{ items: Array<{ value: unknown, label: string, count: number }>, selected: Set<string>, onChange: (next: Set<string>) => void,
+ *   labels: any, locale: string, autoFocus?: boolean, children?: React.ReactNode }} props
+ */
+export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, children }) {
     const [query, setQuery] = useState("");
-    const label = filtersOf(view, field, ["label"])[0];
-    const [op, setOp] = useState(label?.op ?? "");
-    const [text, setText] = useState(label?.value ?? "");
-    if (!info) {
-        return null;
-    }
     const q = query.trim().toLocaleLowerCase();
-    const matching = q ? info.items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : info.items;
+    const matching = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
     const shown = matching.slice(0, FILTER_LIST_MAX);
     const setAll = (on) => {
         const next = new Set(selected);
@@ -46,7 +44,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                 next.delete(keyOf(i.value));
             }
         }
-        setSelected(next);
+        onChange(next);
     };
     const toggle = (v) => {
         const next = new Set(selected);
@@ -56,8 +54,61 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
         } else {
             next.add(k);
         }
-        setSelected(next);
+        onChange(next);
     };
+    return (
+        <>
+            <label className="pk-search">
+                <Icon name="search" />
+                <span className="pk-sr">{labels.searchValues}</span>
+                <ClearInput type="search" value={query} placeholder={labels.searchValues} onChange={setQuery} clearLabel={labels.clearText} data-autofocus={autoFocus ? "" : undefined} data-testid="filter-search" />
+            </label>
+            <div className="pk-filter-actions">
+                <button type="button" className="pk-link" onClick={() => setAll(true)} data-testid="select-all">
+                    {labels.selectAll}
+                </button>
+                <button type="button" className="pk-link" onClick={() => setAll(false)} data-testid="select-none">
+                    {labels.selectNone}
+                </button>
+            </div>
+            {/* the middle scrolls when the window is low; what is above and below it stays in view */}
+            <div className="pk-filter-body">
+                <ul className="pk-values" role="list">
+                    {shown.map((i) => {
+                        const k = keyOf(i.value);
+                        return (
+                            <li key={k} className="pk-value">
+                                <label>
+                                    <input type="checkbox" checked={selected.has(k)} onChange={() => toggle(i.value)} />
+                                    <span className="pk-value-label">{i.label}</span>
+                                    <span className="pk-count">{i.count.toLocaleString(locale)}</span>
+                                </label>
+                                <button type="button" className="pk-link pk-only" onClick={() => onChange(new Set([k]))} aria-label={`${labels.onlyThis}: ${i.label}`}>
+                                    {labels.onlyThis}
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+                {matching.length > shown.length ? <p className="pk-hint">{fill(labels.valuesShown, { shown: shown.length, total: matching.length.toLocaleString(locale) })}</p> : null}
+                {children}
+            </div>
+        </>
+    );
+}
+
+function FilterBody({ view: current, base, field, encoded, locale, labels, commit, close }) {
+    // the view the filter applies to: the report's, or a draft with the field placed in Filters
+    const view = base ?? current;
+    const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
+    const all = useMemo(() => (info ? info.items.map((i) => i.value) : []), [info]);
+    const [selected, setSelected] = useState(() => new Set(selectedItems(view, field, all).map(keyOf)));
+    const label = filtersOf(view, field, ["label"])[0];
+    const [op, setOp] = useState(label?.op ?? "");
+    const [text, setText] = useState(label?.value ?? "");
+    if (!info) {
+        return null;
+    }
     const name = fieldLabel(field, labels.core);
     const apply = () => {
         let next = setItemFilter(view, field, all.filter((v) => selected.has(keyOf(v))), all);
@@ -94,39 +145,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                     <span className="pk-btn-text">{labels.removeFilter}</span>
                 </button>
             ) : null}
-            <label className="pk-search">
-                <Icon name="search" />
-                <span className="pk-sr">{labels.searchValues}</span>
-                <ClearInput type="search" value={query} placeholder={labels.searchValues} onChange={setQuery} clearLabel={labels.clearText} data-autofocus="" data-testid="filter-search" />
-            </label>
-            <div className="pk-filter-actions">
-                <button type="button" className="pk-link" onClick={() => setAll(true)}>
-                    {labels.selectAll}
-                </button>
-                <button type="button" className="pk-link" onClick={() => setAll(false)}>
-                    {labels.selectNone}
-                </button>
-            </div>
-            {/* the middle scrolls when the window is low; the head and Apply stay in view */}
-            <div className="pk-filter-body">
-            <ul className="pk-values" role="list">
-                {shown.map((i) => {
-                    const k = keyOf(i.value);
-                    return (
-                        <li key={k} className="pk-value">
-                            <label>
-                                <input type="checkbox" checked={selected.has(k)} onChange={() => toggle(i.value)} />
-                                <span className="pk-value-label">{i.label}</span>
-                                <span className="pk-count">{i.count.toLocaleString(locale)}</span>
-                            </label>
-                            <button type="button" className="pk-link pk-only" onClick={() => setSelected(new Set([k]))} aria-label={`${labels.onlyThis}: ${i.label}`}>
-                                {labels.onlyThis}
-                            </button>
-                        </li>
-                    );
-                })}
-            </ul>
-            {matching.length > shown.length ? <p className="pk-hint">{fill(labels.valuesShown, { shown: shown.length, total: matching.length.toLocaleString(locale) })}</p> : null}
+            <ValueList items={info.items} selected={selected} onChange={setSelected} labels={labels} locale={locale} autoFocus>
             {kind ? (
             <fieldset className="pk-condition">
                 <legend>{kind === "number" ? labels.conditionNumber : labels.condition}</legend>
@@ -158,7 +177,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                 ) : null}
             </fieldset>
             ) : null}
-            </div>
+            </ValueList>
             <div className="pk-popover-foot">
                 <button type="button" className="pk-btn" onClick={close}>
                     {labels.cancel}

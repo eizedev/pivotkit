@@ -31,9 +31,35 @@ export const en = {
         newReport: "Takes every field out, to start over. Undo brings them back; saved views stay.",
         valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."
     },
+    // a menu in levels: the way back, a level's title, the search of a menu
+    back: "Back",
+    backTo: "Back to the menu of {name}",
+    levelTitle: "{name} › {topic}",
+    searchMenu: "Search in the menu of {name}",
+    searchMenuShort: "Search in this menu",
+    searchResults: "Results",
+    searchNothing: "Nothing found. Try another word, or clear the search.",
+    // the topics of a field's menu and what they show when nothing is set
+    sortByValue: "Sort by value",
+    sortOldestShort: "Oldest",
+    sortNewestShort: "Newest",
+    filterTopic: "Filter",
+    filterAll: "All",
+    groupTopic: "Group",
+    groupNoneShort: "None",
+    off: "Off",
+    moveToTitle: "Move to",
+    topOwn: "Top N…",
+    binsOff: "Remove ranges",
+    // the Filter level: how many items the list keeps, the condition on a value as a sentence
+    itemsPicked: "{shown} of {total} items picked",
+    valueConditionTitle: "Condition on a value",
+    keepWhose: "Keep {field} items whose",
+    valueOpAny: "is anything",
+    nameHint: "Applies with Enter or when you leave the field; Escape gives the name back.",
     moveLeft: "Move left",
     moveRight: "Move right",
-    // the foot of a chip menu: takes the field (or value) out of the report; "Remove" alone is a form's (removeSetting)
+    // the last item of a chip menu: takes the field (or value) out of the report
     remove: "Remove field",
     // the hint of "Automatic" in the chart type menu: the type it draws for this view
     chartAutoNow: "Now: {type}",
@@ -121,27 +147,22 @@ export const en = {
     rename: "Name",
     sortOldest: "Oldest first",
     sortNewest: "Newest first",
-    groupBy: "Group dates by",
     groupNone: "No grouping (every date and time)",
     groupTimeline: "Along the time line",
-    groupCyclic: "Compare periods across years",
+    groupCyclic: "Same period every year",
     unitHints: {
         year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan 2025", yearWeek: "2025-W03", day: "Jan 15, 2025",
         quarter: "Q1 of every year", month: "Jan of every year", week: "W03 of every year", weekday: "Mon to Sun", hour: "00:00 to 23:00",
         bin: ""
     },
     bins: "Number ranges",
-    binsStart: "Group into ranges…",
     binsState: "Ranges of {size} from {start}",
     binSize: "Range size",
     binStart: "Starting at",
     binStartFar: "Ranges from {start} cannot hold this field's values ({min} to {max}): every row would be blank. Pick a start closer to them.",
     apply: "Apply",
-    // what is set in a section of the field menu (its ranges, its Top N, its filters): change it, remove it
-    change: "Change",
-    removeSetting: "Remove",
+    // the Top items level
     topN: "Top items",
-    topStart: "Show top items…",
     topCount: "Count",
     bottom: "Bottom",
     topBy: "by",
@@ -238,15 +259,14 @@ export const en = {
     numberInvalid: "Enter a number, such as {example}.",
     countInvalid: "Enter a whole number of 1 or more.",
     sizeInvalid: "Enter a number above 0, such as {example}.",
-    chooseValues: "Choose values…",
-    valueFilter: "Value condition…",
     valueFilterBy: "Value",
     valueFilterOp: "Condition",
     valueFilterNumber: "Number",
     valueFilterTo: "and",
-    valueOps: { "=": "equals", "!=": "does not equal", ">": "greater than", ">=": "greater than or equal to", "<": "less than", "<=": "less than or equal to", between: "between", notBetween: "not between" },
+    // a value condition as a sentence: "… whose Sum of Units is greater than 10"
+    valueOps: { "=": "is", "!=": "is not", ">": "is greater than", ">=": "is at least", "<": "is less than", "<=": "is at most", between: "is between", notBetween: "is not between" },
     removeFilter: "Remove filter",
-    // collapsible sections of the menus
+    // the second group of a level's choices
     moreFormats: "More formats",
     // Options: the totals, and why one would change nothing; expand and collapse all, and what they did
     totals: "Totals",
@@ -265,9 +285,8 @@ export const en = {
     groupsExpanded: { one: "{count} group expanded", other: "{count} groups expanded" },
     // the chart type menu: how the chart is drawn
     chartDisplay: "Display",
-    // the filter: its text conditions, and what a chip menu says it keeps
+    // the filter's conditions on the names
     labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
-    filterIs: "Filter: {filter}",
     // what sharing and the exports said (share-actions.js, export-run.js)
     toastExported: "Exported {file}",
     toastLinkCopied: "Link copied",

@@ -1,6 +1,6 @@
 // What a business user sees: words instead of bare icons, notes that explain, charts that stay
 // readable. Every test here fails without its fix.
-import { chips, expect, openZones, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
 test("narrow: every toolbar button keeps its text; the rest is in a labelled More menu", async ({ page }) => {
     for (const width of [640, 390]) {
@@ -68,24 +68,26 @@ test("a chart draws 50 categories at most and says so", async ({ page }) => {
 
 test("top N: its own badge on the chip and a note that totals cover the shown items only", async ({ page }) => {
     await page.goto("?data=sales");
-    await page.getByTestId("chip-menu-Country").click();
-    // nothing set: one item, the form opens on it with the focus in the count
+    await chipMenu(page, "Country");
+    // nothing set: Off on the row; the level opens with the focus on Off, the count only with Top N…
+    await expect(page.getByTestId("topic-state-top")).toHaveText("Off");
+    await openLevel(page, "top");
+    await expect(page.getByTestId("top-off")).toBeFocused();
     await expect(page.getByTestId("top-count")).toHaveCount(0);
-    await page.getByTestId("top-open").click();
-    await expect(page.getByTestId("top-count")).toBeFocused();
+    await page.getByTestId("top-own").check();
     await page.getByTestId("top-count").fill("2");
-    await page.getByRole("button", { name: "Apply" }).click();
-    // Apply closes the menu, the focus back on the chip
-    await expect(page.getByTestId("chip-menu-Country")).toBeFocused();
+    // Enter applies the count now; the level stays open
+    await page.getByTestId("top-count").press("Enter");
+    await expect(page.getByTestId("top-count")).toBeFocused();
     await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Country"] [data-testid="top-badge"]')).toHaveText("Top 2");
-    // the menu says it in one line with Change and Remove
-    await page.getByTestId("chip-menu-Country").click();
-    await expect(page.getByTestId("top-state").locator(".pk-state-text")).toHaveText("Top 2 by Sum of Revenue");
-    await page.getByTestId("top-change").click();
+    // Escape goes back: the row says it; the level shows it again
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("topic-state-top")).toHaveText("● Top 2 by Sum of Revenue");
+    await expect(page.getByTestId("topic-top")).toBeFocused();
+    await openLevel(page, "top");
+    await expect(page.getByTestId("top-own")).toBeChecked();
     await expect(page.getByTestId("top-count")).toHaveValue("2");
-    await page.getByTestId("top-cancel").click();
-    await expect(page.getByTestId("top-change")).toBeFocused();
-    await page.getByTestId("top-remove").click();
+    await page.getByTestId("top-off").check();
     await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Country"] [data-testid="top-badge"]')).toHaveCount(0);
     await page.getByTestId("undo").click();
     await expect(page.getByTestId("tip-top")).toHaveText("Country shows the top 2 only: totals and percentages cover these items, not all of them.");
@@ -136,11 +138,9 @@ test("Rows without Values: a note says what to do; one value column is not stret
 
 test("a filtered field says how many of its values are shown", async ({ page }) => {
     await page.goto("?data=sales");
-    await page.getByTestId("chip-menu-Region").click();
-    await page.getByTestId("open-filter").click();
+    await chipMenu(page, "Region", "filter");
     const total = await page.locator(".pk-value").count();
     await page.locator(".pk-value", { hasText: "West" }).locator("input").uncheck();
-    await page.getByTestId("filter-apply").click();
     await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text')).toHaveText(`${total - 1} of ${total}`);
 });
 

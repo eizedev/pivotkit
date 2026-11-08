@@ -101,3 +101,19 @@ export async function openSection(scope, id) {
 
 /** Opens the Share section of an open Views menu: folded at first. */
 export const openShare = (scope) => openSection(scope, "share");
+
+/**
+ * Opens a topic's level in an open menu in levels: its row on the first level ("filter", "top",
+ * "format", ...), then waits for the level.
+ */
+export async function openLevel(scope, topic) {
+    await scope.getByTestId(`topic-${topic}`).click();
+    await expect(scope.getByTestId(`level-${topic}`)).toBeVisible();
+}
+
+/** Opens the menu of a chip (by its text) and, with a topic, that topic's level. */
+export async function chipMenu(page, chip, topic) {
+    await page.getByTestId(`chip-menu-${chip}`).click();
+    await expect(page.locator(".pk-chip-menu .pk-levels")).toBeVisible();
+    if (topic) await openLevel(page.locator(".pk-chip-menu"), topic);
+}

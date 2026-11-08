@@ -304,7 +304,7 @@ test("help switches: the host's on or off decides, else the user's list; Show di
     // the earlier separate switches are no entries any more
     assert.deepEqual(cleanDismissed(["-fieldInfo", "-zoneInfo", "-settingInfo", "nope", ALL_TIPS, NO_EXPLANATIONS, NO_EXPLANATIONS]), [ALL_TIPS, NO_EXPLANATIONS]);
     // "Show dismissed tips again" keeps the switches and the sections' states, takes the tips back
-    assert.deepEqual([ALL_TIPS, NO_EXPLANATIONS, "open:format", "values"].filter(keptOnReset), [ALL_TIPS, NO_EXPLANATIONS, "open:format"]);
+    assert.deepEqual([ALL_TIPS, NO_EXPLANATIONS, "open:share", "values"].filter(keptOnReset), [ALL_TIPS, NO_EXPLANATIONS, "open:share"]);
 });
 
 test("the field list collapsed: the user's choice in this session, else the host's fieldList, else the stored list", () => {
@@ -322,36 +322,38 @@ test("the field list collapsed: the user's choice in this session, else the host
 });
 
 test("menu sections: open or folded by default, the user's choice kept in the tips' list only where it differs", () => {
-    assert.equal(sectionOpen("summarize", []), true);
-    assert.equal(sectionOpen("format", []), false);
-    const opened = withSection([], "format", true);
-    assert.deepEqual(opened, ["open:format"]);
-    assert.equal(sectionOpen("format", opened), true);
+    assert.equal(sectionOpen("exportDownload", []), true);
+    assert.equal(sectionOpen("share", []), false);
+    const opened = withSection([], "share", true);
+    assert.deepEqual(opened, ["open:share"]);
+    assert.equal(sectionOpen("share", opened), true);
     // back to its default: no entry
-    assert.deepEqual(withSection(opened, "format", false), []);
-    const folded = withSection(["values"], "summarize", false);
-    assert.deepEqual(folded, ["values", "closed:summarize"]);
-    assert.equal(sectionOpen("summarize", folded), false);
+    assert.deepEqual(withSection(opened, "share", false), []);
+    const folded = withSection(["values"], "exportDownload", false);
+    assert.deepEqual(folded, ["values", "closed:exportDownload"]);
+    assert.equal(sectionOpen("exportDownload", folded), false);
     // stored entries survive cleaning; unknown sections and shapes do not
-    assert.deepEqual(cleanDismissed(["open:format", "closed:summarize", "open:nothing", "open:", "closed:__proto__"]), ["open:format", "closed:summarize"]);
+    assert.deepEqual(cleanDismissed(["open:share", "closed:exportDownload", "open:nothing", "open:", "closed:__proto__"]), ["open:share", "closed:exportDownload"]);
     // a section without a default is open
     assert.equal(sectionOpen("unknown", []), true);
 });
 
-test("menu sections: Share and the chart's display settings start folded; the folds that hid almost nothing are gone", () => {
+test("menu sections: Share and the chart's display settings start folded; the chip menus and Options fold no more", () => {
     assert.equal(sectionOpen("share", []), false);
     assert.equal(sectionOpen("chartDisplay", []), false);
-    for (const id of ["summarize", "showAs", "sort", "filters", "topN", "totals", "help", "exportDownload", "exportCopy", "thisView", "sharedViews"]) {
+    for (const id of ["exportDownload", "exportCopy", "thisView", "sharedViews", "myViews", "chartType"]) {
         assert.equal(sectionOpen(id, []), true, id);
     }
-    // Options → Rows, the value's Name and its Filters hint fold no more: a stored state of theirs is dropped
-    assert.deepEqual(cleanDismissed(["open:name", "open:valueFilters", "closed:folding", "open:share"]), ["open:share"]);
+    // the folds that are gone (the chip menus and Options have levels now, the earlier folds of
+    // Options → Rows, a value's Name and its Filters hint): a stored state of theirs is dropped
+    const gone = ["summarize", "showAs", "format", "highlight", "move", "sort", "groupBy", "bins", "topN", "filters", "totals", "help", "name", "valueFilters", "folding"];
+    assert.deepEqual(cleanDismissed([...gone.map((id) => `closed:${id}`), ...gone.map((id) => `open:${id}`), "open:share"]), ["open:share"]);
 });
 
 test("Reset menu sections: every section as at first, the tips and switches kept; Show dismissed tips again keeps the sections", () => {
-    const list = [ALL_TIPS, "values", "open:format", "closed:summarize", FIELDS_COLLAPSED];
+    const list = [ALL_TIPS, "values", "open:share", "closed:exportDownload", FIELDS_COLLAPSED];
     assert.deepEqual(withoutSections(list), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
-    assert.equal(sectionOpen("format", withoutSections(list)), false);
-    assert.equal(sectionOpen("summarize", withoutSections(list)), true);
-    assert.deepEqual(list.filter(keptOnReset), [ALL_TIPS, "open:format", "closed:summarize", FIELDS_COLLAPSED]);
+    assert.equal(sectionOpen("share", withoutSections(list)), false);
+    assert.equal(sectionOpen("exportDownload", withoutSections(list)), true);
+    assert.deepEqual(list.filter(keptOnReset), [ALL_TIPS, "open:share", "closed:exportDownload", FIELDS_COLLAPSED]);
 });

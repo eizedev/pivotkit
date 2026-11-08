@@ -49,9 +49,9 @@ test.describe("a host page that provides React", () => {
 test("a host that renders again does not move the focus inside an open popover", async ({ page }) => {
     await page.goto("pages/host.html");
     await page.getByTestId("chip-menu-Region").click();
-    await page.getByTestId("open-filter").click();
-    await expect(page.locator(".pk-filter-popover input[type=search]")).toBeFocused();
-    const second = page.locator(".pk-filter-popover .pk-value input").nth(1);
+    await page.getByTestId("topic-filter").click();
+    await expect(page.locator(".pk-chip-menu input[type=search]").last()).toBeFocused();
+    const second = page.locator(".pk-chip-menu .pk-value input").nth(1);
     await second.focus();
     const before = Number(await page.getByTestId("host-renders").textContent());
     await expect.poll(async () => Number(await page.getByTestId("host-renders").textContent())).toBeGreaterThan(before + 4);

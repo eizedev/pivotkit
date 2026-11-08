@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { readSheet } from "read-excel-file/node";
-import { chips, expect, tableRows, test } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
@@ -166,8 +166,8 @@ test.describe("earthquakes", () => {
     test("a colour scale, ranges by count and the regions in each range by count: nothing dropped", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
         await page.getByTestId("chip-menu-Quakes").click();
-        await page.getByTestId("section-highlight").click();
         await page.getByTestId("cond-colorScale").click();
+        await page.keyboard.press("Escape");
         await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
         await page.getByTestId("sort-value-desc-0").click();
         await page.getByTestId("field-menu-Region").click();
@@ -338,49 +338,57 @@ test.describe("software end of life in a time zone far from UTC", () => {
 test.describe("learning tasks", () => {
     test("weather: Max instead of Average; rain days as % of row total", async ({ page }) => {
         await open(page, "data=weather&preset=0");
-        await page.getByTestId("chip-menu-Average of Mean °C").click();
+        await chipMenu(page, "Average of Mean °C", "summarize");
         await page.getByTestId("agg-max").click();
         const jan = weather.filter((x) => x.City === "Reykjavik" && x.Date.slice(5, 7) === "01");
         expect((await row(page, "Reykjavik"))[1]).toBe(one(Math.max(...jan.map((x) => x["Mean °C"]))));
 
         await open(page, "data=weather&preset=2");
-        await page.getByTestId("chip-menu-Rain days").click();
+        await chipMenu(page, "Rain days", "showAs");
         await page.getByTestId("showas-percentOfRowTotal").click();
         expect((await row(page, "Singapore")).at(-1)).toBe("100.0%");
     });
 
     test("weather: top 5 sunniest cities", async ({ page }) => {
         await open(page, "data=weather&preset=1");
-        await page.getByTestId("chip-menu-City").click();
-        // the template's top 3, said in one line; Change opens its form
-        await expect(page.getByTestId("top-state").locator(".pk-state-text")).toHaveText("Top 3 by Sunshine hours per day");
-        await page.getByTestId("top-change").click();
-        await page.getByTestId("top-count").fill("5");
-        await page.getByRole("button", { name: "Apply" }).click();
+        await chipMenu(page, "City");
+        // the template's top 3, said on its row; its level has Top 5 as a quick choice
+        await expect(page.getByTestId("topic-state-top")).toHaveText("● Top 3 by Sunshine hours per day");
+        await openLevel(page, "top");
+        await expect(page.getByTestId("top-3")).toBeChecked();
+        await page.getByTestId("top-5").check();
+        await expect.poll(async () => (await tableRows(page)).length).toBe(6);
         const ranked = Object.entries(Object.groupBy(weather, (x) => x.City)).map(([c, l]) => [c, avg(l.map((x) => x["Sunshine h"]))]).sort((a, b) => b[1] - a[1]);
         expect((await tableRows(page)).map((r) => r[0])).toEqual([...ranked.slice(0, 5).map(([c]) => c), "Grand Total"]);
     });
 
     test("countries: removing the top 3 shows every country of a region", async ({ page }) => {
         await open(page, "data=countries&preset=0");
-        await page.getByTestId("chip-menu-Country").click();
-        await page.getByTestId("top-remove").click();
+        await chipMenu(page, "Country", "top");
+        await page.getByTestId("top-off").check();
         await expect(page.getByTestId("tip-top")).toHaveCount(0);
         const southAsia = countries.filter((x) => x.Year === 2024 && x.Region === "South Asia");
         const rows = await tableRows(page);
         expect(rows.filter((r) => southAsia.some((c) => r.includes(c.Country)))).toHaveLength(southAsia.length);
     });
 
-    test("countries: Apply with no count removes the top 3, and Undo brings it back", async ({ page }) => {
+    test("countries: an empty count changes nothing, Off removes the top 3, and Undo brings it back", async ({ page }) => {
         await open(page, "data=countries&preset=0");
-        await page.getByTestId("chip-menu-Country").click();
-        await page.getByTestId("top-change").click();
+        await chipMenu(page, "Country", "top");
+        // the level opens with the focus on the choice in use
+        await expect(page.getByTestId("top-3")).toBeFocused();
+        await page.getByTestId("top-own").check();
         await page.getByTestId("top-count").fill("");
         await page.getByTestId("top-count").press("Enter");
-        await expect(page.getByTestId("tip-top")).toHaveCount(0);
+        await expect(page.getByTestId("tip-top")).toHaveCount(1);
         await expect(page.getByTestId("top-count-problem")).toHaveCount(0);
-        // the focus goes back to the chip, as after any change in its menu
-        await expect(page.getByTestId("chip-menu-Country")).toBeFocused();
+        await page.getByTestId("top-off").check();
+        await expect(page.getByTestId("tip-top")).toHaveCount(0);
+        // the level stays open, the focus on Off
+        await expect(page.getByTestId("top-off")).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(page.getByTestId("topic-state-top")).toHaveText("Off");
+        await page.keyboard.press("Escape");
         const southAsia = countries.filter((x) => x.Year === 2024 && x.Region === "South Asia");
         await expect.poll(async () => (await tableRows(page)).filter((r) => southAsia.some((c) => r.includes(c.Country))).length).toBe(southAsia.length);
         await page.getByTestId("undo").click();
@@ -389,9 +397,9 @@ test.describe("learning tasks", () => {
 
     test("earthquakes: ranges of 1, then the depth in ranges of 100", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
-        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
-        await expect(page.getByTestId("bin-state").locator(".pk-state-text")).toHaveText("Ranges of 0.5 from 4.5");
-        await page.getByTestId("bin-change").click();
+        await chipMenu(page, "Magnitude (by 0.5)");
+        await expect(page.getByTestId("topic-state-bins")).toHaveText("● Ranges of 0.5 from 4.5");
+        await openLevel(page, "bins");
         await page.getByTestId("bin-size").fill("1");
         await page.getByTestId("bin-size").press("Enter");
         expect((await row(page, "Grand Total"))[1]).toBe(int(quakes.length));
@@ -401,8 +409,7 @@ test.describe("learning tasks", () => {
         await page.getByRole("button", { name: "Remove Region" }).click();
         await page.getByTestId("field-menu-Depth km").click();
         await page.getByRole("menuitem", { name: "Add to Rows" }).click();
-        await page.getByTestId("chip-menu-Depth km").click();
-        await page.getByTestId("bin-open").click();
+        await chipMenu(page, "Depth km", "bins");
         await page.getByTestId("bin-size").fill("100");
         await page.getByTestId("bin-size").press("Enter");
         expect((await row(page, "0 – 100"))[1]).toBe(int(quakes.filter((x) => x["Depth km"] < 100).length));
@@ -423,8 +430,9 @@ test.describe("learning tasks", () => {
         expect((await row(page, "2026"))[7]).toBe(int(eol.filter((x) => x["EOL date"]?.startsWith("2026") && x.Category === "Server app").length));
 
         await open(page, "data=endoflife&preset=3");
-        await page.getByTestId("chip-menu-Average of Support years").click();
-        await page.getByText("More statistics").click();
+        await chipMenu(page, "Average of Support years", "summarize");
+        // the statistics under their heading in the level
+        await expect(page.getByText("More statistics")).toBeVisible();
         await page.getByTestId("agg-median").click();
         const years = eol.filter((x) => x.Category === "Language" && !x.LTS && x["Support years"] !== null).map((x) => x["Support years"]).sort((a, b) => a - b);
         const mid = years.length / 2;
@@ -532,29 +540,26 @@ test.describe("what the real data showed (#21 to #26)", () => {
 
     test("Apply with no range size removes the ranges, as Remove does", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
-        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
-        await page.getByTestId("bin-change").click();
+        await chipMenu(page, "Magnitude (by 0.5)", "bins");
         await page.getByTestId("bin-size").fill("");
         await page.getByTestId("bin-size").press("Enter");
         await expect(page.getByTestId("chip-menu-Magnitude")).toBeVisible();
         await expect(page.getByTestId("bin-size-problem")).toHaveCount(0);
         await page.getByTestId("undo").click();
         await expect(page.getByTestId("chip-menu-Magnitude (by 0.5)")).toBeVisible();
-        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
-        await page.getByTestId("bin-remove").click();
+        await chipMenu(page, "Magnitude (by 0.5)", "bins");
+        await page.getByTestId("bin-off").click();
         await expect(page.getByTestId("chip-menu-Magnitude")).toBeVisible();
     });
 
     test("a new range size keeps the start; Starting at moves it", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
-        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
-        await page.getByTestId("bin-change").click();
+        await chipMenu(page, "Magnitude (by 0.5)", "bins");
         await expect(page.getByTestId("bin-start")).toHaveValue("4.5");
         await page.getByTestId("bin-size").fill("1");
         await page.getByTestId("bin-size").press("Enter");
         expect((await row(page, "4.5 – 5.5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5.5).length));
-        await page.getByTestId("chip-menu-Magnitude (by 1)").click();
-        await page.getByTestId("bin-change").click();
+        await chipMenu(page, "Magnitude (by 1)", "bins");
         await page.getByTestId("bin-start").fill("4");
         await page.getByTestId("bin-start").press("Enter");
         expect((await row(page, "4 – 5"))[1]).toBe(int(quakes.filter((x) => x.Magnitude < 5).length));
@@ -562,8 +567,7 @@ test.describe("what the real data showed (#21 to #26)", () => {
 
     test("Starting at: empty is 0; a start too far from the values is refused with a note", async ({ page }) => {
         await open(page, "data=earthquakes&preset=0");
-        await page.getByTestId("chip-menu-Magnitude (by 0.5)").click();
-        await page.getByTestId("bin-change").click();
+        await chipMenu(page, "Magnitude (by 0.5)", "bins");
         // the ranges of 0.5 from 1e17 cannot be told apart: every row would be "(blank)"
         await page.getByTestId("bin-start").fill("1e17");
         await expect(page.getByTestId("bin-problem")).toContainText("Ranges from 100,000,000,000,000,000 cannot hold this field's values");
@@ -606,13 +610,15 @@ test.describe("what the real data showed (#21 to #26)", () => {
         await open(page, "data=weather&preset=2");
         const seasons = () => page.locator(".pk-table thead tr:first-child th.pk-colHeader").allTextContents();
         expect(await seasons()).toEqual(["Spring", "Summer", "Autumn", "Winter", "Grand Total"]);
-        await page.getByTestId("chip-menu-Season").click();
-        await expect(page.getByTestId("sort-custom")).toHaveAttribute("aria-pressed", "true");
+        // the custom orders are in the level of sorts by value: its row names the one in use
+        await chipMenu(page, "Season");
+        await expect(page.getByTestId("topic-state-sortValue")).toHaveText("● Custom order");
+        await openLevel(page, "sortValue");
+        await expect(page.getByTestId("sort-custom")).toHaveAttribute("aria-checked", "true");
         await page.getByTestId("sort-custom-desc").click();
         await expect.poll(seasons).toEqual(["Winter", "Autumn", "Summer", "Spring", "Grand Total"]);
         // A to Z stays A to Z: the host's order does not come back
-        await page.getByTestId("chip-menu-Season").click();
-        await page.getByRole("button", { name: "A to Z", exact: true }).click();
+        await page.getByRole("menuitemradio", { name: "A to Z", exact: true }).click();
         await expect.poll(seasons).toEqual(["Autumn", "Spring", "Summer", "Winter", "Grand Total"]);
     });
 

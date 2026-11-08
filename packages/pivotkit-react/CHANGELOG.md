@@ -6,6 +6,47 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The menus of a chip and Options are in levels instead of long accordions. The first level is a
+  short summary: one row per topic with what is set on its right ("Filter · All", "Top items · Off",
+  "Number format · ● Currency"; the dot and ", changed" in its accessible name where it is not the
+  default), or a topic's few choices right there (A to Z and Z to A, a value's Highlight, the totals
+  and help switches). A row opens the topic's own level in place, titled with the field ("Month ›
+  Group"), with **‹ Back**. The first level and the levels of choices are ARIA menus (WAI-ARIA
+  Authoring Practices: one Tab stop, arrow keys, Home and End, type-ahead; Enter or the right arrow
+  into a level, Escape or the left arrow back to the row it came from, Escape on the first level
+  closes the menu, Tab closes it and moves on); a level with form controls is a group with its
+  heading. A search above a chip menu's first level finds a choice of any level, with its path.
+- Every choice in these menus applies at once, without Apply: the values of the Filter level (in a
+  chip's menu; the filter popover of a Filters chip keeps its draft and Apply), the text condition and
+  the numbers a moment after the typing stops (or with Enter), a value's name with Enter or when the
+  field is left; Escape in a field gives back what applies. Number ranges keep Apply (size and start
+  apply together).
+- The Filter level of a field: how many items the list keeps, **Remove filter** (now also taking the
+  value condition; Top N stays), the values with their counts, the condition on the names, and the
+  condition on a value as a sentence ("Keep Region items whose Sum of Revenue is greater than …";
+  "is anything" takes it off). The Top items level: Off, Top 3, Top 5, Top 10, or **Top N…** with Top
+  or Bottom and a count. The Group level of a date: one column, each unit's example on its right,
+  under "Along the time line" and "Same period every year". Sorting by a value: on the first level
+  for one value, else in the level **Sort by value**.
+- Options: the totals and help switches are menu items (`menuitemcheckbox`); one that would change
+  nothing is `aria-disabled` with its reason, so the arrow keys still reach it; the "i" next to a
+  total is for the pointer, its text is the item's description; Keyboard shortcuts is a level.
+- The chip menus and Options no longer fold: `SECTIONS` keeps the sections of Views, Chart type and
+  Export only. A stored state of a section that is gone (`open:format`, `closed:totals`, …) is
+  dropped when the list is read, and **Reset menu sections** acts on the sections that still fold.
+- Text fields, searches and selects in the menus have an edge of 3:1 contrast in both themes: the new
+  token `--pk-input-border`.
+- Labels of the menus (a host's `labels` for them): new `back`, `backTo`, `levelTitle`, `searchMenu`,
+  `searchMenuShort`, `searchResults`, `searchNothing`, `sortByValue`, `sortOldestShort`,
+  `sortNewestShort`, `filterTopic`, `filterAll`, `groupTopic`, `groupNoneShort`, `off`,
+  `moveToTitle`, `topOwn`, `binsOff`, `itemsPicked`, `valueConditionTitle`, `keepWhose`,
+  `valueOpAny`, `nameHint`; changed: `valueOps` is the comparison inside the sentence ("is greater
+  than", German "größer als"), `groupCyclic` reads "Same period every year"; gone (no longer shown):
+  `chooseValues`, `valueFilter`, `change`, `removeSetting`, `topStart`, `binsStart`, `filterIs`,
+  `groupBy`. A host's text for a key that is gone is ignored.
+
 ### Fixed
 
 - The "i" popover (and every other popover) appears at its final size and place
@@ -21,7 +62,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `transition: none`), so nothing moves at all.
 - German texts quote with German quotation marks
   ([#79](https://github.com/eizedev/pivotkit/issues/79)): a text condition in a chip's menu
-  ("Filter: enthält „an“") and the fields a view for other data names ("Felder, die diese Daten
+  ("enthält „an“") and the fields a view for other data names ("Felder, die diese Daten
   nicht haben: „Country“") take their quotes from the new label `quote` (`"“{text}”"` in English,
   `"„{text}“"` in German); they were English quotes in every language.
 - The empty report's first steps ("Build your report in three steps" with its **Start with …**

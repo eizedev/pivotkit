@@ -297,8 +297,8 @@ test.describe("help switches", () => {
         await expect(page.locator(".pk-info-pop")).toContainText("Example: Region in Rows");
         await page.keyboard.press("Escape");
         await toolbar(page, "options");
-        // two switches only: tips and explanations
-        await expect(page.locator(".pk-popover .pk-switch input")).toHaveCount(6);
+        // two switches only besides the four totals: tips and explanations
+        await expect(page.locator('.pk-popover [role="menuitemcheckbox"]')).toHaveCount(6);
         await expect(page.getByTestId("show-zone-info")).toHaveCount(0);
         await expect(page.getByTestId("show-field-info")).toHaveCount(0);
         await flip(page.getByTestId("show-explanations"));
@@ -435,5 +435,5 @@ plain("a menu whose code cannot be loaded says so and loads on Try again", async
     // loaded once, every menu has it
     await page.keyboard.press("Escape");
     await page.getByTestId("chip-menu-Region").click();
-    await expect(page.getByTestId("open-filter")).toBeVisible();
+    await expect(page.getByTestId("topic-filter")).toBeVisible();
 });

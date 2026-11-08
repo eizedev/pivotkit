@@ -165,9 +165,14 @@ async function licenses(metafile) {
  * (CI about 149.2), so its budget went to 150. A review then capped the open warning at its first
  * lines with "Show N more", moved the focus after its x to what follows and told apart lines of one
  * name: first load 149.4 (CI about 149.7, within 150), "unused" 4.2 (CI about 4.5, budget 4.7).
+ * The chip menus and Options in levels (a first level that says what is set, a level per topic, the
+ * search over all levels, every choice at once; levels.jsx, menu-topics.js) took the menus to 27.6
+ * measured on a Mac (CI about 27.9, budget 29) and their German texts to 4.7 (CI about 5.0, budget
+ * 5.2); the levels' rules in the one stylesheet, less the folds and forms they replace, took the
+ * first load from 149.5 to 149.6 (CI about 149.9), so its budget went to 151.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 150, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9, unused: 4.7 };
+export const SIZE_BUDGET_KIB = { initial: 151, chart: 211, export: 11.5, link: 7.3, menus: 29, texts: 5.2, unused: 4.7 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

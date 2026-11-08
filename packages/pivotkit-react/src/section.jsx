@@ -15,16 +15,17 @@ import { fill } from "./labels.js";
 /**
  * The "i" next to a setting: its explanation (labels.settingInfo[id], loaded with the menus) on
  * hover, focus or tap. Nothing while "Show explanations" is off or the text is missing.
- * @param {{ id: string, name: string }} props  `name`: the setting's name, for the button's name
+ * @param {{ id: string, name: string, tabIndex?: number }} props  `name`: the setting's name, for the button's name;
+ *   `tabIndex` -1 next to a menu's item (the item has the text as its description)
  */
-export function SettingInfo({ id, name }) {
+export function SettingInfo({ id, name, tabIndex }) {
     const { explain, labels } = useContext(HelpContext);
     // the texts load with the menus (menu-labels.js): none before
     const text = labels && labels.settingInfo && Object.hasOwn(labels.settingInfo, id) ? labels.settingInfo[id] : null;
     if (!explain || !labels || !text) {
         return null;
     }
-    return <InfoButton info={{ description: text }} name={name} label={fill(labels.aboutSetting, { setting: name })} labels={labels} className="pk-setting-info" testId={`setting-info-${id}`} />;
+    return <InfoButton info={{ description: text }} name={name} label={fill(labels.aboutSetting, { setting: name })} labels={labels} className="pk-setting-info" testId={`setting-info-${id}`} tabIndex={tabIndex} />;
 }
 
 /**

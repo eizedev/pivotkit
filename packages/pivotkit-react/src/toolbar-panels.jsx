@@ -16,7 +16,8 @@ import { Section, SettingInfo } from "./section.jsx";
 import { withoutSections } from "./sections.js";
 import { shareActions } from "./share-actions.js";
 import { SHORTCUTS } from "./tips.js";
-import { totalNoEffect, TOTALS } from "./menu-ops.js";
+import { LevelMenu } from "./levels.jsx";
+import { optionTopics } from "./menu-topics.js";
 import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { storeViews } from "./view-store.js";
 
@@ -210,92 +211,67 @@ function Shortcuts({ labels, mod }) {
 }
 
 /**
- * A switch: a checkbox drawn as a track, on one line, with an "i" (`info`, an id of
- * labels.settingInfo) next to it. Disabled, it says why under it (`reason`).
- * @param {{ checked: boolean, onChange: (on: boolean) => void, testId?: string, children: React.ReactNode,
- *   disabled?: boolean, reason?: string | null, info?: string, name?: string }} props
+ * A switch: a checkbox drawn as a track, on one line (the chart's smooth lines).
+ * @param {{ checked: boolean, onChange: (on: boolean) => void, testId?: string, children: React.ReactNode }} props
  */
-function Switch({ checked, onChange, testId, children, disabled, reason, info, name }) {
-    const reasonId = useId();
+function Switch({ checked, onChange, testId, children }) {
     return (
-        <div className="pk-setting-row">
-            <label className={`pk-switch${disabled ? " pk-disabled" : ""}`}>
-                <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} aria-describedby={disabled && reason ? reasonId : undefined} data-testid={testId} />
-                <span className="pk-switch-track" aria-hidden="true" />
-                <span className="pk-switch-text">
-                    {children}
-                    {disabled && reason ? (
-                        <span id={reasonId} className="pk-option-hint" data-testid={testId ? `${testId}-reason` : undefined}>
-                            {reason}
-                        </span>
-                    ) : null}
-                </span>
-            </label>
-            {info ? <SettingInfo id={info} name={name ?? ""} /> : null}
-        </div>
+        <label className="pk-switch">
+            <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
+            <span className="pk-switch-track" aria-hidden="true" />
+            <span className="pk-switch-text">{children}</span>
+        </label>
     );
 }
 
-/** "Reset menu sections": every section open or folded as at first, the tips as they are; off while nothing differs. */
-function ResetSections({ list, change, labels }) {
-    const rest = withoutSections(list);
-    // said in a live region of the menu's own (it stays open): the first load carries nothing for it
-    const [done, setDone] = useState(false);
-    const status = useRef(/** @type {HTMLSpanElement | null} */ (null));
-    return (
-        <>
-            <Option
-                icon="reset"
-                onSelect={() => {
-                    // the entry turns off: the focus goes to the Help section's title, the status says it
-                    const title = /** @type {HTMLElement | null | undefined} */ (status.current?.closest(".pk-section")?.querySelector(".pk-section-toggle"));
-                    change(rest, null);
-                    title?.focus();
-                    setDone(true);
-                }}
-                disabled={rest.length === list.length}
-                testId="reset-sections"
-            >
-                {labels.resetSections}
-            </Option>
-            <span ref={status} className="pk-sr" role="status" data-testid="reset-sections-status">
-                {done ? labels.resetSectionsDone : ""}
-            </span>
-        </>
-    );
-}
-
+/**
+ * The Options menu (topics in menu-topics.js): the totals, Expand all and Collapse all, help with the
+ * keyboard shortcuts as a level. A switch or an action applies at once and the menu stays open (the
+ * report behind it shows the change); Expand all and Collapse all close it. "Reset menu sections"
+ * says it is done in a status line of its own (the first load carries nothing for it).
+ */
 export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help }) {
+    const [reset, setReset] = useState(false);
+    const sections = help?.sections ?? null;
+    const rest = sections ? withoutSections(sections[0]) : [];
+    const topics = optionTopics({
+        view,
+        labels,
+        folding,
+        tips,
+        explanations: help?.explanations ?? null,
+        sections: sections ? { can: rest.length !== sections[0].length } : null,
+        act: {
+            total: onTotal,
+            expand: () => onExpand(labels),
+            collapse: () => onCollapse(labels),
+            tipsOn: (on) => tips.onOn(on),
+            resetTips: () => tips.onReset(),
+            explain: (on) => help?.explanations?.set(on),
+            resetSections: () => {
+                sections?.[1](rest, null);
+                setReset(true);
+            }
+        }
+    });
     return (
         <>
-            <Section title={labels.totals} id="totals">
-                {/* a total that would change nothing in this view is off-limits, with the reason */}
-                {TOTALS.map((key) => {
-                    const why = totalNoEffect(view, key);
-                    return (
-                        <Switch key={key} checked={view.totals[key]} onChange={(on) => onTotal(key, on)} disabled={why !== null} reason={why ? labels[why] : null} info={key} name={labels[key]} testId={`total-${key}`}>
-                            {labels[key]}
-                        </Switch>
-                    );
-                })}
-            </Section>
-            <Section title={labels.zones.rows}>
-                {/* each only when it would change something; when not, a line says why */}
-                <Option icon="chevronDown" onSelect={() => { close(); onExpand(labels); }} disabled={!folding.canExpand} reason={folding.why.expand ? labels[folding.why.expand] : undefined} testId="expand-all">{labels.expandAll}</Option>
-                <Option icon="chevronRight" onSelect={() => { close(); onCollapse(labels); }} disabled={!folding.canCollapse} reason={folding.why.collapse ? labels[folding.why.collapse] : undefined} testId="collapse-all">{labels.collapseAll}</Option>
-            </Section>
-            {/* help: the tips, and the "i" of settings, zones and fields: one switch, unless the host decides each */}
-            <Section title={labels.help} id="help">
-                {tips.controls ? <Switch checked={tips.on} onChange={tips.onOn} testId="show-tips">{labels.showTips}</Switch> : null}
-                {help?.explanations ? <Switch checked={help.explanations.on} onChange={help.explanations.set} testId="show-explanations">{labels.showSettingInfo}</Switch> : null}
-                {tips.controls ? <Option icon="reset" onSelect={() => tips.onReset()} disabled={!tips.canReset} testId="reset-tips">{labels.resetTips}</Option> : null}
-                {/* the sections' folding is kept apart from the tips: its own way back to the start */}
-                {help?.sections ? <ResetSections list={help.sections[0]} change={help.sections[1]} labels={labels} /> : null}
-                <details className="pk-more">
-                    <summary className="pk-more-title" data-testid="shortcuts-title">{labels.shortcutsTitle}</summary>
-                    <Shortcuts labels={labels} mod={mod} />
-                </details>
-            </Section>
+            <LevelMenu
+                name={labels.options}
+                labels={labels}
+                topics={topics}
+                close={close}
+                onPick={(c) => {
+                    if (c.closes) {
+                        close();
+                    }
+                    c.run?.();
+                }}
+                panel={(id) => (id === "shortcuts" ? <Shortcuts labels={labels} mod={mod} /> : null)}
+            />
+            <span className="pk-sr" role="status" data-testid="reset-sections-status">
+                {reset ? labels.resetSectionsDone : ""}
+            </span>
         </>
     );
 }

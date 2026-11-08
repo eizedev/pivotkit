@@ -7,7 +7,7 @@ import {
     setChartDisplay, rowFolding, numericResult, sameRef, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
 } from "../src/view-ops.js";
 import {
-    binProblem, filterText, hasFilter, measureChoices, removeFilters, setItemFilter, setLabelFilter, setTopFilter,
+    binProblem, filterState, hasFilter, measureChoices, removeFilters, setItemFilter, setLabelFilter, setTopFilter,
     setValueFilter, totalNoEffect, TOTALS, updateValue, withMeasure
 } from "../src/menu-ops.js";
 import { refLabel, sortText, valueConditionText } from "../src/names.js";
@@ -321,18 +321,18 @@ test("Remove filter takes the item list and the text condition, keeps Top N and 
     assert.deepEqual(filterZoneFields(removeFilters(z, "Product")), ["Product"]);
 });
 
-test("the menu says what a filter keeps: shown of total, the text condition, the value condition", () => {
+test("the menu says what a filter keeps, in short: shown of total, the text condition, the value condition", () => {
     const labels = MENU.en;
     let v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
-    assert.equal(filterText(v, "Region", null, labels, "en-US"), null);
+    assert.equal(filterState(v, "Region", null, labels, "en-US"), null);
     v = setLabelFilter(v, "Region", { op: "contains", value: "or" });
-    assert.equal(filterText(v, "Region", { summary: { shown: 15, total: 1045 } }, labels, "en-US"), "Filter: 15 of 1,045, contains “or”");
+    assert.equal(filterState(v, "Region", { summary: { shown: 15, total: 1045 } }, labels, "en-US"), "15 of 1,045, contains “or”");
     // each language its own quotation marks (labels.quote)
-    assert.equal(filterText(v, "region", null, MENU.de, "de-DE"), "Filter: enthält „or“");
-    assert.equal(filterText(v, "Region", null, { ...MENU.en, quote: "«{text}»" }, "fr-FR"), "Filter: contains «or»");
+    assert.equal(filterState(v, "region", null, MENU.de, "de-DE"), "enthält „or“");
+    assert.equal(filterState(v, "Region", null, { ...MENU.en, quote: "«{text}»" }, "fr-FR"), "contains «or»");
     v = norm(setValueFilter(v, "Region", { by: { field: "Units", agg: "sum" }, op: ">", value: 1000 }));
-    assert.equal(filterText(v, "Region", null, labels, "en-US"), "Filter: Sum of Units > 1,000, contains “or”");
-    assert.equal(filterText(v, "Region", null, MENU.de, "de-DE"), "Filter: Summe von Units > 1.000, enthält „or“");
+    assert.equal(filterState(v, "Region", null, labels, "en-US"), "Sum of Units > 1,000, contains “or”");
+    assert.equal(filterState(v, "Region", null, MENU.de, "de-DE"), "Summe von Units > 1.000, enthält „or“");
 });
 
 test("a value condition: set, changed, removed; it keeps the field's other filters and names its value", () => {

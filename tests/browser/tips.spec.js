@@ -1,7 +1,7 @@
 // The tips above the result: one at a time, dismissible with the keyboard, remembered per report,
 // switched off and back in Options, and the ones that act (remove a filter, group a date, save).
 // Every test here fails without its feature.
-import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test("one tip at a time; x dismisses it by keyboard, the next one takes its place and the focus; a reload remembers it", async ({ page }) => {
     await page.goto("?data=sales");
@@ -64,17 +64,20 @@ test("Options: Show tips off hides every tip, Show dismissed tips again brings t
     await page.keyboard.press("Space");
     await expect(sw).toBeChecked();
     await expect(page.getByTestId("tip-cells")).toBeVisible();
-    // the keyboard shortcuts are in the help section
-    await page.getByTestId("shortcuts-title").click();
+    // the keyboard shortcuts are a level of their own, after Help
+    await page.getByTestId("topic-shortcuts").click();
+    await expect(page.getByTestId("level-title")).toHaveText("Options › Keyboard shortcuts");
     await expect(page.getByTestId("shortcuts")).toContainText("Undo");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("topic-shortcuts")).toBeFocused();
 });
 
 test("a filter that leaves nothing says so and removes the filter", async ({ page }) => {
     await page.goto("?data=sales");
-    await page.getByTestId("chip-menu-Region").click();
-    await page.getByTestId("open-filter").click();
-    for (const box of await page.locator(".pk-value input").all()) await box.uncheck();
-    await page.getByTestId("filter-apply").click();
+    await chipMenu(page, "Region", "filter");
+    await page.getByTestId("select-none").click();
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
     await expect(page.getByTestId("tip-filterEmpty")).toContainText("Nothing matches the filter");
     await page.getByTestId("tip-action-filterEmpty").click();
     await expect(page.getByTestId("tip-filterEmpty")).toHaveCount(0);
@@ -94,7 +97,7 @@ test("an ungrouped date with many columns: the tip groups it by month", async ({
     await page.getByRole("menuitem", { name: "Add to Rows" }).click();
     await page.getByTestId("field-menu-Created").click();
     await page.getByRole("menuitem", { name: "Add to Columns" }).click();
-    await page.getByTestId("chip-menu-Created by month").click();
+    await chipMenu(page, "Created by month", "group");
     await page.getByTestId("group-none").click();
     await expect.poll(() => chips(page, "cols")).toEqual(["Created"]);
     const tip = page.getByTestId("tip-dateUngrouped");

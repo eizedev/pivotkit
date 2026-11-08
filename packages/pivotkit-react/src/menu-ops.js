@@ -257,15 +257,15 @@ export function conditionKind(encoded, view, field) {
 }
 
 /**
- * What the filter of a field keeps, for its menu: "Filter: 15 of 45", "Filter: contains “abc”",
- * "Filter: Sum of Revenue > 1,000"; null without a filter.
+ * What the filter of a field keeps, in short, for its menu's first level and the chip: "15 of 45",
+ * "contains “abc”", "Sum of Revenue > 1,000", joined by commas; null without a filter.
  * @param {any} view
  * @param {string} field
  * @param {{ summary: { shown: number, total: number } | null } | null | undefined} state  the chip's state (zones.jsx)
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  */
-export function filterText(view, field, state, labels, locale) {
+export function filterState(view, field, state, labels, locale) {
     const same = (f) => typeof f.field === "string" && f.field.toLowerCase() === field.toLowerCase();
     const parts = [];
     if (state && state.summary) {
@@ -279,5 +279,5 @@ export function filterText(view, field, state, labels, locale) {
             parts.push(valueConditionText(view, f, labels, locale));
         }
     }
-    return parts.length ? fill(labels.filterIs, { filter: parts.join(", ") }) : null;
+    return parts.length ? parts.join(", ") : null;
 }

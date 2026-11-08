@@ -295,33 +295,22 @@ export function fieldsCollapsed(session, forced, dismissed) {
 /**
  * The sections of the menus that fold, and whether each is open until the user folds or opens it:
  * what a first-time user needs open, the rest folded (a folded section's title says what it holds).
+ * The chip menus and Options have levels instead (levels.jsx): the states stored for their sections
+ * are no entries any more, and the next write leaves them out (cleanDismissed).
  * The user's choice is kept in the same list (and storage) as the tips, as "open:<id>" or
  * "closed:<id>" where it differs from this default; "Show dismissed tips again" keeps it, "Reset menu
  * sections" (Options → Help) clears it.
  */
 export const SECTIONS = Object.freeze({
-    // a value's menu
-    summarize: true,
-    showAs: true,
-    format: false,
-    highlight: false,
-    move: false,
-    // a field's menu on Rows or Columns
-    sort: true,
-    groupBy: true,
-    bins: true,
-    topN: true,
-    filters: true,
-    // the toolbar's menus
-    totals: true,
-    help: true,
     // the Export menus (the toolbar's and the drill-down's)
     exportDownload: true,
     exportCopy: true,
+    // the Views menu
     thisView: true,
     sharedViews: true,
     myViews: true,
     share: false,
+    // the chart type menu
     chartType: true,
     chartDisplay: false
 });

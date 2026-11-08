@@ -1,5 +1,5 @@
 // Keyboard, focus and screen reader behaviour (WCAG 2.2 AA): every test here fails without its fix.
-import { chips, expect, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("keyboard and focus", () => {
     test("collapse and expand from the keyboard keep the focus on the toggle", async ({ page }) => {
@@ -158,11 +158,10 @@ test.describe("names, roles and sizes", () => {
         await page.goto("?data=sales");
         await expect(page.locator('.pk-field[data-field="Region"] .pk-field-name')).toHaveAccessibleName("Region, in Rows");
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName("Region, sorted Largest Sum of Revenue first");
-        await page.getByTestId("chip-menu-Region").click();
-        await page.getByTestId("open-filter").click();
+        await chipMenu(page, "Region", "filter");
         const total = await page.locator(".pk-value").count();
+        // applied at once: the chip's name says it while the level is still open
         await page.locator(".pk-value", { hasText: "West" }).locator("input").uncheck();
-        await page.getByTestId("filter-apply").click();
         await expect(page.getByTestId("chip-menu-Region")).toHaveAccessibleName(new RegExp(`^Region, filtered ${total - 1} of ${total}, sorted`));
     });
 

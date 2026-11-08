@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { unzipSync, strFromU8 } from "fflate";
-import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, drag, expect, openLevel, tableRows, test, toolbar } from "./fixtures.js";
 
 test.describe("building a report", () => {
     test("the empty state explains the first steps; fields are added by drag and by menu", async ({ page }) => {
@@ -55,9 +55,8 @@ test.describe("building a report", () => {
         await page.locator(".pk-toast", { hasText: "Country removed" }).locator(".pk-toast-action").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
 
-        await page.getByTestId("chip-menu-Region").click();
-        // Move is a folded section of the menu
-        await page.getByTestId("section-move").click();
+        // Move to is a level of the menu
+        await chipMenu(page, "Region", "move");
         await page.getByTestId("move-cols").click();
         await expect.poll(() => chips(page, "cols")).toEqual(["Region"]);
     });
@@ -89,23 +88,28 @@ test.describe("building a report", () => {
         await expect(page.getByTestId("undo")).toBeEnabled();
     });
 
-    test("value menu: common aggregators first, statistics folded, show as renames the value, a colour scale", async ({ page }) => {
+    test("value menu: common aggregators first, the statistics under them, show as renames the value, a colour scale", async ({ page }) => {
         await page.goto("?data=sales");
-        await page.getByTestId("chip-menu-Sum of Revenue").click();
+        await chipMenu(page, "Sum of Revenue");
         const menu = page.locator(".pk-chip-menu");
-        for (const agg of ["sum", "count", "average", "min", "max"]) await expect(menu.getByTestId(`agg-${agg}`)).toBeVisible();
-        await expect(menu.getByTestId("agg-stdev")).toBeHidden();
-        await menu.getByText("More statistics").click();
-        await expect(menu.getByTestId("agg-stdev")).toHaveText("Standard deviation (sample)");
-        // Remove stays reachable at the foot however long the menu is
+        // the first level is short: Remove field in view with it
         await expect(menu.getByTestId("menu-remove")).toBeInViewport();
+        await openLevel(menu, "summarize");
+        for (const agg of ["sum", "count", "average", "min", "max"]) await expect(menu.getByTestId(`agg-${agg}`)).toBeVisible();
+        // the statistics under their heading, after the common ones
+        const order = await menu.locator('[role="menuitemradio"]').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
+        expect(order.indexOf("agg-stdev")).toBeGreaterThan(order.indexOf("agg-max"));
+        await expect(menu.getByText("More statistics")).toBeVisible();
+        await expect(menu.getByTestId("agg-stdev")).toHaveText("Standard deviation (sample)");
+        await menu.getByTestId("level-back").click();
+        await openLevel(menu, "showAs");
         await menu.getByTestId("showas-percentOfGrandTotal").click();
         await expect.poll(() => chips(page, "values")).toEqual(["% of grand total of Revenue"]);
         await expect(page.locator('[data-testid="pivot-table"] thead')).toContainText("% of grand total of Revenue");
         expect((await tableRows(page)).at(-1).at(-1)).toBe("100.0%");
-        await page.getByTestId("chip-menu-% of grand total of Revenue").click();
-        await page.getByTestId("section-highlight").click();
-        await page.getByTestId("cond-colorScale").click();
+        // the menu stays open on its first level, the value renamed
+        await expect(menu.getByTestId("menu-head")).toHaveText("% of grand total of Revenue");
+        await menu.getByTestId("cond-colorScale").click();
         await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
     });
 
@@ -117,27 +121,26 @@ test.describe("building a report", () => {
         await expect(page.locator('[data-zone="rows"] .pk-chip .pk-type')).toHaveClass(/pk-type-date/);
         const labels = (await tableRows(page)).map((r) => r[0]);
         expect(labels[0]).toMatch(/^[A-Z][a-z]{2} 20\d\d$/);
-        await page.getByTestId("chip-menu-Created by month").click();
+        await chipMenu(page, "Created by month", "group");
         await page.getByTestId("group-year").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created by year"]);
         expect((await tableRows(page)).map((r) => r[0])).toEqual(["2025", "2026", "Grand Total"]);
-        await page.getByTestId("chip-menu-Created by year").click();
+        await chipMenu(page, "Created by year", "group");
         await page.getByTestId("group-none").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created"]);
     });
 });
 
 test.describe("filter, table and chart", () => {
-    test("the filter popover lists values with counts and filters the report", async ({ page }) => {
+    test("the Filter level lists values with counts and filters the report", async ({ page }) => {
         await page.goto("?data=sales");
         await expect(page.getByTestId("row-count")).toHaveText("4,000 rows");
-        await page.getByTestId("chip-menu-Region").click();
-        await page.getByTestId("open-filter").click();
+        await chipMenu(page, "Region", "filter");
         const west = page.locator(".pk-value", { hasText: "West" });
         const count = Number((await west.locator(".pk-count").textContent()).replace(/,/g, ""));
         expect(count).toBeGreaterThan(0);
+        // applied at once
         await west.locator("input").uncheck();
-        await page.getByTestId("filter-apply").click();
         await expect(page.getByTestId("row-count")).toHaveText(`${(4000 - count).toLocaleString("en-US")} rows`);
         expect((await tableRows(page)).some((r) => r[0] === "West")).toBe(false);
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-chip-badge').first()).toBeVisible();
