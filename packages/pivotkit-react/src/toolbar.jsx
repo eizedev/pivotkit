@@ -260,21 +260,31 @@ export function Toolbar(props) {
     const ORDER = Object.keys(actions);
     const buttons = (place) => ORDER.filter((id) => actions[id].place === place && !hidden.has(id)).map((id) => actions[id].button());
     // the name of the view loaded, next to Views (before Export while Views is in "More"); it takes the
-    // room that is left and is cut with "…", so it never moves a button into "More"
+    // room left and is cut with "…"; a click opens Views (Save is one click more, also on a phone,
+    // where Views is in "More")
     const name = loadedView ? (
-        <span key="name" className="pk-view-name" title={loadedView.changed ? `${loadedView.name} (${labels.unsavedChanges})` : loadedView.name} data-testid="view-name">
+        <button
+            key="name"
+            type="button"
+            className="pk-view-name"
+            aria-haspopup="dialog"
+            title={loadedView.changed ? `${loadedView.name} (${labels.unsavedChanges})` : loadedView.name}
+            onClick={() => (hidden.has("views") ? setPanel("views") : viewsButton.current?.click())}
+            data-testid="view-name"
+        >
             <span className="pk-view-name-text">{loadedView.name}</span>
             {loadedView.changed ? (
                 <span className="pk-view-changed" data-testid="view-changed">
                     <span className="pk-sr">{labels.unsavedChanges}</span>
                 </span>
             ) : null}
-        </span>
+        </button>
     ) : null;
     const end = buttons("end");
     const at = hidden.has("views") ? end.length : end.length - 1;
+    const wrap = level >= order.length;
     return (
-        <div className={`pk-toolbar${level >= order.length ? " pk-wrap" : ""}`} role="toolbar" aria-label={labels.toolbar} ref={bar} data-overflow={level}>
+        <div className={`pk-toolbar${wrap ? " pk-wrap" : ""}`} role="toolbar" aria-label={labels.toolbar} ref={bar} data-overflow={level}>
             {size === "narrow" ? (
                 <button type="button" className="pk-btn" onClick={onShowFields} data-testid="show-fields" data-pk-opener="fields">
                     <Icon name="panel" />
@@ -301,7 +311,7 @@ export function Toolbar(props) {
             {buttons("history")}
             <span className="pk-grow" />
             {end.slice(0, at)}
-            {name}
+            {wrap ? null : name}
             {end.slice(at)}
             {/* a dialog, not a menu: Tab reaches the "i" of each format; it loads with the menus */}
             <MenuButton label={labels.exportLabel} icon="download" text={labels.exportLabel} role="dialog" align="end" testId="export">
@@ -312,6 +322,8 @@ export function Toolbar(props) {
                     {(close) => ORDER.filter((id) => hidden.has(id)).map((id) => actions[id].entry(close))}
                 </MenuButton>
             ) : null}
+            {/* a toolbar in two lines (a phone): the name last, in the room left on its line */}
+            {wrap ? name : null}
             {panel ? (
                 <Popover open anchor={more} onClose={closePanel} label={panel === "chartType" ? chartTypeText : panel === "views" ? labels.views : labels.options} role="dialog" align="end" className={panel === "chartType" ? "pk-chart-menu" : undefined}>
                     {panels[panel](closePanel)}

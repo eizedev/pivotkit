@@ -4,6 +4,10 @@
  * use-view-history.js keeps it in React state; these functions are pure, so every rule here is
  * tested without a DOM.
  *
+ * Each step also carries a `tag`: the saved view the report shows (view-save.js: its name and where it
+ * is kept), or null. Undo and Redo move it with the view, so a name never stays on a view it does
+ * not belong to; a step keeps the tag of the one before unless it gives its own (New, Reset: null).
+ *
  * The history belongs to one data schema (field names and types). A step on another schema starts a
  * new history from the view the report shows, so new data with the same columns keeps undo.
  */
@@ -16,18 +20,20 @@ export const HISTORY_LIMIT = 100;
  * @property {string} schema   the schema the views were normalized against
  * @property {string} start    the start view, the target of reset
  * @property {string} present  the view the history is at
- * @property {Array<{ view: string, note: string }>} past     older views, each with the note of the step that left it
- * @property {Array<{ view: string, note: string }>} future   views undone, newest undo last
+ * @property {Array<{ view: string, note: string, tag: any }>} past     older views, each with the note of the step that left it
+ * @property {Array<{ view: string, note: string, tag: any }>} future   views undone, newest undo last
+ * @property {any} tag  the saved view `present` is (an object), or null
  */
 
 /**
  * @param {string} schema
  * @param {string} start  JSON of the start view
  * @param {string} [current]  JSON of the view shown now, default the start
+ * @param {any} [tag]  the saved view it is
  * @returns {HistoryState}
  */
-export function createState(schema, start, current = start) {
-    return { schema, start, present: current, past: [], future: [] };
+export function createState(schema, start, current = start, tag = null) {
+    return { schema, start, present: current, past: [], future: [], tag };
 }
 
 /**
@@ -45,18 +51,20 @@ export function settle(state, at) {
 }
 
 /**
- * A new step; an unchanged view is none. Clears the steps that were undone.
+ * A new step; an unchanged view is none (only its tag changes, when another is given). Clears the
+ * steps that were undone.
  * @param {HistoryState} state
  * @param {string} view  JSON
  * @param {string} note
+ * @param {any} [tag]  the saved view the step shows; default the tag of the view before
  * @returns {HistoryState}
  */
-export function record(state, view, note) {
+export function record(state, view, note, tag = state.tag) {
     if (view === state.present) {
-        return state;
+        return tag === state.tag ? state : { ...state, tag };
     }
-    const past = [...state.past, { view: state.present, note }].slice(-HISTORY_LIMIT);
-    return { ...state, present: view, past, future: [] };
+    const past = [...state.past, { view: state.present, note, tag: state.tag }].slice(-HISTORY_LIMIT);
+    return { ...state, present: view, past, future: [], tag };
 }
 
 /**
@@ -70,7 +78,7 @@ export function undo(state) {
         return { state, note: null };
     }
     return {
-        state: { ...state, present: last.view, past: state.past.slice(0, -1), future: [...state.future, { view: state.present, note: last.note }] },
+        state: { ...state, present: last.view, tag: last.tag, past: state.past.slice(0, -1), future: [...state.future, { view: state.present, note: last.note, tag: state.tag }] },
         note: last.note
     };
 }
@@ -86,16 +94,16 @@ export function redo(state) {
         return { state, note: null };
     }
     return {
-        state: { ...state, present: next.view, future: state.future.slice(0, -1), past: [...state.past, { view: state.present, note: next.note }] },
+        state: { ...state, present: next.view, tag: next.tag, future: state.future.slice(0, -1), past: [...state.past, { view: state.present, note: next.note, tag: state.tag }] },
         note: next.note
     };
 }
 
 /**
- * Back to the start view, as one step that can be undone.
+ * Back to the start view, as one step that can be undone; the start is no saved view (tag null).
  * @param {HistoryState} state
  * @param {string} note
  */
 export function reset(state, note) {
-    return record(state, state.start, note);
+    return record(state, state.start, note, null);
 }

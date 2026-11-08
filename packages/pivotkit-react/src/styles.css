@@ -708,7 +708,25 @@
     gap: 0.4em;
     min-width: 0;
     max-width: 18em;
+    min-height: var(--pk-target);
+    padding: 0 0.3em;
+    border: 0;
+    border-radius: var(--pk-radius);
+    background: none;
     color: var(--pk-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+/* in a toolbar in two lines it never starts a line of its own: the room left after "More" */
+.pk-toolbar.pk-wrap > .pk-view-name {
+    flex: 1 1 0;
+    max-width: none;
+}
+
+.pk-toolbar > .pk-view-name:hover {
+    color: var(--pk-text);
+    text-decoration: underline;
 }
 
 .pk-view-name-text {

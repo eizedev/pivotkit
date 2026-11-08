@@ -11,8 +11,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 - pivotkit-react's Save, Save as and New for views
   ([#60](https://github.com/eizedev/pivotkit/issues/60)): Save on a user's view sends
   `pivot-template-save` (with `save-templates`) or writes the browser store, Save on a shared view
-  sends `pivot-template-publish` (with `can-publish`, else it is off with the reason), Save as onto
-  a name that exists asks the user first. No new attribute or event.
+  sends `pivot-template-publish` (with `can-publish` and after the user confirmed, else it is off
+  with the reason), Save as onto a name that exists asks the user first. No new attribute or event.
+- Host notes: `pivot-template-save` and `pivot-template-publish` come with a name that exists for
+  Save and for Save as after the user confirmed: the page replaces the view of that name (an upsert
+  by name), it does not add a second one.
 
 ### Fixed
 

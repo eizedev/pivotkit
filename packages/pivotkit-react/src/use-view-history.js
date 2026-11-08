@@ -10,6 +10,10 @@
  * New data with the same columns (schema) keeps the history; another schema starts a new one from the
  * view shown, normalized against the new columns. Reset goes back to the first view the report got.
  *
+ * Every step carries a tag (view-history.js): the saved view it shows. commit(next, note, tag) sets
+ * it (undefined: the tag of the view before), `tag` is the present one, setTag(tag) changes it
+ * without a step (a save).
+ *
  * keyOf(view) is a view as the history keeps it (normalized JSON): what viewKey is once it is shown,
  * so a saved view can be compared with the one shown (unsaved changes).
  *
@@ -35,9 +39,9 @@ export function schemaKeyOf(encoded) {
  *   onViewChange?: (view: import("pivotkit-core").View) => void, limits: object | undefined, outsideNote: string,
  *   orderOf?: (field: string) => unknown[] | undefined }} options  `orderOf`: the host's custom order of a
  *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
- * @returns {{ view: import("pivotkit-core").View, viewKey: string, commit: (next: object, note: string) => boolean,
+ * @returns {{ view: import("pivotkit-core").View, viewKey: string, tag: any, setTag: (tag: any) => void, commit: (next: object, note: string, tag?: any) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
- *   restore: (view: object) => void, keyOf: (view: object) => string, canUndo: boolean, canRedo: boolean, canReset: boolean }}
+ *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, canUndo: boolean, canRedo: boolean, canReset: boolean }}
  */
 export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf }) {
     const controlled = view !== undefined;
@@ -74,11 +78,14 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
         },
         [onViewChange]
     );
-    /** Records a change; false when it changes nothing. */
+    /** Records a change; false when the view stays (a new tag alone is kept, without a step). */
     const commit = useCallback(
-        (next, note) => {
-            const s = record(live, json(next), note);
-            if (s === live) {
+        (next, note, tag) => {
+            const s = record(live, json(next), note, tag === undefined ? live.tag : tag);
+            if (s.present === live.present) {
+                if (s !== live) {
+                    setState(s);
+                }
                 return false;
             }
             apply(s);
@@ -86,6 +93,7 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
         },
         [live, json, apply]
     );
+    const setTag = useCallback((tag) => setState((s) => ({ ...s, tag })), []);
     /** The note of the step undone, or null. */
     const undo = useCallback(() => {
         const { state: s, note } = undoStep(live);
@@ -104,20 +112,22 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     const reset = useCallback(
         (note) => {
             const s = resetStep(live, note);
-            if (s !== live) {
+            if (s.present !== live.present) {
                 apply(s);
+            } else if (s !== live) {
+                setState(s);
             }
         },
         [live, apply]
     );
 
-    const restore = useCallback((next) => apply(createState(schema, start, json(next))), [schema, start, json, apply]);
+    const restore = useCallback((next, tag = null) => apply(createState(schema, start, json(next), tag)), [schema, start, json, apply]);
 
     const canUndo = live.past.length > 0;
     const canRedo = live.future.length > 0;
     const canReset = live.present !== live.start;
     return useMemo(
-        () => ({ view: current, viewKey: shown, commit, undo, redo, reset, restore, keyOf: json, canUndo, canRedo, canReset }),
-        [current, shown, commit, undo, redo, reset, restore, json, canUndo, canRedo, canReset]
+        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, canUndo, canRedo, canReset }),
+        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, canUndo, canRedo, canReset]
     );
 }

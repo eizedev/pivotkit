@@ -425,7 +425,7 @@ export const de = {
     redo: "Wiederholen",
     reset: "Zurücksetzen",
     resetHint: "Zurück zur Startansicht",
-    newReport: "Neu",
+    newReport: "Neuer Bericht",
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
     layout: "Anordnung",

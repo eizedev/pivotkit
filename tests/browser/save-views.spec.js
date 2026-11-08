@@ -110,6 +110,15 @@ test("New and Reset take the loaded view's name away; Undo brings the view and i
     expect(await chips(page, "values")).toEqual(before);
     await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
     await expect(page.getByTestId("view-changed")).toHaveCount(0);
+    // Redo: the empty report again, without the name (Save could write it over the view)
+    await page.getByTestId("redo").click();
+    await expect(page.getByTestId("empty-state")).toBeVisible();
+    await expect(page.getByTestId("view-name")).toHaveCount(0);
+    await toolbar(page, "views");
+    await expect(page.getByTestId("save-loaded")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByTestId("undo").click();
+    await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
 
     // Reset shows the start view, not the loaded one: the name goes too (no Save over that view
     // with the start view), and Undo brings both back
@@ -152,12 +161,28 @@ test("web component: a shared view saves only for a user who may publish; New an
     await elementViews(report);
     await expect(report.getByTestId("save-loaded")).toBeDisabled();
     await expect(report.getByTestId("save-loaded")).toContainText("Shared view: you cannot change it. Use Save as.");
-    await page.keyboard.press("Escape");
 
-    // may publish: Save is a publish under the same name, normalized against the data
+    // no publish anywhere: the user's own view has no Publish either, and no event was sent
+    await report.getByTestId("saved-view-name").fill("Mine");
+    await report.getByTestId("saved-view-name").press("Enter");
+    await expect(report.getByTestId("saved-view-Mine")).toBeVisible();
+    await expect(report.locator('[data-testid^="publish-view-"]')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__events)).toEqual([]);
+    await page.keyboard.press("Escape");
+    await elementViews(report);
+    await report.getByTestId("saved-view-Team view").click();
+
+    // may publish: Save asks first (everyone sees it); Cancel sends nothing, Replace publishes under
+    // the same name, normalized against the data
     await page.evaluate(() => (document.getElementById("views").canPublish = true));
     await elementViews(report);
     await report.getByTestId("save-loaded").click();
+    await expect(report.getByTestId("replace-shared-confirm")).toContainText("Replace the shared view “Team view” for everyone?");
+    await expect(report.getByTestId("confirm-replace-shared")).toBeFocused();
+    await report.getByTestId("cancel-replace-shared").click();
+    expect(await page.evaluate(() => window.__events)).toEqual([]);
+    await report.getByTestId("save-loaded").click();
+    await report.getByTestId("confirm-replace-shared").click();
     await expect(report.locator(".pk-toasts")).toContainText("View “Team view” saved");
     const events = await page.evaluate(() => window.__events);
     expect(events.map((e) => [e.type, e.detail.name])).toEqual([["pivot-template-publish", "Team view"]]);
@@ -172,4 +197,102 @@ test("web component: a shared view saves only for a user who may publish; New an
     await report.getByTestId("export-csv").click({ force: true });
     await report.getByTestId("export-copy-json").click({ force: true });
     expect(await page.evaluate(() => window.__exports)).toEqual([]);
+});
+
+test("web component, the host's saves: Save and Save as send the name with scope user; a slow answer keeps later changes unsaved", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const report = page.locator("#views");
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await page.evaluate(() => {
+        const el = document.getElementById("views");
+        // the host keeps the user's views: its own entry, its answer after 400 ms
+        el.saveTemplates = true;
+        el.templates = [...el.templates, { name: "Host mine", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user", deletable: true }];
+        el.addEventListener("pivot-template-save", (e) => e.detail.respondWith(new Promise((done) => setTimeout(done, 400))));
+    });
+    await elementViews(report);
+    await report.getByTestId("saved-view-Host mine").click();
+    await expect(report.getByTestId("view-name")).toHaveText("Host mine");
+    await report.getByTestId("show-chart").click();
+    await expect(report.getByTestId("view-changed")).toHaveCount(1);
+    // Save, then a change before the host answers: the change is not saved, the mark stays
+    await elementViews(report);
+    await report.getByTestId("save-loaded").click();
+    await report.getByTestId("show-table").click();
+    await expect(report.locator(".pk-toasts")).toContainText("View “Host mine” saved");
+    await expect(report.getByTestId("view-changed")).toHaveCount(1);
+    // back to what was saved: no mark
+    await report.getByTestId("show-chart").click();
+    await expect(report.getByTestId("view-changed")).toHaveCount(0);
+
+    // Save as onto the host's view: asks, then the same event with that name
+    await elementViews(report);
+    await expect(report.getByTestId("saved-view-name").locator("xpath=following::button[1]")).toHaveText("Save as");
+    await report.getByTestId("saved-view-name").fill("Host mine");
+    await report.getByTestId("saved-view-name").press("Enter");
+    await report.getByTestId("confirm-replace").click();
+    await expect.poll(() => page.evaluate(() => window.__events.length)).toBe(2);
+    const events = await page.evaluate(() => window.__events);
+    expect(events.map((e) => [e.type, e.detail.name, e.detail.scope, e.detail.view.display])).toEqual([
+        ["pivot-template-save", "Host mine", "user", "chart"],
+        ["pivot-template-save", "Host mine", "user", "chart"]
+    ]);
+});
+
+test("web component: another source with the same columns keeps the view, not the name of a view loaded for the first", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const report = page.locator("#views");
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await elementViews(report);
+    await report.getByTestId("saved-view-Team view").click();
+    await expect(report.getByTestId("view-name")).toHaveText("Team view");
+    await page.evaluate(() => (document.getElementById("views").sourceId = "other"));
+    await expect(report.getByTestId("view-name")).toHaveCount(0);
+    await expect(report.locator('[data-testid="pivot-chart"], [data-testid="pivot-table"]').first()).toBeVisible();
+});
+
+test("two views of one name in the browser store (one without named data): Save writes the one loaded", async ({ page }) => {
+    await page.goto("?data=tickets");
+    await toolbar(page, "views");
+    await page.getByTestId("saved-view-name").fill("Dup");
+    await page.getByTestId("saved-view-name").press("Enter");
+    await expect(page.locator(".pk-toasts")).toContainText("View “Dup” saved");
+    // a second "Dup" before it, saved without named data (an older version, another program)
+    await page.evaluate(() => {
+        const [mine] = JSON.parse(localStorage.getItem("pivotkit:views:playground"));
+        const plain = { ...mine, view: { ...mine.view, display: "chart" } };
+        delete plain.source;
+        localStorage.setItem("pivotkit:views:playground", JSON.stringify([plain, mine]));
+    });
+    await page.reload();
+    await toolbar(page, "views");
+    const both = page.locator('[data-section="myViews"] [data-testid="saved-view-Dup"]');
+    await expect(both).toHaveCount(2);
+    // the second, this data's: changed and saved; the first stays as it was
+    await both.nth(1).click();
+    await page.getByTestId("show-chart").click();
+    await toolbar(page, "views");
+    await page.getByTestId("save-loaded").click();
+    await expect(page.locator(".pk-toasts")).toContainText("View “Dup” saved");
+    const views = await stored(page);
+    expect(views.map((v) => [v.name, v.source?.id ?? null, v.view.display])).toEqual([
+        ["Dup", null, "chart"],
+        ["Dup", "tickets", "chart"]
+    ]);
+});
+
+test("a view from a file or a link has a name but is not among the saved views: Save is off, Save as works", async ({ page }) => {
+    await page.goto("?data=tickets");
+    await toolbar(page, "views");
+    await page.getByTestId("saved-view-name").fill("Tmp");
+    await page.getByTestId("saved-view-name").press("Enter");
+    await expect(page.locator(".pk-toasts")).toContainText("View “Tmp” saved");
+    const file = await page.evaluate(() => ({ ...JSON.parse(localStorage.getItem("pivotkit:views:playground"))[0], name: "From a file" }));
+    await page.getByTestId("load-view").click();
+    await page.getByTestId("load-view-text").fill(JSON.stringify(file));
+    await page.getByTestId("load-view-apply").click();
+    await expect(page.getByTestId("view-name")).toHaveText("From a file");
+    await toolbar(page, "views");
+    await expect(page.getByTestId("save-loaded")).toBeDisabled();
+    await expect(page.getByTestId("save-loaded")).toContainText("Not saved yet. Use Save as.");
 });

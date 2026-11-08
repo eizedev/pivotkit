@@ -191,10 +191,15 @@ the report's first load stays small.
   the view's name takes the room left and is cut with "…".
 - Save writes the loaded view under its name in one click: a view of the browser store in its place,
   a user's view of the host through `onSaveTemplate` (`scope: "user"`), a shared view through
-  `onPublishTemplate` when `canPublish`. It is off, with the reason, for a shared view the user may
-  not change ("Shared view: you cannot change it. Use Save as.") and for a view from a file or a link
-  ("Not saved yet. Use Save as."). Save as is the name field: a name that exists among the user's
-  views asks "“…” exists. Replace it?" first (Replace, Cancel).
+  `onPublishTemplate` when `canPublish`, after "Replace the shared view “…” for everyone?". It is
+  off, with the reason, for a shared view the user may not change ("Shared view: you cannot change
+  it. Use Save as."), for a view from a file or a link ("Not saved yet. Use Save as.") and while
+  the report is empty. Save as is the name field: a name that exists among the user's views asks
+  "“…” exists. Replace it?" first (Replace, Cancel). The view's name in the toolbar opens Views;
+  Undo and Redo move it with the view; another source keeps the view but not its name, and so does
+  a reload with `persistView`.
+- Host notes: Save and Save as call `onSaveTemplate` and `onPublishTemplate` with a name that
+  exists: replace the view of that name (an upsert by name), do not add a second one.
 - Result: Enlarge (the result fills the report; Escape or the button restores) and Full screen (the
   Fullscreen API, where the browser has it) at its top right.
 - Notes ("Undone: Region removed", "Exported pivot.xlsx") appear in the status line under the table,

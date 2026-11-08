@@ -96,9 +96,10 @@ test.describe("two elements on one page", () => {
         expect(save.detail.view.rows).toEqual(["Region", "Country"]);
         // a save goes to the user's own views
         expect(save.detail.scope).toBe("user");
+        // the view shown is "Mine" now: the field saves it under another name, its button says so
         await tool(sales, "views");
         await sales.getByTestId("saved-view-name").fill("fail");
-        await sales.getByRole("button", { name: "Save", exact: true }).click();
+        await sales.getByRole("button", { name: "Save as", exact: true }).click();
         await expect(sales.locator(".pk-toasts")).toContainText("the server said no");
         await tool(sales, "views");
         await sales.getByRole("button", { name: "Delete Mine" }).click();

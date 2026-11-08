@@ -40,13 +40,14 @@ function readAll(raw) {
  * named data.
  * @param {string | null} raw
  * @param {string | undefined} sourceId
- * @returns {Array<{ name: string, view: Record<string, unknown>, at: number }>}
+ * `sourceId` of an entry: the data it names (none for a view saved without), which tells two views
+ * of the same name apart (one for no named data, one for this data).
+ * @returns {Array<{ name: string, view: Record<string, unknown>, at: number, sourceId?: string }>}
  */
 export function storedViews(raw, sourceId) {
     return readAll(raw)
-        .map((t, at) => ({ name: t.name, view: t.view, id: t.source?.id, at }))
-        .filter((t) => !t.id || !sourceId || t.id === sourceId)
-        .map(({ name, view, at }) => ({ name, view, at }));
+        .map((t, at) => ({ name: t.name, view: t.view, at, ...(t.source?.id ? { sourceId: t.source.id } : {}) }))
+        .filter((t) => !t.sourceId || !sourceId || t.sourceId === sourceId);
 }
 
 /**

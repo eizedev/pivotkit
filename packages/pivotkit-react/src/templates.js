@@ -32,6 +32,7 @@ export const viewsName = (key) => (key ? `pivotkit:views:${key}` : "pivotkit:vie
  * @property {"shared" | "user"} scope
  * @property {boolean} deletable
  * @property {number} [at]  its place in the browser store; only for the store's own entries
+ * @property {string} [sourceId]  the data a view of the browser store names, when it names one
  */
 
 /**
@@ -42,7 +43,7 @@ export const viewsName = (key) => (key ? `pivotkit:views:${key}` : "pivotkit:vie
  * marked `deletable` and the host takes the delete (`hostDeletes`). Every name is plain text
  * (plainNames), as a name from a file or the store is.
  * @param {unknown} templates  the host's
- * @param {Array<{ name: string, view: Record<string, unknown>, at: number }>} stored
+ * @param {Array<{ name: string, view: Record<string, unknown>, at: number, sourceId?: string }>} stored
  * @param {boolean} hostDeletes
  * @returns {TemplateEntry[]}
  */
@@ -69,7 +70,7 @@ export function templateEntries(templates, stored, hostDeletes) {
             out.push({ name, view, deletable: deletable && hostDeletes, scope: scoped ? t.scope : deletable ? "user" : "shared" });
         }
     }
-    const all = [...out, ...stored.map((t) => ({ name: t.name, view: t.view, scope: /** @type {const} */ ("user"), deletable: true, at: t.at }))];
+    const all = [...out, ...stored.map((t) => ({ name: t.name, view: t.view, scope: /** @type {const} */ ("user"), deletable: true, at: t.at, ...(t.sourceId ? { sourceId: t.sourceId } : {}) }))];
     const names = plainNames(all.map((t) => t.name));
     return all.flatMap((t, i) => (names[i] ? [{ ...t, name: /** @type {string} */ (names[i]) }] : []));
 }

@@ -11,18 +11,25 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - Save, Save as and New for views
   ([#60](https://github.com/eizedev/pivotkit/issues/60)). The toolbar shows the name of the view
   loaded (a saved view, a view file, a link) next to Views, with a dot while it has unsaved changes
-  (`labels.unsavedChanges`). The Views menu starts with "This view": **Save “…”** writes the loaded
-  view under its name in one click (a view of the browser store in its place, a user's view of the
-  host through `onSaveTemplate`, a shared view through `onPublishTemplate` with `canPublish`); it is
-  off with the reason for a shared view the user may not change and for a view from a file or a
-  link. **Save as…** is the name field: a name that exists among the user's views asks "“…” exists.
-  Replace it?" first. **New** (in the menu and next to Reset in the toolbar) empties the report to
-  the start screen, one step Undo takes back with the view's name. New and Reset both take the
-  loaded view's name away (the report no longer shows that view, so Save cannot write the start
-  view or an empty one over it); Undo brings it back. New labels: `newReport`,
-  `newEmpty`, `unsavedChanges`, `steps.new`, and in the menus `thisView`, `saveNamed`, `saveAs`,
-  `saveSharedLocked`, `saveNotInViews`, `replaceConfirm`, `replaceAction`, `newAlready`,
-  `settingInfo.newReport`.
+  (`labels.unsavedChanges`); the name is a button that opens Views. The Views menu starts with
+  "This view": **Save “…”** writes the loaded view under its name in one click (a view of the
+  browser store in its place, a user's view of the host through `onSaveTemplate`, a shared view
+  through `onPublishTemplate` with `canPublish`, after "Replace the shared view “…” for everyone?").
+  It is off with the reason for a shared view the user may not change, for a view from a file or a
+  link and while the report is empty. **Save as…** is the name field (its button "Save as"): a
+  name that exists among the user's views asks "“…” exists. Replace it?" first. **New** (in the
+  menu, and "New" next to Reset in the toolbar, German "Neuer Bericht") empties the report to the
+  start screen in one step. The name belongs to the history's steps: New and Reset take it away
+  (the report no longer shows that view), Undo and Redo move it with the view. A view of the browser
+  store is known by its name and the data it names, so two views of one name (one saved without
+  named data) stay apart; another source with the same columns keeps the view but not its name. A
+  reload with `persistView` keeps the view, not its name. New labels: `newReport`, `newEmpty`,
+  `unsavedChanges`, `steps.new`, and in the menus `thisView`, `saveNamed`, `saveAs`,
+  `saveSharedLocked`, `saveNotInViews`, `replaceConfirm`, `replaceSharedConfirm`, `replaceAction`,
+  `newAlready`, `settingInfo.newReport`.
+- Host notes: Save and Save as call `onSaveTemplate(name, view, { scope: "user" })` and
+  `onPublishTemplate(name, view)` with a name that exists: the host replaces the view of that name
+  (an upsert by name), it does not add a second one.
 
 ### Changed
 

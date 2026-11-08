@@ -30,7 +30,7 @@ export const TOOLBAR_ROOM = Object.freeze({
     undo: 8.75,
     redo: 9.15,
     reset: 9.65,
-    new: 5.35,
+    new: 9.7,
     layout: 8.4,
     options: 8.75,
     views: 9.1,

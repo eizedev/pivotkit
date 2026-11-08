@@ -374,6 +374,25 @@ test("auto group labels need room: a phone-sized chart writes the whole names in
     assert.equal(groupLabelsFit(21, 3, { width: 900, height: 600, horizontal: true }), true);
 });
 
+test("history: each step carries the saved view it shows; Undo and Redo move it with the view", () => {
+    const x = { name: "X" };
+    let s = createState("schema", "start");
+    assert.equal(s.tag, null);
+    s = record(s, "x", "view “X”", x);
+    s = record(s, "x2", "Region added", undefined);
+    assert.equal(s.tag, x, "a change keeps the tag of the view before");
+    s = record(s, "empty", "new, empty report", null);
+    assert.equal(s.tag, null);
+    const back = undo(s).state;
+    assert.equal(back.tag, x, "Undo after New: the name is back");
+    assert.equal(redo(back).state.tag, null, "Redo after it: the empty view has none");
+    assert.equal(reset(back, "back").tag, null, "Reset: the start view is no saved view");
+    assert.equal(undo(reset(back, "back")).state.tag, x);
+    // the same view with another tag (a save, the same view loaded): no step
+    const saved = record(back, "x2", "saved", { name: "Y" });
+    assert.deepEqual([saved.past.length, saved.tag.name], [back.past.length, "Y"]);
+});
+
 test("toolbar: which buttons go into More follows the width and a fixed priority, never the texts", async () => {
     const { OVERFLOW_ORDER, TOOLBAR_ROOM, overflowLevel } = await import("../src/overflow.js");
     // Redo stays with Undo: it never moves; Reset goes first (it makes room for "More", New would not)
