@@ -17,7 +17,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   off with the reason for a shared view the user may not change and for a view from a file or a
   link. **Save as…** is the name field: a name that exists among the user's views asks "“…” exists.
   Replace it?" first. **New** (in the menu and next to Reset in the toolbar) empties the report to
-  the start screen, one step Undo takes back with the view's name. New labels: `newReport`,
+  the start screen, one step Undo takes back with the view's name. New and Reset both take the
+  loaded view's name away (the report no longer shows that view, so Save cannot write the start
+  view or an empty one over it); Undo brings it back. New labels: `newReport`,
   `newEmpty`, `unsavedChanges`, `steps.new`, and in the menus `thisView`, `saveNamed`, `saveAs`,
   `saveSharedLocked`, `saveNotInViews`, `replaceConfirm`, `replaceAction`, `newAlready`,
   `settingInfo.newReport`.

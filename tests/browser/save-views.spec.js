@@ -1,5 +1,5 @@
 // Save, Save as and New in the Views menu and the toolbar: the loaded view's name next to Views with a
-// mark while it has unsaved changes, Save under that name (the browser store in its place, a shared
+// mark while it has unsaved changes (gone after New and Reset), Save under that name (the browser store in its place, a shared
 // view only for a user who may publish), Save as asking before it replaces a view of the same name,
 // New (an empty report) that Undo takes back; and the Export menu off for an empty report.
 import { chips, expect, test, toolbar } from "./fixtures.js";
@@ -86,7 +86,7 @@ test("Save as onto a name that exists asks first: Cancel keeps the view, Replace
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");
 });
 
-test("New empties the report in one step; Undo brings the view and its name back", async ({ page }) => {
+test("New and Reset take the loaded view's name away; Undo brings the view and its name back", async ({ page }) => {
     await page.goto("?data=tickets");
     await toolbar(page, "views");
     await page.getByTestId("saved-view-Median lead time by month").click();
@@ -110,6 +110,15 @@ test("New empties the report in one step; Undo brings the view and its name back
     expect(await chips(page, "values")).toEqual(before);
     await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
     await expect(page.getByTestId("view-changed")).toHaveCount(0);
+
+    // Reset shows the start view, not the loaded one: the name goes too (no Save over that view
+    // with the start view), and Undo brings both back
+    await toolbar(page, "reset");
+    await expect(page.locator(".pk-toasts")).toContainText("Back to the start view");
+    await expect(page.getByTestId("view-name")).toHaveCount(0);
+    await page.getByTestId("undo").click();
+    expect(await chips(page, "values")).toEqual(before);
+    await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
 
     // New from the Views menu does the same
     await toolbar(page, "views");

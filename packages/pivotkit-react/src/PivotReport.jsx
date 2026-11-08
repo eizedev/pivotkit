@@ -337,8 +337,9 @@ function Report(props) {
     // its view as saved (`key`, history.keyOf), so the toolbar shows when it has unsaved changes
     const [loadedView, setLoadedView] = useState(/** @type {{ name: string, scope: "user" | "shared" | null, store: boolean, key: string } | null} */ (null));
     const viewName = loadedView?.name ?? null;
-    // New took the loaded view's name away: Undo back to the view before it brings it back
-    const [beforeNew, setBeforeNew] = useState(/** @type {{ loaded: NonNullable<typeof loadedView>, key: string } | null} */ (null));
+    // New and Reset take the loaded view's name away (the report no longer shows that view, so Save
+    // must not write over it): Undo back to the view before them brings it back
+    const [beforeClear, setBeforeClear] = useState(/** @type {{ loaded: NonNullable<typeof loadedView>, key: string } | null} */ (null));
     // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
@@ -427,9 +428,13 @@ function Report(props) {
         undoLater.current = undo;
     });
     const reset = useCallback(() => {
+        if (loadedView) {
+            setBeforeClear({ loaded: loadedView, key: history.viewKey });
+            setLoadedView(null);
+        }
         history.reset(labels.steps.reset);
         announce(labels.toastReset);
-    }, [history, labels, announce]);
+    }, [history, labels, announce, loadedView]);
 
     // a view that comes back by itself: the tab's stored one, then a shared link (which wins); read
     // once, after the first render. A link needs pivotkit-core/link: while it loads the result waits.
@@ -582,7 +587,7 @@ function Report(props) {
             const lines = issueLines(loaded.issues, labels);
             setLeftOut(lines);
             setIssuesDismissed(null);
-            setBeforeNew(null);
+            setBeforeClear(null);
             setLoadedView(loaded.file?.name ? { name: loaded.file.name, scope: null, store: false, key: latest.current.history.keyOf(loaded.view) } : null);
             const text = link ? (lines.length ? labels.toastLinkOpenedPartly : labels.toastLinkOpened) : lines.length ? labels.toastViewLoadedPartly : labels.toastViewLoaded;
             announce(text, restored ? undefined : { action: { label: labels.undo, run: () => undoLater.current() } });
@@ -902,7 +907,7 @@ function Report(props) {
     const loadTemplate = useCallback(
         (t) => {
             commit(t.view, { step: "template", name: t.name });
-            setBeforeNew(null);
+            setBeforeClear(null);
             setLoadedView(typeof t.name === "string" ? { name: t.name, scope: t.scope === "user" ? "user" : "shared", store: t.at !== undefined, key: history.keyOf(t.view) } : null);
             // a saved view made with other limits loads with the fields that fit: what was left out
             // goes into the area above the result, the note says it was loaded
@@ -913,16 +918,16 @@ function Report(props) {
         },
         [commit, labels, announce, limits, locale, history]
     );
-    if (loadedView === null && beforeNew && beforeNew.key === history.viewKey) {
-        setLoadedView(beforeNew.loaded);
-        setBeforeNew(null);
+    if (loadedView === null && beforeClear && beforeClear.key === history.viewKey) {
+        setLoadedView(beforeClear.loaded);
+        setBeforeClear(null);
     }
     /** New: an empty report (the start screen), one step Undo takes back; the loaded view's name goes. */
     const newReport = () => {
         if (empty) {
             return;
         }
-        setBeforeNew(loadedView ? { loaded: loadedView, key: history.viewKey } : null);
+        setBeforeClear(loadedView ? { loaded: loadedView, key: history.viewKey } : null);
         commit(emptyView(), { step: "new" });
         setLoadedView(null);
         setLeftOut([]);
@@ -955,7 +960,7 @@ function Report(props) {
         /** A save kept: the view shown is the saved one under that name now (Save, Save as). */
         onSaved: (/** @type {{ name: string, scope: "user" | "shared", store: boolean }} */ saved) => {
             setSavedAt(changesRef.current);
-            setBeforeNew(null);
+            setBeforeClear(null);
             setLoadedView({ ...saved, key: history.viewKey });
         },
         onNew: newReport,

@@ -179,9 +179,9 @@ the report's first load stays small.
   texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
   `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
-  Reset to the start view, New (an empty report, the start screen; one step Undo takes back, which
-  brings the loaded view's name back too), Layout (a toggle with `aria-pressed`: the zones open or
-  folded into one line), Options, the name of the view loaded (a saved view, a view file, a link)
+  Reset to the start view, New (an empty report, the start screen; Reset and New are one step Undo
+  takes back, and both take the loaded view's name away, which Undo brings back), Layout (a toggle
+  with `aria-pressed`: the zones open or folded into one line), Options, the name of the view loaded (a saved view, a view file, a link)
   with a dot while it has unsaved changes, Views (This view: Save, Save as, New; Shared views, My
   views with delete and publish, and Share: link, JSON, the
   [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
