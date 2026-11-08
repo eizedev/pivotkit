@@ -84,9 +84,9 @@ undo step at once. It is user input and is normalized against the data; it canno
 | `defaultView` | view | empty | Uncontrolled: the start view. |
 | `onViewChange` | `(view) => void` | | Every change, as a normalized view. |
 | `templates` | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu in two groups by `scope`: "Shared views" (`"shared"`) and "My views" (`"user"`); without `scope` a `deletable` entry is the user's own, every other one shared. `file`: a view file (object or text) instead of `view`, its name the default. The first three are also offered in the empty state. `deletable: true` shows a delete button for that entry; a shared one without it has an "i": "Only admins can change shared views." Names need not be unique: every entry is shown in order (a saved view may have a preset's name), and `onDeleteTemplate` gets the name. [Templates and shared views](https://pivotkit.eize.dev/concepts/templates/). |
-| `onSaveTemplate` | `(name, view, { scope }) => unknown` | | Shows "Save current view" under My views (`scope` is `"user"`). "View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). It wins over `templateStore`. |
+| `onSaveTemplate` | `(name, view, { scope }) => unknown` | | Shows "Save current view" (Save as, once a view is loaded) under This view, and Save for a user's view of the host (`scope` is `"user"`); Save as onto a name that exists replaces it after the user confirmed, with the same call. "View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). It wins over `templateStore`. |
 | `onDeleteTemplate` | `(name, { scope }) => unknown` | | Deletes a template marked `deletable` (`scope`: its group), after the user confirmed in the menu; the entry goes when it returns or its promise resolves; a failure is shown as for `onSaveTemplate` (`labels.toastDeleteRejected` without a message). |
-| `onPublishTemplate` | `(name, view) => unknown` | | With `canPublish`: "Publish as shared view" next to each of the user's views, after a confirmation in place; the host adds it to its shared views. "View “…” published", a failure as for `onSaveTemplate`. |
+| `onPublishTemplate` | `(name, view) => unknown` | | With `canPublish`: "Publish as shared view" next to each of the user's views, after a confirmation in place; the host adds it to its shared views. Save on a shared view loaded calls it too, with that view's name: the host replaces the shared view of that name. "View “…” published", a failure as for `onSaveTemplate`. |
 | `canPublish` | `boolean` | `false` | The user may publish views for everyone (an admin, as the host decides). The report only shows what the host allows: the server must check who may save, publish or delete. |
 | `templateStore` | `"browser"` | | The report keeps "My views" in `localStorage` under `pivotkit:views:<storageKey>`, per data (`source`): only this browser and device, lost when the site's data is cleared, not shared (the menu says so); at most 100 views and 500,000 characters; read after hydration. `onSaveTemplate` wins. |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. Another aggregator picked in the value's menu keeps `format` while the result is in the field's unit (an average to a median), not for a count; a format the user chose stays the same way. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and so is a field on Rows or Columns of a view or template without a sort entry for it; its menu offers "Custom order" and "Custom order, reversed", and "A to Z" stays a sort entry of its own; items not listed follow by label. `label` is the name shown for the field everywhere (chips, headers, value names, drill-down, chart, exports; views keep the field name); `description` (plain text) shows behind an "i" next to the field, in its chip menu and on its headers, with `href` (https) as "Learn more"; `type` is the column type it is read as. A field without them looks as without `fieldDefaults`. pivotkit-core's `fieldDefaultsFromSchema` builds it from a JSON Schema or OpenAPI document. |
@@ -179,12 +179,22 @@ the report's first load stays small.
   texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
   `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
-  Reset to the start view, Layout (a toggle with `aria-pressed`: the zones open or folded into one
-  line), Options, Views (Shared views, My views with save, delete and publish, and Share: link, JSON, the
+  Reset to the start view, New (an empty report, the start screen; one step Undo takes back, which
+  brings the loaded view's name back too), Layout (a toggle with `aria-pressed`: the zones open or
+  folded into one line), Options, the name of the view loaded (a saved view, a view file, a link)
+  with a dot while it has unsaved changes, Views (This view: Save, Save as, New; Shared views, My
+  views with delete and publish, and Share: link, JSON, the
   [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
-  asks first), Export (XLSX and CSV of the table, PNG of the chart). Every button has its text; when
-  the report is too narrow, Reset, Redo, Layout, Views, Options and the chart type move one by one
-  into a "More" menu, by the width only.
+  asks first), Export (XLSX and CSV of the table, PNG of the chart; all off with "Add a field first."
+  while no field is placed). Every button has its text; when the report is too narrow, Reset, New,
+  Layout, Views, Options and the chart type move one by one into a "More" menu, by the width only;
+  the view's name takes the room left and is cut with "…".
+- Save writes the loaded view under its name in one click: a view of the browser store in its place,
+  a user's view of the host through `onSaveTemplate` (`scope: "user"`), a shared view through
+  `onPublishTemplate` when `canPublish`. It is off, with the reason, for a shared view the user may
+  not change ("Shared view: you cannot change it. Use Save as.") and for a view from a file or a link
+  ("Not saved yet. Use Save as."). Save as is the name field: a name that exists among the user's
+  views asks "“…” exists. Replace it?" first (Replace, Cancel).
 - Result: Enlarge (the result fills the report; Escape or the button restores) and Full screen (the
   Fullscreen API, where the browser has it) at its top right.
 - Notes ("Undone: Region removed", "Exported pivot.xlsx") appear in the status line under the table,

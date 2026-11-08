@@ -50,7 +50,7 @@ export async function tableRows(page) {
 
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "reset", "options", "views", "chart-type").
+ * all buttons. `testId` is the button's ("redo", "reset", "new", "options", "views", "chart-type").
  */
 export async function toolbar(page, testId) {
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
@@ -65,7 +65,7 @@ export async function toolbar(page, testId) {
     }
     // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
     // so a test that moves the focus inside does not lose it to that
-    if (testId !== "redo" && testId !== "reset" && testId !== "layout") {
+    if (!["redo", "reset", "new", "layout"].includes(testId)) {
         await expect.poll(() => page.evaluate(() => {
             const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
             return Boolean(deep(document)?.closest(".pk-popover"));

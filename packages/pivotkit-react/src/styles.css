@@ -699,6 +699,32 @@
     flex: 1;
 }
 
+/* the name of the view loaded, next to Views: it takes the room left and is cut with "…", so it never
+   moves a button into "More"; a dot while the view has unsaved changes */
+.pk-toolbar > .pk-view-name {
+    display: inline-flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 0.4em;
+    min-width: 0;
+    max-width: 18em;
+    color: var(--pk-muted);
+}
+
+.pk-view-name-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.pk-view-changed {
+    flex: none;
+    width: 0.55em;
+    height: 0.55em;
+    border-radius: 50%;
+    background: var(--pk-accent);
+}
+
 /* ---- zones and chips ---- */
 
 .pk-zones {
@@ -2451,6 +2477,15 @@
 .pk-confirm-text {
     flex: 1 1 100%;
     font-weight: 600;
+}
+
+/* Save as onto a name that is taken: the question in place of the field */
+.pk-save-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
 }
 
 /* ---- narrow: field list as a drawer, zones stacked ---- */

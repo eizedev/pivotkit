@@ -165,8 +165,9 @@ function App() {
     const { rows, fetched } = useRows(dataset, size);
     const { presets, source } = DATASETS[dataset];
     // the host decides what can be deleted: the published views (the playground's user is its admin),
-    // not the presets; the user's own views are the report's browser store
-    const templates = useMemo(() => [...sharedViews(dataset, presets), ...published.map((t) => ({ ...t, scope: "shared", deletable: true }))], [dataset, presets, published]);
+    // not the presets; the user's own views are the report's browser store. A view published under a
+    // preset's name (Save on a shared view) takes the preset's place until it is deleted
+    const templates = useMemo(() => [...sharedViews(dataset, presets).filter((p) => !published.some((t) => t.name === p.name)), ...published.map((t) => ({ ...t, scope: "shared", deletable: true }))], [dataset, presets, published]);
     const start = switched?.dataset === dataset ? switched.view : preset >= 0 ? presets[preset].view : undefined;
     // the address says which data and template the report starts from, in words (the view stays)
     const startName = preset >= 0 ? slug(presets[preset].name) : "empty";

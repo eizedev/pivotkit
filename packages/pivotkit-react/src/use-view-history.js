@@ -10,6 +10,9 @@
  * New data with the same columns (schema) keeps the history; another schema starts a new one from the
  * view shown, normalized against the new columns. Reset goes back to the first view the report got.
  *
+ * keyOf(view) is a view as the history keeps it (normalized JSON): what viewKey is once it is shown,
+ * so a saved view can be compared with the one shown (unsaved changes).
+ *
  * restore(view) shows a view the report found itself (the tab's stored view, a shared link) as if it
  * had started on it: a new history at that view, the start (the target of Reset) unchanged.
  */
@@ -34,7 +37,7 @@ export function schemaKeyOf(encoded) {
  *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
  * @returns {{ view: import("pivotkit-core").View, viewKey: string, commit: (next: object, note: string) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
- *   restore: (view: object) => void, canUndo: boolean, canRedo: boolean, canReset: boolean }}
+ *   restore: (view: object) => void, keyOf: (view: object) => string, canUndo: boolean, canRedo: boolean, canReset: boolean }}
  */
 export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf }) {
     const controlled = view !== undefined;
@@ -114,7 +117,7 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     const canRedo = live.future.length > 0;
     const canReset = live.present !== live.start;
     return useMemo(
-        () => ({ view: current, viewKey: shown, commit, undo, redo, reset, restore, canUndo, canRedo, canReset }),
-        [current, shown, commit, undo, redo, reset, restore, canUndo, canRedo, canReset]
+        () => ({ view: current, viewKey: shown, commit, undo, redo, reset, restore, keyOf: json, canUndo, canRedo, canReset }),
+        [current, shown, commit, undo, redo, reset, restore, json, canUndo, canRedo, canReset]
     );
 }

@@ -82,6 +82,10 @@ export const en = {
     redo: "Redo",
     reset: "Reset",
     resetHint: "Back to the start view",
+    // New: an empty report, the start screen (toolbar and Views menu)
+    newReport: "New",
+    // next to Views: the name of the view loaded, and the mark while it has changes not saved
+    unsavedChanges: "Unsaved changes",
     swap: "Swap rows and columns",
     // the zones folded into one line (compact layout), and the toolbar button that does it (pressed: open)
     layout: "Layout",
@@ -173,6 +177,8 @@ export const en = {
     toastUndone: "Undone: {step}",
     toastRedone: "Redone: {step}",
     toastReset: "Back to the start view",
+    // New's step said in the status line, and its entry in the Views menu
+    newEmpty: "New, empty report",
     toastExported: "Exported {file}",
     toastLoaded: "View “{name}” loaded",
     toastExportFailed: "Export failed: {message}",
@@ -195,6 +201,7 @@ export const en = {
         swap: "rows and columns swapped",
         template: "view “{name}”",
         reset: "back to the start view",
+        new: "new, empty report",
         outside: "change from outside the report",
         viewLoaded: "view loaded",
         chartDisplay: "chart display",
@@ -418,6 +425,8 @@ export const de = {
     redo: "Wiederholen",
     reset: "Zurücksetzen",
     resetHint: "Zurück zur Startansicht",
+    newReport: "Neu",
+    unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
     layout: "Anordnung",
     showLayout: "Feldanordnung zeigen",
@@ -500,6 +509,7 @@ export const de = {
     toastUndone: "Rückgängig: {step}",
     toastRedone: "Wiederholt: {step}",
     toastReset: "Zurück zur Startansicht",
+    newEmpty: "Neuer, leerer Bericht",
     toastExported: "{file} exportiert",
     toastLoaded: "Ansicht „{name}“ geladen",
     toastExportFailed: "Export fehlgeschlagen: {message}",
@@ -521,6 +531,7 @@ export const de = {
         swap: "Zeilen und Spalten getauscht",
         template: "Ansicht „{name}“",
         reset: "zurück zur Startansicht",
+        new: "neuer, leerer Bericht",
         outside: "Änderung von außerhalb des Berichts",
         viewLoaded: "Ansicht geladen",
         chartDisplay: "Diagrammdarstellung",

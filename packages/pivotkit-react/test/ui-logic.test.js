@@ -376,13 +376,13 @@ test("auto group labels need room: a phone-sized chart writes the whole names in
 
 test("toolbar: which buttons go into More follows the width and a fixed priority, never the texts", async () => {
     const { OVERFLOW_ORDER, TOOLBAR_ROOM, overflowLevel } = await import("../src/overflow.js");
-    // Redo stays with Undo: it never moves
-    assert.deepEqual(OVERFLOW_ORDER, ["reset", "layout", "views", "options", "chartType"]);
+    // Redo stays with Undo: it never moves; Reset goes first (it makes room for "More", New would not)
+    assert.deepEqual(OVERFLOW_ORDER, ["reset", "new", "layout", "views", "options", "chartType"]);
     const all = TOOLBAR_ROOM.display + TOOLBAR_ROOM.sep + TOOLBAR_ROOM.undo + TOOLBAR_ROOM.redo + TOOLBAR_ROOM.export + OVERFLOW_ORDER.reduce((n, id) => n + TOOLBAR_ROOM[id], 0);
     assert.equal(overflowLevel(all, false), 0, "room for every button");
     assert.equal(overflowLevel(all - 0.1, false), 1, "a little less: Reset goes first");
     assert.equal(overflowLevel(0, false), OVERFLOW_ORDER.length, "no room: all of them");
-    // a narrow report has the Fields button too: Reset and Layout make room for it and for "More"
+    // a narrow report has the Fields button too: Reset and New make room for it and for "More"
     assert.equal(overflowLevel(all, true), 2);
     // the level only grows as the toolbar gets narrower
     let last = 0;

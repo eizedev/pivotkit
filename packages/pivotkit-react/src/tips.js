@@ -319,6 +319,7 @@ export const SECTIONS = Object.freeze({
     // the Export menus (the toolbar's and the drill-down's)
     exportDownload: true,
     exportCopy: true,
+    thisView: true,
     sharedViews: true,
     myViews: true,
     share: true,

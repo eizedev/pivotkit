@@ -9,9 +9,10 @@
 /**
  * The buttons that move into "More" when the toolbar is too narrow, first to go first: a fixed
  * priority. The order never depends on a button's own state (Layout open or folded), so a click never
- * moves it. Redo is not in the list: it stays next to Undo, which always stays.
+ * moves it. Reset goes first: it is wider than "More", which takes its place (New is not). Redo is
+ * not in the list: it stays next to Undo, which always stays.
  */
-export const OVERFLOW_ORDER = Object.freeze(["reset", "layout", "views", "options", "chartType"]);
+export const OVERFLOW_ORDER = Object.freeze(["reset", "new", "layout", "views", "options", "chartType"]);
 
 /**
  * The room (em of the toolbar's font) each part of the toolbar takes with the longest text of the
@@ -29,6 +30,7 @@ export const TOOLBAR_ROOM = Object.freeze({
     undo: 8.75,
     redo: 9.15,
     reset: 9.65,
+    new: 5.35,
     layout: 8.4,
     options: 8.75,
     views: 9.1,
@@ -37,7 +39,7 @@ export const TOOLBAR_ROOM = Object.freeze({
 });
 
 /** The parts of the toolbar that are buttons with a text, and those that open a menu (with a caret). */
-const TEXT_BUTTONS = Object.freeze(["fields", "undo", "redo", "reset", "layout"]);
+const TEXT_BUTTONS = Object.freeze(["fields", "undo", "redo", "reset", "new", "layout"]);
 const MENU_BUTTONS = Object.freeze(["chartType", "options", "views", "export", "more"]);
 
 /**
@@ -47,13 +49,14 @@ const MENU_BUTTONS = Object.freeze(["chartType", "options", "views", "export", "
  * @returns {Record<string, string[]> & { display: string[][] }}
  */
 export function toolbarTexts(sets) {
-    const out = /** @type {any} */ ({ fields: [], undo: [], redo: [], reset: [], layout: [], chartType: [], options: [], views: [], export: [], more: [], display: [] });
+    const out = /** @type {any} */ ({ fields: [], undo: [], redo: [], reset: [], new: [], layout: [], chartType: [], options: [], views: [], export: [], more: [], display: [] });
     const text = (v) => (typeof v === "string" ? v : "");
     for (const l of sets) {
         out.fields.push(text(l.showFields));
         out.undo.push(text(l.undo));
         out.redo.push(text(l.redo));
         out.reset.push(text(l.reset));
+        out.new.push(text(l.newReport));
         out.layout.push(text(l.layout));
         out.options.push(text(l.options));
         out.views.push(text(l.views));

@@ -51,12 +51,14 @@ export function storedViews(raw, sourceId) {
 
 /**
  * The browser store's text after a change: `name` saved for `sourceId` (replacing a view of the same
- * name for the same data), or the view at `remove` taken out. A delete checks that the view there is
- * still the one named `removeName` (another tab may have changed the store since the menu was drawn)
- * and throws "changed" when it is not, so the wrong view is never deleted. The caps apply to a save
+ * name for the same data), the view at `replace` written over in its place (Save, and Save as onto a
+ * name that exists: its data and its place in the list stay), or the view at `remove` taken out. A
+ * delete and a replace check that the view there is still the one named `removeName` or `name`
+ * (another tab may have changed the store since the menu was drawn) and throw "changed" when it is
+ * not, so the wrong view is never deleted or overwritten. The caps apply to a save
  * only: a store over them (older caps, changed by hand) can always shrink.
  * @param {string | null} raw
- * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string }} change
+ * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string, replace?: number }} change
  * @param {(kind: "count" | "text" | "changed", max: number) => string} message  the Error's message
  * @returns {string | null}  null when nothing is left
  */
@@ -70,7 +72,13 @@ export function changedViews(raw, change, message) {
         next = all.filter((t, i) => i !== change.remove);
     }
     const saving = Boolean(change.name && change.view);
-    if (saving) {
+    if (saving && change.replace !== undefined) {
+        const old = all[change.replace];
+        if (old?.name !== change.name) {
+            throw new Error(message("changed", 0));
+        }
+        next = all.map((t, i) => (i === change.replace ? { name: old.name, view: /** @type {Record<string, unknown>} */ (change.view), ...(old.source ? { source: old.source } : {}) } : t));
+    } else if (saving) {
         const id = change.sourceId;
         next = next.filter((t) => t.name !== change.name || (t.source?.id ?? undefined) !== id);
         next.push({ name: /** @type {string} */ (change.name), view: /** @type {Record<string, unknown>} */ (change.view), ...(id ? { source: { id } } : {}) });
@@ -90,7 +98,7 @@ export function changedViews(raw, change, message) {
  * the labels' words when the store would hold too much, changed since the menu was drawn, or the
  * browser refused to keep it.
  * @param {string | null} raw  the store's text now
- * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string }} change
+ * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string, replace?: number }} change
  * @param {any} labels  with the menus' texts
  * @param {string} locale  for the numbers
  * @param {(text: string | null) => boolean} keep  writes the text (storage.js: writeItem), false when the browser refused

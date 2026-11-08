@@ -6,6 +6,19 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- pivotkit-react's Save, Save as and New for views
+  ([#60](https://github.com/eizedev/pivotkit/issues/60)): Save on a user's view sends
+  `pivot-template-save` (with `save-templates`) or writes the browser store, Save on a shared view
+  sends `pivot-template-publish` (with `can-publish`, else it is off with the reason), Save as onto
+  a name that exists asks the user first. No new attribute or event.
+
+### Fixed
+
+- No `pivot-export` for an empty report: its Export entries are off with "Add a field first."
+  ([#61](https://github.com/eizedev/pivotkit/issues/61)).
+
 ## [0.1.0] - 2026-11-07
 
 First release.

@@ -16,6 +16,7 @@ import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
 import { SHORTCUTS } from "./tips.js";
 import { TOTALS, totalNoEffect } from "./view-ops.js";
+import { canSaveAs, saveAsConflict, saveTarget } from "./view-save.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -258,18 +259,60 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
 }
 
 /**
- * Save the view under a name. The menu stays open after a save: the new entry shows in the list, and
- * sharing ("Copy link") is one click away; the field is empty again and keeps the focus.
+ * Save the view under a name (Save as). A name that is taken asks first, in place of the field:
+ * Replace writes over that view, Cancel goes back to the field with the name in it. The menu stays
+ * open after a save: the new entry shows in the list, and sharing ("Copy link") is one click away;
+ * the field is empty again and keeps the focus.
+ * @param {{ labels: any, onSave: (name: string, replace?: any) => unknown, conflict: (name: string) => any }} props
  */
-function SaveView({ labels, onSave }) {
+function SaveView({ labels, onSave, conflict }) {
     const [name, setName] = useState("");
+    // the entry a save would replace, while the question is open
+    const [asking, setAsking] = useState(/** @type {any} */ (null));
     const field = useRef(/** @type {HTMLInputElement | null} */ (null));
+    const replaceButton = useRef(/** @type {HTMLButtonElement | null} */ (null));
+    const asked = useRef(false);
+    useEffect(() => {
+        // the question takes the focus (it replaces the field); Cancel gives it back to the field
+        if (asking || asked.current) {
+            asked.current = true;
+            (asking ? replaceButton : field).current?.focus({ preventScroll: true });
+        }
+    }, [asking]);
+    if (asking) {
+        const question = fill(labels.replaceConfirm, { name: asking.name });
+        return (
+            <div className="pk-confirm pk-save-confirm" role="group" aria-label={question} data-testid="replace-confirm">
+                <span className="pk-confirm-text">{question}</span>
+                <button
+                    ref={replaceButton}
+                    type="button"
+                    className="pk-btn pk-primary"
+                    data-autofocus=""
+                    data-testid="confirm-replace"
+                    onClick={() => {
+                        onSave(asking.name, asking);
+                        setName("");
+                        setAsking(null);
+                    }}
+                >
+                    {labels.replaceAction}
+                </button>
+                <button type="button" className="pk-btn" data-testid="cancel-replace" onClick={() => setAsking(null)}>
+                    {labels.cancel}
+                </button>
+            </div>
+        );
+    }
     return (
         <form
             className="pk-inline-form"
             onSubmit={(e) => {
                 e.preventDefault();
-                if (name.trim()) {
+                const taken = name.trim() ? conflict(name.trim()) : null;
+                if (taken) {
+                    setAsking(taken);
+                } else if (name.trim()) {
                     const saved = onSave(name.trim());
                     setName("");
                     field.current?.focus({ preventScroll: true });
@@ -477,7 +520,8 @@ function ShareSection({ labels, share, close }) {
 
 /**
  * What the Views menu's buttons do, from what the report passes (PivotReport: templateActions): save
- * the view (the host's onSaveTemplate wins over the browser store), delete an entry (a host's goes to
+ * the view under a new name (the host's onSaveTemplate wins over the browser store), save the loaded
+ * view where it is kept (view-save.js), delete an entry (a host's goes to
  * its onDeleteTemplate, a stored one to the store) and publish a user's view (onPublishTemplate, when
  * the host allows it). Each says "saved", "deleted" or "published" when it is kept (a promise
  * resolved), or why not; the delete and the publish resolve to whether they were kept.
@@ -499,23 +543,36 @@ function viewActions(ctx, labels) {
                 }
             );
     const write = (change) => storeViews(ctx.viewsText, change, labels, ctx.locale, ctx.keep);
+    /** One save, said as "saved" or why not; once kept, the view shown is that saved view. */
+    const saveTo = (target, name) =>
+        run(
+            () =>
+                target.kind === "publish"
+                    ? ctx.onPublish(name, ctx.view)
+                    : target.kind === "host"
+                      ? ctx.onSave(name, ctx.view, { scope: "user" })
+                      : write({ name, view: ctx.view, sourceId: ctx.sourceId, replace: target.at }),
+            labels.toastSaved,
+            labels.toastSaveFailed,
+            labels.toastSaveRejected,
+            name
+        ).then((ok) => ok && ctx.onSaved({ name, scope: target.kind === "publish" ? "shared" : "user", store: target.kind === "store" }));
     return {
-        save:
-            ctx.onSave || ctx.store
-                ? (name) =>
-                      run(() => (ctx.onSave ? ctx.onSave(name, ctx.view, { scope: "user" }) : write({ name, view: ctx.view, sourceId: ctx.sourceId })), labels.toastSaved, labels.toastSaveFailed, labels.toastSaveRejected, name).then(
-                          (ok) => ok && ctx.onSaved()
-                      )
-                : null,
+        // Save as: the host's onSaveTemplate wins over the browser store; `replace`, the entry of that
+        // name it writes over (the store's in its place)
+        save: ctx.onSave || ctx.store ? (name, replace) => saveTo(ctx.onSave ? { kind: "host" } : { kind: "store", at: replace?.at }, name) : null,
+        // Save: the loaded view under its name, where it is kept (view-save.js)
+        saveLoaded: (target) => saveTo(target, ctx.loaded.name),
         remove: ctx.onDelete || ctx.store ? (t) => run(() => (t.at !== undefined ? write({ remove: t.at, removeName: t.name }) : ctx.onDelete(t.name, { scope: t.scope })), labels.toastDeleted, labels.toastDeleteFailed, labels.toastDeleteRejected, t.name) : null,
         publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view)), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
     };
 }
 
 /**
- * The Views menu: the templates in two groups, "Shared views" (the host's, for everyone) and "My
- * views" (the user's own: the host's or the browser store's), each shown only when it has entries
- * ("My views" also with "Save current view"), then sharing. An entry loads its view; a deletable one
+ * The Views menu: "This view" (Save the loaded view under its name, or why not; Save as, the name
+ * field; New, an empty report), the templates in two groups, "Shared views" (the host's, for
+ * everyone) and "My views" (the user's own: the host's or the browser store's), each shown only when
+ * it has entries ("My views" also when the user can save), then sharing. An entry loads its view; a deletable one
  * has a delete button, a shared one that is not has the "i" that says who changes shared views, and
  * a user's view offers "Publish as shared view" when the host allows it. Delete and publish ask
  * first, in place; the entry changes only when the host's callback (or the browser store) has
@@ -524,7 +581,9 @@ function viewActions(ctx, labels) {
  * @param {{ templates: import("./templates.js").TemplateEntry[], labels: any, onLoad: (t: any) => void, actions: any, close: () => void, share?: any }} props
  */
 export function ViewsPanel({ templates, labels, onLoad, actions, close, share }) {
-    const { save: onSave, remove: onDelete, publish: onPublish } = viewActions(actions, labels);
+    const { save: onSave, saveLoaded, remove: onDelete, publish: onPublish } = viewActions(actions, labels);
+    const can = { host: Boolean(actions.onSave), store: Boolean(actions.store), publish: Boolean(onPublish) };
+    const target = saveTarget(actions.loaded, templates, can);
     // "My views" says where they are kept while the browser store takes the saves
     const store = actions.store && !actions.onSave;
     const [confirming, setConfirming] = useState(/** @type {{ at: number, kind: "delete" | "publish" } | null} */ (null));
@@ -612,6 +671,25 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
     const mine = group("user");
     return (
         <div ref={box} className="pk-views">
+            <Section title={labels.thisView} id="thisView">
+                {target ? (
+                    <Option icon="save" onSelect={() => { close(); saveLoaded(target); }} disabled={target.kind === null} reason={target.kind === null ? labels[target.why] : undefined} testId="save-loaded">
+                        {fill(labels.saveNamed, { name: actions.loaded.name })}
+                    </Option>
+                ) : null}
+                {onSave ? (
+                    <>
+                        <div className="pk-subtitle">{actions.loaded && canSaveAs(can) ? labels.saveAs : labels.saveView}</div>
+                        <SaveView labels={labels} onSave={onSave} conflict={(name) => saveAsConflict(name, templates, can)} />
+                    </>
+                ) : null}
+                <div className="pk-setting-row">
+                    <Option icon="newFile" onSelect={() => { close(); actions.onNew(); }} disabled={!actions.canNew} reason={actions.canNew ? undefined : labels.newAlready} testId="new-report">
+                        {labels.newEmpty}
+                    </Option>
+                    <SettingInfo id="newReport" name={labels.newEmpty} />
+                </div>
+            </Section>
             {shared.length ? (
                 <Section title={labels.sharedViews} id="sharedViews">
                     {shared}
@@ -619,13 +697,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
             ) : null}
             {mine.length || onSave || !shared.length ? (
                 <Section title={labels.myViews} id="myViews">
-                    {mine.length || onSave ? mine : <p className="pk-hint">{labels.noViews}</p>}
-                    {onSave ? (
-                        <>
-                            <div className="pk-subtitle">{labels.saveView}</div>
-                            <SaveView labels={labels} onSave={onSave} />
-                        </>
-                    ) : null}
+                    {mine.length ? mine : <p className="pk-hint">{labels.noViews}</p>}
                     {store ? (
                         <p className="pk-hint pk-menu-hint" data-testid="store-note">
                             {labels.storeNote}
@@ -662,9 +734,10 @@ export function ExportOption({ icon, text, info, onSelect, testId, disabled, rea
  * The Export menu: the table as a file (Excel, CSV), the chart as an image, and the table on the
  * clipboard (as shown, or its data as JSON). The export module loads when the menu opens, so a copy
  * happens right in the click.
- * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, prepare: () => void, close: () => void }} props
+ * An empty report (no field placed) has nothing to export: every entry is off, and says so.
+ * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, empty?: boolean, prepare: () => void, close: () => void }} props
  */
-export function ExportPanel({ labels, onExport, chartReady, display, prepare, close }) {
+export function ExportPanel({ labels, onExport, chartReady, display, empty = false, prepare, close }) {
     useEffect(() => {
         prepare();
     }, [prepare]);
@@ -672,16 +745,18 @@ export function ExportPanel({ labels, onExport, chartReady, display, prepare, cl
         close();
         onExport(kind);
     };
+    // nothing to export yet: off, with the reason
+    const off = empty ? { disabled: true, reason: labels.exportNeedsField } : {};
     return (
         <>
             <Section title={labels.exportDownload} id="exportDownload">
-                <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} testId="export-xlsx" />
-                <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} testId="export-csv" />
-                <ExportOption icon="image" text={labels.exportPng} disabled={!chartReady} reason={display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
+                <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} {...off} testId="export-xlsx" />
+                <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} {...off} testId="export-csv" />
+                <ExportOption icon="image" text={labels.exportPng} disabled={empty || !chartReady} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
             </Section>
             <Section title={labels.exportCopy} id="exportCopy">
-                <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} testId="export-copy-table" />
-                <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} testId="export-copy-json" />
+                <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
+                <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} {...off} testId="export-copy-json" />
             </Section>
         </>
     );

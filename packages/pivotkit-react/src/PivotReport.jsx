@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computePivot, encode, normalize, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
+import { computePivot, emptyView, encode, normalize, fieldLabel, findNode, suggestDateUnit, toGrid, toSeries, toViewFile, viewFields, viewFileName, viewFileText } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
@@ -332,8 +332,13 @@ function Report(props) {
     // stays until it is dismissed or another view is loaded
     const [leftOut, setLeftOut] = useState(/** @type {string[]} */ ([]));
     const [issuesDismissed, setIssuesDismissed] = useState(/** @type {string | null} */ (null));
-    // the name of the view shown: the saved view or file it came from, for the files it is shared as
-    const [viewName, setViewName] = useState(/** @type {string | null} */ (null));
+    // the view loaded: the saved view or file it came from (its name names the files it is shared as),
+    // its group ("user", "shared"; null for a file or a link), whether the browser store keeps it, and
+    // its view as saved (`key`, history.keyOf), so the toolbar shows when it has unsaved changes
+    const [loadedView, setLoadedView] = useState(/** @type {{ name: string, scope: "user" | "shared" | null, store: boolean, key: string } | null} */ (null));
+    const viewName = loadedView?.name ?? null;
+    // New took the loaded view's name away: Undo back to the view before it brings it back
+    const [beforeNew, setBeforeNew] = useState(/** @type {{ loaded: NonNullable<typeof loadedView>, key: string } | null} */ (null));
     // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
@@ -577,7 +582,8 @@ function Report(props) {
             const lines = issueLines(loaded.issues, labels);
             setLeftOut(lines);
             setIssuesDismissed(null);
-            setViewName(loaded.file?.name || null);
+            setBeforeNew(null);
+            setLoadedView(loaded.file?.name ? { name: loaded.file.name, scope: null, store: false, key: latest.current.history.keyOf(loaded.view) } : null);
             const text = link ? (lines.length ? labels.toastLinkOpenedPartly : labels.toastLinkOpened) : lines.length ? labels.toastViewLoadedPartly : labels.toastViewLoaded;
             announce(text, restored ? undefined : { action: { label: labels.undo, run: () => undoLater.current() } });
         },
@@ -896,7 +902,8 @@ function Report(props) {
     const loadTemplate = useCallback(
         (t) => {
             commit(t.view, { step: "template", name: t.name });
-            setViewName(typeof t.name === "string" ? t.name : null);
+            setBeforeNew(null);
+            setLoadedView(typeof t.name === "string" ? { name: t.name, scope: t.scope === "user" ? "user" : "shared", store: t.at !== undefined, key: history.keyOf(t.view) } : null);
             // a saved view made with other limits loads with the fields that fit: what was left out
             // goes into the area above the result, the note says it was loaded
             const over = zoneOverLimit(t.view, limits);
@@ -904,8 +911,23 @@ function Report(props) {
             setIssuesDismissed(null);
             announce(fill(labels.toastLoaded, { name: t.name }));
         },
-        [commit, labels, announce, limits, locale]
+        [commit, labels, announce, limits, locale, history]
     );
+    if (loadedView === null && beforeNew && beforeNew.key === history.viewKey) {
+        setLoadedView(beforeNew.loaded);
+        setBeforeNew(null);
+    }
+    /** New: an empty report (the start screen), one step Undo takes back; the loaded view's name goes. */
+    const newReport = () => {
+        if (empty) {
+            return;
+        }
+        setBeforeNew(loadedView ? { loaded: loadedView, key: history.viewKey } : null);
+        commit(emptyView(), { step: "new" });
+        setLoadedView(null);
+        setLeftOut([]);
+        announce(labels.newEmpty, { action: { label: labels.undo, run: () => undoLater.current() } });
+    };
     // the browser store (templateStore="browser"): the user's own views in localStorage under the
     // storageKey; read after hydration, as the tips. Its views are read with the menus' module
     // (view-store.js), loaded right after the first render
@@ -929,7 +951,15 @@ function Report(props) {
         onPublish: canPublish ? onPublishTemplate : undefined,
         // a view leaves the report checked against the data, never as it was stored
         normalized: (v) => normalize(v, encoded, { limits }).view,
-        onSaved: () => setSavedAt(changesRef.current)
+        loaded: loadedView,
+        /** A save kept: the view shown is the saved one under that name now (Save, Save as). */
+        onSaved: (/** @type {{ name: string, scope: "user" | "shared", store: boolean }} */ saved) => {
+            setSavedAt(changesRef.current);
+            setBeforeNew(null);
+            setLoadedView({ ...saved, key: history.viewKey });
+        },
+        onNew: newReport,
+        canNew: !empty
     };
 
     const onKeyDown = (e) => {
@@ -1168,6 +1198,9 @@ function Report(props) {
                                 onUndo={undo}
                                 onRedo={redo}
                                 onReset={reset}
+                                onNew={newReport}
+                                canNew={!empty}
+                                loadedView={loadedView ? { name: loadedView.name, changed: loadedView.key !== history.viewKey } : null}
                                 onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
                                 onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
                                 onChartDisplay={(patch) => commit(setChartDisplay(view, patch), { step: "chartDisplay" })}
@@ -1182,6 +1215,7 @@ function Report(props) {
                                 onExport={doExport}
                                 prepareExport={prepareExporters}
                                 chartReady={view.display === "chart" && chartReady}
+                                empty={empty}
                                 onShowFields={() => setDrawer(true)}
                                 layoutFolded={layoutFolded}
                                 onLayout={() => setFolded(!layoutFolded)}

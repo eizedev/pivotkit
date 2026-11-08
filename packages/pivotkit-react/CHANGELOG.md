@@ -6,6 +6,22 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Save, Save as and New for views
+  ([#60](https://github.com/eizedev/pivotkit/issues/60)). The toolbar shows the name of the view
+  loaded (a saved view, a view file, a link) next to Views, with a dot while it has unsaved changes
+  (`labels.unsavedChanges`). The Views menu starts with "This view": **Save “…”** writes the loaded
+  view under its name in one click (a view of the browser store in its place, a user's view of the
+  host through `onSaveTemplate`, a shared view through `onPublishTemplate` with `canPublish`); it is
+  off with the reason for a shared view the user may not change and for a view from a file or a
+  link. **Save as…** is the name field: a name that exists among the user's views asks "“…” exists.
+  Replace it?" first. **New** (in the menu and next to Reset in the toolbar) empties the report to
+  the start screen, one step Undo takes back with the view's name. New labels: `newReport`,
+  `newEmpty`, `unsavedChanges`, `steps.new`, and in the menus `thisView`, `saveNamed`, `saveAs`,
+  `saveSharedLocked`, `saveNotInViews`, `replaceConfirm`, `replaceAction`, `newAlready`,
+  `settingInfo.newReport`.
+
 ### Changed
 
 - The forms of a row or column field's menu (number ranges, Top N, value condition) remove what
@@ -16,6 +32,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Copy table, Copy data as JSON, Excel, CSV and PNG are off for an empty report (no field placed),
+  with the reason "Add a field first." (`labels.exportNeedsField`); they produced empty output
+  before, and no `onExport` call happens for them now
+  ([#61](https://github.com/eizedev/pivotkit/issues/61)).
 - A click or Enter on a field of the field list that is in Values already no longer adds it again
   ("Count of Ticket 2", "3", ... on a repeated Enter): it stays, and the status line says "Ticket is
   already in Values", as for a field in Rows. A second value of the same field is "Add to Values
