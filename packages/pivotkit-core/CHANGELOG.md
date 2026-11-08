@@ -6,6 +6,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-08
+
 ### Added
 
 - Every issue of `normalize()`, `migrate()`, `validate()` and `computePivot()` has a `code` (one of
@@ -143,5 +145,6 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.1.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.2.0...HEAD
+[0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.1.0...pivotkit-core@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-core@0.1.0

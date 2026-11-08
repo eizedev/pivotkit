@@ -33,7 +33,7 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 Every package of a third party is pinned to an exact version with the lock file; a package of this
 repository that another one depends on takes a caret range on its current version (`pivotkit-react`
 depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.x a caret range
-spans patch versions only (`^0.1.0` matches 0.1.x, `^0.0.1` matches 0.0.1 alone), so a host that
+spans patch versions only (`^0.2.0` matches 0.2.x, `^0.0.1` matches 0.0.1 alone), so a host that
 also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
 when the ranges overlap.
 `pivotkit-element` bundles everything it needs: each bundled package (React, ReactDOM, @dnd-kit,

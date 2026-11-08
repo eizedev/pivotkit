@@ -29,7 +29,7 @@ validate real exports against the schema with a JSON Schema 2020-12 validator.
   "name": "Revenue by region",
   "description": "For the monthly review",
   "createdAt": "2026-11-07T09:30:00.000Z",
-  "generator": { "name": "pivotkit-react", "version": "0.1.0" },
+  "generator": { "name": "pivotkit-react", "version": "0.2.0" },
   "source": {
     "id": "sales",
     "name": "Sales 2026",
