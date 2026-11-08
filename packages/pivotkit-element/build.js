@@ -154,12 +154,13 @@ async function licenses(metafile) {
  * drill-down's table (drill-table.js) and the texts only those show went to the menus, the chart's
  * label layout (chart-layout.js) to the chart. Measured on a Mac: first load 147.8 (152.2 before),
  * chart 204.4, export 10.7, link 6.7, menus 22.8, German texts 4.4. Since then one rule for every
- * group: the budget is 3 to 5 % above what CI measures (the Mac's number plus about 0.3), rounded:
- * initial 152.5 (3 % over 148.1; the room freed is for the next features, #56), chart 211, export
- * 11.5, link 7.3, menus 24, texts 4.9.
+ * loaded group: the budget is 3 to 5 % above what CI measures (the Mac's number plus about 0.3),
+ * rounded: chart 211, export 11.5, link 7.3, menus 24, texts 4.9. The first load is the exception:
+ * every page pays it, so its budget stays about 1 KiB above what CI measures (149 over 148.1), and a
+ * feature that needs more raises it on purpose.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9 };
+export const SIZE_BUDGET_KIB = { initial: 149, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
