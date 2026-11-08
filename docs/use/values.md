@@ -26,9 +26,10 @@ field twice (the sum and the average of a cost, say).
 
 Folded sections open with their title and say what they hold while folded ("Number format ·
 Automatic"); a dot marks one that is not at its default ([long menus](layout.md#menus-that-are-long)).
-The **i** at the top of the menu holds the field's description, when the application gives one, and
-says that values are not filtered here: filter a field on Rows or Columns through its menu, or move a
-field to Filters.
+The menu's first row is the value's name with an **i**: it holds the field's description, when the
+application gives one (with **Learn more** when there is a page about it), and, while **Show
+explanations** is on, a paragraph that says values are not filtered here: filter a field on Rows or
+Columns through its menu, or move a field to Filters. With neither, the row is not there.
 
 ## Summarize by
 

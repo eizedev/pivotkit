@@ -91,7 +91,8 @@ under Use a report. What they write into the view:
 | Text condition, Condition on the label | A `label` filter. |
 | Value condition… | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
 | Show top items… | A `top` filter, `by` the value chosen. |
-| Remove (next to "Filter: …") | Removes the field's `include`, `exclude`, `label` and `value` filters; `top` stays. |
+| Remove (next to "Filter: …") | Removes the field's `include`, `exclude` and `label` filters; `value` and `top` stay. |
+| Remove (next to a value condition) | Removes that `value` filter. |
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

@@ -110,8 +110,9 @@ squeezing the table into a sliver.
 
 Sections fold with their title, a button (44 px high on a touch screen). The ones used most are
 open. A folded section says at its end what it holds, muted ("Number format · Automatic",
-"Highlight · None"), with a dot when that is not the default, so you see what is set without opening
-it. The report remembers what you open and fold (with the tips, under the report's storage),
+"Highlight · None"), so you see what is set without opening it. A dot in the accent colour before it
+means the setting is not the one the report starts with ("Number format · ● Currency"); a screen
+reader hears "Number format, Currency, changed". The report remembers what you open and fold (with the tips, under the report's storage),
 **Show dismissed tips again** leaves it as it is, and **Options**, **Help**, **Reset menu sections**
 folds and opens every section as at first (greyed out while nothing differs).
 

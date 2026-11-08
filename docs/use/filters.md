@@ -10,8 +10,8 @@ values to keep, or set a condition on their labels. A field in **Filters** filte
 field on Rows or Columns filters its own items. **Value condition…** and **Show top items…** keep the
 items whose value meets a condition, or the largest N.
 
-The menu of a row or column field shows first what is set, in one line: "Filter: 15 of 45 · Remove",
-"Top 10 by Sum of Revenue · Change · Remove". When nothing is set, one item stands there instead
+The menu of a row or column field shows first what is set, one line per setting: "Filter: 15 of 45 ·
+Remove", "Sum of Revenue > 1,000 · Change · Remove", "Top 10 by Sum of Revenue · Change · Remove". When nothing is set, one item stands there instead
 ("Show top items…"); a click opens its form in place.
 
 ## Filter by values
@@ -40,10 +40,10 @@ Details:
   new in later data shows up. With every value ticked, the field is not filtered at all.
 - The **×** in the text of a condition removes the condition at once; the values you ticked stay a
   draft until you apply them.
-- While a field is filtered, its menu says what the filter keeps, in the accent colour, above
-  **Choose values…** and **Value condition…**: "Filter: 15 of 45" or "Filter: contains “an”", with
-  **Remove** next to it, which removes the values, the text condition and the value condition (Top N
-  stays). Remove closes the menu; the focus goes back to the chip.
+- While a field is filtered by its values or a text condition, its menu says what they keep, above
+  **Choose values…**: "Filter: 15 of 45" or "Filter: contains “an”", with **Remove** next to it, which
+  removes the values and the text condition (a value condition and Top N stay). Remove closes the
+  menu; the focus goes back to the chip. Folded, the Filters title says it in short: "15 of 45".
 - A field keeps its filters when it moves between Rows, Columns and Filters. Moved to Values, it
   leaves its filters behind. A field that leaves the report (its **x**, **Remove field**, or dragged
   back to the field list) takes its filters and its sort with it.
@@ -69,8 +69,8 @@ focus in its first field; **Cancel** closes the form and puts the focus back on 
    than or equal to, between, not between.
 3. Type the number, two for between, and **Apply**.
 
-![The menu of Region with its value condition: Sum of Revenue greater than 2,000,000](../assets/screenshots/value-filter-light.png#only-light)
-![The menu of Region with its value condition: Sum of Revenue greater than 2,000,000](../assets/screenshots/value-filter-dark.png#only-dark)
+![The menu of Region: the value condition "Sum of Revenue > 2,000,000" in a line of its own with Change and Remove](../assets/screenshots/value-filter-light.png#only-light)
+![The menu of Region: the value condition "Sum of Revenue > 2,000,000" in a line of its own with Change and Remove](../assets/screenshots/value-filter-dark.png#only-dark)
 
 - The chip then shows it in short, "Sum of Revenue > 1,000" (a long one ends in "…"; its whole text
   is in the chip's name for screen readers and in its tooltip), and so does the menu: "Filter: Sum of
@@ -80,10 +80,9 @@ focus in its first field; **Cancel** closes the form and puts the focus back on 
   0.25 is no condition on 25 %, 1000 is one on the sum of revenue.
 - Between keeps the items from the smaller to the larger number, in whatever order they were typed;
   the chip writes the smaller one first.
-- **Value condition…** opens the form with the condition set; changing it replaces it. Apply with no
-  number removes it. Each is one step Undo takes back.
-- **Remove** next to "Filter: …" in the menu removes it together with the values and the text
-  condition; Top N stays.
+- Once set, the menu shows it in a line of its own, "Sum of Revenue > 1,000 · Change · Remove":
+  **Change** opens the form with it (changing it replaces it; Apply with no number removes it),
+  **Remove** removes only the condition. Each is one step Undo takes back.
 - A field that holds no number says so under the number.
 - A view may hold more than one value condition or top N for a field (from a link, say): the menu
   edits the first one and leaves the others as they are. A condition whose value is no longer among

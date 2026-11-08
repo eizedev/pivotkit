@@ -254,9 +254,7 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
-            // the condition in words, its form opened, the menu scrolled to its Filters section
-            await page.getByTestId("value-filter-open").click();
-            await page.getByTestId("value-filter-number").blur();
+            // the condition in a line of its own with Change and Remove, the menu scrolled to its Filters section
             await page.getByTestId("open-filter").evaluate((el) => el.closest(".pk-section").scrollIntoView({ block: "start" }));
         }
     },
