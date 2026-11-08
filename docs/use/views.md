@@ -1,6 +1,6 @@
 ---
 title: Views, saving and sharing
-description: Undo and redo every step, reset, pick a shared view or one of your own, save and publish views, share a report as a link, as JSON or as a view file, and load one - with a check when it was made for other data.
+description: Undo and redo every step, reset, start an empty report, pick a shared view or one of your own, save changes to it or save it under a new name, publish views, share a report as a link, as JSON or as a view file, and load one - with a check when it was made for other data.
 ---
 
 # Views, saving and sharing
@@ -17,33 +17,90 @@ their own data.
 | **Undo** | Ctrl+Z, on a Mac Cmd+Z | Takes back the last change. |
 | **Redo** | Ctrl+Shift+Z or Ctrl+Y, on a Mac Cmd+Shift+Z | Repeats it. |
 | **Reset** | | Goes back to the start view, as one step you can undo. |
+| **New** | | Empties the report: no fields, the three first steps. One step you can undo; greyed out while the report is empty. |
 
-Every change is a step: placing a field, a filter, a chart setting, loading a view.
+Every change is a step: placing a field, a filter, a chart setting, loading a view. Saved views are
+not changed by any of them, only by saving.
+
+## The view you are working on
+
+When you load a saved view, open a view file or a link, its name stands in the toolbar next to
+**Views** (before **Export** when Views is in **More**). A dot after the name means the report has changes you have not saved yet; it goes when you
+save, or when Undo brings the report back to the view as it was saved.
+
+![The toolbar with the name of the loaded view and the dot for unsaved changes](../assets/screenshots/view-name-light.png#only-light)
+![The toolbar with the name of the loaded view and the dot for unsaved changes](../assets/screenshots/view-name-dark.png#only-dark)
+
+- A click on the name opens **Views**, where **Save** is the first entry. On a phone the name stands
+  at the end of the toolbar and is shortened with "…"; pointing at it shows the whole name.
+- **New** and **Reset** take the name away: the report no longer shows that view, so a Save cannot
+  write an empty report or the start view over it. **Undo** brings the view back and its name with it;
+  **Redo** takes both away again.
+- When the application switches to other data, the report keeps your fields but not the name.
+- After a reload of the page the report can come back with your view, but without its name: open the
+  saved view again from **Views** to save changes into it.
 
 ## The Views menu
 
-**Views** in the toolbar lists the saved reports in two groups, then **Share**. Each entry loads its
-view with one click; the first three are also offered in the empty report.
+**Views** in the toolbar starts with **This view** (save and start over), then lists the saved
+reports in two groups, then **Share**. Each entry loads its view with one click; the first three are
+also offered in the empty report.
 
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-dark.png#only-dark)
 
 | Group | What |
 | --- | --- |
+| **This view** | **Save “…”** for the view you loaded, the name field (**Save current view**, or **Save as…** once a view is loaded) and **New, empty report**. |
 | **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who (by default "Only admins can change shared views."). |
 | **My views** | Your own. **Save current view** saves the report under a name; your views can be deleted, and published for everyone where the application allows it. |
 
 A group without entries is not shown; My views shows while you can save.
 
-### Save a view
+![This view in the Views menu: Save for the loaded view, the Save as field and New, empty report](../assets/screenshots/views-this-view-light.png#only-light)
+![This view in the Views menu: Save for the loaded view, the Save as field and New, empty report](../assets/screenshots/views-this-view-dark.png#only-dark)
+
+### Save your changes
+
+You loaded one of your views and changed it:
+
+1. Open **Views** (or click the view's name in the toolbar).
+2. Click **Save “…”**.
+
+The view is saved under its name, in its place in My views, and the menu closes: "View “…” saved".
+Quick enough to keep a report for later before you leave.
+
+**Save** is greyed out, with the reason under it:
+
+| Reason | What to do |
+| --- | --- |
+| "Shared view: you cannot change it. Use Save as." | A shared view only someone who may publish views can change. Save it as your own under a name. |
+| "Not saved yet. Use Save as." | The view came from a file or a link: it is not among the saved views. |
+| "Add a field first." | The report is empty; an empty report is never saved over a view. |
+
+Where you may publish views, **Save** on a shared view asks first, in place: "Replace the shared view
+“…” for everyone?" - **Replace** saves it for everyone, **Cancel** changes nothing.
+
+### Save under a name
 
 1. Open **Views**.
-2. Type a name under **Save current view** (up to 120 characters).
-3. Press **Save** or Enter. **Save** is greyed out while the name is empty.
+2. Type a name under **Save current view** (**Save as…** once a view is loaded), up to 120 characters.
+3. Press **Save** (**Save as**) or Enter. The button is greyed out while the name is empty.
+
+When one of your views already has that name, the report asks in place of the field: "“…” exists.
+Replace it?" **Replace** writes over that view; **Cancel** brings the field back with the name in it,
+so you can change it. A shared view of the same name stays as it is: Save as saves your own.
 
 The menu stays open with the new entry and the name field empty, so **Copy link** is one click away.
-The name field has an **×**; Escape in it empties it first, then closes the menu. Names need not be
-unique, and every name is shown as plain text.
+The name field has an **×**; Escape in it empties it first, then closes the menu. Every name is shown
+as plain text.
+
+### Start over with an empty report
+
+**New** next to Reset in the toolbar (in **More** on a narrow screen), or **New, empty report** in
+Views, empties the report: no fields, the three first steps and up to three saved views to start
+from. "New, empty report" appears with **Undo**, which brings the report back. Saved views are not
+changed. The **i** next to the entry in Views says the same.
 
 ### Delete or publish one of your views
 
@@ -128,6 +185,8 @@ not take the focus; one opened later in the tab is a step Undo takes back once l
 !!! note "For developers"
     Where views are kept (`templates`, `onSaveTemplate`, `onDeleteTemplate`, `onPublishTemplate` with
     `canPublish`, `templateStore="browser"`) is in [Templates and shared views](../concepts/templates.md);
+    Save and Save as call `onSaveTemplate` or `onPublishTemplate` with a name that exists, which your
+    application replaces ([the contract](../reference/react.md#prop-onsavetemplate));
     links, `source`, `sources`, `onSourceSwitch` and keeping the view per tab (`persistView`) in
     [Sharing and keeping a view](../concepts/sharing.md); the file itself in the
     [view file format](../reference/view-file.md).

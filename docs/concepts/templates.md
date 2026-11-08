@@ -50,13 +50,20 @@ You keep the templates where you keep other data (a database, a settings service
 
 | React | Element | When |
 | --- | --- | --- |
-| `onSaveTemplate(name, view, { scope })` | `save-templates`, event `pivot-template-save` (`{ name, view, scope }`) | **Save current view**; `scope` is `"user"`. |
+| `onSaveTemplate(name, view, { scope })` | `save-templates`, event `pivot-template-save` (`{ name, view, scope }`) | **Save current view** and **Save as…**; **Save** on one of the user's own views of `templates`; `scope` is `"user"`. |
 | `onDeleteTemplate(name, { scope })` | event `pivot-template-delete` (`{ name, scope }`) | Delete of a `deletable` entry, after the user confirmed; `scope` is its group. |
-| `onPublishTemplate(name, view)` with `canPublish` | `can-publish`, event `pivot-template-publish` (`{ name, view }`) | **Publish as shared view** on one of the user's views, after the user confirmed. |
+| `onPublishTemplate(name, view)` with `canPublish` | `can-publish`, event `pivot-template-publish` (`{ name, view }`) | **Publish as shared view** on one of the user's views, and **Save** on a shared view loaded, each after the user confirmed. |
 
 Each callback may return a promise (the element: `event.detail.respondWith(promise)`): the report
 says "saved", "deleted" or "published" when it resolves, and the error's message when it rejects.
-Then pass the new list as `templates`. Who may publish or delete shared views is your decision:
+Then pass the new list as `templates`.
+
+!!! warning "Save by name: replace, do not add"
+    **Save** sends the loaded view's own name, and **Save as** a name that exists once the user
+    confirmed "Replace it?". Replace the view of that name (an upsert by name, per user for
+    `scope: "user"`); adding a second entry would leave two views of one name. The view sent is the
+    one shown: normalized against the data, with your custom orders (`fieldDefaults.order`), the
+    same for Save and Publish. Who may publish or delete shared views is your decision:
 pass `canPublish` and mark shared entries `deletable` only for the people who may (an admin role,
 say). The report only shows what you allow: your server must check who may save, publish or delete,
 and validate every view it receives as user input. A published view is sent normalized against the

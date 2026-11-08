@@ -20,6 +20,9 @@ with all its decimals and the formats; the CSV and the copy hold the numbers as 
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
 
+While no field is placed there is nothing to export: every entry is greyed out with "Add a field
+first." under it, and nothing is downloaded or copied.
+
 The menu has two sections, **Download** and **Copy**, which fold like the other menus' sections. An
 **i** next to Excel, CSV, Copy table and Copy data as JSON says what each holds.
 

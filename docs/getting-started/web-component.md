@@ -67,7 +67,7 @@ The [example page](../demo.md#the-web-component-example) shows all of it; its so
 
 ## Save views on a server
 
-With `save-templates` the Views menu offers "Save current view" under My views. The element asks the page with
+With `save-templates` the Views menu offers "Save current view" under This view (and Save for a view loaded from the user's own; a save may name a view that exists, which the page replaces). The element asks the page with
 a `pivot-template-save` event (`detail`: `name`, `view`, `scope: "user"`) and waits for the answer you pass to `respondWith()`:
 
 ```js

@@ -17,11 +17,14 @@ line under it says why, only while it is greyed out.
 | --- | --- |
 | Undo, Redo | there is a step to take back or to repeat |
 | Reset | the report differs from the start view |
+| New (toolbar), Views, **New, empty report** | a field is placed ("The report is empty already.") |
+| Export, every entry | a field is placed ("Add a field first.") |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |
 | Options, **Expand all**, **Collapse all** | it changes something; the line under it says why not ("Nothing is collapsed.", "Needs two or more fields in Rows.", "Every group is collapsed already.") |
 | Options, **Grand total row**, **Grand total column**, **Row subtotals**, **Column subtotals** | it changes something in this layout; the line under it says what it needs |
-| Views, **Save** | the name holds text |
+| Views, **Save “…”** | a saved view is loaded and you may change it: greyed out for a shared view you may not change ("Shared view: you cannot change it. Use Save as."), for a view opened from a file or a link ("Not saved yet. Use Save as.") and while no field is placed ("Add a field first.") |
+| Views, the button next to the name field (**Save**, **Save as**) | the name holds text |
 | Chart type, Display, **Labels** (pie and donut) | value labels are not Off |
 | Load view, **Load** | the box holds text (a chosen file loads at once) |
 | The chart title's **Apply** | the title differs from the current one |
@@ -34,7 +37,7 @@ the report reaches below it. A screen reader hears them.
 
 | Kind | Example | Stays |
 | --- | --- | --- |
-| Note | "Region removed" with **Undo**, "View loaded", "Opened the view from the link", "Table copied: tab-separated, pastes into Excel or Google Sheets as columns" | 6 seconds; longer while the pointer is on it or the focus is in it |
+| Note | "Region removed" with **Undo**, "New, empty report" with **Undo**, "View “Sales” saved", "View loaded", "Opened the view from the link", "Table copied: tab-separated, pastes into Excel or Google Sheets as columns" | 6 seconds; longer while the pointer is on it or the focus is in it |
 | Warning | "View loaded; some parts did not fit this data" | like a note; the details stay above the result (below) |
 | Error | "Export failed: ..." | until you close it with its **x** |
 

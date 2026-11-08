@@ -189,6 +189,34 @@ const SHOTS = [
         }
     },
     {
+        // a saved view loaded and changed: its name next to Views with the dot for unsaved changes
+        name: "view-name",
+        query: "data=tickets",
+        size: WIDE,
+        open: async (page) => {
+            await toolbar(page, "views");
+            await page.getByTestId("saved-view-Median lead time by month").click();
+            await page.getByTestId("show-chart").click();
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+        }
+    },
+    {
+        // This view in the Views menu: Save for one of my views, changed, the Save as field and New
+        name: "views-this-view",
+        query: "data=tickets",
+        size: WIDE,
+        open: async (page) => {
+            await toolbar(page, "views");
+            await page.getByTestId("saved-view-name").fill("Open work by team");
+            await page.getByTestId("saved-view-name").press("Enter");
+            await page.locator(".pk-toast").first().waitFor();
+            await page.keyboard.press("Escape");
+            await page.getByTestId("show-chart").click();
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await toolbar(page, "views");
+        }
+    },
+    {
         // the field list collapsed to a rail: the zones and the result take its room
         name: "field-rail",
         query: "data=sales",

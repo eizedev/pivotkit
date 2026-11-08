@@ -42,9 +42,9 @@ supported.
 | `view` | `view` (JSON) | view |  | Controlled: the view to show, see below. |
 | `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
 | `templates` |  | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu in two groups by `scope`, "Shared views" and "My views" (without `scope` a `deletable` entry is the user's own). [More](#prop-templates) |
-| `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. It wins over `template-store`. |
+| `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view" (Save as… once a view is loaded) and Save on the user's own views of `templates`; a save is a `pivot-template-save` event with the name to keep, an existing one to replace. It wins over `template-store`. |
 | `templateStore` | `template-store` | `"browser"` | off | `"browser"`: the element keeps the user's own views in `localStorage` under `pivotkit:views:<storage-key>`, per data (`source-id`): only this browser and device, lost when the site's data is cleared; at most 100 views. [More](#prop-templatestore) |
-| `canPublish` | `can-publish` (boolean) | `boolean` | `false` | Offers "Publish as shared view" on the user's views; a publish is a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete. |
+| `canPublish` | `can-publish` (boolean) | `boolean` | `false` | Offers "Publish as shared view" on the user's views and Save on a shared view loaded (without it Save is greyed out there: "Shared view: you cannot change it. Use Save as."); both are a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete. |
 | `fieldDefaults` |  | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count). [More](#prop-fielddefaults) |
 | `labels` |  | partial labels |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
 | `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react. |
@@ -164,9 +164,9 @@ or on the document gets it, with `event.target` the element.
 | --- | --- |
 | `pivot-view-change` | Every change of the view, normalized.<br><small>`detail`: `{ view }`</small> |
 | `pivot-cell-click` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects).<br><small>`detail`: `{ row, col, value, valueIndex, text, count, rows }`</small> |
-| `pivot-template-save` | "Save current view" (with `save-templates`); `scope` is `"user"`.<br><small>`detail`: `{ name, view, scope, respondWith }`</small> |
+| `pivot-template-save` | "Save current view", Save as… and Save of a user's view (with `save-templates`); `scope` is `"user"`. The name may exist: replace that view (an upsert by name).<br><small>`detail`: `{ name, view, scope, respondWith }`</small> |
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group (`"shared"` or `"user"`). Not sent for a view of the browser store.<br><small>`detail`: `{ name, scope, respondWith }`</small> |
-| `pivot-template-publish` | "Publish as shared view" on one of the user's views (with `can-publish`), after the user confirmed: add it to the shared views and set `templates`.<br><small>`detail`: `{ name, view, respondWith }`</small> |
+| `pivot-template-publish` | "Publish as shared view" on one of the user's views, or Save on a shared view (with `can-publish`), after the user confirmed: add it to the shared views, or replace the one of that name, and set `templates`.<br><small>`detail`: `{ name, view, respondWith }`</small> |
 | `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard; cancelable. [More](#event-pivot-export)<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
@@ -201,7 +201,7 @@ The events whose line in the table ends in "More", in full.
 
 `detail`: `{ kind, fileName, blob, text, rows }`.
 
-Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say).
+Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). Not sent for an empty report (no field placed): its Export entries are greyed out ("Add a field first.").
 
 ### `pivot-source-switch` { #event-pivot-source-switch }
 

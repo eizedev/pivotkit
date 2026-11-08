@@ -24,9 +24,9 @@ Installation and a first example are in [Getting started with React](../getting-
 | `defaultView` | view | empty | Uncontrolled: the start view. |
 | `onViewChange` | `(view) => void` |  | Every change, as a normalized view. |
 | `templates` | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu, in two groups by `scope`: "Shared views" (`"shared"`) and "My views" (`"user"`); without `scope` a `deletable` entry is the user's own, every other one shared. [More](#prop-templates) |
-| `onSaveTemplate` | `(name, view, { scope }) => unknown` |  | Shows "Save current view" under My views; gets the name, the normalized view and `{ scope: "user" }`. [More](#prop-onsavetemplate) |
+| `onSaveTemplate` | `(name, view, { scope }) => unknown` |  | Save as and Save of the user's own views; gets the name (an existing one to replace), the view and `{ scope: "user" }`. [More](#prop-onsavetemplate) |
 | `onDeleteTemplate` | `(name, { scope }) => unknown` |  | Deletes a template marked `deletable`, after the user confirmed in the menu; `scope` is the entry's group. [More](#prop-ondeletetemplate) |
-| `onPublishTemplate` | `(name, view) => unknown` |  | With `canPublish`: "Publish as shared view" next to each of the user's views, asked in place. [More](#prop-onpublishtemplate) |
+| `onPublishTemplate` | `(name, view) => unknown` |  | With `canPublish`: "Publish as shared view" on the user's views and Save on a shared view, asked in place. [More](#prop-onpublishtemplate) |
 | `canPublish` | `boolean` | `false` | The user may publish views for everyone (an admin, as the host decides). [More](#prop-canpublish) |
 | `templateStore` | `"browser"` | off | `"browser"`: the report keeps the user's own views (My views) in `localStorage` under `pivotkit:views:<storageKey>` (`pivotkit:views` without one), as view files that name their data (`source`). [More](#prop-templatestore) |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
@@ -81,7 +81,11 @@ The templates of the Views menu, in two groups by `scope`: "Shared views" (`"sha
 
 Type: `(name, view, { scope }) => unknown`.
 
-Shows "Save current view" under My views; gets the name, the normalized view and `{ scope: "user" }`. "View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). It wins over `templateStore`.
+Shows "Save current view" (Save as… once a view is loaded) under This view in the Views menu, and Save “…” for a user's view of `templates` that was loaded. Gets the name, the view as shown (normalized against the data, with the custom orders of `fieldDefaults`) and `{ scope: "user" }`.
+
+Replace by name (an upsert): Save sends the loaded view's own name, and Save as a name of one of the user's views once the user confirmed "“…” exists. Replace it?". Replace that view, do not add a second one. Then pass the new `templates`; until then the menu keeps the old entry, and the view shown carries the name. When the answer comes after the user changed the view (a slow server), the dot for unsaved changes stays; after New or another view was loaded the name goes to no view.
+
+"View “…” saved" is shown when it returns or the promise it returns resolves; an error when it throws or rejects: with the host's message when it gives one (an `Error`, a text), else "The server could not save the view." (`labels.toastSaveRejected`). It wins over `templateStore`.
 
 ### `onDeleteTemplate` { #prop-ondeletetemplate }
 
@@ -93,7 +97,7 @@ Deletes a template marked `deletable`, after the user confirmed in the menu; `sc
 
 Type: `(name, view) => unknown`.
 
-With `canPublish`: "Publish as shared view" (an arrow) next to each of the user's views (the view is sent normalized against the data), asked in place ("Publish “…” as a shared view? Everyone who uses this report sees it."). The host adds the view to its shared views and passes the new `templates`; "View “…” published" when it returns or its promise resolves, a failure as for `onSaveTemplate` (`labels.toastPublishRejected`).
+With `canPublish`: "Publish as shared view" (an arrow) next to each of the user's views, asked in place ("Publish “…” as a shared view? Everyone who uses this report sees it."), and Save “…” on a shared view that was loaded, asked in place ("Replace the shared view “…” for everyone?"). Both send the view in the same form: normalized against the data, with the custom orders of `fieldDefaults`. The host adds the view to its shared views, or replaces the shared view of that name (an upsert by name: Save sends the shared view's own name), and passes the new `templates`; "View “…” published" when it returns or its promise resolves, a failure as for `onSaveTemplate` (`labels.toastPublishRejected`).
 
 ### `canPublish` { #prop-canpublish }
 
@@ -141,7 +145,7 @@ pivotkit-core's [limits](../concepts/limits.md#limits). Data over `limits.rows`,
 
 Type: `({ kind, fileName, blob, text, rows }) => unknown`.
 
-Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file](view-file.md) of "Download view" in Views, named `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded, and every copy before it goes on the clipboard (`"copy-table"`, `"copy-json"` from Export; `"drill-copy"`, `"drill-json"`, `"drill-csv"`, `"drill-xlsx"` from the drill-down panel; a copy has its `text` and the `fileName` it would have as a file, a drill-down export `rows: { shown, count }`); returning `false` skips the download or the copy, so the host can keep the file or the text (upload it, say).
+Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file](view-file.md) of "Download view" in Views, named `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded, and every copy before it goes on the clipboard (`"copy-table"`, `"copy-json"` from Export; `"drill-copy"`, `"drill-json"`, `"drill-csv"`, `"drill-xlsx"` from the drill-down panel; a copy has its `text` and the `fileName` it would have as a file, a drill-down export `rows: { shown, count }`); returning `false` skips the download or the copy, so the host can keep the file or the text (upload it, say). An empty report (no field placed) has its Export entries greyed out ("Add a field first."): no call for them.
 
 ### `storageKey` { #prop-storagekey }
 
@@ -278,7 +282,7 @@ The report adapts to its own width, not the window's: wide (1024 px and more) ha
 the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (below 640 px) opens the
 field list as a drawer from the toolbar and shows menus as bottom sheets (at the bottom of the
 window, at most 82 % of its height, scrolling inside). Toolbar buttons move into "More" by a fixed
-priority (`OVERFLOW_ORDER`: Reset, Layout, Views, Options, the chart type) and the toolbar's width
+priority (`OVERFLOW_ORDER`: Reset, New, Layout, Views, Options, the chart type) and the toolbar's width
 measured against the room each button takes with the longest of its texts in English, German and the
 report's own labels, measured in the font the toolbar is drawn in (`toolbarRoom` in `overflow.js`),
 so English and German show the same buttons in every browser. Decided before the first paint. The zones stack, one line

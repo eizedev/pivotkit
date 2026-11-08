@@ -63,9 +63,10 @@ The report adapts to its own width, not the window's.
 - **Sheets**: on a phone **More** and every menu are a sheet at the bottom of the window, at most
   82 % of its height, scrolling inside: every entry is reachable.
 - **More**: toolbar buttons that do not fit move into **More**, always in the same order - Reset
-  first, then Layout, Views, Options and the chart type. Which buttons move depends on the report's
+  first, then New, Layout, Views, Options and the chart type. Which buttons move depends on the report's
   width only, so the same buttons show in every language, and a click on Layout never moves it.
-  Table or Chart, Undo with Redo next to it, and Export always stay.
+  Table or Chart, Undo with Redo next to it, and Export always stay. The name of the view you
+  loaded takes the room that is left on its line and is shortened with "…"; a tap on it opens Views.
 - **The table**: row labels wrap between words; a table wider than the phone scrolls sideways.
 
 ### A low report

@@ -105,7 +105,7 @@ passes a key, and the rows are encoded again only when it changes.
 ```
 
 `templates` fill the Views menu, in two groups: Shared views (the presets) and My views (the
-`deletable` ones); `onSaveTemplate` adds "Save current view". Both callbacks may return a promise: the
+`deletable` ones); `onSaveTemplate` adds "Save current view" and Save for a loaded view of the user's (it may get a name that exists: replace that view). Both callbacks may return a promise: the
 report shows "Saved" when it resolves and an error when it rejects. Without a server,
 `templateStore="browser"` keeps the user's views in the browser; shared views, publishing and views
 from an OpenAPI document are in [Templates and shared views](../concepts/templates.md).
