@@ -1758,7 +1758,10 @@
     display: flex;
     flex: 1;
     min-height: var(--pk-result-least);
-    overflow: hidden;
+    /* what is taller than the area scrolls inside it: the empty report's start help, a message, in a
+       report lower than they are (a host's height); the table scrolls in its own box (.pk-table-wrap)
+       and fills the area, so this never scrolls with it */
+    overflow: auto;
     border: 1px solid var(--pk-border);
     border-radius: var(--pk-radius);
     background: var(--pk-surface);

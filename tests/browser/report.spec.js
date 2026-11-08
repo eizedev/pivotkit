@@ -408,3 +408,47 @@ test("a popover opens at its button also inside a transformed ancestor (a contai
     expect(Math.abs(m.y - (b.y + b.height + 6))).toBeLessThan(3);
     expect(Math.abs(m.x + m.width - (b.x + b.width))).toBeLessThan(3);
 });
+
+test.describe("a result taller than its area scrolls inside it", () => {
+    /** Turns the mouse wheel over the result until `target` is inside the result's box (or 40 turns). */
+    async function wheelTo(page, target) {
+        const area = page.locator(".pk-result");
+        const box = await area.boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        const inside = () =>
+            target.evaluate((el) => {
+                const r = el.getBoundingClientRect();
+                const a = el.closest(".pk-result").getBoundingClientRect();
+                return r.top >= a.top - 1 && r.bottom <= a.bottom + 1 && r.height > 0;
+            });
+        for (let i = 0; i < 40 && !(await inside()); i++) {
+            await page.mouse.wheel(0, 200);
+            await page.waitForTimeout(50);
+        }
+        return inside();
+    }
+
+    for (const height of [640, 480]) {
+        test(`the empty report's start help at ${height} px: the wheel reaches its last "Start with" button`, async ({ page }) => {
+            await page.setViewportSize({ width: 1280, height: 800 });
+            await page.goto(`?empty&height=${height}`);
+            const empty = page.getByTestId("empty-state");
+            await expect(empty).toBeVisible();
+            const last = empty.locator(".pk-empty-actions .pk-btn").last();
+            await expect(last).toHaveText(/^Start with /);
+            expect(await wheelTo(page, last)).toBe(true);
+            // and the title at the top is reachable again
+            await page.mouse.wheel(0, -2000);
+            await expect.poll(() => wheelTo(page, empty.locator("h2"))).toBe(true);
+        });
+    }
+
+    test("a table taller than a 480 px report: the wheel reaches its Grand Total row", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.goto("?data=sales&height=480");
+        await page.locator('[data-testid="pivot-table"]').waitFor();
+        const total = page.locator('[data-testid="pivot-table"] tbody tr[data-r]').last();
+        await expect(total.locator("th").first()).toHaveText("Grand Total");
+        expect(await wheelTo(page, total)).toBe(true);
+    });
+});

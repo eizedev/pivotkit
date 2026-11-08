@@ -14,6 +14,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#78](https://github.com/eizedev/pivotkit/issues/78)).
 - German texts quote with German quotation marks (pivotkit-react's new label `quote`)
   ([#79](https://github.com/eizedev/pivotkit/issues/79)).
+- The empty report's first steps are no longer cut off in a low report: pivotkit-react's result area
+  scrolls what is taller than it.
 
 ## [0.2.0] - 2026-11-08
 

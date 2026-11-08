@@ -24,6 +24,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ("Filter: enthält „an“") and the fields a view for other data names ("Felder, die diese Daten
   nicht haben: „Country“") take their quotes from the new label `quote` (`"“{text}”"` in English,
   `"„{text}“"` in German); they were English quotes in every language.
+- The empty report's first steps ("Build your report in three steps" with its **Start with …**
+  buttons) are no longer cut off in a report lower than they are (a host's height, the result's least
+  height of 240 px): the result's area scrolls what is taller than it (`.pk-result` is
+  `overflow: auto`); the table keeps scrolling in its own box.
 
 ## [0.2.0] - 2026-11-08
 

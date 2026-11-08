@@ -328,6 +328,10 @@ the status line need depends on whether the host gives a height:
 - **With `height`** (a number, `"100%"`, any CSS length) the report stays inside that height: it folds
   its zones (above), and the table scrolls inside the result, however small it gets. Nothing is cut
   off: a card of a fixed size, such as a PowerShell Universal card, keeps the whole report.
+
+Whatever is taller than the result's area scrolls inside it, with or without `height`: the table in
+its own box (its header stays at the top, the last row, Grand Total, is reached by scrolling), the
+empty report's first steps with their **Start with …** buttons and a message in the area itself.
 - `grow` decides it either way: `"on"` lets a report with a height grow too, `"off"` keeps a report
   without one inside its 640 px. The element's attribute is `grow`.
 
