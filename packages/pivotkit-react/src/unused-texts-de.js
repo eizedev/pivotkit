@@ -6,6 +6,8 @@
 /** @type {import("./unused-texts.js").UnusedTexts} */
 export const de = {
     item: "{subject}: {text}",
+    quote: "„{key}“",
+    position: "{subject} (Nr. {n}, {part})",
     view: "Die Ansicht",
     sections: {
         sort: "Sortierung",

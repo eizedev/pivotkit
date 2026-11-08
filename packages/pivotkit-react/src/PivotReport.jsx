@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { computePivot, emptyView, encode, fieldLabel, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
+import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
@@ -34,6 +34,7 @@ import { templateEntries, viewsName } from "./templates.js";
 import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, sectionOpen, subscribeStored, tipActionText, tipContext, tipText, withSection, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
+import { activeIn } from "./dom.js";
 import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
@@ -128,6 +129,14 @@ const here = () => (typeof location !== "undefined" ? { href: location.href, has
 
 /** Rows above which the report shows its skeleton first and encodes the data in the next frame. */
 export const DEFER_ROWS = 10_000;
+
+/**
+ * The issues of a view loaded from outside as the warning's notes, with the view as given; a
+ * template's name and description are unknown keys of its view, nothing the person can act on.
+ * @param {import("pivotkit-core").Issue[]} issues
+ * @param {unknown} raw
+ */
+const unusedNotes = (issues, raw) => issues.filter((i) => (i.code ?? (i.message === "unknown key" ? "unknownKey" : "")) !== "unknownKey" || !["name", "description"].includes(i.path)).map((issue) => ({ issue, raw }));
 
 /**
  * The pivot report builder. While the host's data loads (`loading`) or a large data set is encoded for
@@ -320,6 +329,11 @@ function Report(props) {
     // stays until it is dismissed or another view is loaded
     const [leftOut, setLeftOut] = useState(/** @type {import("./unused.jsx").UnusedNote[]} */ ([]));
     const [issuesDismissed, setIssuesDismissed] = useState(/** @type {string | null} */ (null));
+    // views loaded from outside (a template, a file, a link, New): a new one is a new warning of its
+    // unused parts (open again, not dismissed), also with the same parts as the view before
+    const [loads, setLoads] = useState(0);
+    // the status note of the last load said already that some parts did not fit
+    const [unusedSaid, setUnusedSaid] = useState(false);
     // the view loaded: the saved view or file it came from (its name names the files it is shared as),
     // its group ("user", "shared"; null for a file or a link), whether the browser store keeps it, and
     // its view as saved (`key`, history.keyOf), so the toolbar shows when it has unsaved changes
@@ -583,10 +597,12 @@ function Report(props) {
             } else {
                 commit(loaded.view, { step: "viewLoaded" }, tag);
             }
-            // a template's name is an unknown key of its view: nothing the person can act on
-            const notes = loaded.issues.filter((i) => i.code !== "unknownKey" || !["name", "description"].includes(i.path)).map((issue) => ({ issue, raw: loaded.file?.view }));
+            const notes = unusedNotes(loaded.issues, loaded.file?.view);
             setLeftOut(notes);
             setIssuesDismissed(null);
+            setLoads((x) => x + 1);
+            // the status note says some parts did not fit: the warning's live region stays quiet
+            setUnusedSaid(notes.length > 0);
             const text = link ? (notes.length ? labels.toastLinkOpenedPartly : labels.toastLinkOpened) : notes.length ? labels.toastViewLoadedPartly : labels.toastViewLoaded;
             announce(text, restored ? undefined : { action: { label: labels.undo, run: () => undoLater.current() } });
         },
@@ -867,11 +883,16 @@ function Report(props) {
             // a saved view made with other limits loads with the fields that fit: what was left out
             // goes into the area above the result, the note says it was loaded
             const over = zoneOverLimit(t.view, limits);
-            setLeftOut(over ? [{ text: fill(labels.viewTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }) }] : []);
+            // what else of it the data cannot use (a field that is gone, a setting this version lacks);
+            // a zone over the limit is said in its own words above
+            const issues = normalize(t.view, encoded, { limits }).issues.filter((i) => !over || i.code !== "tooMany");
+            setLeftOut([...(over ? [{ text: fill(labels.viewTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }) }] : []), ...unusedNotes(issues, t.view)]);
             setIssuesDismissed(null);
+            setLoads((x) => x + 1);
+            setUnusedSaid(false);
             announce(fill(labels.toastLoaded, { name: t.name }));
         },
-        [commit, labels, announce, limits, locale, history, remember, sourceId]
+        [commit, labels, announce, limits, locale, history, remember, sourceId, encoded]
     );
     /** New: an empty report (the start screen), one step Undo takes back; the loaded view's name goes. */
     const newReport = () => {
@@ -880,6 +901,8 @@ function Report(props) {
         }
         commit(emptyView(), { step: "new" }, null);
         setLeftOut([]);
+        setLoads((x) => x + 1);
+        setUnusedSaid(false);
         announce(labels.newEmpty, { action: { label: labels.undo, run: () => undoLater.current() } });
     };
     // the browser store (templateStore="browser"): the user's own views in localStorage under the
@@ -1099,7 +1122,7 @@ function Report(props) {
     };
     // the area above the result: what a loaded view left out, then what normalize() dropped from the view shown
     const notes = useMemo(() => [...leftOut, ...(result && !empty ? result.issues.slice(0, 20).map((issue) => ({ issue, raw: view })) : [])], [leftOut, result, empty, view]);
-    const notesKey = useMemo(() => JSON.stringify(notes.map((n) => ("issue" in n ? [n.issue.path, n.issue.message] : n.text))), [notes]);
+    const notesKey = useMemo(() => JSON.stringify([loads, ...notes.map((n) => ("issue" in n ? [n.issue.path, n.issue.message] : n.text))]), [notes, loads]);
     // while enlarged, the fields in one line: what the result shows, without the zones
     const summaryParts = big.enlarged ? layoutSummary(zoneEntries(view, types, labels), labels) : [];
     const summaryText = summaryParts.length ? summaryParts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
@@ -1233,12 +1256,19 @@ function Report(props) {
                                 notes={notes}
                                 notesKey={notesKey}
                                 dismissed={issuesDismissed === notesKey}
-                                onDismiss={() => {
+                                onDismiss={(next) => {
                                     setIssuesDismissed(notesKey);
-                                    root.current?.focus({ preventScroll: true });
+                                    // what follows the warning, else the report
+                                    next?.focus({ preventScroll: true });
+                                    if (!next || activeIn(next) !== next) {
+                                        root.current?.focus({ preventScroll: true });
+                                    }
                                 }}
                                 labels={labels}
                                 locale={locale}
+                                narrow={size === "narrow"}
+                                // the status note "View loaded; some parts did not fit this data" said it
+                                quiet={unusedSaid}
                             />
                             <Tips
                                 tips={shownTips}

@@ -48,7 +48,7 @@ At most two show at a time. A save closes the Views menu (the focus goes back to
 
 ## Parts of a view that were not used
 
-A saved view, a link or a loaded file can name things the data does not have (a field that is gone, a
+A saved view (shared or your own), a link or a loaded file can name things the data does not have (a field that is gone, a
 value the field cannot compute) or settings this version does not know. The report leaves them out,
 shows the rest, and puts a warning above the result: "3 parts of this view could not be used".
 
@@ -56,19 +56,23 @@ shows the rest, and puts a warning above the result: "3 parts of this view could
 ![The warning above the result: three parts of the view in plain words, each with a line for developers](../assets/screenshots/unused-parts-dark.png#only-dark)
 
 - **Open the first time.** The warning is open when it first appears for a view, with one line per
-  part (up to 20 of the view's own, plus what a loaded view left out): what it is about in bold (the
-  value's name, the field, or the part of the report such as **Chart**), what is wrong, and what the
-  report does instead, for example "**Quakes**: the colour scale needs two or three colours - the
+  part: what it is about in bold (the value's name, the field, or the part of the report such as
+  **Chart**; two values of one name say which one, "Sum of Units (no. 2 in Values)"), what is wrong,
+  and what the report does instead, for example "**Quakes**: the colour scale needs two or three colours - the
   default colours are used" or "**Planet**: the data has no field of this name - it is left out of
   Rows".
-- **Fold it** with a click on its title, or Enter or Space on it. It stays folded while the view's
-  unused parts stay the same; another view with other unused parts opens it again.
+- **The first three lines** show (two on a narrow report); **Show N more** shows the rest, **Show
+  fewer** hides them again.
+- **Fold it** with a click on its title, or Enter or Space on it. It stays folded while you change
+  the view; another view loaded opens it again.
 - **For developers**: below each line, in small grey text, the part's place in the view
-  (`values[0].conditional.colors`) and pivotkit-core's message. A person who builds reports can
+  (`values[0].conditional.colors`) and, after a dot, pivotkit-core's message. A person who builds reports can
   ignore it; a developer finds the setting with it.
-- **Dismiss it** with its **x**; the focus goes back to the report. It comes back when another view is
-  loaded.
-- A screen reader hears the warning's title once, when it appears; the warning never takes the focus.
+- **Dismiss it** with its **x**; the focus goes to what follows it (a tip, **Enlarge**, the table).
+  It comes back when another view is loaded.
+- A screen reader hears it once, when it appears: the warning's title, or, for a view you loaded
+  from a file or a link, the status note "View loaded; some parts did not fit this data". The
+  warning never takes the focus.
 
 ??? note "Every kind of part and what the report does instead"
     | What is wrong | The report |
@@ -88,7 +92,8 @@ shows the rest, and puts a warning above the result: "3 parts of this view could
 
     The words come with the warning when a view has such parts, as a small file of their own; until
     they are there (a moment), or when the file cannot be loaded, each line shows pivotkit-core's
-    short message in English instead.
+    short message in English instead. With a pivotkit-core older than the plain words (for
+    developers: one whose issues have no `code`), each line shows that message.
 
 ## When the report cannot show anything
 

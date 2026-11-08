@@ -1699,6 +1699,10 @@
     margin-top: 0.35em;
 }
 
+.pk-issues-more {
+    margin: 0 0 0.3em 1.2em;
+}
+
 .pk-issues-path {
     display: block;
     color: var(--pk-muted);

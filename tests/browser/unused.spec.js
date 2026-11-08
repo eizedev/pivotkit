@@ -30,10 +30,12 @@ test("a view with unused parts shows a warning, open, each part in plain words w
     await expect(items.first()).toContainText("Quakes: the colour scale needs two or three colours - the default colours are used");
     await expect(items.nth(1)).toContainText("Chart: the legend position “left” is unknown - the default is used");
     // the path and the core's message, small, for developers
-    await expect(items.first().getByTestId("unused-path")).toHaveText("For developers: values[0].conditional.colors two or three colours as #rgb or #rrggbb");
+    await expect(items.first().getByTestId("unused-path")).toHaveText("For developers: values[0].conditional.colors · two or three colours as #rgb or #rrggbb");
     await expect(items.first().locator("strong")).toHaveText("Quakes");
-    // a screen reader hears the title once, in the live region; the warning does not take the focus
-    await expect(page.getByTestId("unused-live")).toHaveText("2 parts of this view could not be used");
+    // a screen reader hears it once: the status note says the view loaded partly, the live region
+    // stays empty; the warning does not take the focus
+    await expect(page.locator(".pk-toast").filter({ hasText: "View loaded; some parts did not fit this data" })).toBeVisible();
+    await expect(page.getByTestId("unused-live")).toHaveText("");
     expect(await warning.evaluate((el) => el.contains(el.getRootNode().activeElement))).toBe(false);
     // the view's usable parts are there
     await expect(page.getByTestId("pivot-table")).toContainText("North");
@@ -58,15 +60,22 @@ test("the warning folds by its title, with the mouse and the keyboard, and stays
     // a change that keeps the view's unused parts keeps it folded
     await page.getByTestId("swap").click();
     await expect(warning.locator("details")).not.toHaveAttribute("open", "");
-    // another view with other unused parts opens it again
+    // another view with the same unused parts opens it again
+    await paste(page, { ...VIEW, cols: ["Product"] });
+    await expect(warning.locator("details")).toHaveAttribute("open", "");
     await paste(page, { rows: ["Region"], values: [{ field: "Units", agg: "sum", format: "money" }] });
     await expect(warning.getByTestId("unused-title")).toHaveText("1 part of this view could not be used");
     await expect(warning.locator("details")).toHaveAttribute("open", "");
     await expect(warning.getByTestId("unused-item")).toContainText("Sum of Units: the number format “money” is unknown - the usual format is used");
-    // dismissed, it goes, and the focus goes to the report
+    // dismissed, it goes, and the focus goes to what follows it, not back to the top of the report
     await page.getByTestId("dismiss-issues").click();
     await expect(warning).toHaveCount(0);
-    await expect(page.locator(".pk-root")).toBeFocused();
+    const focused = await page.evaluate(() => {
+        const el = document.activeElement;
+        return { root: el?.classList.contains("pk-root"), inReport: Boolean(el?.closest(".pk-root")), testid: el?.getAttribute("data-testid") ?? el?.className };
+    });
+    expect(focused.root).toBe(false);
+    expect(focused.inReport).toBe(true);
 });
 
 test("in German, the warning and its lines are German", async ({ page }) => {
@@ -101,4 +110,59 @@ plain("without the German texts, a German report says its unused parts in Englis
     // the title is part of the first load: German
     await expect(warning.getByTestId("unused-title")).toHaveText("2 Teile dieser Ansicht konnten nicht verwendet werden");
     await expect(warning.getByTestId("unused-item").first()).toContainText("Quakes: the colour scale needs two or three colours - the default colours are used");
+});
+
+/** A view for the sales data with nine parts the report cannot use, two values of one name among them. */
+const MANY = {
+    rows: ["Region", "Planet", "Moon"],
+    values: [{ field: "Units", agg: "sum", format: "money" }, { field: "Units", agg: "sum", conditional: { type: "colorScale", colors: ["red"] } }, { field: "Nope", agg: "sum" }],
+    filters: [{ field: "Gone", type: "include", items: ["x"] }],
+    chart: { legend: "left", type: "radar", axisLabels: "some" }
+};
+
+test("a saved view with many unused parts shows the first three, the rest on a button; said once", async ({ page }) => {
+    await page.goto("?data=sales");
+    await toolbar(page, "views");
+    await page.getByTestId("saved-view-name").fill("Many");
+    await page.getByTestId("saved-view-name").press("Enter");
+    await expect(page.locator(".pk-toasts")).toContainText("View “Many” saved");
+    // the stored view, made for other fields (an older data set, another program)
+    await page.evaluate((view) => {
+        const [mine] = JSON.parse(localStorage.getItem("pivotkit:views:playground"));
+        localStorage.setItem("pivotkit:views:playground", JSON.stringify([{ ...mine, view }]));
+    }, MANY);
+    await page.reload();
+    await toolbar(page, "views");
+    await page.locator('[data-section="myViews"] [data-testid="saved-view-Many"]').click();
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-title")).toHaveText("9 parts of this view could not be used");
+    const items = warning.getByTestId("unused-item");
+    await expect(items.first()).toContainText("Planet: the data has no field of this name - it is left out of Rows");
+    await expect(items).toHaveCount(3);
+    // the status note names the view; the live region says the title, once
+    await expect(page.getByTestId("unused-live")).toHaveText("9 parts of this view could not be used");
+    const more = warning.getByTestId("unused-more");
+    await expect(more).toHaveText("Show 6 more");
+    await more.focus();
+    await page.keyboard.press("Enter");
+    await expect(items).toHaveCount(9);
+    await expect(more).toHaveText("Show fewer");
+    await expect(more).toBeFocused();
+    // two values with the same name: each says which one it is
+    await expect(warning).toContainText("Sum of Units (no. 1 in Values): the number format “money” is unknown");
+    await expect(warning).toContainText("Sum of Units (no. 2 in Values): the colour scale needs two or three colours");
+    await more.click();
+    await expect(items).toHaveCount(3);
+});
+
+test("a narrow report shows the first two lines of a long warning", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("?data=sales");
+    await paste(page, MANY);
+    await page.getByTestId("load-anyway").click();
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-item")).toHaveCount(2);
+    await expect(warning.getByTestId("unused-more")).toHaveText("Show 7 more");
+    const box = await warning.boundingBox();
+    expect(box?.height ?? 999).toBeLessThan(330);
 });

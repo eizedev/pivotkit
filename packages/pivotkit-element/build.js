@@ -161,11 +161,13 @@ async function licenses(metafile) {
  * A view's unused parts in plain words (#56): pivotkit-core's issues got a code and the texts' params
  * (0.6 KiB in the first load, the core is bundled whole) and the report the warning's frame (its
  * title, fold, live region and line layout, 0.5 KiB); the words themselves are the group "unused"
- * (English and German, 3.9 measured, CI about 4.2, budget 4.4), loaded only when a view has such
- * parts. First load 148.9 measured on a Mac (CI about 149.2), so its budget went to 150.
+ * (English and German), loaded only when a view has such parts. First load 148.9 measured on a Mac
+ * (CI about 149.2), so its budget went to 150. A review then capped the open warning at its first
+ * lines with "Show N more", moved the focus after its x to what follows and told apart lines of one
+ * name: first load 149.4 (CI about 149.7, within 150), "unused" 4.2 (CI about 4.5, budget 4.7).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 150, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9, unused: 4.4 };
+export const SIZE_BUDGET_KIB = { initial: 150, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9, unused: 4.7 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

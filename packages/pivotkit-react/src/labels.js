@@ -155,6 +155,9 @@ export const en = {
     // own line in plain words loads with unused-texts.js), and the technical line under each
     unusedParts: { one: "{count} part of this view could not be used", other: "{count} parts of this view could not be used" },
     unusedPath: "For developers:",
+    // the lines past the first few (three, two on a narrow report) of an open warning
+    unusedMore: { one: "Show {count} more", other: "Show {count} more" },
+    unusedFewer: "Show fewer",
     dismissIssues: "Dismiss",
     loadingChart: "Loading chart…",
     noChartData: "Add a value to see a chart.",
@@ -458,6 +461,8 @@ export const de = {
     viewTrimmed: "„{name}“ hat mehr als {max} Felder in {zone}; der Bericht zeigt die ersten {max}.",
     unusedParts: { one: "{count} Teil dieser Ansicht konnte nicht verwendet werden", other: "{count} Teile dieser Ansicht konnten nicht verwendet werden" },
     unusedPath: "Für Entwickler:",
+    unusedMore: { one: "{count} weiteren zeigen", other: "{count} weitere zeigen" },
+    unusedFewer: "Weniger zeigen",
     dismissIssues: "Ausblenden",
     loadingChart: "Diagramm wird geladen…",
     noChartData: "Einen Wert hinzufügen, um ein Diagramm zu sehen.",

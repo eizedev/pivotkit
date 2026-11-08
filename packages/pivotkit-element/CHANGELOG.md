@@ -10,9 +10,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - pivotkit-react's warning for a view's unused parts, in plain words
   ([#56](https://github.com/eizedev/pivotkit/issues/56)): its words are a chunk of their own (the
-  load group "unused", 3.9 KiB measured, budget 4.4), loaded only when a view has such parts; the
-  first load holds the warning's frame and pivotkit-core's issue codes (148.9 KiB measured, budget
-  raised from 149 to 150). Label changes as in pivotkit-react: `unusedParts` and `unusedPath` new,
+  load group "unused", 4.2 KiB measured, budget 4.7), loaded only when a view has such parts; the
+  first load holds the warning's frame and pivotkit-core's issue codes (149.4 KiB measured, budget
+  raised from 149 to 150). Label changes as in pivotkit-react: `unusedParts`, `unusedPath`, `unusedMore` and `unusedFewer` new,
   `issues`, `viewMissingFields`, `viewOtherIssue` and `viewOtherIssues` gone, `labels.unused` for the
   lines. No new attribute or event.
 - pivotkit-react's sorting with a click on a table header

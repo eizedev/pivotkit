@@ -41,12 +41,14 @@ The words that say a view's [unused parts](../use/behaviour.md#parts-of-a-view-t
 (`labels.unused`) load only when a view has such parts: English with German as a second small file
 for a German report. Until they are there, or when they cannot be loaded, each line shows
 pivotkit-core's short English message; German falls back to English. The warning's title
-(`unusedParts`, a count) and the prefix of its technical line (`unusedPath`) are part of the first load.
+(`unusedParts`, a count), the prefix of its technical line (`unusedPath`) and its button for the
+lines past the first few (`unusedMore`, a count, and `unusedFewer`) are part of the first load.
 `labels.unused.codes` has one text per issue code (`VIEW_ISSUE_CODES` of pivotkit-core) with the
 placeholders `{field}`, `{value}`, `{agg}`, `{type}`, `{max}`, `{zone}`, `{setting}` and `{dropped}`
 (what the report does instead, from `labels.unused.dropped` by the part of the view); `other` is the
 text for a code it does not know, `item` puts the subject and the text together
-(`"{subject}: {text}"`).
+(`"{subject}: {text}"`), `quote` quotes a key of the view (`"“{key}”"`), and `position` tells two
+lines of one name apart (`"{subject} (no. {n} in {part})"`).
 
 ## Changing single texts
 

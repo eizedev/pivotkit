@@ -15,6 +15,10 @@
 export const en = {
     // "Quakes: the colour scale needs two or three colours - the default colours are used"
     item: "{subject}: {text}",
+    // a key of the view this version does not know, as the subject
+    quote: "“{key}”",
+    // two lines about different entries with the same name: which one ({part}: the zone or section)
+    position: "{subject} (no. {n} in {part})",
     // what an issue is about when no field or value is named
     view: "The view",
     sections: {
@@ -139,7 +143,7 @@ function valueName(entry, ctx) {
  */
 function subjectOf(issue, raw, texts, ctx) {
     if (issue.code === "unknownKey") {
-        return `“${issue.path}”`;
+        return ctx.fill(texts.quote, { key: issue.path });
     }
     const m = ENTRY.exec(issue.path);
     if (m) {
@@ -168,7 +172,8 @@ export function unusedItem(issue, raw, texts, ctx) {
     const code = typeof issue.code === "string" ? issue.code : "";
     // "Region: the data has no field of this name" when the line is about the field itself
     const key = code === "unknownField" && /^(rows|cols|filters|sort)\[\d+\]$/.test(issue.path) ? "unknownFieldHere" : code;
-    const template = own(texts.codes, key) ?? texts.other;
+    // an issue without a code (a pivotkit-core before the codes): its own English message
+    const template = code ? (own(texts.codes, key) ?? texts.other) : "{message}";
     const params = /** @type {import("pivotkit-core").IssueParams} */ (isObject(issue.params) ? issue.params : {});
     const core = labels.core;
     const values = {
@@ -179,9 +184,37 @@ export function unusedItem(issue, raw, texts, ctx) {
         agg: typeof params.agg === "string" ? (own(core.aggregators, params.agg) ?? params.agg) : "",
         type: typeof params.type === "string" ? (own(labels.types, params.type) ?? params.type) : "",
         max: typeof params.max === "number" ? params.max.toLocaleString(labels.lang) : "",
-        zone: params.zone ?? ""
+        zone: params.zone ?? "",
+        message: issue.message
     };
-    // the subject is shown in bold: the item's text around it ("{subject}: {text}")
-    const [pre, post = ""] = fill(texts.item, { text: fill(template, values) }).split("{subject}");
-    return { pre, subject: subjectOf(issue, raw, texts, ctx), post };
+    // the subject is shown in bold: the item's text around it ("{subject}: {text}"), split before the
+    // text from the view goes in, so a name with "{subject}" in it stays a name
+    const [before, after = ""] = texts.item.split("{subject}");
+    const line = { text: fill(template, values) };
+    return { pre: fill(before, line), subject: subjectOf(issue, raw, texts, ctx), post: fill(after, line) };
+}
+
+/**
+ * The lines of a list of issues: unusedItem() of each, and where two lines about different entries
+ * have the same subject (two values both named "Sum of Units"), each with its place ("no. 2 in
+ * Values").
+ * @param {Array<{ issue: import("pivotkit-core").Issue, raw: unknown }>} notes
+ * @param {UnusedTexts} texts
+ * @param {UnusedContext} ctx
+ */
+export function unusedItems(notes, texts, ctx) {
+    const items = notes.map((n) => ({ ...unusedItem(n.issue, n.raw, texts, ctx), at: ENTRY.exec(n.issue.path) }));
+    const entries = new Map();
+    for (const it of items) {
+        const set = entries.get(it.subject) ?? new Set();
+        set.add(it.at ? it.at[0] : "");
+        entries.set(it.subject, set);
+    }
+    return items.map(({ at, ...it }) => {
+        if (!at || entries.get(it.subject).size < 2) {
+            return it;
+        }
+        const part = own(ctx.labels.zones, at[1]) ?? own(texts.sections, at[1]) ?? at[1];
+        return { ...it, subject: ctx.fill(texts.position, { subject: it.subject, n: Number(at[2]) + 1, part }) };
+    });
 }

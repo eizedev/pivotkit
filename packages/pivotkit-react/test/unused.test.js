@@ -8,7 +8,7 @@ import { SALES } from "../../pivotkit-core/test/fixtures.js";
 import { fill, LABELS, resolveLabels } from "../src/labels.js";
 import { valueLabel } from "../src/names.js";
 import { de } from "../src/unused-texts-de.js";
-import { en, unusedItem } from "../src/unused-texts.js";
+import { en, unusedItem, unusedItems } from "../src/unused-texts.js";
 import { UNUSED_TEXTS_OF, loadUnused, unusedNow, unusedTexts } from "../src/unused-load.js";
 
 const data = encode(SALES);
@@ -85,8 +85,30 @@ test("a host's field labels name the fields; a host's texts and an unknown code 
     assert.equal(line(issue, raw, labels), "Sales region: twice - once is enough");
     // a code of a newer pivotkit-core, a view without that part: the general text, the part's name
     assert.equal(line({ path: "chart.depth", message: "unknown depth", code: "newThing" }, {}, LABELS.en), "Chart: this part could not be used - it is left out");
-    assert.equal(line({ path: "", message: "x" }, null, LABELS.en), "The view: this part could not be used - it is left out");
+    // a pivotkit-core without codes (0.1.0): the core's own message
+    assert.equal(line({ path: "rows[0]", message: 'unknown field "Planet"' }, { rows: ["Planet"] }, LABELS.en), 'Planet: unknown field "Planet"');
     assert.equal(line({ path: "label", message: "unknown key", code: "unknownKey" }, {}, LABELS.en), "“label”: this setting is unknown here - it is ignored");
+    assert.equal(line({ path: "label", message: "unknown key", code: "unknownKey" }, {}, LABELS.de, de), "„label“: diese Einstellung ist hier unbekannt - sie wird ignoriert");
+});
+
+test("a name with a placeholder in it stays a name", () => {
+    const raw = { rows: ["{subject} and {text}"] };
+    const [issue] = normalize(raw, data).issues;
+    const { pre, subject, post } = item(issue, raw, LABELS.en);
+    assert.deepEqual([pre, subject, post], ["", "{subject} and {text}", ": the data has no field of this name - it is left out of Rows"]);
+    const named = { values: [{ field: "Units", agg: "sum", label: "{subject}", format: "{text}" }] };
+    assert.equal(line(normalize(named, data).issues[0], named, LABELS.en), "{subject}: the number format “{text}” is unknown - the usual format is used");
+});
+
+test("two lines about different entries with the same name say which one; two about one entry do not", () => {
+    const raw = { values: [{ field: "Units", agg: "sum", format: "money" }, { field: "Units", agg: "sum", conditional: { type: "dataBar", color: "blue" } }], sort: [{ field: "Planet" }, { field: "Planet" }] };
+    const notes = normalize(raw, data).issues.map((issue) => ({ issue, raw }));
+    const subjects = (labels, lang) => unusedItems(notes, unusedTexts({ mod: { en }, lang }, labels), ctxOf(labels)).map((i) => i.subject);
+    assert.deepEqual(subjects(LABELS.en, null), ["Sum of Units (no. 1 in Values)", "Sum of Units (no. 2 in Values)", "Planet (no. 1 in Sorting)", "Planet (no. 2 in Sorting)"]);
+    assert.deepEqual(subjects(LABELS.de, de)[1], "Summe von Units (Nr. 2, Werte)");
+    const one = { values: [{ field: "Units", agg: "sum", format: "money", label: 7 }] };
+    const both = normalize(one, data).issues.map((issue) => ({ issue, raw: one }));
+    assert.deepEqual(unusedItems(both, unusedTexts({ mod: { en }, lang: null }, LABELS.en), ctxOf(LABELS.en)).map((i) => i.subject), ["Sum of Units", "Sum of Units"]);
 });
 
 test("the loader gives the language's texts with the English module, once per language", async () => {
