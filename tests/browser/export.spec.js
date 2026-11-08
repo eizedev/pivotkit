@@ -80,7 +80,9 @@ test.describe("drill-down panel", () => {
             await held;
             await route.continue();
         });
-        await page.goto("?data=tickets");
+        // the report asks for the menus right after its first render; Firefox holds the load event
+        // until that request is answered, so wait for the document only
+        await page.goto("?data=tickets", { waitUntil: "domcontentloaded" });
         const cell = page.locator('[data-testid="pivot-table"] td.pk-clickable').first();
         await cell.click();
         const panel = page.getByTestId("drill-panel");
