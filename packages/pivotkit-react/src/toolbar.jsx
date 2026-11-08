@@ -254,6 +254,13 @@ export function Toolbar(props) {
     // the order of the table is the order in the toolbar and in the menu
     const ORDER = Object.keys(actions);
     const buttons = (place) => ORDER.filter((id) => actions[id].place === place && !hidden.has(id)).map((id) => actions[id].button());
+    // the dot for unsaved changes, with its words for a screen reader: after the name, and on "More"
+    // while Views is in there
+    const changedMark = (testId) => (
+        <span className="pk-view-changed" data-testid={testId}>
+            <span className="pk-sr">{labels.unsavedChanges}</span>
+        </span>
+    );
     // the name of the view loaded, next to Views (before Export while Views is in "More"); it takes the
     // room left and is cut with "…"; a click opens Views (Save is one click more, also on a phone,
     // where Views is in "More")
@@ -268,11 +275,7 @@ export function Toolbar(props) {
             data-testid="view-name"
         >
             <span className="pk-view-name-text">{loadedView.name}</span>
-            {loadedView.changed ? (
-                <span className="pk-view-changed" data-testid="view-changed">
-                    <span className="pk-sr">{labels.unsavedChanges}</span>
-                </span>
-            ) : null}
+            {loadedView.changed ? changedMark("view-changed") : null}
         </button>
     ) : null;
     const end = buttons("end");
@@ -313,7 +316,7 @@ export function Toolbar(props) {
                 {(close) => <MenuPanel name="ExportPanel" loadingText={labels.loadingMenu} props={{ labels, onExport, chartReady, display: view.display, empty, prepare: props.prepareExport, close }} />}
             </MenuButton>
             {level > 0 ? (
-                <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more}>
+                <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more} mark={hidden.has("views") && loadedView?.changed ? changedMark("more-changed") : null}>
                     {(close) => ORDER.filter((id) => hidden.has(id)).map((id) => actions[id].entry(close))}
                 </MenuButton>
             ) : null}

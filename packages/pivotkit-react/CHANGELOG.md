@@ -40,6 +40,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   button besides Undo, Redo and Export fits, with the loaded view's name before it. Options and the
   chart type move into "More" before Views: at about 1280 px the chart type is in "More", from
   about 1440 px both show. The name is cut with "…" but never below 4em.
+- Every save closes the Views menu, as Save “…” does: also the first Save of a view without a name
+  and Save as (it stayed open with Copy link). The focus goes back to Views (or More), the note says
+  "View “…” saved".
+- The question before a view is replaced ("“…” exists. Replace it?", "Replace the shared view “…”
+  for everyone?") has the focus on Cancel, so Enter replaces nothing.
+- The view loaded has a check mark (and `aria-current="true"`) in Shared views or My views; while
+  Views is in "More", More shows the dot for unsaved changes too.
 
 - The forms of a row or column field's menu (number ranges, Top N, value condition) remove what
   they set with **Remove** (was "Clear"; label key `removeSetting`, was `clear`), and Apply with an

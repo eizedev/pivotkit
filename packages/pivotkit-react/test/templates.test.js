@@ -4,7 +4,7 @@ import { toViewFile } from "pivotkit-core";
 import { templateEntries, viewsName } from "../src/templates.js";
 import { VIEW_STORE_LIMITS, changedViews, storeViews, storedViews } from "../src/view-store.js";
 import { MENU_LABELS } from "../src/menu-labels.js";
-import { saveAsTarget, saveTarget } from "../src/view-save.js";
+import { isLoadedEntry, saveAsTarget, saveTarget } from "../src/view-save.js";
 
 const VIEW = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
 const tooMuch = (kind, max) => `${kind} ${max}`;
@@ -242,4 +242,18 @@ test("Save: where the loaded view is written, or why not; Save as: where it writ
     assert.deepEqual(saveAsTarget("Host mine", entries, host), { kind: "host", replaces: entries[1] });
     assert.deepEqual(saveAsTarget("Team", entries, host), { kind: "host", replaces: null });
     assert.deepEqual(saveAsTarget("Stored", entries, host), { kind: "host", replaces: null }, "the store's views are not the host's");
+});
+
+test("the view loaded is marked in the Views menu: by its name, its group and, in the browser store, its data", () => {
+    const store = { name: "Mine", scope: "user", at: 0, sourceId: "sales" };
+    const host = { name: "Mine", scope: "user" };
+    const shared = { name: "Mine", scope: "shared" };
+    const loaded = { name: "Mine", scope: "user", store: true, storeSource: "sales" };
+    assert.deepEqual([store, host, shared].map((t) => isLoadedEntry(t, loaded)), [true, false, false]);
+    assert.equal(isLoadedEntry({ ...store, sourceId: undefined }, loaded), false, "the store's view of that name for no data");
+    assert.equal(isLoadedEntry(host, { name: "Mine", scope: "user", store: false }), true);
+    assert.equal(isLoadedEntry(shared, { name: "Mine", scope: "shared", store: false }), true);
+    assert.equal(isLoadedEntry(host, { name: "Other", scope: "user", store: false }), false);
+    assert.equal(isLoadedEntry(host, { name: "Mine", scope: null, store: false }), false, "a file or a link of that name");
+    assert.equal(isLoadedEntry(host, null), false);
 });

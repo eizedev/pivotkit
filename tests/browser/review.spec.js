@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, test } from "./fixtures.js";
+import { chips, expect, test, toolbar } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -185,7 +185,7 @@ test("a date grouping is named in words: Month by month, Month nach Monat", asyn
     }
 });
 
-test("after a save the Views menu stays open with Copy link one click away, and the save tip goes", async ({ page }) => {
+test("a save closes the Views menu, the focus back on Views; the saved view is marked there, and the save tip goes", async ({ page }) => {
     await page.goto("?data=tickets");
     // five changes make the tip to save; the tips before it in the queue are dismissed
     for (let i = 0; i < 5; i++) await page.getByTestId("swap").click();
@@ -196,9 +196,11 @@ test("after a save the Views menu stays open with Copy link one click away, and 
     await page.getByTestId("tip-action-saveTemplate").click();
     await page.getByTestId("saved-view-name").fill("Mine");
     await page.getByTestId("saved-view-name").press("Enter");
-    await expect(page.getByTestId("saved-view-Mine")).toBeVisible();
+    await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
+    await expect(page.getByTestId("views")).toBeFocused();
+    await toolbar(page, "views");
+    await expect(page.getByTestId("saved-view-Mine")).toHaveAttribute("aria-current", "true");
     await expect(page.getByTestId("copy-link")).toBeVisible();
-    await expect(page.getByTestId("saved-view-name")).toBeFocused();
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("tip-saveTemplate")).toHaveCount(0);

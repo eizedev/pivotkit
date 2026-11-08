@@ -26,6 +26,7 @@ test.describe("the playground's Views menu", () => {
         await page.getByTestId("saved-view-name").fill("Mine");
         await page.getByTestId("saved-view-name").press("Enter");
         await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
+        await toolbar(page, "views");
         expect(await group(page, "myViews")).toEqual(["Mine"]);
         // in localStorage under the report's storageKey, as view files naming their data
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:playground") ?? "null"));
@@ -61,6 +62,7 @@ test.describe("the playground's Views menu", () => {
         await toolbar(page, "views");
         await page.getByTestId("saved-view-name").fill("For the team");
         await page.getByTestId("saved-view-name").press("Enter");
+        await toolbar(page, "views");
         await expect(page.getByTestId("saved-view-For the team")).toBeVisible();
         await page.getByRole("button", { name: "Publish For the team as a shared view" }).click();
         await expect(page.getByText("Publish “For the team” as a shared view? Everyone who uses this report sees it.")).toBeVisible();
@@ -100,6 +102,7 @@ test.describe("the playground's Views menu", () => {
         await page.getByTestId("saved-view-name").fill("Meins");
         await page.getByTestId("saved-view-name").press("Enter");
         await expect(page.locator(".pk-toasts")).toContainText("Ansicht „Meins“ gespeichert");
+        await toolbar(page, "views");
         const publish = page.getByRole("button", { name: "Meins als gemeinsame Ansicht veröffentlichen" });
         await publish.scrollIntoViewIfNeeded();
         const box = await publish.boundingBox();
@@ -113,12 +116,15 @@ test("web component: templates from view files, the browser store, publish and d
     await page.goto("pages/element-views.html");
     const report = page.locator("#views");
     await report.locator('[data-testid="pivot-table"]').waitFor();
-    const views = report.getByTestId("views");
-    if (await views.count()) await views.click();
-    else {
-        await report.getByTestId("more").click();
-        await report.getByTestId("more-views").click();
-    }
+    const openViews = async () => {
+        const views = report.getByTestId("views");
+        if (await views.count()) await views.click();
+        else {
+            await report.getByTestId("more").click();
+            await report.getByTestId("more-views").click();
+        }
+    };
+    await openViews();
     // the name of a view file entry is the file's
     expect(await group(report, "sharedViews")).toEqual(["From a view file", "Team view"]);
     // the shared view an admin may delete has a delete button instead of the i
@@ -129,6 +135,7 @@ test("web component: templates from view files, the browser store, publish and d
     await report.getByTestId("saved-view-name").press("Enter");
     await expect(report.locator(".pk-toasts")).toContainText("View “Mine” saved");
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:views-page"))[0].name)).toBe("Mine");
+    await openViews();
     await report.getByTestId("publish-view-Mine").click();
     await report.getByTestId("confirm-publish").click();
     await expect(report.locator(".pk-toasts")).toContainText("View “Mine” published");

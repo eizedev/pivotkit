@@ -196,7 +196,9 @@ the report's first load stays small.
   off, with the reason, for a shared view the user may not change ("Shared view: you cannot change
   it. Use Save as."), for a view from a file or a link ("Not saved yet. Use Save as.") and while
   the report is empty. Save as is the name field: a name that exists among the user's views asks
-  "“…” exists. Replace it?" first (Replace, Cancel). The view's name in the toolbar opens Views;
+  "“…” exists. Replace it?" first (Replace, Cancel; the focus on Cancel). Every save closes the
+  menu, the focus back on Views (or More); the view loaded has a check mark and `aria-current` in
+  its group, and More shows the dot for unsaved changes while Views is in it. The view's name in the toolbar opens Views;
   Undo and Redo move it with the view; another source keeps the view but not its name, and so does
   a reload with `persistView`.
 - Host notes: Save and Save as call `onSaveTemplate` and `onPublishTemplate` with a name that

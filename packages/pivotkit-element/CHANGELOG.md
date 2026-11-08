@@ -21,6 +21,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - pivotkit-react's toolbar: Views is the last button to move into "More", so it stays in the toolbar
   from about 1280 px (the chart type moves into "More" before it); New is in the Views menu only.
+  Every save closes the Views menu; the question before a view is replaced has the focus on Cancel;
+  the view loaded has a check mark in its group, and More the dot for unsaved changes while Views
+  is in it.
 
 ### Fixed
 

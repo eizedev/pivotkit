@@ -96,8 +96,8 @@ reports. The UI normalizes every view it gets.
 The report's **Views** menu lists what you pass in `templates` in two groups, **Shared views** and
 **My views**, and offers the first three in the empty state. With `onSaveTemplate` (or
 `save-templates` on the element) people save the current view under a name; your code stores it and
-passes the new list back, or the browser keeps them (`templateStore="browser"`). The menu stays open
-after a save, with the name field empty again. Entries marked `deletable` get a delete button with a
+passes the new list back, or the browser keeps them (`templateStore="browser"`). A save closes the
+menu and says "View “…” saved"; the view loaded has a check mark in its group. Entries marked `deletable` get a delete button with a
 confirmation; with `canPublish` people publish one of their views as a shared view. Names need not be
 unique. [Templates and shared views](templates.md) describes the groups, where templates are kept and
 how to provide them. The menu's last section, **Share**, copies or downloads the view as a

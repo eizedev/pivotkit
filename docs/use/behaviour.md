@@ -41,7 +41,8 @@ the report reaches below it. A screen reader hears them.
 | Warning | "View loaded; some parts did not fit this data" | like a note; the details stay above the result (below) |
 | Error | "Export failed: ..." | until you close it with its **x** |
 
-At most two show at a time.
+At most two show at a time. A save closes the Views menu (the focus goes back to **Views**, or
+**More**), so the note "View “…” saved", or why it was not saved, is what tells you the result.
 
 ## Parts of a view that were not used
 

@@ -33,6 +33,15 @@
 export const canSaveAs = (can) => can.host || can.store;
 
 /**
+ * Whether an entry of the Views menu is the view loaded: its name, its group, and for the browser
+ * store the data it names.
+ * @param {Entry} t
+ * @param {LoadedView | null | undefined} loaded
+ */
+export const isLoadedEntry = (t, loaded) =>
+    !!loaded && t.name === loaded.name && (t.scope === "user" ? "user" : "shared") === loaded.scope && (t.at !== undefined) === loaded.store && (!loaded.store || (t.sourceId ?? null) === (loaded.storeSource ?? null));
+
+/**
  * The browser store's view of this name for this data (none: one saved without named data).
  * @param {ReadonlyArray<Entry>} entries
  * @param {string} name
