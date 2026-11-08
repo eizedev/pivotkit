@@ -15,7 +15,7 @@ field twice (the sum and the average of a cost, say).
 ![The menu of a value: its first level with Summarize by, Show as and Number format and what each is set to, Highlight side by side, Name, Move to and Remove field](../assets/screenshots/value-menu-light.png#only-light)
 ![The menu of a value: its first level with Summarize by, Show as and Number format and what each is set to, Highlight side by side, Name, Move to and Remove field](../assets/screenshots/value-menu-dark.png#only-dark)
 
-The menu is in levels, as a field's is ([the menu of a field](fields.md#the-menu-of-a-row-or-column-field)):
+The menu is in levels, as a field's is, each level of choices in one column ([the menu of a field](fields.md#the-menu-of-a-row-or-column-field)):
 its first level says in one row per topic what is set, and a row opens its own level, titled with the
 value's name ("Sum of Revenue › Number format").
 
@@ -23,7 +23,7 @@ value's name ("Sum of Revenue › Number format").
 | --- | --- |
 | **Summarize by** | A level: sum, count, average, minimum, maximum; under them, under **More statistics**, median, distinct count, standard deviation, variance, first, last ([below](#summarize-by)). |
 | **Show as** | A level: the value itself, % of grand total, % of row total, % of column total; under **More calculations** differences, running totals and ranks, and **Along** for those that walk along Rows or Columns. The **i** next to its title explains it. |
-| **Number format** | A level: Automatic, number (also with no or two decimals), currency, percent; under **More formats** whole number, compact (1.2K), bytes and durations from hours or seconds; each with an example on its right. |
+| **Number format** | A level: Automatic, number (also with no or two decimals), currency, percent; under **More formats** whole number, compact (1.2K), bytes and durations from hours or seconds; each with an example on its right. A format the view brings that is not among them ("Number, 1 decimal") is the first entry, checked. |
 | **Highlight** | None, Colour scale and Data bars side by side on the first level, in the theme's colours. |
 | **Name** | A level with the name: it applies with Enter or when you leave the field. |
 | **Move to** | A level: another zone, left or right. |

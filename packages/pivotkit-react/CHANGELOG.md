@@ -43,13 +43,26 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `closed:<section>` in the tips' list) and **Reset menu sections** are gone; a stored state of a
   section is dropped when the list is read, and `dismissedTips` and `onTipDismiss` carry only tips and
   switches.
+- After a usability review: the Filter level shows the list first and folds "More ways to filter"
+  (the text condition and the condition on a value) each time it opens; its first line names the
+  conditions; Clear picks and Remove the conditions replace Remove filter there; the comparison has a
+  line of its own. A typed name, count or number applies when the menu closes from a click outside.
+  The search knows "percent", "%", "rename", "top 5" and the two conditions, and `/` goes to it. A
+  format the menu does not offer (number:1) is a checked entry by its name. The levels of choices are
+  one column, the chip menus 420 px wide. The Sort row names a sort by a value; the menu's head names
+  the field as its levels do; Expand all has a neutral icon; Select all and the Filter level's
+  actions are underlined. A popover keeps its side while its content changes.
+- A menu whose entries are all off (the Export menu of an empty report) no longer puts the focus on
+  its first "i", whose explanation opened over the entries; the menu takes the focus itself.
 - Text fields, searches and selects in the menus have an edge of 3:1 contrast in both themes: the new
   token `--pk-input-border`.
 - Labels of the menus (a host's `labels` for them): new `back`, `backTo`, `levelTitle`, `searchMenu`,
   `searchMenuShort`, `searchResults`, `searchNothing`, `sortByValue`, `sortOldestShort`,
   `sortNewestShort`, `filterTopic`, `filterAll`, `groupTopic`, `groupNoneShort`, `off`,
   `moveToTitle`, `topOwn`, `binsOff`, `itemsPicked`, `valueConditionTitle`, `keepWhose`,
-  `valueOpAny`, `nameHint`; changed: `valueOps` is the comparison inside the sentence ("is greater
+  `valueOpAny`, `nameHint`, `showAsKeywords`, `nameKeywords`, `filterKeywords`, `formatDecimals`,
+  `pickedPlus`, `conditionOnNames`, `conditionOnValue`, `listAnd`, `clearPicks`, `removeConditions`,
+  `moreFilters`; changed: `valueOps` is the comparison inside the sentence ("is greater
   than", German "größer als"), `groupCyclic` reads "Same period every year"; gone (no longer shown):
   `chooseValues`, `valueFilter`, `change`, `removeSetting`, `topStart`, `binsStart`, `filterIs`,
   `groupBy`, `resetSections`, `resetSectionsDone`. A host's text for a key that is gone is ignored.

@@ -6,6 +6,7 @@
  * the window's edge, as tall as the window allows, over its anchor if need be. A popover is position: fixed; an ancestor with a transform, a
  * filter or `contain` (a router animation, a dialog, a carousel) makes itself the containing block of
  * fixed elements, so the place in viewport coordinates is moved by that block's origin (fromOrigin).
+ * While it is open it keeps its side when its content changes (keepPlace).
  */
 
 const MARGIN = 8;
@@ -51,6 +52,33 @@ export function placePopover(anchor, size, viewport, align = "start", { fill = f
     const height = Math.min(size.height, room);
     const top = side === "below" ? anchor.bottom + GAP : anchor.top - GAP - height;
     return { top: Math.max(MARGIN, top), left, maxHeight: Math.max(120, room), side };
+}
+
+/** Below this much room a popover kept on its side is placed anew (its panel was still loading). */
+const KEEP_ROOM = 240;
+
+/**
+ * A popover whose content changes while it is open (a menu's level in place of its first level) stays
+ * where it was: on its side, with its top below the anchor, its new content scrolling inside, instead
+ * of jumping above the anchor or over it. Only while the anchor has not moved, and only when that side
+ * has room enough (KEEP_ROOM, or the content's height); else `next`, placed anew.
+ * @param {{ top: number, side: "below" | "above", anchorTop: number } | null} last  the last place, with the anchor's top then
+ * @param {{ top: number, left: number, maxHeight: number, side: "below" | "above" }} next  placePopover's
+ * @param {{ top: number, bottom: number }} anchor
+ * @param {{ height: number }} size
+ * @param {{ height: number }} viewport
+ */
+export function keepPlace(last, next, anchor, size, viewport) {
+    if (!last || last.anchorTop !== anchor.top || last.side === next.side) {
+        return next;
+    }
+    const room = last.side === "below" ? viewport.height - anchor.bottom - GAP - MARGIN : anchor.top - GAP - MARGIN;
+    if (room < Math.min(size.height, KEEP_ROOM)) {
+        return next;
+    }
+    const height = Math.min(size.height, room);
+    const top = last.side === "below" ? anchor.bottom + GAP : anchor.top - GAP - height;
+    return { ...next, top: Math.max(MARGIN, top), maxHeight: room, side: last.side };
 }
 
 /**

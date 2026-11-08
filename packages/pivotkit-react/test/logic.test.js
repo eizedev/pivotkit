@@ -6,7 +6,7 @@ import { drillTable } from "../src/drill-table.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
-import { fromOrigin, placePopover, viewportOf } from "../src/place.js";
+import { fromOrigin, keepPlace, placePopover, viewportOf } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { rowLabelOf, sliceRows, windowOf } from "../src/virtual.js";
 
@@ -191,4 +191,24 @@ test("a host that refuses to save a view: its own message when it gives one, a p
     }
     assert.equal(save(undefined, de), "Der Server konnte die Ansicht nicht speichern.");
     assert.equal(hostFailure(de.toastDeleteFailed, de.toastDeleteRejected, null), "Der Server konnte die Ansicht nicht löschen.");
+});
+
+test("a popover keeps its side while its content changes, as long as the anchor stays and the side has room", () => {
+    const vp = { width: 1280, height: 800 };
+    const anchor = { top: 450, bottom: 480, left: 50, right: 150 };
+    // placed below with a short first level; a taller level would go above: it stays below and scrolls
+    const first = placePopover(anchor, { width: 400, height: 300 }, vp);
+    assert.equal(first.side, "below");
+    const last = { top: first.top, side: first.side, anchorTop: anchor.top };
+    const tall = placePopover(anchor, { width: 400, height: 600 }, vp);
+    assert.equal(tall.side, "above");
+    const kept = keepPlace(last, tall, anchor, { height: 600 }, vp);
+    assert.deepEqual([kept.side, kept.top, kept.maxHeight], ["below", 486, 800 - 480 - 6 - 8]);
+    // the anchor moved (a scroll): placed anew
+    assert.equal(keepPlace({ ...last, anchorTop: 200 }, tall, anchor, { height: 600 }, vp), tall);
+    // too little room on its side (the panel was still loading when it was placed): placed anew
+    const low = { top: 700, bottom: 730, left: 50, right: 150 };
+    const lowNext = placePopover(low, { width: 400, height: 500 }, vp);
+    assert.equal(keepPlace({ top: 736, side: "below", anchorTop: 700 }, lowNext, low, { height: 500 }, vp), lowNext);
+    assert.equal(keepPlace(null, tall, anchor, { height: 600 }, vp), tall);
 });

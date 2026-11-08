@@ -1071,8 +1071,8 @@
 
 /* chip menus: in levels (levels.jsx); the level scrolls inside the popover */
 .pk-chip-menu {
-    width: 400px;
-    max-width: min(400px, calc(100vw - 16px));
+    width: 420px;
+    max-width: min(420px, calc(100vw - 16px));
 }
 
 .pk-subtitle {
@@ -1488,11 +1488,11 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 4px;
+    gap: 4px 12px;
 }
 
 .pk-level-result > p {
+    flex-basis: 100%;
     margin: 0;
     color: var(--pk-muted);
 }
@@ -1507,6 +1507,52 @@
 
 .pk-value-condition .pk-narrow-input {
     flex: 1 1 7em;
+}
+
+/* the comparison on a line of its own: its longest words ("is not between") are never cut */
+.pk-value-condition > select {
+    flex: 1 1 100%;
+}
+
+/* the Filter level: the list first, at most this high, then the folded "More ways to filter" */
+.pk-filter-level .pk-values {
+    max-height: min(16em, 38vh);
+}
+
+.pk-more-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    min-height: var(--pk-target);
+    padding: 2px 4px;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: transparent;
+    color: var(--pk-text);
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pk-more-filters:hover {
+    background: var(--pk-surface-3);
+}
+
+.pk-more-filters-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* a text button that acts (Select all, Clear picks): underlined, so it reads as one */
+.pk-filter-actions .pk-link,
+.pk-link-button {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.pk-topic-seg-state {
+    font-size: var(--pk-small);
 }
 
 .pk-radios {

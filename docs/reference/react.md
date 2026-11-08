@@ -373,9 +373,12 @@ with Enter or when the field is left, and Escape in a field gives back what appl
 | Options | Totals, Rows (Expand all, Collapse all), Help | Keyboard shortcuts |
 | Views | This view (Save "…", Save as…, New, empty report), Shared views, My views (each entry with its Publish and Delete as items next to it), Share | Save as, Share (a menu), Load view, the question before a delete, a publish or a Save over a shared view |
 
-The chip menus have a search above their first level: it finds a choice of any level by its text and
-the titles above it, and opens a level by its title; Enter runs a hit the arrow keys reached, not the
-text typed.
+The chip menus have a search above their first level (`/` focuses it): it finds a choice of any level
+by its text, the titles above it and a few more words (labels `showAsKeywords`, `nameKeywords`,
+`filterKeywords`), and opens a level by its title; Enter runs a hit the arrow keys reached, not the
+text typed. What is typed in a level applies when the level or the menu closes too (a click outside).
+A popover keeps its side of the anchor while its content changes (a level opening), as long as that
+side has room.
 
 A menu keeps the mouse wheel to itself: a wheel turn that nothing inside it can scroll further is
 stopped, so the table or the page behind never scrolls (`overscroll-behavior: contain` does the same

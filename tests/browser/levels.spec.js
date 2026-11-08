@@ -95,7 +95,7 @@ test.describe("screen readers", () => {
         const menu = page.locator(".pk-chip-menu");
         await expect(menu.getByRole("menu", { name: "Region" })).toMatchAriaSnapshot(`
           - menu "Region":
-            - group "Sort":
+            - group "Sort, Largest Sum of Revenue first, changed":
               - menuitemradio "A to Z" [checked=false]
               - menuitemradio "Z to A" [checked=false]
             - group "Sort by value":
@@ -241,5 +241,131 @@ test.describe("the Views menu in levels", () => {
         // Back from Load view goes to Share, on its entry
         await page.getByTestId("level-back").click();
         await expect(page.getByTestId("load-view")).toBeFocused();
+    });
+});
+
+test.describe("what the usability review found", () => {
+    test("typed, then a click outside the menu: the name, the Top N count and the number of a condition are kept", async ({ page }) => {
+        await page.goto("?data=sales");
+        // a click on the page outside the report
+        const outside = () => page.mouse.click(5, 5);
+        await chipMenu(page, "Sum of Revenue", "name");
+        await page.getByTestId("value-name").fill("Money");
+        await outside();
+        await expect(page.locator(".pk-chip-menu")).toHaveCount(0);
+        await expect.poll(() => chips(page, "values")).toEqual(["Money"]);
+        await chipMenu(page, "Region", "top");
+        await page.getByTestId("top-own").check();
+        await page.getByTestId("top-count").fill("2");
+        await outside();
+        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="top-badge"]')).toHaveText("Top 2");
+        await chipMenu(page, "Region", "filter");
+        await page.getByTestId("filter-more").click();
+        await page.getByTestId("value-filter-op").selectOption(">");
+        await page.getByTestId("value-filter-number").fill("1");
+        await outside();
+        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="condition-badge"]')).toHaveText("Money > 1");
+        // Escape still gives back: nothing applies
+        await chipMenu(page, "Money", "name");
+        await page.getByTestId("value-name").fill("Other");
+        await page.getByTestId("value-name").press("Escape");
+        await outside();
+        await expect.poll(() => chips(page, "values")).toEqual(["Money"]);
+    });
+
+    test("search: percent finds the shares of Show as first, the conditions open the Filter level on them, rename and top 5 are found; / goes to the search", async ({ page }) => {
+        await page.goto("?data=sales");
+        await chipMenu(page, "Sum of Revenue");
+        const menu = page.locator(".pk-chip-menu");
+        const search = menu.getByTestId("menu-search");
+        await expect(search).toHaveAttribute("placeholder", "Search in this menu (key /)");
+        // "/" from the menu's items
+        await expect(menu.getByTestId("topic-summarize")).toBeFocused();
+        await page.keyboard.press("/");
+        await expect(search).toBeFocused();
+        await page.keyboard.type("percent");
+        const hits = menu.getByTestId("menu-search-hits").locator('[role^="menuitem"]');
+        await expect(hits.first()).toContainText("% of grand total");
+        await expect(hits.filter({ hasText: /^Percent/ })).toHaveCount(1);
+        await search.fill("%");
+        await expect(hits.first()).toContainText("% of");
+        await search.fill("rename");
+        await expect(hits.first()).toContainText("Name");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await chipMenu(page, "Region");
+        await search.fill("value condition");
+        await search.press("ArrowDown");
+        await page.keyboard.press("Enter");
+        await expect(menu.getByTestId("level-title")).toHaveText("Region › Filter");
+        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "true");
+        await expect(menu.getByTestId("filter-condition-op")).toBeFocused();
+        await page.keyboard.press("Escape");
+        await search.fill("top 5");
+        await search.press("ArrowDown");
+        await page.keyboard.press("Enter");
+        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="top-badge"]')).toHaveText("Top 5");
+    });
+
+    test("the Filter level: the list first, the conditions folded at each opening, a summary with them, the menu in its place, the comparison not cut", async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto("?data=weather&preset=0");
+        await chipMenu(page, "City");
+        const menu = page.locator(".pk-chip-menu");
+        const settled = () => page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+        await settled();
+        const before = await menu.boundingBox();
+        await openLevel(menu, "filter");
+        await settled();
+        // the level opens where the menu was, on the same side of the chip
+        expect(Math.abs((await menu.boundingBox()).y - before.y)).toBeLessThan(2);
+        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
+        await menu.getByTestId("filter-more").click();
+        await menu.getByTestId("value-filter-op").selectOption("notBetween");
+        const op = menu.getByTestId("value-filter-op");
+        expect(await op.evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(200);
+        await menu.getByTestId("value-filter-number").fill("0");
+        await menu.getByTestId("value-filter-number2").fill("1");
+        await expect(menu.getByTestId("filter-result")).toHaveText(/^\d+ of \d+ items picked, plus a condition on Average of Mean °C$/);
+        await page.keyboard.press("Escape");
+        await openLevel(menu, "filter");
+        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
+        await expect(menu.getByTestId("filter-more").locator(".pk-section-mark")).toHaveCount(1);
+        // Select all reads as a control: underlined
+        expect(await menu.getByTestId("select-all").evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe("underline");
+    });
+
+    test("a format a view brings that is not offered is checked by its name; the levels of choices are one column; the head names the field as the levels do", async ({ page }) => {
+        await page.goto("?data=endoflife&preset=3");
+        await chipMenu(page, "Average of Support years", "format");
+        const menu = page.locator(".pk-chip-menu");
+        await expect(menu.getByTestId("format-current")).toHaveText("Number, 1 decimal");
+        await expect(menu.getByTestId("format-current")).toHaveAttribute("aria-checked", "true");
+        await expect(menu.getByTestId("format-current")).toBeFocused();
+        const xs = await menu.locator('[role="menuitemradio"]').evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().left)))]);
+        expect(xs).toHaveLength(1);
+        await page.keyboard.press("Escape");
+        // the host's format for the field: named, not marked as changed
+        await expect(menu.getByTestId("topic-state-format")).toHaveText("Number, 1 decimal");
+        await page.keyboard.press("Escape");
+        await page.goto("?empty");
+        await page.getByTestId("field-menu-Created").click();
+        await page.getByRole("menuitem", { name: "Add to Rows" }).click();
+        await chipMenu(page, "Created by month", "group");
+        await expect(menu.getByTestId("level-title")).toHaveText("Created by month › Group");
+        await page.keyboard.press("Escape");
+        await expect(menu.getByTestId("menu-head")).toHaveText("Created by month");
+    });
+
+    test("the Sort row says a sort by a value; Expand all off shows no check", async ({ page }) => {
+        await page.goto("?data=sales");
+        await chipMenu(page, "Region");
+        await expect(page.getByTestId("topic-state-sort")).toHaveText("● Largest Sum of Revenue first");
+        await expect(page.getByRole("group", { name: "Sort, Largest Sum of Revenue first, changed" })).toBeVisible();
+        await page.keyboard.press("Escape");
+        await toolbar(page, "options");
+        await expect(page.getByTestId("expand-all")).toHaveAttribute("aria-disabled", "true");
+        await expect(page.getByTestId("expand-all")).not.toHaveAttribute("aria-checked", /.*/);
     });
 });

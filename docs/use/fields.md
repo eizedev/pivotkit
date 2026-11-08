@@ -89,7 +89,7 @@ a screen reader hears ", changed" after it.
 
 | Topic | What it offers |
 | --- | --- |
-| **Sort** | A to Z and Z to A side by side (a date: Oldest and Newest), on the first level. |
+| **Sort** | A to Z and Z to A side by side (a date: Oldest and Newest), on the first level; while it sorts by a value, the row says by which ("Largest Sum of Revenue first"). |
 | Sort by value | "Largest Sum of Revenue first" and "Smallest Sum of Revenue first", on the first level when the report has one value; with more values, or a custom order, a level **Sort by value** with a pair for each value that gives a number and "Custom order" and "Custom order, reversed" when the field has one, such as the seasons in the order of the year ([sorting](filters.md#sorting)). Its row names the sort in use. |
 | **Filter** | A level with the values to keep, a condition on their names and a condition on a value, written as a sentence ([filters](filters.md)). Its row says what the filter keeps: "4 of 12", "contains “an”", "Sum of Revenue > 1,000". |
 | **Group** (dates) | A level: along the time line year, quarter, month, week, day; the same period every year: quarter, month, week of the year, weekday, hour; or no grouping ([dates](values.md#dates-and-number-ranges)). |
@@ -100,8 +100,9 @@ a screen reader hears ", changed" after it.
 
 Every choice applies at once: the table behind the menu changes while it is open, and each change
 is one step Undo takes back. A choice in a list goes back to the first level, with the focus on the
-row, which now says the new setting; a choice that makes the chip another one (a grouping, a move)
-closes the menu.
+row, which now says the new setting; a choice that makes the chip another one (a grouping, which
+renames the field, or a move) closes the menu, since the chip it belongs to is replaced. The menu's
+head and its levels' titles name the field as the chip does ("Created by month").
 
 The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 

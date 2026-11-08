@@ -118,8 +118,13 @@ The menu of a chip, **Options** and **Views** are in levels, so their first leve
   is one step Undo takes back. A number applies a moment after you stop typing (or with Enter), a
   value's name with Enter or when you leave the field; Escape in a field gives back what applies.
 - The search above a chip menu's first level finds any choice of any level, with where it is
-  ("Percent · Number format"), and the levels by their titles; the arrow keys move into the hits and
-  Enter runs one. "Nothing found" says when there is none.
+  ("Percent · Number format"), and the levels by their titles; **/** goes to it from the menu. It knows
+  a few more words: "percent" and "%" find the shares of Show as first, "rename" finds Name, "top 5"
+  (or "5") applies Top 5, and "text condition" or "value condition" opens the Filter level on its
+  conditions. The arrow keys move into the hits and Enter runs one. "Nothing found" says when there
+  is none.
+- A name, a count or a number you typed applies when you leave the field, press Enter, go back a
+  level or click outside the menu; Escape in the field gives back what applied.
 - Entries few people need come last in their level, under a heading: **More statistics**, **More
   calculations**, **More formats** (whole number, compact, bytes, durations).
 - A menu keeps the mouse wheel to itself: at its end it stops, the table or the page behind it does

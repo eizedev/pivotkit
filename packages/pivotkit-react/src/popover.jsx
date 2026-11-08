@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { FOCUSABLE, activeIn, eventWithin, trapTab, useEscapeLayer } from "./dom.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
-import { fromOrigin, placePopover, viewportOf } from "./place.js";
+import { fromOrigin, keepPlace, placePopover, viewportOf } from "./place.js";
 
 /** The layer element and the size class of the report ("wide", "medium", "narrow"). */
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
@@ -69,6 +69,8 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             setPos(null);
             return undefined;
         }
+        /** @type {{ top: number, side: "below" | "above", anchorTop: number } | null} */
+        let last = null;
         const place = () => {
             const el = ref.current;
             const a = anchor.current;
@@ -78,7 +80,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             const r = a.getBoundingClientRect();
             // its own width (max-content, styles.css), whatever room its last place left it: a size
             // measured at that place would narrow it a little on every placement
-            const place = placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, viewportOf(el.ownerDocument), align, { fill });
+            const size = { width: el.offsetWidth, height: el.scrollHeight };
+            const viewport = viewportOf(el.ownerDocument);
+            // a level opening in a menu does not move it to the anchor's other side
+            const place = keepPlace(last, placePopover(r, size, viewport, align, { fill }), r, size, viewport);
+            last = { top: place.top, side: place.side, anchorTop: r.top };
             // the origin of the fixed containing block: not the viewport inside a transformed ancestor
             const probe = layer?.querySelector(".pk-origin");
             setPos(probe ? fromOrigin(place, probe.getBoundingClientRect()) : place);
@@ -112,7 +118,13 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         const el = ref.current;
         // the first option that is shown (a folded section's are hidden)
         const shown = (/** @type {Element} */ o) => o.getClientRects().length > 0;
-        const first = el?.querySelector("[data-autofocus]") ?? [...(el?.querySelectorAll(OPTION) ?? [])].find(shown) ?? [...(el?.querySelectorAll(FOCUSABLE) ?? [])].find(shown);
+        // never an "i" first: its explanation would open over the menu; a menu whose entries are all off
+        // (the Export menu of an empty report) takes the focus itself
+        const first =
+            el?.querySelector("[data-autofocus]") ??
+            [...(el?.querySelectorAll(OPTION) ?? [])].find(shown) ??
+            [...(el?.querySelectorAll(FOCUSABLE) ?? [])].find((o) => shown(o) && !o.classList.contains("pk-info")) ??
+            (el?.querySelector("[data-pk-option]") ? el : null);
         // after the placement, so the page does not scroll to a popover still at 0,0
         const t = requestAnimationFrame(() => /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true }));
         const onDown = (e) => {

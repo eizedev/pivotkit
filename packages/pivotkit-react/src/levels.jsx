@@ -276,12 +276,12 @@ function Groups({ topic, onPick }) {
                 <div className="pk-subtitle" id={`${ids}-${i}`} role="presentation">
                     {g.title}
                 </div>
-                <div role="group" aria-labelledby={`${ids}-${i}`} className={topic.id === "group" ? undefined : "pk-choice-grid"}>
+                <div role="group" aria-labelledby={`${ids}-${i}`} >
                     {items}
                 </div>
             </React.Fragment>
         ) : (
-            <div key={i} role="group" aria-label={topic.title} className={topic.id === "group" || topic.id === "move" || topic.id === "sortValue" ? undefined : "pk-choice-grid"}>
+            <div key={i} role="group" aria-label={topic.title}>
                 {items}
             </div>
         );
@@ -314,12 +314,23 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
     if (topic.kind === "segmented") {
         return (
             // a setting that is not the default says so in words too ("Highlight, changed")
-            <div role="group" aria-label={rowName(topic.title, null, topic.changed, labels.sectionChanged)} className="pk-topic-seg" data-pk-seg="" data-testid={`topic-${topic.id}`}>
+            <div role="group" aria-label={rowName(topic.title, topic.state, topic.changed, labels.sectionChanged)} className="pk-topic-seg" data-pk-seg="" data-testid={`topic-${topic.id}`}>
                 <span className="pk-topic-seg-title" aria-hidden="true">
                     <span className="pk-option-icon">{topic.icon ? <Icon name={/** @type {any} */ (topic.icon)} /> : null}</span>
                     {topic.title}
-                    {topic.changed ? <span className="pk-section-mark">{" ●"}</span> : null}
+                    {topic.changed && !topic.state ? <span className="pk-section-mark">{" ●"}</span> : null}
                 </span>
+                {/* what is set when none of the segments is it (a sort by a value) */}
+                {topic.state ? (
+                    <span className="pk-topic-state pk-topic-seg-state" data-testid={`topic-state-${topic.id}`}>
+                        {topic.changed ? (
+                            <span className="pk-section-mark" aria-hidden="true">
+                                {"● "}
+                            </span>
+                        ) : null}
+                        <span className="pk-badge-cut">{topic.state}</span>
+                    </span>
+                ) : null}
                 <span className="pk-segmented pk-small">
                     {choices.map((c) => (
                         <button key={c.id} type="button" role="menuitemradio" aria-checked={Boolean(c.checked)} tabIndex={-1} data-pk-option="" data-pk-item={c.id} data-pk-text={c.text} data-testid={c.id} onClick={() => onPick(c)}>
@@ -366,7 +377,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
     return (
         <MenuList label={labels.searchResults} close={close} testId="menu-search-hits">
             {hits.map((h) => (
-                <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id))} />
+                <MenuItem key={h.id} id={`hit-${h.id}`} text={h.choice ? h.text : `${h.text}…`} plain={h.text} checked={h.choice?.checked} icon={h.choice ? h.topic.icon : "chevronRight"} hint={h.path || undefined} haspopup={h.choice ? undefined : "dialog"} onSelect={() => (h.choice ? onPick(h.choice) : onOpen(h.topic.id, undefined, h.focus))} />
             ))}
         </MenuList>
     );
@@ -375,7 +386,7 @@ function SearchHits({ hits, labels, onPick, onOpen, close }) {
 /**
  * A menu in levels.
  * @param {{ name: string, labels: any, topics: import("./menu-topics.js").Topic[], close: () => void,
- *   onPick: (choice: import("./menu-topics.js").Choice) => void, panel: (id: string, back: (focus?: string) => void) => React.ReactNode,
+ *   onPick: (choice: import("./menu-topics.js").Choice) => void, panel: (id: string, back: (focus?: string) => void, hint?: string) => React.ReactNode,
  *   head?: React.ReactNode, foot?: React.ReactNode, search?: boolean, locale?: string, focusAgain?: unknown }} props
  *   `onPick`: applies a choice (the menu then goes back to its first level, unless the choice closes
  *   it); `panel`: the form of a "panel" topic, with `back` (one level back, the focus where the level
@@ -386,7 +397,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
     // the levels open (a topic's id with the focus that goes back to where it was opened from; none:
     // the first level) and where the focus goes once it shows: "level" the level's first control,
     // "search" the search, "row:<topic>" a topic's row, "item:<choice>" a choice
-    const [nav, setNav] = useState(/** @type {{ stack: Array<{ level: string, from: string }>, focus: string | null }} */ ({ stack: [], focus: null }));
+    const [nav, setNav] = useState(/** @type {{ stack: Array<{ level: string, from: string, hint?: string }>, focus: string | null }} */ ({ stack: [], focus: null }));
     const level = nav.stack.length ? nav.stack[nav.stack.length - 1].level : null;
     const [query, setQuery] = useState("");
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -411,9 +422,10 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
         target?.scrollIntoView?.({ block: "nearest" });
         // `focusAgain` changes when what the focus goes to may have come later (a view deleted)
     }, [nav, focusAgain]);
-    const open = (id, from = `row:${id}`) => {
+    /** Opens a topic's level; `hint` tells its panel what to show and focus first ("conditions"). */
+    const open = (id, from = `row:${id}`, hint = undefined) => {
         setQuery("");
-        setNav({ stack: [...nav.stack, { level: id, from }], focus: "level" });
+        setNav({ stack: [...nav.stack, { level: id, from, hint }], focus: "level" });
     };
     /** One level back, the focus where the level was opened from (or `focus`). */
     const back = (/** @type {string | undefined} */ focus = undefined) => {
@@ -435,11 +447,20 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
         onPick(choice);
     };
     const onKeyDown = (e) => {
-        if (!level || e.defaultPrevented) {
+        if (e.defaultPrevented) {
             return;
         }
         const t = /** @type {HTMLElement} */ (e.target);
         const typing = t.matches("input:not([type=checkbox], [type=radio]), textarea, select");
+        if (e.key === "/" && search && !level && !typing) {
+            // "/" goes to the search, as on many sites
+            e.preventDefault();
+            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(".pk-level-search input"))?.focus();
+            return;
+        }
+        if (!level) {
+            return;
+        }
         if (e.key === "Escape" || (e.key === "ArrowLeft" && !typing && !t.closest("[data-pk-seg], .pk-segmented"))) {
             // one level back; the document's Escape (which closes the menu) sees it taken
             e.preventDefault();
@@ -518,7 +539,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                             </MenuList>
                         ) : (
                             <div role="group" aria-labelledby={titleId} className="pk-level-panel">
-                                {panel(topic.id, back)}
+                                {panel(topic.id, back, nav.stack[nav.stack.length - 1]?.hint)}
                             </div>
                         )}
                     </div>

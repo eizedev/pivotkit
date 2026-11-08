@@ -3,7 +3,7 @@
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openLevel, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openMoreFilters, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
 async function onlyValue(page, value) {
@@ -24,7 +24,10 @@ test.describe("filters say what they keep", () => {
         await expect(menu.getByTestId("topic-state-filter")).toHaveText("All");
         await expect(menu.getByTestId("topic-filter")).toHaveAccessibleName("Filter, All");
         await openLevel(menu, "filter");
-        await expect(menu.getByTestId("filter-remove")).toHaveCount(0);
+        await expect(menu.getByTestId("filter-clear-picks")).toHaveCount(0);
+        await expect(menu.getByTestId("filter-remove-conditions")).toHaveCount(0);
+        // the conditions are folded at first
+        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
         const row = menu.locator(".pk-value", { hasText: "West" });
         // "Only" shows on hover; it applies at once, the level stays open
         await row.hover();
@@ -40,9 +43,9 @@ test.describe("filters say what they keep", () => {
         // the title reads as a control, the state muted
         const [title, state] = await menu.getByTestId("topic-filter").evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el.querySelector(".pk-topic-state")).color]);
         expect(title).not.toBe(state);
-        // Remove filter in the level
+        // Clear picks in the level
         await openLevel(menu, "filter");
-        await menu.getByTestId("filter-remove").click();
+        await menu.getByTestId("filter-clear-picks").click();
         await expect(badge).toHaveCount(0);
         await expect(menu.getByTestId("filter-result")).toHaveText(/^(\d+) of \1 items picked$/);
         await page.keyboard.press("Escape");
@@ -61,12 +64,16 @@ test.describe("filters say what they keep", () => {
         await chipMenu(page, "Country", "filter");
         const menu = page.locator(".pk-chip-menu");
         const before = (await tableRows(page)).length;
+        await openMoreFilters(menu);
         await menu.getByTestId("filter-condition-op").selectOption("contains");
         await menu.getByTestId("filter-condition-text").fill("an");
         await expect.poll(async () => (await tableRows(page)).length).toBeLessThan(before);
         await menu.getByTestId("level-back").click();
         await expect(menu.getByTestId("topic-state-filter")).toHaveText("● contains “an”");
         await openLevel(menu, "filter");
+        // the level says the condition in words
+        await expect(menu.getByTestId("filter-result")).toHaveText(/items picked, plus a condition on the names$/);
+        await openMoreFilters(menu);
         await expect(menu.getByTestId("filter-condition-text")).toHaveValue("an");
         const filtered = (await tableRows(page)).length;
         await menu.locator(".pk-condition .pk-clear-x").click();
@@ -313,6 +320,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         // the sentence names the field's items and the value
+        await openMoreFilters(menu);
         await expect(menu.getByTestId("value-condition")).toContainText("Keep Region items whose");
         await menu.getByTestId("value-filter-by").selectOption({ label: "Sum of Revenue" });
         await expect(menu.getByTestId("value-filter-op")).toHaveValue("");
@@ -350,7 +358,8 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         const row = menu.locator(".pk-value", { hasText: least[0] });
         await row.hover();
         await row.locator(".pk-only").click();
-        await expect(menu.getByTestId("filter-result")).toHaveText(/^1 of \d+ items picked$/);
+        await expect(menu.getByTestId("filter-result")).toHaveText(/^1 of \d+ items picked, plus a condition on Sum of Revenue$/);
+        await openMoreFilters(menu);
         await menu.getByTestId("value-filter-op").selectOption("");
         await expect(badge).toHaveCount(0);
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
@@ -358,9 +367,12 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await page.keyboard.press("Escape");
         await page.getByTestId("undo").click();
         await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
-        // Remove filter takes the values and the condition
+        // Clear picks and Remove the conditions: each takes its own
         await chipMenu(page, "Region", "filter");
-        await menu.getByTestId("filter-remove").click();
+        await menu.getByTestId("filter-remove-conditions").click();
+        await expect(badge).toHaveCount(0);
+        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
+        await menu.getByTestId("filter-clear-picks").click();
         await expect(badge).toHaveCount(0);
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text')).toHaveCount(0);
     });
@@ -385,6 +397,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         await expect(menu.getByTestId("level-title")).toHaveText("Region › Filter");
+        await openMoreFilters(menu);
         await expect(menu.getByTestId("value-condition")).toContainText("Einträge von Region behalten mit");
         await menu.getByTestId("value-filter-op").selectOption({ label: "mindestens" });
         // typed as Germans write it, key by key
@@ -394,6 +407,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         // the level shows it back in German; a plain point number reads too, an English grouping does not
         await menu.getByTestId("level-back").click();
         await openLevel(menu, "filter");
+        await openMoreFilters(menu);
         await expect(menu.getByTestId("value-filter-number")).toHaveValue("1000,5");
         await menu.getByTestId("value-filter-number").fill("1,000.5");
         await expect(menu.getByTestId("value-filter-number-problem")).toHaveText("Eine Zahl eingeben, etwa 1.234,5.");
@@ -420,6 +434,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         // Revenue is no value of the view any more: it is still the chosen measure
+        await openMoreFilters(menu);
         await expect(menu.getByTestId("value-filter-by")).toHaveValue("1");
         await expect(menu.getByTestId("value-filter-by").locator("option:checked")).toHaveText("Sum of Revenue");
         await menu.getByTestId("value-filter-number").fill("2");

@@ -14,6 +14,7 @@ import { CATALOG, fieldItems, fieldLabel } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { keyOf, ValueList } from "./filter.jsx";
 import { HelpContext } from "./help.js";
+import { Icon } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { LevelMenu, MenuItem, useAppliedText, useLater } from "./levels.jsx";
@@ -21,7 +22,7 @@ import { numberText, parseNumber } from "./numbers.js";
 import { groupingName, refLabel, valueLabel } from "./names.js";
 import { TOP_COUNTS, axisTopics, valueTopics } from "./menu-topics.js";
 import { filtersOf, groupField, groupingOf, sameRef, selectedItems, sourceOf } from "./view-ops.js";
-import { binProblem, conditionKind, hasFilter, measureChoices, removeFilters, setItemFilter, setLabelFilter, setTopFilter, setValueFilter, updateValue, withMeasure } from "./menu-ops.js";
+import { binProblem, conditionKind, measureChoices, setItemFilter, setLabelFilter, setTopFilter, setValueFilter, updateValue, withMeasure } from "./menu-ops.js";
 
 /**
  * A number typed into a menu, read in the report's locale (numbers.js). `kind` says what it must be:
@@ -138,7 +139,7 @@ function measuresOf(view, types, labels, ref) {
  * The condition on the names of a field's items (text, or a number's label): the operator applies at
  * once, the text a moment after the typing stops; the × removes the condition.
  */
-function LabelCondition({ view, field, kind, labels, commit, note, back }) {
+function LabelCondition({ view, field, kind, labels, commit, note, back, autoFocus = false }) {
     const label = filtersOf(view, field, ["label"])[0];
     const [op, setOp] = useState(label?.op ?? "");
     const apply = (o, value) => commit(setLabelFilter(view, field, o && value !== "" ? { op: o, value } : null), note);
@@ -154,6 +155,7 @@ function LabelCondition({ view, field, kind, labels, commit, note, back }) {
                     apply(e.target.value, text.text);
                 }}
                 aria-label={title}
+                data-autofocus={autoFocus ? "" : undefined}
                 data-testid="filter-condition-op"
             >
                 <option value="">{labels.conditionNone}</option>
@@ -187,7 +189,7 @@ function LabelCondition({ view, field, kind, labels, commit, note, back }) {
  * Released is greater than 10". The value and the comparison apply at once, the numbers a moment
  * after the typing stops; "is anything" removes the condition.
  */
-function ValueCondition({ view, field, types, labels, locale, commit, note, back }) {
+function ValueCondition({ view, field, types, labels, locale, commit, note, back, autoFocus = false }) {
     const condition = filtersOf(view, field, ["value"])[0];
     const { choices, names } = measuresOf(view, types, labels, condition?.by);
     const [by, setBy] = useState(() => choiceIndex(choices, condition?.by));
@@ -247,6 +249,7 @@ function ValueCondition({ view, field, types, labels, locale, commit, note, back
                     apply({ op: e.target.value });
                 }}
                 aria-label={labels.valueFilterOp}
+                data-autofocus={autoFocus ? "" : undefined}
                 data-testid="value-filter-op"
             >
                 <option value="">{labels.valueOpAny}</option>
@@ -292,11 +295,16 @@ function ValueCondition({ view, field, types, labels, locale, commit, note, back
 }
 
 /**
- * The Filter level: how many items are kept now, Remove filter, the values to pick with their counts,
- * the condition on the names, the condition on a value. Each change applies at once (one undo step).
+ * The Filter level: what it keeps now (the items picked, and the conditions in words), the values to
+ * pick with their counts, then, folded each time the level opens, "More ways to filter": the
+ * condition on the names and the condition on a value. Clear picks and Remove the conditions say what
+ * they take away. Each change applies at once (one undo step). `hint` "conditions": opened from the
+ * search on a condition, with "More ways to filter" open and the focus on its first field.
  */
-function FilterLevel({ view, field, encoded, types, labels, locale, commit, back }) {
+function FilterLevel({ view, field, encoded, types, labels, locale, commit, back, hint }) {
     const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
+    const [more, setMore] = useState(hint === "conditions");
+    const moreId = useId();
     if (!info) {
         return null;
     }
@@ -307,21 +315,40 @@ function FilterLevel({ view, field, encoded, types, labels, locale, commit, back
     const selected = new Set(picked.map(keyOf));
     // a condition the type has none for (a loaded view's) still shows, so it can be taken off
     const kind = conditionKind(encoded, view, field) ?? (filtersOf(view, field, ["label"]).length ? "text" : null);
+    const byNames = filtersOf(view, field, ["label"]).length > 0;
+    const byValue = filtersOf(view, field, ["value"])[0];
+    const conditions = [byNames ? labels.conditionOnNames : null, byValue ? fill(labels.conditionOnValue, { value: refLabel(view, byValue.by ?? null, labels) }) : null].filter(Boolean);
+    const pickedText = fill(labels.itemsPicked, { shown: picked.length.toLocaleString(locale), total: all.length.toLocaleString(locale) });
+    const itemsFiltered = picked.length < all.length || filtersOf(view, field, ["include"]).length > 0;
     return (
         <div className="pk-filter pk-filter-level">
             <div className="pk-level-result">
                 <p role="status" data-testid="filter-result">
-                    {fill(labels.itemsPicked, { shown: picked.length.toLocaleString(locale), total: all.length.toLocaleString(locale) })}
+                    {conditions.length ? fill(labels.pickedPlus, { picked: pickedText, conditions: conditions.join(labels.listAnd) }) : pickedText}
                 </p>
-                {hasFilter(view, field) ? (
-                    <button type="button" className="pk-link" onClick={() => commit(removeFilters(view, field), note)} data-testid="filter-remove">
-                        {labels.removeFilter}
+                {itemsFiltered ? (
+                    <button type="button" className="pk-link pk-link-button" onClick={() => commit(setItemFilter(view, field, all, all), note)} data-testid="filter-clear-picks">
+                        {labels.clearPicks}
+                    </button>
+                ) : null}
+                {conditions.length ? (
+                    <button type="button" className="pk-link pk-link-button" onClick={() => commit(setValueFilter(setLabelFilter(view, field, null), field, null), note)} data-testid="filter-remove-conditions">
+                        {labels.removeConditions}
                     </button>
                 ) : null}
             </div>
-            <ValueList items={info.items} selected={selected} onChange={(next) => commit(setItemFilter(view, field, all.filter((v) => next.has(keyOf(v))), all), note)} labels={labels} locale={locale} autoFocus>
-                {kind ? <LabelCondition view={view} field={field} kind={kind} labels={labels} commit={commit} note={note} back={back} /> : null}
-                <ValueCondition view={view} field={field} types={types} labels={labels} locale={locale} commit={commit} note={note} back={back} />
+            <ValueList items={info.items} selected={selected} onChange={(next) => commit(setItemFilter(view, field, all.filter((v) => next.has(keyOf(v))), all), note)} labels={labels} locale={locale} autoFocus={!more}>
+                <button type="button" className="pk-more-filters" aria-expanded={more} aria-controls={moreId} onClick={() => setMore(!more)} data-testid="filter-more">
+                    <Icon name={more ? "chevronDown" : "chevronRight"} size={16} />
+                    {labels.moreFilters}
+                    {conditions.length && !more ? <span className="pk-section-mark">{" ●"}</span> : null}
+                </button>
+                {more ? (
+                    <div id={moreId} className="pk-more-filters-body">
+                        {kind ? <LabelCondition view={view} field={field} kind={kind} labels={labels} commit={commit} note={note} back={back} autoFocus={hint === "conditions"} /> : null}
+                        <ValueCondition view={view} field={field} types={types} labels={labels} locale={locale} commit={commit} note={note} back={back} autoFocus={hint === "conditions" && !kind} />
+                    </div>
+                ) : null}
             </ValueList>
         </div>
     );
@@ -612,9 +639,9 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         const grouped = unit ? groupingName(sourceName, unit, labels, size) : null;
         commit(groupField(view, field, unit, { size, origin, name: grouped ?? undefined }).view, { step: "group", field: sourceName });
     };
-    const panel = (id, back) =>
+    const panel = (id, back, hint) =>
         id === "filter" ? (
-            <FilterLevel view={view} field={field} encoded={encoded} types={types} labels={labels} locale={locale} commit={commit} back={back} />
+            <FilterLevel view={view} field={field} encoded={encoded} types={types} labels={labels} locale={locale} commit={commit} back={back} hint={hint} />
         ) : id === "top" ? (
             <TopLevel view={view} field={field} types={types} labels={labels} locale={locale} commit={commit} back={back} />
         ) : id === "bins" ? (
@@ -631,7 +658,8 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
             onPick={picker(commit, close)}
             panel={panel}
             search
-            head={<MenuHead name={fieldLabel(source, labels.core)} info={info} labels={labels} />}
+            // the same name as the chip and the levels' titles ("Date by month"); the "i" is the source field's
+            head={<MenuHead name={name} info={info} labels={labels} />}
             foot={<RemoveItem labels={labels} onRemove={onRemove} close={close} />}
         />
     );

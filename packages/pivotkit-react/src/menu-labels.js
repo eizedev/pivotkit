@@ -36,7 +36,7 @@ export const en = {
     backTo: "Back to the menu of {name}",
     levelTitle: "{name} › {topic}",
     searchMenu: "Search in the menu of {name}",
-    searchMenuShort: "Search in this menu",
+    searchMenuShort: "Search in this menu (key /)",
     searchResults: "Results",
     searchNothing: "Nothing found. Try another word, or clear the search.",
     // the topics of a field's menu and what they show when nothing is set
@@ -57,6 +57,19 @@ export const en = {
     keepWhose: "Keep {field} items whose",
     valueOpAny: "is anything",
     nameHint: "Applies with Enter or when you leave the field; Escape gives the name back.",
+    // more words the search of a menu finds an entry by
+    showAsKeywords: "percent % share",
+    nameKeywords: "rename label title",
+    filterKeywords: "values pick choose",
+    formatDecimals: { one: "Number, {count} decimal", other: "Number, {count} decimals" },
+    // the Filter level: what it keeps in words, what its buttons take away, its folded part
+    pickedPlus: "{picked}, plus {conditions}",
+    conditionOnNames: "a condition on the names",
+    conditionOnValue: "a condition on {value}",
+    listAnd: " and ",
+    clearPicks: "Clear picks",
+    removeConditions: "Remove the conditions",
+    moreFilters: "More ways to filter",
     moveLeft: "Move left",
     moveRight: "Move right",
     // the last item of a chip menu: takes the field (or value) out of the report

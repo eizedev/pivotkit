@@ -287,6 +287,7 @@ const SHOTS = [
             await page.getByTestId("chip-menu-Region").click();
             // the Filter level scrolled to the condition on a value, written as a sentence
             await page.getByTestId("topic-filter").click();
+            await page.getByTestId("filter-more").click();
             await page.getByTestId("value-condition").scrollIntoViewIfNeeded();
         }
     },

@@ -9,10 +9,10 @@
  */
 
 import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
-import { fill } from "./labels.js";
+import { fill, plural } from "./labels.js";
 import { groupingName, refLabel, sortText, valueLabel } from "./names.js";
 import { ZONES, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
-import { TOTALS, filterState, measureChoices, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
+import { TOTALS, filterState, measureChoices, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
 
 /**
  * One choice of a topic: a menu item. `change` gives the next view and the history's note, or `run`
@@ -23,7 +23,7 @@ import { TOTALS, filterState, measureChoices, totalNoEffect, updateValue, withMe
  * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now.
  * @typedef {{ id: string, text: string, change?: () => { view: any, note: any }, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
- *   open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
+ *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
  */
 
 /**
@@ -35,7 +35,11 @@ import { TOTALS, filterState, measureChoices, totalNoEffect, updateValue, withMe
  * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices.
  * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
- *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string }} Topic
+ *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
+ *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice }> }} Topic
+ * `keywords`: more words the search finds the topic's entries by (a choice's own `keywords` put it
+ * first among the hits for them); `searchExtra`: more entries of a panel topic (a part of its level,
+ * or a quick choice of it).
  */
 
 /** The formats the value menu offers first, and those under "More formats"; any other format of a view still works. */
@@ -116,11 +120,27 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
             title: labels.sort,
             kind: "segmented",
             icon: "sortAsc",
+            // a sort by a value (or a custom order) is said here too: the segments then show none
+            state: otherSort,
+            changed: Boolean(otherSort),
             groups: [{ choices: [sortChoice("label-asc", date ? labels.sortOldestShort : labels.sortLabelAsc, "label", "asc", null), sortChoice("label-desc", date ? labels.sortNewestShort : labels.sortLabelDesc, "label", "desc", null)] }]
         },
         // one value: largest and smallest first right here; more: a level of their own
         { id: "sortValue", title: labels.sortByValue, kind: byValue.length <= 2 ? "inline" : "menu", icon: "sortDesc", state: otherSort, changed: Boolean(otherSort), groups: [{ choices: byValue }] },
-        { id: "filter", title: labels.filterTopic, kind: "panel", icon: "filter", state: filterState(view, field, state, labels, locale) ?? labels.filterAll, changed: filterState(view, field, state, labels, locale) !== null }
+        {
+            id: "filter",
+            title: labels.filterTopic,
+            kind: "panel",
+            icon: "filter",
+            state: filterState(view, field, state, labels, locale) ?? labels.filterAll,
+            changed: filterState(view, field, state, labels, locale) !== null,
+            keywords: labels.filterKeywords,
+            // the conditions are found by their names, and open the level on them
+            searchExtra: [
+                { id: "open-filter-text", text: labels.condition, focus: "conditions" },
+                { id: "open-filter-value", text: labels.valueConditionTitle, focus: "conditions" }
+            ]
+        }
     ];
     if (date) {
         const regroup = (unit) => () => {
@@ -148,7 +168,21 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
         topics.push({ id: "bins", title: labels.bins, kind: "panel", icon: "number", state: bins ? fill(labels.binsState, { size: number(bins.size), start: number(bins.origin ?? 0) }) : labels.off, changed: Boolean(bins) });
     }
     const top = filtersOf(view, field, ["top"])[0];
-    topics.push({ id: "top", title: labels.topN, kind: "panel", icon: "top", state: top ? topText(view, top, labels, locale) : labels.off, changed: Boolean(top) });
+    const topBy = top?.by ?? measureChoices(view, (f) => types.get(f.toLowerCase()))[0];
+    topics.push({
+        id: "top",
+        title: labels.topN,
+        kind: "panel",
+        icon: "top",
+        state: top ? topText(view, top, labels, locale) : labels.off,
+        changed: Boolean(top),
+        // Top 3, Top 5, Top 10 are found ("top 5", "5") and apply at once from the search
+        searchExtra: TOP_COUNTS.map((n) => ({
+            id: `top-${n}`,
+            text: fill(labels.topBadge, { count: n.toLocaleString(locale) }),
+            choice: { id: `top-${n}`, text: fill(labels.topBadge, { count: n.toLocaleString(locale) }), checked: Boolean(top && !top.bottom && top.count === n), change: () => ({ view: setTopFilter(view, field, { count: n, bottom: false, by: topBy }, top), note: { step: "top", field: name } }) }
+        }))
+    });
     topics.push(moveTopic(view, zone, index, view[zone].length, labels, name, sourceType));
     return topics;
 }
@@ -161,6 +195,23 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
 export function topText(view, top, labels, locale) {
     const by = top.by ?? (view.values?.[0] ? { field: view.values[0].field ?? null, agg: view.values[0].agg } : null);
     return `${fill(top.bottom ? labels.bottomBadge : labels.topBadge, { count: top.count.toLocaleString(locale) })} ${fill(labels.by, { value: refLabel(view, by, labels) })}`;
+}
+
+/**
+ * A format in words: its own label, a number with other decimals ("Number, 1 decimal"), else the
+ * label of its kind ("Currency" for currency:USD), else its name.
+ * @param {string} format
+ */
+export function formatLabel(format, labels, locale) {
+    if (Object.hasOwn(labels.formats, format)) {
+        return labels.formats[format];
+    }
+    const decimals = /^number:(\d+)$/.exec(format);
+    if (decimals) {
+        return plural(labels.formatDecimals, Number(decimals[1]), { lang: labels.lang, locale });
+    }
+    const kind = format.split(":")[0];
+    return Object.hasOwn(labels.formats, kind) ? labels.formats[kind] : format;
 }
 
 /**
@@ -191,7 +242,11 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
         }
     ];
     if (numericResult(spec, type)) {
-        const showAs = (s) => ({ id: `showas-${s}`, text: labels.showAsNames[s] ?? s, checked: spec.showAs?.type === s, change: set({ showAs: { type: s, axis: spec.showAs?.axis ?? "rows" } }) });
+        // the shares in percent are found as "percent" too, before the number format of that name
+        const showAs = (s) => {
+            const text = labels.showAsNames[s] ?? s;
+            return { id: `showas-${s}`, text, keywords: text.includes("%") ? labels.showAsKeywords : undefined, checked: spec.showAs?.type === s, change: set({ showAs: { type: s, axis: spec.showAs?.axis ?? "rows" } }) };
+        };
         const along = spec.showAs && CATALOG.showAsAlongAxis.includes(spec.showAs.type) ? spec.showAs : null;
         topics.push({
             id: "showAs",
@@ -209,7 +264,9 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
         });
         const example = (f) => formatter(f, { locale })(Object.hasOwn(EXAMPLE, f) ? EXAMPLE[f] : 1234.5);
         const format = (f) => ({ id: `format-${f}`, text: labels.formats[f] ?? f, hint: example(f), checked: spec.format === f, change: set({ format: f }) });
-        const formatName = spec.format ? labels.formats[spec.format] ?? labels.formats[spec.format.split(":")[0]] ?? spec.format : labels.formatAuto;
+        const formatName = spec.format ? formatLabel(spec.format, labels, locale) : labels.formatAuto;
+        // a format of the view that is not offered (number:1 from a host's defaults): checked, first
+        const offered = !spec.format || FORMAT_CHOICES.includes(spec.format) || MORE_FORMATS.includes(spec.format);
         topics.push({
             id: "format",
             title: labels.format,
@@ -218,7 +275,13 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
             state: formatName,
             changed: Boolean(spec.format) && spec.format !== defaults?.format,
             groups: [
-                { choices: [{ id: "format-auto", text: labels.formatAuto, checked: !spec.format, change: set({ format: null }) }, ...FORMAT_CHOICES.map(format)] },
+                {
+                    choices: [
+                        ...(offered ? [] : [{ id: "format-current", text: formatName, checked: true, change: set({ format: spec.format }) }]),
+                        { id: "format-auto", text: labels.formatAuto, checked: !spec.format, change: set({ format: null }) },
+                        ...FORMAT_CHOICES.map(format)
+                    ]
+                },
                 { title: labels.moreFormats, choices: MORE_FORMATS.map(format) }
             ]
         });
@@ -240,7 +303,7 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
             ]
         });
     }
-    topics.push({ id: "name", title: labels.rename, kind: "panel", icon: "text", state: name, changed: Boolean(spec.label) });
+    topics.push({ id: "name", title: labels.rename, kind: "panel", icon: "text", state: name, changed: Boolean(spec.label), keywords: labels.nameKeywords });
     topics.push(moveTopic(view, "values", index, view.values.length, labels, name, type));
     return topics;
 }
@@ -291,7 +354,7 @@ export function optionTopics({ view, labels, folding, tips, explanations, act })
             groups: [
                 {
                     choices: [
-                        { id: "expand-all", text: labels.expandAll, icon: "chevronDown", closes: true, disabled: !folding.canExpand, reason: folding.why.expand ? labels[folding.why.expand] : undefined, run: act.expand },
+                        { id: "expand-all", text: labels.expandAll, icon: "plus", closes: true, disabled: !folding.canExpand, reason: folding.why.expand ? labels[folding.why.expand] : undefined, run: act.expand },
                         { id: "collapse-all", text: labels.collapseAll, icon: "chevronRight", closes: true, disabled: !folding.canCollapse, reason: folding.why.collapse ? labels[folding.why.collapse] : undefined, run: act.collapse }
                     ]
                 }
@@ -327,8 +390,9 @@ export function entryIds(templates) {
 export const afterDelete = (list, place) => list[place + 1] ?? list[place - 1];
 
 /**
- * One entry of a menu's search: a choice of a topic (with the path to it), or a topic's level.
- * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice }} SearchEntry
+ * One entry of a menu's search: a choice of a topic (with the path to it), or a topic's level
+ * (`focus`: the part of it to show and focus).
+ * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice, focus?: string }} SearchEntry
  */
 
 /**
@@ -338,13 +402,15 @@ export const afterDelete = (list, place) => list[place + 1] ?? list[place - 1];
  * @returns {SearchEntry[]}
  */
 export function searchEntries(topics) {
-    return topics.flatMap((topic) =>
-        topic.hidden
-            ? []
-            : topic.kind === "panel"
-            ? [{ id: `open-${topic.id}`, text: topic.title, path: "", topic }]
-            : (topic.groups ?? []).flatMap((g) => g.choices.map((choice) => ({ id: choice.id, text: choice.text, path: [topic.title, g.title].filter(Boolean).join(" › "), topic, choice })))
-    );
+    return topics.flatMap((topic) => {
+        if (topic.hidden) {
+            return [];
+        }
+        const extra = (topic.searchExtra ?? []).map((x) => ({ id: x.id, text: x.text, path: topic.title, topic, choice: x.choice, focus: x.focus }));
+        return topic.kind === "panel"
+            ? [{ id: `open-${topic.id}`, text: topic.title, path: "", topic }, ...extra]
+            : (topic.groups ?? []).flatMap((g) => g.choices.map((choice) => ({ id: choice.id, text: choice.text, path: [topic.title, g.title].filter(Boolean).join(" › "), topic, choice })));
+    });
 }
 
 /** At most this many hits show. */
@@ -365,12 +431,14 @@ export function searchHits(entries, query, locale) {
         return [];
     }
     const found = entries.filter((e) => {
-        const text = lower(`${e.text} ${e.path}`);
+        const text = lower(`${e.text} ${e.path} ${e.topic.keywords ?? ""} ${e.choice?.keywords ?? ""}`);
         return words.every((w) => text.includes(w));
     });
-    // a stable sort: the entries whose text starts with the first word, in their order, then the rest
-    const starts = (/** @type {SearchEntry} */ e) => lower(e.text).startsWith(words[0]);
-    return [...found.filter(starts), ...found.filter((e) => !starts(e))].slice(0, SEARCH_HITS);
+    // a stable sort: the entries with the first word among their own keywords ("percent": the shares
+    // of Show as), then those whose text starts with it, in their order, then the rest
+    const own = (/** @type {SearchEntry} */ e) => lower(e.choice?.keywords ?? "").split(/\s+/).includes(words[0]);
+    const rank = (/** @type {SearchEntry} */ e) => (own(e) ? 0 : lower(e.text).startsWith(words[0]) ? 1 : 2);
+    return [0, 1, 2].flatMap((r) => found.filter((e) => rank(e) === r)).slice(0, SEARCH_HITS);
 }
 
 /**

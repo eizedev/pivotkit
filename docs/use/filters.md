@@ -26,10 +26,11 @@ The menu's first level says on the Filter row what the filter keeps ("All", "4 o
 
 | In the Filter level | What it does |
 | --- | --- |
-| The first line | How many of the field's items the list keeps ("4 of 5 items picked"), said again by a screen reader as it changes; **Remove filter** next to it while the field is filtered: it removes the values, the text condition and the condition on a value (Top N stays). |
-| The values | Each with its row count. At most 300 are listed; below them "300 of 1,045 values; search to find more" says that the search finds the rest. |
+| The first line | How many of the field's items the list keeps, and the conditions in words ("4 of 5 items picked, plus a condition on Sum of Revenue"), said again by a screen reader as it changes. Under it, while there is something to take away, **Clear picks** (every value ticked again) and **Remove the conditions** (the text condition and the condition on a value); Top N stays. |
+| The values | Each with its row count, in a list of limited height that scrolls. At most 300 are listed; below them "300 of 1,045 values; search to find more" says that the search finds the rest. |
 | Search | Narrows the list; **Select all** and **Select none** then act on the values it finds (all of them, also those past the first 300). |
 | **Only** | Next to each value: keeps that one alone. |
+| **More ways to filter** | Folded each time the level opens (a dot on it while a condition is set); it holds the two conditions below. |
 | Text condition | A condition on the names: is, is not, contains, does not contain, begins with, ends with. For a text field it reads "Text condition", for a number "Condition on the label" (the number as the table writes it). It applies a moment after you stop typing, or with Enter; its **×** removes it at once. A date (or a grouping of one) and a yes/no field have none: their items are chosen in the list; a condition a loaded view brings still shows, so it can be removed. |
 | Condition on a value | A sentence: "Keep Region items whose Sum of Revenue is greater than …" ([below](#value-filter)). |
 
@@ -39,6 +40,8 @@ Details:
   new in later data shows up. With every value ticked, the field is not filtered at all.
 - The first line counts the items the list keeps; a condition can keep fewer of them, and the table
   shows which.
+- The menu stays where it opened while you move between its levels: a taller level scrolls inside it
+  instead of moving the menu to the other side of the chip.
 - Escape in a text field gives back the text that applies; with nothing to give back it goes back a
   level.
 - The filter of a field in **Filters** (a click on its chip, or **Filter…** in the field list) is a
@@ -59,8 +62,8 @@ filter.
 
 ## Value condition { #value-filter }
 
-The last part of the Filter level keeps the items whose value meets a condition, written as a
-sentence: "Keep Region items whose Sum of Revenue is greater than 2,000,000".
+The last part of the Filter level, under **More ways to filter**, keeps the items whose value meets a
+condition, written as a sentence: "Keep Region items whose Sum of Revenue is greater than 2,000,000".
 
 1. Pick the value it compares (a choice appears when the report has several values that give
    numbers; the first one is chosen; with no value it is the count of rows).

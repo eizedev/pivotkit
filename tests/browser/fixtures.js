@@ -119,3 +119,9 @@ export async function chipMenu(page, chip, topic) {
     await expect(page.locator(".pk-chip-menu .pk-levels")).toBeVisible();
     if (topic) await openLevel(page.locator(".pk-chip-menu"), topic);
 }
+
+/** Opens "More ways to filter" of an open Filter level (folded each time the level opens). */
+export async function openMoreFilters(scope) {
+    const more = scope.getByTestId("filter-more");
+    if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
+}

@@ -7,7 +7,7 @@ import { LABELS } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { setItemFilter, setTopFilter, setValueFilter } from "../src/menu-ops.js";
-import { afterDelete, axisTopics, entryIds, optionTopics, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
+import { afterDelete, axisTopics, entryIds, formatLabel, optionTopics, rowName, searchEntries, searchHits, SEARCH_HITS, stepIndex, TOP_COUNTS, topText, typeAheadIndex, valueTopics } from "../src/menu-topics.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3, Date: "2026-01-05" },
@@ -167,7 +167,8 @@ test("search: every choice of every level with its path, and the panels; all wor
     assert.ok(searchHits(entries, "o", "en-US").length <= SEARCH_HITS);
     // a field's: the Filter panel is an entry that opens it
     const field = searchEntries(axis(view));
-    assert.deepEqual(searchHits(field, "filt", "en-US").map((e) => [e.id, Boolean(e.choice)]), [["open-filter", false], ["move-filters", true]]);
+    // the Filter panel's own entries (its conditions) are found by its title too
+    assert.deepEqual(searchHits(field, "filt", "en-US").map((e) => [e.id, Boolean(e.choice)]), [["open-filter", false], ["open-filter-text", false], ["open-filter-value", false], ["move-filters", true]]);
     assert.deepEqual(searchHits(field, "move col", "en-US").map((e) => e.id), ["move-cols"]);
 });
 
@@ -203,4 +204,32 @@ test("the Views menu's entries: ids by group, name and repeat; after a delete th
     assert.equal(afterDelete([4, 5, 6], 1), 6);
     assert.equal(afterDelete([4, 5, 6], 2), 5);
     assert.equal(afterDelete([4], 0), undefined);
+});
+
+test("search: the shares of Show as come first for percent and %; the conditions and Top 5 are entries; rename finds Name", () => {
+    const view = norm({ rows: ["Region"], values: [units] });
+    const value = searchEntries(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }));
+    const first = (q) => searchHits(value, q, "en-US").map((e) => e.text);
+    assert.equal(first("percent")[0], "% of grand total");
+    assert.ok(first("percent").includes("Percent"), "the format of that name is still found");
+    assert.equal(first("%")[0], "% of grand total");
+    assert.deepEqual(first("rename"), ["Name"]);
+    const field = searchEntries(axis(view));
+    const hits = (q) => searchHits(field, q, "en-US");
+    assert.deepEqual(hits("text condition").map((e) => [e.id, e.focus]), [["open-filter-text", "conditions"]]);
+    assert.ok(hits("value condition").some((e) => e.id === "open-filter-value" && e.focus === "conditions"));
+    const top5 = hits("top 5")[0];
+    assert.equal(top5.text, "Top 5");
+    assert.deepEqual(top5.choice.change().view.filters.map((f) => [f.type, f.count]), [["top", 5]]);
+    assert.equal(hits("5")[0].text, "Top 5");
+});
+
+test("a format the menu does not offer (number:1) is a checked entry of its own, named in words", () => {
+    const view = norm({ rows: ["Region"], values: [{ ...units, format: "number:1" }] });
+    const format = byId(valueTopics({ view, index: 0, types, labels: MENU.en, locale: "en-US" }), "format");
+    assert.deepEqual([format.state, choice(format, "format-current").text, choice(format, "format-current").checked], ["Number, 1 decimal", "Number, 1 decimal", true]);
+    assert.equal(formatLabel("number:3", MENU.de, "de-DE"), "Zahl, 3 Dezimalstellen");
+    assert.equal(formatLabel("currency:USD", MENU.en, "en-US"), "Currency");
+    // an offered one has no such entry
+    assert.equal(choice(byId(valueTopics({ view: norm({ rows: ["Region"], values: [units] }), index: 0, types, labels: MENU.en, locale: "en-US" }), "format"), "format-current"), undefined);
 });

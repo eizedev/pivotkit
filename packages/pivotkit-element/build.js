@@ -169,10 +169,14 @@ async function licenses(metafile) {
  * search over all levels, every choice at once; levels.jsx, menu-topics.js) took the menus to 27.6
  * measured on a Mac (CI about 27.9, budget 29) and their German texts to 4.7 (CI about 5.0, budget
  * 5.2); the levels' rules in the one stylesheet, less the folds and forms they replace, took the
- * first load from 149.5 to 149.6 (CI about 149.9), so its budget went to 151.
+ * first load from 149.5 to 149.6 (CI about 149.9), so its budget went to 151. Views in levels, no
+ * folding anywhere and the review's findings (the Filter level's folded conditions, the search's
+ * words, a format not offered, popovers that keep their side) took the menus to 28.5 (CI about 28.8,
+ * budget 30) and their German texts to 4.8 (CI about 5.1, budget 5.3); the first load is 149.4 (the
+ * folding's code and rules left it).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 151, chart: 211, export: 11.5, link: 7.3, menus: 29, texts: 5.2, unused: 4.7 };
+export const SIZE_BUDGET_KIB = { initial: 151, chart: 211, export: 11.5, link: 7.3, menus: 30, texts: 5.3, unused: 4.7 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
