@@ -94,7 +94,8 @@ async function infoBoxes(page, { ms = 700, rect = false } = {}) {
                         const r = el.getBoundingClientRect();
                         boxes.push(rect ? [r.left, r.top, r.width, r.height].map(Math.round).join() : [el.style.left, el.style.top, el.offsetWidth, el.offsetHeight].join());
                     }
-                    if (start !== null && performance.now() - start > ms) {
+                    // at least `ms` and at least 12 frames: a slow engine (WebKit in CI) draws fewer frames in the same time
+                    if (start !== null && performance.now() - start > ms && boxes.length >= 12) {
                         done(boxes);
                     } else {
                         requestAnimationFrame(frame);
@@ -113,7 +114,7 @@ test.describe("an i's popover appears at its final size and place", () => {
         // the page's box contains the report's fixed popovers and ends 160 px before the window's edge
         await page.addStyleTag({ content: "body { transform: translateZ(0); margin-right: 160px; }" });
         const boxes = await infoBoxes(page);
-        expect(boxes.length).toBeGreaterThan(5);
+        expect(boxes.length).toBeGreaterThanOrEqual(12);
         expect(new Set(boxes)).toEqual(new Set([boxes[0]]));
     });
 
@@ -122,7 +123,7 @@ test.describe("an i's popover appears at its final size and place", () => {
         await page.goto("?data=sales");
         await page.locator('[data-testid="pivot-table"]').waitFor();
         const boxes = await infoBoxes(page, { rect: true });
-        expect(boxes.length).toBeGreaterThan(5);
+        expect(boxes.length).toBeGreaterThanOrEqual(12);
         expect(new Set(boxes)).toEqual(new Set([boxes[0]]));
     });
 });
