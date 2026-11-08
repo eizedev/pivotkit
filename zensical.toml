@@ -48,8 +48,6 @@ nav = [
 
 [project.theme]
 language = "en"
-# overrides/partials/source.html: the repository link without the GitHub API call of the theme
-custom_dir = "overrides"
 logo = "assets/icon.svg"
 favicon = "assets/icon.svg"
 # Fonts come from the system; nothing is loaded from Google.
