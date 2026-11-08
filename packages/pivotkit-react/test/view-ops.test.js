@@ -435,9 +435,13 @@ test("expand all and collapse all are offered only when they change something, a
         all = toggleCollapsed(all, "rows", p);
     }
     assert.deepEqual(rowFolding(all, outer), { canExpand: true, canCollapse: false, collapsed: 3, open: 0, why: { expand: null, collapse: "collapseAllDone" } });
-    for (const key of ["expandNothing", "collapseNeedsRows", "collapseAllDone"]) {
-        assert.equal(typeof MENU.en[key], "string");
-        assert.equal(typeof MENU.de[key], "string");
+    // every reason rowFolding returns is a key of the menus' texts (the Options menu shows it), in both languages
+    const reasons = new Set([one, two, some, all].flatMap((v) => Object.values(rowFolding(v, outer).why)).concat(Object.values(rowFolding(one, []).why)).filter(Boolean));
+    assert.deepEqual([...reasons].sort(), ["collapseAllDone", "collapseNeedsRows", "expandNothing"]);
+    for (const key of reasons) {
+        assert.equal(typeof MENU.en[key], "string", key);
+        assert.equal(typeof MENU.de[key], "string", key);
+        assert.ok(Object.hasOwn(menuEn, key) && Object.hasOwn(menuDe, key), `${key} is not a menu text`);
     }
 });
 

@@ -322,8 +322,7 @@ above.
 What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
 gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
 update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
-(a few per cent above these numbers; the first load's less than one, so a feature that adds to
-it raises its budget on purpose):
+(3 to 5 per cent above what CI measures, which reads about 0.3 KiB more than these numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |

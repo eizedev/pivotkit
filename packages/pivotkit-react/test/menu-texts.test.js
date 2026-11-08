@@ -35,3 +35,14 @@ test("until a language's menu texts are added, English stands in; then they show
     assert.deepEqual([after.zones.rows, after.apply, after.cancel], ["Zeilen", "Anwenden", "Doch nicht"]);
     assert.equal(menuLabels(labels), after);
 });
+
+test("a host's text for a text that moved to the menus wins over the default, in German and English", () => {
+    addMenuTexts("de", menuDe);
+    for (const locale of ["de", "en-US"]) {
+        const labels = menuLabels(resolveLabels(locale, { toastLinkCopied: "X", groupsExpanded: { other: "{count} offen" } }));
+        assert.equal(labels.toastLinkCopied, "X", locale);
+        assert.equal(labels.groupsExpanded.other, "{count} offen", locale);
+        // the rest of the moved texts keep the language's defaults
+        assert.equal(labels.toastJsonCopied, locale === "de" ? "Ansicht als JSON kopiert" : "View copied as JSON", locale);
+    }
+});

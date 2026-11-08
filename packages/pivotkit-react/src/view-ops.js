@@ -1,7 +1,9 @@
 /*
- * Every change the UI makes to a view, as pure functions: (view, ...) -> new view. The input is a
- * normalized view (pivotkit-core's normalize()); the output is a plain view object that the core
- * normalizes again before it computes, so a function here never has to validate names itself.
+ * The changes the first load makes to a view (placing, moving, sorting by a header, totals, the tips'
+ * actions; those only the menus make are in menu-ops.js, loaded with them), as pure functions:
+ * (view, ...) -> new view. The input is a normalized view (pivotkit-core's normalize()); the output
+ * is a plain view object that the core normalizes again before it computes, so a function here never
+ * has to validate names itself.
  *
  * Zones: "rows" and "cols" are the axes, "values" the value list, "filters" the fields that filter the
  * report without being on an axis. A field in the Filters zone is a filter entry; one that filters
@@ -501,6 +503,7 @@ export function rowFolding(view, outer) {
         canCollapse,
         collapsed: view.collapsed.rows.length,
         open,
+        // keys of the menus' texts (menu-labels.js): the Options menu shows them with its labels
         why: {
             expand: canExpand ? null : "expandNothing",
             collapse: canCollapse ? null : view.rows.length < 2 ? "collapseNeedsRows" : "collapseAllDone"

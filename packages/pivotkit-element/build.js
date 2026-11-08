@@ -152,12 +152,14 @@ async function licenses(metafile) {
  * Then what runs only after a click left the first load (#73): the menus' view changes and the
  * filter's summary (menu-ops.js), sharing's copy, download and load (share-actions.js), the
  * drill-down's table (drill-table.js) and the texts only those show went to the menus, the chart's
- * label layout (chart-layout.js) to the chart. First load 147.8 measured on a Mac (152.2 before),
- * CI some 0.3 more: budget 148.5, so the next feature of the first load raises it on purpose. The
- * menus 22.8 (budget 24), their German texts 4.4 (budget 5), the chart 204.4 (budget kept).
+ * label layout (chart-layout.js) to the chart. Measured on a Mac: first load 147.8 (152.2 before),
+ * chart 204.4, export 10.7, link 6.7, menus 22.8, German texts 4.4. Since then one rule for every
+ * group: the budget is 3 to 5 % above what CI measures (the Mac's number plus about 0.3), rounded:
+ * initial 152.5 (3 % over 148.1; the room freed is for the next features, #56), chart 211, export
+ * 11.5, link 7.3, menus 24, texts 4.9.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 148.5, chart: 221, export: 11.5, link: 7, menus: 24, texts: 5 };
+export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 211, export: 11.5, link: 7.3, menus: 24, texts: 4.9 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
