@@ -123,8 +123,7 @@ Then for each release of a package, in the order `pivotkit-core`, `pivotkit-reac
    11.5.1 or later and Node 22.14.0 or later).
 4. Publish a GitHub release for each tag, with a short text and a link to the package's CHANGELOG.
    Publishing a release also publishes the documentation site from its tag
-   (`.github/workflows/docs.yml`); the site is never published from main, so it describes what is on
-   npm. To publish it again by hand: Actions > Docs site > Run workflow with the input `tag` (a release
+   (`.github/workflows/docs.yml`), not a push to main, so the site describes what is on npm. To publish it again by hand: Actions > Docs site > Run workflow with the input `tag` (a release
    tag that exists, or `main` for a preview of unreleased docs; the next release replaces it).
 
 `npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
