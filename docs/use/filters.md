@@ -5,14 +5,19 @@ description: Leave values out of a pivotkit report - the filter with its values 
 
 # Filters, top N and sorting
 
-A filter leaves rows out of the report. Open a field's menu and choose the filter: tick the values to
-keep, or set a condition. A field in **Filters** filters the whole report; a field on Rows or Columns
-filters its own items. **Value filter…** and **Show only the top items** keep the items whose value
-meets a condition, or the largest N.
+A filter leaves rows out of the report. Open a field's menu and choose **Choose values…**: tick the
+values to keep, or set a condition on their labels. A field in **Filters** filters the whole report; a
+field on Rows or Columns filters its own items. **Value condition…** and **Show top items…** keep the
+items whose value meets a condition, or the largest N.
+
+The menu of a row or column field shows first what is set, in one line: "Filter: 15 of 45 · Remove",
+"Top 10 by Sum of Revenue · Change · Remove". When nothing is set, one item stands there instead
+("Show top items…"); a click opens its form in place.
 
 ## Filter by values
 
-1. Open the field's menu and choose the filter (a chip in **Filters** opens it with a click).
+1. Open the field's menu and choose **Choose values…** (a chip in **Filters** opens the filter with a
+   click).
 2. Untick the values to leave out, or click **Only** next to a value to keep it alone. **Select all**
    and **Select none** act on what the search finds.
 3. Press **Apply**. **Cancel** or Escape leaves the filter as it was.
@@ -26,7 +31,7 @@ meets a condition, or the largest N.
 | Search | Narrows the list; **Select all** and **Select none** then act on the values it finds (all of them, also those past the first 300). |
 | **Only** | Next to each value: keeps that one alone. |
 | Text condition | A condition on the labels: is, is not, contains, does not contain, begins with, ends with. For a text field it reads "Text condition", for a number "Condition on the label" (the number as the table writes it). A date (or a grouping of one) and a yes/no field have none: their items are chosen in the list; a condition a loaded view brings still shows, so it can be removed. |
-| **Remove filter** | At the top while the field is filtered. |
+| **Remove filter** | At the top of the filter while the field is filtered. |
 
 Details:
 
@@ -35,14 +40,16 @@ Details:
   new in later data shows up. With every value ticked, the field is not filtered at all.
 - The **×** in the text of a condition removes the condition at once; the values you ticked stay a
   draft until you apply them.
-- While a field is filtered, its menu says what the filter keeps, in the accent colour: "Filter: 15 of
-  45" or "Filter: contains “an”", with **Remove filter** right below.
+- While a field is filtered, its menu says what the filter keeps, in the accent colour, above
+  **Choose values…** and **Value condition…**: "Filter: 15 of 45" or "Filter: contains “an”", with
+  **Remove** next to it, which removes the values, the text condition and the value condition (Top N
+  stays). Remove closes the menu; the focus goes back to the chip.
 - A field keeps its filters when it moves between Rows, Columns and Filters. Moved to Values, it
   leaves its filters behind. A field that leaves the report (its **x**, **Remove field**, or dragged
   back to the field list) takes its filters and its sort with it.
 
-![A filtered field's menu: Filter: 1 of 5 in the accent colour, Remove filter right below](../assets/screenshots/filter-state-light.png#only-light)
-![A filtered field's menu: Filter: 1 of 5 in the accent colour, Remove filter right below](../assets/screenshots/filter-state-dark.png#only-dark)
+![A filtered field's menu: Filter: 1 of 5 in the accent colour with Remove, then Choose values and Value condition](../assets/screenshots/filter-state-light.png#only-light)
+![A filtered field's menu: Filter: 1 of 5 in the accent colour with Remove, then Choose values and Value condition](../assets/screenshots/filter-state-dark.png#only-dark)
 
 ### Filter a field that is not in the report
 
@@ -50,10 +57,11 @@ Details:
 Filters with what you chose; **Cancel** changes nothing. Moved to Rows or Columns later, it keeps its
 filter.
 
-## Value filter
+## Value condition { #value-filter }
 
-**Value filter…** in the menu of a row or column field keeps the items whose value meets a condition:
-"regions with more than 2,000,000 revenue".
+**Value condition…** in the menu of a row or column field keeps the items whose value meets a
+condition: "regions with more than 2,000,000 revenue". A click opens its form in the menu, with the
+focus in its first field; **Cancel** closes the form and puts the focus back on **Value condition…**.
 
 1. Pick the value it compares (a choice appears when the report has several values that give
    numbers; the first one is chosen).
@@ -72,10 +80,10 @@ filter.
   0.25 is no condition on 25 %, 1000 is one on the sum of revenue.
 - Between keeps the items from the smaller to the larger number, in whatever order they were typed;
   the chip writes the smaller one first.
-- Open the form again to change it; changing it replaces it. **Remove** (or Apply with no number)
-  removes it. Each is one step Undo takes back.
-- **Remove filter** in the menu removes it together with the values and the text condition; Top N
-  stays.
+- **Value condition…** opens the form with the condition set; changing it replaces it. Apply with no
+  number removes it. Each is one step Undo takes back.
+- **Remove** next to "Filter: …" in the menu removes it together with the values and the text
+  condition; Top N stays.
 - A field that holds no number says so under the number.
 - A view may hold more than one value condition or top N for a field (from a link, say): the menu
   edits the first one and leaves the others as they are. A condition whose value is no longer among
@@ -83,10 +91,15 @@ filter.
 
 ## Top N
 
-**Show only the top items** in the same menu keeps the largest (or smallest) items: **Top** or
-**Bottom**, how many, and by which value (a choice when the report has several values that give
-numbers; the first value is the default). **Remove**, or Apply with no count, removes it; one undo
-step.
+**Show top items…** in the same menu (section **Top items**) opens a form: **Top** or **Bottom**, how
+many, and by which value (a choice when the report has several values that give numbers; the first
+value is the default), then **Apply**. Once set, the section says it in one line, "Top 10 by Sum of
+Revenue", with **Change** (the form again, filled in) and **Remove**; Apply with no count removes it
+too. Each is one undo step. Apply and Remove close the menu and put the focus back on the chip;
+**Cancel** closes the form and puts it back on the line.
+
+![The menu of Country: Top items says "Top 3 by Sum of Population" with Change and Remove](../assets/screenshots/top-items-light.png#only-light)
+![The menu of Country: Top items says "Top 3 by Sum of Population" with Change and Remove](../assets/screenshots/top-items-dark.png#only-dark)
 
 - Top N and value filters work within each item of the field above, as in Excel: with Region and
   Country on Rows, "top 3 countries" keeps three countries per region. Totals then add up the items

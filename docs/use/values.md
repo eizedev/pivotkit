@@ -17,15 +17,18 @@ field twice (the sum and the average of a cost, say).
 
 | Section | What it offers |
 | --- | --- |
-| **Summarize by** (open) | Sum, count, average, minimum, maximum; the statistics (median, distinct count, standard deviation, variance, first, last) under **More statistics** ([below](#summarize-by)). |
+| **Summarize by** (open; the **i** at its end) | Sum, count, average, minimum, maximum; the statistics (median, distinct count, standard deviation, variance, first, last) under **More statistics** ([below](#summarize-by)). |
 | **Show as** (open) | The value itself, % of grand total, % of row total, % of column total; differences, running totals and ranks under **More calculations**. |
 | **Number format** (folded) | Automatic, number (also with no or two decimals), currency, percent; whole number, compact (1.2K), bytes and durations from hours or seconds under **More formats**. |
 | **Highlight** (folded) | None, a colour scale or data bars, in the theme's colours. |
-| **Name** (folded) | Type a name and **Apply**. |
-| **Filters** (folded) | A sentence on filtering: values are not filtered here; filter a field on Rows or Columns through its menu, or move a field to Filters. |
+| **Name** | Type a name and **Apply**. |
 | **Move** (folded) | To another zone. |
 
-Folded sections open with their title ([long menus](layout.md#menus-that-are-long)).
+Folded sections open with their title and say what they hold while folded ("Number format ·
+Automatic"); a dot marks one that is not at its default ([long menus](layout.md#menus-that-are-long)).
+The **i** at the top of the menu holds the field's description, when the application gives one, and
+says that values are not filtered here: filter a field on Rows or Columns through its menu, or move a
+field to Filters.
 
 ## Summarize by
 
@@ -137,12 +140,15 @@ are the same in every language.
 
 ### Number ranges
 
-**Group numbers into ranges** in the menu of a number field on Rows or Columns puts its numbers into
-ranges: their size and where they start, **Starting at**. The chip then reads "Amount (by 100)".
+**Group into ranges…** in the menu of a number field on Rows or Columns (section **Number ranges**)
+opens a form: the size of the ranges and where they start, **Starting at**, then **Apply**. The chip
+then reads "Amount (by 100)", and the menu says it in one line, "Ranges of 100 from 0", with **Change**
+(the form again, filled in) and **Remove**.
 
 - A range includes its lower bound and excludes the upper one.
 - A new size keeps the start; an empty start is 0. The **×** of Starting at empties it.
 - **Remove**, or Apply with no size, takes the ranges away again (one step Undo takes back).
+  **Cancel** closes the form without a change.
 - A start so far from the field's numbers that every row would be blank is refused with a note under
   it.
 - Range labels use the language's thousands separators ("10,000 – 20,000"), except when every range

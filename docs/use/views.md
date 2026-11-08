@@ -44,7 +44,8 @@ save, or when Undo brings the report back to the view as it was saved. While Vie
 ## The Views menu
 
 **Views** in the toolbar starts with **This view** (save and start over), then lists the saved
-reports in two groups, then **Share**. Each entry loads its view with one click; the first three are
+reports in two groups, then **Share** (folded at first: a click on its title opens it, and the report
+remembers that). Each entry loads its view with one click; the first three are
 also offered in the empty report. The view you loaded has a check mark in its group.
 
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
@@ -114,7 +115,8 @@ entry in Views says the same.
 ### Views kept in this browser
 
 When the report keeps your views in the browser, the menu says so: they are only in this browser on
-this device, and gone when the site's data is cleared. At most 100 views are kept. When the views were
+this device, and gone when the site's data is cleared. Before the first one is saved, My views is one
+line: "None yet. Saved views stay in this browser only." At most 100 views are kept. When the views were
 changed in another tab since you opened the menu, a delete here deletes nothing and says so: "The view
 could not be deleted: the views were changed in another tab; open the menu again".
 
@@ -123,7 +125,7 @@ could not be deleted: the views were changed in another tab; open the menu again
 ![The Views menu with Shared views, My views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu-light.png#only-light)
 ![The Views menu with Shared views, My views and Share: Copy link, Copy view as JSON, Download view, Load view](../assets/screenshots/share-menu-dark.png#only-dark)
 
-The **Share** section of the Views menu:
+The **Share** section of the Views menu (folded until you open it once):
 
 | Entry | Gives |
 | --- | --- |

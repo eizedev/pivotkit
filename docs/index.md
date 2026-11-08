@@ -56,7 +56,7 @@ Start with the [quick start](use/quick-start.md) (your first report in six steps
   ([export and copy](use/export.md)).
 - Enlarge the result or put the report on the full screen; tips, one at a time, say what the report
   shows and what to do next; an "i" explains each zone, field and setting that needs it, long menus
-  fold their sections, and every text field in a menu has an × that empties it
+  fold their sections and say what each holds, and every text field in a menu has an × that empties it
   ([small screens, menus and tips](use/layout.md)).
 - Works with a keyboard and a screen reader, from a phone to a wide screen
   ([keyboard](use/keyboard.md)), in English and German, light and dark.

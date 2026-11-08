@@ -115,7 +115,7 @@ Type: `"browser"`; default: off.
 
 Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`.
 
-The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. Another aggregator picked in the value's menu keeps `format` while the result is in the field's unit (an average to a median), not for a count; a format the user chose stays the same way. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and so is a field on Rows or Columns of a view or template without a sort entry for it; its menu offers "Custom order" and "Custom order, reversed", and "A to Z" stays a sort entry of its own; items not listed follow by label. `label` is the name the report shows for the field (chips, headers, value names such as "Sum of Net revenue", the drill-down, the chart and the exported files); views and templates keep the field's own name. `description` (plain text, at most 1,000 characters) shows behind an "i" next to the field and on its chips, at the top of its chip menu and on its table headers; `href`, an https link, adds "Learn more". A field without them looks as it does without `fieldDefaults`. `type` reads the field's column as `"number"`, `"date"`, `"string"` or `"boolean"` (pivotkit-core's `encode` `types`). pivotkit-core's `fieldDefaultsFromSchema` builds all of it from a JSON Schema or an OpenAPI document: [Field descriptions and names](../concepts/fields.md).
+The aggregator and the format a field gets when it is added to Values (an average for a duration, say). An aggregator that does not fit the field's type is ignored. Another aggregator picked in the value's menu keeps `format` while the result is in the field's unit (an average to a median), not for a count; a format the user chose stays the same way. In the drill-down, `drillFormat` (else `format`) formats the field's own values: `"text"` shows a numeric identifier as it is (40072, not 40,072), `"date"` a date without its time. `order` is the field's own order of items (`["Spring", "Summer", "Autumn", "Winter"]`): the field is sorted in it when it is placed on Rows or Columns (a `custom` sort in the view, so a template keeps it), and so is a field on Rows or Columns of a view or template without a sort entry for it; its menu offers "Custom order" and "Custom order, reversed", and "A to Z" stays a sort entry of its own; items not listed follow by label. `label` is the name the report shows for the field (chips, headers, value names such as "Sum of Net revenue", the drill-down, the chart and the exported files); views and templates keep the field's own name. `description` (plain text, at most 1,000 characters) shows behind an "i" next to the field and on its chips, behind the "i" at the top of its chip menu and on its table headers; `href`, an https link, adds "Learn more". A field without them looks as it does without `fieldDefaults`. `type` reads the field's column as `"number"`, `"date"`, `"string"` or `"boolean"` (pivotkit-core's `encode` `types`). pivotkit-core's `fieldDefaultsFromSchema` builds all of it from a JSON Schema or an OpenAPI document: [Field descriptions and names](../concepts/fields.md).
 
 ### `onCellClick` { #prop-oncellclick }
 
@@ -163,7 +163,7 @@ Dismissed tip ids from the host's own storage; `"*"` means the user switched all
 
 Type: `({ id, dismissed }) => void`.
 
-Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), "Show explanations" off (`"-explanations"`), a switch on, a section opened or folded, or "Show dismissed tips again" (`id` `null`; the switches and the sections stay), with the whole list to store and pass back as `dismissedTips`.
+Every change of the dismissed tips: a dismissal (`id` the tip), "Show tips" off (`id` `"*"`), "Show explanations" off (`"-explanations"`), a switch on, a section opened or folded, "Show dismissed tips again" (`id` `null`; the switches and the sections stay) or "Reset menu sections" (`id` `null`; every `open:` and `closed:` entry goes, the tips and switches stay), with the whole list to store and pass back as `dismissedTips`.
 
 ### `fieldInfo` { #prop-fieldinfo }
 
@@ -226,8 +226,8 @@ important first. Three are **notices**: they say that the result is cut or empty
 have no x, count against no limit and stay with `tips="off"` and "Show tips" off. The others are
 **tips**: one at a time, the most important first; the next one waits until it is followed or
 dismissed. Each has an x that dismisses it (Tab reaches it; the focus then goes to the next tip).
-Options, Help has "Show tips", "Show explanations", "Show dismissed tips again" and the keyboard
-shortcuts. A screen reader hears new notes through a
+Options, Help has "Show tips", "Show explanations", "Show dismissed tips again", "Reset menu
+sections" and the keyboard shortcuts. A screen reader hears new notes through a
 polite live region. In the order they are shown, and when:
 
 | Id | Kind | Shown when | Button |

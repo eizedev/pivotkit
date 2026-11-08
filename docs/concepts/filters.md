@@ -81,7 +81,7 @@ to Z" in the menu is then kept as a sort entry of its own, so the host's order d
 ## Filters in the UI
 
 The filter, the value condition and Top N as people use them - the list of values with their row
-counts, the text condition, **Value filter…**, **Show only the top items**, numbers typed in the
+counts, the text condition, **Value condition…**, **Show top items…**, numbers typed in the
 report's language, what Remove takes away - are on [Filters, top N and sorting](../use/filters.md)
 under Use a report. What they write into the view:
 
@@ -89,9 +89,9 @@ under Use a report. What they write into the view:
 | --- | --- |
 | Values ticked in the filter | An `exclude` filter of the values **not** ticked, as Excel does: a value that appears in later data is shown. With every value ticked, the field has no item filter at all. |
 | Text condition, Condition on the label | A `label` filter. |
-| Value filter… | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
-| Show only the top items | A `top` filter, `by` the value chosen. |
-| Remove filter | Removes the field's `include`, `exclude`, `label` and `value` filters; `top` stays. |
+| Value condition… | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
+| Show top items… | A `top` filter, `by` the value chosen. |
+| Remove (next to "Filter: …") | Removes the field's `include`, `exclude`, `label` and `value` filters; `top` stays. |
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

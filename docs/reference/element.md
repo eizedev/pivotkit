@@ -330,7 +330,7 @@ update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KI
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 602 KiB | 204 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
-| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the English texts only they show) | 1 | 60 KiB | 18 KiB |
+| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the English texts only they show) | 1 | 64 KiB | 19 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 10 KiB | 4 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no

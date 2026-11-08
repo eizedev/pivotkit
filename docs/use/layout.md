@@ -108,14 +108,23 @@ squeezing the table into a sliver.
 - Entries few people need sit behind a link in their section: **More statistics**, **More
   calculations**, **More formats** (whole number, compact, bytes, durations).
 
-Sections fold with their title. The ones used most are open; the report remembers what you open and
-fold, like the tips.
+Sections fold with their title, a button (44 px high on a touch screen). The ones used most are
+open. A folded section says at its end what it holds, muted ("Number format · Automatic",
+"Highlight · None"), with a dot when that is not the default, so you see what is set without opening
+it. The report remembers what you open and fold (with the tips, under the report's storage),
+**Show dismissed tips again** leaves it as it is, and **Options**, **Help**, **Reset menu sections**
+folds and opens every section as at first (greyed out while nothing differs).
 
 | Menu | Open | Folded |
 | --- | --- | --- |
-| A value's menu | Summarize by, Show as | Number format, Highlight, Name, Filters, Move |
-| A row or column field's menu | Sort, the date grouping, number ranges, Show only the top items, Filters | Move |
-| The toolbar's menus | all | |
+| A value's menu | Summarize by, Show as | Number format, Highlight, Move (Name does not fold) |
+| A row or column field's menu | Sort, Filters, Top items, the date grouping, number ranges | Move |
+| Views | This view, Shared views, My views | Share |
+| Chart type | Chart type | Display |
+| Options, Export, the drill-down's Export | all (Options, Rows does not fold) | |
+
+![A value's menu on a phone: a sheet at the bottom, Number format folded with "Currency" and its dot, Highlight with "None"](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
+![A value's menu on a phone: a sheet at the bottom, Number format folded with "Currency" and its dot, Highlight with "None"](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }
 
 ## Tips
 
@@ -138,8 +147,9 @@ table.
 - The notes that say the result is cut or empty (a top 5, the first 50 categories of a chart, a
   filter that leaves nothing) always stay; they have no x.
 - **Options**, **Help** has **Show tips**, to switch them all off and on, **Show explanations** (every
-  **i**: of the fields, the zones and the settings of the menus) and **Show dismissed tips again**
-  (greyed out until you dismissed a tip). The report remembers the switches like the tips.
+  **i**: of the fields, the zones and the settings of the menus), **Show dismissed tips again**
+  (greyed out until you dismissed a tip; the menus' sections stay as you folded them) and **Reset
+  menu sections**. The report remembers the switches like the tips.
 - **Options**, **Help**, **Keyboard shortcuts** lists the keys ([keyboard](keyboard.md)).
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-light.png#only-light)

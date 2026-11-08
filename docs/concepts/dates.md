@@ -59,7 +59,7 @@ field)` in pivotkit-core makes the same choice.
 
 `size` is the width of a range and `origin` where the ranges start. A range includes its lower bound
 and excludes the upper one, computed in the decimals of `size` and `origin`, so 0.3 lands in
-"0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused. In the UI, "Group numbers into ranges" in the menu of
+"0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused. In the UI, "Group into ranges…" (section "Number ranges") in the menu of
 a number field on rows or columns sets them, the size and "Starting at" (Excel's name for `origin`);
 the chip then reads "Amount (by 100)". A new size keeps the start; an empty start is 0. **Remove**, or Apply with no size, takes the ranges
 away again (one undo step). A start so

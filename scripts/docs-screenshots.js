@@ -165,6 +165,8 @@ const SHOTS = [
         chart: true,
         open: async (page) => {
             await toolbar(page, "chart-type");
+            // folded at first: opened as a user would
+            await page.getByTestId("section-chartDisplay").click();
             await page.getByTestId("legend-bottom").click();
         }
     },
@@ -173,7 +175,11 @@ const SHOTS = [
         name: "share-menu",
         query: "data=sales",
         size: WIDE,
-        open: (page) => toolbar(page, "views")
+        open: async (page) => {
+            await toolbar(page, "views");
+            // folded at first: opened as a user would
+            await page.getByTestId("section-share").click();
+        }
     },
     {
         // Shared views (the presets and the views of the OpenAPI document) and My views with one saved
@@ -248,8 +254,27 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
-            // the menu scrolled to its Filters section
+            // the condition in words, its form opened, the menu scrolled to its Filters section
+            await page.getByTestId("value-filter-open").click();
+            await page.getByTestId("value-filter-number").blur();
             await page.getByTestId("open-filter").evaluate((el) => el.closest(".pk-section").scrollIntoView({ block: "start" }));
+        }
+    },
+    {
+        // a field's menu with its Top N in one line: "Top 3 by Sum of Population · Change · Remove"
+        name: "top-items",
+        query: "data=countries&preset=0",
+        size: WIDE,
+        open: (page) => page.getByTestId("chip-menu-Country").click()
+    },
+    {
+        // a value's menu on a phone: a sheet at the bottom, folded sections with their state
+        name: "phone-value-menu",
+        query: "data=sales",
+        size: PHONE,
+        open: async (page) => {
+            await page.getByTestId("layout-summary").click();
+            await page.getByTestId("chip-menu-Sum of Revenue").click();
         }
     },
     {
@@ -261,6 +286,7 @@ const SHOTS = [
         open: async (page) => {
             await page.locator('[data-testid="pivot-chart"] canvas').waitFor();
             await toolbar(page, "chart-type");
+            await page.getByTestId("section-chartDisplay").click();
         }
     },
     {
@@ -288,6 +314,7 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
+            await page.getByTestId("section-share").click();
             await page.getByTestId("load-view").click();
             const file = toViewFile({ rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] }, { name: "Sunshine per city", source: { id: "weather", name: "Weather" } });
             await page.getByTestId("load-view-text").fill(JSON.stringify(file));

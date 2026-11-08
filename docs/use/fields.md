@@ -46,8 +46,8 @@ When the application describes its fields, an **i** stands next to such a field 
 its chips. Point at it, or move the focus to it with Tab, and the description appears; click or tap it
 to keep it open, with **Learn more** when there is a page about the field. Escape closes it.
 
-- On a phone a chip has no **i**; the same text is at the top of the chip's menu and on the field's
-  headers in the table and in the drill-down.
+- On a phone a chip has no **i**; the chip's menu has it at its top, at the end of its first section's
+  title, and the field's headers in the table and in the drill-down carry the same text.
 - The field search finds a field by its name, by the name the application gives it and by words of
   its description. Its **×** and Escape empty the search.
 - The application may give a field a clearer name than the data's; the report uses that name
@@ -77,13 +77,16 @@ filters and its sort with it.
 
 ### The menu of a row or column field
 
+Sections that hold a setting say it first, in one line; one with nothing set shows a single item
+whose form opens on a click. The **i** of the field's description is at the end of the first title.
+
 | Section | What it offers |
 | --- | --- |
 | **Sort** | By label; "Largest Sum of Revenue first" and "Smallest Sum of Revenue first" for each value that gives a number, so with two values you choose which one orders the items; "Custom order" and "Custom order, reversed" when the field has one, such as the seasons in the order of the year ([sorting](filters.md#sorting)). |
+| **Filters** | What the filter keeps with **Remove** while there is one; **Choose values…** and **Value condition…**, a condition on a value ([filters](filters.md)). |
+| **Top items** | "Top 10 by Sum of Revenue · Change · Remove", or **Show top items…**: top or bottom N by a value you choose ([top N](filters.md#top-n)). |
 | Date grouping (dates) | Along the time line: year, quarter, month, week, day; or across years: quarter, month, week of the year, weekday, hour ([dates](values.md#dates-and-number-ranges)). |
-| Number ranges (numbers) | Their size and where they start, "Starting at" ([ranges](values.md#number-ranges)). |
-| **Show only the top items** | Top or bottom N by a value you choose ([top N](filters.md#top-n)). |
-| **Filters** | The filter, and **Value filter…**, a condition on a value ([filters](filters.md)). |
+| **Number ranges** (numbers) | "Ranges of 0.5 from 4.5 · Change · Remove", or **Group into ranges…**: their size and where they start ([ranges](values.md#number-ranges)). |
 | **Move** | To another zone. |
 | **Remove field** | Always at the foot. |
 
