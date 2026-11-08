@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import * as esbuild from "esbuild";
 import { bundledPackages, loadGroups, options } from "../build.js";
 import { hostStyles } from "../src/host-css.js";
+import { options as reactOptions } from "../../pivotkit-react/build.js";
 
 const pkgDir = new URL("../", import.meta.url);
 const reactCss = await readFile(new URL("../../pivotkit-react/dist/styles.css", import.meta.url), "utf8");
@@ -117,6 +118,43 @@ test("the menus' German texts load only for a German report: neither in the firs
     // the menus' sections (section.jsx) load with the menus, only their context (help.js) first
     assert.ok(text(groups.menus).includes('className:"pk-section-head"'));
     assert.ok(!text(groups.initial).includes('className:"pk-section-head"'), "the menus' sections are in the first load");
+});
+
+test("what runs only after a click in a menu, or on a drawn chart, is not in the first load", async () => {
+    // pivotkit-react's own build: which of its modules index.js loads first (the element bundles that dist/)
+    const react = await esbuild.build({ ...reactOptions, write: false, metafile: true, logLevel: "silent" });
+    const out = react.metafile.outputs;
+    const key = (name) => Object.keys(out).find((k) => k.endsWith(`dist/${name}`));
+    const closure = (start) => {
+        const seen = new Set();
+        const walk = (f) => {
+            if (!seen.has(f)) {
+                seen.add(f);
+                out[f].imports.filter((i) => i.kind === "import-statement" && out[i.path]).forEach((i) => walk(i.path));
+            }
+        };
+        walk(key(start));
+        return new Set([...seen].flatMap((f) => Object.keys(out[f].inputs)));
+    };
+    const first = closure("index.js");
+    const menus = closure("menus.js");
+    const chart = closure("echarts.js");
+    // the menus' view changes and the filter's summary, sharing (copy, download, load a view), the
+    // drill-down's table; the chart's label layout comes with ECharts
+    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-layout.js", chart, "chart"]]) {
+        assert.ok(group.has(mod), `${mod} is not in the ${name}`);
+        assert.ok(!first.has(mod), `${mod} is in the first load`);
+    }
+    // texts only those show (menu-labels.js): Options' reasons and notes, the filter's conditions, sharing's notes
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    for (const words of ["Nothing is collapsed.", "{count} groups expanded", "Needs a field in Rows.", "does not contain", "Link copied", "View copied as JSON"]) {
+        assert.ok(text(groups.menus).includes(words), `"${words}" is not in the menus`);
+        assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
+    }
+    // what stays first: the header sort's texts and its aria-sort (table.jsx renders it)
+    assert.ok(text(groups.initial).includes("Sort by {value}: largest first"));
+    assert.ok(text(groups.initial).includes('"aria-sort"'));
 });
 
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {

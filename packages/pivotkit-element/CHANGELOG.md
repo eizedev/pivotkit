@@ -27,6 +27,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   what they hold ([#57](https://github.com/eizedev/pivotkit/issues/57)); no new attribute or event.
   The menus' size budget is 20 KiB (19.3 measured).
 
+- What runs only after a click left the first load
+  ([#73](https://github.com/eizedev/pivotkit/issues/73)): the menus' view changes, sharing's copy,
+  download and load, the drill-down's table and the texts only they show load with the menus, the
+  chart's label layout with the chart. The first load is 147.8 KiB gzip (152.2 before, measured on one
+  Mac) and its budget 148.5 (152.5 before); the menus 22.8 (budget 24), their German texts 4.4
+  (budget 5). No new attribute or event.
+
 - pivotkit-react's menu texts in German are a chunk of their own, loaded with the menus only for a
   German report or when `locale` changes to German, and the menus' sections moved out of the first
   load ([#73](https://github.com/eizedev/pivotkit/issues/73)): the menus 20.6 to 17.9 KiB gzip, the

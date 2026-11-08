@@ -149,9 +149,15 @@ async function licenses(metafile) {
  * so the menus' budget went down to 19.5. A review then gave the value condition a line of its own,
  * the menus a head row with the field's name and its "i", the folded titles their spoken ", changed"
  * and Reset menu sections its focus and status: 19.3 measured, CI some 0.3 more, budget 20.
+ * Then what runs only after a click left the first load (#73): the menus' view changes and the
+ * filter's summary (menu-ops.js), sharing's copy, download and load (share-actions.js), the
+ * drill-down's table (drill-table.js) and the texts only those show went to the menus, the chart's
+ * label layout (chart-layout.js) to the chart. First load 147.8 measured on a Mac (152.2 before),
+ * CI some 0.3 more: budget 148.5, so the next feature of the first load raises it on purpose. The
+ * menus 22.8 (budget 24), their German texts 4.4 (budget 5), the chart 204.4 (budget kept).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 20, texts: 4.5 };
+export const SIZE_BUDGET_KIB = { initial: 148.5, chart: 221, export: 11.5, link: 7, menus: 24, texts: 5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
