@@ -6,6 +6,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- pivotkit-react's popovers appear at their final size and place
+  ([#91](https://github.com/eizedev/pivotkit/issues/91)).
+
 ## [0.2.0] - 2026-11-08
 
 ### Added

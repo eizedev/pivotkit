@@ -6,6 +6,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- The "i" popover (and every other popover) appears at its final size and place
+  ([#91](https://github.com/eizedev/pivotkit/issues/91)). Where the area of fixed elements ends before
+  the window's edge (a classic scroll bar, as on Windows; a transformed host element), it narrowed a
+  little on every placement, over about a second; it now takes its own width (`width: max-content`,
+  capped as before) and is placed inside the window without its scroll bars.
+
 ## [0.2.0] - 2026-11-08
 
 ### Added

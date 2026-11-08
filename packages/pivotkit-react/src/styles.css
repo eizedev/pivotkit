@@ -1043,6 +1043,10 @@
     z-index: 60;
     display: flex;
     flex-direction: column;
+    /* its own width, not the room right of where it was placed last (popover.jsx measures it): a
+       containing block that ends before the window (a classic scroll bar, a transformed host) would
+       else narrow it on every placement, frame after frame */
+    width: max-content;
     min-width: 220px;
     max-width: min(380px, calc(100vw - 16px));
     padding: 6px;

@@ -12,6 +12,19 @@ const MARGIN = 8;
 const GAP = 6;
 
 /**
+ * The room a fixed popover has: the window without its scroll bars (the root's client box). A classic
+ * scroll bar (Windows, 17 px) is part of innerWidth but not of the area fixed elements are laid out
+ * in; placed against innerWidth, a popover at the right edge would reach under the scroll bar.
+ * @param {Document} doc
+ * @returns {{ width: number, height: number }}
+ */
+export function viewportOf(doc) {
+    const root = doc.documentElement;
+    const win = doc.defaultView;
+    return { width: root?.clientWidth || win?.innerWidth || 0, height: root?.clientHeight || win?.innerHeight || 0 };
+}
+
+/**
  * @param {{ top: number, bottom: number, left: number, right: number }} anchor  getBoundingClientRect()
  * @param {{ width: number, height: number }} size  the popover's size
  * @param {{ width: number, height: number }} viewport

@@ -66,3 +66,60 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
         await page.keyboard.press("Escape");
     }
 });
+
+/**
+ * The layout box of the "i" popover of a value's Show as, every frame for `ms` after it is shown
+ * (placed: no longer hidden). The box without transforms: the pop-in animation scales it, the place
+ * and the size do not change. With `rect`, the box on screen (transforms included) instead.
+ */
+async function infoBoxes(page, { ms = 700, rect = false } = {}) {
+    await page.getByTestId("chip-menu-Sum of Revenue").click();
+    const section = page.getByTestId("section-showAs");
+    if ((await section.getAttribute("aria-expanded")) === "false") {
+        await section.click();
+    }
+    await page.getByTestId("setting-info-showAs").click();
+    return page.evaluate(
+        ({ ms, rect }) =>
+            new Promise((done) => {
+                const boxes = [];
+                let start = null;
+                const frame = () => {
+                    const el = document.querySelector(".pk-info-pop");
+                    if (el && getComputedStyle(el).visibility !== "hidden") {
+                        start ??= performance.now();
+                        const r = el.getBoundingClientRect();
+                        boxes.push(rect ? [r.left, r.top, r.width, r.height].map(Math.round).join() : [el.style.left, el.style.top, el.offsetWidth, el.offsetHeight].join());
+                    }
+                    if (start !== null && performance.now() - start > ms) {
+                        done(boxes);
+                    } else {
+                        requestAnimationFrame(frame);
+                    }
+                };
+                frame();
+            }),
+        { ms, rect }
+    );
+}
+
+test.describe("an i's popover appears at its final size and place", () => {
+    test("it does not narrow frame by frame where the fixed containing block ends before the window (a scroll bar, a transformed host)", async ({ page }) => {
+        await page.goto("?data=sales");
+        await page.locator('[data-testid="pivot-table"]').waitFor();
+        // the page's box contains the report's fixed popovers and ends 160 px before the window's edge
+        await page.addStyleTag({ content: "body { transform: translateZ(0); margin-right: 160px; }" });
+        const boxes = await infoBoxes(page);
+        expect(boxes.length).toBeGreaterThan(5);
+        expect(new Set(boxes)).toEqual(new Set([boxes[0]]));
+    });
+
+    test("with reduced motion nothing moves: the first frame shown is the last", async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.goto("?data=sales");
+        await page.locator('[data-testid="pivot-table"]').waitFor();
+        const boxes = await infoBoxes(page, { rect: true });
+        expect(boxes.length).toBeGreaterThan(5);
+        expect(new Set(boxes)).toEqual(new Set([boxes[0]]));
+    });
+});

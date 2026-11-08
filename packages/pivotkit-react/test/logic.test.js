@@ -6,7 +6,7 @@ import { drillTable } from "../src/drill-table.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
-import { fromOrigin, placePopover } from "../src/place.js";
+import { fromOrigin, placePopover, viewportOf } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { rowLabelOf, sliceRows, windowOf } from "../src/virtual.js";
 
@@ -111,6 +111,16 @@ test("popover placement: below, above when there is no room, inside the viewport
     assert.deepEqual([tall.top, tall.maxHeight], [8, 600 - 16]);
     // room enough below: next to the anchor either way
     assert.equal(placePopover({ top: 389, bottom: 419, left: 241, right: 271 }, { width: 340, height: 400 }, { width: 2000, height: 850 }, "start", { fill: true }).top, 425);
+});
+
+test("popover placement: the window's room without its scroll bars", () => {
+    // a classic scroll bar of 17 px: innerWidth counts it, the area of fixed elements does not
+    const doc = { documentElement: { clientWidth: 1263, clientHeight: 900 }, defaultView: { innerWidth: 1280, innerHeight: 900 } };
+    assert.deepEqual(viewportOf(/** @type {any} */ (doc)), { width: 1263, height: 900 });
+    const at = placePopover({ top: 10, bottom: 40, left: 1240, right: 1260 }, { width: 320, height: 100 }, viewportOf(/** @type {any} */ (doc)));
+    assert.equal(at.left + 320, 1263 - 8, "its right edge a margin before the scroll bar");
+    // no root box (a document being torn down): the window
+    assert.deepEqual(viewportOf(/** @type {any} */ ({ documentElement: null, defaultView: { innerWidth: 800, innerHeight: 600 } })), { width: 800, height: 600 });
 });
 
 test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", () => {

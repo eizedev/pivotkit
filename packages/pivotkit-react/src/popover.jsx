@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { FOCUSABLE, activeIn, eventWithin, trapTab, useEscapeLayer } from "./dom.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
-import { fromOrigin, placePopover } from "./place.js";
+import { fromOrigin, placePopover, viewportOf } from "./place.js";
 
 /** The layer element and the size class of the report ("wide", "medium", "narrow"). */
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
@@ -76,7 +76,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
                 return;
             }
             const r = a.getBoundingClientRect();
-            const place = placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, { width: window.innerWidth, height: window.innerHeight }, align, { fill });
+            // its own width (max-content, styles.css), whatever room its last place left it: a size
+            // measured at that place would narrow it a little on every placement
+            const place = placePopover(r, { width: el.offsetWidth, height: el.scrollHeight }, viewportOf(el.ownerDocument), align, { fill });
             // the origin of the fixed containing block: not the viewport inside a transformed ancestor
             const probe = layer?.querySelector(".pk-origin");
             setPos(probe ? fromOrigin(place, probe.getBoundingClientRect()) : place);
