@@ -104,7 +104,8 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
   it does. A switch that would change nothing in this layout is greyed out with the reason under it:
   the grand total row needs a field in Rows, the grand total column a field in Columns, row subtotals
   two or more fields in Rows, column subtotals two or more fields in Columns.
-- Field names and value names in the header can be dragged into a zone.
+- Field names and value names in the header can be dragged into a zone. A click on a value's name
+  or on a field's name in Rows sorts the rows ([sort with a click on a header](filters.md#sort-with-a-click-on-a-header)).
 - With one value, its name stands once over all of its columns.
 - The table is as wide as its columns and scrolls sideways when it is wider than the report.
 - Long row labels wrap between words, so on a phone numbers stay in view next to them. On a phone a

@@ -5,14 +5,18 @@
  * mouse; the same moves are in the chips' menus. From VIRTUAL_FROM body rows on only the visible rows
  * are rendered (virtual.js). The table keeps the focus where it was when a group is expanded or
  * collapsed: on the same toggle. A header of a field the host describes (fieldDefaults) carries the
- * description as its tooltip and accessible description.
+ * description as its tooltip and accessible description. The text of a row field's name and of a
+ * value's name is a button that sorts (view-ops.js: headerSortTarget); the cell's edges stay free.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDragSource } from "./dnd.jsx";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
+import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
+import { sortText } from "./names.js";
+import { headerSortState, headerSortTarget, nextHeaderSort } from "./view-ops.js";
 import { VIRTUAL_FROM, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
 
 const totalClass = (t) => (t === 2 ? " pk-grand" : t === 1 ? " pk-sub" : "");
@@ -56,10 +60,10 @@ function firstValueCell(grid) {
 }
 
 /** A header cell that can be dragged into a zone: a field name in the corner or a value name. */
-function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope, description, tooltip = true }) {
+function DraggableHeader({ cell, source, children, className, style, colSpan, rowSpan, scope, description, tooltip = true, sort }) {
     const { setNodeRef, isDragging, itemProps } = useDragSource(`table:${source.zone}:${source.index}:${source.field ?? ""}`, source);
     return (
-        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind} title={tooltip ? description : undefined} aria-description={description}>
+        <th ref={setNodeRef} {...itemProps} className={`${className} pk-draggable${isDragging ? " pk-dragging" : ""}`} style={style} colSpan={colSpan} rowSpan={rowSpan} scope={scope} data-kind={cell.kind} title={tooltip ? description : undefined} aria-description={description} aria-sort={sort ?? undefined}>
             {children}
             <Icon name="grip" size={12} className="pk-th-grip" />
         </th>
@@ -81,12 +85,15 @@ function Toggle({ toggle, text, labels, onToggle }) {
 /**
  * @param {{ grid: import("pivotkit-core").Grid, view: any, labels: import("./labels.js").UiLabels,
  *   onToggle: (axis: string, path: any[]) => void, onCell: (cell: object) => void, version: unknown, hintId?: string,
- *   onRowLabel?: (label: string | null) => void, infoOf?: (field: string) => { description?: string } | undefined, showInfo?: boolean }} props
+ *   onRowLabel?: (label: string | null) => void, infoOf?: (field: string) => { description?: string } | undefined, showInfo?: boolean,
+ *   typeOf?: (field: string) => string | undefined, hostOrdered?: (field: string) => boolean, onSort?: (field: string, sort: object | null) => void }} props
  *   `onRowLabel`: the whole label of the row of a focused value or a tapped row label while the table
  *   is virtual (its labels are cut to one line); null when there is none to show; `infoOf`: the host's
- *   description of a field; `showInfo` false: no tooltip for it (the accessible description stays)
+ *   description of a field; `showInfo` false: no tooltip for it (the accessible description stays);
+ *   `onSort`: a header was clicked, the field's new sort entry (setSort's argument); `typeOf` the
+ *   column type of a field (of its source for a grouping), `hostOrdered` whether the host gives the field an order
  */
-export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, onRowLabel, infoOf, showInfo = true }) {
+export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, version, hintId, onRowLabel, infoOf, showInfo = true, typeOf = () => undefined, hostOrdered = () => false, onSort }) {
     const wrap = useRef(/** @type {HTMLDivElement | null} */ (null));
     const table = useRef(/** @type {HTMLTableElement | null} */ (null));
     const bodyCount = grid.rows.length - grid.headerRows;
@@ -100,6 +107,8 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const [width, setWidth] = useState(0);
     const [active, setActive] = useState(/** @type {{ r: number, c: number } | null} */ (null));
     const focusNext = useRef(false);
+    // what a screen reader hears after a header sorted the rows
+    const [sortNote, setSortNote] = useState("");
     const focusToggle = useRef(/** @type {string | null} */ (null));
     const onToggle = useCallback(
         (axis, path) => {
@@ -263,15 +272,41 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         }
     };
 
+    /** The text of a sortable header: a button with the arrow of its order (null: not sortable). */
+    const sortButton = (cell, target) => {
+        const state = headerSortState(view, target);
+        const next = nextHeaderSort(view, target, hostOrdered(target.field));
+        const field = fieldLabel(target.field, labels.core);
+        // a sort in words; no entry is the field's default order
+        const words = (s) => sortText(view, s ?? { by: hostOrdered(target.field) ? "custom" : "label", order: "asc" }, labels);
+        // the arrow of the order in use, else of the one a click gives (shown on hover and focus)
+        const down = state.chosen ? state.order === "descending" : next?.order === "desc";
+        const click = () => {
+            onSort?.(target.field, next);
+            setSortNote(fill(labels.headerSorted, { field, order: words(next) }));
+        };
+        return {
+            sort: state.order,
+            content: (
+                <button type="button" className={`pk-th-sort${state.chosen ? " pk-sorted" : ""}`} title={fill(labels.headerSort, { field, order: words(next) })} onClick={click}>
+                    <span className="pk-th-text">{cell.text}</span>
+                    <Icon name={down ? "arrowDown" : "arrowUp"} size={14} className="pk-th-arrow" />
+                </button>
+            )
+        };
+    };
+
     const stickyStyle = (col, extra) => (col < grid.rowHeaderColumns && lefts[col] !== undefined ? { left: lefts[col], ...extra } : extra);
     const headerCell = (cell, r, c) => {
         const top = { top: tops[r] ?? r * rowHeight };
         const sticky = c < grid.rowHeaderColumns;
         const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${sticky ? " pk-sticky" : ""}`;
+        const target = onSort && r === grid.headerRows - 1 ? headerSortTarget(view, cell, typeOf) : null;
+        const sorting = target ? sortButton(cell, target) : null;
         const content = (
             <span className="pk-th-content">
                 {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
-                <span className="pk-th-text">{cell.text}</span>
+                {sorting ? sorting.content : <span className="pk-th-text">{cell.text}</span>}
             </span>
         );
         const props = { className, style: stickyStyle(c, top), colSpan: cell.colSpan, rowSpan: cell.rowSpan, scope: cell.kind === "colHeader" ? "col" : undefined };
@@ -282,7 +317,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "corner" && cell.field) {
             const zone = view.rows.includes(cell.field) ? "rows" : "cols";
             return (
-                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.text }} description={infoOf?.(cell.field)?.description} tooltip={showInfo}>
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: cell.field, zone, index: view[zone].indexOf(cell.field), label: cell.text }} description={infoOf?.(cell.field)?.description} tooltip={showInfo} sort={sorting?.sort}>
                     {content}
                 </DraggableHeader>
             );
@@ -290,7 +325,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "colHeader" && cell.valueIndex !== undefined && r === grid.headerRows - 1) {
             const spec = view.values[cell.valueIndex];
             return (
-                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }} description={spec?.field ? infoOf?.(spec.field)?.description : undefined} tooltip={showInfo}>
+                <DraggableHeader key={c} {...props} cell={cell} source={{ kind: "table", field: spec?.field ?? null, zone: "values", index: cell.valueIndex, label: cell.text }} description={spec?.field ? infoOf?.(spec.field)?.description : undefined} tooltip={showInfo} sort={sorting?.sort}>
                     {content}
                 </DraggableHeader>
             );
@@ -338,6 +373,11 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const columns = grid.columnCount;
     return (
         <div className="pk-table-wrap" ref={wrap} onScroll={virtual ? onScroll : undefined} onBlur={virtual ? onBlur : undefined} data-testid="pivot-table">
+            {onSort ? (
+                <span className="pk-sr" role="status" data-testid="sort-status">
+                    {sortNote}
+                </span>
+            ) : null}
             {/* --pk-row-cols: the row label columns share at most 40 % of the width (styles.css) */}
             <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>

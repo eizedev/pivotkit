@@ -19,7 +19,7 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
 | Moving a chip or a field | **Space** picks it up. **Left** and **Right** move it within a zone, **Up** and **Down** to the zone above or below; its position is announced ("Region is over Rows, position 2 of 3"). **Space** drops it, **Escape** cancels. |
 | Menus | The arrow keys move, **Home** and **End** jump to the first and the last entry, **Tab** or **Escape** closes the menu. |
 | Text fields in menus | **Escape** empties the field first; the next Escape closes the menu. **Ctrl+Z** in the field brings back text its **×** emptied. |
-| Table | The arrow keys move between values; **Enter** or **Space** opens the rows behind one. |
+| Table | The arrow keys move between values; **Enter** or **Space** opens the rows behind one. A field's or value's name in the header is a button: **Tab** to it, **Enter** or **Space** sorts ([sort with a click on a header](filters.md#sort-with-a-click-on-a-header)). |
 | Drill-down panel | **Escape** reduces it when enlarged, then closes it. |
 
 ## What a screen reader hears
@@ -30,6 +30,8 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
   label of the row the focus is on, or of a label you tap.
 - A chip's name says what is set on it: the filter ("3 of 4"), the top N, the whole value condition,
   the sort.
+- A header that sorts says its order ("sorted descending"); after a click on it the new order is read
+  out ("Region sorted: Z to A").
 - The chart has a text alternative: type, values, counts, highest and lowest value.
 - Status messages ("Undone: Region removed", "View “Sales” saved") are read out
   ([status messages](behaviour.md#status-messages)).

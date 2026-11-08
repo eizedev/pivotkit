@@ -44,6 +44,23 @@ export function refLabel(view, ref, labels) {
     return valueLabel({ ...(spec ?? ref), showAs: null }, labels);
 }
 
+/**
+ * A sort in words: "Z to A", "Largest Sum of Revenue first", "Custom order".
+ * @param {any} view
+ * @param {{ by: string, order: string, value?: { field: string | null, agg: string } }} sort
+ * @param {import("./labels.js").UiLabels} labels
+ */
+export function sortText(view, sort, labels) {
+    const desc = sort.order === "desc";
+    if (sort.by === "value") {
+        return fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: refLabel(view, sort.value, labels) });
+    }
+    if (sort.by === "custom") {
+        return desc ? labels.sortCustomDesc : labels.sortCustom;
+    }
+    return desc ? labels.sortLabelDesc : labels.sortLabelAsc;
+}
+
 /** The signs of the comparisons in a value condition's short text; between has words. */
 const OP_SIGNS = Object.freeze({ "=": "=", "!=": "≠", ">": ">", ">=": "≥", "<": "<", "<=": "≤" });
 

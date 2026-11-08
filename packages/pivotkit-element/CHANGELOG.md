@@ -8,6 +8,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- pivotkit-react's sorting with a click on a table header
+  ([#55](https://github.com/eizedev/pivotkit/issues/55)): a value's name sorts the innermost row
+  field by it, a row field's name A to Z and Z to A; a `pivot-view-change` like the chip menu's sort.
+  No new attribute or event.
 - pivotkit-react's Save, Save as and New for views
   ([#60](https://github.com/eizedev/pivotkit/issues/60)): Save on a user's view sends
   `pivot-template-save` (with `save-templates`) or writes the browser store, Save on a shared view

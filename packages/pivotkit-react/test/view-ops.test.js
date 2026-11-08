@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, normalize } from "pivotkit-core";
+import { computePivot, encode, normalize, toGrid } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
     selectedItems, setChart, setItemFilter, setLabelFilter, setSort, setTopFilter, swapAxes, toggleCollapsed, updateValue,
     binProblem, numberRange, withHostOrders, zoneOverLimit, setChartDisplay, removeFilters, hasFilter, rowFolding, TOTALS, totalNoEffect,
-    setValueFilter, measureChoices, numericResult, sameRef, withMeasure
+    setValueFilter, measureChoices, numericResult, sameRef, withMeasure, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
 } from "../src/view-ops.js";
-import { filterText, refLabel, valueConditionText } from "../src/names.js";
-import { LABELS } from "../src/labels.js";
+import { filterText, refLabel, sortText, valueConditionText } from "../src/names.js";
+import { LABELS, fill } from "../src/labels.js";
 import { CHART_TYPES, CHART_TYPE_NAMES, chartTypeOf } from "../src/chart-types.js";
 
 const data = encode([
@@ -445,4 +445,73 @@ test("a total that would change nothing in the view is named with the reason", (
         assert.equal(typeof LABELS.en[key], "string");
         assert.equal(typeof LABELS.de[key], "string");
     }
+});
+
+test("a table header sorts: a value's header the innermost row field by it, a row field's name by label (#55)", () => {
+    const typeOf = (f) => data.schema.fields.find((x) => x.name === f)?.type;
+    const headers = (v) => {
+        const grid = toGrid(computePivot(data, v));
+        return grid.rows[grid.headerRows - 1].filter(Boolean);
+    };
+    const units = { field: "Units", agg: "sum" };
+    // one value, no column field: its header sorts the innermost row field (Product), the corner names sort themselves
+    let v = norm({ rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }] });
+    const targets = headers(v).map((c) => headerSortTarget(v, c, typeOf));
+    assert.deepEqual(targets, [{ field: "Region" }, { field: "Product" }, { field: "Product", ref: units }]);
+    // with a column field and two values: only the grand total column's value headers sort
+    v = norm({ rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }, { agg: "count" }] });
+    const sortable = headers(v).map((c) => headerSortTarget(v, c, typeOf)).filter((t) => t?.ref);
+    assert.deepEqual(sortable, [{ field: "Region", ref: units }, { field: "Region", ref: { field: null, agg: "count" } }]);
+    // no row field, a value that gives no number, a column field's name: nothing to sort
+    assert.equal(headerSortTarget(norm({ values: [{ field: "Units", agg: "sum" }] }), { kind: "colHeader", valueIndex: 0, colPath: [] }, typeOf), null);
+    const listed = norm({ rows: ["Region"], values: [{ field: "Product", agg: "listUnique" }] });
+    assert.equal(headerSortTarget(listed, { kind: "colHeader", valueIndex: 0, colPath: [] }, typeOf), null);
+    assert.equal(headerSortTarget(norm({ rows: ["Region"], cols: ["Product"] }), { kind: "corner", field: "Product" }, typeOf), null);
+});
+
+test("a click on a value's header: largest first, smallest first, the default order; on a row field's name: A to Z and Z to A (#55)", () => {
+    const units = { field: "Units", agg: "sum" };
+    const byValue = { field: "Region", ref: units };
+    const click = (v, target, hostOrdered = false) => setSort(v, target.field, nextHeaderSort(v, target, hostOrdered));
+    let v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
+    assert.deepEqual(headerSortState(v, byValue), { order: null, chosen: false });
+    v = click(v, byValue);
+    assert.deepEqual(v.sort, [{ field: "Region", by: "value", order: "desc", value: units }]);
+    assert.deepEqual(headerSortState(v, byValue), { order: "descending", chosen: true });
+    v = click(v, byValue);
+    assert.deepEqual(v.sort, [{ field: "Region", by: "value", order: "asc", value: units }]);
+    assert.deepEqual(headerSortState(v, byValue), { order: "ascending", chosen: true });
+    v = click(v, byValue);
+    assert.deepEqual(v.sort, []);
+    // the row field's name: the default A to Z (no entry, not chosen), then Z to A, then A to Z (the entry goes, as the chip menu's)
+    const byLabel = { field: "Region" };
+    assert.deepEqual(headerSortState(v, byLabel), { order: "ascending", chosen: false });
+    v = click(v, byLabel);
+    assert.deepEqual(v.sort, [{ field: "Region", by: "label", order: "desc" }]);
+    assert.deepEqual(headerSortState(v, byLabel), { order: "descending", chosen: true });
+    assert.deepEqual(click(v, byLabel).sort, []);
+    // from a sort by a value the name goes to A to Z; the value's header to largest first
+    v = click(click(v, byValue), byLabel);
+    assert.deepEqual(v.sort, []);
+    // a field with the host's order: A to Z stays an entry, and a value's sort turned off gives the field's default back
+    const custom = setSort(v, "Region", { by: "custom", order: "asc", items: ["West"] });
+    assert.deepEqual(headerSortState(custom, byLabel), { order: "other", chosen: false });
+    assert.deepEqual(nextHeaderSort(custom, byLabel, true), { by: "label", order: "asc" });
+    assert.deepEqual(nextHeaderSort(custom, byLabel, false), null);
+    assert.deepEqual(headerSortState(custom, byValue), { order: null, chosen: false });
+});
+
+test("sortEntry: A to Z is no entry unless the field has the host's order", () => {
+    assert.equal(sortEntry({ by: "label", order: "asc" }), null);
+    assert.deepEqual(sortEntry({ by: "label", order: "asc" }, true), { by: "label", order: "asc" });
+    assert.deepEqual(sortEntry({ by: "label", order: "desc" }), { by: "label", order: "desc" });
+});
+
+test("sortText names a sort as the chip menu does", () => {
+    const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
+    const en = LABELS.en;
+    assert.equal(sortText(v, { by: "value", order: "desc", value: { field: "Units", agg: "sum" } }, en), "Largest Sum of Units first");
+    assert.equal(sortText(v, { by: "label", order: "desc" }, en), "Z to A");
+    assert.equal(sortText(v, { by: "custom", order: "asc" }, en), "Custom order");
+    assert.equal(fill(LABELS.de.headerSorted, { field: "Region", order: sortText(v, { by: "label", order: "asc" }, LABELS.de) }), "Region sortiert: A bis Z");
 });

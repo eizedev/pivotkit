@@ -8,6 +8,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Sorting with a click on a table header
+  ([#55](https://github.com/eizedev/pivotkit/issues/55)). A value's name sorts the innermost row
+  field by that value: largest first, smallest first, then the field's own order again; a row
+  field's name toggles A to Z and Z to A. It writes the same sort entry as the chip menu, as one step
+  Undo takes back. Only the name is the button (the cell's edges stay free), reached with Tab and
+  pressed with Enter or Space; with column fields only the grand total column's value names sort.
+  The header carries `aria-sort`; an arrow marks the chosen order and, on hover and focus, the next
+  one; a screen reader hears the new order. New labels: `headerSort` (the tooltip) and
+  `headerSorted` (what is read out); `shortcuts.open` names it.
 - Save, Save as and New for views
   ([#60](https://github.com/eizedev/pivotkit/issues/60)). The toolbar shows the name of the view
   loaded (a saved view, a view file, a link) next to Views, with a dot while it has unsaved changes

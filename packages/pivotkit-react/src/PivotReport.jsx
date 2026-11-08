@@ -42,7 +42,7 @@ import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import { VERSION } from "./version.js";
 import {
-    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -654,6 +654,10 @@ function Report(props) {
     const typeOf = useCallback((field) => types.get(sourceOf(view, field ?? "").toLowerCase()) ?? "string", [types, view]);
     /** A field's display name (fieldDefaults label), else its name. */
     const nameOf = useCallback((field) => fieldLabel(field, labels.core), [labels]);
+    /** True when the host gives a field on an axis an order (fieldDefaults.order); a grouping has items of its own. */
+    const hostOrdered = useCallback((field) => sourceOf(view, field) === field && (orderOf?.(field)?.length ?? 0) > 0, [view, orderOf]);
+    /** A click on a table header: the field's new sort, a step Undo takes back as the chip menu's. */
+    const sortFromHeader = useCallback((field, sort) => commit(setSort(view, field, sort), { step: "sort", field: nameOf(field) }), [view, commit, nameOf]);
     /** A field's description and link (of its source field for a grouping), or undefined. */
     const infoOf = useCallback(
         (field) => {
@@ -1358,7 +1362,7 @@ function Report(props) {
                                         onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} typeOf={typeOf} hostOrdered={hostOrdered} onSort={sortFromHeader} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
                                 ) : null}
                             </section>
                             <div className="pk-status">

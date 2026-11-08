@@ -108,6 +108,30 @@ number, such as 1,234.5.") instead of guessing.
 
 ## Sorting
 
+Click a name in the table's header to sort, or use the **Sort** section of a row or column field's
+menu. Both write the same sort, which **Undo** takes back.
+
+### Sort with a click on a header
+
+| Click on | First click | Next clicks |
+| --- | --- | --- |
+| A value's name ("Sum of Revenue") | Sorts the innermost field in Rows by it, largest first | Smallest first, then the field's own order again (A to Z, or its custom order) |
+| A field's name in Rows ("Region") | Z to A (A to Z is the default) | A to Z, Z to A, ... From a sort by a value or a custom order, the first click gives A to Z. |
+
+- The arrow next to the name shows the sort you chose: down for largest first or Z to A, up for
+  smallest first or A to Z. Pointing at the name, or the focus on it, shows the arrow of the next
+  click, and the tooltip says what it does ("Sort Region: Largest Sum of Revenue first").
+- With a field in Columns, only the value names of the **Grand Total** column sort: the sort goes by
+  the whole row, not by one column. Without the grand total column the value names do not sort.
+- A value that gives no number to sort by (below) does not sort; neither does a value's name while
+  Rows is empty.
+- Only the name is the button, not the whole header cell. A name can still be dragged into a zone.
+- With the keyboard: **Tab** to the name, then **Enter** or **Space**. A screen reader hears the
+  header's sort ("sorted descending") and the new order ("Region sorted: Largest Sum of Revenue
+  first").
+
+### Sort in the field's menu
+
 The **Sort** section of a row or column field's menu:
 
 | Entry | Sorts |

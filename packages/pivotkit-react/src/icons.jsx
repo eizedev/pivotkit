@@ -15,6 +15,8 @@ const PATHS = {
     x: "M6 6l12 12M18 6 6 18",
     chevronDown: "m6 9 6 6 6-6",
     chevronRight: "m9 6 6 6-6 6",
+    arrowUp: "M12 19V5M6 11l6-6 6 6",
+    arrowDown: "M12 5v14M6 13l6 6 6-6",
     undo: "M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11",
     redo: "m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13",
     reset: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",

@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { layoutSummary, refLabel, valueConditionText, valueLabel } from "./names.js";
+import { layoutSummary, sortText, valueConditionText, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -64,11 +64,7 @@ function stateWords(state, view, labels, locale) {
         words.push(valueConditionText(view, state.condition, labels, locale));
     }
     if (state.sort) {
-        const desc = state.sort.order === "desc";
-        const order = state.sort.by === "value"
-            ? fill(desc ? labels.sortValueDesc : labels.sortValueAsc, { value: refLabel(view, state.sort.value, labels) })
-            : state.sort.by === "custom" ? (desc ? labels.sortCustomDesc : labels.sortCustom) : desc ? labels.sortLabelDesc : labels.sortLabelAsc;
-        words.push(fill(labels.stateSorted, { order }));
+        words.push(fill(labels.stateSorted, { order: sortText(view, state.sort, labels) }));
     }
     return words.join(", ");
 }

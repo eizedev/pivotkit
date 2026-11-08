@@ -164,8 +164,10 @@ the report's first load stays small.
   formats them: dates as dates (with the time when the column has times), numbers in the locale,
   yes/no fields as "Yes" and "No" (`labels.core.true`, `false`), and a field's `fieldDefaults` format.
 - Table: sticky header and row labels, groups expand and collapse, subtotals and grand totals on and
-  off (Options), a click on a value opens its rows. Field names and value names in the header can be
-  dragged into a zone with the mouse; the chips' menus do the same from the keyboard. One value's name
+  off (Options), a click on a value opens its rows. A click (or Enter) on a value's name sorts the
+  innermost row field by it (largest first, smallest first, off), on a row field's name A to Z and Z
+  to A: the chip menu's sort entry, with an arrow and `aria-sort`. Field names and value names in the
+  header can be dragged into a zone with the mouse; the chips' menus do the same from the keyboard. One value's name
   is a single header over all of its columns, as in Excel. From 300 body rows on only the visible rows
   are rendered. The table is as wide as its columns; the row label columns share at most 40 % of the
   report's main area (each at least 5.5em, so a common word never breaks) and a value's name wraps beyond 30 %, so a long label wraps between words

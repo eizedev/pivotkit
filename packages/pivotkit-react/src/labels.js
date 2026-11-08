@@ -111,6 +111,9 @@ export const en = {
     sortCustomDesc: "Custom order, reversed",
     sortValueDesc: "Largest {value} first",
     sortValueAsc: "Smallest {value} first",
+    // a click on a table header: its tooltip (what the next click does) and what a screen reader hears after it
+    headerSort: "Sort {field}: {order}",
+    headerSorted: "{field} sorted: {order}",
     units: {
         year: "Year", yearQuarter: "Quarter", yearMonth: "Month", yearWeek: "Week", day: "Day",
         quarter: "Quarter of year", month: "Month of year", week: "Week of year", weekday: "Weekday", hour: "Hour of day",
@@ -252,7 +255,7 @@ export const en = {
         undo: "Undo",
         redo: "Redo",
         move: "Move between values in the table",
-        open: "Open the rows behind a value; open a menu",
+        open: "Open the rows behind a value; sort by a header; open a menu",
         drag: "Pick up a field or chip, and drop it",
         close: "Close a menu, a panel or a tip",
         fields: "In the field list: up and down between fields, left and right to a field's grip, its “i” and its menu",
@@ -450,6 +453,8 @@ export const de = {
     sortCustomDesc: "Eigene Reihenfolge, umgekehrt",
     sortValueDesc: "Größte {value} zuerst",
     sortValueAsc: "Kleinste {value} zuerst",
+    headerSort: "{field} sortieren: {order}",
+    headerSorted: "{field} sortiert: {order}",
     units: {
         year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
         quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
@@ -580,7 +585,7 @@ export const de = {
         undo: "Rückgängig",
         redo: "Wiederholen",
         move: "Zwischen den Werten der Tabelle wechseln",
-        open: "Die Zeilen hinter einem Wert öffnen; ein Menü öffnen",
+        open: "Die Zeilen hinter einem Wert öffnen; nach einer Spaltenüberschrift sortieren; ein Menü öffnen",
         drag: "Ein Feld oder einen Chip aufnehmen und ablegen",
         close: "Ein Menü, ein Fenster oder einen Tipp schließen",
         fields: "In der Feldliste: auf und ab zwischen den Feldern, links und rechts zum Griff eines Felds, seinem „i“ und seinem Menü",

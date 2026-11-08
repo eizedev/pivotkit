@@ -1925,6 +1925,39 @@
     opacity: 0.5;
 }
 
+/* the text of a header that sorts (table.jsx): a button as large as the text, so the cell's edges stay
+   free; its arrow shows the order in use, or on hover and focus the one a click gives */
+.pk-th-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    min-width: 0;
+    min-height: var(--pk-target);
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+.pk-th-arrow {
+    flex: none;
+    opacity: 0;
+    transition: opacity var(--pk-duration);
+}
+
+.pk-th-sort:is(:hover, :focus) .pk-th-arrow {
+    opacity: 0.6;
+}
+
+.pk-th-sort.pk-sorted .pk-th-arrow {
+    opacity: 1;
+    color: var(--pk-accent);
+}
+
 .pk-td {
     text-align: right !important;
     background: var(--pk-surface);

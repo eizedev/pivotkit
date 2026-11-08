@@ -16,7 +16,7 @@ import { numberText, parseNumber } from "./numbers.js";
 import { filterText, groupingName, refLabel, valueLabel } from "./names.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
-import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortEntry, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
 
 /** The formats the value menu offers first, and those behind "More formats"; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "currency", "percent"].filter(isFormat);
@@ -308,9 +308,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
     const doSort = (by, order, ref) => {
         close();
         const spec = by === "value" ? { by, order, value: ref } : by === "custom" ? { by, order, items: [...customItems] } : { by, order };
-        // A to Z is the default without an entry; a field with the host's order keeps it as an entry, or
-        // the host's order would come back (withHostOrders)
-        commit(setSort(view, field, by === "label" && order === "asc" && !(Array.isArray(hostOrder) && hostOrder.length > 0) ? null : spec), { step: "sort", field: name });
+        commit(setSort(view, field, sortEntry(spec, Array.isArray(hostOrder) && hostOrder.length > 0)), { step: "sort", field: name });
     };
     const regroup = (unit, size, origin) => {
         close();
