@@ -69,11 +69,16 @@ const xlsx = toXlsx(grid);                       // Uint8Array
 
 The view passed to `computePivot` is plain JSON: the same object is the saved template, the undo
 step and what the UI edits. It is treated as user input: it cannot run code, and the limits in
-`LIMITS` keep its memory use bounded. See [pivotkit-core](packages/pivotkit-core/) for the API, the
-view, the limits and the export, and [pivotkit-react](packages/pivotkit-react/) for the component's
-props, theming tokens and labels, and [pivotkit-element](packages/pivotkit-element/) for the
-element's properties, events, theming, CSP and bundle size. The [documentation site](https://pivotkit.eize.dev/) has it on one page for users and developers; the
-[feature list](https://pivotkit.eize.dev/features/) every feature at a glance, with links to the details.
+`LIMITS` keep its memory use bounded. The [documentation site](https://pivotkit.eize.dev/) has the
+details for users and developers: the [engine's API](https://pivotkit.eize.dev/reference/core/), the
+[view](https://pivotkit.eize.dev/concepts/views/) and its
+[limits](https://pivotkit.eize.dev/concepts/limits/), the
+[component's props](https://pivotkit.eize.dev/reference/react/), the
+[element's properties and events](https://pivotkit.eize.dev/reference/element/),
+[theming](https://pivotkit.eize.dev/reference/theming/),
+[security](https://pivotkit.eize.dev/security/) and the
+[feature list](https://pivotkit.eize.dev/features/), every feature at a glance with links to the
+details. The package READMEs are short npm pages that link there.
 
 ## Development
 

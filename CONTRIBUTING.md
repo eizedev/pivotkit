@@ -9,7 +9,9 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 1. Fork, create a branch named after the change (`feat/...`, `fix/...`, `docs/...`).
 2. Follow [AGENTS.md](AGENTS.md): layout, commands and the rules that keep the packages safe and small.
 3. Run `npm ci`, `npm run lint`, `npm run types` and `npm test`; for engine changes also
-   `npm run bench -w pivotkit-core` and compare with the baseline in the package README; for UI
+   `npm run bench -w pivotkit-core` and compare with the baseline on the documentation site
+   ([pivotkit-core reference, Performance](https://pivotkit.eize.dev/reference/core/#performance),
+   `docs/reference/core.md`); for UI
    changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
    at the playground (`npm run playground`) in light and dark, wide and narrow; for the web component
    also `npm run size -w pivotkit-element` and the example (`examples/element/`, served after
@@ -43,6 +45,38 @@ alias in the workspace would clash with React 18's peer dependencies). Check the
 you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime
 dependency except `fflate` for the XLSX zip; keep it that way.
 
+## Package commands
+
+```bash
+npm test -w pivotkit-core              # node --test
+npm run coverage -w pivotkit-core      # the same with a coverage report
+npm run types -w pivotkit-core         # type check and generated .d.ts in types/
+npm run bench -w pivotkit-core         # timings for 2k, 4k and 100k rows
+
+npm run build -w pivotkit-react        # dist/index.js and dist/styles.css (esbuild)
+npm test -w pivotkit-react             # build, then node --test: view changes, history, keyboard moves, labels, chart text, files, server render, contrast
+npm run coverage -w pivotkit-react     # the same with coverage of the .js modules (the .jsx components are covered by the browser tests, without a number)
+
+npm run build -w pivotkit-element      # pivotkit-react's dist, then dist/ of this package (esbuild)
+npm run size -w pivotkit-element       # the same, with the size of what a page loads, checked against the budget
+npm test -w pivotkit-element           # build, then node --test: attributes, events, stylesheet, bundle, Node import
+npm run types -w pivotkit-element      # tsc: types/ from the JSDoc, plus src/global.d.ts and src/jsx.d.ts
+
+npm run playground                     # the playground with rebuilds on http://localhost:5173
+npm run test:browser                   # Playwright in Chromium, Firefox and WebKit: the playground, a host page with React from an import map, a shadow root, the element pages
+PIVOTKIT_REACT=19 npm run test:browser # the same on React 19, after npm ci --prefix tests/react19
+```
+
+pivotkit-react's build compiles JSX to `React.createElement`, so the host needs `react` and
+`react-dom` only (no JSX runtime), and keeps every dependency as an import for the host's bundler.
+
+pivotkit-element's `build.js` bundles pivotkit-react as it ships (its `dist/`), with
+`process.env.NODE_ENV` set to `production` and the package's version as
+`PivotReportElement.version`, and writes `dist/THIRD_PARTY_LICENSES.txt` with the license texts of
+every bundled package, once per name and version (React, ReactDOM, scheduler and @dnd-kit: MIT;
+ECharts: Apache-2.0 with its NOTICE; zrender: BSD-3-Clause; tslib: 0BSD; fflate: MIT). The browser
+test pages of the element are in `tests/browser/pages/element/`.
+
 ## Adding a view feature
 
 The vocabulary of a view lives in tables, so a new name is one entry plus its tests:
@@ -53,13 +87,15 @@ The vocabulary of a view lives in tables, so a new name is one entry plus its te
 | Date grouping or bin unit | `DERIVED` in `src/derive.js` (source type, result type, value, label) | |
 | Filter type | `FILTERS` in `src/filters.js` (stage, `normalize`, `allowed` or `keep`) | |
 | "Show values as" | `SHOW_AS` in `src/show-as.js` (default format, `alongAxis`, `additive`, `compute`) | |
-| Format | `FORMAT_NAMES` and `formatterFor` in `src/format.js` | its Excel code in `excelNumberFormat`, or the gap in the README |
+| Format | `FORMAT_NAMES` and `formatterFor` in `src/format.js` | its Excel code in `excelNumberFormat`, or the gap in `docs/concepts/values.md` (Export) |
 | A new view key | a section function in `src/view.js`, added to `SECTIONS`, and the key in `emptyView()` | if old views must change: raise `VIEW_VERSION` and add the step to `MIGRATIONS` |
 
 `CATALOG` (`src/catalog.js`) reads these tables, so a UI offers the new name without further changes.
-Then: tests (below), the view and API sections of `packages/pivotkit-core/README.md`, and the
-changelog. A new public function is exported from `src/index.js` (or `src/export.js`) and listed in
-`test/api.test.js` and the README; anything else stays internal.
+Then: tests (below), the view on the documentation site (`docs/concepts/views.md` and the concept
+page of the key), the API in `docs/reference/core.md`, and the changelog. A new public function is
+exported from `src/index.js` (or `src/export.js`) and listed in `test/api.test.js` and
+`docs/reference/core.md`; anything else stays internal. The package READMEs are short npm landing
+pages: they link to the site and repeat none of it.
 
 ## Adding a test
 

@@ -48,6 +48,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The README, the package's page on npm, is a short landing page: what pivotkit-react is, one screenshot,
+  install, one example and a table of links into the
+  [documentation site](https://pivotkit.eize.dev/), which holds the details. Nothing was dropped:
+  what only the README said is on the site now.
 - Views stays in the toolbar from a window about 1280 px wide: it is the last button to move into
   "More" (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views), so it shows wherever one
   button besides Undo, Redo and Export fits, with the loaded view's name before it. Options and the

@@ -1,19 +1,28 @@
 # pivotkit-core
 
-Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/core/) - the API reference, the view and its concepts, and a [guide to the engine](https://pivotkit.eize.dev/getting-started/engine/).
+The pivot engine of [pivotkit](https://pivotkit.eize.dev/), a pivot report builder for the web with
+Excel's PivotTable as the reference. Plain JavaScript without UI: it encodes your rows and computes
+pivot tables with subtotals and totals, "show values as", filters, date grouping and number ranges;
+it gives a grid with merged headers for any table renderer, chart options for Apache ECharts, and
+XLSX, CSV and JSON export. The whole report is a view, a small JSON object you can save and share.
 
-What pivotkit does, in short: the [start page](https://pivotkit.eize.dev/), with an entry for the people who build reports ([Use a report](https://pivotkit.eize.dev/use/)) and one for developers ([Embed pivotkit](https://pivotkit.eize.dev/embed/)); every feature at a glance: [feature list](https://pivotkit.eize.dev/features/).
+![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
 
-The pivot engine of pivotkit, in plain JavaScript without UI: typed encoding of your rows, pivot tables
-with subtotals and totals, "show values as", filters, date grouping and number bins, a grid with merged
-headers for any table renderer, chart options for Apache ECharts, and XLSX and CSV export. Excel's
-PivotTable is the reference for how things behave.
+<sub>The report builder of pivotkit-react and pivotkit-element, computed by pivotkit-core. Weather
+data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/));
+contains modified Copernicus Climate Change Service information
+([attribution](https://pivotkit.eize.dev/learn/#query-it-live)).</sub>
 
-Version 0.1.0: `npm install pivotkit-core`. ES modules for Node 22 or later; the sources use only
-what browsers and Node share (no `process`, no `Buffer`), and the browser tests of the playground run
-them in Chromium, Firefox and WebKit through pivotkit-react. The only dependency is
-[fflate](https://github.com/101arrowz/fflate) (MIT) for the XLSX zip, and only the
-`pivotkit-core/export` entry loads it. TypeScript declarations are generated from the JSDoc types.
+## Install
+
+```bash
+npm install pivotkit-core
+```
+
+ES modules (no `require`) for Node 22 or later and browsers from Chrome 111, Firefox 113 and
+Safari 16.4. The only dependency is
+[fflate](https://github.com/101arrowz/fflate) (MIT), loaded only by the `pivotkit-core/export` and
+`pivotkit-core/link` entries. TypeScript declarations are included.
 
 ## Example
 
@@ -31,9 +40,7 @@ const input = {
     rows: ["Region"],
     cols: ["Month"],
     derived: [{ name: "Month", field: "Date", by: "yearMonth" }],
-    values: [{ field: "Units", agg: "sum", format: "number:0" }],
-    sort: [{ field: "Region", by: "value", order: "desc" }],
-    formatting: { locale: "en-US" }
+    values: [{ field: "Units", agg: "sum", format: "number:0" }]
 };
 
 const { view, issues } = normalize(input, data); // issues: what was dropped, with its path
@@ -44,239 +51,28 @@ const csv = toCsv(grid);
 const option = toEChartsOption(result, { chart: { type: "bar", stacked: true } });
 ```
 
-## API
+## Where in the docs
 
-Every function takes its required inputs first and all optional settings in one options object last.
-
-| Function | What |
+| Topic | Page |
 | --- | --- |
-| `encode(rows, { types, columns, timeZone, inferNumbers, limits })` | Columns typed (string, number, boolean, date incl. ISO strings), as Int32 codes plus dictionaries and Float64 measures. Names match case-insensitively; colliding spellings are listed in `data.issues`. `data.schema.fields[i].detected` says when a text column holds only numbers. |
-| `normalize(view, schema, { limits })` | `{ view, issues }`: names resolved against the schema and fixed lists, everything else dropped and reported. Nothing in a view runs as code. |
-| `validate(view, schema, { limits })` | `{ valid, errors }`: everything `normalize` would drop or change, against the same `limits`. |
-| `migrate(view)` | `{ view, issues }`: a parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
-| `emptyView()`, `viewFields(view, schema)` | A new report; the fields of a view including its derived fields, as `[{ name, type, derived? }]`. |
-| `computePivot(data, view, { locale, limits })` | Row and column key trees with subtotals and totals; `result.value(row, col, i)` and `result.display(row, col, i)` (after "show values as"), `result.hasRows(row, col)` (whether any source row is behind a cell); `result.issues`. |
-| `findNode(result, axis, path)`, `cellRows(result, { row, col })` | A node by its key path; the source row indices behind a cell, for drill-down. |
-| `fieldItems(data, field, { view, locale, labels, limits })` | The distinct values of a field (a derived field of `view` too) with label and row count, in the table's label order, blank last; for a filter list. Counts are over all rows, before filters. |
-| `toGrid(result, { locale, labels, limits })` | Header and body rows with merges, totals, formatted text and raw values, toggles for collapsed groups, conditional-formatting ratios; `hasRows` on each value cell (false: a blank cell with no source row behind it, nothing to drill into). One value's name is a single header cell over all of its columns, as in Excel. |
-| `toSeries(result, { labels, separator, limits, maxCategories })`, `toEChartsOption(result, { chart, theme, locale, labels, limits, maxCategories })` | Chart data and a plain ECharts option for bar, stacked bar, line, area, pie, donut and heatmap, with the view's display settings: title, legend, value labels (a pie's or a donut's outside or inside the slices), smooth lines, and the outer row field as group labels on a second category axis (`toSeries` gives `categoryLevels` for it). ECharts itself is not imported. `maxCategories` plots the first categories in the view's order; `toSeries` reports `categoryCount`, the number before the cut; `toEChartsOption` takes `series`, the `toSeries` result a caller has already. |
-| `autoChartType(view, data)` | What the view's default chart type `"auto"` stands for: `"line"` when a date or a grouping of one along the time line (not weekday, hour, month of year) is on Rows, else `"bar"`; `toEChartsOption` draws `"auto"` as it says. |
-| `toViewFile(view, { name, description, createdAt, generator, source, data }, { link })`, `fromViewFile(input, { data, sourceId })`, `viewFileText(file)`, `viewFileName(name)`, `viewFileFields(view)`, `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | The view file: a view with its name, its source and the fields it uses as one versioned JSON document (canonical key order, `<slug>.pivotkit.json`), and its link profile; reading never throws, ignores unknown keys, refuses a newer format or view version, caps sizes and reads own properties only, and with `data` says whether the view fits it. [View file format](https://pivotkit.eize.dev/reference/view-file/). |
-| `encodeViewLink(view)`, `decodeViewLink(text)`, `LINK_LIMITS` | From `pivotkit-core/link`: a view (or a view file's link profile) as a short link text (`1.` and its JSON deflated with fflate, base64url) and back. Decoding never throws, caps the text (32,000 characters) and the inflated view (1,000,000) and returns `{ view, issues }`; the view is user input for `normalize`. [Sharing](https://pivotkit.eize.dev/concepts/sharing/). |
-| `parseTemplates(input)`, `templatesFromSchema(doc, { schema })`, `TEMPLATE_LIMITS`, `TEMPLATES_EXTENSION` | From `pivotkit-core/templates`: a list of templates (view files, `{ name, view }` or bare views with a `name`, or its JSON text) as `{ templates: [{ name, view, description?, source? }], issues }`, and the templates of pivotkit's own extension `x-pivotkit-views` on a schema of an OpenAPI document or JSON Schema (or its root). Never throws for a bad list; caps the text (5,000,000 characters) and the entries (500) before reading, own properties only, names plain text; local `$ref`s only, nothing fetched. The views are user input for `normalize`. [Templates and shared views](https://pivotkit.eize.dev/concepts/templates/). |
-| `toXlsx(grid, { sheetName, theme })`, `toCsv(grid, { separator, repeatLabels })`, `toCsvBytes(grid, { separator, repeatLabels, bom })` | From `pivotkit-core/export`. Excel workbook (typed cells, number formats as in the grid, merged headers, bold totals, frozen panes, native colour scales and data bars; `sheetName` default `"Pivot"`, made valid for Excel: 31 characters, no `\ / ? * [ ] :`) and CSV (the grid's locale decides separator, `;` where the decimal mark is a comma, and decimal mark; `repeatLabels` default `true` repeats a row label on every row it spans; formula-injection guard). `toCsvBytes` writes UTF-8 with a byte order mark unless `bom` is `false`. |
-| `toTsv(grid)`, `toTsv(rows)`, `toJson(grid, { space })` | From `pivotkit-core/export`, for the clipboard. `toTsv`: the grid as the table shows it (each cell's display text, headers and totals, a row label repeated on every row it spans), or rows of display texts, tab-separated: a spreadsheet takes it as columns when it is pasted, and in the same locale reads the numbers and dates back; text a spreadsheet would run as a formula gets a leading `'`, a cell with a tab, line break or quote is quoted. `toJson`: the grid's data as JSON text, `{ rowHeaders, columns: [{ labels, value, total }], rows: [{ labels, total, collapsed, values }] }`: the header texts above each value column, each body row's labels and its values (numbers with 15 significant digits, a "show values as" share as the fraction, 0.25 for 25%, dates as ISO dates of their wall clock, text as it is, blank `null`; `total` 0 none, 1 subtotal, 2 grand total; `collapsed` true for a collapsed group, whose values are its totals). |
-| `rowsToCsv(data, indices, { columns, locale, formats, labels, separator, limits })`, `rowsToCsvBytes(data, indices, { ..., bom })`, `rowsToXlsx(data, indices, { ..., sheetName })` | From `pivotkit-core/export`: source rows (the positions `cellRows` gives, a drill-down's rows) as CSV or an Excel workbook, a header row with the fields' display names (`labels.fields`) and one line per row, in the data's column order or `columns`'. Each value as a drill-down panel shows it: a number with its field's format (`formats`, by field name) or with up to 6 decimals, a date as its day (with the time when the column has times), yes/no as `labels.true`/`labels.false`, the format `text` keeps an identifier as it is. The writers are `toCsv`'s and `toXlsx`'s: the same formula guard and separator, typed cells, a frozen bold header. Rows x columns count against `limits.cells`. |
-| `createHistory(startView, { limit })` | Undo, redo and reset for views. |
-| `formatter(format, { locale })`, `isFormat(format)` | A named format as a function; whether a name is a known format. |
-| `CATALOG`, `aggregatorsFor(type)` | Every name a view accepts (aggregators, formats, show-as, filter types, grouping units, chart types), for a UI's menus, with the sub-lists `commonAggregators`, `timelineUnits` and `cyclicUnits`; the aggregators that fit a field type. |
-| `suggestDateUnit(data, field)` | The date grouping a date field gets on an axis, from the span of its values: up to 62 days `day`, up to two years `yearMonth`, up to six years `yearQuarter`, longer `year`; `null` for fewer than two days or a field that is not a date. |
-| `fieldDefaultsFromSchema(schema, { schema })` | Display names, descriptions, https links, column types and item orders of a row's fields from a JSON Schema or an OpenAPI 3 / Swagger 2 document (`title`, `description`, `externalDocs.url`, `type`/`format`, `enum`), as `{ defaults, issues }`: `defaults` in the shape of pivotkit-react's `fieldDefaults`, `issues` what could not be read. Local `$ref`s only (each read once), nothing fetched or run, sizes capped. |
-| `fieldLabel(field, labels)` | A field's display name from `labels.fields`, else the name; with `labels.fields`, `toGrid`, `toSeries` and the exports show display names in headers and value names. |
-| `DEFAULT_LABELS`, `DEFAULT_THEME`, `LIMITS`, `VIEW_VERSION`, `PivotkitError` | Defaults to override, the limits, the view version, the error class. |
-
-Types: `import type { PivotResult, Grid, View, Encoded } from "pivotkit-core"`. Modules not listed
-here are internal and may change in any release.
-
-### Locale, time zone and errors
-
-- Locale: the view's `formatting.locale`, then `options.locale`, then `"en-US"`. The machine's locale
-  is never used, so a report looks the same everywhere. The CSV and XLSX exports use the grid's locale.
-- Time zone: dates are wall-clock time. An ISO string without an offset ("2026-03-04T10:00") is taken as
-  written. A `Date`, epoch milliseconds or an ISO string with an offset is an instant and is read at the
-  wall clock of `encode(rows, { timeZone })`: `"UTC"` by default, or any IANA zone
-  (`"Europe/Berlin"`), or `"local"` for the machine's zone (resolved to its name). The zone is in
-  `data.timeZone`, `result.timeZone` and `grid.timeZone`; a view can carry `formatting.timeZone`, and
-  `computePivot` reports when it differs from the data's.
-  A `Date` built in the browser from local parts (`new Date(2026, 2, 4)`, a date picker's value) is
-  local midnight, an instant: with the default `"UTC"` it shows as the previous day east of UTC. Pass
-  `timeZone: "local"` (or the zone the dates belong to) to `encode` for such data.
-- Errors: a bad view never throws; `normalize` drops what it cannot use and reports it as an issue. A
-  programmer error throws a `PivotkitError` with a `code`: `INVALID_ARGUMENT` (for example
-  `computePivot(null)`), `INVALID_OPTION` (an unknown locale or time zone in the options) or
-  `LIMIT_EXCEEDED` (see below; `error.details` has `{ limit, value, max }`).
-- Issues (`normalize`, `result.issues`, `data.issues`) and error messages quote the view and the
-  data: field names, items, column spellings. Both come from users, so show them as text (React's
-  `{text}`, `textContent`), never as HTML.
-
-### Limits
-
-`LIMITS` holds the defaults; every function that takes `options.limits` merges it over them. Each
-resource limit is counted before the memory it guards is allocated, or while it grows, and more
-throws `LIMIT_EXCEEDED`:
-
-| Limit | Default | Counts | When |
-| --- | --- | --- | --- |
-| `rows` | 1,000,000 | rows `encode` accepts | before any column is built |
-| `groups` | 500,000 | nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals | the distinct leaves of an axis before its first node is made, then each node before it is made |
-| `pivotCells` | 2,000,000 | cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included | a lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored |
-| `work` | 100,000,000 | cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell | exactly, after the filters and before the key trees are built |
-| `cells` | 2,000,000 | cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`) | before the grid or the series is built |
-| `cacheEntries` | 16 | derived columns and sort orders kept per data set (least recently used go first) | on each new entry |
-| `axisFields` | 8 | fields per axis (rows, columns); more are dropped as an issue | in `normalize` |
-| `values` | 16 | values of a view; more are dropped as an issue | in `normalize` |
-| `json`, `name`, `filters`, `items`, `derived`, `sort`, `collapsed`, `topCount` | see `LIMITS` | the size of a view and its parts; more is dropped as an issue | in `normalize` |
-
-`error.details.value` is the count when the limit was hit: for a limit counted while it grows, the
-first count above `max`, not the total. `groups` must stay at or below 2^27 (134,217,728): cell keys
-are row node id x column count + column node id and stay exact in a double only up to there (a
-larger value is `INVALID_OPTION`).
-
-The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for:
-
-- `rows`: the encoded columns take about 4 to 12 bytes per row and column, the host's row objects
-  more; a million rows is ten times the design size.
-- `axisFields`: each row updates (row fields + 1) x (column fields + 1) cells per value, 81 at 8 x 8
-  and 1,089 at 32 x 32; a report nested deeper than eight levels per axis is hard to read anyway.
-- `groups`: a key tree keeps about 400 bytes per node (measured in Node 26 on arm64; other engines
-  differ), so the trees stay at about 200 MB. A table shows at most one row per row node, and more
-  than `cells` allows does not render either.
-- `pivotCells`: 100,000 rows that are all distinct pairs on three row and two column fields make
-  1.2 million; a view of many fields with many values each is refused within a fraction of a second.
-  At the defaults the largest pivots measured (495,000 rows, one row and one column field of 240,000
-  values each, with and without "show values as") took 0.8 to 2.6 s and grew the process memory (RSS)
-  by up to about 1.5 GB in Node 26 on arm64.
-- `work`: measured per cell update in Node 26 on arm64, a sum takes about 2.5 ns and no memory beyond
-  its cells; a median 9 to 11 ns and 10 to 18 bytes; a unique count of distinct values 65 to 80 ns
-  and 28 to 42 bytes. 100 million updates of a sum take a fraction of a second; the weight of 10
-  keeps the entries of medians and unique counts at 10 million, about 400 MB at most. 100,000 rows
-  on three row and two column fields with five values make 6 million.
-- `values`: each value is a column per column item; more than 16 side by side cannot be read, and
-  `work` bounds what they cost.
-- `cacheEntries`: a derived column takes 12 bytes per row, so 16 entries of a million rows stay at
-  about 200 MB.
-
-Not counted: the data itself (the host's rows and the encoded columns, rows x columns; `rows` caps
-the rows, the number of columns is not limited), "show values as" and sorting after the
-aggregation (they grow with the cells, which `pivotCells` bounds), and the time a pivot within the
-limits takes. A host that takes
-data or views from untrusted users and wants less lowers the limits, for example
-`{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
-
-XLSX adds Excel's own limits: 1,048,576 rows and 16,384 columns per sheet (a larger grid throws
-`LIMIT_EXCEEDED`), 32,767 characters per cell (longer text is cut).
-
-## The view
-
-```js
-{
-    version: 1,
-    rows: ["Region", "Country"],              // field names, outer first
-    cols: ["Year"],
-    values: [{
-        field: "Sales", agg: "sum",           // count countUnique listUnique sum average median min max
-                                              // stdev stdevp var varp first last
-        format: "currency:EUR",               // number[:d] integer currency[:CODE] percent[:d] percent100[:d]
-                                              // compact bytes duration[:unit] date datetime time text
-        label: null,                          // default "Sum of Sales"; with showAs "% of row total of Sales"
-        showAs: { type: "percentOfRowTotal", axis: "rows" },
-        conditional: { type: "colorScale", colors: ["#f8696b", "#63be7b"] }   // or { type: "dataBar" }
-    }],
-    filters: [
-        { field: "Region", type: "include", items: ["North", null] },        // null is (blank)
-        { field: "Rep", type: "label", op: "contains", value: "an" },
-        { field: "Country", type: "top", count: 5, bottom: false, by: { field: "Sales", agg: "sum" } },
-        { field: "Region", type: "value", op: ">", value: 1000 }
-    ],
-    derived: [
-        { name: "Year", field: "OrderDate", by: "year" },  // year quarter month week day hour weekday
-                                                           // yearQuarter yearMonth yearWeek
-        { name: "Band", field: "Amount", by: "bin", size: 100, origin: 0 }
-    ],
-    sort: [
-        { field: "Country", by: "value", order: "desc", value: { field: "Sales", agg: "sum" } },
-        { field: "Season", by: "custom", items: ["Spring", "Summer", "Autumn", "Winter"] }
-    ],                                         // by: label (default), value, custom
-    totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
-    collapsed: { rows: [["North"]], cols: [] },
-    display: "table",                          // or "chart"
-    chart: {
-        type: "auto", stacked: false, horizontal: false,       // auto (the default: the data decides) bar line area pie donut heatmap
-        valueLabels: "auto",                                   // auto off value percent both (percent, both: pie, donut)
-        labelPosition: "outside",                              // outside inside: where a pie or donut writes them
-        legend: "auto",                                        // auto bottom right off
-        title: null, smooth: false,                            // a title over the chart; smooth lines
-        axisLabels: "auto",                                    // auto all nth: the category axis labels
-        groupLabels: "auto"                                    // auto on off: two or more row fields, the outer as group labels
-    },
-    formatting: { locale: "de-DE", timeZone: null }
-}
-```
-
-Formats: `number` shows up to 2 decimals and `percent` up to 1; with a number of decimals
-(`number:2`, `percent:0`, up to 20) exactly that many. `currency` takes an ISO 4217 code. A value
-without a format gets the same decimals in every cell of its column: those of the source values (at
-most 2) for a sum, minimum, maximum, first or last, 2 for an average, median or spread, none for a count; a percent calculation one.
-
-Date groupings label their values in the locale: `yearMonth` "Jan 2025" ("Jan. 2025" in German),
-`yearQuarter` "Q1 2025", `month` "Jan", `weekday` "Mon"; the keys stay numbers that sort in time.
-The "Q" of quarters and the "W" of weeks are the same in every locale (Intl has no names for them).
-
-"Show values as": `percentOfGrandTotal`, `percentOfRowTotal`, `percentOfColumnTotal`,
-`percentOfParentRow`, `percentOfParentColumn`, `differenceFromPrevious`,
-`percentDifferenceFromPrevious`, `runningTotal`, `percentRunningTotal`, `rankAscending`,
-`rankDescending`; the last six walk along `axis` within each parent group. Running totals need an
-aggregator that adds up (`sum`, `count`); on an average or a median they are refused.
-
-Value filters (top N, value conditions) on a field of an axis work within each item of the field
-above it, and totals then add up the visible items only, as in Excel. Top N keeps exactly N items;
-a tie at the cut keeps the item that appears first in the data (Excel may keep all tied items).
-
-Number bins include their lower bound and exclude the upper one, computed in the decimals of `size`
-and `origin`, so 0.3 lands in "0.3 – 0.4" for a size of 0.1. Sizes below 1e-9 are refused. Their
-labels use the locale's thousands separators, except when every range of the field has whole-number
-bounds between -9,999 and 9,999: ranges of years, ages or scores read "1900 – 1910", as a year on an
-axis reads "1960", not "1,900 – 1,910".
-
-Sort: by label (natural order, blank last), by a value (`value`, default the first value), or in a
-custom order (`by: "custom"`, Excel's custom lists): the `items`, named as filter items name them,
-first in their order, then the field's other items by label; `order: "desc"` reverses both. Blank
-comes last unless it is listed (`null`).
-
-## Export
-
-- What the exports write: `toXlsx`, `toCsv` and `toCsvBytes` the grid with typed values; `toTsv` the
-  grid's display texts for pasting into a spreadsheet; `toJson` the grid's data for a program;
-  `rowsToCsv`, `rowsToCsvBytes` and `rowsToXlsx` the source rows behind a cell. Every text export
-  guards formulas as the CSV does; the workbook writes text as inline strings, never as formulas.
-- XLSX number formats show cells as the grid does: decimals per cell for `number`, `percent` and
-  `percent100`, the locale's currency symbol and its place, `compact` with Excel's thousands scaling,
-  and the locale's date order. Gaps: `bytes` and `duration` are written as plain numbers (Excel cannot
-  divide by 1024 or write "2 h 5 min" in a number format), and `compact` in locales that group by ten
-  thousand (Japanese) falls back to `General`. Number labels (a year) stay numbers. Dates use Excel's
-  serials including its 1900 leap-year quirk; dates before 1900 are written as text.
-- CSV: text a spreadsheet would run as a formula gets a leading `'`: text starting with a tab or a
-  carriage return, text whose first visible character (after spaces, line breaks and control
-  characters) is `=` or `@`, and text starting with `+` or `-` unless it is a number as a locale writes it (`-5%`, `-1.234,5`, `-1’234.5`, `-5,3 %`, `-€1.50`) or a
-  number range like the bin label `-10 – 0`. Numbers keep 15 significant digits. A percent (the
-  `percent` and `percent100` formats) and every "show values as" value are written as the table
-  shows them: rounded to the decimals of the value's format, a percent in percent with a `%`
-  (`-2.6%`), so a reader sees what the table showed and a spreadsheet reads a percent back as the
-  fraction. `grid.showAs` says which values are calculations. The XLSX keeps their full precision,
-  a percent as the fraction with a percent number format.
-
-## Development
-
-```bash
-npm test -w pivotkit-core          # node --test
-npm run coverage -w pivotkit-core  # the same with a coverage report
-npm run types -w pivotkit-core     # type check and generated .d.ts in types/
-npm run bench -w pivotkit-core     # timings for 2k, 4k and 100k rows
-```
-
-Benchmark baseline, 100,000 rows (median of 5 runs, Node 26 on darwin/arm64; measured
-with this version, other machines differ):
-
-| Step | ms |
-| --- | ---: |
-| `encode` | 138 |
-| `computePivot`, 2 rows x 1 column, sum + average | 14 |
-| `computePivot`, median + countUnique + stdev | 20 |
-| `computePivot`, year-month columns, % of row | 6 |
-| `computePivot`, 3 row levels, top 10 products | 18 |
-| `toGrid`, 9,268 cells | 3 |
-| `toXlsx`, 75 KB | 10 |
-| `toCsv` | 2 |
+| Getting started: rows to a table, drawing the grid, on a server | [Getting started with the engine](https://pivotkit.eize.dev/getting-started/engine/) |
+| Every function, constant and type | [pivotkit-core reference](https://pivotkit.eize.dev/reference/core/): [data](https://pivotkit.eize.dev/reference/core/#data), [views](https://pivotkit.eize.dev/reference/core/#views), [pivot](https://pivotkit.eize.dev/reference/core/#pivot), [output and export](https://pivotkit.eize.dev/reference/core/#output), [helpers](https://pivotkit.eize.dev/reference/core/#helpers), [types](https://pivotkit.eize.dev/reference/core/#types) |
+| The view and every key | [Views and saved views](https://pivotkit.eize.dev/concepts/views/#a-complete-view) |
+| Aggregators, show as, formats | [Values](https://pivotkit.eize.dev/concepts/values/) |
+| Date grouping and number ranges | [Dates and number ranges](https://pivotkit.eize.dev/concepts/dates/) |
+| Filters, top N, sorting | [Filters, top N and sorting](https://pivotkit.eize.dev/concepts/filters/) |
+| Chart options | [Charts](https://pivotkit.eize.dev/concepts/charts/) |
+| View files, links, templates | [View file format](https://pivotkit.eize.dev/reference/view-file/), [Sharing](https://pivotkit.eize.dev/concepts/sharing/), [Templates](https://pivotkit.eize.dev/concepts/templates/) |
+| Locale and time zones | [Locale](https://pivotkit.eize.dev/concepts/limits/#locale), [Time zones](https://pivotkit.eize.dev/concepts/limits/#time-zones) |
+| Labels and chart colours | [Localisation](https://pivotkit.eize.dev/reference/localisation/), [Chart colours](https://pivotkit.eize.dev/reference/theming/#chart-colours) |
+| Limits and errors | [Limits](https://pivotkit.eize.dev/concepts/limits/#limits), [Errors](https://pivotkit.eize.dev/concepts/limits/#errors) |
+| Performance | [Benchmark](https://pivotkit.eize.dev/reference/core/#performance) |
+| Security: views as input, safe exports | [Security](https://pivotkit.eize.dev/security/) |
+| Browser and Node support | [Browser support](https://pivotkit.eize.dev/browser-support/) |
+| Recipes | [Recipes](https://pivotkit.eize.dev/embed/recipes/) |
+| For the people who use a report | [Use a report](https://pivotkit.eize.dev/use/) |
+| Try it | [Live demo](https://pivotkit.eize.dev/demo/), [feature list](https://pivotkit.eize.dev/features/), [FAQ](https://pivotkit.eize.dev/faq/) |
+| Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-core/CHANGELOG.md) |
 
 ## License
 

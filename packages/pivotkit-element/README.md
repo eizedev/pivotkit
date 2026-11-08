@@ -1,20 +1,27 @@
 # pivotkit-element
 
-Documentation: [pivotkit.eize.dev](https://pivotkit.eize.dev/reference/element/) - getting started, every attribute, property and event, theming, security and a [live demo](https://pivotkit.eize.dev/demo/).
-
-What pivotkit does, in short: the [start page](https://pivotkit.eize.dev/), with an entry for the people who build reports ([Use a report](https://pivotkit.eize.dev/use/)) and one for developers ([Embed pivotkit](https://pivotkit.eize.dev/embed/)); every feature at a glance: [feature list](https://pivotkit.eize.dev/features/).
-
-The pivot report builder of [pivotkit-react](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#readme) as one web component,
+The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as one web component,
 `<pivot-report>`, for pages without React: Angular apps, PHP and other server-rendered pages, plain
-HTML. It brings its own React 18.3.1 and ReactDOM, pivotkit-react, [pivotkit-core](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-core#readme)
-and @dnd-kit, and renders into an open shadow root. Everything the React component does (field list,
-drag and drop, table and chart, filters, drill-down, undo, saved and shared views, export) works the same; the
-[pivotkit-react README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#what-the-user-can-do) describes it.
+HTML. It brings its own React 18.3.1, [pivotkit-react](https://www.npmjs.com/package/pivotkit-react),
+[pivotkit-core](https://www.npmjs.com/package/pivotkit-core) and @dnd-kit, renders into an open shadow
+root and loads ECharts on the first chart. Everything the React component does works the same: field
+list, drag and drop, table and chart, filters, drill-down, undo, saved and shared views, export.
 
-Version 0.1.0: `npm install pivotkit-element`, or serve its `dist/` directory as below. Try it in the
-[example](https://github.com/eizedev/pivotkit/tree/main/examples/element).
+![A line chart of monthly revenue per category](https://pivotkit.eize.dev/assets/screenshots/chart-light.png)
 
-## Use
+## Install
+
+```bash
+npm install pivotkit-element
+```
+
+With a bundler, `import "pivotkit-element";` once defines `<pivot-report>`. Without one, serve the
+package's whole `dist/` directory: its chunks are loaded by relative URL from `dist/index.js`, so
+`index.js` alone is not enough. The package has no runtime dependency; the licenses of what it
+bundles are in `dist/THIRD_PARTY_LICENSES.txt`. Browsers: Chrome 111, Firefox 113, Safari 16.4 or
+later.
+
+## Example
 
 ```html
 <script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
@@ -36,366 +43,32 @@ report.templates = [{ name: "By region", view: { rows: ["Region"] } }];
 report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view", JSON.stringify(e.detail.view)));
 ```
 
-With a bundler: `npm install pivotkit-element`, then `import "pivotkit-element";` once (it defines
-`<pivot-report>`). `dist/` is ES modules; the files in `dist/chunks/` are loaded by relative URL
-from the entry, so serve the whole `dist/` directory, not `index.js` alone.
+## Where in the docs
 
-From another origin (a CDN), module scripts are fetched with CORS: the server must send
-`Access-Control-Allow-Origin` for `index.js` and every chunk. Subresource Integrity covers only the
-`<script integrity>` of the entry; the chunks it imports later cannot carry a hash, so pin a version in
-the URL (or host `dist/` yourself) instead of relying on SRI. The bundle targets ES2022 in Chrome 111,
-Firefox 113 and Safari 16.4 or later (`target` in pivotkit-react's `build.js`); older browsers are not
-supported.
-
-| Entry | What |
+| Topic | Page |
 | --- | --- |
-| `pivotkit-element` (`dist/index.js`) | Defines `<pivot-report>`; exports `PivotReportElement`, `define`, `TAG`, `EVENTS` |
-| `pivotkit-element/element` (`dist/element.js`) | The same exports, defines nothing: `define("my-report")` registers another tag name |
-
-`define(name)` does nothing when the name is defined already, so a page that loads the package twice
-(two scripts, two copies) throws no error; the first definition stays, and the second copy says so in
-a console warning with both versions (`PivotReportElement.version`). Without `customElements`
-(Node, a server render) importing the package defines nothing and touches no DOM.
-
-## Properties and attributes
-
-| Property | Attribute | Type | Default | What |
-| --- | --- | --- | --- | --- |
-| `data` | | `object[]` | `[]` | The rows: an array of objects. Encoded once per array, or once per `dataKey`. pivotkit-core takes rows only; columnar data (`{ columns, rows }`) is not supported, map it to objects first. |
-| `dataKey` | | `string \| number` | | The identity of `data`: a new array with the same key is not encoded again. |
-| `view` | `view` (JSON) | view | | Controlled: the view to show, see below. |
-| `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
-| `templates` | | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu in two groups by `scope`, "Shared views" and "My views" (without `scope` a `deletable` entry is the user's own); a `view` or a view file in `file`; the first three are also offered in the empty state. |
-| `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view" (Save as, once a view is loaded) and Save on the user's own views of `templates`; a save is a `pivot-template-save` event (Save as onto a name that exists asks the user first, then sends the same event). It wins over `template-store`. |
-| `templateStore` | `template-store` | `"browser"` | | Keeps "My views" in `localStorage` under `pivotkit:views:<storage-key>`, per data (`source-id`): only this browser and device, lost when the site's data is cleared; at most 100 views. No event for its saves and deletes. |
-| `canPublish` | `can-publish` (boolean) | `boolean` | `false` | Offers "Publish as shared view" on the user's views, and Save on a shared view loaded, after "Replace the shared view “…” for everyone?" (without it Save is off there: "Shared view: you cannot change it. Use Save as."); both are a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete. |
-| `fieldDefaults` | | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` | | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href`, `type`: its display name, its description behind an "i" with "Learn more" (https), its column type (pivotkit-core's `fieldDefaultsFromSchema` reads them from an OpenAPI document). |
-| `labels` | | partial labels | | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
-| `limits` | | `Partial<Limits>` | | pivotkit-core's limits; a layout or data over them shows a message in place of the result. |
-| `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
-| `theme` | `theme` | `"auto" \| "light" \| "dark"` | `"auto"` | `auto` follows the nearest `data-theme="light\|dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
-| `height` | `height` | `number \| string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). |
-| `timeZone` | `time-zone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
-| `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
-| `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
-| `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
-| `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
-| `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, no switch in Options) or the tip ids allowed, comma-separated. |
-| `storageKey` | `storage-key` | `string` | | Remembers dismissed tips in `localStorage` under `pivotkit:tips:<key>`; one key per element on a page. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too. |
-| `dismissedTips` | | `string[]` | | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`; `"*"`: all off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded). |
-| `fieldInfo`, `zoneInfo`, `settingInfo` | `field-info`, `zone-info`, `setting-info` | `"on" \| "off"` | | Decide the "i" of the field descriptions, of the zones and of the settings that need explaining, one kind each; unset, the user's one switch "Show explanations" in Options, Help decides. |
-| `sourceId`, `sourceName` | `source-id`, `source-name` | `string` | | The data shown: it goes into the shared [view files](https://pivotkit.eize.dev/reference/view-file/) and links, and a view made for another source asks before it loads. |
-| `sources` | | `{ id, name? }[]` | | The other data the page can show: a view made for one of them offers "Switch to “name” and load" (`pivot-source-switch`). |
-| `chartOptions` | | `object` | | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings. |
-| `shareLink` | `share-link` | `boolean \| string` | off | "Copy link" and shared links: the attribute alone for the page's address without its query, a value as the base URL. |
-| `persistView` | `persist-view` | `"session"` | | Keeps the view for the tab (`sessionStorage`, per `storage-key`). |
-| `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the report shows its skeleton. |
-| `fieldList` | `field-list` | `"open" \| "collapsed"` | the user's choice | The field list of a wide report open or collapsed to a rail, over the user's stored choice. |
-
-Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
-`theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
-is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, sources, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
-way: pivotkit-core normalizes it against the data and it cannot run code.
-
-The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
-output: read it or style with it (below), do not set it.
-
-Properties set before the element is defined (a framework that renders before the script has
-loaded) are taken over when it is.
-
-`data` is compared by identity, as in React: rows changed in place and the same array set again
-are not encoded again. Set a new array (`report.data = [...rows]`), or a new `dataKey`.
-
-On a phone the report's zones sit above the table, so the default 640 px leaves little room for it.
-Give the element more height on narrow screens, for example `height="100%"` and
-`@media (max-width: 639px) { pivot-report { height: calc(100svh - 24px); } }`, as the
-[example](https://github.com/eizedev/pivotkit/tree/main/examples/element) does: the page scrolls to the report, the table scrolls inside it.
-
-### Controlled and uncontrolled
-
-As with `<PivotReport>`:
-
-- Uncontrolled (no `view`): the report starts on `defaultView` and keeps the view itself; every change
-  is a `pivot-view-change` event. Setting a different `defaultView` (compared by value) starts the
-  report again on it, with a new undo history and Reset pointing there; the same view again changes
-  nothing, and so does the view the report last reported: a page that stores every
-  `pivot-view-change` and binds it as `defaultView` (`[defaultView]="stored"`) keeps the report and
-  its undo history. Feed the view back unchanged and before the next change: an older view (from a
-  debounced or asynchronous store) counts as a new start view and starts the report again. That way a framework that sets properties after the element is in the page
-  (React 18, Angular) still gets its start view.
-- Controlled (`view` set): the report shows that view. A change is a `pivot-view-change` event, and the
-  report shows it only when the page sets `view = event.detail.view`; a page that does not set it keeps
-  the report on its view. A view the page sets on its own becomes one undo step. `view = undefined`
-  makes it uncontrolled again; switching back and forth is not meant for normal use.
-
-Undo and redo always stay inside the element. When the element is removed from the page, its React
-root is unmounted (in a microtask: a move in the same task, `parent.append(el)` say, keeps the report
-and its history); connected again, it mounts a new report that starts on the last view it showed, with
-a new history.
-
-## Events
-
-Every event is a `CustomEvent` that bubbles and is composed: a listener on the element, on a parent
-or on the document gets it, with `event.target` the element. So does every other script on the page:
-the details carry the view and, for `pivot-cell-click`, the page's own row objects behind the cell.
-A page that shows data some of its scripts must not read keeps those scripts off the page, as it
-would for the data itself.
-
-| Event | `detail` | What |
-| --- | --- | --- |
-| `pivot-view-change` | `{ view }` | Every change of the view, normalized. |
-| `pivot-cell-click` | `{ row, col, value, valueIndex, text, count, rows }` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects). |
-| `pivot-template-save` | `{ name, view, scope, respondWith }` | "Save current view" (with `save-templates`); `scope` is `"user"`. |
-| `pivot-template-delete` | `{ name, scope, respondWith }` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group. Not sent for a view of the browser store. |
-| `pivot-template-publish` | `{ name, view, respondWith }` | "Publish as shared view" on one of the user's views (with `can-publish`), after the user confirmed; Save on a shared view loaded (with `can-publish`), under that view's name. |
-| `pivot-export` | `{ kind, fileName, blob, text, rows }` | Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Not sent for an empty report (no field placed): its Export entries are off. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). |
-| `pivot-tip-dismiss` | `{ id, dismissed }` | A tip dismissed (`id`), all tips off (`"*"`) or back on (`null`), with every dismissed id, for a page that stores them and sets `dismissedTips`. |
-| `pivot-source-switch` | `{ source, view, name }` | "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view`. |
-
-Save and Save as (after the user confirmed) send `pivot-template-save` or `pivot-template-publish`
-with a name that exists: the page replaces the view of that name (an upsert by name), it does not
-add a second one.
-
-The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
-listener itself (later throws `InvalidStateError`). The report shows "Saved" or "Published" (or removes the entry)
-when the promise resolves, and an error with its message when it rejects (a rejection without a
-message shows "The server could not save the view.", `labels.toastSaveRejected`). Without `respondWith` (no
-listener, or `respondWith` after an `await`) the action counts as done at once and the element logs a
-console warning, since the user is told "saved", "deleted" or "published" either way. The page then sets
-`templates` to the new list.
-
-When a listener of `pivot-export` calls `preventDefault()`, the report shows no "Exported" or
-"Copied" note: the page that kept the file or the text says itself what became of it.
-
-```js
-report.saveTemplates = true;
-report.addEventListener("pivot-template-save", (e) => {
-    e.detail.respondWith(
-        fetch("/api/templates", { method: "POST", body: JSON.stringify({ name: e.detail.name, view: e.detail.view }) })
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
-            .then((list) => (report.templates = list))
-    );
-});
-```
-
-## Theming and styles
-
-The report's stylesheet lives in the shadow root: no CSS of the page reaches into the report and none
-of the report's reaches out. What does cross is what crosses every shadow root: inherited properties
-(the font family and size the report inherits through the element, `color-scheme`) and the `--pk-*`
-custom properties set **on the element**. Every token is declared on the element's `:host`, so a
-`--pk-*` set higher up the page (on `body`) does not reach the report; a rule of the page on the
-element wins over the defaults:
-
-```css
-pivot-report {
-    --pk-accent: #0a7d5a;
-    --pk-radius: 4px;
-    --pk-font: "Inter", sans-serif;
-}
-pivot-report[data-pk-theme="dark"] {
-    --pk-surface: #101418;
-}
-```
-
-The tokens and their defaults are listed in the
-[pivotkit-react README](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#theming). There are no `::part()` names; the
-tokens are the styling interface.
-
-The styles reach the shadow root as one constructed stylesheet shared by every element of the
-document (`adoptedStyleSheets`). Where a browser has none, or refuses one, the element adds a
-`<style>` element to its shadow root instead (a browser test covers it). An element moved into
-another document (an iframe) after it was created keeps what it had; that case is not tested.
-
-Menus and popovers are `position: fixed`. Inside an ancestor with a `transform`, a `filter` or
-`contain` (router animations, dialogs, carousels) fixed elements are placed relative to that
-ancestor; the report measures its origin and places them at their button all the same (browser test
-with a transformed wrapper). The narrow layout's bottom sheets, the field drawer and the drill-down
-cover that ancestor, not the window, in such a case. The drag preview (also `position: fixed`) is not
-corrected there and is not tested; a scaled ancestor (`scale()`) is not corrected either.
-
-## Content-Security-Policy
-
-Measured in the browser tests (`tests/browser/element.spec.js`) in Chromium, Firefox and WebKit of
-Playwright 1.64.1, with this policy in a `<meta>` element:
-
-```text
-default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'
-```
-
-- The report renders and is styled: the constructed stylesheet is not blocked by `style-src 'self'`,
-  and the inline styles React sets (through `element.style`, the CSSOM) are not blocked either.
-- The chart works: ECharts loads from its chunk and draws on a canvas; nothing needs `'unsafe-eval'`.
-  Its tooltip shows on hover without a violation: pivotkit-react builds it as DOM nodes with styles
-  set through the CSSOM and the data's texts as `textContent`, instead of ECharts' default HTML string
-  with inline `style` attributes (which `style-src-attr` would refuse).
-- The XLSX and PNG exports download (a blob URL on an `<a download>`; no `fetch` of `data:`); CSV
-  takes the same path as XLSX.
-- No violation is reported (`securitypolicyviolation`) and nothing is logged; the test checks that the
-  policy is in force by adding an inline `<style>`, which is refused.
-- The `<style>` fallback is tested on its own page (constructable stylesheets removed), without CSP.
-
-Not covered: the `<style>` fallback (browsers without constructable stylesheets) needs
-`style-src 'unsafe-inline'`, since the element has no nonce option; only the `<meta>` form of the
-policy was measured, not an HTTP header; `script-src` must allow the origin that serves `dist/` and
-its chunks. A page script that sets the properties must be a file (or carry a nonce) under such a policy.
-
-## Bundle size
-
-What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
-gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
-update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
-(a few per cent above these numbers):
-
-| Loaded | Files | Size | gzip |
-| --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 468 KiB | 152 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, and the canvas renderer) | 1 | 602 KiB | 204 KiB |
-| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
-| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
-| Right after the first render (the menus' panels, the Export menu, the drill-down's panel and the texts only they show) | 1 | 68 KiB | 20 KiB |
-
-ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
-way to provide it, and loading it on first use keeps it out of the first load. Only the four chart
-types the report draws are in the chunk: pivotkit-react's `echarts.js` imports them by name
-(`test/build.test.js` checks the chunk against it). A page that already has ECharts loads it twice; one that needs a single
-copy uses [pivotkit-react](https://github.com/eizedev/pivotkit/tree/main/packages/pivotkit-react#readme) with its own React instead.
-
-## React on the page
-
-The element's React is private to the bundle: it sets no global, and a page with a React of its own
-(another version, or the same) is not affected, nor is the element by it. The browser tests run a
-page with its own React 18 and, in the React 19 job, React 19, that renders `<pivot-report>` in its
-tree and renders again every 200 ms. Each element has its own React root; the elements of a page share
-one copy of the bundle. A React page can use pivotkit-react directly and save the second React.
-
-React 18 passes only attributes to a custom element: set `data` and the other objects in a ref
-(`useEffect(() => { ref.current.data = rows; }, [rows])`) and add listeners there. React 19 sets a prop
-as a property when the element has one, and listens for a custom event with `on` and the event's
-exact name (react.dev, "Custom HTML elements"):
-
-```jsx
-// React 19
-<pivot-report data={rows} defaultView={start} theme="auto" onpivot-view-change={(e) => save(e.detail.view)} />
-```
-
-The test page uses the ref in the React 18 job and these props in the React 19 job, and checks that
-`data` arrives as a property. For TypeScript, `import type {} from "pivotkit-element/jsx";` once
-declares `<pivot-report>` with its properties and `on<event>` props in React's JSX (needs
-`@types/react` 18.3 or later; the types describe React 19's behaviour).
-
-## Angular
-
-Not built or tested in this repository; the element is a standard custom element, so Angular's
-property and event bindings apply:
-
-```ts
-import { Component, CUSTOM_ELEMENTS_SCHEMA } from "@angular/core";
-import "pivotkit-element";
-import type { PivotView } from "pivotkit-element";
-
-@Component({
-    selector: "app-ticket-report",
-    standalone: true,
-    // <pivot-report> is no Angular component: the schema lets the template use it
-    schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    template: `
-        <pivot-report
-            [data]="rows"
-            [defaultView]="start"
-            [templates]="templates"
-            locale="de-DE"
-            height="640"
-            (pivot-view-change)="onView($event)"
-        ></pivot-report>
-    `
-})
-export class TicketReportComponent {
-    rows: object[] = [];
-    templates = [];
-    start: PivotView = { rows: ["Team"], values: [{ field: "Ticket", agg: "count" }] };
-
-    onView(event: Event) {
-        const { view } = (event as CustomEvent<{ view: PivotView }>).detail;
-        // store the view
-    }
-}
-```
-
-`[data]="rows"` sets the property (Angular binds properties of an element with the schema); a new
-array is a new data set. For the controlled form bind `[view]="view"` and set `this.view` in the
-handler. Binding the stored view back as `[defaultView]` is fine: the element ignores the view it
-reported itself.
-
-Change detection: the element runs React's scheduler, ECharts' pointer listeners and animation
-frames in whatever zone created it. Inside Angular's zone (zone.js) each of them may trigger change
-detection of the app. Not measured here; if it shows, create and feed the element outside the zone
-and come back in for the app's own state:
-
-```ts
-constructor(private zone: NgZone, private host: ElementRef<HTMLElement>) {}
-
-ngAfterViewInit() {
-    this.zone.runOutsideAngular(() => {
-        const report = document.createElement("pivot-report");
-        report.data = this.rows;
-        report.addEventListener("pivot-view-change", (e) => this.zone.run(() => this.onView(e)));
-        this.host.nativeElement.append(report);
-    });
-}
-```
-
-## PHP and server-rendered pages
-
-The server writes the rows (and templates) as JSON into a `<script type="application/json">`, which
-the browser does not run, and a module script hands them to the element:
-
-```php
-<script type="application/json" id="report-rows">
-    <?= json_encode($rows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR) ?>
-</script>
-<pivot-report id="report" locale="de-DE" file-name="tickets"></pivot-report>
-<script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
-<script type="module" src="/assets/report.js"></script>
-```
-
-```js
-// report.js
-document.getElementById("report").data = JSON.parse(document.getElementById("report-rows").textContent);
-```
-
-`JSON_HEX_TAG` writes `<` and `>` as `\u003C` and `\u003E`, so a value containing `</script>`
-cannot end the block. A start view as JSON fits in the `default-view` attribute:
-`default-view='<?= htmlspecialchars(json_encode($view), ENT_QUOTES) ?>'` (`ENT_QUOTES` also encodes
-`'`, which PHP before 8.1 leaves alone by default and the attribute's quotes need). Data never goes
-into an attribute.
-
-## Types
-
-`types/` holds the declarations: `PivotReportElement` with its properties, the event map
-(`PivotReportEventMap`), and the DOM's maps, so `document.createElement("pivot-report")` is a
-`PivotReportElement` and `addEventListener("pivot-view-change", (e) => e.detail.view)` knows the
-detail, on the element and on the document. The view type is a structural `PivotView`; the full one is
-pivotkit-core's `View`. `pivotkit-element/jsx` (types only) adds the element to React's JSX, see
-above.
-
-## Development
-
-```bash
-npm run build -w pivotkit-element    # pivotkit-react's dist, then dist/ of this package (esbuild)
-npm run size -w pivotkit-element     # the same, with the size of what a page loads, checked against the budget
-npm test -w pivotkit-element         # build, then node --test: attributes, events, stylesheet, bundle, Node import
-npm run types -w pivotkit-element    # tsc: types/ from the JSDoc, plus src/global.d.ts and src/jsx.d.ts
-npm run test:browser                 # Playwright in Chromium, Firefox and WebKit, also of the element pages
-```
-
-`build.js` bundles pivotkit-react as it ships (its `dist/`), with `process.env.NODE_ENV` set to
-`production` and the package's version as `PivotReportElement.version`, and writes
-`dist/THIRD_PARTY_LICENSES.txt` with the license texts of every bundled package, once per name and
-version (React, ReactDOM, scheduler and @dnd-kit: MIT; ECharts: Apache-2.0 with its NOTICE; zrender:
-BSD-3-Clause; tslib: 0BSD; fflate: MIT). The browser test pages are in `tests/browser/pages/element/`.
+| Getting started: install, first report, saving views on a server | [Getting started with the web component](https://pivotkit.eize.dev/getting-started/web-component/) |
+| PHP and server-rendered pages | [PHP and other server-rendered pages](https://pivotkit.eize.dev/getting-started/web-component/#php-and-other-server-rendered-pages) |
+| Angular | [Angular](https://pivotkit.eize.dev/getting-started/web-component/#angular), [Angular and zone.js](https://pivotkit.eize.dev/reference/element/#angular-and-zonejs) |
+| A page with React of its own | [React on the page](https://pivotkit.eize.dev/reference/element/#react-on-the-page) |
+| Entries, loading from a CDN | [Entries](https://pivotkit.eize.dev/reference/element/#entries), [Loading](https://pivotkit.eize.dev/reference/element/#loading) |
+| Every property and attribute | [Properties and attributes](https://pivotkit.eize.dev/reference/element/#properties-and-attributes) |
+| Controlled and uncontrolled | [Controlled and uncontrolled](https://pivotkit.eize.dev/reference/element/#controlled-and-uncontrolled) |
+| Events | [Events](https://pivotkit.eize.dev/reference/element/#events) |
+| Styles and theming | [Styles](https://pivotkit.eize.dev/reference/element/#styles), [Theming](https://pivotkit.eize.dev/reference/theming/#on-the-web-component) |
+| Languages and labels | [Localisation](https://pivotkit.eize.dev/reference/localisation/) |
+| The view, saved and shared views | [Views and saved views](https://pivotkit.eize.dev/concepts/views/), [Templates and shared views](https://pivotkit.eize.dev/concepts/templates/), [View file format](https://pivotkit.eize.dev/reference/view-file/) |
+| TypeScript | [Types](https://pivotkit.eize.dev/reference/element/#types) |
+| Bundle size | [Bundle size](https://pivotkit.eize.dev/reference/element/#bundle-size) |
+| Content-Security-Policy | [Security](https://pivotkit.eize.dev/security/#content-security-policy) |
+| Limits | [Locale, time zones, limits and errors](https://pivotkit.eize.dev/concepts/limits/#limits) |
+| Browser support | [Browser support](https://pivotkit.eize.dev/browser-support/) |
+| Recipes | [Recipes](https://pivotkit.eize.dev/embed/recipes/) |
+| What the people using the report can do | [Use a report](https://pivotkit.eize.dev/use/) |
+| Try it | [Live demo and the element example](https://pivotkit.eize.dev/demo/#the-web-component-example), [feature list](https://pivotkit.eize.dev/features/), [FAQ](https://pivotkit.eize.dev/faq/) |
+| Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-element/CHANGELOG.md) |
 
 ## License
 
-[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE); the bundled packages under their own licenses, see `dist/THIRD_PARTY_LICENSES.txt`.
+[MIT](https://github.com/eizedev/pivotkit/blob/main/LICENSE); the bundled packages under their own
+licenses, see `dist/THIRD_PARTY_LICENSES.txt`.
