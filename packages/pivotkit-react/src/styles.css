@@ -1231,12 +1231,11 @@
     font-weight: 400;
 }
 
-/* the dot of a folded section that is not the default, and what a section of the field menu has set
-   (in a .pk-inline-form row, with Change and Remove) */
+/* the dot of a folded section that is not the default, and Change and Remove next to what a section
+   of the field menu has set (a .pk-inline-form row; the setting itself in the text's colour) */
 .pk-section-mark,
-.pk-state-text {
+.pk-state-line .pk-link {
     color: var(--pk-accent);
-    font-weight: 600;
 }
 
 .pk-root .pk-section-toggle:hover {

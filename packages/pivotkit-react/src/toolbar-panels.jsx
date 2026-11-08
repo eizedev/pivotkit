@@ -238,10 +238,29 @@ function Switch({ checked, onChange, testId, children, disabled, reason, info, n
 /** "Reset menu sections": every section open or folded as at first, the tips as they are; off while nothing differs. */
 function ResetSections({ list, change, labels }) {
     const rest = withoutSections(list);
+    // said in a live region of the menu's own (it stays open): the first load carries nothing for it
+    const [done, setDone] = useState(false);
+    const status = useRef(/** @type {HTMLSpanElement | null} */ (null));
     return (
-        <Option icon="reset" onSelect={() => change(rest, null)} disabled={rest.length === list.length} testId="reset-sections">
-            {labels.resetSections}
-        </Option>
+        <>
+            <Option
+                icon="reset"
+                onSelect={() => {
+                    // the entry turns off: the focus goes to the Help section's title, the status says it
+                    const title = /** @type {HTMLElement | null | undefined} */ (status.current?.closest(".pk-section")?.querySelector(".pk-section-toggle"));
+                    change(rest, null);
+                    title?.focus();
+                    setDone(true);
+                }}
+                disabled={rest.length === list.length}
+                testId="reset-sections"
+            >
+                {labels.resetSections}
+            </Option>
+            <span ref={status} className="pk-sr" role="status" data-testid="reset-sections-status">
+                {done ? labels.resetSectionsDone : ""}
+            </span>
+        </>
     );
 }
 

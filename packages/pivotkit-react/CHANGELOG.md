@@ -48,25 +48,29 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
-- The field chip menu shows each setting first, in one line
+- The field chip menu shows each setting first, one line per setting
   ([#57](https://github.com/eizedev/pivotkit/issues/57)): "Top 10 by Sum of Revenue · Change ·
-  Remove", "Ranges of 0.5 from 4.5 · Change · Remove", "Filter: 15 of 45 · Remove"; with nothing set,
-  one item ("Show top items…", "Group into ranges…") opens its form in place, with Apply and Cancel
-  (Cancel puts the focus back on the line). Filters offer "Choose values…" and "Value condition…" as
-  equals. Order: Sort, Filters, Top items, Group, Move. The field's description, and in a value's
-  menu the note that values are not filtered there, are behind an "i" at the menu's top instead of a
+  Remove", "Ranges of 0.5 from 4.5 · Change · Remove", "Sum of Units > 1,000 · Change · Remove",
+  "Filter: 15 of 45 · Remove" (each Remove takes only its own setting); with nothing set, one item
+  ("Show top items…", "Group into ranges…", "Value condition…") opens its form in place, with Apply
+  and Cancel (Cancel puts the focus back on the line; the form scrolls into view). Filters offer
+  "Choose values…" and "Value condition…" as equals. Order: Sort, Filters, Top items, Group, Move.
+  The field's description (with its link), and in a value's menu the note that values are not
+  filtered there, are behind an "i" next to the field's name in the menu's first row, instead of a
   paragraph.
 - Menu sections: a folded title says what the section holds, muted at its end ("Number format ·
-  Automatic"), with a dot when it is not the default; titles read as controls (the text's colour, a
-  larger chevron, 44 px high on a touch screen). Share (Views) and Display (chart type) start folded;
-  Options → Rows, the value's Name and its Filters note fold no more. Options → Help has "Reset menu
-  sections"; "Show dismissed tips again" keeps the folding, as before. The drill-down's Export menu
-  has Download before Copy, as the toolbar's. My views, empty in the browser store, is one line.
+  Automatic"), with a dot (read as ", changed") when it is not the default; titles read as controls
+  (the text's colour, a larger chevron, 44 px high on a touch screen). Share (Views) and Display
+  (chart type) start folded; Options → Rows, the value's Name and its Filters note fold no more.
+  Options → Help has "Reset menu sections" (the focus then on the Help title, a status says it);
+  "Show dismissed tips again" keeps the folding, as before. The drill-down's Export menu has Download
+  before Copy, as the toolbar's. My views, empty in the browser store, is one line.
 - Labels for hosts that override them: `topN` reads "Top items", `bins` "Number ranges", `valueFilter`
   "Value condition…"; new are `change`, `topStart`, `binsStart`, `binsState`, `chooseValues`,
-  `noViewsStore`, `resetSections` and `settingInfo.valuesFilter`. `valuesFilterHint` is gone (its
-  text is `settingInfo.valuesFilter`): a host's text for it is no longer used. The `dismissedTips`
-  entries `open:`/`closed:` of `name`, `valueFilters` and `folding` are dropped.
+  `noViewsStore`, `resetSections`, `resetSectionsDone`, `sectionChanged` and
+  `settingInfo.valuesFilter`. `valuesFilterHint` is gone (its text is `settingInfo.valuesFilter`): a
+  host's text for it is no longer used. The `dismissedTips` entries `open:`/`closed:` of `name`,
+  `valueFilters` and `folding` are dropped.
 
 - The menus' German texts are a file of their own, `dist/menu-texts-de.js`, loaded with the menus
   only for a German report, or when the locale changes to German

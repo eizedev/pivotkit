@@ -187,6 +187,9 @@ export const en = {
     resetTips: "Show dismissed tips again",
     // every menu section open or folded as at first (the tips stay as they are)
     resetSections: "Reset menu sections",
+    resetSectionsDone: "Menu sections reset",
+    // read after a folded section's state when it is not the default (its dot)
+    sectionChanged: ", changed",
     help: "Help",
     shortcutsTitle: "Keyboard shortcuts",
     // the keys of the shortcuts; "Mod" is Ctrl, or ⌘ on a Mac

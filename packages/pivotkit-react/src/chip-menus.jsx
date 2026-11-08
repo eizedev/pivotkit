@@ -16,11 +16,11 @@ import { ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { numberText, parseNumber } from "./numbers.js";
-import { filterText, groupingName, refLabel, sortText, valueLabel } from "./names.js";
+import { filterText, groupingName, refLabel, sortText, valueConditionText, valueLabel } from "./names.js";
 import { Option } from "./popover.jsx";
 import { HelpContext } from "./help.js";
 import { Section, SettingInfo } from "./section.jsx";
-import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, removeFilters, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortEntry, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
+import { ZONES, binProblem, filtersOf, groupField, groupingOf, hasFilter, measureChoices, moveField, numericResult, reorder, sameRef, setSort, setTopFilter, setValueFilter, sortEntry, sortOf, sourceOf, updateValue, withMeasure } from "./view-ops.js";
 
 /** The formats the value menu offers first, and those behind "More formats"; any other format of a view still works. */
 const FORMAT_CHOICES = ["number", "number:0", "number:2", "currency", "percent"].filter(isFormat);
@@ -279,7 +279,9 @@ function Editable({ text, start, icon, labels, onRemove, testId, form }) {
     useEffect(() => {
         if (editing !== was.current) {
             was.current = editing;
-            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(editing ? "input, select" : "button"))?.focus();
+            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(editing ? "input, select" : "button"))?.focus({ preventScroll: true });
+            // the whole form in view, Apply and Cancel too (a phone's sheet scrolls)
+            box.current?.scrollIntoView({ block: "nearest" });
         }
     }, [editing]);
     return (
@@ -301,6 +303,47 @@ function Editable({ text, start, icon, labels, onRemove, testId, form }) {
                     {start}
                 </Option>
             )}
+        </div>
+    );
+}
+
+/**
+ * The head of a chip menu: the field's name and its "i", with the field's description (and its "Learn
+ * more") and `extra`, a paragraph of the report's own after it. Nothing when there is neither.
+ * @param {{ name: string, info?: { description: string, href?: string }, extra?: string | null, labels: any }} props
+ */
+function MenuHead({ name, info, extra, labels }) {
+    if (!info?.description && !extra) {
+        return null;
+    }
+    const text = (
+        <>
+            {info?.description}
+            {info?.href ? (
+                <>
+                    {" "}
+                    <a href={info.href} target="_blank" rel="noopener noreferrer" className="pk-learn-more">
+                        {labels.learnMore}
+                    </a>
+                </>
+            ) : null}
+            {info?.description && extra ? (
+                <>
+                    <br />
+                    <br />
+                </>
+            ) : null}
+            {extra}
+        </>
+    );
+    return (
+        <div className="pk-section">
+            <div className="pk-section-head">
+                <div className="pk-section-title" data-testid="menu-head">
+                    {name}
+                </div>
+                <InfoButton info={{ description: /** @type {any} */ (text) }} name={name} labels={labels} className="pk-menu-info" testId="menu-info" />
+            </div>
         </div>
     );
 }
@@ -375,7 +418,19 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         </Option>
     );
     const bins = grouping?.by === "bin" ? grouping : null;
-    const filtered = hasFilter(view, field);
+    // the values ticked and the text condition: a line of their own; the value condition has its own
+    const conditions = filtersOf(view, field, ["value"]);
+    const itemsView = { ...view, filters: view.filters.filter((f) => !conditions.includes(f)) };
+    const filtered = hasFilter(itemsView, field);
+    const filterLine = filtered ? filterText(itemsView, field, state, labels, locale) : null;
+    // folded, the title says it without "Filter:" ("Filters · 3 of 5"); with the value condition
+    const prefix = labels.filterIs.split("{filter}")[0];
+    const filterState = [filterLine?.startsWith(prefix) ? filterLine.slice(prefix.length) : filterLine, condition ? valueConditionText(view, condition, labels, locale) : null].filter(Boolean).join(", ");
+    const removeItems = () => {
+        close();
+        const items = new Set(filtersOf(itemsView, field, ["include", "exclude", "label"]));
+        commit({ ...view, filters: view.filters.filter((f) => !items.has(f)) }, { step: "filter", field: name });
+    };
     const setTop = (t) => {
         close();
         commit(setTopFilter(view, field, t, top), { step: "top", field: name });
@@ -384,7 +439,8 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         <>
             <div className="pk-menu-body">
                 {/* the field's description behind an "i" at the top, instead of a paragraph there */}
-                <Section title={labels.sort} id="sort" state={sort ? sortText(view, sort, labels) : null} changed={Boolean(sort)} extra={info ? <InfoButton info={info} name={fieldLabel(source, labels.core)} labels={labels} className="pk-menu-info" testId="menu-info" /> : null}>
+                <MenuHead name={fieldLabel(source, labels.core)} info={info} labels={labels} />
+                <Section title={labels.sort} id="sort" state={sort ? sortText(view, sort, labels) : null} changed={Boolean(sort)}>
                     <Option checked={isSort("label", "asc")} icon="sortAsc" onSelect={() => doSort("label", "asc")}>{sourceType === "date" ? labels.sortOldest : labels.sortLabelAsc}</Option>
                     <Option checked={isSort("label", "desc")} icon="sortDesc" onSelect={() => doSort("label", "desc")}>{sourceType === "date" ? labels.sortNewest : labels.sortLabelDesc}</Option>
                     {/* by each value that gives numbers, largest and smallest first */}
@@ -397,12 +453,12 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                     {customItems ? <Option checked={isSort("custom", "asc")} icon="sortAsc" onSelect={() => doSort("custom", "asc")} testId="sort-custom">{labels.sortCustom}</Option> : null}
                     {customItems ? <Option checked={isSort("custom", "desc")} icon="sortDesc" onSelect={() => doSort("custom", "desc")} testId="sort-custom-desc">{labels.sortCustomDesc}</Option> : null}
                 </Section>
-                <Section title={labels.zones.filters} id="filters" state={filtered ? filterText(view, field, state, labels, locale) : null} changed={filtered}>
-                    {/* what the filters keep, in the accent colour, and Remove; then the two ways to filter, as equals */}
+                <Section title={labels.zones.filters} id="filters" state={filterState || null} changed={Boolean(filterState)}>
+                    {/* what the values and the text condition keep, and Remove; then the two ways to filter, as equals */}
                     {filtered ? (
                         <div className="pk-inline-form pk-state-line" data-testid="filter-state">
-                            <span className="pk-state-text">{filterText(view, field, state, labels, locale)}</span>
-                            <button type="button" className="pk-link" onClick={() => { close(); commit(removeFilters(view, field), { step: "filter", field: name }); }} data-testid="remove-filter">
+                            <span className="pk-state-text">{filterLine}</span>
+                            <button type="button" className="pk-link" onClick={removeItems} data-testid="remove-filter">
                                 {labels.removeSetting}
                             </button>
                         </div>
@@ -411,7 +467,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
                         {labels.chooseValues}
                     </Option>
                     {/* a condition on a value of the field's items: "Sum of Revenue greater than 1000" */}
-                    <Editable text={null} start={labels.valueFilter} icon="sigma" labels={labels} testId="value-filter" form={(cancel) => <ValueFilterForm condition={condition} labels={labels} choices={conditionPick.choices} names={conditionPick.names} locale={locale} onCancel={cancel} onApply={(c) => { close(); commit(setValueFilter(view, field, c, condition), { step: "filter", field: name }); }} />} />
+                    <Editable text={condition ? valueConditionText(view, condition, labels, locale) : null} start={labels.valueFilter} icon="sigma" labels={labels} onRemove={() => { close(); commit(setValueFilter(view, field, null, condition), { step: "filter", field: name }); }} testId="value-filter" form={(cancel) => <ValueFilterForm condition={condition} labels={labels} choices={conditionPick.choices} names={conditionPick.names} locale={locale} onCancel={cancel} onApply={(c) => { close(); commit(setValueFilter(view, field, c, condition), { step: "filter", field: name }); }} />} />
                 </Section>
                 <Section title={labels.topN} id="topN" state={top ? topText : null} changed={Boolean(top)}>
                     <Editable text={top ? topText : null} start={labels.topStart} icon="top" labels={labels} onRemove={() => setTop(null)} testId="top" form={(cancel) => <TopForm top={top} labels={labels} choices={topPick.choices} names={topPick.names} locale={locale} onCancel={cancel} onApply={setTop} />} />
@@ -453,8 +509,7 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
     };
     const [rename, setRename] = useState(spec.label ?? "");
     const { explain } = useContext(HelpContext);
-    // the "i" at the top: the field's description, and (with the explanations on) why a value has no filter
-    const about = [info?.description, explain ? labels.settingInfo.valuesFilter : null].filter(Boolean).join(" ");
+
     const aggOption = (a) => (
         <Option key={a} checked={spec.agg === a} onSelect={() => set({ agg: a })} testId={`agg-${a}`}>
             {labels.core.aggregators[a] ?? a}
@@ -473,7 +528,9 @@ export function ValueMenu({ view, index, types, labels, commit, close, onRemove,
     return (
         <>
             <div className="pk-menu-body">
-                <Section title={labels.aggregation} id="summarize" state={labels.core.aggregators[spec.agg] ?? spec.agg} extra={about ? <InfoButton info={{ description: about, href: info?.href }} name={name} labels={labels} className="pk-menu-info" testId="menu-info" /> : null}>
+                {/* the "i" at the top: the field's description, and (with the explanations on) why a value has no filter */}
+                <MenuHead name={name} info={info} extra={explain ? labels.settingInfo.valuesFilter : null} labels={labels} />
+                <Section title={labels.aggregation} id="summarize" state={labels.core.aggregators[spec.agg] ?? spec.agg}>
                     <div className="pk-choice-grid">{common.map(aggOption)}</div>
                     {rare.length ? (
                         <More title={labels.moreStatistics} open={rare.includes(spec.agg)}>

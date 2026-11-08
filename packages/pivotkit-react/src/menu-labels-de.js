@@ -168,6 +168,8 @@ export const de = {
     showSettingInfo: "Erklärungen zeigen",
     resetTips: "Ausgeblendete Tipps wieder zeigen",
     resetSections: "Menübereiche zurücksetzen",
+    resetSectionsDone: "Menübereiche zurückgesetzt",
+    sectionChanged: ", geändert",
     help: "Hilfe",
     shortcutsTitle: "Tastenkürzel",
     keys: { Mod: "Strg", Shift: "Umschalt", "Arrow keys": "Pfeiltasten", Enter: "Eingabe", Space: "Leertaste", Escape: "Esc", F10: "F10" },

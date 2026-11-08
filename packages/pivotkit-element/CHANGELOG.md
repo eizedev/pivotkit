@@ -25,7 +25,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - pivotkit-react's field chip menu with each setting in one line and folded menu sections that say
   what they hold ([#57](https://github.com/eizedev/pivotkit/issues/57)); no new attribute or event.
-  The menus' size budget is 19.5 KiB (18.9 measured).
+  The menus' size budget is 20 KiB (19.3 measured).
 
 - pivotkit-react's menu texts in German are a chunk of their own, loaded with the menus only for a
   German report or when `locale` changes to German, and the menus' sections moved out of the first
