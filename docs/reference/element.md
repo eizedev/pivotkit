@@ -35,43 +35,43 @@ supported.
 
 ## Properties and attributes
 
-| Property | Attribute | What |
-| --- | --- | --- |
-| `data` |  | The rows: an array of objects. Encoded once per array, or once per `dataKey`. pivotkit-core takes rows only; columnar data (`{ columns, rows }`) is not supported, map it to objects first.<br><small>Type: `object[]`; default: `[]`</small> |
-| `dataKey` |  | The identity of `data`: a new array with the same key is not encoded again.<br><small>Type: `string` or `number`</small> |
-| `view` | `view` (JSON) | Controlled: the view to show, see below.<br><small>Type: view</small> |
-| `defaultView` | `default-view` (JSON) | Uncontrolled: the start view, see below.<br><small>Type: view; default: empty</small> |
-| `templates` |  | The templates of the Views menu in two groups by `scope`, "Shared views" and "My views" (without `scope` a `deletable` entry is the user's own); a `view` or a view file in `file`; the first three are also offered in the empty state. See [Templates and shared views](../concepts/templates.md).<br><small>Type: `{ name?, view?, file?, scope?, deletable? }[]`; default: `[]`</small> |
-| `saveTemplates` | `save-templates` (boolean) | Offers "Save current view"; a save is a `pivot-template-save` event. It wins over `template-store`.<br><small>Type: `boolean`; default: `false`</small> |
-| `templateStore` | `template-store` | `"browser"`: the element keeps the user's own views in `localStorage` under `pivotkit:views:<storage-key>`, per data (`source-id`): only this browser and device, lost when the site's data is cleared; at most 100 views. No event is sent for its saves and deletes.<br><small>Type: `"browser"`; default: off</small> |
-| `canPublish` | `can-publish` (boolean) | Offers "Publish as shared view" on the user's views; a publish is a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete.<br><small>Type: `boolean`; default: `false`</small> |
-| `fieldDefaults` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md).<br><small>Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`</small> |
-| `labels` |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`).<br><small>Type: partial labels</small> |
-| `limits` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react.<br><small>Type: `Partial<Limits>`</small> |
-| `locale` | `locale` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not.<br><small>Type: `string`; default: `"en-US"`</small> |
-| `theme` | `theme` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them.<br><small>Type: `"auto"` or `"light"` or `"dark"`; default: `"auto"`</small> |
-| `height` | `height` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). A height lower than the report needs lets it grow ([layout](react.md#layout)).<br><small>Type: `number` or `string`; default: `640`</small> |
-| `timeZone` | `time-zone` | The zone `data` is encoded in; see pivotkit-core.<br><small>Type: `string`; default: `"UTC"`</small> |
-| `fileName` | `file-name` | Name of exported files, without the extension; made safe.<br><small>Type: `string`; default: `"pivot"`</small> |
-| `label` | `label` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`).<br><small>Type: `string`; default: `labels.report`</small> |
-| `drillDown` | `drill-down` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off.<br><small>Type: `boolean`; default: `true`</small> |
-| `drillDownLimit` | `drill-down-limit` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows").<br><small>Type: `number`; default: `1000`</small> |
-| `tips` | `tips` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips).<br><small>Type: `string`; default: `"on"`</small> |
-| `storageKey` | `storage-key` | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too.<br><small>Type: `string`</small> |
-| `dismissedTips` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded.<br><small>Type: `string[]`</small> |
-| `fieldInfo` | `field-info` | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user's "Show explanations" in Options, Help decides. Screen readers keep the descriptions.<br><small>Type: `"on"` or `"off"`</small> |
-| `zoneInfo` | `zone-info` | The same for the "i" next to the zone titles.<br><small>Type: `"on"` or `"off"`</small> |
-| `settingInfo` | `setting-info` | The same for the "i" next to the settings that need explaining ("Show explanations").<br><small>Type: `"on"` or `"off"`</small> |
-| `sourceId` | `source-id` | The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).<br><small>Type: `string`</small> |
-| `sourceName` | `source-name` | The name of the data for people ("Sales 2026"), with `source-id`.<br><small>Type: `string`</small> |
-| `schemaUrl` | `schema-url` | The `$schema` of the view files the report writes: a URL (a self-hosted copy of the schema), `""` for none; unset, pivotkit's published schema.<br><small>Type: `string`</small> |
-| `grow` | `grow` | `"on"`: the report grows past its height to keep the result's least height (the page scrolls); `"off"`: it stays inside and the table scrolls. Unset: `"on"` without a `height` attribute, `"off"` with one.<br><small>Type: `"on"` or `"off"`</small> |
-| `fieldList` | `field-list` | `"open"` or `"collapsed"`: the field list of a wide report open or collapsed to a rail, over the user's stored choice; the user can still change it until the page is loaded again.<br><small>Type: `"open"` or `"collapsed"`</small> |
-| `sources` |  | The other data the page can show: a view made for one of them offers "Switch to “name” and load", a `pivot-source-switch` event.<br><small>Type: `{ id, name? }[]`</small> |
-| `chartOptions` |  | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings; functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)).<br><small>Type: `object`</small> |
-| `shareLink` | `share-link` | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)).<br><small>Type: `boolean` or `string`; default: off</small> |
-| `persistView` | `persist-view` | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`).<br><small>Type: `"session"`</small> |
-| `loading` | `loading` (boolean) | The page is loading the data: the skeleton before the first data, the result covered on later loads.<br><small>Type: `boolean`; default: `false`</small> |
+| Property | Attribute | Type | Default | What |
+| --- | --- | --- | --- | --- |
+| `data` |  | `object[]` | `[]` | The rows: an array of objects. Encoded once per array, or once per `dataKey`. pivotkit-core takes rows only; columnar data (`{ columns, rows }`) is not supported, map it to objects first. |
+| `dataKey` |  | `string` or `number` |  | The identity of `data`: a new array with the same key is not encoded again. |
+| `view` | `view` (JSON) | view |  | Controlled: the view to show, see below. |
+| `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
+| `templates` |  | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu in two groups by `scope`, "Shared views" and "My views" (without `scope` a `deletable` entry is the user's own). [More](#prop-templates) |
+| `saveTemplates` | `save-templates` (boolean) | `boolean` | `false` | Offers "Save current view"; a save is a `pivot-template-save` event. It wins over `template-store`. |
+| `templateStore` | `template-store` | `"browser"` | off | `"browser"`: the element keeps the user's own views in `localStorage` under `pivotkit:views:<storage-key>`, per data (`source-id`): only this browser and device, lost when the site's data is cleared; at most 100 views. [More](#prop-templatestore) |
+| `canPublish` | `can-publish` (boolean) | `boolean` | `false` | Offers "Publish as shared view" on the user's views; a publish is a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete. |
+| `fieldDefaults` |  | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count). [More](#prop-fielddefaults) |
+| `labels` |  | partial labels |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
+| `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react. |
+| `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
+| `theme` | `theme` | `"auto"` or `"light"` or `"dark"` | `"auto"` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
+| `height` | `height` | `number` or `string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). [More](#prop-height) |
+| `timeZone` | `time-zone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
+| `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
+| `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
+| `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
+| `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
+| `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips). |
+| `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. [More](#prop-storagekey) |
+| `dismissedTips` |  | `string[]` |  | Dismissed tip ids from the page's own storage (from `pivot-tip-dismiss`); `"*"`: all tips off; `"-explanations"`: "Show explanations" off; `"open:<section>"`, `"closed:<section>"`: a menu section opened or folded. |
+| `fieldInfo` | `field-info` | `"on"` or `"off"` |  | `"on"` or `"off"` decides the "i" of the field descriptions; unset, the user's "Show explanations" in Options, Help decides. Screen readers keep the descriptions. |
+| `zoneInfo` | `zone-info` | `"on"` or `"off"` |  | The same for the "i" next to the zone titles. |
+| `settingInfo` | `setting-info` | `"on"` or `"off"` |  | The same for the "i" next to the settings that need explaining ("Show explanations"). |
+| `sourceId` | `source-id` | `string` |  | The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)). [More](#prop-sourceid) |
+| `sourceName` | `source-name` | `string` |  | The name of the data for people ("Sales 2026"), with `source-id`. |
+| `schemaUrl` | `schema-url` | `string` |  | The `$schema` of the view files the report writes: a URL (a self-hosted copy of the schema), `""` for none; unset, pivotkit's published schema. |
+| `grow` | `grow` | `"on"` or `"off"` |  | `"on"`: the report grows past its height to keep the result's least height (the page scrolls); `"off"`: it stays inside and the table scrolls. Unset: `"on"` without a `height` attribute, `"off"` with one. |
+| `fieldList` | `field-list` | `"open"` or `"collapsed"` |  | `"open"` or `"collapsed"`: the field list of a wide report open or collapsed to a rail, over the user's stored choice; the user can still change it until the page is loaded again. |
+| `sources` |  | `{ id, name? }[]` |  | The other data the page can show: a view made for one of them offers "Switch to “name” and load", a `pivot-source-switch` event. |
+| `chartOptions` |  | `object` |  | Plain JSON merged over the chart's ECharts option; it wins over the view's chart settings; functions and values that are not JSON are left out ([Charts](../concepts/charts.md#chartoptions-for-developers)). |
+| `shareLink` | `share-link` | `boolean` or `string` | off | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)). |
+| `persistView` | `persist-view` | `"session"` |  | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`). |
+| `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the skeleton before the first data, the result covered on later loads. |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -92,6 +92,46 @@ On a phone the report's zones sit above the table, so the default 640 px leaves 
 Give the element more height on narrow screens, for example `height="100%"` and
 `@media (max-width: 639px) { pivot-report { height: calc(100svh - 24px); } }`, as the
 [example](https://github.com/eizedev/pivotkit/tree/main/examples/element) does: the page scrolls to the report, the table scrolls inside it.
+
+## Properties in detail
+
+The properties whose line in the table ends in "More", in full.
+
+### `templates` { #prop-templates }
+
+Type: `{ name?, view?, file?, scope?, deletable? }[]`; default: `[]`.
+
+The templates of the Views menu in two groups by `scope`, "Shared views" and "My views" (without `scope` a `deletable` entry is the user's own); a `view` or a view file in `file`; the first three are also offered in the empty state. See [Templates and shared views](../concepts/templates.md).
+
+### `templateStore` { #prop-templatestore }
+
+Attribute: `template-store`. Type: `"browser"`; default: off.
+
+`"browser"`: the element keeps the user's own views in `localStorage` under `pivotkit:views:<storage-key>`, per data (`source-id`): only this browser and device, lost when the site's data is cleared; at most 100 views. No event is sent for its saves and deletes.
+
+### `fieldDefaults` { #prop-fielddefaults }
+
+Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`.
+
+The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md).
+
+### `height` { #prop-height }
+
+Attribute: `height`. Type: `number` or `string`; default: `640`.
+
+Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). A height lower than the report needs lets it grow ([layout](react.md#layout)).
+
+### `storageKey` { #prop-storagekey }
+
+Attribute: `storage-key`. Type: `string`.
+
+Remembers dismissed tips, the help switches and the folded or opened menu sections in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too.
+
+### `sourceId` { #prop-sourceid }
+
+Attribute: `source-id`. Type: `string`.
+
+The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
 
 ## Controlled and uncontrolled
 
@@ -197,7 +237,7 @@ the element (on the host page, say). It calls `preventDefault()` on that Escape,
 Escape alone that is `defaultPrevented` already. A host that opens a dialog of its own while a report
 layer is open: handle Escape in the dialog's own `keydown` listener (it runs before the document's)
 and call `preventDefault()`, or close the report's layer first. The keys of the report itself are in
-[Using the report](../guide.md#keyboard-and-screen-readers).
+[Keyboard and screen readers](../use/keyboard.md).
 
 ## React on the page
 

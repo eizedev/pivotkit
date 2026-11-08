@@ -7,7 +7,11 @@ description: Install pivotkit-react, render <PivotReport> with your rows, keep t
 
 `pivotkit-react` is the report builder as the React component `<PivotReport>`, for React 18 and 19.
 
-## Install
+You put a report into a React app in a few steps: install the package, render `<PivotReport>` with
+your rows, then add what your app needs - keep the view, save views, react to clicks. Each step adds
+one or two props to the one before it.
+
+## 1. Install { #install }
 
 ```bash
 npm install pivotkit-react react react-dom echarts
@@ -26,7 +30,7 @@ one copy of each. pivotkit-core and @dnd-kit come with the package.
     patch versions only (`^0.1.0` is 0.1.x), so an app that imports pivotkit-core itself must use a
     version inside that range; npm shares one copy only when the ranges overlap.
 
-## The first report
+## 2. Render the first report { #the-first-report }
 
 ```jsx
 import { PivotReport } from "pivotkit-react";
@@ -57,7 +61,7 @@ export function SalesReport() {
   [override](../reference/theming.md).
 - `height` is the report's height (default 640 px); the table and the field list scroll inside it.
 
-## Keep the view in your app
+## 3. Keep the view in your app { #keep-the-view-in-your-app }
 
 To store the report, or start it from a saved one, make it **controlled**: pass `view` and set it
 from `onViewChange`. The undo history stays inside the report however often your app renders.
@@ -65,22 +69,9 @@ from `onViewChange`. The undo history stays inside the report however often your
 ```jsx
 import { useState } from "react";
 
-export function TicketReport({ rows, saved, saveTemplate, deleteTemplate }) {
+export function TicketReport({ rows }) {
     const [view, setView] = useState(presets[0].view);
-    return (
-        <PivotReport
-            data={rows}
-            dataKey="tickets"
-            view={view}
-            onViewChange={setView}
-            templates={[...presets, ...saved.map((t) => ({ ...t, scope: "user", deletable: true }))]}
-            onSaveTemplate={(name, v) => saveTemplate({ name, view: v })}
-            onDeleteTemplate={(name, { scope }) => deleteTemplate(name, scope)}
-            fieldDefaults={{ "Lead hours": { agg: "average", format: "duration:h" } }}
-            onCellClick={({ row, col, count }) => console.log(row, col, count)}
-            locale="de-DE"
-        />
-    );
+    return <PivotReport data={rows} view={view} onViewChange={setView} />;
 }
 
 const presets = [
@@ -88,16 +79,64 @@ const presets = [
 ];
 ```
 
-- `dataKey` tells the report when the data is new. An app that builds a new array on every render
-  passes a key, and the rows are encoded again only when it changes.
-- `templates` fill the Views menu, in two groups: Shared views (the presets) and My views (the
-  `deletable` ones); `onSaveTemplate` adds "Save current view". Both callbacks may return a promise:
-  the report shows "Saved" when it resolves and an error when it rejects. Without a server,
-  `templateStore="browser"` keeps the user's views in the browser; shared views, publishing and
-  views from an OpenAPI document are in [Templates and shared views](../concepts/templates.md).
-- `fieldDefaults` set the aggregator and format a field gets when someone adds it to Values, and
-  the custom order of its items (`order`) on Rows or Columns.
-- `onCellClick` gets every click on a value or a chart point, with the rows behind it.
+Store `view` wherever your app keeps settings; it is plain JSON.
+
+## 4. Tell the report when the data is new { #data-key }
+
+```jsx
+<PivotReport data={rows} dataKey="tickets" view={view} onViewChange={setView} />
+```
+
+`dataKey` tells the report when the data is new. An app that builds a new array on every render
+passes a key, and the rows are encoded again only when it changes.
+
+## 5. Offer saved views { #saved-views }
+
+```jsx
+<PivotReport
+    data={rows}
+    dataKey="tickets"
+    view={view}
+    onViewChange={setView}
+    templates={[...presets, ...saved.map((t) => ({ ...t, scope: "user", deletable: true }))]}
+    onSaveTemplate={(name, v) => saveTemplate({ name, view: v })}
+    onDeleteTemplate={(name, { scope }) => deleteTemplate(name, scope)}
+/>
+```
+
+`templates` fill the Views menu, in two groups: Shared views (the presets) and My views (the
+`deletable` ones); `onSaveTemplate` adds "Save current view". Both callbacks may return a promise: the
+report shows "Saved" when it resolves and an error when it rejects. Without a server,
+`templateStore="browser"` keeps the user's views in the browser; shared views, publishing and views
+from an OpenAPI document are in [Templates and shared views](../concepts/templates.md).
+
+## 6. Set what a field gets { #field-defaults }
+
+```jsx
+<PivotReport
+    data={rows}
+    fieldDefaults={{ "Lead hours": { agg: "average", format: "duration:h" } }}
+/>
+```
+
+`fieldDefaults` set the aggregator and format a field gets when someone adds it to Values, and the
+custom order of its items (`order`) on Rows or Columns. Labels, descriptions and links of fields are
+in [Field descriptions and names](../concepts/fields.md).
+
+## 7. React to clicks { #cell-clicks }
+
+```jsx
+<PivotReport data={rows} onCellClick={({ row, col, count }) => console.log(row, col, count)} />
+```
+
+`onCellClick` gets every click on a value or a chart point, with the rows behind it.
+
+## 8. Language and the data's name { #locale-and-source }
+
+```jsx
+<PivotReport data={rows} locale="de-DE" source={{ id: "tickets", name: "Tickets" }} />
+```
+
 - `locale` sets numbers, dates and sorting, and the language of the labels (`de-*` is German).
 - `source` (`{ id, name }`) names the data: shared views carry it, and a view made for other data
   asks before it is loaded ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
@@ -132,8 +171,10 @@ A ready-made module is
 theme. A component of your own bundles pivotkit-react with pivotkit-core, @dnd-kit and ECharts, and
 leaves React and ReactDOM to PowerShell Universal.
 
-## Next
+## Next steps { #next }
 
-- [Using the report](../guide.md): what the people using it can do.
+- [Recipes](../embed/recipes.md): tasks such as links, the browser store, chart options, a strict
+  Content-Security-Policy.
 - [Views and saved views](../concepts/views.md): the JSON behind every report.
 - [Theming](../reference/theming.md) and [Localisation](../reference/localisation.md).
+- [Use a report](../use/index.md): what the people using it can do; point them there.

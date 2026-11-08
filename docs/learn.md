@@ -29,7 +29,7 @@ At the end of each section: how to query the source yourself, live.
 ## Before you start
 
 - **Rows, Columns, Values, Filters**: drag a field from the list into a zone, or open the field's
-  menu (the three dots) and pick "Add to Rows". [Using the report](guide.md) explains every part.
+  menu (the three dots) and pick "Add to Rows". [Use a report](use/index.md) explains every part.
 - **The chip menu** (the small arrow on a field in a zone) groups dates, sorts, filters, keeps the
   top N, and for a value changes the aggregator, the "show values as" and the format.
 - **Undo** takes back every step; the **Start** list in the header brings back a template.
@@ -41,7 +41,8 @@ temperature, rain and sunshine. "Rain day" is 1 on a day with at least 1 mm of r
 counts rain days. "Season" is the meteorological season, swapped south of the equator: December in
 Sydney is summer.
 
-![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather.png)
+![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-light.png#only-light)
+![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-dark.png#only-dark)
 
 **How warm is each city, month by month?** Cities on rows, the month on columns (across all three
 years), the average of "Mean °C" coloured from cold to warm.
@@ -136,7 +137,8 @@ Population, GDP in current US dollars and CO2 emissions (million tonnes, without
 countries from 2005 to 2024, with the World Bank's region and income group. Aggregates such as
 "World" are left out, so a total over countries is the world. "Year" is a number field.
 
-![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries.png)
+![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries-light.png#only-light)
+![The countries data: population of the three largest countries per region in 2024, grouped by region with subtotals](assets/screenshots/learn-countries-dark.png#only-dark)
 
 **Where do most people live? Region, then country (2024)** Region and country on rows, the sum of
 population, filtered to 2024 and to the top 3 countries of each region.
@@ -210,7 +212,8 @@ Every earthquake of magnitude 4.5 or more in 2025, from the USGS catalogue. "Tim
 such as "southern Mid-Atlantic Ridge" is its own region). "Tsunami flag" is set by USGS for large
 events in oceanic regions; it does not say that a tsunami happened.
 
-![The earthquake data: the strongest quakes by region and tsunami flag, with the drill-down panel listing the four quakes of Russia](assets/screenshots/learn-earthquakes.png)
+![The earthquake data: the strongest quakes by region and tsunami flag, with the drill-down panel listing the four quakes of Russia](assets/screenshots/learn-earthquakes-light.png#only-light)
+![The earthquake data: the strongest quakes by region and tsunami flag, with the drill-down panel listing the four quakes of Russia](assets/screenshots/learn-earthquakes-dark.png#only-dark)
 
 **How strong were the quakes? (magnitude ranges)** "Magnitude" grouped in ranges of 0.5, counted,
 and the count again as **% of grand total**.
@@ -279,7 +282,8 @@ laureate (persons and organizations; a few won twice). "Country" is where a pers
 organization founded, in today's borders as the source names them. "Share" is the laureate's portion
 of the prize.
 
-![The Nobel laureates data: laureates per category and decade as a table](assets/screenshots/learn-nobel.png)
+![The Nobel laureates data: laureates per category and decade as a table](assets/screenshots/learn-nobel-light.png#only-light)
+![The Nobel laureates data: laureates per category and decade as a table](assets/screenshots/learn-nobel-dark.png#only-dark)
 
 **How many laureates per category and decade?** Categories on rows, "Year" grouped in ranges of
 10 on columns, the count of laureates.
@@ -349,7 +353,8 @@ included. "Days to EOL" counts from that day (negative: the end lies behind), "S
 release to the end of life. 1,288 cycles have no known end of life: their "EOL date", "Support years"
 and "Days to EOL" are blank, and 551 of them are EOL all the same, the date was just never recorded.
 
-![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife.png)
+![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife-light.png#only-light)
+![The end-of-life data: what reaches end of life in the next 12 months per category and product, with the drill-down panel listing the cycles of one product](assets/screenshots/learn-endoflife-dark.png#only-dark)
 
 **How many release cycles reach end of life per year? (chart)** "EOL date" grouped by year (the
 derived field "EOL date by year"), counted, filtered to 2016 to 2030, as bars.

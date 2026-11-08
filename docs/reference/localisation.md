@@ -14,7 +14,8 @@ Two settings decide how a report reads:
   attribute is used when `locale` is not set.
 - **`labels`**: single texts merged over the language's labels.
 
-![The report in German](../assets/screenshots/german.png)
+![The report in German](../assets/screenshots/german-light.png#only-light)
+![The report in German](../assets/screenshots/german-dark.png#only-dark)
 
 ## Built-in languages
 

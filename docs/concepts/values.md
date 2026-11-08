@@ -97,7 +97,7 @@ does; `number` (up to 2 decimals) shows "118". All formatting follows the
 
 ## In the value's menu
 
-The menu of a value chip ([Using the report](../guide.md#values)) shows **Show as**, **Number
+The menu of a value chip ([Values and formats](../use/values.md#the-menu-of-a-value)) shows **Show as**, **Number
 format** and **Highlight** only for a value that gives a number in every cell: not for a list of
 distinct values, the first or last entry of a text, or the average, median, minimum or maximum of
 dates. Such a value keeps Summarize by, Name and Move.
