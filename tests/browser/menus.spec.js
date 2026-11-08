@@ -271,6 +271,18 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await expect(badge).toHaveCount(0);
     });
 
+    test("the menus follow a change of the language at runtime", async ({ page }) => {
+        await page.goto("?data=sales");
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByText("Value filter…")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await page.getByTestId("pg-lang").selectOption("de");
+        await expect(page.locator(".pk-root")).toHaveAttribute("lang", "de");
+        await page.getByTestId("chip-menu-Region").click();
+        await expect(page.getByText("Wertfilter…")).toBeVisible();
+        await expect(page.getByText("Value filter…")).toHaveCount(0);
+    });
+
     test("the value condition in German", async ({ page }) => {
         await page.goto("?data=sales&empty&lang=de");
         for (const field of ["Region", "Revenue"]) {

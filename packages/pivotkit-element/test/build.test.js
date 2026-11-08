@@ -106,6 +106,19 @@ test("a page loads React, the report and the core first; ECharts, the export and
     assert.ok(!initial.some((i) => i.includes("pivotkit-core/src/templates.js")), "pivotkit-core/templates is in the first load");
 });
 
+test("the menus' German texts load only for a German report: neither in the first load nor in the menus", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    // "Anwenden" (Apply) is a menu text only German has; "Apply" its English one
+    assert.ok(text(groups.texts).includes("Anwenden"), "the German texts' chunk lacks them");
+    assert.ok(!text(groups.menus).includes("Anwenden"), "the German menu texts are in the menus");
+    assert.ok(!text(groups.initial).includes("Anwenden"), "the German menu texts are in the first load");
+    assert.ok(text(groups.menus).includes("Apply"), "the English menu texts are not in the menus");
+    // the menus' sections (section.jsx) load with the menus, only their context (help.js) first
+    assert.ok(text(groups.menus).includes('className:"pk-section-head"'));
+    assert.ok(!text(groups.initial).includes('className:"pk-section-head"'), "the menus' sections are in the first load");
+});
+
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {
     const pkg = JSON.parse(await readFile(new URL("package.json", pkgDir), "utf8"));
     assert.equal(pkg.devDependencies.react, "18.3.1");

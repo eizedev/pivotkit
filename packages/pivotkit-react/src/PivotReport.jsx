@@ -26,7 +26,7 @@ import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus } from "./lazy-menus.jsx";
 import { LayerContext } from "./popover.jsx";
 import { issueLines, linkNow, linkParam, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, withLinkParam, writeStoredView } from "./share.js";
-import { HelpContext } from "./section.jsx";
+import { HelpContext } from "./help.js";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
@@ -330,6 +330,8 @@ function Report(props) {
     const [savedAt, setSavedAt] = useState(0);
     // the menus' module once loaded: its texts are those of the "i" of the settings (help.labels)
     const [menus, setMenus] = useState(/** @type {typeof import("./menus.js") | null} */ (null));
+    // the language whose menu texts are loaded with them (the help's labels follow it)
+    const [menusLang, setMenusLang] = useState(/** @type {string | null} */ (null));
     // a tip's "Save view" opens the Views menu: a new number is a new request
     const [viewsRequest, setViewsRequest] = useState(0);
     // what a loaded view (a file, a link, a saved view) left out, for the area above the result; it
@@ -686,14 +688,24 @@ function Report(props) {
         return map;
     }, [view]);
 
-    // the menus' panels, right after the first render: there before anyone opens a menu
+    // the menus' panels, right after the first render: there before anyone opens a menu; with the
+    // menu texts of the report's language, again when it changes
+    const lang = labels.lang;
     useEffect(() => {
         let live = true;
-        loadMenus().then((m) => live && setMenus(() => m), () => undefined);
+        loadMenus(lang).then(
+            (m) => {
+                if (live) {
+                    setMenus(() => m);
+                    setMenusLang(lang);
+                }
+            },
+            () => undefined
+        );
         return () => {
             live = false;
         };
-    }, []);
+    }, [lang]);
     // the report's least height: it grows past a host box too low for it (use-big-result.js)
     const mainRef = useRef(/** @type {HTMLDivElement | null} */ (null));
     const fit = useFitHeight(root, mainRef, grow);
@@ -1097,11 +1109,12 @@ function Report(props) {
         () => ({
             explain: settingSwitch.on,
             // with the menus' texts once they are loaded: the explanations are among them
-            labels: menus ? menus.menuLabels(labels) : labels,
+            labels: menus && menusLang ? menus.menuLabels(labels) : labels,
             isOpen: (id) => sectionOpen(id, dismissed),
             setOpen: (id, open) => changeDismissed(withSection(dismissed, id, open), null)
         }),
-        [settingSwitch.on, labels, menus, dismissed, changeDismissed]
+        // menusLang: the texts of a language loaded later, so menuLabels gives them
+        [settingSwitch.on, labels, menus, menusLang, dismissed, changeDismissed]
     );
     // the field list folded to a rail (wide and medium; a narrow report has the drawer): the user's
     // choice is stored with the tips, unless the host's fieldList decides, then it lasts this session

@@ -25,8 +25,15 @@ Two settings decide how a report reads:
 | German | `de`, `de-DE`, `de-AT`, `de-CH`, ... | `LABELS.de` |
 
 `LABELS` is exported by pivotkit-react's subpath `pivotkit-react/labels` (`import { LABELS } from "pivotkit-react/labels"`; a subpath of its own, so the report's first load does not carry the menus' texts); its keys are the
-reference for every text (in the source: `src/labels.js` and `src/menu-labels.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
+reference for every text (in the source: `src/labels.js`, `src/menu-labels.js` and
+`src/menu-labels-de.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
 right voice.
+
+The texts only the menus show load with the menus, right after the first render: English with them,
+German as a file of its own that only a German report loads (also when `locale` changes to German
+later). A menu waits for its language's texts and shows "Loading…" until then, never English first;
+a language of a host's own takes the English menu texts under its `labels`. A host's text for a menu
+entry wins over the built-in one in every language.
 
 ## Changing single texts
 

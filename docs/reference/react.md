@@ -270,8 +270,10 @@ value, `data` by identity or by `dataKey`.
 
 ## Files the package loads
 
-`dist/index.js` imports `dist/echarts.js` (on the first chart) and `dist/menus.js` (the menus' panels,
-right after the first render) by relative dynamic import, with the code they share in `dist/chunks/`.
+`dist/index.js` imports `dist/echarts.js` (on the first chart), `dist/menus.js` (the menus' panels,
+right after the first render) and, for a German report, `dist/menu-texts-de.js` (the menus' German
+texts, with the menus, or when the locale changes to German) by relative dynamic import, with the
+code they share in `dist/chunks/`.
 A bundler follows these imports with no setting. A host that copies files by hand (an import map, a
 folder of assets) deploys the whole `dist/` folder: without `dist/menus.js` and `dist/chunks/` the
 report works, but its menus say "This menu could not be loaded." with **Try again**.

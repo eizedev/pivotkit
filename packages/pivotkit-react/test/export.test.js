@@ -6,9 +6,12 @@ import { cellRows, computePivot, encode } from "pivotkit-core";
 import { exportDrill, rowsText } from "../src/drill-export.js";
 import { drillTable } from "../src/drill.js";
 import { LABELS } from "../src/labels.js";
-import { menuLabels } from "../src/menu-labels.js";
+import { de as menuDe } from "../src/menu-labels-de.js";
+import { addMenuTexts, menuLabels } from "../src/menu-labels.js";
 import { loadExporters, runExport } from "../src/export-run.js";
 
+// the German menu texts, as lazy-menus.jsx adds them once their chunk has loaded
+addMenuTexts("de", menuDe);
 const en = menuLabels(LABELS.en);
 const de = menuLabels(LABELS.de);
 

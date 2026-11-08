@@ -139,15 +139,19 @@ async function licenses(metafile) {
  * load right after the first render, before a menu opens, so they count against every page that shows
  * a report; the first load stays at its budget. Sorting with a click on a table header (#55: the
  * header buttons, their state and the texts; the table renders first, so it cannot wait for the
- * menus) took the first load to 152.2 measured, budget 152.5.
+ * menus) took the first load to 152.2 measured, budget 152.5. The menus' German texts then became a
+ * chunk of their own, loaded with the menus for a German report only ("texts", 4.0 measured, budget
+ * 4.5; a German page loads it on top of the menus), and the menus' sections moved out of the first
+ * load into the menus (#73): first load 152.0, the menus 17.9 measured; the budgets stay as they were.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 21 };
+export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 221, export: 11.5, link: 7, menus: 21, texts: 4.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
  * each group of dynamic imports with what they add ("chart": ECharts, "export": XLSX and CSV, "link":
- * a view in a link, pivotkit-core/link with fflate's deflate and inflate, "menus": the menus' panels).
+ * a view in a link, pivotkit-core/link with fflate's deflate and inflate, "menus": the menus' panels,
+ * "texts": the menus' texts of a language besides English).
  * @param {import("esbuild").Metafile} metafile
  * @returns {{ group: string, files: string[] }[]}
  */
@@ -181,9 +185,9 @@ export function loadGroups(metafile) {
         }
     };
     scan(initial);
-    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : "export");
+    const groupOf = (file) => (/[\\/]echarts-[^\\/]+$/.test(file) ? "chart" : /[\\/]link-[^\\/]+$/.test(file) ? "link" : /[\\/]menus-[^\\/]+$/.test(file) ? "menus" : /[\\/]menu-texts-[^\\/]+$/.test(file) ? "texts" : "export");
     const groups = [{ group: "initial", files: [...initial] }];
-    for (const name of ["chart", "export", "link", "menus"]) {
+    for (const name of ["chart", "export", "link", "menus", "texts"]) {
         const files = [...closure(dynamic.filter((f) => groupOf(f) === name))].filter((f) => !initial.has(f));
         groups.push({ group: name, files });
     }

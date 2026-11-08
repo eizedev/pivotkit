@@ -10,9 +10,13 @@ import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCell
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
-import { MENU_LABELS } from "../src/menu-labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
 import { HISTORY_LIMIT, createState, record, redo, reset, settle, tagFor, undo } from "../src/view-history.js";
+import { de as menuDe } from "../src/menu-labels-de.js";
+import { en as menuEn } from "../src/menu-labels.js";
+
+/** The menus' texts of both languages (German is a chunk of its own in the package). */
+const MENU_LABELS = { en: menuEn, de: menuDe };
 
 const en = LABELS.en;
 

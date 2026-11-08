@@ -23,6 +23,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- pivotkit-react's menu texts in German are a chunk of their own, loaded with the menus only for a
+  German report or when `locale` changes to German, and the menus' sections moved out of the first
+  load ([#73](https://github.com/eizedev/pivotkit/issues/73)): the menus 20.6 to 17.9 KiB gzip, the
+  first load 152.1 to 152.0 (measured on one Mac); a German page loads the texts' 4.0 KiB on top. The
+  size check has a group "texts" for it (budget 4.5 KiB).
+
 - The README, the package's page on npm, is a short landing page: what pivotkit-element is, one screenshot,
   install, one example and a table of links into the
   [documentation site](https://pivotkit.eize.dev/), which holds the details.

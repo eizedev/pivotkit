@@ -32,6 +32,41 @@ async function tool(host, testId) {
 /** A custom property's value on an element's .pk-root. */
 const token = (page, host, name) => page.locator(`${host} .pk-root`).evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name);
 
+test("the menus' German texts load only for a German report, also when the language changes, never English first; a host's text wins", async ({ page }) => {
+    const loaded = [];
+    page.on("request", (r) => loaded.push(new URL(r.url()).pathname));
+    await page.goto("pages/element-views.html");
+    const host = page.locator("#views");
+    await expect(host.locator(".pk-root")).toBeVisible();
+    await tool(host, "options");
+    await expect(host.getByTestId("section-help")).toHaveText("Help");
+    await page.keyboard.press("Escape");
+    expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toEqual([]);
+    // every text the Help section's title shows from now on
+    await page.evaluate(() => {
+        const root = document.getElementById("views").shadowRoot;
+        window.__seen = [];
+        new MutationObserver(() => {
+            const title = root.querySelector('[data-testid="section-help"]');
+            if (title) window.__seen.push(title.textContent);
+        }).observe(root, { subtree: true, childList: true, characterData: true });
+        document.getElementById("views").locale = "de-DE";
+    });
+    await expect(host.locator(".pk-root")).toHaveAttribute("lang", "de");
+    await tool(host, "options");
+    await expect(host.getByTestId("section-help")).toHaveText("Hilfe");
+    expect(loaded.filter((p) => /menu-texts-de-/.test(p))).toHaveLength(1);
+    // the menu waited for the German texts: no English title in between
+    expect(await page.evaluate(() => window.__seen.filter((t) => t !== "Hilfe"))).toEqual([]);
+    await page.keyboard.press("Escape");
+    // a host's text for a menu text wins over the German one
+    await page.evaluate(() => {
+        document.getElementById("views").labels = { help: "Hilfe und Tipps" };
+    });
+    await tool(host, "options");
+    await expect(host.getByTestId("section-help")).toHaveText("Hilfe und Tipps");
+});
+
 test.describe("two elements on one page", () => {
     test("both render in their own shadow root, with their own language, theme and data", async ({ page }) => {
         await page.goto("pages/element-two.html");

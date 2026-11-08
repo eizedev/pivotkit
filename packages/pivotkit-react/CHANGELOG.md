@@ -48,6 +48,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The menus' German texts are a file of their own, `dist/menu-texts-de.js`, loaded with the menus
+  only for a German report, or when the locale changes to German
+  ([#73](https://github.com/eizedev/pivotkit/issues/73)). A menu waits for them ("Loading…"), so it
+  never shows English first; a host's `labels` still win. The menus' sections and the "i" of the
+  settings (`section.jsx`) load with the menus, not with the report; their context is `help.js`.
+  The element's menus are 2.7 KiB gzip smaller for every page that is not German. `LABELS` of
+  `pivotkit-react/labels` is unchanged. A host that copies `dist/` by hand copies the new file too
+  (it is in `dist/`).
+
 - The README, the package's page on npm, is a short landing page: what pivotkit-react is, one screenshot,
   install, one example and a table of links into the
   [documentation site](https://pivotkit.eize.dev/), which holds the details.

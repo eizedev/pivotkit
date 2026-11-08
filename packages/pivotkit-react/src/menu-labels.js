@@ -1,8 +1,8 @@
 /*
  * The texts only the menus show (the chip menus, the chart type, Options, Views, the filter and the
- * drill-down), in English and German. They load with the menus (menus.js), so the first load of a
- * page stays small; menuLabels() adds them to the report's labels, with a host's text for one of
- * them (the `labels` prop, kept aside by resolveLabels) over the default, as for any other label.
+ * drill-down), in English; German is menu-labels-de.js, a chunk of its own. They load with the menus
+ * (menus.js), so the first load of a page stays small; menuLabels() adds them to the report's
+ * labels, with a host's text for one of them (the `labels` prop, kept aside by resolveLabels) over the default, as for any other label.
  */
 
 import { MENU_TEXTS, mergeLabels } from "./labels.js";
@@ -238,238 +238,38 @@ export const en = {
     moreFormats: "More formats"
 };
 
-/** @type {MenuTexts} */
-export const de = {
-    aboutSetting: "Über {setting}",
-    settingInfo: {
-        grandTotalRow: "Eine letzte Zeile mit der Summe jeder Spalte.",
-        grandTotalColumn: "Eine letzte Spalte mit der Summe jeder Zeile.",
-        rowSubtotals: "Mit zwei oder mehr Feldern in Zeilen: eine Summenzeile unter jeder Gruppe des äußeren Felds.",
-        colSubtotals: "Mit zwei oder mehr Feldern in Spalten: eine Summenspalte nach jeder Gruppe des äußeren Felds.",
-        along: "Die Richtung der Berechnung: Zeilen geht die Zeilen jeder Spalte hinunter, Spalten über die Spalten jeder Zeile. Eine laufende Summe addiert entlang, eine Differenz vergleicht mit dem Eintrag davor.",
-        showAs: "Zeigt jeden Wert als Anteil, Differenz, laufende Summe oder Rang statt der Zahl selbst. Bei Prozenten sagt ein Tipp über dem Ergebnis, was 100 % ist.",
-        exportXlsx: "Jede Zahl mit allen Nachkommastellen, Formate bleiben, bereit zum Rechnen.",
-        exportCsv: "Prozente und Berechnungen wie in der Tabelle, als reiner Text.",
-        copyTable: "Die Tabelle wie angezeigt, mit Überschriften und Summen: tabulatorgetrennt, wird in Excel oder Google Sheets in Spalten eingefügt.",
-        copyDataJson: "Die Zahlen der Tabelle mit ihren Beschriftungen als JSON, für ein Programm. Nicht die Ansicht selbst: Das ist Ansichten → Ansicht als JSON kopieren.",
-        drillCopy: "Die Zeilen wie im Bereich angezeigt, mit einer Überschriftenzeile: tabulatorgetrennt, wird in Excel oder Google Sheets in Spalten eingefügt.",
-        drillJson: "Die Zeilen als JSON-Objekte, mit den Feldnamen und Rohwerten der Daten, für ein Programm.",
-        groupLabels: "Mit zwei oder mehr Feldern in Zeilen: die Einträge des äußeren Felds einmal unter der Achse, unter ihren Kategorien.",
-        labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende; außen, wenn der Ring eines Donuts dafür zu schmal ist.",
-        sharedView: "Nur Admins können gemeinsame Ansichten ändern.",
-        newReport: "Nimmt alle Felder heraus, um neu anzufangen. Rückgängig holt sie zurück; gespeicherte Ansichten bleiben."
-    },
-    moveLeft: "Nach links",
-    moveRight: "Nach rechts",
-    remove: "Feld entfernen",
-    chartAutoNow: "Jetzt: {type}",
-    sharedViews: "Gemeinsame Ansichten",
-    myViews: "Meine Ansichten",
-    noViews: "Noch keine gespeicherten Ansichten.",
-    publishView: "{name} als gemeinsame Ansicht veröffentlichen",
-    publishConfirm: "„{name}“ als gemeinsame Ansicht veröffentlichen? Alle, die diesen Bericht nutzen, sehen sie.",
-    publishAction: "Veröffentlichen",
-    storeNote: "Nur in diesem Browser gespeichert: nicht auf anderen Geräten, und weg, wenn die Websitedaten gelöscht werden.",
-    storeFull: "dieser Browser behält höchstens {max} Ansichten",
-    storeTooLarge: "die Ansichten bräuchten mehr als {max} Zeichen",
-    storeRefused: "dieser Browser hat sie nicht behalten (Speicher gesperrt oder voll)",
-    storeChanged: "die Ansichten wurden in einem anderen Tab geändert; das Menü neu öffnen",
-    toastSaved: "Ansicht „{name}“ gespeichert",
-    toastDeleted: "Ansicht „{name}“ gelöscht",
-    toastPublished: "Ansicht „{name}“ veröffentlicht",
-    toastSaveFailed: "Die Ansicht konnte nicht gespeichert werden: {message}",
-    toastDeleteFailed: "Die Ansicht konnte nicht gelöscht werden: {message}",
-    toastPublishFailed: "Die Ansicht konnte nicht veröffentlicht werden: {message}",
-    toastSaveRejected: "Der Server konnte die Ansicht nicht speichern.",
-    toastDeleteRejected: "Der Server konnte die Ansicht nicht löschen.",
-    toastPublishRejected: "Der Server konnte die Ansicht nicht veröffentlichen.",
-    deleteView: "{name} löschen",
-    deleteConfirm: "„{name}“ löschen?",
-    deleteAction: "Löschen",
-    saveView: "Aktuelle Ansicht speichern",
-    viewName: "Name der Ansicht",
-    thisView: "Diese Ansicht",
-    saveNamed: "„{name}“ speichern",
-    saveAs: "Speichern unter…",
-    saveSharedLocked: "Gemeinsame Ansicht: nicht änderbar. „Speichern unter“ nutzen.",
-    saveNotInViews: "Noch nicht gespeichert. „Speichern unter“ nutzen.",
-    replaceConfirm: "„{name}“ gibt es schon. Ersetzen?",
-    replaceAction: "Ersetzen",
-    replaceSharedConfirm: "Die gemeinsame Ansicht „{name}“ für alle ersetzen?",
-    newAlready: "Der Bericht ist schon leer.",
-    save: "Speichern",
-    cancel: "Abbrechen",
-    expandAll: "Alle aufklappen",
-    collapseAll: "Alle zuklappen",
-    aggregation: "Zusammenfassen mit",
-    moreStatistics: "Weitere Statistiken",
-    showAsNone: "Der Wert selbst",
-    moreCalculations: "Weitere Berechnungen",
-    showAsNames: {
-        percentOfGrandTotal: "% des Gesamtergebnisses",
-        percentOfRowTotal: "% der Zeilensumme",
-        percentOfColumnTotal: "% der Spaltensumme",
-        percentOfParentRow: "% der übergeordneten Zeile",
-        percentOfParentColumn: "% der übergeordneten Spalte",
-        differenceFromPrevious: "Differenz zum vorherigen",
-        percentDifferenceFromPrevious: "% Differenz zum vorherigen",
-        runningTotal: "Laufende Summe",
-        percentRunningTotal: "% laufende Summe",
-        rankAscending: "Rang, kleinster zuerst",
-        rankDescending: "Rang, größter zuerst"
-    },
-    along: "Entlang",
-    format: "Zahlenformat",
-    formatAuto: "Automatisch",
-    formats: {
-        number: "Zahl",
-        "number:0": "Zahl ohne Nachkommastellen",
-        "number:2": "Zahl mit 2 Nachkommastellen",
-        integer: "Ganze Zahl",
-        currency: "Währung",
-        percent: "Prozent",
-        compact: "Kompakt (1,2 Tsd.)",
-        bytes: "Bytes (KB, MB)",
-        "duration:h": "Dauer aus Stunden",
-        "duration:s": "Dauer aus Sekunden"
-    },
-    conditional: "Hervorheben",
-    conditionalNone: "Keine",
-    colorScale: "Farbskala",
-    dataBar: "Datenbalken",
-    rename: "Name",
-    sortOldest: "Älteste zuerst",
-    sortNewest: "Neueste zuerst",
-    groupBy: "Datum gruppieren nach",
-    groupNone: "Keine Gruppierung (jedes Datum mit Uhrzeit)",
-    groupTimeline: "Entlang der Zeitachse",
-    groupCyclic: "Zeiträume über Jahre vergleichen",
-    unitHints: {
-        year: "2025", yearQuarter: "Q1 2025", yearMonth: "Jan. 2025", yearWeek: "2025-W03", day: "15.01.2025",
-        quarter: "Q1 jedes Jahres", month: "Jan. jedes Jahres", week: "W03 jedes Jahres", weekday: "Mo. bis So.", hour: "00:00 bis 23:00",
-        bin: ""
-    },
-    bins: "Zahlen in Bereiche gruppieren",
-    binSize: "Bereichsgröße",
-    binStart: "Beginnt bei",
-    binStartFar: "Bereiche ab {start} können die Werte dieses Felds ({min} bis {max}) nicht fassen: Jede Zeile wäre leer. Einen Beginn näher an den Werten wählen.",
-    apply: "Anwenden",
-    removeSetting: "Entfernen",
-    topN: "Nur die obersten Einträge zeigen",
-    topCount: "Anzahl",
-    bottom: "Unterste",
-    topBy: "nach",
-    searchValues: "Werte suchen",
-    selectAll: "Alle auswählen",
-    selectNone: "Keine auswählen",
-    onlyThis: "Nur",
-    valuesShown: "{shown} von {total} Werten; suchen, um weitere zu finden",
-    conditionNumber: "Bedingung für die Beschriftung",
-    conditionNone: "Keine Bedingung",
-    conditionValue: "Text",
-    selected: "{count} ausgewählt",
-    exportDownload: "Herunterladen",
-    exportCopy: "Kopieren",
-    exportXlsx: "Excel-Arbeitsmappe (.xlsx)",
-    exportCsv: "CSV-Datei (.csv)",
-    exportPng: "Diagramm als Bild (.png)",
-    exportPngNeedsChart: "Zuerst zum Diagramm wechseln.",
-    exportNeedsField: "Zuerst ein Feld hinzufügen.",
-    copyTable: "Tabelle kopieren",
-    copyDataJson: "Daten als JSON kopieren",
-    toastTableCopied: "Tabelle kopiert: tabulatorgetrennt, wird in Excel oder Google Sheets in Spalten eingefügt",
-    toastDataCopied: "Daten als JSON kopiert",
-    toastCopyBlocked: "Diese Seite erlaubt kein Kopieren. Stattdessen eine Datei herunterladen.",
-    drillTitle: "Zeilen hinter diesem Wert",
-    drillCount: { one: "{count} Zeile", other: "{count} Zeilen" },
-    drillShown: "Die ersten {shown} von {count} Zeilen",
-    drillCopy: "Kopieren",
-    drillJson: "Als JSON kopieren",
-    drillCsv: "CSV herunterladen",
-    drillXlsx: "Excel herunterladen",
-    drillPart: "{shown} von {count} Zeilen",
-    drillCopied: "{rows} kopiert: tabulatorgetrennt, wird in Excel oder Google Sheets in Spalten eingefügt",
-    drillCopiedJson: "{rows} als JSON kopiert",
-    drillExported: "{file} exportiert ({rows})",
-    drillExportNote: "Enthält die ersten {shown} von {count} Zeilen, wie hier gezeigt.",
-    showTips: "Tipps zeigen",
-    showSettingInfo: "Erklärungen zeigen",
-    resetTips: "Ausgeblendete Tipps wieder zeigen",
-    help: "Hilfe",
-    shortcutsTitle: "Tastenkürzel",
-    keys: { Mod: "Strg", Shift: "Umschalt", "Arrow keys": "Pfeiltasten", Enter: "Eingabe", Space: "Leertaste", Escape: "Esc", F10: "F10" },
-    shortcuts: {
-        undo: "Rückgängig",
-        redo: "Wiederholen",
-        move: "Zwischen den Werten der Tabelle wechseln",
-        open: "Die Zeilen hinter einem Wert öffnen; nach einer Überschrift sortieren; ein Menü öffnen",
-        drag: "Ein Feld oder einen Chip aufnehmen und ablegen",
-        close: "Ein Menü, ein Fenster oder einen Tipp schließen",
-        fields: "In der Feldliste: auf und ab zwischen den Feldern, links und rechts zum Griff eines Felds, seinem „i“ und seinem Menü",
-        fieldMenu: "Das Menü des Felds im Fokus öffnen"
-    },
-    valueLabels: "Wertbeschriftung",
-    valueLabelNames: { auto: "Automatisch", off: "Aus", value: "Wert", percent: "Prozent", both: "Wert und Prozent" },
-    legend: "Legende",
-    legendNames: { auto: "Automatisch", bottom: "Unten", right: "Rechts", off: "Aus" },
-    chartTitle: "Titel",
-    chartTitleNone: "Kein Titel",
-    smoothLines: "Geglättete Linien",
-    labelPosition: "Beschriftung",
-    labelPositionNames: { outside: "Außen", inside: "Innen" },
-    axisLabels: "Achsenbeschriftung",
-    axisLabelNames: { auto: "Automatisch", all: "Alle (schräg)", nth: "Jede n-te" },
-    groupLabels: "Gruppen unter der Achse",
-    groupLabelNames: { auto: "Automatisch", on: "Ein", off: "Aus" },
-    defaultName: "Standardnamen verwenden",
-    share: "Teilen",
-    copyLink: "Link kopieren",
-    copyJson: "Ansicht als JSON kopieren",
-    downloadView: "Ansicht herunterladen (.pivotkit.json)",
-    sharePrivacy: "Eine Ansicht enthält die Namen der Felder und in ihren Filtern die dort gewählten Werte: Nur dort teilen, wo diese gesehen werden dürfen.",
-    loadView: "Ansicht laden…",
-    loadViewHint: "Eine Ansichtsdatei, eine Ansicht als JSON oder einen Link einfügen oder eine .pivotkit.json-Datei wählen.",
-    loadViewText: "Ansicht als JSON oder Link",
-    chooseFile: "Datei wählen…",
-    load: "Laden",
-    loadCheckTitle: "Diese Ansicht passt vielleicht nicht zu diesen Daten",
-    loadAnyway: "Trotzdem laden",
-    switchAndLoad: "Zu „{source}“ wechseln und laden",
-    switchStartsFresh: "Der Wechsel zeigt die anderen Daten mit dieser Ansicht; Rückgängig beginnt dort.",
-    numberInvalid: "Eine Zahl eingeben, etwa {example}.",
-    countInvalid: "Eine ganze Zahl ab 1 eingeben.",
-    sizeInvalid: "Eine Zahl über 0 eingeben, etwa {example}.",
-    valueFilter: "Wertfilter…",
-    valueFilterBy: "Wert",
-    valueFilterOp: "Bedingung",
-    valueFilterNumber: "Zahl",
-    valueFilterTo: "und",
-    valueOps: { "=": "gleich", "!=": "ungleich", ">": "größer als", ">=": "größer oder gleich", "<": "kleiner als", "<=": "kleiner oder gleich", between: "zwischen", notBetween: "nicht zwischen" },
-    removeFilter: "Filter entfernen",
-    valuesFilterHint: "Werte werden hier nicht gefiltert: Ein Feld in Zeilen oder Spalten über sein Menü filtern oder ein Feld in Filter ziehen.",
-    moreFormats: "Weitere Formate"
-};
+/**
+ * The menus' texts of each language loaded: English always (the fallback), another once its chunk
+ * has loaded (menu-labels-de.js; lazy-menus.jsx loads it with the menus and adds it here).
+ * @type {Map<string, MenuTexts>}
+ */
+const LOADED = /* @__PURE__ */ new Map([["en", en]]);
 
-/** @type {Readonly<{ en: MenuTexts, de: MenuTexts }>} */
-export const MENU_LABELS = /* @__PURE__ */ Object.freeze({ en, de });
+/** Adds the menus' texts of a language, once its chunk has loaded. */
+export function addMenuTexts(lang, texts) {
+    LOADED.set(lang, texts);
+}
 
-/** Labels and the menus' texts merged once per labels object. */
+/** Whether the menus' texts of a language are here. */
+export const hasMenuTexts = (lang) => LOADED.has(lang);
+
+/** Labels and the menus' texts merged once per labels object (and the language's texts it used). */
 const done = /* @__PURE__ */ new WeakMap();
 
 /**
  * The report's labels with the menus' texts of their language (English for a language of a host's
- * own), a host's own texts for them applied.
+ * own, or while that language's texts still load), a host's own texts for them applied.
  * @param {import("./labels.js").UiLabels} labels
  * @returns {import("./labels.js").UiLabels}
  */
 export function menuLabels(labels) {
+    const base = LOADED.get(labels.lang) ?? en;
     const known = done.get(labels);
-    if (known) {
-        return known;
+    if (known && known.base === base) {
+        return known.out;
     }
-    const base = Object.hasOwn(MENU_LABELS, labels.lang) ? MENU_LABELS[labels.lang] : en;
     // a host's texts (kept aside by resolveLabels) over the defaults, checked as every label is
     const out = /** @type {import("./labels.js").UiLabels} */ ({ ...labels, ...mergeLabels(base, /** @type {any} */ (labels)[MENU_TEXTS]) });
-    done.set(labels, out);
+    done.set(labels, { base, out });
     return out;
 }

@@ -24,7 +24,8 @@ export const options = {
     // menus.js: the menus' panels, loaded on demand (lazy-menus.jsx); what it shares with index.js is
     // a chunk of its own (splitting), so both use one copy of each module (one React context each)
     // labels.js (the package's "./labels"): every text, for hosts; not part of the report's first load
-    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", labels: "src/all-labels.js", styles: "src/styles.css" },
+    // menu-texts-de.js: the menus' German texts, loaded with the menus for a German report only
+    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", "menu-texts-de": "src/menu-labels-de.js", labels: "src/all-labels.js", styles: "src/styles.css" },
     outdir: "dist",
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",

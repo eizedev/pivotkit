@@ -2,24 +2,15 @@
  * The parts of a menu's panel: a titled section that can fold (its state kept with the tips, see
  * SECTIONS in tips.js), and the "i" next to a setting that needs explaining (Options → Help → "Show
  * explanations" hides them all). One way to explain a setting: an "i" next to it; a menu row stays one
- * line. What the report knows about these comes from HelpContext (PivotReport provides it).
+ * line. What the report knows about these comes from HelpContext (help.js, PivotReport provides it).
+ * Only the menus use these, so they load with them (menus.js), not with the report.
  */
 
-import React, { createContext, useContext, useId } from "react";
+import React, { useContext, useId } from "react";
+import { HelpContext } from "./help.js";
 import { Icon } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
-
-/**
- * @typedef {object} Help
- * @property {boolean} explain  the "i" of the settings are shown
- * @property {(id: string) => boolean} isOpen  whether a section is open
- * @property {(id: string, open: boolean) => void} setOpen
- * @property {import("./labels.js").UiLabels | null} labels
- */
-
-/** @type {React.Context<Help>} */
-export const HelpContext = createContext(/** @type {Help} */ ({ explain: true, isOpen: () => true, setOpen: () => {}, labels: null }));
 
 /**
  * The "i" next to a setting: its explanation (labels.settingInfo[id], loaded with the menus) on

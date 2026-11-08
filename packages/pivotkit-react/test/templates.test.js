@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 import { toViewFile } from "pivotkit-core";
 import { templateEntries, viewsName } from "../src/templates.js";
 import { VIEW_STORE_LIMITS, changedViews, storeViews, storedViews } from "../src/view-store.js";
-import { MENU_LABELS } from "../src/menu-labels.js";
 import { isLoadedEntry, saveAsTarget, saveTarget } from "../src/view-save.js";
+import { de as menuDe } from "../src/menu-labels-de.js";
+import { en as menuEn } from "../src/menu-labels.js";
+
+/** The menus' texts of both languages (German is a chunk of its own in the package). */
+const MENU_LABELS = { en: menuEn, de: menuDe };
 
 const VIEW = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
 const tooMuch = (kind, max) => `${kind} ${max}`;
