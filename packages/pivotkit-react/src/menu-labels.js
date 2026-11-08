@@ -31,7 +31,8 @@ export const en = {
     },
     moveLeft: "Move left",
     moveRight: "Move right",
-    remove: "Remove",
+    // the foot of a chip menu: takes the field (or value) out of the report; "Remove" alone is a form's (removeSetting)
+    remove: "Remove field",
     // the hint of "Automatic" in the chart type menu: the type it draws for this view
     chartAutoNow: "Now: {type}",
     // the Views menu: the host's shared views, the user's own ("My views") and the browser store
@@ -237,7 +238,7 @@ export const de = {
     },
     moveLeft: "Nach links",
     moveRight: "Nach rechts",
-    remove: "Entfernen",
+    remove: "Feld entfernen",
     chartAutoNow: "Jetzt: {type}",
     sharedViews: "Gemeinsame Ansichten",
     myViews: "Meine Ansichten",

@@ -11,6 +11,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The forms of a row or column field's menu (number ranges, Top N, value condition) remove what
   they set with **Remove** (was "Clear"; label key `removeSetting`, was `clear`), and Apply with an
   empty number removes it too instead of asking for a number. One undo step, as before.
+- The foot of a chip menu reads **Remove field** ("Feld entfernen"), so it is not mistaken for a
+  form's Remove.
 
 ### Fixed
 

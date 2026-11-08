@@ -26,7 +26,7 @@ version is [What pivotkit does](overview.md).
 - Each zone's title has an "i" that says what the zone does, with an example; Options, Help switches it ([guide](guide.md#menus-and-text-fields)).
 - Chips show what is set on them: "3 of 4", "Top 5", "Sum of Revenue > 1,000" (a long condition ends in "…"), the sort; screen readers hear the same ([guide](guide.md#chips)).
 - After a removal the focus goes to the neighbouring chip, or to the zone; a note in the status line offers Undo ("Region removed") ([guide](guide.md#chips)).
-- A field that leaves the report (its x, Remove, dragged to the field list) takes its filters and its sort with it ([filters](concepts/filters.md#filters-in-the-ui)).
+- A field that leaves the report (its x, Remove field, dragged to the field list) takes its filters and its sort with it ([filters](concepts/filters.md#filters-in-the-ui)).
 - An empty report shows three first steps and up to three saved views to start from ([guide](guide.md#adding-fields)).
 - Sort by label; "Largest … first" and "Smallest … first" for each value that gives a number, so with several values the user picks the one that orders the items; "Custom order" when the host gives a field its order of items ([filters](concepts/filters.md#sorting)).
 - Swap rows and columns sits above Columns; it drops its text where the zone is narrow ([React reference](reference/react.md#layout)). It swaps the fields, the collapsed groups and the direction of calculations (% of row total to % of column total, along Rows to along Columns) ([guide](guide.md#the-table)).

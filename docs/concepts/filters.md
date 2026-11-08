@@ -124,6 +124,6 @@ the default). **Remove**, or Apply with no count, removes it; one undo step.
 ![The menu of Region: the value condition "Sum of Revenue > 2,000,000" in the accent colour and its form, open](../assets/screenshots/value-filter.png)
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
-report - its **x**, Remove in its menu, or dragged back to the field list - takes its filters and its
+report - its **x**, Remove field in its menu, or dragged back to the field list - takes its filters and its
 sort with it; moved to Values, it leaves its filters behind. [Using the report](../guide.md#filters)
 shows the filter itself.
