@@ -181,23 +181,26 @@ the report's first load stays small.
   texts as text and its styles set through the CSSOM, so a Content-Security-Policy without
   `style-src 'unsafe-inline'` allows it.
 - Toolbar: Table or Chart, the chart type, Undo (Ctrl/Cmd+Z), Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y),
-  Reset to the start view, New (an empty report, the start screen; Reset and New are one step Undo
-  takes back, and both take the loaded view's name away, which Undo brings back), Layout (a toggle
+  Reset to the start view (one step Undo takes back; it takes the loaded view's name away, which
+  Undo brings back), Layout (a toggle
   with `aria-pressed`: the zones open or folded into one line), Options, the name of the view loaded (a saved view, a view file, a link)
-  with a dot while it has unsaved changes, Views (This view: Save, Save as, New; Shared views, My
+  with a dot while it has unsaved changes, Views (This view: Save, Save as, New, an empty report that Undo takes back; Shared views, My
   views with delete and publish, and Share: link, JSON, the
   [view file](https://pivotkit.eize.dev/reference/view-file/), load one; a view made for other data
   asks first), Export (XLSX and CSV of the table, PNG of the chart; all off with "Add a field first."
-  while no field is placed). Every button has its text; when the report is too narrow, Reset, New,
-  Layout, Views, Options and the chart type move one by one into a "More" menu, by the width only;
-  the view's name takes the room left and is cut with "…".
+  while no field is placed). Every button has its text; when the report is too narrow, Reset,
+  Layout, Options, the chart type and Views last move one by one into a "More" menu, by the width only
+  (Views shows from about 1280 px, the chart type then in "More"); the view's name takes the room
+  left and is cut with "…", never below 4em.
 - Save writes the loaded view under its name in one click: a view of the browser store in its place,
   a user's view of the host through `onSaveTemplate` (`scope: "user"`), a shared view through
   `onPublishTemplate` when `canPublish`, after "Replace the shared view “…” for everyone?". It is
   off, with the reason, for a shared view the user may not change ("Shared view: you cannot change
   it. Use Save as."), for a view from a file or a link ("Not saved yet. Use Save as.") and while
   the report is empty. Save as is the name field: a name that exists among the user's views asks
-  "“…” exists. Replace it?" first (Replace, Cancel). The view's name in the toolbar opens Views;
+  "“…” exists. Replace it?" first (Replace, Cancel; the focus on Cancel). Every save closes the
+  menu, the focus back on Views (or More); the view loaded has a check mark and `aria-current` in
+  its group, and More shows the dot for unsaved changes while Views is in it. The view's name in the toolbar opens Views;
   Undo and Redo move it with the view; another source keeps the view but not its name, and so does
   a reload with `persistView`.
 - Host notes: Save and Save as call `onSaveTemplate` and `onPublishTemplate` with a name that

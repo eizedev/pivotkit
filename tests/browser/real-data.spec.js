@@ -113,6 +113,8 @@ test.describe("countries", () => {
     });
 
     test("population per income group: chart and its table", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await open(page, "data=countries&preset=3");
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await expect(page.getByTestId("chart-type")).toContainText("Stacked bars");
@@ -400,6 +402,8 @@ test.describe("learning tasks", () => {
     });
 
     test("end of life: category as a heatmap; the median instead of the average", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await open(page, "data=endoflife&preset=0");
         await page.getByTestId("field-menu-Category").click();
         await page.getByRole("menuitem", { name: "Add to Columns" }).click();

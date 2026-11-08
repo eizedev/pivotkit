@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chips, expect, test } from "./fixtures.js";
+import { chips, expect, test, toolbar } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -13,6 +13,8 @@ const BY_MONTH = { name: "Month by month", field: "Month", by: "yearMonth" };
 
 test.describe("the chart type the data suggests", () => {
     test("no type chosen: dates on Columns draw lines with the months along the axis; the table keeps its layout", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart" }));
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await expect(page.getByTestId("chart-summary")).toContainText(/^Lines: Sum of Revenue by Month by month\./);
@@ -25,6 +27,8 @@ test.describe("the chart type the data suggests", () => {
     });
 
     test("a type the user chose stays, with a one-click suggestion that draws lines over time", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "bar" } }));
         await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
         const tip = page.getByTestId("tip-chartOverTime");
@@ -181,7 +185,7 @@ test("a date grouping is named in words: Month by month, Month nach Monat", asyn
     }
 });
 
-test("after a save the Views menu stays open with Copy link one click away, and the save tip goes", async ({ page }) => {
+test("a save closes the Views menu, the focus back on Views; the saved view is marked there, and the save tip goes", async ({ page }) => {
     await page.goto("?data=tickets");
     // five changes make the tip to save; the tips before it in the queue are dismissed
     for (let i = 0; i < 5; i++) await page.getByTestId("swap").click();
@@ -192,9 +196,11 @@ test("after a save the Views menu stays open with Copy link one click away, and 
     await page.getByTestId("tip-action-saveTemplate").click();
     await page.getByTestId("saved-view-name").fill("Mine");
     await page.getByTestId("saved-view-name").press("Enter");
-    await expect(page.getByTestId("saved-view-Mine")).toBeVisible();
+    await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
+    await expect(page.getByTestId("views")).toBeFocused();
+    await toolbar(page, "views");
+    await expect(page.getByTestId("saved-view-Mine")).toHaveAttribute("aria-current", "true");
     await expect(page.getByTestId("copy-link")).toBeVisible();
-    await expect(page.getByTestId("saved-view-name")).toBeFocused();
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("tip-saveTemplate")).toHaveCount(0);

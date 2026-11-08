@@ -9,14 +9,13 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { VIEW_FILE_LIMITS } from "pivotkit-core";
 import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
-import { activeIn } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
 import { Section, SettingInfo } from "./section.jsx";
 import { SHORTCUTS } from "./tips.js";
 import { TOTALS, totalNoEffect } from "./view-ops.js";
-import { canSaveAs, saveAsTarget, saveTarget } from "./view-save.js";
+import { canSaveAs, isLoadedEntry, saveAsTarget, saveTarget } from "./view-save.js";
 import { storeViews } from "./view-store.js";
 
 function ChartTypeOptions({ view, plan, labels, onChart, close }) {
@@ -260,21 +259,22 @@ export function OptionsPanel({ view, labels, onTotal, onExpand, onCollapse, clos
 
 /**
  * A question in place of what asked it (Save as onto a name that is taken, Save over a shared view):
- * it takes the focus; Cancel (`onNo`) gives it back to whatever comes in its place.
+ * it takes the focus on Cancel, so Enter never writes over a view by accident; Cancel (`onNo`) gives
+ * the focus back to whatever comes in its place.
  * @param {{ question: string, action: string, cancel: string, onYes: () => void, onNo: () => void, testId: string, yesId: string, noId: string }} props
  */
 function Confirm({ question, action, cancel, onYes, onNo, testId, yesId, noId }) {
-    const yes = useRef(/** @type {HTMLButtonElement | null} */ (null));
+    const no = useRef(/** @type {HTMLButtonElement | null} */ (null));
     useEffect(() => {
-        yes.current?.focus({ preventScroll: true });
+        no.current?.focus({ preventScroll: true });
     }, []);
     return (
         <div className="pk-confirm pk-save-confirm" role="group" aria-label={question} data-testid={testId}>
             <span className="pk-confirm-text">{question}</span>
-            <button ref={yes} type="button" className="pk-btn pk-primary" data-autofocus="" data-testid={yesId} onClick={onYes}>
+            <button type="button" className="pk-btn pk-primary" data-testid={yesId} onClick={onYes}>
                 {action}
             </button>
-            <button type="button" className="pk-btn" data-testid={noId} onClick={onNo}>
+            <button ref={no} type="button" className="pk-btn" data-autofocus="" data-testid={noId} onClick={onNo}>
                 {cancel}
             </button>
         </div>
@@ -284,11 +284,11 @@ function Confirm({ question, action, cancel, onYes, onNo, testId, yesId, noId })
 /**
  * Save the view under a name (Save as). A name that is taken asks first, in place of the field
  * (`resolve`: view-save.js's saveAsTarget): Replace writes over that view, Cancel goes back to the
- * field with the name in it. The menu stays open after a save: the new entry shows in the list, and
- * sharing ("Copy link") is one click away; the field is empty again and keeps the focus.
- * @param {{ labels: any, button: string, onSave: (name: string, target: any) => unknown, resolve: (name: string) => any }} props
+ * field with the name in it. A save closes the menu, as Save "…" does (the focus goes back to its
+ * button); the note says whether it was saved.
+ * @param {{ labels: any, button: string, onSave: (name: string, target: any) => unknown, resolve: (name: string) => any, close: () => void }} props
  */
-function SaveView({ labels, button, onSave, resolve }) {
+function SaveView({ labels, button, onSave, resolve, close }) {
     const [name, setName] = useState("");
     // the save that would replace a view, while the question is open
     const [asking, setAsking] = useState(/** @type {any} */ (null));
@@ -312,9 +312,8 @@ function SaveView({ labels, button, onSave, resolve }) {
                 yesId="confirm-replace"
                 noId="cancel-replace"
                 onYes={() => {
+                    close();
                     onSave(asking.name, asking.target);
-                    setName("");
-                    setAsking(null);
                 }}
                 onNo={() => setAsking(null)}
             />
@@ -330,20 +329,8 @@ function SaveView({ labels, button, onSave, resolve }) {
                 if (target?.replaces) {
                     setAsking({ name: wanted, target });
                 } else if (target) {
-                    const saved = onSave(wanted, target);
-                    setName("");
-                    field.current?.focus({ preventScroll: true });
-                    // the host's new list renders the menu again: the field keeps the focus after it,
-                    // unless the user went on to another field
-                    Promise.resolve(saved).then(() =>
-                        requestAnimationFrame(() => {
-                            const el = field.current;
-                            const now = el ? activeIn(el) : null;
-                            if (el && el.isConnected && now !== el && !(now instanceof HTMLInputElement || now instanceof HTMLTextAreaElement)) {
-                                el.focus({ preventScroll: true });
-                            }
-                        })
-                    );
+                    close();
+                    onSave(wanted, target);
                 }
             }}
         >
@@ -677,7 +664,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
         );
         return (
             <div key={`${at}:${t.name}`} className="pk-template" data-pk-entry={keyOf(t)}>
-                <Option icon="bookmark" onSelect={() => { close(); onLoad(t); }} testId={`saved-view-${t.name}`}>
+                <Option icon="bookmark" current={isLoadedEntry(t, actions.loaded)} onSelect={() => { close(); onLoad(t); }} testId={`saved-view-${t.name}`}>
                     {t.name}
                 </Option>
                 {onPublish && t.scope === "user" ? button("publish", "upload", fill(labels.publishView, { name: t.name })) : null}
@@ -713,7 +700,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
                 {canSaveAs(can) ? (
                     <>
                         <div className="pk-subtitle">{actions.loaded ? labels.saveAs : labels.saveView}</div>
-                        <SaveView labels={labels} button={actions.loaded ? labels.saveAs.replace(/…$/, "") : labels.save} onSave={(name, t) => save(t, name)} resolve={(name) => saveAsTarget(name, templates, can)} />
+                        <SaveView labels={labels} button={actions.loaded ? labels.saveAs.replace(/…$/, "") : labels.save} onSave={(name, t) => save(t, name)} resolve={(name) => saveAsTarget(name, templates, can)} close={close} />
                     </>
                 ) : null}
                 <div className="pk-setting-row">

@@ -185,6 +185,9 @@ const SHOTS = [
             await page.getByTestId("saved-view-name").fill("Supported cycles of my products");
             await page.getByTestId("saved-view-name").press("Enter");
             await page.locator(".pk-toast").first().waitFor();
+            // a save closes the menu: open it again, with the saved view marked as the one loaded
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+            await toolbar(page, "views");
             await page.getByTestId("saved-view-name").blur();
         }
     },
@@ -210,7 +213,6 @@ const SHOTS = [
             await page.getByTestId("saved-view-name").fill("Open work by team");
             await page.getByTestId("saved-view-name").press("Enter");
             await page.locator(".pk-toast").first().waitFor();
-            await page.keyboard.press("Escape");
             await page.getByTestId("show-chart").click();
             await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
             await toolbar(page, "views");

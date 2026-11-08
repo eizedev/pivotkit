@@ -1,9 +1,9 @@
 /*
  * The toolbar: Table | Chart, the chart type with how the chart is drawn (value labels, legend, title,
- * smooth lines), Undo, Redo, Reset, New (an empty report), the name of the view loaded (with a mark
- * while it has unsaved changes, next to Views), Layout (the zones folded into one line or open), the table options
- * (totals, expand and collapse, help), Views (the saved views and sharing: link, JSON, file) and
- * export. (Swap rows and columns sits with the zones.) Every button keeps its text. When the report
+ * smooth lines), Undo, Redo, Reset, Layout (the zones folded into one line or open), the table options
+ * (totals, expand and collapse, help), the name of the view loaded (with a mark while it has unsaved
+ * changes, next to Views), Views (Save, Save as and New; the saved views and sharing: link, JSON,
+ * file) and export. (Swap rows and columns sits with the zones.) Every button keeps its text. When the report
  * is too narrow for all of them, the less used ones move, one by one, into a "More" menu
  * (OVERFLOW_ORDER), always in the same order whatever their state, by the toolbar's width and not by
  * the length of the texts (TOOLBAR_ROOM); Table | Chart, Undo with Redo and Export always stay, with
@@ -153,7 +153,7 @@ function useOverflow(ref, key, narrow, max, texts) {
  * @param {any} props  see PivotReport for what each one does
  */
 export function Toolbar(props) {
-    const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, onNew, canNew, loadedView, empty, onDisplay, onChart, onChartDisplay, onTotal, onExpand, onCollapse, folding, templates, onLoadTemplate, templateActions, onExport, chartReady, onShowFields, layoutFolded, onLayout, zonesId, share } = props;
+    const { view, labels, size, canUndo, canRedo, canReset, onUndo, onRedo, onReset, loadedView, empty, onDisplay, onChart, onChartDisplay, onTotal, onExpand, onCollapse, folding, templates, onLoadTemplate, templateActions, onExport, chartReady, onShowFields, layoutFolded, onLayout, zonesId, share } = props;
     const tips = { controls: props.tipsControls, on: props.tipsOn, onOn: props.onTipsOn, canReset: props.canResetTips, onReset: props.onResetTips };
     const bar = useRef(/** @type {HTMLDivElement | null} */ (null));
     const more = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -221,11 +221,6 @@ export function Toolbar(props) {
             button: () => <TextButton key="reset" icon="reset" label={labels.reset} onClick={onReset} disabled={!canReset} testId="reset" />,
             entry: (close) => <Option key="reset" inMenu icon="reset" disabled={!canReset} onSelect={() => { close(); onReset(); }} testId="more-reset">{labels.reset}</Option>
         },
-        new: {
-            place: "history",
-            button: () => <TextButton key="new" icon="newFile" label={labels.newReport} onClick={onNew} disabled={!canNew} testId="new" />,
-            entry: (close) => <Option key="new" inMenu icon="newFile" disabled={!canNew} onSelect={() => { close(); onNew(); }} testId="more-new">{labels.newReport}</Option>
-        },
         layout: {
             place: "end",
             // a toggle of the zones: the same text, open or folded; aria-pressed says which
@@ -259,6 +254,13 @@ export function Toolbar(props) {
     // the order of the table is the order in the toolbar and in the menu
     const ORDER = Object.keys(actions);
     const buttons = (place) => ORDER.filter((id) => actions[id].place === place && !hidden.has(id)).map((id) => actions[id].button());
+    // the dot for unsaved changes, with its words for a screen reader: after the name, and on "More"
+    // while Views is in there
+    const changedMark = (testId) => (
+        <span className="pk-view-changed" data-testid={testId}>
+            <span className="pk-sr">{labels.unsavedChanges}</span>
+        </span>
+    );
     // the name of the view loaded, next to Views (before Export while Views is in "More"); it takes the
     // room left and is cut with "…"; a click opens Views (Save is one click more, also on a phone,
     // where Views is in "More")
@@ -273,11 +275,7 @@ export function Toolbar(props) {
             data-testid="view-name"
         >
             <span className="pk-view-name-text">{loadedView.name}</span>
-            {loadedView.changed ? (
-                <span className="pk-view-changed" data-testid="view-changed">
-                    <span className="pk-sr">{labels.unsavedChanges}</span>
-                </span>
-            ) : null}
+            {loadedView.changed ? changedMark("view-changed") : null}
         </button>
     ) : null;
     const end = buttons("end");
@@ -318,7 +316,7 @@ export function Toolbar(props) {
                 {(close) => <MenuPanel name="ExportPanel" loadingText={labels.loadingMenu} props={{ labels, onExport, chartReady, display: view.display, empty, prepare: props.prepareExport, close }} />}
             </MenuButton>
             {level > 0 ? (
-                <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more}>
+                <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more} mark={hidden.has("views") && loadedView?.changed ? changedMark("more-changed") : null}>
                     {(close) => ORDER.filter((id) => hidden.has(id)).map((id) => actions[id].entry(close))}
                 </MenuButton>
             ) : null}

@@ -1,4 +1,4 @@
-// Save, Save as and New in the Views menu and the toolbar: the loaded view's name next to Views with a
+// Save, Save as and New in the Views menu, Views in the toolbar of a desktop window: the loaded view's name next to Views with a
 // mark while it has unsaved changes (gone after New and Reset), Save under that name (the browser store in its place, a shared
 // view only for a user who may publish), Save as asking before it replaces a view of the same name,
 // New (an empty report) that Undo takes back; and the Export menu off for an empty report.
@@ -9,15 +9,62 @@ const mine = (scope) => scope.locator('[data-section="myViews"] [data-pk-entry] 
 /** The browser store of the playground's report, parsed. */
 const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("pivotkit:views:playground") ?? "null"));
 
-/** Opens the Views menu of an element (its own button, or through "More"). */
+/** Opens the Views menu of an element (its own button, or through "More"); an open one stays open. */
 async function elementViews(report) {
     const views = report.getByTestId("views");
-    if (await views.count()) await views.click();
+    if (await views.count()) {
+        if ((await views.getAttribute("aria-expanded")) !== "true") await views.click();
+    }
     else {
         await report.getByTestId("more").click();
         await report.getByTestId("more-views").click();
     }
 }
+
+for (const width of [1280, 1440]) {
+    test(`a desktop window ${width} px wide: Views stays in the toolbar with a view loaded, next to its name`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto("?data=tickets");
+        await toolbar(page, "views");
+        await page.getByTestId("saved-view-Median lead time by month").click();
+        await page.keyboard.press("Escape");
+        await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
+        // Views is the last button to move into "More": a first-time user finds where to save
+        const bar = page.locator(".pk-toolbar");
+        await expect(bar.getByTestId("views")).toBeVisible();
+        await expect(bar.getByTestId("view-name")).toBeVisible();
+        if (await bar.getByTestId("more").count()) {
+            await bar.getByTestId("more").click();
+            await expect(page.getByTestId("more-views")).toHaveCount(0);
+            // the trade-off: at 1280 px the chart type is the button that makes room for Views
+            await expect(page.getByTestId("more-chart-type")).toHaveCount(width === 1280 ? 1 : 0);
+            await page.keyboard.press("Escape");
+        }
+        // the name never shrinks below its 4em: a few letters always show
+        const em = await bar.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+        expect((await bar.getByTestId("view-name").boundingBox()).width).toBeGreaterThanOrEqual(4 * em - 0.5);
+        // the name sits before Views and never pushes it out of the toolbar's line
+        const name = await bar.getByTestId("view-name").boundingBox();
+        const views = await bar.getByTestId("views").boundingBox();
+        const box = await bar.boundingBox();
+        expect(name.x + name.width).toBeLessThanOrEqual(views.x);
+        expect(views.x + views.width).toBeLessThanOrEqual(box.x + box.width);
+    });
+}
+
+test("on a phone, with Views in More: More carries the dot for unsaved changes too", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("?data=tickets");
+    await toolbar(page, "views");
+    await page.getByTestId("saved-view-Median lead time by month").click();
+    await expect(page.getByTestId("view-name")).toHaveText("Median lead time by month");
+    await expect(page.getByTestId("more-changed")).toHaveCount(0);
+    // a change: the other of Table and Chart
+    const chart = (await page.getByTestId("show-chart").getAttribute("aria-pressed")) === "true";
+    await page.getByTestId(chart ? "show-table" : "show-chart").click();
+    await expect(page.getByTestId("more").getByTestId("more-changed")).toHaveText("Unsaved changes");
+    await expect(page.getByTestId("view-changed")).toHaveCount(1);
+});
 
 test("Save writes the loaded view under its name; the toolbar marks unsaved changes", async ({ page }) => {
     await page.goto("?data=tickets");
@@ -29,6 +76,12 @@ test("Save writes the loaded view under its name; the toolbar marks unsaved chan
     await page.getByTestId("saved-view-name").fill("Mine");
     await page.getByTestId("saved-view-name").press("Enter");
     await expect(page.locator(".pk-toasts")).toContainText("View “Mine” saved");
+    // a save closes the menu, the focus back on Views; there the saved view is marked as the one loaded
+    await expect(page.getByTestId("views")).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByTestId("views")).toBeFocused();
+    await toolbar(page, "views");
+    await expect(page.getByTestId("saved-view-Mine")).toHaveAttribute("aria-current", "true");
+    await page.keyboard.press("Escape");
     // the view shown is the saved one now: its name next to Views, no mark
     await expect(page.getByTestId("view-name")).toHaveText("Mine");
     await expect(page.getByTestId("view-changed")).toHaveCount(0);
@@ -37,6 +90,8 @@ test("Save writes the loaded view under its name; the toolbar marks unsaved chan
     // a change: the mark, with its words for a screen reader
     await page.getByTestId("show-chart").click();
     await expect(page.getByTestId("view-changed")).toHaveText("Unsaved changes");
+    // Views is in the toolbar: no dot on More
+    await expect(page.getByTestId("more-changed")).toHaveCount(0);
     await expect(page.getByTestId("view-name")).toHaveAttribute("title", "Mine (Unsaved changes)");
     // Save: one click, the same name, in its place in the store; the menu closes
     await toolbar(page, "views");
@@ -69,7 +124,8 @@ test("Save as onto a name that exists asks first: Cancel keeps the view, Replace
     await page.getByTestId("saved-view-name").fill("Mine");
     await page.getByTestId("saved-view-name").press("Enter");
     await expect(page.getByTestId("replace-confirm")).toContainText("“Mine” exists. Replace it?");
-    await expect(page.getByTestId("confirm-replace")).toBeFocused();
+    // the focus on Cancel: Enter never writes over a view by accident
+    await expect(page.getByTestId("cancel-replace")).toBeFocused();
     // Cancel: nothing saved, the field again with the name in it and the focus
     await page.getByTestId("cancel-replace").click();
     await expect(page.getByTestId("saved-view-name")).toHaveValue("Mine");
@@ -82,6 +138,8 @@ test("Save as onto a name that exists asks first: Cancel keeps the view, Replace
     const views = await stored(page);
     expect(views.map((v) => v.name)).toEqual(["Mine"]);
     expect(views[0].view.display).toBe("chart");
+    await expect(page.getByTestId("views")).toBeFocused();
+    await toolbar(page, "views");
     expect(await mine(page)).toEqual(["Mine"]);
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");
 });
@@ -94,7 +152,8 @@ test("New and Reset take the loaded view's name away; Undo brings the view and i
     const before = await chips(page, "values");
     expect(before.length).toBeGreaterThan(0);
 
-    await toolbar(page, "new");
+    await toolbar(page, "views");
+    await page.getByTestId("new-report").click();
     await expect(page.getByTestId("empty-state")).toContainText("Build your report in three steps");
     await expect(page.locator(".pk-toasts")).toContainText("New, empty report");
     await expect(page.getByTestId("view-name")).toHaveCount(0);
@@ -165,6 +224,7 @@ test("web component: a shared view saves only for a user who may publish; New an
     // no publish anywhere: the user's own view has no Publish either, and no event was sent
     await report.getByTestId("saved-view-name").fill("Mine");
     await report.getByTestId("saved-view-name").press("Enter");
+    await elementViews(report);
     await expect(report.getByTestId("saved-view-Mine")).toBeVisible();
     await expect(report.locator('[data-testid^="publish-view-"]')).toHaveCount(0);
     expect(await page.evaluate(() => window.__events)).toEqual([]);
@@ -178,8 +238,9 @@ test("web component: a shared view saves only for a user who may publish; New an
     await elementViews(report);
     await report.getByTestId("save-loaded").click();
     await expect(report.getByTestId("replace-shared-confirm")).toContainText("Replace the shared view “Team view” for everyone?");
-    await expect(report.getByTestId("confirm-replace-shared")).toBeFocused();
-    await report.getByTestId("cancel-replace-shared").click();
+    // the focus on Cancel: Enter cancels
+    await expect(report.getByTestId("cancel-replace-shared")).toBeFocused();
+    await page.keyboard.press("Enter");
     expect(await page.evaluate(() => window.__events)).toEqual([]);
     await report.getByTestId("save-loaded").click();
     await report.getByTestId("confirm-replace-shared").click();
@@ -288,6 +349,7 @@ test("a view from a file or a link has a name but is not among the saved views: 
     await page.getByTestId("saved-view-name").press("Enter");
     await expect(page.locator(".pk-toasts")).toContainText("View “Tmp” saved");
     const file = await page.evaluate(() => ({ ...JSON.parse(localStorage.getItem("pivotkit:views:playground"))[0], name: "From a file" }));
+    await toolbar(page, "views");
     await page.getByTestId("load-view").click();
     await page.getByTestId("load-view-text").fill(JSON.stringify(file));
     await page.getByTestId("load-view-apply").click();
@@ -312,11 +374,8 @@ test("web component: a slow save that answers after New or after another view is
     await report.getByTestId("saved-view-name").fill("Slow");
     await report.getByTestId("saved-view-name").press("Enter");
     await page.keyboard.press("Escape");
-    if (await report.getByTestId("new").count()) await report.getByTestId("new").click();
-    else {
-        await report.getByTestId("more").click();
-        await report.getByTestId("more-new").click();
-    }
+    await elementViews(report);
+    await report.getByTestId("new-report").click();
     await expect(report.getByTestId("empty-state")).toBeVisible();
     await expect(report.locator(".pk-toasts")).toContainText("View “Slow” saved");
     await expect(report.getByTestId("view-name")).toHaveCount(0);
@@ -326,6 +385,7 @@ test("web component: a slow save that answers after New or after another view is
     await elementViews(report);
     await report.getByTestId("saved-view-name").fill("Later");
     await report.getByTestId("saved-view-name").press("Enter");
+    await elementViews(report);
     await report.getByTestId("saved-view-Team view").click();
     await expect(report.locator(".pk-toasts")).toContainText("View “Later” saved");
     await expect(report.getByTestId("view-name")).toHaveText("Team view");

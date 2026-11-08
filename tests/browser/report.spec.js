@@ -173,6 +173,8 @@ test.describe("filter, table and chart", () => {
     });
 
     test("table and chart, chart types, and the PNG export", async ({ page }) => {
+        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto("?data=tickets");
         await page.getByTestId("show-chart").click();
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();

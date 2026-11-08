@@ -17,7 +17,7 @@ their own data.
 | **Undo** | Ctrl+Z, on a Mac Cmd+Z | Takes back the last change. |
 | **Redo** | Ctrl+Shift+Z or Ctrl+Y, on a Mac Cmd+Shift+Z | Repeats it. |
 | **Reset** | | Goes back to the start view, as one step you can undo. |
-| **New** | | Empties the report: no fields, the three first steps. One step you can undo; greyed out while the report is empty. |
+| **New, empty report** (in Views) | | Empties the report: no fields, the three first steps. One step you can undo; greyed out while the report is empty. |
 
 Every change is a step: placing a field, a filter, a chart setting, loading a view. Saved views are
 not changed by any of them, only by saving.
@@ -26,7 +26,8 @@ not changed by any of them, only by saving.
 
 When you load a saved view, open a view file or a link, its name stands in the toolbar next to
 **Views** (before **Export** when Views is in **More**). A dot after the name means the report has changes you have not saved yet; it goes when you
-save, or when Undo brings the report back to the view as it was saved.
+save, or when Undo brings the report back to the view as it was saved. While Views is in **More**
+(on a phone), **More** shows the same dot.
 
 ![The toolbar with the name of the loaded view and the dot for unsaved changes](../assets/screenshots/view-name-light.png#only-light)
 ![The toolbar with the name of the loaded view and the dot for unsaved changes](../assets/screenshots/view-name-dark.png#only-dark)
@@ -44,7 +45,7 @@ save, or when Undo brings the report back to the view as it was saved.
 
 **Views** in the toolbar starts with **This view** (save and start over), then lists the saved
 reports in two groups, then **Share**. Each entry loads its view with one click; the first three are
-also offered in the empty report.
+also offered in the empty report. The view you loaded has a check mark in its group.
 
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-light.png#only-light)
 ![The Views menu with Shared views, My views with a saved view, the save field and the note where it is kept](../assets/screenshots/views-menu-dark.png#only-dark)
@@ -88,19 +89,20 @@ Where you may publish views, **Save** on a shared view asks first, in place: "Re
 3. Press **Save** (**Save as**) or Enter. The button is greyed out while the name is empty.
 
 When one of your views already has that name, the report asks in place of the field: "“…” exists.
-Replace it?" **Replace** writes over that view; **Cancel** brings the field back with the name in it,
-so you can change it. A shared view of the same name stays as it is: Save as saves your own.
+Replace it?" **Replace** writes over that view; **Cancel**, which has the focus so that Enter does
+not replace anything, brings the field back with the name in it, so you can change it. A shared view
+of the same name stays as it is: Save as saves your own.
 
-The menu stays open with the new entry and the name field empty, so **Copy link** is one click away.
-The name field has an **×**; Escape in it empties it first, then closes the menu. Every name is shown
+Every save closes the menu, the same for **Save “…”**, **Save current view** and **Save as**, and the
+focus goes back to **Views** (or **More**); a note says "View “…” saved". The name field has an **×**; Escape in it empties it first, then closes the menu. Every name is shown
 as plain text.
 
 ### Start over with an empty report
 
-**New** next to Reset in the toolbar (in **More** on a narrow screen), or **New, empty report** in
-Views, empties the report: no fields, the three first steps and up to three saved views to start
-from. "New, empty report" appears with **Undo**, which brings the report back. Saved views are not
-changed. The **i** next to the entry in Views says the same.
+**New, empty report** in Views (under This view, with Save and Save as) empties the report: no
+fields, the three first steps and up to three saved views to start from. "New, empty report" appears
+with **Undo**, which brings the report back. Saved views are not changed. The **i** next to the
+entry in Views says the same.
 
 ### Delete or publish one of your views
 

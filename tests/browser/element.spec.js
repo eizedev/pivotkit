@@ -21,7 +21,8 @@ const zone = (page, host, name) => page.locator(`${host} [data-zone="${name}"] .
 async function tool(host, testId) {
     const own = host.getByTestId(testId);
     if (await own.count()) {
-        await own.click();
+        // an open menu stays open (Views after a save): a click on its button would close it
+        if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
         return;
     }
     await host.getByTestId("more").click();

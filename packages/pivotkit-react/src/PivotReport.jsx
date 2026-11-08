@@ -1228,8 +1228,6 @@ function Report(props) {
                                 onUndo={undo}
                                 onRedo={redo}
                                 onReset={reset}
-                                onNew={newReport}
-                                canNew={!empty}
                                 loadedView={loadedView ? { name: loadedView.name, changed: unsaved } : null}
                                 onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
                                 onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}

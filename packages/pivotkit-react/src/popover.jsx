@@ -202,10 +202,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
  *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
- *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean }} props
- *   `tabIndex`: -1 where a list moves the focus itself (the field list)
+ *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode }} props
+ *   `tabIndex`: -1 where a list moves the focus itself (the field list); `mark`: after the text (the
+ *   dot for unsaved changes on "More")
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark }) {
     const [open, setOpen] = useState(false);
     const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const ref = buttonRef ?? own;
@@ -230,6 +231,7 @@ export function MenuButton({ label, icon, text, showText = true, className, role
             >
                 {icon ? <Icon name={/** @type {any} */ (icon)} /> : null}
                 {showText && text ? <span className="pk-btn-text">{text}</span> : null}
+                {mark}
                 {showText && text ? <Icon name="chevronDown" size={14} className="pk-caret" /> : null}
             </button>
             <Popover open={open} anchor={ref} onClose={close} label={label} role={role} align={align} className={popoverClass} id={id} fill={fill}>
@@ -244,10 +246,11 @@ export function MenuButton({ label, icon, text, showText = true, className, role
  * to the option (a date unit's example); `reason` says why a disabled option does nothing and shows
  * only while it is disabled (it is state, not an explanation: those go into an "i").
  * @param {{ onSelect: () => void, icon?: string, checked?: boolean, children: React.ReactNode, hint?: React.ReactNode,
- *   reason?: React.ReactNode, inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string }} props
- *   `tone`: "accent" for an option that says what is set (a filter)
+ *   reason?: React.ReactNode, inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string, current?: boolean }} props
+ *   `tone`: "accent" for an option that says what is set (a filter); `current`: the entry shown now
+ *   (the view loaded), with a check and aria-current
  */
-export function Option({ onSelect, icon, checked, children, hint, reason, inMenu = false, disabled, danger, tone, testId }) {
+export function Option({ onSelect, icon, checked, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
     const second = disabled && reason ? reason : hint;
     const role = inMenu ? (checked === undefined ? "menuitem" : "menuitemradio") : undefined;
     return (
@@ -256,13 +259,14 @@ export function Option({ onSelect, icon, checked, children, hint, reason, inMenu
             role={role}
             aria-checked={inMenu && checked !== undefined ? checked : undefined}
             aria-pressed={!inMenu && checked !== undefined ? checked : undefined}
+            aria-current={current ? "true" : undefined}
             className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${tone === "accent" ? " pk-accent" : ""}`}
             data-pk-option=""
             data-testid={testId}
             disabled={disabled}
             onClick={onSelect}
         >
-            <span className="pk-option-icon">{checked ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
+            <span className="pk-option-icon">{checked || current ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">
                 {children}
                 {second ? <span className="pk-option-hint">{second}</span> : null}
