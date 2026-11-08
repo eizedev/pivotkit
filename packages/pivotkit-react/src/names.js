@@ -76,10 +76,11 @@ export function groupingName(source, unit, labels, size) {
 export const quickZone = (type) => (type === "number" ? "values" : "rows");
 
 /**
- * What a click on a field of the field list does, from its type and the zones it is in: "add" it to
- * its quick zone (a number is added to Values once more each time), "move" it there from Columns or
- * Filters (a field is on one axis only), or nothing when it is on that axis already. `name` is the
- * button's accessible name (the field and where it is), `description` the action in words.
+ * What a click (or Enter) on a field of the field list does, from its type and the zones it is in:
+ * "add" it to its quick zone, "move" it there from Columns or Filters (a field is on one axis only),
+ * or nothing when it is in that zone already, as in Excel's field list: a number in Values is not
+ * added a second time by a click, only by "Add to Values again" in its menu. `name` is the button's
+ * accessible name (the field and where it is), `description` the action in words.
  * @param {string} field
  * @param {string} type
  * @param {string[]} zones  the zones the field is in
@@ -88,7 +89,7 @@ export const quickZone = (type) => (type === "number" ? "values" : "rows");
  */
 export function fieldAction(field, type, zones, labels) {
     const zone = quickZone(type);
-    const kind = zone === "values" ? "add" : zones.includes(zone) ? null : zones.some((z) => z === "cols" || z === "filters") ? "move" : "add";
+    const kind = zones.includes(zone) ? null : zone !== "values" && zones.some((z) => z === "cols" || z === "filters") ? "move" : "add";
     const name = zones.length ? `${field}, ${fill(labels.inZone, { zone: zones.map((z) => labels.zones[z] ?? z).join(", ") })}` : field;
     const description = kind === null ? "" : fill(kind === "move" ? labels.moveTo : labels.addTo, { zone: labels.zones[zone] });
     return { zone, kind, name, description };

@@ -20,9 +20,9 @@ version is [What pivotkit does](overview.md).
 ## Zones and fields
 
 - Four zones: Rows, Columns, Values, Filters; drag, click or a menu place a field ([guide](guide.md#adding-fields)).
-- A click on a field: numbers go to Values (each click adds another value), the rest to Rows; a field in Columns or Filters moves to Rows; a field in Rows already stays, and the status line says so ([guide](guide.md#adding-fields)).
+- A click on a field (or Enter): numbers go to Values, the rest to Rows; a field in Columns or Filters moves to Rows; a field in that zone already stays (a number in Values is not added again), and the status line says so: "Lead hours is already in Values" ([guide](guide.md#adding-fields)).
 - The grip of a field says "Drag into a zone"; a click on it opens the field's menu ([guide](guide.md#adding-fields)).
-- The field menu: Add to Rows, Columns, Values, Filters, and "Filter…" for a field not placed yet ([filters](#filters)).
+- The field menu: Add to Rows, Columns, Values, Filters, and "Filter…" for a field not placed yet ([filters](#filters)); for a field in Values already, "Add to Values again" adds a second value of it ([guide](guide.md#adding-fields)).
 - Each zone's title has an "i" that says what the zone does, with an example; Options, Help switches it ([guide](guide.md#menus-and-text-fields)).
 - Chips show what is set on them: "3 of 4", "Top 5", "Sum of Revenue > 1,000" (a long condition ends in "…"), the sort; screen readers hear the same ([guide](guide.md#chips)).
 - After a removal the focus goes to the neighbouring chip, or to the zone; a note in the status line offers Undo ("Region removed") ([guide](guide.md#chips)).
@@ -97,7 +97,8 @@ version is [What pivotkit does](overview.md).
 - Automatic (the default until the user picks a type): lines when a date along the time line is on Rows (a weekday or hour of day is categories: bars), lines with the dates along the axis when they are on Columns (swapped for the chart alone), else bars; the menu's "Automatic" says what it draws now ([charts](concepts/charts.md#the-chart-type)).
 - Bars, stacked bars, horizontal bars, lines, area, pie (a whole circle), donut (a ring), heatmap; a click opens the rows behind a mark ([charts](concepts/charts.md)).
 - Display: value labels, legend, title, smooth lines, axis labels, group labels, kept in the view ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
-- A pie or a donut writes its labels outside (name and number on a line to the slice) or inside (the number on the slice, in a colour that reads on it; the legend names the slices); not offered while value labels are off ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
+- A legend on the right of a chart narrower than 480 px (a phone) is drawn at the bottom, so the pie or the plot keeps its width ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
+- A pie or a donut writes its labels outside (name and number on a line to the slice) or inside (the number on the slice, in a colour that reads on it; the legend names the slices; outside when the ring of a donut is too thin for the numbers); not offered while value labels are off ([charts](concepts/charts.md#display-settings-for-the-people-who-use-the-report)).
 - Axis labels: every one when they fit, slanted when needed, else every n-th with a note; long names end in "…", the tooltip has them whole ([charts](concepts/charts.md)).
 - Two fields in Rows: the outer field's items as group labels under the axis, with separators; automatic ones only where the chart has room (not on a phone), On forces them ([charts](concepts/charts.md)).
 - A title wider than the chart ends in "…", on screen and in the PNG ([charts](concepts/charts.md)).

@@ -47,8 +47,8 @@ to Group labels explains them.
 | Setting | Choices | Default |
 | --- | --- | --- |
 | Value labels | Automatic, Off, Value; for a pie and a donut also Percent and Value and percent | Automatic: a pie names its slices, a heatmap writes the numbers while there are 200 cells or fewer, bars and lines write nothing |
-| Labels (pie and donut) | Outside, Inside; not offered while value labels are Off | Outside: each slice's name with what is chosen, on a line to the slice. Inside: only the number on the slice (the share for Automatic), in a colour that reads on it; the legend names the slices, and a slice narrower than 12 degrees gets no label |
-| Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series (a pie and a donut always) |
+| Labels (pie and donut) | Outside, Inside; not offered while value labels are Off | Outside: each slice's name with what is chosen, on a line to the slice. Inside: only the number on the slice (the share for Automatic), in a colour that reads on it; the legend names the slices, and a slice narrower than 12 degrees gets no label. When the ring of a donut is too thin for the numbers (a low or narrow chart), they are written outside, on a line to their slice |
+| Legend | Automatic, Bottom, Right, Off | Automatic: above the chart when there is more than one series (a pie and a donut always). Right on a chart narrower than 480 px (a phone) is drawn at the bottom, so the chart keeps its width |
 | Title | any text; the × removes it at once. A title wider than the chart ends in "…", on screen and in the PNG | none |
 | Smooth lines | on, off (lines and area only) | off |
 | Axis labels | Automatic, All (slanted), Every n-th (bars, lines and areas) | Automatic |

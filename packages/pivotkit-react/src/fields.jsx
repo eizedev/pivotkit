@@ -1,6 +1,8 @@
 /*
  * The field list: every column of the data with its type, searchable, each one draggable into a zone,
- * with a quick add (click: numbers go to Values, everything else to Rows) and a menu for every zone.
+ * with a quick add (click: numbers go to Values, everything else to Rows; a field in that zone already
+ * stays, and the status line says so) and a menu for every zone ("Add to Values again" for a second
+ * value of a field).
  * Dropping a chip here removes it from the report. On a narrow report it is a modal drawer. A field
  * shows its display name and, when the host describes it (fieldDefaults), an "i" with the description;
  * the search finds a field by its name, its display name and its description. A field not in the report
@@ -105,7 +107,8 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
                                     onAdd(field.name, zone);
                                 }}
                             >
-                                {fill(labels.addTo, { zone: labels.zones[zone] })}
+                                {/* a second value of a field in Values is asked for here, never by a click */}
+                                {fill(zone === "values" && zones.includes("values") ? labels.addAgain : labels.addTo, { zone: labels.zones[zone] })}
                             </Option>
                         ))}
                         {zones.length === 0 && onFilter ? (

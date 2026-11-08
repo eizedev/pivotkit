@@ -86,6 +86,38 @@ export function pieLabelRoom(height) {
     return Math.round(Math.min(24, Math.max(0, height) * 0.05));
 }
 
+/**
+ * The least width (px) of a chart that keeps a legend on its right: the legend's column takes 160 px
+ * (pivotkit-core), so a narrower chart (a phone) would squeeze the pie or the plot into a sliver. Below
+ * it the legend is drawn at the bottom instead, with the room pivotkit-core gives a bottom legend.
+ */
+export const RIGHT_LEGEND_MIN_WIDTH = 480;
+/** Room (px) pivotkit-core gives a legend at the bottom of a chart. */
+export const BOTTOM_LEGEND_ROOM = 32;
+
+/** Width (px) of a text in ECharts' 12 px labels, estimated: digits, signs and letters about 7 px each. */
+const labelWidth = (text) => String(text).length * 7;
+
+/**
+ * Whether the numbers written inside a donut's ring fit across it: the ring is the outer less the
+ * inner radius, both a share (ECharts' "70%") of half the smaller side of the pie's box. A pie (no
+ * inner radius) has room from its centre and always fits.
+ * @param {[string | number, string | number]} radius  the series' radius, inner and outer
+ * @param {{ width: number, height: number }} box  the pie's box: the chart less the room around it
+ * @param {string[]} texts  the labels written on the slices
+ */
+export function ringLabelsFit(radius, box, texts) {
+    const half = Math.max(0, Math.min(box.width, box.height)) / 2;
+    const px = (r) => (typeof r === "number" ? r : /%$/.test(String(r)) ? (parseFloat(String(r)) / 100) * half : parseFloat(String(r)) || 0);
+    const inner = px(radius[0]);
+    if (inner <= 0) {
+        return true;
+    }
+    const ring = px(radius[1]) - inner;
+    // a little room on both sides of the text, so it does not touch the slice's edges
+    return texts.every((t) => labelWidth(t) + 6 <= ring);
+}
+
 /** Width (px) a slanted column name of a heatmap takes at most; a longer one ends in "…". */
 export const SLANTED_LABEL_WIDTH = 120;
 /** Room (px) of a heatmap's chart that is not cells: the row names, the column names and the colour scale. */

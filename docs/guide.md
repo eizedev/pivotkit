@@ -34,13 +34,15 @@ and [Learn with real data](learn.md) has tasks to try on real public data.
 There are three ways, all with the same result:
 
 - **Drag** a field into a zone. The lists and the page scroll while you drag.
-- **Click** a field: numbers go to Values, everything else to Rows. Each click on a number adds
-  another value (a second "Sum of Revenue", to show it as a share, say); a field in Columns or Filters
-  moves to Rows; a field in Rows already stays, and the status line says so ("Region is already in
-  Rows").
+- **Click** a field (or press Enter on it): numbers go to Values, everything else to Rows. A field in
+  Columns or Filters moves to Rows; a field that is in that zone already stays, and the status line
+  says so ("Region is already in Rows", "Revenue is already in Values"), so a second click or Enter
+  never adds it twice.
 - Open the field's **menu** (the three dots, or a click on the grip left of the field, which says
-  "Drag into a zone") and choose "Add to Rows", "Columns", "Values" or "Filters". A field that is not
-  in the report yet also has **Filter…**: see [Filters](#filters).
+  "Drag into a zone") and choose "Add to Rows", "Columns", "Values" or "Filters". For a field in Values
+  already the entry reads "Add to Values again": it adds a second value of the field (a second "Sum
+  of Revenue", to show it as a share, say). A field that is not in the report yet also has
+  **Filter…**: see [Filters](#filters).
 
 A date is grouped as soon as it is placed, by the span of its values: up to 62 days by day, up to two
 years by month ("Jan 2025"), up to six years by quarter, longer by year. The chip says so:

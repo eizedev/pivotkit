@@ -6,7 +6,10 @@
  */
 
 import { tooltipFormatter } from "./chart-tooltip.js";
-import { CATEGORY_LABEL_WIDTH, categoryLabelLayout, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "./chart-types.js";
+import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-types.js";
+
+/** A copy of an object without the given keys. */
+const without = (obj, keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
 
 /**
  * Mark styles on top of the core's option: rounded bar ends, 2 px lines, tooltips in the theme, built
@@ -23,6 +26,18 @@ import { CATEGORY_LABEL_WIDTH, categoryLabelLayout, columnLabelLayout, groupLabe
 export function decorate(option, style, height = 480, doc = undefined, width = 800, extra = {}) {
     const first = (a) => (Array.isArray(a) ? a[0] : a);
     const v = (name) => style.getPropertyValue(name).trim();
+    // a legend on the right of a narrow chart goes to the bottom (RIGHT_LEGEND_MIN_WIDTH): the room the
+    // core keeps for it on the right is given back, the room of a bottom legend taken
+    const rightLegend = option.legend?.orient === "vertical" && typeof option.legend.right === "number";
+    const legendDown = rightLegend && width < RIGHT_LEGEND_MIN_WIDTH;
+    if (legendDown) {
+        option = {
+            ...option,
+            legend: { ...without(option.legend, ["orient", "right", "top"]), bottom: 0 },
+            series: (option.series || []).map((s) => (s.type === "pie" ? { ...without(s, ["right"]), bottom: (typeof s.bottom === "number" ? s.bottom : 0) + BOTTOM_LEGEND_ROOM } : s)),
+            ...(option.grid ? { grid: { ...without(option.grid, ["right"]), bottom: BOTTOM_LEGEND_ROOM + 8 } } : {})
+        };
+    }
     // without the stylesheet the tokens are empty and ECharts keeps its own colours
     const surface = v("--pk-surface") || undefined;
     const tooltip = {
@@ -47,7 +62,20 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
             const room = pieLabelRoom(height);
             const top = (typeof s.top === "number" ? s.top : 0) + room;
             const bottom = (typeof s.bottom === "number" ? s.bottom : 0) + room;
-            return { ...s, top, bottom, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...s.label, color: s.label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+            // numbers inside a ring too thin for them (a low or narrow chart) would spill over its edges
+            // onto the background: they are written outside, on a line to their slice, instead
+            let label = s.label;
+            let line = s.labelLine;
+            if (label?.position === "inside" && label.show !== false && Array.isArray(s.radius)) {
+                const box = { width: width - (typeof s.right === "number" ? s.right : 0), height: height - top - bottom };
+                const total = (s.data || []).reduce((sum, d) => sum + (typeof d.value === "number" ? d.value : 0), 0);
+                const texts = typeof label.formatter === "function" ? (s.data || []).map((d) => label.formatter({ name: d.name, value: d.value, percent: total ? (d.value / total) * 100 : 0 })) : [];
+                if (!ringLabelsFit(s.radius, box, texts)) {
+                    label = without(label, ["position"]);
+                    line = { show: true };
+                }
+            }
+            return { ...s, top, bottom, labelLine: line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one

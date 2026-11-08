@@ -16,6 +16,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A click or Enter on a field of the field list that is in Values already no longer adds it again
+  ("Count of Ticket 2", "3", ... on a repeated Enter): it stays, and the status line says "Ticket is
+  already in Values", as for a field in Rows. A second value of the same field is "Add to Values
+  again" in the field's menu (label `addAgain`).
+- A donut on a narrow chart: a legend on the right of a chart narrower than 480 px is drawn at the
+  bottom, so the ring keeps its width, and numbers inside a ring too thin for them are written
+  outside on a line instead of spilling over its edges.
 - A colour scale in the theme's colours (Highlight, "Colour scale") no longer shows "Some parts of the
   view were not used" (pivotkit-core's normalize).
 

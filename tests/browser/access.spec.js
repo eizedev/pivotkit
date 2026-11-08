@@ -170,6 +170,27 @@ test.describe("names, roles and sizes", () => {
         await expect(page.locator(".pk-toasts")).toContainText("Priority is already in Rows");
     });
 
+    test("Enter on a number in Values adds no second value; its menu does, as Add to Values again", async ({ page }) => {
+        await page.goto("?data=tickets");
+        const field = page.locator('.pk-field[data-field="Lead hours"] .pk-field-name');
+        await field.focus();
+        await page.keyboard.press("Enter");
+        await expect.poll(() => chips(page, "values")).toEqual(["Count of Ticket", "Average of Lead hours"]);
+        await expect(field).toHaveAccessibleName("Lead hours, in Values");
+        await expect(field).toHaveAccessibleDescription("");
+        // pressed again and again: nothing piles up, the status line says where the field is
+        await page.keyboard.press("Enter");
+        await page.keyboard.press("Enter");
+        await expect(page.locator(".pk-toasts")).toContainText("Lead hours is already in Values");
+        expect(await chips(page, "values")).toEqual(["Count of Ticket", "Average of Lead hours"]);
+        await expect(field).toBeFocused();
+        // a second value of the same field is a choice of its own, in the field's menu
+        await page.getByTestId("field-menu-Lead hours").click();
+        await expect(page.getByRole("menuitem", { name: "Add to Values", exact: true })).toHaveCount(0);
+        await page.getByRole("menuitem", { name: "Add to Values again" }).click();
+        await expect.poll(() => chips(page, "values")).toEqual(["Count of Ticket", "Average of Lead hours", "Average of Lead hours"]);
+    });
+
     test("every control is at least 24 by 24 px (WCAG 2.5.8), wide and narrow", async ({ page }) => {
         // measured at rest: the chips scale in when they appear
         await page.emulateMedia({ reducedMotion: "reduce" });

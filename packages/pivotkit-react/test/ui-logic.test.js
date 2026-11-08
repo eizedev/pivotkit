@@ -2,10 +2,11 @@
 // screen reader hears, the chart's text alternative and hints, file names and labels from a host.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, toGrid, toSeries } from "pivotkit-core";
+import { computePivot, encode, toEChartsOption, toGrid, toSeries } from "pivotkit-core";
+import { decorate } from "../src/chart-decorate.js";
 import { chartSummary } from "../src/chart-summary.js";
 import { tooltipContent, tooltipFormatter } from "../src/chart-tooltip.js";
-import { SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, rowLabelInterval } from "../src/chart-types.js";
+import { BOTTOM_LEGEND_ROOM, SLANTED_LABEL_WIDTH, columnLabelLayout, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "../src/chart-types.js";
 import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
@@ -168,8 +169,12 @@ test("a field of the field list says where it is and what a click on it does", (
     assert.deepEqual(at("string", ["rows"]), [null, "rows", "Priority, in Rows", ""]);
     // counted in Values, not on an axis: a click adds it to Rows
     assert.deepEqual(at("string", ["values"]), ["add", "rows", "Priority, in Values", "Add to Rows"]);
-    // a number is added to Values once more
-    assert.deepEqual(at("number", ["values", "rows"]), ["add", "values", "Priority, in Values, Rows", "Add to Values"]);
+    // a number goes to Values; in Values already, a click adds no second value (that is the menu's
+    // "Add to Values again"), so a repeated Enter cannot pile up "Count of Ticket 2", "3", ...
+    assert.deepEqual(at("number", ["rows"]), ["add", "values", "Priority, in Rows", "Add to Values"]);
+    assert.deepEqual(at("number", ["cols"]), ["add", "values", "Priority, in Columns", "Add to Values"]);
+    assert.deepEqual(at("number", ["values", "rows"]), [null, "values", "Priority, in Values, Rows", ""]);
+    assert.deepEqual(at("number", ["values"], LABELS.de), [null, "values", "Priority, in Werte", ""]);
     assert.deepEqual(at("string", ["cols"], LABELS.de), ["move", "rows", "Priority, in Spalten", "Nach Zeilen verschieben"]);
 });
 
@@ -181,6 +186,49 @@ test("the compact layout's one line names every zone with fields, rows first", (
         { zone: "filters", title: "Filters", fields: "Status" }
     ]);
     assert.deepEqual(layoutSummary({ filters: [], cols: [], rows: [], values: [] }, LABELS.de), []);
+});
+
+test("a donut's numbers fit inside its ring only when the ring is wide enough for them", () => {
+    const texts = ["32.3%", "10.7%"];
+    // 42 % to 70 % of half of 300 px: a ring of 42 px holds "32.3%" (about 35 px with its room)
+    assert.equal(ringLabelsFit(["42%", "70%"], { width: 330, height: 300 }, texts), true);
+    // the box left by a legend on the right of a phone's chart: a ring of about 24 px does not
+    assert.equal(ringLabelsFit(["42%", "70%"], { width: 170, height: 300 }, texts), false);
+    // a pie has room from its centre
+    assert.equal(ringLabelsFit(["0%", "70%"], { width: 60, height: 60 }, texts), true);
+    assert.equal(ringLabelsFit([20, 40], { width: 300, height: 300 }, ["1"]), true);
+    assert.equal(ringLabelsFit([20, 30], { width: 300, height: 300 }, ["1"]), false);
+});
+
+test("a donut on a phone: a right legend moves to the bottom, numbers that do not fit the ring go outside", () => {
+    const rows = ["Central", "East", "North", "South", "West"].map((R, i) => ({ R, V: [32, 11, 17, 18, 22][i] }));
+    const r = computePivot(encode(rows), { rows: ["R"], values: [{ field: "V", agg: "sum" }], display: "chart", chart: { type: "donut", legend: "right", labelPosition: "inside" } });
+    const option = toEChartsOption(r);
+    const style = /** @type {any} */ ({ getPropertyValue: () => "" });
+    // wide: the legend stays on the right, the numbers inside the ring
+    const wide = decorate(option, style, 480, undefined, 1280);
+    assert.equal(wide.legend.orient, "vertical");
+    assert.equal(wide.series[0].label.position, "inside");
+    assert.equal(wide.series[0].right, option.series[0].right);
+    // 390 px: the legend at the bottom with its room, the pie given back the width the legend took
+    const phone = decorate(option, style, 480, undefined, 358);
+    assert.equal(phone.legend.orient, undefined);
+    assert.equal(phone.legend.right, undefined);
+    assert.equal(phone.legend.bottom, 0);
+    assert.equal(phone.series[0].right, undefined);
+    assert.equal(phone.series[0].bottom, BOTTOM_LEGEND_ROOM + pieLabelRoom(480));
+    assert.equal(phone.series[0].label.position, "inside");
+    // so low that the ring is too thin for the numbers: they are written outside, on a line, in the text colour
+    const low = decorate(option, /** @type {any} */ ({ getPropertyValue: (n) => (n === "--pk-text" ? "#eee" : "") }), 150, undefined, 358);
+    assert.equal(low.series[0].label.position, undefined);
+    assert.equal(low.series[0].label.color, "#eee");
+    assert.deepEqual(low.series[0].labelLine, { show: true });
+    assert.equal(low.series[0].label.formatter, option.series[0].label.formatter);
+    // a bar chart's plot gets the width back too
+    const bars = toEChartsOption(computePivot(encode(rows.map((x) => ({ ...x, C: "a" }))), { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }], chart: { type: "bar", legend: "right" } }));
+    const narrowBars = decorate(bars, style, 480, undefined, 358);
+    assert.equal(narrowBars.grid.right, 24);
+    assert.equal(narrowBars.grid.bottom, BOTTOM_LEGEND_ROOM + 8);
 });
 
 test("a pie's room for its labels follows the chart's height, at most 24 px", () => {

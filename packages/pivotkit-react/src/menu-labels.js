@@ -26,7 +26,7 @@ export const en = {
         drillCopy: "The rows as the panel shows them, with a header row: tab-separated, pastes into Excel or Google Sheets as columns.",
         drillJson: "The rows as JSON objects, with the data's field names and raw values, for a program.",
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
-        labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend.",
+        labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views."
     },
     moveLeft: "Move left",
@@ -233,7 +233,7 @@ export const de = {
         drillCopy: "Die Zeilen wie im Bereich angezeigt, mit einer Überschriftenzeile: tabulatorgetrennt, wird in Excel oder Google Sheets in Spalten eingefügt.",
         drillJson: "Die Zeilen als JSON-Objekte, mit den Feldnamen und Rohwerten der Daten, für ein Programm.",
         groupLabels: "Mit zwei oder mehr Feldern in Zeilen: die Einträge des äußeren Felds einmal unter der Achse, unter ihren Kategorien.",
-        labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende.",
+        labelPosition: "Außen: Name und Zahl jedes Segments daneben. Innen: die Zahl auf dem Segment, die Namen in der Legende; außen, wenn der Ring eines Donuts dafür zu schmal ist.",
         sharedView: "Nur Admins können gemeinsame Ansichten ändern."
     },
     moveLeft: "Nach links",

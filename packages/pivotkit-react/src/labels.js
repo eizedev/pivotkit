@@ -57,6 +57,8 @@ export const en = {
     noFieldMatch: "No field matches “{query}”.",
     fieldMenu: "Options for {field}",
     addTo: "Add to {zone}",
+    // the field's menu, for a field in Values already: a second value of it (a sum and its share, say)
+    addAgain: "Add to {zone} again",
     // a click on a field that is in its zone already: said in the status line
     alreadyIn: "{field} is already in {zone}",
     move: "Move",
@@ -394,6 +396,7 @@ export const de = {
     noFieldMatch: "Kein Feld passt zu „{query}“.",
     fieldMenu: "Optionen für {field}",
     addTo: "Zu {zone} hinzufügen",
+    addAgain: "Noch einmal zu {zone} hinzufügen",
     alreadyIn: "{field} ist bereits in {zone}",
     move: "Verschieben",
     moveTo: "Nach {zone} verschieben",
