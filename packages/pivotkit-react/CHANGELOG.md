@@ -19,6 +19,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   default), so a popover shown from `visibility: hidden` was still hidden in the frame its focus
   moved; reduced motion now turns animations and transitions off (`animation: none`,
   `transition: none`), so nothing moves at all.
+- German texts quote with German quotation marks
+  ([#79](https://github.com/eizedev/pivotkit/issues/79)): a text condition in a chip's menu
+  ("Filter: enthält „an“") and the fields a view for other data names ("Felder, die diese Daten
+  nicht haben: „Country“") take their quotes from the new label `quote` (`"“{text}”"` in English,
+  `"„{text}“"` in German); they were English quotes in every language.
 
 ## [0.2.0] - 2026-11-08
 

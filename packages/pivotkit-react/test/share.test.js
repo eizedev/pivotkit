@@ -114,6 +114,8 @@ test("a view for other data asks first: its source, the fields this data does no
     assert.deepEqual(loadCheck(viewFromObject(file, typed, { sourceId: "weather" }), LABELS.en)?.lines, ["Fields of another type here: “Units”."]);
     // in German
     assert.equal(loadCheck(loaded, LABELS.de, [])?.lines[0], "Sie wurde für „Weather <b>“ gemacht.");
+    // the fields in the language's quotation marks
+    assert.equal(loadCheck(loaded, LABELS.de, [])?.lines[1], "Felder, die diese Daten nicht haben: „Country“.");
 });
 
 test("a loaded view cannot pollute prototypes", () => {

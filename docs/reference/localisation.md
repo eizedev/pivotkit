@@ -79,6 +79,10 @@ report.labels = { zones: { values: "Kennzahlen" }, core: { grandTotal: "Summe" }
 
 A language with more forms adds them (`few`, `many`); a missing form falls back to `other`.
 
+`quote` is how the language quotes a text the user typed or a field's name in a sentence ("Filter:
+contains “an”", "Fields this data does not have: “Country”"), with the placeholder `{text}`:
+`"“{text}”"` in English, `"„{text}“"` in German, `"« {text} »"` for French.
+
 The tips are `labels.tips` (one text per tip id; a text under an earlier key, `topNote`,
 `bottomNote`, `noValuesHint`, `cellHint`, `emptyHint`, `chartManySeries`, `chartDatesOnColumns` or
 `chartCapped`, still applies unless `labels.tips` has the tip's own entry; `labels.tips.showAs` one per percentage

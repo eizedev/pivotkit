@@ -131,6 +131,8 @@ export const en = {
     filter: "Filter…",
     filtered: "Filtered",
     filterSummary: "{shown} of {total}",
+    /** a text the user typed or a name, quoted as the language quotes: a text condition, field names */
+    quote: "“{text}”",
     filterTitle: "Filter {field}",
     // the condition on the labels of a field: text, or a number's label
     condition: "Text condition",
@@ -441,6 +443,7 @@ export const de = {
     filter: "Filtern…",
     filtered: "Gefiltert",
     filterSummary: "{shown} von {total}",
+    quote: "„{text}“",
     filterTitle: "{field} filtern",
     condition: "Textbedingung",
     emptyTitle: "Den Bericht in drei Schritten bauen",

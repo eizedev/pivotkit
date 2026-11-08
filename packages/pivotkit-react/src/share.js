@@ -133,9 +133,13 @@ export function writeStoredView(key, storage, view) {
 /** The characters a view file or pasted JSON may have (pivotkit-core's VIEW_FILE_LIMITS.text). */
 export const VIEW_TEXT_MAX = VIEW_FILE_LIMITS.text;
 
-/** Field names in quotes, the first five, as the report's notes write them. */
-const quoteNames = (names) => {
-    const shown = names.slice(0, 5).map((n) => `“${n.length > 60 ? `${n.slice(0, 59)}…` : n}”`).join(", ");
+/**
+ * Field names in the language's quotes (labels.quote), the first five, as the report's notes write them.
+ * @param {string[]} names
+ * @param {import("./labels.js").UiLabels} labels
+ */
+const quoteNames = (names, labels) => {
+    const shown = names.slice(0, 5).map((n) => fill(labels.quote, { text: n.length > 60 ? `${n.slice(0, 59)}…` : n })).join(", ");
     return names.length > 5 ? `${shown} …` : shown;
 };
 
@@ -205,10 +209,10 @@ export function loadCheck(loaded, labels, sources = []) {
         lines.push(name ? fill(labels.loadCheckSource, { source: name }) : labels.loadCheckOtherSource);
     }
     if (fit.missing.length) {
-        lines.push(fill(labels.loadCheckMissing, { fields: quoteNames(fit.missing) }));
+        lines.push(fill(labels.loadCheckMissing, { fields: quoteNames(fit.missing, labels) }));
     }
     if (fit.changed.length) {
-        lines.push(fill(labels.loadCheckChanged, { fields: quoteNames(fit.changed.map((c) => c.name)) }));
+        lines.push(fill(labels.loadCheckChanged, { fields: quoteNames(fit.changed.map((c) => c.name), labels) }));
     }
     return { lines, switchTo: target ? { id: target.id, name: target.name || target.id } : null };
 }

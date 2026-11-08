@@ -274,7 +274,7 @@ export function filterText(view, field, state, labels, locale) {
     for (const f of view.filters.filter(same)) {
         if (f.type === "label") {
             const op = Object.hasOwn(labels.labelOps, f.op) ? labels.labelOps[f.op] : f.op;
-            parts.push(`${op} “${f.value}”`);
+            parts.push(`${op} ${fill(labels.quote, { text: f.value })}`);
         } else if (f.type === "value") {
             parts.push(valueConditionText(view, f, labels, locale));
         }
