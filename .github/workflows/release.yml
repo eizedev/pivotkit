@@ -125,5 +125,6 @@ jobs:
         env:
           TARBALL: ${{ needs.build.outputs.tarball }}
         # the tarball only: nothing of the repository is installed or run in this job, and no
-        # lifecycle script of the tarball runs while the OIDC token is available
-        run: npm publish "pack/$TARBALL" --provenance --access public --ignore-scripts
+        # lifecycle script of the tarball runs while the OIDC token is available. The path starts
+        # with ./ : npm reads "pack/<file>" as the GitHub repository <owner>/<repo>
+        run: npm publish "./pack/$TARBALL" --provenance --access public --ignore-scripts

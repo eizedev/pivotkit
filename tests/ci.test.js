@@ -122,3 +122,13 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", (
     const minutes = Number(/timeout-minutes: (\d+)/.exec(job)?.[1]);
     assert.ok(minutes > 0 && minutes <= 15, `browser job timeout ${minutes} minutes`);
 });
+
+// npm reads "dir/file.tgz" as the GitHub repository <owner>/<repo>; a local tarball needs ./ or /
+test("the release workflow publishes the tarball by a path npm reads as a file", () => {
+    const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
+    const publishes = [...release.matchAll(/npm publish\s+"?([^"\s]+)/g)].map((m) => m[1]);
+    assert.ok(publishes.length > 0, "no npm publish in release.yml");
+    for (const target of publishes) {
+        assert.match(target, /^(\.\/|\/)/, `npm publish ${target}: start the path with ./`);
+    }
+});
