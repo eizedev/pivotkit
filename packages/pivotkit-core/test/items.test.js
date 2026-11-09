@@ -10,10 +10,10 @@ test("the values of a field with their row counts, in label order and blank last
     assert.equal(r.field, "Region");
     assert.equal(r.type, "string");
     assert.deepEqual(r.items, [
-        { value: "North", label: "North", count: 3 },
-        { value: "South", label: "South", count: 3 },
-        { value: "West", label: "West", count: 1 },
-        { value: null, label: "(blank)", count: 1 }
+        { value: "North", label: "North", count: 3, kept: true },
+        { value: "South", label: "South", count: 3, kept: true },
+        { value: "West", label: "West", count: 1, kept: true },
+        { value: null, label: "(blank)", count: 1, kept: true }
     ]);
     assert.equal(r.truncated, false);
     assert.equal(fieldItems(data, "Region", { labels: { blank: "(leer)" } }).items.at(-1).label, "(leer)");
@@ -47,4 +47,26 @@ test("an unknown field gives null; data that is not encoded throws", () => {
     assert.equal(fieldItems(data, "Nope"), null);
     assert.equal(fieldItems(data, 42), null);
     assert.throws(() => fieldItems([], "Region"), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT");
+});
+
+test("kept: the items the field's own rules keep; picks and conditions on totals are not counted", () => {
+    const view = {
+        derived: [{ name: "Year", field: "Date", by: "year" }],
+        filters: [
+            { field: "Region", type: "exclude", items: ["North"] },
+            { field: "Region", type: "label", op: "contains", value: "th" },
+            { field: "Region", type: "value", op: ">", value: 100 },
+            { field: "Year", type: "relative", unit: "month", count: 3 },
+            { field: "Price", type: "compare", op: ">=", value: 20 }
+        ]
+    };
+    const kept = (field, options = {}) => fieldItems(data, field, { view, ...options }).items.map((i) => [i.value, i.kept]);
+    // North is kept by its rule (contains "th"), though not picked; West and blank have no "th"
+    assert.deepEqual(kept("Region"), [["North", true], ["South", true], ["West", false], [null, false]]);
+    // a year is kept when a row of it is in the range: 2025-12-31 with today 2026-02-01
+    assert.deepEqual(kept("Year", { now: "2026-02-01" }), [[2025, true], [2026, true]]);
+    assert.deepEqual(kept("Year", { now: "2026-05-01" }), [[2025, false], [2026, true]]);
+    assert.deepEqual(kept("Price").filter(([, k]) => k).map(([v]) => v), [20, 25, 30]);
+    // no rule: every item kept
+    assert.ok(fieldItems(data, "Product", { view }).items.every((i) => i.kept));
 });

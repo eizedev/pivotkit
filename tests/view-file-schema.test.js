@@ -88,7 +88,8 @@ test("real exports validate against the schema (JSON Schema 2020-12), broken env
 test("the schema's filters match the core's: types, operators, units, the count's range", () => {
     const filters = schema.properties.view.properties.filters;
     assert.equal(filters.maxItems, LIMITS.filters);
-    assert.deepEqual([...filters.items.properties.type.enum].sort(), [...CATALOG.filterTypes].sort());
+    // the known types are listed; any other text is valid too (a newer pivotkit's, reported as unused)
+    assert.deepEqual([...filters.items.properties.type.anyOf[0].enum].sort(), [...CATALOG.filterTypes].sort());
     const [compare, relative] = filters.items.allOf.map((a) => a.then.properties);
     assert.deepEqual(compare.op.enum, [...CATALOG.valueOps]);
     assert.deepEqual(relative.unit.enum, [...CATALOG.relativeUnits]);
@@ -114,8 +115,11 @@ test("the schema's filters match the core's: types, operators, units, the count'
     const good = JSON.parse(JSON.stringify(toViewFile(view)));
     assert.equal(validator.validate(good).valid, true);
     const withFilter = (f) => ({ ...good, view: { ...good.view, filters: [f] } });
-    for (const broken of [
-        { field: "Date", type: "between" },
+    // a filter type of a newer pivotkit is valid; this version reports it as unused
+    assert.equal(validator.validate(withFilter({ field: "Date", type: "between" })).valid, true);
+    assert.deepEqual(normalize({ filters: [{ field: "Date", type: "between" }] }, data).issues.map((i) => i.code), ["unknownFilterType"]);
+        for (const broken of [
+        { field: "Date", type: 7 },
         { field: "Date", type: "relative", unit: "week", count: 1 },
         { field: "Date", type: "relative", unit: "year", count: 0 },
         { field: "Date", type: "relative", unit: "year" },

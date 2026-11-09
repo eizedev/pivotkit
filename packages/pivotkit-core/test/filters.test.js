@@ -111,6 +111,9 @@ test("compare: a number item with each operator; blanks never match", () => {
     // the bounds in either order, as a value condition reads them
     assert.equal(keep("between", 20, 11), 11);
     assert.equal(keep("notBetween", 11, 20), 17);
+    // a number as text, as filter items take it, and normalized to the number
+    assert.equal(keep(">=", "20"), 3);
+    assert.deepEqual(computePivot(data, { filters: [{ field: "Price", type: "compare", op: ">", value: "2.5e1" }] }).view.filters[0].value, 25);
     // a blank item is never kept, not even by != or notBetween
     const blank = computePivot(data, { rows: ["Region"], values: [{ agg: "count" }], filters: [{ field: "Units", type: "compare", op: "!=", value: 99 }] });
     assert.equal(total(blank), 7);
@@ -189,8 +192,13 @@ test("relativeDateRange says the days a range keeps", () => {
     assert.deepEqual(relativeDateRange("month", 1, { now: "2024-02-10" }), { from: "2024-02-01", to: "2024-02-29" });
     assert.deepEqual(relativeDateRange("day", 7, { now: "2026-03-02" }), { from: "2026-02-24", to: "2026-03-02" });
     assert.deepEqual(relativeDateRange("year", 1, { now: new Date("2026-01-01T03:00:00Z"), timeZone: "America/New_York" }), { from: "2025-01-01", to: "2025-12-31" });
-    // years before 100 are years, not 1900 + n
-    assert.deepEqual(relativeDateRange("year", 1990, { now: "2026-06-01" }), { from: "0037-01-01", to: "2026-12-31" });
+    // years before 100 are years, not 1900 + n; a year before 0 has its sign and six digits
+    assert.deepEqual(relativeDateRange("year", 500, { now: "0350-06-01" }), { from: "-000149-01-01", to: "0350-12-31" });
+    assert.deepEqual(relativeDateRange("year", 2, { now: "0099-06-01" }), { from: "0098-01-01", to: "0099-12-31" });
+    assert.equal(relativeDateRange("year", 501), null);
+    // epoch ms beyond a Date's range are no time
+    assert.throws(() => relativeDateRange("year", 1, { now: 9e15 }), { code: "INVALID_OPTION" });
+    assert.throws(() => computePivot(data, { values: [sumUnits] }, { now: -9e15 }), { code: "INVALID_OPTION" });
     assert.equal(relativeDateRange("week", 1), null);
     assert.equal(relativeDateRange("year", 0), null);
     assert.equal(relativeDateRange("year", 1.5), null);

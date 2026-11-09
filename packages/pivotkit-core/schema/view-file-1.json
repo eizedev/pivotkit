@@ -89,7 +89,10 @@
             "required": ["field", "type"],
             "properties": {
               "field": { "description": "A column of the data or a grouping of the view.", "type": "string" },
-              "type": { "enum": ["include", "exclude", "label", "compare", "relative", "top", "value"] }
+              "type": {
+                "description": "The filter's type. The types this version knows are listed; another one (a newer pivotkit's) is valid here, and a reader that does not know it reports it as unused.",
+                "anyOf": [{ "enum": ["include", "exclude", "label", "compare", "relative", "top", "value"] }, { "type": "string" }]
+              }
             },
             "allOf": [
               {
@@ -99,7 +102,7 @@
                   "required": ["op", "value"],
                   "properties": {
                     "op": { "enum": ["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"] },
-                    "value": { "type": ["number", "string"] },
+                    "value": { "description": "A number (also as text, \"2022\") or a date \"2022-03-01\".", "type": ["number", "string"] },
                     "value2": { "type": ["number", "string"] }
                   }
                 }
@@ -111,7 +114,7 @@
                   "required": ["unit", "count"],
                   "properties": {
                     "unit": { "enum": ["year", "month", "day"] },
-                    "count": { "type": "integer", "minimum": 1, "maximum": 10000 }
+                    "count": { "type": "integer", "minimum": 1, "maximum": 500 }
                   }
                 }
               }

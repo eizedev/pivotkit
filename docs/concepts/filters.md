@@ -42,7 +42,7 @@ it they use the view's first value.
 `<`, `<=`, `between` and `notBetween` (both bounds included, in either order, as a value condition).
 What is compared:
 
-- A number field: the number. A grouping of numbers (ranges) compares each range by its lower bound.
+- A number field: the number (a text of one, `"2022"`, is read as the number). A grouping of numbers (ranges) compares each range by its lower bound.
 - A date field: the calendar day. `value` is a date, `"2022-03-01"`; a time in it is left out, so
   "before 2022-03-01" keeps every row of 28 February and none of 1 March, whatever its clock time.
 - A date grouping: its key, the number the grouping gives each item: a year `2022`, a month `202503`

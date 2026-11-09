@@ -19,9 +19,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   reports both types as unused parts (`unknownFilterType`) and leaves them out.
 - `relativeDateRange(unit, count, { now, timeZone })`: the days a relative range keeps
   (`{ from: "2022-01-01", to: "2026-12-31" }`), for a UI's "last 5 years (2022–2026)".
-- `CATALOG.relativeUnits` and `CATALOG.relativeMaxCount` (10,000).
+- `CATALOG.relativeUnits` and `CATALOG.relativeMaxCount` (500, so a range stays after year 1).
+- `fieldItems()` items have `kept`: whether the field's own rules on items keep the item (for a UI's
+  pick list next to the rules); option `now` for relative ranges.
 - The view file's JSON Schema (`schema/view-file-1.json`) describes the view's `filters`: each
-  filter's field and type and the parts of the two new types. `formatVersion` stays 1.
+  filter's field and type (the known types listed, any other text valid, as a reader reports it as
+  unused) and the parts of the two new types. `formatVersion` stays 1.
 
 ## [0.2.0] - 2026-11-08
 

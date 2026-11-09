@@ -41,8 +41,12 @@ Names match case-insensitively; the data's own spelling is kept for display.
 
 The distinct values of a field (a derived field of `options.view` too) with label and row count, in
 the table's label order, blank last: what a filter list shows. Counts are over all rows, before
-filters. Returns `{ field, type, items: { value, label, count }[], truncated }`, or `null` for an
-unknown field. Options: `view`, `locale`, `labels`, `limits`.
+filters. Each item says with `kept` whether the field's own rules on items keep it (a `label`
+condition, a `compare`, a `relative` range, all together; a year of a grouping is kept when a row of
+it is in the range); `true` without such a rule; its picks and the conditions on totals are not
+counted. Returns `{ field, type, items: { value, label, count, kept }[], truncated }`, or `null` for
+an unknown field. Options: `view`, `locale`, `labels`, `limits`, `now` (today for a relative range,
+as `computePivot`'s).
 
 ### `suggestDateUnit(data, field)`
 
@@ -106,7 +110,8 @@ user input is fine. Options: `locale`, `now`, `limits` (`work` is computed befor
 `LIMIT_EXCEEDED`). `now` is today for relative date ranges ("the last 5 years",
 [Filters](../concepts/filters.md#relative-date-ranges)): a `Date`, epoch milliseconds or an ISO
 string, read in the data's time zone like any date (an ISO string without an offset as written);
-default the current time. Anything else throws `INVALID_OPTION`.
+default the current time. Anything else, and epoch milliseconds beyond what a `Date` holds, throws
+`INVALID_OPTION`.
 
 The `PivotResult` has, among others:
 
@@ -126,7 +131,7 @@ The `PivotResult` has, among others:
 
 The days a relative date range keeps, both included: `relativeDateRange("year", 5, { now:
 "2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. `unit` is `"year"`, `"month"` or
-`"day"`, `count` a whole number from 1 to `CATALOG.relativeMaxCount` (10,000); anything else returns
+`"day"`, `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500); anything else returns
 `null`. Options: `now` (as `computePivot`'s, default the current time) and `timeZone` (the data's,
 default `"UTC"`, never the machine's). A UI shows the range with it ("last 5 years (2022–2026)").
 

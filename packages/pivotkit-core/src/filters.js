@@ -29,8 +29,8 @@ export const LABEL_OPS = Object.freeze(["equals", "notEquals", "contains", "notC
 export const VALUE_OPS = Object.freeze(["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"]);
 /** The units of a relative date range: the last N years, months or days, today's included. */
 export const RELATIVE_UNITS = Object.freeze(["year", "month", "day"]);
-/** The most years, months or days a relative range reaches back (10,000 years stay inside a Date). */
-export const RELATIVE_MAX_COUNT = 10_000;
+/** The most years, months or days a relative range reaches back: 500 years from today stay after year 1. */
+export const RELATIVE_MAX_COUNT = 500;
 
 const oneOf = (value, allowed) => (typeof value === "string" && allowed.includes(value) ? value : null);
 
@@ -89,8 +89,8 @@ const matchValue = (filter, v) => compare(filter.op, v, filter.value, filter.val
 /** The calendar day (wall-clock ms at 00:00) of a date's wall-clock ms. */
 const dayOf = (ms) => Math.floor(ms / MS_PER_DAY) * MS_PER_DAY;
 
-/** "2022-03-01" of a day's wall-clock ms; years before 0 and after 9999 as Date writes them. */
-const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+/** "2022-03-01" of a day's wall-clock ms; a year before 0 or after 9999 with its sign and six digits ("-007973-01-01"). */
+const isoDay = (ms) => new Date(ms).toISOString().slice(0, -"T00:00:00.000Z".length);
 
 /**
  * The days of a relative range, [from, to) in wall-clock ms: the `count` years, months or days that
@@ -137,7 +137,8 @@ export function relativeDateRange(unit, count, options) {
  */
 export function todayOf(now, timeZone) {
     const ms = toWallMs(now === undefined ? Date.now() : now, wallClock(timeZone));
-    if (Number.isNaN(ms)) {
+    // epoch ms beyond what a Date holds (±8.64e15) are no time either
+    if (Number.isNaN(new Date(ms).getTime())) {
         throw new PivotkitError("INVALID_OPTION", "now must be a Date, epoch milliseconds or an ISO date string");
     }
     return ms;
@@ -214,7 +215,9 @@ function normalizeCompare(flt, spec, f, path, ctx) {
     }
     const read = (value) => {
         if (f.type === "number") {
-            return finite(value);
+            // a number, or a text of one ("2022"), as filter items take them
+            const n = value === undefined ? undefined : itemFor("number", value);
+            return typeof n === "number" ? n : null;
         }
         const ms = value === undefined ? undefined : itemFor("date", value);
         return typeof ms === "number" ? isoDay(dayOf(ms)) : null;
@@ -384,6 +387,41 @@ export const FILTERS = Object.freeze({
 });
 
 export const FILTER_TYPES = Object.freeze(Object.keys(FILTERS));
+
+/** The item filters a field's own rules are made of (its picks, include and exclude, are not rules). */
+const ITEM_RULES = Object.freeze(["label", "compare", "relative"]);
+
+/**
+ * Which items of a field its own rules on items (label, compare, relative) keep: keep[code + 1] is 1
+ * when at least one row of the item passes all of them (a relative range goes by the rows' source
+ * dates, so a year partly in range is kept); null when the field has no such rule. The rows of
+ * `column` and `source` line up (a grouping and the date it is made of).
+ * @param {import("./view.js").View} view  normalized
+ * @param {string} field
+ * @param {import("./encode.js").Column} column
+ * @param {import("./encode.js").Column} source  the field's source column (the column itself without a grouping)
+ * @param {string} locale
+ * @param {() => number} today  wall-clock ms of today, asked for only when a range needs it
+ * @returns {Uint8Array | null}
+ */
+export function keptByRules(view, field, column, source, locale, today) {
+    const rules = view.filters.filter((f) => f.field.toLowerCase() === field.toLowerCase() && ITEM_RULES.includes(f.type));
+    if (!rules.length) {
+        return null;
+    }
+    const now = rules.some((f) => f.type === "relative") ? today() : 0;
+    const allowed = (f) => FILTERS[f.type].allowed(FILTERS[f.type].source ? source : column, f, locale, now);
+    const own = rules.filter((f) => !FILTERS[f.type].source).map(allowed);
+    const bySource = rules.filter((f) => FILTERS[f.type].source).map(allowed);
+    const kept = new Uint8Array(column.dict.length + 1);
+    for (let i = 0; i < column.codes.length; i++) {
+        const c = column.codes[i] + 1;
+        if (!kept[c] && own.every((a) => a[c] === 1) && bySource.every((a) => a[source.codes[i] + 1] === 1)) {
+            kept[c] = 1;
+        }
+    }
+    return kept;
+}
 
 function filterRows(rows, keep) {
     let n = 0;
