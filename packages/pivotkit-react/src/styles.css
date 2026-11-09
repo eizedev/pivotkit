@@ -1497,21 +1497,84 @@
     color: var(--pk-muted);
 }
 
-.pk-value-condition {
+/* a date field's quick choices: "Last [5] years 2022–2026", the count typed in its line */
+.pk-quick-row {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 0 0.4em;
 }
 
-.pk-value-condition .pk-by {
-    font-size: inherit;
+.pk-quick .pk-hint,
+.pk-quick-row > .pk-hint {
+    margin: 0;
 }
 
-.pk-value-condition .pk-narrow-input {
-    flex: 1 1 7em;
+.pk-count-input {
+    flex: 0 0 3.6em;
+    min-width: 3.6em;
 }
 
-/* the comparison on a line of its own: its longest words ("is not between") are never cut */
-.pk-value-condition > select {
-    flex: 1 1 100%;
+.pk-count-input input {
+    width: 100%;
+    min-width: 0 !important;
+    height: 2em;
+    padding: 0 0.4em;
+    border: 1px solid var(--pk-input-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    color: var(--pk-text);
+}
+
+/* the rules: one sentence a row with its ×, "and" between them, the buttons that add one */
+.pk-rules,
+.pk-rule-list {
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pk-rule-list {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pk-rule,
+.pk-rule-body,
+.pk-rule-adds {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+}
+
+.pk-rule-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.pk-rule-and {
+    flex-basis: 100%;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+/* what the rule compares and its comparison each on a line of their own: "is not between" is never cut */
+.pk-rule-subject,
+.pk-rule-body > .pk-rule-op,
+.pk-rule-body > .pk-by,
+.pk-rule-body > .pk-by-pick {
+    flex-basis: 100%;
+    font-weight: 600;
+}
+
+.pk-rule-body .pk-narrow-input {
+    flex: 1 1 6em;
+}
+
+.pk-rules > .pk-hint {
+    margin: 0;
 }
 
 /* the Filter level: the list first, at most this high, then the folded "More ways to filter" */

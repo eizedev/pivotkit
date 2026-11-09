@@ -7,8 +7,8 @@
 
 import { isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { valueConditionText } from "./names.js";
-import { axisOf, clone, filterZoneFields, filtersOf, numericResult, same, sameRef, sourceOf } from "./view-ops.js";
+import { compareText, relativeText, valueConditionText } from "./names.js";
+import { axisOf, clone, filterZoneFields, filtersOf, groupingOf, numericResult, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
 const COUNTING = new Set(["count", "countUnique", "listUnique"]);
@@ -175,6 +175,99 @@ export function setValueFilter(view, field, condition, previous) {
     return replaceFilters(view, field, ["value"], entry ? [entry] : []);
 }
 
+/** The filter types the rule editor of the Filter level holds: on the item, its total, its name. */
+export const RULE_TYPES = Object.freeze(["relative", "compare", "value", "label"]);
+
+/** The most rules one field takes in the Filter level (the view's `limits.filters` counts all fields). */
+export const RULES_MAX = 10;
+
+/**
+ * Replaces one rule of a field, `previous` (the view's own entry, matched by its content), with
+ * `entry` (a filter of RULE_TYPES), removes it when `entry` is null, or adds `entry` after the field's
+ * other filters without `previous`.
+ * @param {any} view
+ * @param {string} field
+ * @param {object | null} previous
+ * @param {object | null} entry
+ */
+export const setRule = (view, field, previous, entry) => replaceFilter(view, field, previous, entry);
+
+/** Date groupings by which "Last N months" says nothing the years do not: a year, its quarters. */
+const COARSE = Object.freeze(["year", "yearQuarter", "quarter"]);
+
+/**
+ * How the Filter level's rules compare a field's items. `item`: "number" (a number typed), "date" (a
+ * date field or a day grouping: a day chosen), "group" (another grouping: one of its items chosen),
+ * null (text and yes/no have no comparison). `dates`: its source is a date (the quick choices, the
+ * words "from", "before", the relative ranges); `months`: "Last N months" is offered (not for a
+ * grouping by year or quarter).
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {any} view
+ * @param {string} field
+ * @returns {{ item: "number" | "date" | "group" | null, dates: boolean, months: boolean }}
+ */
+export function ruleKind(encoded, view, field) {
+    const grouping = groupingOf(view, field);
+    const source = encoded.column(sourceOf(view, field))?.type ?? "string";
+    const dates = source === "date";
+    const item = grouping ? (grouping.by === "day" ? "date" : "group") : source === "number" || source === "date" ? source : null;
+    return { item, dates, months: dates && !COARSE.includes(grouping?.by) };
+}
+
+/**
+ * A rule (RULE_TYPES) in short, as the chip and the Filter level say it: "last 5 years (2022–2026)",
+ * "from 2022", "Count of Released > 3", "contains “an”".
+ * @param {any} view
+ * @param {any} f
+ * @param {{ labels: any, locale: string, timeZone: string, date: boolean, labelOf?: (v: number) => string | undefined }} options
+ */
+export function ruleText(view, f, { labels, locale, timeZone, date, labelOf }) {
+    if (f.type === "relative") {
+        return relativeText(f, labels, locale, timeZone);
+    }
+    if (f.type === "compare") {
+        return compareText(f, labels, locale, { date, labelOf });
+    }
+    if (f.type === "value") {
+        return valueConditionText(view, f, labels, locale);
+    }
+    const op = Object.hasOwn(labels.labelOps, f.op) ? labels.labelOps[f.op] : f.op;
+    return `${op} ${fill(labels.quote, { text: f.value })}`;
+}
+
+/**
+ * The quick choice of a date field's Filter level its filters match: "all" (no range and no
+ * comparison of the item), "thisYear", "years" or "months" with their count (one relative range;
+ * months only where they are offered), else "custom" (the rules hold more).
+ * @param {any} view
+ * @param {string} field
+ * @param {boolean} months  whether "Last N months" is offered
+ * @returns {{ id: "all" | "thisYear" | "years" | "months" | "custom", count?: number }}
+ */
+export function quickChoice(view, field, months) {
+    const ranges = filtersOf(view, field, ["relative"]);
+    const compared = filtersOf(view, field, ["compare"]);
+    if (!ranges.length && !compared.length) {
+        return { id: "all" };
+    }
+    const [r] = ranges;
+    if (ranges.length === 1 && !compared.length && (r.unit === "year" || (r.unit === "month" && months))) {
+        return r.unit === "year" ? { id: r.count === 1 ? "thisYear" : "years", count: r.count } : { id: "months", count: r.count };
+    }
+    return { id: "custom" };
+}
+
+/**
+ * A quick choice applied: the field's relative ranges and comparisons of the item are replaced by
+ * one range ({ unit, count }), or removed for All (null). Its other filters stay.
+ * @param {any} view
+ * @param {string} field
+ * @param {{ unit: string, count: number } | null} range
+ */
+export function setQuickRange(view, field, range) {
+    return replaceFilters(view, field, ["relative", "compare"], range ? [{ field, type: "relative", unit: range.unit, count: range.count }] : []);
+}
+
 /**
  * The measures to choose from with `ref` among them: a sort, a top N or a condition may go by a
  * measure the view no longer shows (its value was removed); it stays a choice, so applying the form
@@ -205,18 +298,8 @@ export function measureChoices(view, typeOf) {
     return out.length ? out : [{ field: null, agg: "count" }];
 }
 
-/**
- * Removes what the filter of a field keeps out: its item list, its text condition and a value
- * condition; Top N has its own control and stays. A field in the Filters zone stays there, unfiltered.
- */
-export function removeFilters(view, field) {
-    return replaceFilters(view, field, ["include", "exclude", "label", "value"], []);
-}
-
-/** True when a field has an item, text or value filter that removes something (Top N is not counted). */
-export function hasFilter(view, field) {
-    return filtersOf(view, field, ["include", "exclude", "label", "value"]).some((f) => f.type !== "exclude" || f.items.length > 0);
-}
+/** Removes the rules of a field (RULE_TYPES); its picks and Top N stay. */
+export const removeRules = (view, field) => replaceFilters(view, field, RULE_TYPES, []);
 
 /** The four totals of Options, in their order. */
 export const TOTALS = Object.freeze(["grandTotalRow", "grandTotalColumn", "rowSubtotals", "colSubtotals"]);
@@ -258,10 +341,11 @@ export function conditionKind(encoded, view, field) {
 
 /**
  * What the filter of a field keeps, in short, for its menu's first level and the chip: "15 of 45",
- * "contains “abc”", "Sum of Revenue > 1,000", joined by commas; null without a filter.
+ * "last 5 years (2022–2026)", "from 2022", "contains “abc”", "Sum of Revenue > 1,000", joined by
+ * commas; null without a filter.
  * @param {any} view
  * @param {string} field
- * @param {{ summary: { shown: number, total: number } | null } | null | undefined} state  the chip's state (zones.jsx)
+ * @param {{ summary: { shown: number, total: number } | null, rules?: string[] } | null | undefined} state  the chip's state (zones.jsx), with its rules in short
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  */
@@ -271,12 +355,10 @@ export function filterState(view, field, state, labels, locale) {
     if (state && state.summary) {
         parts.push(fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) }));
     }
+    parts.push(...(state?.rules ?? []));
     for (const f of view.filters.filter(same)) {
-        if (f.type === "label") {
-            const op = Object.hasOwn(labels.labelOps, f.op) ? labels.labelOps[f.op] : f.op;
-            parts.push(`${op} ${fill(labels.quote, { text: f.value })}`);
-        } else if (f.type === "value") {
-            parts.push(valueConditionText(view, f, labels, locale));
+        if (f.type === "label" || f.type === "value") {
+            parts.push(ruleText(view, f, { labels, locale, timeZone: "UTC", date: false }));
         }
     }
     return parts.length ? parts.join(", ") : null;

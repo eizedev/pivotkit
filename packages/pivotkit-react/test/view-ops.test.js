@@ -7,7 +7,7 @@ import {
     setChartDisplay, rowFolding, numericResult, sameRef, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
 } from "../src/view-ops.js";
 import {
-    binProblem, filterState, hasFilter, measureChoices, removeFilters, setItemFilter, setLabelFilter, setTopFilter,
+    binProblem, filterState, measureChoices, removeRules, setItemFilter, setLabelFilter, setTopFilter,
     setValueFilter, totalNoEffect, TOTALS, updateValue, withMeasure
 } from "../src/menu-ops.js";
 import { refLabel, sortText, valueConditionText } from "../src/names.js";
@@ -303,24 +303,6 @@ test("chart display settings change without the type, and stay when the type cha
     assert.deepEqual(norm(auto).chart, auto.chart);
 });
 
-test("Remove filter takes the item list and the text condition, keeps Top N and the field in Filters", () => {
-    let v = norm({ rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
-    v = setItemFilter(v, "Region", ["North"], ["North", "South", "West"]);
-    v = setLabelFilter(v, "Region", { op: "contains", value: "o" });
-    v = setTopFilter(v, "Region", { count: 2, bottom: false });
-    assert.equal(hasFilter(v, "Region"), true);
-    const removed = removeFilters(v, "Region");
-    assert.deepEqual(removed.filters.map((f) => f.type), ["top"]);
-    assert.equal(hasFilter(removed, "Region"), false);
-    // Top N alone is no filter here: it has its own control
-    assert.equal(hasFilter(setTopFilter(norm({ rows: ["Region"] }), "Region", { count: 1 }), "Region"), false);
-    // a field of the Filters zone stays there, filtering nothing
-    let z = addField(norm({}), "Product", "filters");
-    z = setItemFilter(z, "Product", ["A"], ["A", "B"]);
-    assert.deepEqual(removeFilters(z, "Product").filters, [{ field: "Product", type: "exclude", items: [] }]);
-    assert.deepEqual(filterZoneFields(removeFilters(z, "Product")), ["Product"]);
-});
-
 test("the menu says what a filter keeps, in short: shown of total, the text condition, the value condition", () => {
     const labels = MENU.en;
     let v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
@@ -352,9 +334,8 @@ test("a value condition: set, changed, removed; it keeps the field's other filte
     assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["North"]);
     assert.equal(valueConditionText(v, v.filters.find((f) => f.type === "value"), LABELS.en, "en-US"), "Biggest between 2 and 5");
     assert.equal(valueConditionText(v, { op: "!=", value: 0.5 }, LABELS.de, "de-DE"), "Summe von Units ≠ 0,5");
-    assert.equal(hasFilter(v, "Region"), true);
-    // Remove filter takes it with the item filter; Clear takes it alone
-    assert.deepEqual(removeFilters(v, "Region").filters, []);
+    // Remove the rules takes it and keeps the picks; Clear takes it alone
+    assert.deepEqual(removeRules(v, "Region").filters.map((f) => f.type), ["exclude"]);
     assert.deepEqual(setValueFilter(v, "Region", null).filters.map((f) => f.type), ["exclude"]);
 });
 
@@ -411,7 +392,10 @@ test("the measures to sort, rank and filter by: each value that gives numbers, o
     assert.equal(sameRef({ field: null, agg: "count" }, { field: "Units", agg: "count" }), false);
     // the name of a measure is the value's, without its "show as"
     assert.equal(refLabel(v, { field: "units", agg: "sum" }, LABELS.en), "Sum of Units");
-    assert.equal(refLabel(v, { field: null, agg: "count" }, LABELS.en), LABELS.en.core.countRows);
+    // the row count the view does not show is named in full (#90); placed, it has the value's name
+    assert.equal(refLabel(v, { field: null, agg: "count" }, LABELS.en), "Count of rows");
+    assert.equal(refLabel(v, null, LABELS.de), "Anzahl der Zeilen");
+    assert.equal(refLabel(norm({ values: [{ agg: "count" }] }), { field: null, agg: "count" }, LABELS.en), LABELS.en.core.countRows);
 });
 
 test("sort by a chosen value and top N by a chosen value reach the engine", () => {

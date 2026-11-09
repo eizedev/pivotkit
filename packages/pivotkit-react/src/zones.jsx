@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { layoutSummary, sortText, valueConditionText, valueLabel } from "./names.js";
+import { compareText, layoutSummary, relativeText, sortText, valueConditionText, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -19,28 +19,34 @@ import { MenuButton } from "./popover.jsx";
 import { ZONES, filterZoneFields, filtersOf, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
 
 /**
- * What is set on a field: its item filter as "shown of total" (null without one), its top N, its value
- * condition and its sort, for the chip's badges and its accessible name.
+ * What is set on a field: its item filter as "shown of total" (null without one), its rules on the
+ * items themselves in short ("last 5 years (2022–2026)", "from 2022"), its top N, its value condition
+ * and its sort, for the chip's badges and its accessible name.
  * @param {any} view
  * @param {string} field
  * @param {import("pivotkit-core").Encoded} encoded
  * @param {string} locale
+ * @param {import("./labels.js").UiLabels} labels
+ * @param {string} sourceType  the type of the field's source (a grouped date is a date)
  */
-function fieldState(view, field, encoded, locale) {
+function fieldState(view, field, encoded, locale, labels, sourceType) {
     const items = filtersOf(view, field, ["include", "exclude"]).filter((f) => f.type === "include" || f.items.length > 0);
+    const compared = filtersOf(view, field, ["compare"]);
+    // the items' labels: for "3 of 12", and a grouping's key in words ("from Mar 2025")
+    const info = items.length || compared.length ? fieldItems(encoded, field, { view, locale }) : null;
     /** @type {{ shown: number, total: number } | null} */
     let summary = null;
-    if (items.length) {
-        const info = fieldItems(encoded, field, { view, locale });
-        if (info) {
-            const all = info.items.map((i) => i.value);
-            summary = { shown: selectedItems(view, field, all).length, total: all.length };
-        }
+    if (items.length && info) {
+        const all = info.items.map((i) => i.value);
+        summary = { shown: selectedItems(view, field, all).length, total: all.length };
     }
+    const labelOf = (v) => info?.items.find((i) => i.value === v)?.label;
+    const date = sourceType === "date";
+    const rules = filtersOf(view, field, ["relative", "compare"]).map((f) => (f.type === "relative" ? relativeText(f, labels, locale, encoded.timeZone) : compareText(f, labels, locale, { date, labelOf })));
     const top = filtersOf(view, field, ["top"])[0] ?? null;
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
     const other = filtersOf(view, field, ["label"]).length > 0;
-    return { summary, top, condition, other, sort: sortOf(view, field) };
+    return { summary, rules, top, condition, other, sort: sortOf(view, field) };
 }
 
 /**
@@ -54,9 +60,10 @@ function stateWords(state, view, labels, locale) {
     const words = [];
     if (state.summary) {
         words.push(`${labels.stateFiltered} ${fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) })}`);
-    } else if (state.other) {
+    } else if (state.other && !state.rules.length) {
         words.push(labels.stateFiltered);
     }
+    words.push(...state.rules);
     if (state.top) {
         words.push(fill(state.top.bottom ? labels.bottomBadge : labels.topBadge, { count: state.top.count.toLocaleString(locale) }));
     }
@@ -79,8 +86,19 @@ function Badges({ state, view, labels, locale }) {
                 {text}
             </span>
         );
-    } else if (state.other) {
+    } else if (state.other && !state.rules.length) {
         parts.push(<Icon key="filter" name="filter" size={12} className="pk-chip-badge" />);
+    }
+    // the first rule on the items in the words of the Filter level ("last 5 years (2022–2026)"), "+1"
+    // for more (all of them are in the chip's name and the badge's title)
+    if (state.rules.length) {
+        const more = state.rules.length - 1;
+        parts.push(
+            <span key="rules" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="rule-badge" title={state.rules.join(", ")}>
+                {state.summary ? null : <Icon name="filter" size={12} />}
+                {more ? `${state.rules[0]} +${more.toLocaleString(locale)}` : state.rules[0]}
+            </span>
+        );
     }
     if (state.top) {
         const text = fill(state.top.bottom ? labels.bottomBadge : labels.topBadge, { count: state.top.count.toLocaleString(locale) });
@@ -115,7 +133,7 @@ function Badges({ state, view, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, openFilter, onRemove, state, locale, defaultsOf, rangeOf, info, showInfo, encoded }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, onRemove, state, locale, defaultsOf, rangeOf, info, showInfo, encoded }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const badges = state ? <Badges state={state} view={view} labels={labels} locale={locale} /> : null;
     const words = stateWords(state, view, labels, locale);
@@ -129,38 +147,31 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
             <span className={`pk-type pk-type-${typeName}`} aria-hidden="true">
                 <Icon name={/** @type {any} */ (TYPE_ICON[typeName] ?? "text")} size={13} />
             </span>
-            {zone === "filters" ? (
-                <button type="button" className="pk-chip-label" onClick={(e) => openFilter(field, e.currentTarget.closest(".pk-chip"))} title={fill(labels.filterTitle, { field: text })} aria-label={name}>
-                    <span className="pk-btn-text">
+            <MenuButton
+                label={fill(labels.fieldMenu, { field: text })}
+                text={
+                    <>
                         <span className="pk-chip-name">{text}</span>
                         {badges}
-                    </span>
-                </button>
-            ) : (
-                <MenuButton
-                    label={fill(labels.fieldMenu, { field: text })}
-                    text={
-                        <>
-                            <span className="pk-chip-name">{text}</span>
-                            {badges}
-                        </>
-                    }
-                    className="pk-chip-label"
-                    name={name}
-                    role="dialog"
-                    popoverClass="pk-chip-menu"
-                    fill
-                    testId={`chip-menu-${text}`}
-                >
-                    {(close) =>
-                        zone === "values" ? (
-                            <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info, locale }} />
-                        ) : (
-                            <MenuPanel name="AxisMenu" loadingText={labels.loadingMenu} props={{ view, zone, index, field, types, labels, commit, close, onRemove: remove, defaultsOf, rangeOf, locale, info, state, encoded }} />
-                        )
-                    }
-                </MenuButton>
-            )}
+                    </>
+                }
+                className="pk-chip-label"
+                name={name}
+                role="dialog"
+                popoverClass="pk-chip-menu"
+                fill
+                testId={`chip-menu-${text}`}
+            >
+                {(close) =>
+                    zone === "values" ? (
+                        <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info, locale }} />
+                    ) : zone === "filters" ? (
+                        <MenuPanel name="FilterMenu" loadingText={labels.loadingMenu} props={{ view, index, field, types, labels, commit, close, onRemove: remove, locale, info, state, encoded }} />
+                    ) : (
+                        <MenuPanel name="AxisMenu" loadingText={labels.loadingMenu} props={{ view, zone, index, field, types, labels, commit, close, onRemove: remove, defaultsOf, rangeOf, locale, info, state, encoded }} />
+                    )
+                }
+            </MenuButton>
             {info && showInfo ? <InfoButton info={info} name={fieldLabel(sourceOf(view, field), labels.core)} labels={labels} className="pk-chip-info" /> : null}
             <button type="button" className="pk-chip-x" onClick={remove} aria-label={fill(labels.removeField, { field: text })} title={fill(labels.removeField, { field: text })}>
                 <Icon name="x" size={14} />
@@ -255,7 +266,7 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
 
 /**
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
- *   commit: (view: object, note?: any) => void, openFilter: (field: string, anchor: HTMLElement) => void,
+ *   commit: (view: object, note?: any) => void,
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
  *   id: string, folded: boolean, onShow: () => void, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
  *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean }} props
@@ -264,7 +275,7 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
  *   `folded`: the compact layout's one line; `defaultsOf`: the host's settings for a source field (fieldDefaults);
  *   `infoOf`: the host's description of a field (its source field's for a grouping)
  */
-export function Zones({ view, types, labels, commit, openFilter, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf, explain = false, showInfo = true }) {
+export function Zones({ view, types, labels, commit, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf, explain = false, showInfo = true }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -277,11 +288,11 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
         const map = new Map();
         for (const zone of ["filters", "cols", "rows"]) {
             for (const e of entries[zone]) {
-                map.set(e.field, fieldState(view, e.field, encoded, locale));
+                map.set(e.field, fieldState(view, e.field, encoded, locale, labels, e.type));
             }
         }
         return map;
-    }, [entries, view, encoded, locale]);
+    }, [entries, view, encoded, locale, labels]);
     // the numbers of a field, for the range form of its menu
     const rangeOf = useCallback((field) => numberRange(encoded, field), [encoded]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -373,7 +384,6 @@ export function Zones({ view, types, labels, commit, openFilter, encoded, locale
                             types={types}
                             labels={labels}
                             commit={commit}
-                            openFilter={openFilter}
                             onRemove={onRemove}
                             state={zone === "values" ? null : states.get(e.field)}
                             locale={locale}

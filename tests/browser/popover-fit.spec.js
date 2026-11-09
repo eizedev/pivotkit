@@ -55,12 +55,13 @@ test("chip menus, the value filter, Views and Options stay inside a 1280 x 720 w
         await insideWindow(page);
         await page.keyboard.press("Escape");
     }
-    // the Filter level, the longest: its value condition at the end is reached by scrolling inside it
+    // the Filter level, the longest: a rule at its end is reached by scrolling inside it
     await page.getByTestId("chip-menu-Team").click();
     await page.getByTestId("topic-filter").click();
     await insideWindow(page);
     await page.getByTestId("filter-more").click();
     await insideWindow(page);
+    await page.getByTestId("rule-add-total").click();
     await page.getByTestId("value-filter-op").scrollIntoViewIfNeeded();
     await expect(page.getByTestId("value-filter-op")).toBeInViewport();
     await insideWindow(page);

@@ -6,8 +6,32 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Filter rules ([#89](https://github.com/eizedev/pivotkit/issues/89),
+  [#90](https://github.com/eizedev/pivotkit/issues/90)). The Filter level of a date field (or a
+  grouping of one) starts with quick choices: All, This year, Last [N] years and, unless it is
+  grouped by year or quarter, Last [N] months, each with the days it keeps ("2022–2026"), relative to
+  today in the data's time zone; "Custom rules" while the rules hold more. Under "More ways to
+  filter" a rule editor: sentences that all apply together, added and removed one by one, each
+  applied once complete: the item itself compared ("Released by year is from 2022", for dates also
+  "is in the last N years"), its total compared ("Count of Released is greater than 3"; "Count of
+  rows" with nothing in Values) and a rule on its name. The chip, the menu's first level and the
+  level say the same words: "last 5 years (2022–2026)", "from 2022", "Count of rows > 3".
+- A field in Filters opens a menu of its own with the same Filter level (Filter, Move to, Remove
+  field) instead of the filter popover.
+- The menu search finds the rules ("rule"), the quick choices with the count typed ("last 3
+  years") and a year compared ("from 2022"), and applies them at once.
+
 ### Changed
 
+- The text condition and the condition on a value of the Filter level are rules now: each is added
+  with its button and taken away with its ×; "is anything" and "No condition" are gone. "Remove the
+  conditions" is "Remove the rules" and takes the quick choice of a date too.
+- A sort, Top items or a value condition by the row count the view does not show is named "Count
+  of rows" ("Anzahl der Zeilen").
+- The filter popover is only the field list's "Filter…" of a field not placed yet, so its "Remove
+  filter" is gone (with the label `removeFilter`).
 - The menus of a chip and Options are in levels instead of long accordions. The first level is a
   short summary: one row per topic with what is set on its right ("Filter · All", "Top items · Off",
   "Number format · ● Currency"; the dot and ", changed" in its accessible name where it is not the

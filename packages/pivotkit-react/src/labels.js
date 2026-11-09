@@ -307,6 +307,12 @@ export const en = {
     },
     // filters
     valueConditions: { compare: "{value} {op} {number}", between: "{value} between {from} and {to}", notBetween: "{value} not between {from} and {to}" },
+    // the measure a sort or a filter goes by when the view shows no value: the rows counted
+    countOfRows: "Count of rows",
+    // a relative date range and a date compared, in short (the chip and the Filter level): "last 5 years (2022–2026)", "from 2022"
+    relative: { year: "this year", years: "last {count} years", month: "this month", months: "last {count} months", day: "today", days: "last {count} days" },
+    withRange: "{text} ({range})",
+    compareShort: { "=": "{value}", "!=": "not {value}", ">": "after {value}", ">=": "from {value}", "<": "before {value}", "<=": "up to {value}", between: "{from} to {to}", notBetween: "not {from} to {to}" },
     // the i next to each zone's title (shown while explanations are on)
     zoneInfo: {
         rows: "Rows group the report by a field: each of its items gets a row. Example: Region in Rows lists North, South and West one below the other.",
@@ -596,6 +602,10 @@ export const de = {
         file: "Die Datei konnte nicht gelesen werden."
     },
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
+    countOfRows: "Anzahl der Zeilen",
+    relative: { year: "dieses Jahr", years: "letzte {count} Jahre", month: "dieser Monat", months: "letzte {count} Monate", day: "heute", days: "letzte {count} Tage" },
+    withRange: "{text} ({range})",
+    compareShort: { "=": "{value}", "!=": "nicht {value}", ">": "nach {value}", ">=": "ab {value}", "<": "vor {value}", "<=": "bis {value}", between: "{from} bis {to}", notBetween: "nicht {from} bis {to}" },
     zoneInfo: {
         rows: "Zeilen gruppieren den Bericht nach einem Feld: Jeder Eintrag bekommt eine Zeile. Beispiel: Region in Zeilen listet Nord, Süd und West untereinander.",
         cols: "Spalten teilen jede Zeile nach einem Feld: Jeder Eintrag bekommt eine Spalte. Beispiel: Jahr in Spalten stellt 2024 und 2025 nebeneinander.",

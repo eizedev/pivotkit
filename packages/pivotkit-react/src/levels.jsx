@@ -469,7 +469,7 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
         }
     };
     const first = () => {
-        const hits = search && query.trim() ? searchHits(searchEntries(topics), query, locale) : null;
+        const hits = search && query.trim() ? searchHits(searchEntries(topics, query), query, locale) : null;
         return (
             <>
                 {head}

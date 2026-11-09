@@ -4,7 +4,7 @@
  * what a click on a field of the field list does, and the zones folded into one line, in words.
  */
 
-import { fieldLabel } from "pivotkit-core";
+import { fieldLabel, relativeDateRange } from "pivotkit-core";
 import { fill } from "./labels.js";
 
 /** "Sum of Revenue", "% of grand total of Revenue", or the value's own name. */
@@ -30,17 +30,19 @@ export function valueLabel(spec, labels) {
 /**
  * The name of a measure a sort, a top N or a value condition goes by ({ field, agg }): the name of the
  * view's value for it ("Sum of Revenue", or the name the user gave it), without a "show as"
- * calculation, since the raw result is what is compared.
+ * calculation, since the raw result is what is compared; the row count the view does not show is
+ * "Count of rows".
  * @param {any} view
  * @param {{ field: string | null, agg: string } | null | undefined} ref
  * @param {import("./labels.js").UiLabels} labels
  */
 export function refLabel(view, ref, labels) {
-    if (!ref) {
-        return labels.core.countRows;
+    const field = ref?.field ?? null;
+    const sameField = (v) => (field === null || v.field === null || v.field === undefined ? (v.field ?? null) === field : v.field.toLowerCase() === field.toLowerCase());
+    const spec = ref ? (view.values ?? []).find((v) => v.agg === ref.agg && sameField(v)) : undefined;
+    if (!spec && field === null) {
+        return labels.countOfRows;
     }
-    const sameField = (v) => (ref.field === null || v.field === null || v.field === undefined ? (v.field ?? null) === ref.field : v.field.toLowerCase() === ref.field.toLowerCase());
-    const spec = (view.values ?? []).find((v) => v.agg === ref.agg && sameField(v));
     return valueLabel({ ...(spec ?? ref), showAs: null }, labels);
 }
 
@@ -80,6 +82,63 @@ export function valueConditionText(view, f, labels, locale) {
         return fill(labels.valueConditions[f.op], { value, from: number(from), to: number(to) });
     }
     return fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op, number: number(f.value) });
+}
+
+/** A calendar day ("2022-03-01") as the locale writes a date. */
+export const dayText = (iso, locale) => new Date(`${iso}T00:00Z`).toLocaleDateString(locale, { dateStyle: "medium", timeZone: "UTC" });
+
+/**
+ * The days a relative date range keeps, today in the data's time zone: "2022–2026" for years,
+ * "Dec 2025–Nov 2026" for months, dates for days; one period alone ("2026").
+ * @param {string} unit
+ * @param {number} count
+ * @param {string} locale
+ * @param {string} timeZone
+ * @param {Date | number | string} [now]  today, default the current time
+ */
+export function rangeText(unit, count, locale, timeZone, now) {
+    const range = relativeDateRange(unit, count, { timeZone, now });
+    if (!range) {
+        return "";
+    }
+    const month = (iso) => new Date(`${iso}T00:00Z`).toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
+    const text = unit === "year" ? (iso) => iso.slice(0, 4) : unit === "month" ? month : (iso) => dayText(iso, locale);
+    const [from, to] = [text(range.from), text(range.to)];
+    return from === to ? from : `${from}–${to}`;
+}
+
+/**
+ * A relative date range in short, with the days it keeps: "last 5 years (2022–2026)", "this year (2026)".
+ * @param {{ unit: string, count: number }} f  a `relative` filter
+ * @param {import("./labels.js").UiLabels} labels
+ * @param {string} locale
+ * @param {string} timeZone  the data's
+ * @param {Date | number | string} [now]  today, default the current time
+ */
+export function relativeText(f, labels, locale, timeZone, now) {
+    const key = f.count === 1 ? f.unit : `${f.unit}s`;
+    const text = fill(Object.hasOwn(labels.relative, key) ? labels.relative[key] : key, { count: f.count.toLocaleString(locale) });
+    return fill(labels.withRange, { text, range: rangeText(f.unit, f.count, locale, timeZone, now) });
+}
+
+/**
+ * A comparison of the item itself in short: "from 2022", "2022 to 2024" for a date or a date
+ * grouping, "≥ 10" for a number. `labelOf` gives an item's label (a grouping's "Mar 2025").
+ * @param {{ op: string, value: number | string, value2?: number | string }} f  a `compare` filter
+ * @param {import("./labels.js").UiLabels} labels
+ * @param {string} locale
+ * @param {{ date: boolean, labelOf?: (value: number) => string | undefined }} kind
+ */
+export function compareText(f, labels, locale, { date, labelOf }) {
+    // a date grouping's key without its label is written as it is (2022, not 2,022)
+    const shown = (v) => (typeof v === "string" ? dayText(v, locale) : labelOf?.(v) ?? (date ? String(v) : v.toLocaleString(locale, { maximumFractionDigits: 6 })));
+    const forms = labels.compareShort;
+    if (f.op === "between" || f.op === "notBetween") {
+        // the smaller first, as the engine reads them (ISO days sort as text)
+        const [from, to] = f.value2 !== undefined && f.value2 < f.value ? [f.value2, f.value] : [f.value, f.value2];
+        return fill(forms[f.op], { from: shown(from), to: shown(to) });
+    }
+    return date && Object.hasOwn(forms, f.op) ? fill(forms[f.op], { value: shown(f.value) }) : `${Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op} ${shown(f.value)}`;
 }
 
 /** The name of a derived field for a grouping, in the labels' language: "Date by month", "Amount (by 100)". */

@@ -6,7 +6,7 @@
  * before anyone opens a menu.
  */
 
-export { AxisMenu, ValueMenu } from "./chip-menus.jsx";
+export { AxisMenu, FilterMenu, ValueMenu } from "./chip-menus.jsx";
 export { ChartTypePanel, ExportPanel, LoadCheck, OptionsPanel, ViewsPanel } from "./toolbar-panels.jsx";
 export { FilterPopover } from "./filter.jsx";
 export { DrillPanel } from "./drill-panel.jsx";

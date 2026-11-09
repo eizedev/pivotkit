@@ -1,5 +1,5 @@
 /*
- * The filter popover of a field: "Remove filter" at the top while it filters, its values with row
+ * The filter popover of a field that is not placed yet (the field list's "Filter…"): its values with row
  * counts (pivotkit-core's fieldItems), a search, select all and none, "only this value", and a
  * condition on the label by the field's type (conditionKind: text, a number's label; none for dates). Changes are a draft until Apply, so one filter is one undo step; the × of the
  * condition's text removes the condition at once. A field that is not placed yet (the field list's
@@ -14,7 +14,7 @@ import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
 import { filtersOf, selectedItems } from "./view-ops.js";
-import { conditionKind, hasFilter, removeFilters, setItemFilter, setLabelFilter } from "./menu-ops.js";
+import { conditionKind, setItemFilter, setLabelFilter } from "./menu-ops.js";
 
 /** Values listed at once; the search finds the others. */
 export const FILTER_LIST_MAX = 300;
@@ -116,7 +116,6 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
         close();
         commit(next, { step: "filter", field: name });
     };
-    const filtering = !base && hasFilter(view, field);
     // a condition the type has none for (a loaded view's) still shows, so it can be taken off
     const kind = conditionKind(encoded, view, field) ?? (label ? "text" : null);
     return (
@@ -131,20 +130,6 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                 <h3>{fill(labels.filterTitle, { field: name })}</h3>
                 <span className="pk-muted">{fill(labels.selected, { count: selected.size.toLocaleString(locale) })}</span>
             </div>
-            {filtering ? (
-                <button
-                    type="button"
-                    className="pk-btn pk-remove-filter"
-                    onClick={() => {
-                        close();
-                        commit(removeFilters(view, field), { step: "filter", field: name });
-                    }}
-                    data-testid="filter-remove"
-                >
-                    <Icon name="x" />
-                    <span className="pk-btn-text">{labels.removeFilter}</span>
-                </button>
-            ) : null}
             <ValueList items={info.items} selected={selected} onChange={setSelected} labels={labels} locale={locale} autoFocus>
             {kind ? (
             <fieldset className="pk-condition">

@@ -261,6 +261,7 @@ test.describe("what the usability review found", () => {
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] [data-testid="top-badge"]')).toHaveText("Top 2");
         await chipMenu(page, "Region", "filter");
         await page.getByTestId("filter-more").click();
+        await page.getByTestId("rule-add-total").click();
         await page.getByTestId("value-filter-op").selectOption(">");
         await page.getByTestId("value-filter-number").fill("1");
         await outside();
@@ -273,7 +274,7 @@ test.describe("what the usability review found", () => {
         await expect.poll(() => chips(page, "values")).toEqual(["Money"]);
     });
 
-    test("search: percent finds the shares of Show as first, the conditions open the Filter level on them, rename and top 5 are found; / goes to the search", async ({ page }) => {
+    test("search: percent finds the shares of Show as first, the rules open the Filter level on them, rename and top 5 are found; / goes to the search", async ({ page }) => {
         await page.goto("?data=sales");
         await chipMenu(page, "Sum of Revenue");
         const menu = page.locator(".pk-chip-menu");
@@ -295,12 +296,13 @@ test.describe("what the usability review found", () => {
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await chipMenu(page, "Region");
-        await search.fill("value condition");
+        await search.fill("compare its total");
         await search.press("ArrowDown");
         await page.keyboard.press("Enter");
         await expect(menu.getByTestId("level-title")).toHaveText("Region › Filter");
         await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "true");
-        await expect(menu.getByTestId("filter-condition-op")).toBeFocused();
+        // no rule yet: the focus on the first button that adds one
+        await expect(menu.getByTestId("rule-add-total")).toBeFocused();
         await page.keyboard.press("Escape");
         await search.fill("top 5");
         await search.press("ArrowDown");
@@ -322,12 +324,13 @@ test.describe("what the usability review found", () => {
         expect(Math.abs((await menu.boundingBox()).y - before.y)).toBeLessThan(2);
         await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
         await menu.getByTestId("filter-more").click();
+        await menu.getByTestId("rule-add-total").click();
         await menu.getByTestId("value-filter-op").selectOption("notBetween");
         const op = menu.getByTestId("value-filter-op");
         expect(await op.evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(200);
         await menu.getByTestId("value-filter-number").fill("0");
         await menu.getByTestId("value-filter-number2").fill("1");
-        await expect(menu.getByTestId("filter-result")).toHaveText(/^\d+ of \d+ items picked, plus a condition on Average of Mean °C$/);
+        await expect(menu.getByTestId("filter-result")).toHaveText(/^\d+ of \d+ items picked, plus Average of Mean °C not between 0 and 1$/);
         await page.keyboard.press("Escape");
         await openLevel(menu, "filter");
         await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
