@@ -1934,11 +1934,31 @@
     margin: 0;
 }
 
-/* a text button that acts (Select all, Clear picks): underlined, so it reads as one */
-.pk-filter-actions .pk-link,
-.pk-link-button {
-    text-decoration: underline;
-    text-underline-offset: 2px;
+/* a quiet text button in a menu (Select all, Clear, Remove, Reset filter, "change it above"): a
+   small padded button with a hover background, as the toolbar's text buttons; muted while disabled */
+.pk-action {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--pk-target);
+    padding: 0.15em 0.55em;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: transparent;
+    color: var(--pk-accent);
+    font-size: var(--pk-small);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--pk-duration), color var(--pk-duration);
+}
+
+.pk-action:hover:not(:disabled) {
+    background: var(--pk-accent-soft);
+}
+
+.pk-action:disabled {
+    color: var(--pk-muted);
+    cursor: default;
+    opacity: 0.75;
 }
 
 .pk-topic-seg-state {
