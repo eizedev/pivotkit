@@ -182,9 +182,16 @@ async function licenses(metafile) {
  * texts of the new issue codes to 4.5 (CI about 4.8, budget 5). The review's fixes (a rule on names
  * in words on the chip, so the label operators load first; the chip's cut rule; the field list's
  * touch hit areas) took the first load to 151.8 (CI about 152.1), budget 153.
+ * The Filter level rebuilt (the summary card, quick choices with the data's share and the reference
+ * date, Years combined, the tail of items left out, rules with an "i" and a result line, the item
+ * picker): the core's anchor and source-day comparison and the chips' words for the data's share
+ * ("last 2 years (2025; 2026 has no data)", "last 12 months to Dec 2025"), which the first render
+ * shows, took the first load to 153.7 measured on a Mac (CI about 154.0), budget 155; the level
+ * itself took the menus to 39.1 (CI about 39.4, budget 41) and their German texts to 6.2 (CI about
+ * 6.5, budget 6.8).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 153, chart: 211, export: 11.5, link: 7.3, menus: 33.5, texts: 5.5, unused: 5 };
+export const SIZE_BUDGET_KIB = { initial: 155, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

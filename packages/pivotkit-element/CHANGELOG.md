@@ -8,6 +8,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- pivotkit-react's rebuilt Filter level: the summary card, quick choices only where the data reach,
+  the reference date (today or the latest record, pivotkit-core's `anchor` of a `relative` filter),
+  Years combined for a grouping that repeats every year, the items a rule leaves out in a folded
+  tail, rules with an "i" and a result line, a searchable item picker. The new tokens
+  `--pk-danger-soft` and `--pk-warn` can be set on the element like every `--pk-*` token. No new
+  attribute or event.
 - pivotkit-react's filter rules ([#89](https://github.com/eizedev/pivotkit/issues/89),
   [#90](https://github.com/eizedev/pivotkit/issues/90)): quick choices for dates (This year, Last N
   years or months), rules on the item itself, its total and its name, the same Filter level for a
@@ -15,6 +21,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- Size budgets for the rebuilt Filter level: the first load 155 KiB (153.7 measured on a Mac; the
+  core's anchor and source-day comparison, and the chips' words for the data's share of a range),
+  the menus 41 KiB (39.1 measured), their German texts 6.8 KiB (6.2 measured).
 - Size budgets: the first load 153 KiB (151.8 measured on a Mac; the core's new filters and the
   chips' words for them, the touch hit areas of the field list), the menus 33.5 KiB (31.7 measured), their German texts 5.5 KiB, the texts
   of a view's unused parts 5 KiB.
