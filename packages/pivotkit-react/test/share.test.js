@@ -73,6 +73,10 @@ test("a loaded view is normalized against the data; a template file gives its vi
     assert.deepEqual(partly.issues.map((i) => i.code), ["unknownField", "unknownField", "unknownSetting"]);
     // the view as given stays with it: the plain words of what was left out name its parts
     assert.deepEqual(partly.file?.view, { rows: ["Region", "Country"], cols: ["City"], chart: { legend: "left" } });
+    // a compare value beyond what a Date holds loads with an issue, never a throw
+    const dated = encode([{ When: new Date("2026-01-05T00:00:00Z") }]);
+    const beyond = viewFromText(JSON.stringify({ filters: [{ field: "When", type: "compare", op: ">", value: 1e300 }] }), dated);
+    assert.deepEqual([beyond.failed, beyond.view.filters, beyond.issues.map((i) => i.code)], [null, [], ["filterCompareValue"]]);
     assert.deepEqual(viewFromText("", data).failed, "empty");
     assert.deepEqual(viewFromText("not json", data).failed, "notJson");
     assert.deepEqual(viewFromText("[1]", data).failed, "notView");

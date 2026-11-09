@@ -17,6 +17,12 @@ import { MS_PER_DAY } from "./util.js";
 
 export const DEFAULT_TIME_ZONE = "UTC";
 
+/** The most milliseconds from the epoch a Date holds, either way (±100,000,000 days). */
+export const MAX_DATE_MS = 8.64e15;
+
+/** Whether a number (instant or wall-clock ms) is a time a Date holds; `new Date(ms)` of any other is invalid and its formatting throws. */
+export const isDateMs = (ms) => typeof ms === "number" && Math.abs(ms) <= MAX_DATE_MS;
+
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}(?::?\d{2})?)?)?$/;
 
 /**
@@ -152,7 +158,8 @@ export function wallClock(timeZone) {
         let offset = days.get(day);
         if (offset === undefined) {
             const start = offsetAt(day * MS_PER_DAY);
-            const end = offsetAt((day + 1) * MS_PER_DAY - 1);
+            // the last day a Date holds ends at MAX_DATE_MS; a moment past it cannot be formatted
+            const end = offsetAt(Math.min((day + 1) * MS_PER_DAY - 1, MAX_DATE_MS));
             // NaN marks a day with an offset change: computed per value
             offset = start === end ? start : NaN;
             days.set(day, offset);

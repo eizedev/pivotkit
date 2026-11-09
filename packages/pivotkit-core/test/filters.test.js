@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATALOG, computePivot, encode, findNode, relativeDateRange, validate } from "../src/index.js";
+import { CATALOG, computePivot, encode, fieldItems, findNode, fromViewFile, normalize, relativeDateRange, toViewFile, validate, viewFileText } from "../src/index.js";
 import { SALES } from "./fixtures.js";
+import { MS_PER_DAY } from "../src/util.js";
 
 const data = encode(SALES);
 const sumUnits = { field: "Units", agg: "sum" };
@@ -141,6 +142,26 @@ test("compare: normalize reports what it cannot use, with codes", () => {
     assert.deepEqual(issues([{ field: "Year", type: "compare", op: ">", value: 2020 }]), []);
 });
 
+test("compare: a date's wall-clock ms beyond what a Date holds are an issue, never a throw", () => {
+    const codes = (filter) => normalize({ filters: [filter] }, data).issues.map((i) => i.code);
+    for (const ms of [1e300, 8.7e15, -8.7e15]) {
+        assert.deepEqual(codes({ field: "Date", type: "compare", op: ">", value: ms }), ["filterCompareValue"], `value ${ms}`);
+        assert.deepEqual(codes({ field: "Date", type: "compare", op: "between", value: "2026-01-01", value2: ms }), ["filterCompareValue"], `value2 ${ms}`);
+        assert.equal(kept([{ field: "Date", type: "compare", op: ">", value: ms }]), 28, `the pivot leaves the filter out, ${ms}`);
+        // a view file with such a filter loads with the issue
+        const file = fromViewFile(viewFileText(toViewFile({ filters: [{ field: "Date", type: "compare", op: "<", value: ms }] })));
+        assert.deepEqual(normalize(file.view, data).issues.map((i) => i.code), ["filterCompareValue"]);
+    }
+    // the edges of the range are days
+    assert.deepEqual(computePivot(data, { filters: [{ field: "Date", type: "compare", op: "between", value: -8.64e15, value2: 8.64e15 }] }).view.filters[0], {
+        field: "Date",
+        type: "compare",
+        op: "between",
+        value: "-271821-04-20",
+        value2: "+275760-09-13"
+    });
+});
+
 test("relative: the last N years, months and days end with today's", () => {
     const now = "2026-03-05";
     const rel = (unit, count, view = {}) => kept([{ field: "Date", type: "relative", unit, count }], view, { now });
@@ -202,4 +223,26 @@ test("relativeDateRange says the days a range keeps", () => {
     assert.equal(relativeDateRange("week", 1), null);
     assert.equal(relativeDateRange("year", 0), null);
     assert.equal(relativeDateRange("year", 1.5), null);
+});
+
+test("now at the edge of what a Date holds: INVALID_OPTION in every zone, a range that leaves it is null", () => {
+    const zoned = encode(SALES, { timeZone: "America/New_York" });
+    const relative = { values: [sumUnits], filters: [{ field: "Date", type: "relative", unit: "year", count: 500 }] };
+    // refused before the zone's formatter sees it (a plain Date would throw a RangeError there)
+    for (const now of [1e300, 8.7e15, -8.7e15]) {
+        assert.throws(() => computePivot(zoned, relative, { now }), { code: "INVALID_OPTION" }, `computePivot ${now}`);
+        assert.throws(() => fieldItems(zoned, "Date", { view: relative, now }), { code: "INVALID_OPTION" }, `fieldItems ${now}`);
+        assert.throws(() => relativeDateRange("year", 1, { now, timeZone: "Europe/Berlin" }), { code: "INVALID_OPTION" }, `relativeDateRange ${now}`);
+    }
+    // the last and the first moment a Date holds are today; a zone's offset past the edge is refused too
+    assert.equal(relativeDateRange("year", 500, { now: 8.64e15 }), null);
+    assert.equal(relativeDateRange("year", 500, { now: -8.64e15 }), null);
+    assert.deepEqual(relativeDateRange("day", 1, { now: -8.64e15 }), { from: "-271821-04-20", to: "-271821-04-20" });
+    assert.equal(relativeDateRange("day", 2, { now: -8.64e15 }), null);
+    assert.deepEqual(relativeDateRange("day", 1, { now: 8.64e15 - MS_PER_DAY }), { from: "+275760-09-12", to: "+275760-09-12" });
+    assert.throws(() => relativeDateRange("year", 1, { now: 8.64e15, timeZone: "Europe/Berlin" }), { code: "INVALID_OPTION" });
+    // the pivot keeps the dates on today's side of a range without an end: none of 2026 is in the last 500 years of year 275760
+    assert.equal(total(computePivot(zoned, relative, { now: 8.64e15 })), 0);
+    assert.equal(total(computePivot(data, relative, { now: -8.64e15 })), 0);
+    assert.equal(kept([{ field: "Date", type: "relative", unit: "day", count: 500 }], {}, { now: -8.64e15 + MS_PER_DAY }), 0);
 });

@@ -39,6 +39,11 @@ channel described in the repository's
   ([Charts](concepts/charts.md#chartoptions-for-developers)).
 - A bad view does not throw: what cannot be used is dropped and reported (see
   [Views and saved views](concepts/views.md#a-view-is-user-input)).
+- A filter's values are checked like its names: a `compare` value is a number or a calendar day
+  (as `"2022-03-01"` or wall-clock milliseconds, within what a `Date` holds), a `relative` count is
+  capped at 500. Today for a relative range is `options.now` of `computePivot` or the current time,
+  read in the data's time zone, so a saved relative view gives different results on different days
+  by design ([Filters](concepts/filters.md#relative-date-ranges)).
 - A view cannot ask for unbounded work. Its size and its parts are capped (8 fields per axis, 16
   values), the work of a pivot is computed before it starts, and the groups, aggregated cells and
   every dense structure (rows x columns of a table, data points of a chart) are counted against

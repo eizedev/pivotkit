@@ -13,12 +13,15 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   calendar day (`"2022-03-01"`) or a grouping's key (year `2022`, month `202503`), so "from 2022"
   keeps the years from 2022 on; `relative` keeps the dates of the last N years, months or days,
   today's included, and on a date grouping filters its source dates. Today is `computePivot`'s new
-  option `now` (default the current time), read in the data's time zone, never the machine's.
+  option `now` (default the current time), read in the data's time zone, never the machine's; beyond
+  what a `Date` holds it throws `INVALID_OPTION`. A date's `compare` value beyond that range is the
+  issue `filterCompareValue`, as any other value that is no calendar day.
   `normalize()` reports the new issue codes `filterCompareField`, `filterCompareValue`,
   `filterRelativeField`, `filterRelativeUnit` and `filterRelativeCount`. pivotkit-core 0.2.0
   reports both types as unused parts (`unknownFilterType`) and leaves them out.
 - `relativeDateRange(unit, count, { now, timeZone })`: the days a relative range keeps
-  (`{ from: "2022-01-01", to: "2026-12-31" }`), for a UI's "last 5 years (2022–2026)".
+  (`{ from: "2022-01-01", to: "2026-12-31" }`), for a UI's "last 5 years (2022–2026)"; `null` for a
+  range that leaves what a `Date` holds.
 - `CATALOG.relativeUnits` and `CATALOG.relativeMaxCount` (500, so a range stays after year 1).
 - `fieldItems()` items have `kept`: whether the field's own rules on items keep the item (for a UI's
   pick list next to the rules); option `now` for relative ranges.

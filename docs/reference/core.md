@@ -132,8 +132,10 @@ The `PivotResult` has, among others:
 The days a relative date range keeps, both included: `relativeDateRange("year", 5, { now:
 "2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. `unit` is `"year"`, `"month"` or
 `"day"`, `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500); anything else returns
-`null`. Options: `now` (as `computePivot`'s, default the current time) and `timeZone` (the data's,
-default `"UTC"`, never the machine's). A UI shows the range with it ("last 5 years (2022–2026)").
+`null`, as does a range that leaves what a `Date` holds (the years -271821 to 275760). Options: `now`
+(as `computePivot`'s, default the current time; beyond what a `Date` holds, `INVALID_OPTION`) and
+`timeZone` (the data's, default `"UTC"`, never the machine's). A UI shows the range with it ("last 5
+years (2022–2026)").
 
 ### Drill-down
 

@@ -21,7 +21,7 @@
 import { labelOf } from "./labels.js";
 import { DERIVED } from "./derive.js";
 import { PivotkitError } from "./errors.js";
-import { resolveTimeZone, toWallMs, wallClock } from "./time.js";
+import { isDateMs, resolveTimeZone, toWallMs, wallClock } from "./time.js";
 import { MS_PER_DAY, finite, get, optionsOf, shown } from "./util.js";
 
 export const LABEL_OPS = Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "endsWith"]);
@@ -94,7 +94,8 @@ const isoDay = (ms) => new Date(ms).toISOString().slice(0, -"T00:00:00.000Z".len
 
 /**
  * The days of a relative range, [from, to) in wall-clock ms: the `count` years, months or days that
- * end with the one of `today` (wall-clock ms).
+ * end with the one of `today` (wall-clock ms, one a Date holds). An end beyond what a Date holds is
+ * infinite (-Infinity, Infinity): every date of the data is on its side of today.
  * @param {string} unit  of RELATIVE_UNITS
  * @param {number} count
  * @param {number} today
@@ -104,17 +105,22 @@ function rangeOf(unit, count, today) {
     const y = d.getUTCFullYear();
     const m = unit === "year" ? 0 : d.getUTCMonth();
     const day = unit === "day" ? d.getUTCDate() : 1;
-    // setUTCFullYear takes every year (Date.UTC reads 0 to 99 as 1900 to 1999) and rolls months over
+    // setUTCFullYear takes every year (Date.UTC reads 0 to 99 as 1900 to 1999) and rolls months over;
+    // it is NaN only for a day beyond the Date range
     const at = (yy, mm, dd) => new Date(0).setUTCFullYear(yy, mm, dd);
     const step = (n) => (unit === "year" ? at(y + n, m, day) : unit === "month" ? at(y, m + n, day) : at(y, m, day + n));
-    return { from: step(1 - count), to: step(1) };
+    const from = step(1 - count);
+    const to = step(1);
+    return { from: Number.isNaN(from) ? -Infinity : from, to: Number.isNaN(to) ? Infinity : to };
 }
 
 /**
  * The days a relative date range keeps, today being `options.now` (a Date, epoch ms or an ISO string;
  * default the current time) read in `options.timeZone` ("UTC" by default, never the machine's zone),
  * as computePivot() reads them: { from: "2022-01-01", to: "2026-12-31" }, both included. Null for a
- * unit not of RELATIVE_UNITS or a count that is not a whole number from 1 to RELATIVE_MAX_COUNT.
+ * unit not of RELATIVE_UNITS, a count that is not a whole number from 1 to RELATIVE_MAX_COUNT, or a
+ * range that leaves what a Date holds (±8.64e15 ms, the years -271821 to 275760); `now` beyond
+ * that throws INVALID_OPTION, as computePivot() does.
  * @param {string} unit  "year", "month" or "day"
  * @param {number} count  1 is this year (month, day) alone
  * @param {{ now?: Date | number | string, timeZone?: string }} [options]
@@ -126,6 +132,9 @@ export function relativeDateRange(unit, count, options) {
         return null;
     }
     const { from, to } = rangeOf(unit, count, todayOf(options.now, resolveTimeZone(options.timeZone)));
+    if (!Number.isFinite(from) || !Number.isFinite(to)) {
+        return null;
+    }
     return { from: isoDay(from), to: isoDay(to - MS_PER_DAY) };
 }
 
@@ -136,9 +145,11 @@ export function relativeDateRange(unit, count, options) {
  * @param {string} timeZone  canonical
  */
 export function todayOf(now, timeZone) {
-    const ms = toWallMs(now === undefined ? Date.now() : now, wallClock(timeZone));
-    // epoch ms beyond what a Date holds (±8.64e15) are no time either
-    if (Number.isNaN(new Date(ms).getTime())) {
+    const toWall = wallClock(timeZone);
+    // epoch ms beyond what a Date holds (±8.64e15) are no time either: refused before the zone's
+    // formatter sees them, and again as wall-clock ms, which the zone's offset may push past the edge
+    const ms = toWallMs(now === undefined ? Date.now() : now, (t) => (isDateMs(t) ? toWall(t) : NaN));
+    if (!isDateMs(ms)) {
         throw new PivotkitError("INVALID_OPTION", "now must be a Date, epoch milliseconds or an ISO date string");
     }
     return ms;
@@ -219,8 +230,9 @@ function normalizeCompare(flt, spec, f, path, ctx) {
             const n = value === undefined ? undefined : itemFor("number", value);
             return typeof n === "number" ? n : null;
         }
+        // wall-clock ms beyond what a Date holds (±8.64e15) have no calendar day
         const ms = value === undefined ? undefined : itemFor("date", value);
-        return typeof ms === "number" ? isoDay(dayOf(ms)) : null;
+        return isDateMs(ms) ? isoDay(dayOf(ms)) : null;
     };
     const op = oneOf(get(flt, "op"), VALUE_OPS);
     const value = read(get(flt, "value"));

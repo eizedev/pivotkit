@@ -64,6 +64,11 @@ test("a chosen time zone reads instants at its wall clock, daylight saving inclu
     assert.notEqual(encode(rows, { timeZone: "local" }).timeZone, "local");
 });
 
+test("the last moment a Date holds is read in a zone without a throw", () => {
+    const data = encode([{ when: new Date(8.64e15) }, { when: new Date(-8.64e15) }], { timeZone: "America/New_York" });
+    assert.deepEqual(computePivot(data, { rows: ["when"], values: [{ agg: "count" }] }).rowRoot.children.length, 2);
+});
+
 test("the view keeps the time zone it was made for and the pivot reports a mismatch", () => {
     const view = { rows: ["d"], formatting: { timeZone: "europe/berlin" } };
     const berlin = computePivot(encode([{ d: "2026-01-01" }], { timeZone: "Europe/Berlin" }), view);
