@@ -967,36 +967,31 @@
     overflow: hidden;
 }
 
-/* a narrow chip shortens the field's name, never a badge: "Top 10" cut to "Top 1" reads as a wrong value */
+/* The field's name and its badges share the label's room as siblings of one flex line. With room
+   for all, every one is whole. Short of room (a narrow report), a badge in words (a rule, a value
+   condition) gives way first: its flex-shrink is far larger than the name's, so it shortens to its
+   floor and ends in "…" before the name gets shorter; then the name ends in "…". The whole text of
+   both is in the chip's title and its accessible name. A badge with a number ("3 of 4", "Top 10")
+   never shrinks: "Top 10" cut to "Top 1" reads as a wrong value. No part has a floor above its
+   content, and no part a ceiling: a floor wider than the text (a short name held at 6em) widened
+   that part and pushed the badges out of the label's clip with no "…" ("2025" showed as "2("). */
 .pk-chip-name {
-    /* a few characters and the ellipsis stay: a chip of badges only would not say which field it is */
-    min-width: 2.5em;
+    flex: 0 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.pk-chip-label .pk-badges-inline {
+.pk-chip-label .pk-chip-badge {
     flex: none;
 }
 
-/* with a condition or a rule in words, that badge ends in "…" (its whole text is in its title and
-   the chip's name) before the field's name gets shorter than a few words; the other badges stay whole */
-.pk-chip-label .pk-btn-text:has(.pk-badge-condition) .pk-chip-name {
-    min-width: min(6em, 40%);
-}
-
-.pk-chip-label .pk-badges-inline:has(> .pk-badge-condition) {
-    flex: 0 1 auto;
-    min-width: 0;
-}
-
-.pk-chip-label .pk-badges-inline > * {
-    flex: none;
-}
-
-.pk-chip-label .pk-badges-inline > .pk-badge-condition {
-    flex: 0 1 auto;
+.pk-chip-label .pk-badge-condition {
+    /* the floor keeps a character or two and the "…"; a text shorter than the floor sits in the
+       middle of its pill */
+    flex: 0 1000 auto;
+    justify-content: center;
     min-width: 3em;
 }
 
@@ -1105,17 +1100,8 @@
     font-size: var(--pk-small);
 }
 
-.pk-badges-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35em;
-}
-
-/* a value condition on a chip: at most this wide, the rest an ellipsis */
-.pk-badge-condition {
-    max-width: 18em;
-}
-
+/* a badge in words (a rule, a value condition): its text shortens to "…" when its chip is short of
+   room, its icon and "+1" stay whole */
 .pk-badge-condition > :not(.pk-badge-cut) {
     flex: none;
 }

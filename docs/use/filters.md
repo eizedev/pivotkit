@@ -174,9 +174,9 @@ greater than 2,000,000".
 - The line under the rule says what it keeps; with nothing, the totals' range: "Keeps 0 of 12 months
   – the totals go from 13.4 (Jan) to 22.2 (Jul)", written as the table writes the value. The summary
   then says the same in red.
-- The chip then shows it in short, "Sum of Revenue > 1,000" (a long one ends in "…"; its whole text
-  is in the chip's name for screen readers and in its tooltip), and so does the Filter row of the
-  menu.
+- The chip then shows it in short, "Sum of Revenue > 1,000" (when the chip is short of room it ends
+  in "…"; its whole text is in the chip's tooltip and its name for screen readers), and so does the
+  Filter row of the menu.
 - The number is compared with the value as it is computed - the sum, the count, the average - not
   with a "show as" percentage and not with what its format shows: for "Revenue as % of grand total",
   0.25 is no condition on 25 %, 1000 is one on the sum of revenue.
@@ -199,9 +199,13 @@ greater than 2,000,000".
 - The **i** of the rules shows while **Show explanations** (Options › Help) is on, as the other
   explanations do.
 - The chip shows the quick choice or the first rule on the item or its name and "+1" for each more
-  ("last 2 years (2025; 2026 has no data) +1", "contains “linux”"); the whole list is in its tooltip
-  and its name for screen readers. A rule on the total has its own badge. On a narrow chip the rule
-  ends in "…" before the field's name gets shorter than a few words.
+  ("last 2 years (2025; 2026 has no data) +1", "contains “linux”"); the whole list is in the chip's
+  tooltip and its name for screen readers. A rule on the total has its own badge. With room for them,
+  the name and every badge show whole; when the chip is short of room (a phone), a badge in words ends
+  in "…" before the field's name gets shorter, and a badge with a number ("3 of 4", "Top 5") stays
+  whole.
+- Pointing anywhere at a chip shows all of it as a tooltip: the field and everything set on it, in the
+  words its name has for screen readers ("Month, filtered 10 of 12, 2025").
 - The search of the menu finds the rules ("rule", "compare its total"), the quick choices with the
   count you type ("last 3 years", counted back as the field's range is) and, for a grouping by year,
   a year compared ("from 2022", "up to 2022", "before 2022", "after 2022"); Enter applies a found

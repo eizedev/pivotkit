@@ -75,23 +75,29 @@ function stateWords(state, view, labels, locale) {
     return words.join(", ");
 }
 
+/**
+ * The badges of a chip, as siblings of its name in the label (no wrapper: the name and a badge in
+ * words share the label's room, see `.pk-chip-name` in styles.css). The whole of every badge is in
+ * the chip's title and its accessible name, so the badges themselves are hidden from assistive
+ * technology.
+ */
 function Badges({ state, view, labels, locale }) {
     const parts = [];
     if (state.summary) {
         const text = fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) });
         parts.push(
-            <span key="filter" className="pk-chip-badge pk-badge-text">
+            <span key="filter" className="pk-chip-badge pk-badge-text" aria-hidden="true">
                 <Icon name="filter" size={12} />
                 {text}
             </span>
         );
     }
     // the first rule on the items in the words of the Filter level ("last 5 years (2022–2026)"), "+1"
-    // for more (all of them are in the chip's name and the badge's title)
+    // for more; a long one ends in "…" when the label is short of room
     if (state.rules.length) {
         const more = state.rules.length - 1;
         parts.push(
-            <span key="rules" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="rule-badge" title={state.rules.join(", ")}>
+            <span key="rules" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="rule-badge" aria-hidden="true">
                 {state.summary ? null : <Icon name="filter" size={12} />}
                 <span className="pk-badge-cut">{state.rules[0]}</span>
                 {more ? <span>{` +${more.toLocaleString(locale)}`}</span> : null}
@@ -101,17 +107,16 @@ function Badges({ state, view, labels, locale }) {
     if (state.top) {
         const text = fill(state.top.bottom ? labels.bottomBadge : labels.topBadge, { count: state.top.count.toLocaleString(locale) });
         parts.push(
-            <span key="top" className="pk-chip-badge pk-badge-text" data-testid="top-badge">
+            <span key="top" className="pk-chip-badge pk-badge-text" data-testid="top-badge" aria-hidden="true">
                 <Icon name="top" size={12} />
                 {text}
             </span>
         );
     }
     if (state.condition) {
-        // a long condition ends in "…" (the whole of it is in the chip's name and its title)
         const text = valueConditionText(view, state.condition, labels, locale);
         parts.push(
-            <span key="condition" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="condition-badge" title={text}>
+            <span key="condition" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="condition-badge" aria-hidden="true">
                 <Icon name="filter" size={12} />
                 <span className="pk-badge-cut">{text}</span>
             </span>
@@ -121,20 +126,15 @@ function Badges({ state, view, labels, locale }) {
         const desc = state.sort.order === "desc";
         parts.push(<Icon key="sort" name={desc ? "sortDesc" : "sortAsc"} size={12} className="pk-chip-badge" />);
     }
-    if (!parts.length) {
-        return null;
-    }
-    return (
-        <span className="pk-badges-inline" aria-hidden="true">
-            {parts}
-        </span>
-    );
+    return parts.length ? <>{parts}</> : null;
 }
 
 function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, onRemove, state, locale, defaultsOf, earlier, rangeOf, info, showInfo, encoded }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const badges = state ? <Badges state={state} view={view} labels={labels} locale={locale} /> : null;
     const words = stateWords(state, view, labels, locale);
+    // the chip in full, as its accessible name and, hovered anywhere, its tooltip: a badge cut to
+    // "…" or a name cut by a narrow chip is whole there
     const name = words ? `${text}, ${words}` : undefined;
     const remove = () => onRemove(zone, index, text);
     return (
@@ -155,6 +155,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
                 }
                 className="pk-chip-label"
                 name={name}
+                title={name ?? text}
                 role="dialog"
                 popoverClass="pk-chip-menu"
                 fill

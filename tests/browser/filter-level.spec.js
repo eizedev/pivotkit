@@ -586,4 +586,94 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await menu.getByTestId("rule-quick-change").click();
         await expect.poll(active).toBe("quick-years");
     });
+
+    /**
+     * The chip's name and badges and whether each is whole (its text within its box, also the cut
+     * text of a badge in words); the label's title, what hovering the chip shows.
+     */
+    const chipParts = (page, chip) =>
+        page.locator(`.pk-chip[data-chip="${chip}"]`).evaluate((el) => {
+            const whole = (e) => e.scrollWidth <= e.clientWidth;
+            const name = el.querySelector(".pk-chip-name");
+            const em = parseFloat(getComputedStyle(name).fontSize);
+            return {
+                badges: [...el.querySelectorAll("span.pk-chip-badge")].map((b) => ({ text: b.textContent, whole: whole(b) && [...b.querySelectorAll(".pk-badge-cut")].every(whole) })),
+                name: { text: name.textContent, whole: whole(name), ems: name.clientWidth / em, overflow: getComputedStyle(name).textOverflow },
+                cut: [...el.querySelectorAll(".pk-badge-cut")].map((c) => ({ whole: whole(c), overflow: getComputedStyle(c).textOverflow })),
+                title: el.querySelector(".pk-chip-label").getAttribute("title")
+            };
+        });
+    /** The chip's title is its accessible name: the field and every state word. */
+    const titleIsName = async (page, chip, title) => {
+        expect(title).toBeTruthy();
+        await expect(page.getByTestId(`chip-menu-${chip}`)).toHaveAccessibleName(title);
+    };
+
+    test("a desktop shows every badge whole; a phone cuts a rule to “…” and keeps the name; the chip's tooltip says it all", async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        // the chip of the hands-on test: a field named "Month" by month of the year, 2025 only, two months
+        // unticked ("10 of 12", "2025"); a name this short made the badge show "2(" on a desktop
+        const SHORT = "Month";
+        const picked = { derived: [{ name: SHORT, field: "Date", by: "month" }], rows: [SHORT], cols: ["City"], values: [{ field: "Mean °C", agg: "average" }], filters: [{ ...wholeYear(2025), field: SHORT }, { field: SHORT, type: "exclude", items: [1, 2] }] };
+        await openView(page, "weather", picked);
+        let parts = await chipParts(page, SHORT);
+        expect(parts.badges).toEqual([{ text: "10 of 12", whole: true }, { text: "2025", whole: true }]);
+        expect(parts.name).toMatchObject({ text: SHORT, whole: true });
+        expect(parts.title).toBe(`${SHORT}, filtered 10 of 12, 2025`);
+        await titleIsName(page, SHORT, parts.title);
+        // the other badges on a chip: a comparison with "+1" and a value condition, Top N and the sort,
+        // and a value shown as a share with a format
+        const by = { field: "Mean °C", agg: "average" };
+        await openView(page, "weather", {
+            derived: [{ name: SHORT, field: "Date", by: "month" }],
+            rows: [SHORT],
+            cols: ["City"],
+            filters: [
+                { ...wholeYear(2025), field: SHORT },
+                { ...rule(">=", 6), field: SHORT },
+                { field: "City", type: "top", count: 5, by },
+                { field: SHORT, type: "value", op: ">", value: 10, by }
+            ],
+            sort: [{ field: "City", order: "desc" }],
+            values: [{ field: "Mean °C", agg: "sum", showAs: "percentOfGrandTotal", format: "percent" }]
+        });
+        parts = await chipParts(page, SHORT);
+        expect(parts.badges).toEqual([{ text: "2025 +1", whole: true }, { text: "Average of Mean °C > 10", whole: true }]);
+        expect(parts.name).toMatchObject({ text: SHORT, whole: true });
+        expect(parts.title).toBe(`${SHORT}, 2025, from Jun, Average of Mean °C > 10`);
+        await titleIsName(page, SHORT, parts.title);
+        parts = await chipParts(page, "City");
+        expect(parts.badges).toEqual([{ text: "Top 5", whole: true }]);
+        expect(parts.title).toBe("City, Top 5, sorted Z to A");
+        await titleIsName(page, "City", parts.title);
+        const share = "% of grand total of Mean °C";
+        parts = await chipParts(page, share);
+        expect(parts).toMatchObject({ badges: [], name: { text: share, whole: true }, title: share });
+        await titleIsName(page, share, share);
+        // a quick choice next to the filter count (a time line, the months of its last year, one month
+        // unticked): its words take more than half the zone's width next to the field list, so that folds
+        const yearsN = thisYear - lastYear + 1;
+        await openView(page, "weather", {
+            derived: [{ name: SHORT, field: "Date", by: "yearMonth" }],
+            rows: [SHORT],
+            values: [{ field: "Mean °C", agg: "average" }],
+            filters: [{ field: SHORT, type: "relative", unit: "year", count: yearsN }, { field: SHORT, type: "exclude", items: [202501] }]
+        });
+        await page.getByTestId("collapse-fields").click();
+        await expect(page.getByTestId("field-rail")).toBeVisible();
+        parts = await chipParts(page, SHORT);
+        expect(parts.badges).toEqual([{ text: "35 of 36", whole: true }, { text: `last ${yearsN} years (2025; ${yearsN === 2 ? "2026 has" : `2026–${thisYear} have`} no data)`, whole: true }]);
+        await titleIsName(page, SHORT, parts.title);
+        // a phone, the same state on the long field name: the name keeps several words and the rule
+        // ends in "…" at its floor, the title still whole
+        await page.setViewportSize({ width: 390, height: 844 });
+        await openView(page, "weather", cyclic({ filters: [wholeYear(2025), { field: CYCLIC, type: "exclude", items: [1, 2] }] }));
+        if (!(await page.getByTestId(`chip-menu-${CYCLIC}`).isVisible())) await page.getByTestId("layout-summary").click();
+        parts = await chipParts(page, CYCLIC);
+        expect(parts.badges[0]).toEqual({ text: "10 of 12", whole: true });
+        expect(parts.cut).toEqual([{ whole: false, overflow: "ellipsis" }]);
+        expect(parts.name.ems).toBeGreaterThan(5);
+        expect(parts.name.overflow).toBe("ellipsis");
+        expect(parts.title).toBe(`${CYCLIC}, filtered 10 of 12, 2025`);
+    });
 });
