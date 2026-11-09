@@ -3,7 +3,7 @@
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openLevel, openMoreFilters, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openRules, openSaveAs, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Filters a field of the Filters zone or an axis to one value through its popover. */
 async function onlyValue(page, value) {
@@ -24,17 +24,19 @@ test.describe("filters say what they keep", () => {
         await expect(menu.getByTestId("topic-state-filter")).toHaveText("All");
         await expect(menu.getByTestId("topic-filter")).toHaveAccessibleName("Filter, All");
         await openLevel(menu, "filter");
-        await expect(menu.getByTestId("filter-clear-picks")).toHaveCount(0);
-        await expect(menu.getByTestId("filter-remove-conditions")).toHaveCount(0);
-        // the conditions are folded at first
-        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
+        // nothing to clear or remove yet; the rules are folded while the field has none
+        await expect(menu.getByTestId("filter-clear-picks")).toBeDisabled();
+        await expect(menu.getByTestId("filter-remove-rules")).toBeDisabled();
+        await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "false");
         const row = menu.locator(".pk-value", { hasText: "West" });
         // "Only" shows on hover; it applies at once, the level stays open
         await row.hover();
         await row.locator(".pk-only").click();
         const badge = page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text');
         await expect(badge).toHaveText(/^1 of \d+$/);
-        await expect(menu.getByTestId("filter-result")).toHaveText(/^1 of \d+ items picked$/);
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(/^1 of \d+ items shown$/);
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText(/^\d+ left out by your picks$/);
+        await expect(menu.getByTestId("section-picks")).toContainText(/1 of \d+ picked/);
         // back on the first level: the row says it, with its dot and in words
         await menu.getByTestId("level-back").click();
         await expect(menu.getByTestId("topic-filter")).toBeFocused();
@@ -47,7 +49,8 @@ test.describe("filters say what they keep", () => {
         await openLevel(menu, "filter");
         await menu.getByTestId("filter-clear-picks").click();
         await expect(badge).toHaveCount(0);
-        await expect(menu.getByTestId("filter-result")).toHaveText(/^(\d+) of \1 items picked$/);
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(/^All \d+ items shown$/);
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText("Every item is picked, no rules.");
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         // a field in Filters opens the same menu: its Filter level clears the picks
@@ -64,7 +67,7 @@ test.describe("filters say what they keep", () => {
         await chipMenu(page, "Country", "filter");
         const menu = page.locator(".pk-chip-menu");
         const before = (await tableRows(page)).length;
-        await openMoreFilters(menu);
+        await openRules(menu);
         // no rule yet: a button adds one, the focus goes to its comparison
         await expect(menu.getByTestId("rule")).toHaveCount(0);
         await menu.getByTestId("rule-add-name").click();
@@ -80,17 +83,19 @@ test.describe("filters say what they keep", () => {
         await expect(ruleBadge).toHaveAttribute("title", "contains “an”");
         await expect(page.getByTestId("chip-menu-Country")).toHaveAccessibleName("Country, contains “an”");
         await openLevel(menu, "filter");
-        // the level says the rule in words, and how many items it keeps; the others are marked
-        await expect(menu.getByTestId("filter-result")).toHaveText(/^\d+ of \d+ items shown: contains “an”$/);
-        await expect(menu.locator(".pk-value-out").first()).toContainText("left out by a rule");
-        await openMoreFilters(menu);
+        // the summary says how many items the rule keeps; the rules are open with it, the others in the list's folded tail
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(/^\d+ of \d+ items shown$/);
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText(/^\d+ left out by the rule$/);
+        await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "true");
+        await expect(menu.getByTestId("rule-result")).toHaveText(/^Keeps \d+ of \d+ items$/);
         await expect(menu.getByTestId("filter-condition-text")).toHaveValue("an");
         const filtered = (await tableRows(page)).length;
         await menu.getByTestId("rule-remove").click();
-        // applied at once, the level stays open with the focus on the first button that adds a rule
+        // applied at once, the level stays open; the last rule gone, the rules fold and their header takes the focus
         await expect.poll(async () => (await tableRows(page)).length).toBeGreaterThan(filtered);
         await expect(menu.getByTestId("rule")).toHaveCount(0);
-        await expect(menu.getByTestId("rule-add-total")).toBeFocused();
+        await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "false");
+        await expect(menu.getByTestId("section-rules")).toBeFocused();
         // Escape: one level back, then the menu closes
         await page.keyboard.press("Escape");
         await expect(menu.getByTestId("topic-filter")).toBeFocused();
@@ -329,7 +334,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         // a rule on the total: a sentence of the value, its comparison and a number
-        await openMoreFilters(menu);
+        await openRules(menu);
         await menu.getByTestId("rule-add-total").click();
         await expect(menu.getByTestId("rules")).toContainText("Keep the items for which all of these are true:");
         await expect(menu.getByTestId("value-filter-op")).toBeFocused();
@@ -365,11 +370,13 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await expect(menu.getByTestId("topic-state-filter")).toHaveText(`● Sum of Revenue between 0 and ${shown}`);
         // with values chosen too: both in the row; the rule's × takes only the rule off
         await openLevel(menu, "filter");
+        // the items are folded while the field has a rule
+        await menu.getByTestId("section-picks").click();
         const row = menu.locator(".pk-value", { hasText: least[0] });
         await row.hover();
         await row.locator(".pk-only").click();
-        await expect(menu.getByTestId("filter-result")).toHaveText(new RegExp(`^1 of \\d+ items picked, plus Sum of Revenue between 0 and ${shown}$`));
-        await openMoreFilters(menu);
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(/^1 of \d+ items shown$/);
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText(/^\d+ left out by your picks$/);
         await menu.getByTestId("rule-remove").click();
         await expect(badge).toHaveCount(0);
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
@@ -379,7 +386,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await expect(badge).toHaveText(`Sum of Revenue between 0 and ${shown}`);
         // Clear picks and Remove the rules: each takes its own
         await chipMenu(page, "Region", "filter");
-        await menu.getByTestId("filter-remove-conditions").click();
+        await menu.getByTestId("filter-remove-rules").click();
         await expect(badge).toHaveCount(0);
         await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Region"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
         await menu.getByTestId("filter-clear-picks").click();
@@ -407,7 +414,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         await expect(menu.getByTestId("level-title")).toHaveText("Region › Filter");
-        await openMoreFilters(menu);
+        await openRules(menu);
         await menu.getByTestId("rule-add-total").click();
         await expect(menu.getByTestId("rules")).toContainText("Einträge behalten, für die alles zutrifft:");
         await menu.getByTestId("value-filter-op").selectOption({ label: "mindestens" });
@@ -418,7 +425,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         // the level shows it back in German; a plain point number reads too, an English grouping does not
         await menu.getByTestId("level-back").click();
         await openLevel(menu, "filter");
-        await openMoreFilters(menu);
+        await openRules(menu);
         await expect(menu.getByTestId("value-filter-number")).toHaveValue("1000,5");
         await menu.getByTestId("value-filter-number").fill("1,000.5");
         await expect(menu.getByTestId("value-filter-number-problem")).toHaveText("Eine Zahl eingeben, etwa 1.234,5.");
@@ -445,7 +452,7 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
         await chipMenu(page, "Region", "filter");
         const menu = page.locator(".pk-chip-menu");
         // Revenue is no value of the view any more: it is still the chosen measure; each rule a row
-        await openMoreFilters(menu);
+        await openRules(menu);
         await expect(menu.getByTestId("rule")).toHaveCount(2);
         await expect(menu.getByTestId("value-filter-by").first()).toHaveValue("1");
         await expect(menu.getByTestId("value-filter-by").first().locator("option:checked")).toHaveText("Sum of Revenue");

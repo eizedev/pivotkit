@@ -5,9 +5,9 @@
  * what the first render and its clicks need (placing, moving, sorting by a header, the tips' actions).
  */
 
-import { isFormat } from "pivotkit-core";
+import { CATALOG, computePivot, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { itemRuleText, valueConditionText } from "./names.js";
+import { itemRuleText, valueConditionText, wholeYears } from "./names.js";
 import { axisOf, clone, filterZoneFields, filtersOf, groupingOf, numericResult, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
@@ -193,25 +193,30 @@ export const RULES_MAX = 10;
 export const setRule = (view, field, previous, entry) => replaceFilter(view, field, previous, entry);
 
 /** Date groupings by which "Last N months" says nothing the years do not: a year, its quarters. */
-const COARSE = Object.freeze(["year", "yearQuarter", "quarter"]);
+const COARSE = Object.freeze(["year", "yearQuarter"]);
 
 /**
  * How the Filter level's rules compare a field's items. `item`: "number" (a number typed), "date" (a
  * date field or a day grouping: a day chosen), "group" (another grouping: one of its items chosen),
- * null (text and yes/no have no comparison). `dates`: its source is a date (the quick choices, the
- * words "from", "before", the relative ranges); `months`: "Last N months" is offered (not for a
- * grouping by year or quarter).
+ * null (text and yes/no have no comparison). `dates`: its source is a date (the words "from",
+ * "before", the relative ranges); `cyclic`: a grouping that combines the years ("month of the year":
+ * Years combined instead of the quick choices); `quick`: the quick choices are offered (a date along
+ * the time line); `months`: "Last N months" among them (not for a grouping by year or quarter);
+ * `days`: "Last N days" too (a date field or a day grouping). `unit`: the grouping's unit, for the
+ * noun of its items.
  * @param {import("pivotkit-core").Encoded} encoded
  * @param {any} view
  * @param {string} field
- * @returns {{ item: "number" | "date" | "group" | null, dates: boolean, months: boolean }}
+ * @returns {{ item: "number" | "date" | "group" | null, dates: boolean, cyclic: boolean, quick: boolean, months: boolean, days: boolean, unit: string | null }}
  */
 export function ruleKind(encoded, view, field) {
     const grouping = groupingOf(view, field);
     const source = encoded.column(sourceOf(view, field))?.type ?? "string";
     const dates = source === "date";
     const item = grouping ? (grouping.by === "day" ? "date" : "group") : source === "number" || source === "date" ? source : null;
-    return { item, dates, months: dates && !COARSE.includes(grouping?.by) };
+    const cyclic = dates && Boolean(grouping) && CATALOG.cyclicUnits.includes(grouping.by);
+    const quick = dates && !cyclic;
+    return { item, dates, cyclic, quick, months: quick && !COARSE.includes(grouping?.by), days: quick && item === "date", unit: grouping?.by ?? null };
 }
 
 /**
@@ -219,43 +224,150 @@ export function ruleKind(encoded, view, field) {
  * "from 2022", "Count of Released > 3", "contains “an”".
  * @param {any} view
  * @param {any} f
- * @param {{ labels: any, locale: string, timeZone: string, date: boolean, labelOf?: (v: number) => string | undefined }} options
+ * @param {{ labels: any, locale: string, timeZone: string, date: boolean, labelOf?: (v: number) => string | undefined, span?: { min: number, max: number } | null }} options
  */
-export function ruleText(view, f, { labels, locale, timeZone, date, labelOf }) {
-    return f.type === "value" ? valueConditionText(view, f, labels, locale) : itemRuleText(f, labels, locale, { timeZone, date, labelOf });
+export function ruleText(view, f, { labels, locale, timeZone, date, labelOf, span }) {
+    return f.type === "value" ? valueConditionText(view, f, labels, locale) : itemRuleText(f, labels, locale, { timeZone, date, labelOf, span });
 }
 
 /**
- * The quick choice of a date field's Filter level its filters match: "all" (no range and no
- * comparison of the item), "thisYear", "years" or "months" with their count (one relative range;
- * months only where they are offered), else "custom" (the rules hold more).
+ * The quick choice of a date field's Filter level its filters match: "all" (no relative range),
+ * "thisYear", "years", "months" or "days" with their count and anchor (the field's first relative
+ * range of a unit that is offered: months and days only where they are) and the filter itself; the
+ * field's other ranges and its comparisons are rules. For a cyclic grouping "yearsCombined" with the
+ * years its whole-year comparisons keep (`years`, ascending, from `all`, the years of the data) and
+ * those filters, "all" without any, else "custom" (its comparisons hold more).
  * @param {any} view
  * @param {string} field
- * @param {boolean} months  whether "Last N months" is offered
- * @returns {{ id: "all" | "thisYear" | "years" | "months" | "custom", count?: number }}
+ * @param {{ cyclic: boolean, months: boolean, days: boolean }} fk  ruleKind()
+ * @param {number[]} [all]  the years of the data, for a cyclic grouping
+ * @returns {{ id: "all" | "thisYear" | "years" | "months" | "days" | "yearsCombined" | "custom", count?: number, anchor?: string, years?: number[], filters: any[] }}
  */
-export function quickChoice(view, field, months) {
+export function quickChoice(view, field, fk, all = []) {
     const ranges = filtersOf(view, field, ["relative"]);
     const compared = filtersOf(view, field, ["compare"]);
-    if (!ranges.length && !compared.length) {
-        return { id: "all" };
+    if (fk.cyclic) {
+        if (!compared.length) {
+            return { id: "all", filters: [] };
+        }
+        const years = yearsCombined(compared, all);
+        return years ? { id: "yearsCombined", years, filters: compared } : { id: "custom", filters: [] };
     }
-    const [r] = ranges;
-    if (ranges.length === 1 && !compared.length && (r.unit === "year" || (r.unit === "month" && months))) {
-        return r.unit === "year" ? { id: r.count === 1 ? "thisYear" : "years", count: r.count } : { id: "months", count: r.count };
+    const offered = { year: true, month: fk.months, day: fk.days };
+    const r = ranges.find((f) => offered[f.unit]);
+    if (!r) {
+        return { id: "all", filters: [] };
     }
-    return { id: "custom" };
+    const id = /** @type {"thisYear" | "years" | "months" | "days"} */ (r.unit === "year" ? (r.count === 1 ? "thisYear" : "years") : `${r.unit}s`);
+    return { id, count: r.count, anchor: r.anchor ?? "today", filters: [r] };
 }
 
 /**
- * A quick choice applied: the field's relative ranges and comparisons of the item are replaced by
- * one range ({ unit, count }), or removed for All (null). Its other filters stay.
+ * The years a cyclic grouping's comparisons keep, when every one of them is a whole-year rule
+ * (Years combined writes them: "between 2024-01-01 and 2025-12-31" keeps the years, "not between" a
+ * gap); null when a comparison is something else, or none is left to keep.
+ * @param {any[]} compared  the field's `compare` filters
+ * @param {number[]} all  the years of the data
+ */
+function yearsCombined(compared, all) {
+    let kept = new Set(all);
+    for (const f of compared) {
+        const years = f.op === "between" || f.op === "notBetween" ? wholeYears(f.value, f.value2) : null;
+        if (!years) {
+            return null;
+        }
+        const [a, b] = years.map(Number);
+        kept = new Set([...kept].filter((y) => (a <= y && y <= b) === (f.op === "between")));
+    }
+    return kept.size ? [...kept].sort((x, y) => x - y) : null;
+}
+
+/** The whole-year comparisons that keep `years` of `all` (ascending): the span they cover, less each gap in it. */
+export function yearRules(field, years, all) {
+    if (!years.length || years.length === all.length) {
+        return [];
+    }
+    const day = (y, last) => `${String(y).padStart(4, "0")}-${last ? "12-31" : "01-01"}`;
+    const rule = (op, from, to) => ({ field, type: "compare", op, value: day(from, false), value2: day(to, true) });
+    const rules = [rule("between", years[0], years[years.length - 1])];
+    for (let i = 1; i < years.length; i++) {
+        // a gap: a year of the data between two years kept
+        if (all.some((y) => years[i - 1] < y && y < years[i])) {
+            rules.push(rule("notBetween", years[i - 1] + 1, years[i] - 1));
+        }
+    }
+    return rules;
+}
+
+/**
+ * Years combined of a cyclic grouping: its comparisons are replaced by the whole-year rules that keep
+ * `years` (yearRules); all of the data's years keep none. Its other filters stay.
  * @param {any} view
  * @param {string} field
- * @param {{ unit: string, count: number } | null} range
+ * @param {number[]} years  ascending
+ * @param {number[]} all  the years of the data
+ */
+export const setYearsCombined = (view, field, years, all) => replaceFilters(view, field, ["relative", "compare"], yearRules(field, years, all));
+
+/**
+ * A quick choice applied: the field's relative ranges are replaced by one range ({ unit, count,
+ * anchor }, the anchor "today" not written), or removed for All (null). Its other filters, the
+ * comparisons of the item among them, stay: picks, quick choice and rules apply together.
+ * @param {any} view
+ * @param {string} field
+ * @param {{ unit: string, count: number, anchor?: string } | null} range
  */
 export function setQuickRange(view, field, range) {
-    return replaceFilters(view, field, ["relative", "compare"], range ? [{ field, type: "relative", unit: range.unit, count: range.count }] : []);
+    return replaceFilters(view, field, ["relative"], range ? [{ field, type: "relative", unit: range.unit, count: range.count, ...(range.anchor === "latest" ? { anchor: "latest" } : {}) }] : []);
+}
+
+/**
+ * What the field's relative ranges count back from: "today" (not written) or "latest", the data's
+ * latest record. Every range of the field takes it; the view stays the same without one.
+ * @param {any} view
+ * @param {string} field
+ * @param {"today" | "latest"} anchor
+ */
+export function setAnchor(view, field, anchor) {
+    const next = clone(view);
+    for (const f of next.filters) {
+        if (same(f.field, field) && f.type === "relative") {
+            delete f.anchor;
+            if (anchor === "latest") {
+                f.anchor = "latest";
+            }
+        }
+    }
+    return next;
+}
+
+/** Takes the whole filter of a field off: its picks, its quick choice and its rules; Top N stays. */
+export const resetFilter = (view, field) => replaceFilters(view, field, ["include", "exclude", ...RULE_TYPES], []);
+
+/**
+ * The totals a rule on the total compares, as the table's Grand Total shows them: one per item of
+ * the field, the measure over every row the view's other filters and the field's own filters on
+ * items leave (`filters`: those to apply; the field's rules on totals are left out, so each rule
+ * can say what it keeps). Blank keys are null, as the items' values.
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {any} view  normalized
+ * @param {string} field
+ * @param {{ field: string | null, agg: string }} by
+ * @param {any[]} filters
+ * @returns {{ totals: Map<string, number | null>, rows: number }}  totals by the item's key (JSON), and the rows left
+ */
+export function itemTotals(encoded, view, field, by, filters) {
+    const result = computePivot(encoded, { ...view, rows: [field], cols: [], values: [{ ...(by.field ? { field: by.field } : {}), agg: by.agg }], filters, sort: [] });
+    const totals = new Map();
+    // a measure the data cannot give (a view's issue) leaves no value to read
+    if (!result.values.length) {
+        return { totals, rows: result.rows.length };
+    }
+    for (const node of result.rowRoot.children) {
+        const v = result.value(node, result.colRoot, 0);
+        totals.set(JSON.stringify(node.key), typeof v === "number" && Number.isFinite(v) ? v : null);
+    }
+    return { totals, rows: result.rows.length };
 }
 
 /**
@@ -288,8 +400,14 @@ export function measureChoices(view, typeOf) {
     return out.length ? out : [{ field: null, agg: "count" }];
 }
 
-/** Removes the rules of a field (RULE_TYPES); its picks and Top N stay. */
-export const removeRules = (view, field) => replaceFilters(view, field, RULE_TYPES, []);
+/**
+ * Removes the rules of a field (RULE_TYPES); its picks and Top N stay, and so do `keep`, the filters
+ * of the quick choice (quickChoice().filters), in their place.
+ */
+export function removeRules(view, field, keep = []) {
+    const kept = new Set(keep.map((f) => JSON.stringify(f)));
+    return filtersOf(view, field, RULE_TYPES).filter((f) => !kept.has(JSON.stringify(f))).reduce((v, f) => setRule(v, field, f, null), view);
+}
 
 /** The four totals of Options, in their order. */
 export const TOTALS = Object.freeze(["grandTotalRow", "grandTotalColumn", "rowSubtotals", "colSubtotals"]);

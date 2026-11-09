@@ -27,16 +27,19 @@ export const keyOf = (v) => JSON.stringify(v);
  * shows), and, in a part that scrolls (`children` after them), each value with its row count and
  * "Only". `selected` holds the keys (keyOf) of the values picked; `onChange` gets the next set. The
  * filter popover keeps it as a draft until Apply, the Filter level of a chip menu applies it at once.
- * An item the field's rules leave out (`kept` false, pivotkit-core's fieldItems) is muted with
- * `outText` after its name.
+ * With `tail`, the items a rule leaves out (`isOut`) are taken out of the list and handed to `render`
+ * with the row function, for a folded group at the end of the list (the Filter level; `searching`
+ * says whether a search is on, which shows them); the group's markup is the caller's.
  * @param {{ items: Array<{ value: unknown, label: string, count: number, kept?: boolean }>, selected: Set<string>, onChange: (next: Set<string>) => void,
- *   labels: any, locale: string, autoFocus?: boolean, outText?: string, children?: React.ReactNode }} props
+ *   labels: any, locale: string, autoFocus?: boolean, tail?: { isOut: (item: any) => boolean, render: (out: any[], row: (item: any) => React.ReactNode, searching: boolean) => React.ReactNode }, children?: React.ReactNode }} props
  */
-export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, outText, children }) {
+export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, tail, children }) {
     const [query, setQuery] = useState("");
     const q = query.trim().toLocaleLowerCase();
     const matching = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
-    const shown = matching.slice(0, FILTER_LIST_MAX);
+    const inList = tail ? matching.filter((i) => !tail.isOut(i)) : matching;
+    const out = tail ? matching.filter((i) => tail.isOut(i)) : [];
+    const shown = inList.slice(0, FILTER_LIST_MAX);
     const setAll = (on) => {
         const next = new Set(selected);
         for (const i of matching) {
@@ -58,6 +61,21 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
         }
         onChange(next);
     };
+    const row = (i, muted) => {
+        const k = keyOf(i.value);
+        return (
+            <li key={k} className={`pk-value${muted ? " pk-value-out" : ""}`}>
+                <label>
+                    <input type="checkbox" checked={selected.has(k)} onChange={() => toggle(i.value)} />
+                    <span className="pk-value-label">{i.label}</span>
+                    <span className="pk-count">{i.count.toLocaleString(locale)}</span>
+                </label>
+                <button type="button" className="pk-link pk-only" onClick={() => onChange(new Set([k]))} aria-label={`${labels.onlyThis}: ${i.label}`}>
+                    {labels.onlyThis}
+                </button>
+            </li>
+        );
+    };
     return (
         <>
             <label className="pk-search">
@@ -76,24 +94,12 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
             {/* the middle scrolls when the window is low; what is above and below it stays in view */}
             <div className="pk-filter-body">
                 <ul className="pk-values" role="list">
-                    {shown.map((i) => {
-                        const k = keyOf(i.value);
-                        return (
-                            <li key={k} className={`pk-value${outText && i.kept === false ? " pk-value-out" : ""}`}>
-                                <label>
-                                    <input type="checkbox" checked={selected.has(k)} onChange={() => toggle(i.value)} />
-                                    <span className="pk-value-label">{i.label}</span>
-                                    {outText && i.kept === false ? <span className="pk-value-out-note">{outText}</span> : null}
-                                    <span className="pk-count">{i.count.toLocaleString(locale)}</span>
-                                </label>
-                                <button type="button" className="pk-link pk-only" onClick={() => onChange(new Set([k]))} aria-label={`${labels.onlyThis}: ${i.label}`}>
-                                    {labels.onlyThis}
-                                </button>
-                            </li>
-                        );
-                    })}
+                    {shown.map((i) => row(i, false))}
+                    {inList.length > shown.length ? (
+                        <li className="pk-hint pk-values-more">{fill(labels.valuesShown, { shown: shown.length, total: inList.length.toLocaleString(locale) })}</li>
+                    ) : null}
+                    {out.length && tail ? tail.render(out, (i) => row(i, true), q !== "") : null}
                 </ul>
-                {matching.length > shown.length ? <p className="pk-hint">{fill(labels.valuesShown, { shown: shown.length, total: matching.length.toLocaleString(locale) })}</p> : null}
                 {children}
             </div>
         </>

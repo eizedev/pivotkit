@@ -42,9 +42,9 @@ Start with the [quick start](use/quick-start.md) (your first report in six steps
   value as a share of a total, a running total, a difference or a rank ([values](use/values.md)).
 - Dates are grouped by year, quarter, month, week, day or hour as soon as they are placed; numbers
   go into ranges ([dates and ranges](use/values.md#dates-and-number-ranges)).
-- Filter a field by its values with their row counts, a quick choice for dates ("last 5 years"),
-  rules ("from 2022", "Sum of Revenue > 1,000") or its top N; the menu says what a filter keeps
-  ([filters](use/filters.md)).
+- Filter a field by its values with their row counts, a quick choice for dates ("last 2 years",
+  only where the data reach), rules ("from 2022", "Sum of Revenue > 1,000") or its top N; the menu
+  says what a filter shows and why not the rest ([filters](use/filters.md)).
 - Click a number to see the rows behind it, then copy or download them ([drill-down](use/drill-down.md)).
 - Switch to a chart: the type follows the data (lines over dates, else bars) until you pick bars,
   lines, area, pie, donut or heatmap, with value labels, legend, title and group labels

@@ -4,7 +4,7 @@
 // snapshot with plain JavaScript, relative to today as the browser sees it (the data is in UTC).
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, expect, openLevel, openMoreFilters, tableRows, test } from "./fixtures.js";
+import { chipMenu, expect, openLevel, openRules, pickItem, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const eol = unpack(JSON.parse(readFileSync(new URL("../../examples/playground/data/endoflife.json", import.meta.url), "utf8")));
@@ -34,46 +34,54 @@ test.describe("the Filter level of a date field", () => {
         await openView(page, byYear());
         await chipMenu(page, YEAR, "filter");
         const menu = page.locator(".pk-chip-menu");
-        // in this order: the quick choices (All checked and focused), the list, the folded rules
+        // in this order: the summary, the quick choices (All checked and focused), the items, the folded rules
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(`All ${perYear.length} years shown`);
         await expect(menu.getByTestId("quick-all")).toBeChecked();
         await expect(menu.getByTestId("quick-all")).toBeFocused();
         await expect(menu.getByTestId("quick-thisYear")).toHaveAccessibleName("This year");
         // a year grouping has no "Last N months"
         await expect(menu.getByTestId("quick-months")).toHaveCount(0);
-        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "false");
-        // the count first, then its choice: applied a moment after the typing stops
-        await menu.getByTestId("quick-years-count").fill("2");
-        const range = `${thisYear - 1}–${thisYear}`;
+        await expect(menu.getByTestId("section-picks")).toHaveAttribute("aria-expanded", "true");
+        await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "false");
+        // the count first, then its choice: applied a moment after the typing stops (2 is the count it starts with)
+        await expect(menu.getByTestId("quick-years")).toHaveAccessibleName("Last 2 years");
+        await menu.getByTestId("quick-years-count").fill("3");
+        const range = `${thisYear - 2}–${thisYear}`;
         await expect(menu.getByTestId("quick-years")).toBeChecked();
         await expect(menu.getByTestId("quick-choices")).toContainText(range);
-        await expect.poll(() => yearRows(page)).toEqual(rowsOf((y) => y >= thisYear - 1));
-        await expect(badge(page, "rows", YEAR)).toHaveText(`last 2 years (${range})`);
-        // the list agrees: the years before are marked as left out, the first line counts what shows
-        const kept = rowsOf((y) => y >= thisYear - 1).length;
-        await expect(menu.getByTestId("filter-result")).toHaveText(`${kept} of ${perYear.length} items shown: last 2 years (${range})`);
-        await expect(menu.locator(".pk-value", { hasText: String(thisYear - 2) })).toHaveClass(/pk-value-out/);
-        await expect(menu.locator(".pk-value", { hasText: String(thisYear - 2) })).toContainText("left out by a rule");
-        await expect(menu.locator(".pk-value", { hasText: String(thisYear) })).not.toHaveClass(/pk-value-out/);
+        await expect.poll(() => yearRows(page)).toEqual(rowsOf((y) => y >= thisYear - 2));
+        await expect(badge(page, "rows", YEAR)).toHaveText(`last 3 years (${range})`);
+        // the summary counts what shows and why not the rest; the years before sit in the folded tail of the list
+        const kept = rowsOf((y) => y >= thisYear - 2).length;
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText(`${kept} of ${perYear.length} years shown`);
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText(`${perYear.length - kept} outside last 3 years (${range})`);
+        await expect(menu.getByTestId("section-picks")).toHaveAttribute("aria-expanded", "false");
+        await menu.getByTestId("section-picks").click();
+        await expect(menu.locator(".pk-values > .pk-value")).toHaveCount(kept);
+        await expect(menu.locator(".pk-values > .pk-value", { hasText: String(thisYear) })).toHaveCount(1);
+        await expect(menu.getByTestId("tail-toggle")).toHaveText(`Left out by the rules (${perYear.length - kept}) – their ticks apply again once they go`);
+        await menu.getByTestId("tail-toggle").click();
+        await expect(menu.getByTestId("tail-list").locator(".pk-value", { hasText: String(thisYear - 3) }).locator("input")).toBeChecked();
         // a count above the most says so, and nothing changes
         await menu.getByTestId("quick-years-count").fill("501");
         await expect(menu.getByTestId("quick-years-count-problem")).toHaveText("Enter a whole number up to 500.");
-        await expect(badge(page, "rows", YEAR)).toHaveText(`last 2 years (${range})`);
-        await menu.getByTestId("quick-years-count").fill("3");
-        await expect(badge(page, "rows", YEAR)).toHaveText(`last 3 years (${thisYear - 2}–${thisYear})`);
+        await expect(badge(page, "rows", YEAR)).toHaveText(`last 3 years (${range})`);
+        await menu.getByTestId("quick-years-count").fill("2");
+        await expect(badge(page, "rows", YEAR)).toHaveText(`last 2 years (${thisYear - 1}–${thisYear})`);
         await menu.getByTestId("quick-years-count").fill("7");
         await expect(badge(page, "rows", YEAR)).toHaveText(`last 7 years (${thisYear - 6}–${thisYear})`);
         // Undo while the level is open (its keys from a button): the count and the choice follow
-        await menu.getByTestId("filter-more").focus();
+        await menu.getByTestId("section-rules").focus();
         await page.keyboard.press("ControlOrMeta+z");
-        await expect(badge(page, "rows", YEAR)).toHaveText(`last 3 years (${thisYear - 2}–${thisYear})`);
-        await expect(menu.getByTestId("quick-years-count")).toHaveValue("3");
-        await expect(menu.getByTestId("quick-years")).toHaveAccessibleName("Last 3 years");
-        await page.keyboard.press("ControlOrMeta+z");
-        await expect(badge(page, "rows", YEAR)).toHaveText(`last 2 years (${range})`);
+        await expect(badge(page, "rows", YEAR)).toHaveText(`last 2 years (${thisYear - 1}–${thisYear})`);
         await expect(menu.getByTestId("quick-years-count")).toHaveValue("2");
+        await expect(menu.getByTestId("quick-years")).toHaveAccessibleName("Last 2 years");
+        await page.keyboard.press("ControlOrMeta+z");
+        await expect(badge(page, "rows", YEAR)).toHaveText(`last 3 years (${range})`);
+        await expect(menu.getByTestId("quick-years-count")).toHaveValue("3");
         // the first level says the same words; All takes it off
         await menu.getByTestId("level-back").click();
-        await expect(menu.getByTestId("topic-state-filter")).toHaveText(`● last 2 years (${range})`);
+        await expect(menu.getByTestId("topic-state-filter")).toHaveText(`● last 3 years (${range})`);
         await openLevel(menu, "filter");
         await menu.getByTestId("quick-all").check();
         await expect(badge(page, "rows", YEAR)).toHaveCount(0);
@@ -84,16 +92,18 @@ test.describe("the Filter level of a date field", () => {
         await openView(page, byYear({ values: [] }));
         await chipMenu(page, YEAR, "filter");
         const menu = page.locator(".pk-chip-menu");
-        await openMoreFilters(menu);
+        await openRules(menu);
         await menu.getByTestId("rule-add-item").click();
         // "is from" first; the year is one of the grouping's items
         await expect(menu.getByTestId("rule-item-op")).toBeFocused();
         await expect(menu.getByTestId("rule-item-op").locator("option:checked")).toHaveText("is from");
-        await menu.getByTestId("rule-item-value").selectOption({ label: "2022" });
+        await pickItem(page, menu, "rule-item-value", "2022");
         await expect.poll(() => years(page)).toEqual(yearsOf((y) => y >= 2022));
         await expect(badge(page, "rows", YEAR)).toHaveText("from 2022");
-        // a custom rule: the quick choices say so
-        await expect(menu.getByTestId("quick-custom")).toBeChecked();
+        // a rule, no quick choice: All stays, the rule counts on the header with its result line
+        await expect(menu.getByTestId("quick-all")).toBeChecked();
+        await expect(menu.getByTestId("section-rules")).toContainText("1 rule");
+        await expect(menu.getByTestId("rule-result")).toHaveText(`Keeps ${yearsOf((y) => y >= 2022).length} of ${perYear.length} years`);
         // with nothing in Values the total is the count of rows, named in full
         await menu.getByTestId("rule-add-total").click();
         // the sentence names the field's items: "Released by year items whose Count of rows …"
@@ -110,7 +120,7 @@ test.describe("the Filter level of a date field", () => {
         await expect(menu.getByTestId("rule-blanks")).toHaveText("Blank items are not kept.");
         // between and its second year
         await menu.getByTestId("rule-item-op").selectOption("between");
-        await menu.getByTestId("rule-item-value2").selectOption({ label: "2024" });
+        await pickItem(page, menu, "rule-item-value2", "2024");
         await expect(badge(page, "rows", YEAR)).toHaveText("2022 to 2024");
         await expect.poll(() => years(page)).toEqual(yearsOf((y, n) => y >= 2022 && y <= 2024 && n > 20));
         // the first rule's × takes it alone off
@@ -118,11 +128,13 @@ test.describe("the Filter level of a date field", () => {
         await expect(menu.getByTestId("rule")).toHaveCount(1);
         await expect(badge(page, "rows", YEAR)).toHaveCount(0);
         await expect.poll(() => years(page)).toEqual(yearsOf((_y, n) => n > 20));
-        // "in the last N years" is a rule too: the quick choice shows it
+        // "in the last N years" is the quick choice: it moves up to the choices and stands among the rules as a line
         await menu.getByTestId("rule-add-item").click();
         await menu.getByTestId("rule-item-op").last().selectOption("last");
         await expect(menu.getByTestId("quick-years")).toBeChecked();
         await expect(badge(page, "rows", YEAR)).toHaveText(`last 5 years (${thisYear - 4}–${thisYear})`);
+        await expect(menu.getByTestId("rule")).toHaveCount(1);
+        await expect(menu.getByTestId("rule-quick")).toContainText(`Quick choice: last 5 years (${thisYear - 4}–${thisYear})`);
     });
 
     test("a field in Filters gets the same Filter level, and filters the whole report", async ({ page }) => {
@@ -133,13 +145,14 @@ test.describe("the Filter level of a date field", () => {
         await expect(menu.getByTestId("topic-state-filter")).toHaveText("All");
         await expect(menu.getByTestId("topic-sort")).toHaveCount(0);
         await openLevel(menu, "filter");
-        // an ungrouped date has the months too
+        // an ungrouped date has the months (and days) too; the count starts at the smallest that reaches the latest record
+        await expect(menu.getByTestId("quick-days")).toBeVisible();
         await menu.getByTestId("quick-months").check();
-        await expect(badge(page, "filters", "Released")).toHaveText(/^last 12 months \(/);
-        await menu.getByTestId("quick-years-count").fill("2");
-        const kept = eol.filter((x) => x.Released && yearOf(x) >= thisYear - 1).length;
+        await expect(badge(page, "filters", "Released")).toHaveText(/^this month \(/);
+        await menu.getByTestId("quick-years-count").fill("3");
+        const kept = eol.filter((x) => x.Released && yearOf(x) >= thisYear - 2).length;
         await expect.poll(async () => (await tableRows(page)).find((r) => r[0] === "Grand Total")?.[1]).toBe(kept.toLocaleString("en-US"));
-        await expect(page.getByTestId("chip-menu-Released")).toHaveAccessibleName(`Released, last 2 years (${thisYear - 1}–${thisYear})`);
+        await expect(page.getByTestId("chip-menu-Released")).toHaveAccessibleName(`Released, last 3 years (${thisYear - 2}–${thisYear})`);
     });
 
     test("by keys alone: the menu, the Filter level, the quick choices with the arrow keys", async ({ page }) => {
@@ -147,6 +160,8 @@ test.describe("the Filter level of a date field", () => {
         await page.getByTestId(`chip-menu-${YEAR}`).focus();
         await page.keyboard.press("Enter");
         const menu = page.locator(".pk-chip-menu");
+        // the menu takes the focus a frame after it opens: wait for that, so it does not take it back
+        await expect.poll(() => page.evaluate(() => document.activeElement?.closest(".pk-chip-menu") !== null)).toBe(true);
         // to the Filter row and into its level
         await menu.getByTestId("topic-filter").focus();
         await page.keyboard.press("Enter");
@@ -156,13 +171,14 @@ test.describe("the Filter level of a date field", () => {
         await expect(badge(page, "rows", YEAR)).toHaveText(`this year (${thisYear})`);
         await page.keyboard.press("ArrowDown");
         await expect(menu.getByTestId("quick-years")).toBeFocused();
-        await expect(badge(page, "rows", YEAR)).toHaveText(`last 5 years (${thisYear - 4}–${thisYear})`);
+        // "Last 1 year" would be This year again: the count starts at 2
+        await expect(badge(page, "rows", YEAR)).toHaveText(`last 2 years (${thisYear - 1}–${thisYear})`);
         // Tab to its count, typed, Escape gives back what applies, Escape again goes back a level
         await page.keyboard.press("Tab");
         await expect(menu.getByTestId("quick-years-count")).toBeFocused();
         await page.keyboard.type("0");
         await page.keyboard.press("Escape");
-        await expect(menu.getByTestId("quick-years-count")).toHaveValue("5");
+        await expect(menu.getByTestId("quick-years-count")).toHaveValue("2");
         await page.keyboard.press("Escape");
         await expect(menu.getByTestId("topic-filter")).toBeFocused();
     });
@@ -187,8 +203,10 @@ test.describe("the Filter level of a date field", () => {
         await search.fill("rule");
         await search.press("ArrowDown");
         await page.keyboard.press("Enter");
-        await expect(menu.getByTestId("filter-more")).toHaveAttribute("aria-expanded", "true");
-        await expect(menu.getByTestId("rule")).toHaveCount(2);
+        // the rules open on the comparison; the quick choice stands above them as a line
+        await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "true");
+        await expect(menu.getByTestId("rule")).toHaveCount(1);
+        await expect(menu.getByTestId("rule-quick")).toContainText("Quick choice: last 2 years");
         await expect(menu.getByTestId("rule-item-op").first()).toBeFocused();
     });
 
@@ -205,13 +223,16 @@ test.describe("the Filter level of a date field", () => {
         await menu.getByTestId("quick-years-count").fill("5");
         await menu.getByTestId("quick-years").check();
         await expect(badge(page, "rows", chip)).toHaveText(`letzte 5 Jahre (${thisYear - 4}–${thisYear})`);
-        await openMoreFilters(menu);
-        await expect(menu.getByTestId("rules")).toContainText("Einträge behalten, für die alles zutrifft:");
+        await expect(menu.getByTestId("filter-summary-why")).toContainText(`außerhalb von letzte 5 Jahre (${thisYear - 4}–${thisYear})`);
+        await openRules(menu);
+        await expect(menu.getByTestId("rules")).toContainText("Jahre behalten, für die alles zutrifft:");
+        await expect(menu.getByTestId("rule-quick")).toContainText("Schnellauswahl: letzte 5 Jahre");
+        await menu.getByTestId("rule-add-item").click();
         await menu.getByTestId("rule-item-op").selectOption({ label: "ab" });
-        await menu.getByTestId("rule-item-value").selectOption({ label: "2022" });
-        await expect(badge(page, "rows", chip)).toHaveText(`ab 2022`);
-        await expect(menu.getByTestId("quick-custom")).toBeChecked();
-        await expect(menu.getByTestId("quick-custom")).toHaveAccessibleName("Eigene Regeln");
+        await pickItem(page, menu, "rule-item-value", "2022");
+        // the quick choice first on the chip, the rule as "+1"
+        await expect(badge(page, "rows", chip)).toHaveText(`letzte 5 Jahre (${thisYear - 4}–${thisYear}) +1`);
+        await expect(menu.getByTestId("section-rules")).toContainText("1 Regel");
         await menu.getByTestId("rule-item-op").selectOption("last");
         await menu.getByTestId("rule-last-count").fill("1");
         await expect(menu.getByTestId("rule-item-op").locator("option:checked")).toHaveText("im letzten");
@@ -225,10 +246,10 @@ test.describe("the Filter level of a date field", () => {
         if (!(await page.getByTestId(`chip-menu-${YEAR}`).isVisible())) await page.getByTestId("layout-summary").click();
         await chipMenu(page, YEAR, "filter");
         const menu = page.locator(".pk-chip-menu");
-        await menu.getByTestId("filter-more").click();
+        await menu.getByTestId("section-rules").click();
         await expect(menu.getByTestId("rules")).toBeInViewport();
         await menu.getByTestId("rule-add-item").click();
-        await menu.getByTestId("rule-item-value").selectOption({ label: "2022" });
+        await pickItem(page, menu, "rule-item-value", "2022");
         await menu.getByTestId("rule-add-total").click();
         // the whole new row, not only its first control
         await expect(menu.getByTestId("rule").last()).toBeInViewport({ ratio: 1 });

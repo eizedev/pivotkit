@@ -163,7 +163,7 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     // (the words of a rule on names, "does not contain", are the chip's too, so they load first)
     const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
     const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
-    for (const words of ["Nothing is collapsed.", "{count} groups expanded", "Needs a field in Rows.", "Keep the items for which all of these are true:", "Link copied", "View copied as JSON"]) {
+    for (const words of ["Nothing is collapsed.", "{count} groups expanded", "Needs a field in Rows.", "Keep the {noun} for which all of these are true:", "Link copied", "View copied as JSON"]) {
         assert.ok(text(groups.menus).includes(words), `"${words}" is not in the menus`);
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
     }

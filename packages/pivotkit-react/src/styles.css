@@ -52,6 +52,8 @@
     --pk-total: #f4f6f9;
     --pk-total-strong: #e9edf3;
     --pk-danger: #b42318;
+    --pk-danger-soft: #fdecea;
+    --pk-warn: #8a5a00;
     --pk-focus: #2b5fd9;
     --pk-shadow-sm: 0 1px 1px rgb(16 24 40 / 0.04);
     --pk-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.08);
@@ -95,6 +97,8 @@
     --pk-total: #1d2128;
     --pk-total-strong: #252a33;
     --pk-danger: #ff8b80;
+    --pk-danger-soft: #3a1f1d;
+    --pk-warn: #f3c56b;
     --pk-focus: #84a3ff;
     --pk-shadow-sm: 0 1px 1px rgb(0 0 0 / 0.3);
     --pk-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
@@ -1508,17 +1512,111 @@
     padding: 0;
 }
 
-.pk-level-result {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 12px;
+/* the summary card that stays in view while the level scrolls: bold head, the reasons, the rows */
+.pk-filter-summary {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 2px 0 4px;
+    background: var(--pk-surface);
 }
 
-.pk-level-result > p {
-    flex-basis: 100%;
+.pk-summary-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface-2);
+}
+
+.pk-summary-card > p {
     margin: 0;
+}
+
+.pk-summary-head {
+    grid-column: 1;
+    font-weight: 700;
+}
+
+.pk-summary-why {
+    grid-column: 1;
+}
+
+.pk-summary-meta {
+    grid-column: 1 / -1;
     color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+.pk-summary-reset {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+    white-space: nowrap;
+}
+
+.pk-summary-empty {
+    background: var(--pk-danger-soft);
+    border-color: var(--pk-danger);
+}
+
+.pk-summary-empty .pk-summary-head {
+    color: var(--pk-danger);
+}
+
+/* the foldable sections: a header button with the title, its state at the right, an action beside */
+.pk-fsection {
+    border-top: 1px solid var(--pk-border);
+}
+
+.pk-fsection-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pk-fsection-toggle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 0.35em;
+    min-width: 0;
+    min-height: var(--pk-target);
+    padding: 2px 4px;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: transparent;
+    color: var(--pk-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.pk-fsection-toggle:hover {
+    background: var(--pk-surface-3);
+}
+
+.pk-fsection-title {
+    font-weight: 600;
+}
+
+.pk-fsection-state {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pk-fsection-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 4px 10px;
 }
 
 /* a date field's quick choices: "Last [5] years 2022–2026", the count typed in its line */
@@ -1607,34 +1705,233 @@
     margin: 0;
 }
 
-/* the Filter level: the list first, at most this high, then the folded "More ways to filter" */
+/* the Filter level: the list at most this high */
 .pk-filter-level .pk-values {
     max-height: min(16em, 38vh);
 }
 
-.pk-more-filters {
+/* a quick choice's second line: the days with data (the ones without in the warn colour) and the rows */
+.pk-quick-sub {
+    display: flex;
+    flex-basis: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    padding-left: 1.7em;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+.pk-quick-row > .pk-quick-sub {
+    padding-left: 2.3em;
+}
+
+.pk-quick-missing {
+    margin-left: 0.3em;
+    color: var(--pk-warn);
+}
+
+.pk-quick-rows {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.pk-radio.pk-quick {
+    flex-wrap: wrap;
+    padding-bottom: 4px;
+}
+
+.pk-quick-anchor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+.pk-quick-hidden {
+    margin: 0;
+}
+
+/* the years a cyclic grouping combines: a toggle per year with its rows */
+.pk-years-hint {
+    margin: 0;
+}
+
+.pk-years {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pk-year-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    min-height: var(--pk-target);
+    padding: 2px 10px;
+    border: 1px solid var(--pk-border-strong);
+    border-radius: 999px;
+    background: var(--pk-surface);
+    color: var(--pk-text);
+    cursor: pointer;
+}
+
+.pk-year-chip[aria-pressed="true"] {
+    border-color: var(--pk-accent);
+    background: var(--pk-accent-soft);
+}
+
+.pk-year-chip:disabled {
+    cursor: default;
+}
+
+/* the items a rule leaves out: a folded group at the end of the list, muted, their ticks kept */
+.pk-values-tail {
+    margin-top: 2px;
+    border-top: 1px solid var(--pk-border);
+}
+
+.pk-tail-toggle {
     display: flex;
     align-items: center;
     gap: 0.35em;
+    width: 100%;
     min-height: var(--pk-target);
-    padding: 2px 4px;
+    padding: 2px 6px;
     border: 0;
-    border-radius: var(--pk-radius-sm);
-    background: transparent;
-    color: var(--pk-text);
-    font-weight: 600;
+    background: var(--pk-surface-2);
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
     text-align: left;
     cursor: pointer;
 }
 
-.pk-more-filters:hover {
-    background: var(--pk-surface-3);
+.pk-tail-list {
+    margin: 0;
+    padding: 2px 0 0;
+    list-style: none;
 }
 
-.pk-more-filters-body {
+.pk-values-more {
+    margin: 0;
+    padding: 4px 8px;
+}
+
+/* a rule: its tools at the right, its result line under the sentence, its explanation folded */
+.pk-rule-tools {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.pk-rule-info[aria-expanded="true"] {
+    background: var(--pk-accent-soft);
+    color: var(--pk-accent);
+}
+
+.pk-rule-result {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.pk-rule-result-empty {
+    color: var(--pk-danger);
+}
+
+.pk-rule-info-text {
+    flex-basis: 100%;
+    margin: 0;
+    padding: 6px 8px;
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-accent-soft);
+    font-size: var(--pk-small);
+    line-height: 1.45;
+}
+
+/* the quick choice among the rules: a line to read, with the way to it */
+.pk-rule-quick {
+    padding: 6px 8px;
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface-2);
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+}
+
+/* the searchable picker of a rule's item: a button with the item, a popover with search and list */
+.pk-picker-button {
+    min-height: 2em;
+    padding: 0 1.6em 0 0.5em;
+    border: 1px solid var(--pk-input-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    color: var(--pk-text);
+    text-align: left;
+    cursor: pointer;
+    position: relative;
+}
+
+.pk-picker-button::after {
+    content: "";
+    position: absolute;
+    top: calc(50% - 0.3em);
+    right: 0.6em;
+    width: 0.4em;
+    height: 0.4em;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+}
+
+.pk-popover.pk-picker-pop {
     display: flex;
     flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    width: min(280px, calc(100vw - 16px));
+    padding: 8px;
+}
+
+.pk-picker-search {
+    width: 100%;
+    min-height: 2em;
+    padding: 0 0.5em;
+    border: 1px solid var(--pk-input-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    color: var(--pk-text);
+}
+
+.pk-picker-list {
+    max-height: 12.5em;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.pk-picker-option {
+    display: flex;
+    justify-content: space-between;
     gap: 8px;
+    min-height: 2em;
+    padding: 0 0.5em;
+    align-items: center;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pk-picker-option[aria-selected="true"] {
+    font-weight: 600;
+}
+
+.pk-picker-active {
+    background: var(--pk-accent-soft);
+}
+
+.pk-picker-none,
+.pk-picker-count {
+    margin: 0;
 }
 
 /* a text button that acts (Select all, Clear picks): underlined, so it reads as one */
@@ -1844,16 +2141,9 @@
     white-space: nowrap;
 }
 
-/* an item the field's rules leave out: muted, with a note (its tick still says whether it is picked) */
+/* an item the field's rules leave out (the tail group): muted; its tick still says whether it is picked */
 .pk-value-out .pk-value-label {
     color: var(--pk-muted);
-}
-
-.pk-value-out-note {
-    flex: none;
-    color: var(--pk-muted);
-    font-size: var(--pk-small);
-    font-style: italic;
 }
 
 .pk-count {

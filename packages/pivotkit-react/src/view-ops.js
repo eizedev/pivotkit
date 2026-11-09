@@ -265,6 +265,30 @@ export function numberRange(encoded, field) {
 }
 
 /**
+ * The first and the last date of a date column (wall-clock ms, as the column holds them), or null
+ * for another type or a column without dates: the data's span, which a relative range is measured
+ * against ("2026 has no data") and the anchor "latest" counts back from.
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {string} field  a date column (a grouping's source, see sourceOf)
+ * @returns {{ min: number, max: number } | null}
+ */
+export function dateSpan(encoded, field) {
+    const column = encoded.column(field);
+    if (!column || column.type !== "date") {
+        return null;
+    }
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of column.dict) {
+        if (typeof v === "number") {
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+    }
+    return min <= max ? { min, max } : null;
+}
+
+/**
  * The derived field a grouping makes of a field on an axis: replaces it in place. `unit` null removes
  * the grouping (back to the source field). Returns the view and the new field's name.
  * @param {any} view

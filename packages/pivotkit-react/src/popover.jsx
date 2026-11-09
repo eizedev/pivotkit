@@ -127,8 +127,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             (el?.querySelector("[data-pk-option]") ? el : null);
         // after the placement, so the page does not scroll to a popover still at 0,0
         const t = requestAnimationFrame(() => /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true }));
+        // a press inside another popover (one opened from this one: a rule's item picker) is inside
         const onDown = (e) => {
-            if (!eventWithin(e, [el, anchor.current])) {
+            if (!eventWithin(e, [el, anchor.current]) && !e.composedPath().some((n) => n instanceof Element && n !== el && n.classList.contains("pk-popover"))) {
                 closeRef.current();
             }
         };
@@ -181,7 +182,8 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     // Tab out of a popover closes it; a click on its button toggles it instead
     const onBlur = (e) => {
         const to = /** @type {Node | null} */ (e.relatedTarget);
-        if (to && !ref.current?.contains(to) && !anchor.current?.contains(to)) {
+        // the focus moving into a popover opened from this one (a rule's item picker) keeps it open
+        if (to && !ref.current?.contains(to) && !anchor.current?.contains(to) && !(to instanceof Element && to.closest(".pk-popover"))) {
             onClose();
         }
     };

@@ -45,16 +45,16 @@ const VALUE_FILTER = encodeViewLink({
     sort: [{ field: "Region", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } }]
 });
 
-/** Release cycles by the year they came out (endoflife): the Filter level's quick choices and rules. */
-const RELEASED = { derived: [{ name: "Released by year", field: "Released", by: "year" }], rows: ["Released by year"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }] };
-const DATES = encodeViewLink({ ...RELEASED, filters: [{ field: "Released by year", type: "relative", unit: "year", count: 5 }] });
-const RULES = encodeViewLink({
-    ...RELEASED,
-    filters: [
-        { field: "Released by year", type: "compare", op: ">=", value: 2022 },
-        { field: "Released by year", type: "value", op: ">", value: 500, by: { field: "Cycle", agg: "count" } }
-    ]
-});
+/**
+ * The weather by month (the data end on 2025-12-31, before today): the Filter level's quick choices
+ * with the data's share of each, the ones not offered, and the reference date; by month of the year
+ * (the years combined): Years combined, and a rule on the total that nothing meets, explained.
+ */
+const MONTHLY = { derived: [{ name: "Date by month", field: "Date", by: "yearMonth" }], rows: ["Date by month"], values: [{ field: "Mean °C", agg: "average" }] };
+const DATES = encodeViewLink({ ...MONTHLY, filters: [{ field: "Date by month", type: "relative", unit: "year", count: 2 }] });
+const CYCLIC = { derived: [{ name: "Date by month of year", field: "Date", by: "month" }], rows: ["Date by month of year"], cols: ["City"], values: [{ field: "Mean °C", agg: "average" }] };
+const YEARS = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "compare", op: "between", value: "2024-01-01", value2: "2025-12-31" }] });
+const RULES = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "value", op: ">", value: 25, by: { field: "Mean °C", agg: "average" } }] });
 /** A date in Filters: the whole report counts the release cycles of the last 12 months. */
 const ZONE = encodeViewLink({ rows: ["Category"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }], filters: [{ field: "Released", type: "relative", unit: "month", count: 12 }] });
 
@@ -310,31 +310,42 @@ const SHOTS = [
             await page.getByTestId("chip-menu-Region").click();
             // the Filter level scrolled to its rules: the rule on the total, written as a sentence
             await page.getByTestId("topic-filter").click();
-            await page.getByTestId("filter-more").click();
             await page.getByTestId("rules").scrollIntoViewIfNeeded();
         }
     },
-    // a date field's Filter level: the quick choices (Last 5 years checked) above the list
+    // a date's Filter level on data that end before today: the summary, the quick choices with the
+    // data's share (Last 2 years checked), This year not offered, Counted back from
     {
         name: "filter-dates",
-        query: "data=endoflife&empty",
+        query: "data=weather&empty",
         hash: DATES,
         size: WIDE,
         open: async (page) => {
-            await page.getByTestId("chip-menu-Released by year").click();
+            await page.getByTestId("chip-menu-Date by month").click();
             await page.getByTestId("topic-filter").click();
         }
     },
-    // its rules open: the year compared ("is from 2022") and its total, both together
+    // a grouping that combines the years: Years combined with 2023 off, the summary saying so
+    {
+        name: "filter-cyclic",
+        query: "data=weather&empty",
+        hash: YEARS,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Date by month of year").click();
+            await page.getByTestId("topic-filter").click();
+        }
+    },
+    // a rule on the total that nothing meets: the red summary, the rule's line with the totals' range, its "i" open
     {
         name: "filter-rules",
-        query: "data=endoflife&empty",
+        query: "data=weather&empty",
         hash: RULES,
         size: WIDE,
         open: async (page) => {
-            await page.getByTestId("chip-menu-Released by year").click();
+            await page.getByTestId("chip-menu-Date by month of year").click();
             await page.getByTestId("topic-filter").click();
-            await page.getByTestId("filter-more").click();
+            await page.getByTestId("rule-info").click();
             await page.getByTestId("rules").scrollIntoViewIfNeeded();
         }
     },

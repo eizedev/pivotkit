@@ -73,7 +73,7 @@ through the element.
 | `--pk-small`<br>`--pk-target`<br>`--pk-target-touch` | Secondary text, never below 14 px; the smallest hit area of a control; that of a small control (×, "i", a field's menu and grip, a tip's x) on a touch screen (`pointer: coarse`) | `max(14px, 0.93em)`<br>`24px`<br>`44px` | as light |
 | `--pk-shadow-sm`<br>`--pk-scrim`<br>`--pk-scrim-light`<br>`--pk-knob` | Chip shadow; behind sheets and the drawer; behind the drill-down; the knob of a switch | see `styles.css` | see `styles.css` |
 | `--pk-total`<br>`--pk-total-strong` | Subtotal and grand total rows | `#f4f6f9`<br>`#e9edf3` | `#1d2128`<br>`#252a33` |
-| `--pk-danger`<br>`--pk-focus` | Remove and errors; the focus ring | `#b42318`<br>`#2b5fd9` | `#ff8b80`<br>`#84a3ff` |
+| `--pk-danger`<br>`--pk-danger-soft`<br>`--pk-warn`<br>`--pk-focus` | Remove and errors; the card of a filter that shows nothing; a warning in a line of text (the days of a range without data); the focus ring | `#b42318`<br>`#fdecea`<br>`#8a5a00`<br>`#2b5fd9` | `#ff8b80`<br>`#3a1f1d`<br>`#f3c56b`<br>`#84a3ff` |
 | `--pk-radius`<br>`--pk-radius-sm` | Corners of panels, of buttons and chips | `10px`<br>`7px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |

@@ -11,7 +11,7 @@
 import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
 import { groupingName, rangeText, refLabel, sortText, valueLabel } from "./names.js";
-import { ZONES, filterZoneFields, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
+import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
 
 /**
@@ -195,16 +195,18 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
     const timeZone = encoded?.timeZone ?? "UTC";
     const capital = (text) => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
     /** @type {Topic["searchFor"]} */
-    const searchFor = fk?.dates
+    const searchFor = fk?.quick
         ? (query) => {
               const n = Number(NUMBER_TYPED.exec(query)?.[0]);
               if (!Number.isSafeInteger(n) || n < 1) {
                   return [];
               }
               const units = n > CATALOG.relativeMaxCount ? [] : fk.months ? ["year", "month"] : ["year"];
+              // the range counts back from what the field's range does now (the latest record, or today)
+              const anchor = filtersOf(view, field, ["relative"])[0]?.anchor;
               const ranges = units.map((unit) => {
-                  const text = `${capital(fill(labels.relative[`${unit}s`], { count: n.toLocaleString(locale) }))} (${rangeText(unit, n, locale, timeZone)})`;
-                  return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n }), note }) } };
+                  const text = `${capital(fill(labels.relative[`${unit}s`], { count: n.toLocaleString(locale) }))} (${rangeText({ unit, count: n, anchor }, locale, timeZone, undefined, anchor === "latest" ? dateSpan(encoded, sourceOf(view, field))?.max : undefined)})`;
+                  return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n, anchor }), note }) } };
               });
               // a year of a grouping by year, written as its chip will say it ("from 2022"); a date
               // field compares days, which the rule editor picks

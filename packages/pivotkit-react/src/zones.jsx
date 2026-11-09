@@ -16,7 +16,7 @@ import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { MenuButton } from "./popover.jsx";
-import { ZONES, filterZoneFields, filtersOf, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
+import { ZONES, dateSpan, filterZoneFields, filtersOf, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
 
 /**
  * What is set on a field: its item filter as "shown of total" (null without one), its rules on the
@@ -42,7 +42,9 @@ function fieldState(view, field, encoded, locale, labels, sourceType) {
     }
     const labelOf = (v) => info?.items.find((i) => i.value === v)?.label;
     const date = sourceType === "date";
-    const rules = filtersOf(view, field, ["relative", "compare", "label"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf }));
+    // the data's first and last date: a relative range says the data's share of it
+    const span = date ? dateSpan(encoded, sourceOf(view, field)) : null;
+    const rules = filtersOf(view, field, ["relative", "compare", "label"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf, span }));
     const top = filtersOf(view, field, ["top"])[0] ?? null;
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
     return { summary, rules, top, condition, sort: sortOf(view, field) };

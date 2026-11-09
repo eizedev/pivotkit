@@ -120,8 +120,24 @@ export async function chipMenu(page, chip, topic) {
     if (topic) await openLevel(page.locator(".pk-chip-menu"), topic);
 }
 
-/** Opens "More ways to filter" of an open Filter level (folded each time the level opens). */
-export async function openMoreFilters(scope) {
-    const more = scope.getByTestId("filter-more");
-    if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
+/** Opens the Rules section of an open Filter level (folded while the field has no rule). */
+export async function openRules(scope) {
+    const rules = scope.getByTestId("section-rules");
+    if ((await rules.getAttribute("aria-expanded")) !== "true") await rules.click();
+}
+
+/**
+ * Picks an item of a rule in the Filter level: from the searchable list of a long grouping (a button
+ * that opens a search and a list; the first match is taken), or from the native select of a short one.
+ */
+export async function pickItem(page, scope, testId, label) {
+    const value = scope.getByTestId(testId);
+    if ((await value.evaluate((el) => el.tagName)) === "SELECT") {
+        await value.selectOption({ label });
+        return;
+    }
+    await value.click();
+    await page.getByTestId("picker-search").fill(label);
+    await expect(page.getByTestId("picker-option").first()).toHaveText(new RegExp(`^${label}`));
+    await page.getByTestId("picker-search").press("Enter");
 }

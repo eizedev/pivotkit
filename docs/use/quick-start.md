@@ -49,8 +49,8 @@ Open the menu of the **Region** chip and choose **Filter**. Untick the regions y
 click **Only** next to one; each change applies at once. The chip then says how many it keeps ("3 of
 5").
 
-![The filter of Region: its values with row counts, a search, Select all, Select none, and the folded More ways to filter](../assets/screenshots/quick-filter-light.png#only-light)
-![The filter of Region: its values with row counts, a search, Select all, Select none, and the folded More ways to filter](../assets/screenshots/quick-filter-dark.png#only-dark)
+![The filter of Region: its values with row counts, a search, Select all, Select none, and the folded Rules](../assets/screenshots/quick-filter-light.png#only-light)
+![The filter of Region: its values with row counts, a search, Select all, Select none, and the folded Rules](../assets/screenshots/quick-filter-dark.png#only-dark)
 
 ## 6. Switch to the chart
 
