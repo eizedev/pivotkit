@@ -93,6 +93,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- On a touch screen the field list keeps its desktop rows: the grip, the "i" and the menu of a
+  field keep their size and get a hit area 44 px high instead (the grip's 44 px wide), within their
+  own row; they made every row 44 px or more high and broke names such as "Sunshine h" into two lines.
 - Highlight keeps a value's own colours: Colour scale while it is checked changes nothing (it
   replaced a view's own colours by the theme's), and None or Data bars and back bring the value's
   colours of an earlier step of the history back.

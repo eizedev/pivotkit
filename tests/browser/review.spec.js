@@ -254,8 +254,9 @@ test.describe("touch", () => {
         await page.goto("?data=countries");
         expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
         await expect(page.locator(".pk-chip-x").first()).toBeVisible();
+        // the field list's controls have a hit area of that size instead (the next test)
         const small = () => page.locator(".pk-root :is(.pk-chip-x, .pk-info, .pk-field-menu, .pk-handle, .pk-tip-x)").evaluateAll((els) =>
-            els.filter((e) => e.getClientRects().length).map((e) => [e.className, Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)]).filter(([, w, h]) => w < 44 || h < 44)
+            els.filter((e) => e.getClientRects().length && !e.closest(".pk-field")).map((e) => [e.className, Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)]).filter(([, w, h]) => w < 44 || h < 44)
         );
         await expect.poll(small).toEqual([]);
         // on a phone the tip's x stays in the line of its text
@@ -269,5 +270,52 @@ test.describe("touch", () => {
             const [text, x] = await Promise.all([tip.locator(".pk-tip-text").boundingBox(), tip.locator(".pk-tip-x").boundingBox()]);
             return x.y < text.y + text.height && x.y + x.height > text.y;
         }).toBe(true);
+    });
+
+    test("the field list keeps its desktop rows; its grip, i and menu get a 44 px high hit area that stays in their row", async ({ page, browserName }) => {
+        test.skip(browserName === "firefox", "Firefox has no mobile emulation");
+        // an iPad in landscape, as PowerShell Universal shows it
+        await page.setViewportSize({ width: 1180, height: 820 });
+        await page.goto("?data=weather&preset=0");
+        expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+        await page.locator('.pk-field[data-field="Sunshine h"]').evaluate((el) => el.scrollIntoView({ block: "center" }));
+        const result = await page.evaluate(() => {
+            const list = document.querySelector(".pk-root .pk-field-list").getBoundingClientRect();
+            // the rows the list shows whole, with room for their hit area (a row at its scrolled edge is cut)
+            const rows = [...document.querySelector(".pk-root").querySelectorAll(".pk-field")].filter((li) => {
+                const b = li.getBoundingClientRect();
+                return b.top - 4 >= list.top && b.bottom + 4 <= Math.min(list.bottom, innerHeight);
+            });
+            const out = { fields: rows.map((li) => li.dataset.field), heights: [], twoLines: [], short: [], stolen: [] };
+            for (const li of rows) {
+                const box = li.getBoundingClientRect();
+                out.heights.push(Math.round(box.height));
+                const title = li.querySelector(".pk-field-title");
+                if (title.getBoundingClientRect().height > parseFloat(getComputedStyle(title).lineHeight) * 1.5) out.twoLines.push(li.dataset.field);
+                for (const control of li.querySelectorAll(":scope > :is(.pk-handle, .pk-info, .pk-field-menu)")) {
+                    const c = control.getBoundingClientRect();
+                    const x = c.x + c.width / 2;
+                    const mid = c.y + c.height / 2;
+                    // 44 px high: a tap 21 px above and below its middle still reaches it
+                    for (const y of [mid - 21, mid + 21]) {
+                        if (!control.contains(document.elementFromPoint(x, y))) out.short.push(`${li.dataset.field} ${control.className}`);
+                    }
+                }
+                // every tap inside a row reaches that row, never a control of the one above or below
+                for (let y = box.top + 1; y < box.bottom; y += 3) {
+                    for (let x = box.left + 2; x < box.right; x += 4) {
+                        const hit = document.elementFromPoint(x, y)?.closest(".pk-field");
+                        if (hit && hit !== li) out.stolen.push(`${li.dataset.field} at ${Math.round(x)},${Math.round(y)}`);
+                    }
+                }
+            }
+            return out;
+        });
+        // as on a desktop: rows of the same height, a short name such as "Sunshine h" on one line
+        expect(result.fields).toContain("Sunshine h");
+        expect(Math.max(...result.heights)).toBeLessThan(40);
+        expect(result.twoLines).toEqual([]);
+        expect(result.short).toEqual([]);
+        expect(result.stolen).toEqual([]);
     });
 });

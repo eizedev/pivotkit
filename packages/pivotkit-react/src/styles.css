@@ -3277,4 +3277,38 @@
         min-height: var(--pk-target-touch);
     }
 
+    /* the field list keeps its desktop rows (one line for a name that fits): its grip, "i" and menu
+       stay as large as there and get a hit area 44 px high from a layer over them, centred on the
+       row; the gap between rows holds the part above and below it, half for each row, so no hit
+       area reaches into another row. The grip's is 44 px wide (over the type's icon), the "i" and
+       the menu share the room between the name and the row's end. */
+    .pk-root .pk-field {
+        margin-bottom: max(3px, calc(var(--pk-target-touch) - 2.4em));
+    }
+
+    /* the list scrolls: room above its first row for that row's hit area */
+    .pk-root .pk-field-list {
+        padding-top: 6px;
+    }
+
+    .pk-root .pk-field :is(.pk-handle, .pk-info, .pk-field-menu) {
+        position: relative;
+        min-width: 0;
+        min-height: var(--pk-target);
+    }
+
+    .pk-root .pk-field :is(.pk-handle, .pk-info, .pk-field-menu)::after {
+        content: "";
+        position: absolute;
+        top: calc(50% - var(--pk-target-touch) / 2);
+        bottom: calc(50% - var(--pk-target-touch) / 2);
+        left: -1px;
+        right: -1px;
+    }
+
+    .pk-root .pk-field .pk-handle::after {
+        left: calc(50% - var(--pk-target-touch) / 2);
+        right: calc(50% - var(--pk-target-touch) / 2);
+    }
+
 }

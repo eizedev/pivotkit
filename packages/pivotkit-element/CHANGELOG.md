@@ -30,6 +30,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- pivotkit-react's field list on a touch screen keeps its desktop rows, with 44 px high hit areas
+  for a field's grip, "i" and menu.
 - pivotkit-react's Highlight keeps a value's own colours (a checked Colour scale changes nothing;
   None or Data bars and back bring them back).
 - pivotkit-react's popovers appear at their final size and place

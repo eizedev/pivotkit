@@ -91,7 +91,7 @@ pair of the defaults. When you change colours, keep those ratios.
 ## Sizes and motion
 
 - Text is never smaller than 14 px, whatever the page's font size (`--pk-font-size`, `--pk-small`).
-- Every control is at least 24 x 24 px (`--pk-target`); on a touch screen the small ones at least 44 x 44 px (`--pk-target-touch`).
+- Every control is at least 24 x 24 px (`--pk-target`); on a touch screen the small ones at least 44 x 44 px (`--pk-target-touch`). In the field list the grip, the "i" and the menu keep their size and get a hit area `--pk-target-touch` high instead (a layer over them; the grip's as wide too), with the gap between rows grown to hold it, so the rows stay compact.
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
 
 ## Chart colours
