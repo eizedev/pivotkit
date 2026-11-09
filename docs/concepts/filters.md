@@ -29,7 +29,7 @@ computed; value filters and top N drop whole groups after the values are aggrega
 | `exclude` | Drop the listed `items`. |
 | `label` | A text condition on the label. `op`: `equals`, `notEquals`, `contains`, `notContains`, `beginsWith`, `endsWith`. |
 | `compare` | The item itself compared with `value`: a number, a date or a grouping's key. `op` as `value`'s, `value2` with `between` and `notBetween`. |
-| `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included. |
+| `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included; with `anchor: "latest"` counted back from the latest date of the field's data instead of today. |
 | `value` | A condition on an aggregated value. `op`: `=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween` (with `value2`). |
 | `top` | Keep the `count` largest items, or with `bottom: true` the smallest. |
 
@@ -47,7 +47,11 @@ What is compared:
   "before 2022-03-01" keeps every row of 28 February and none of 1 March, whatever its clock time.
 - A date grouping: its key, the number the grouping gives each item: a year `2022`, a month `202503`
   (year × 100 + month), a quarter `20251` (year × 10 + quarter), a week `202512` (ISO year × 100 +
-  week), the cyclic ones their number (month `3`, weekday `1` for Monday); a day is a date.
+  week), the cyclic ones their number (month `3`, weekday `1` for Monday); a day is a date. With a
+  calendar day as the value (`"2025-01-01"`) the grouping is compared by its **source dates**
+  instead, as a relative range filters them: `between "2025-01-01" and "2025-12-31"` on a
+  month-of-the-year grouping keeps the rows of 2025, so January is January 2025 alone (the Filter
+  level's Years combined writes these). A day and a key in one comparison is no comparison.
 
 A blank item (no value) is never kept by a comparison, not even by `!=` or `notBetween`, as a value
 condition never keeps a group without a value. Only number and date fields can be compared; a text
@@ -68,6 +72,15 @@ Today is the wall clock of `computePivot`'s `options.now` in the data's time zon
 `encode()`, default UTC), never the machine's zone: the same data and `now` give the same result
 everywhere. Without `now` it is the current time. `relativeDateRange(unit, count, { now, timeZone })`
 says which days a range keeps, for a UI's "last 5 years (2022–2026)".
+
+A range counts back from today by default (`anchor: "today"`, not written): a saved report refreshes
+with the calendar. For data that end - an archive, a closed year - `anchor: "latest"` counts back
+from the latest date of the field's data instead: `{ "unit": "month", "count": 12, "anchor":
+"latest" }` on data that end on 2025-12-31 is January to December 2025, whatever the day. On a
+grouping, the latest date is the source dates' latest. An anchor that is neither is the issue
+`filterRelativeAnchor`, and the filter is left out. `relativeDateRange` takes the same `anchor`
+with `latest`, the data's latest date (a `Date`, epoch milliseconds, an ISO string or the wall-clock
+milliseconds a date column holds).
 
 A filter on a field that is on rows or columns filters that axis. A filter on any other field - in
 the UI, a field in the **Filters** zone - filters the whole report.
@@ -125,12 +138,13 @@ report. What they write into the view:
 | In the UI | In the view |
 | --- | --- |
 | Values ticked in the filter | An `exclude` filter of the values **not** ticked, as Excel does: a value that appears in later data is shown. With every value ticked, the field has no item filter at all. |
-| Quick choices of a date field: This year, Last N years, Last N months | One `relative` filter (`year` 1, `year` N, `month` N) in place of the field's `relative` and `compare` filters; All removes them. The field's filters match no quick choice (a `compare` filter, two ranges): "Custom rules". |
+| Quick choices of a date field: This year, Last N years, Last N months, Last N days | One `relative` filter (`year` 1, `year` N, `month` N, `day` N) in place of the field's `relative` filters; All removes them. "Counted back from the latest record" is its `anchor: "latest"` (today is no `anchor`). The field's first `relative` filter of a unit the choices offer is the quick choice; the `compare` filters and any other range are rules. |
+| Years combined of a grouping that repeats every year (month of the year) | `compare` filters with calendar days on the grouping: `between` the first and the last year ticked (Jan 1 to Dec 31), a `notBetween` for each gap; every year ticked writes none. |
 | Rule "Released by year is from 2022" (compare the item itself) | A `compare` filter; "is in the last N years" a `relative` filter. |
 | Rule "Count of Released is greater than 3" (compare its total) | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
 | Rule "The name contains …" (a rule on the name) | A `label` filter. |
 | Top items (Top 3, Top 5, Top 10, Top N…) | A `top` filter, `by` the value chosen; Off removes it. |
-| Remove the rules (in the Filter level) | Removes the field's `label`, `compare`, `relative` and `value` filters; Clear picks its `include` and `exclude` filters; `top` stays. |
+| Remove (beside Rules in the Filter level) | Removes the field's `label`, `compare`, `relative` and `value` filters except the quick choice's `relative` filter (or Years combined's `compare` filters); Clear (beside Pick items) its `include` and `exclude` filters; Reset filter (in the summary) all of them; `top` stays. |
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

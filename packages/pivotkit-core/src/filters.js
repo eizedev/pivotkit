@@ -6,8 +6,10 @@
  *   first, on the rows. `compare` compares the item itself (a number, a date by its calendar day, the
  *   key of a grouping: year 2022, month 202503); `relative` keeps the dates of a range that moves with
  *   today ("the last 5 years": this year and the four before it), on the source date of a grouping,
- *   so a year's total only counts its days in the range. Today is the wall clock of `options.now` of
- *   computePivot() in the data's time zone, never the machine's.
+ *   so a year's total only counts its days in the range; with `anchor: "latest"` the range ends with
+ *   the data's latest date instead of today. Today is the wall clock of `options.now` of
+ *   computePivot() in the data's time zone, never the machine's. A date grouping compared with a
+ *   calendar day ("between 2025-01-01 and 2025-12-31") is compared by its source dates too.
  * - Value filters (top N, value conditions) aggregate a measure per group and keep or drop whole
  *   groups, so totals show the visible items only, as in Excel. A filter on a field of an axis groups
  *   by the axis fields down to it ("top 3 products" keeps three products within each region above
@@ -31,6 +33,11 @@ export const VALUE_OPS = Object.freeze(["=", "!=", ">", ">=", "<", "<=", "betwee
 export const RELATIVE_UNITS = Object.freeze(["year", "month", "day"]);
 /** The most years, months or days a relative range reaches back: 500 years from today stay after year 1. */
 export const RELATIVE_MAX_COUNT = 500;
+/**
+ * What a relative range counts back from: today (the default, `options.now` of computePivot()), or
+ * the latest date of the field's data, for data that end before today (an archive, a closed year).
+ */
+export const RELATIVE_ANCHORS = Object.freeze(["today", "latest"]);
 
 const oneOf = (value, allowed) => (typeof value === "string" && allowed.includes(value) ? value : null);
 
@@ -94,14 +101,15 @@ const isoDay = (ms) => new Date(ms).toISOString().slice(0, -"T00:00:00.000Z".len
 
 /**
  * The days of a relative range, [from, to) in wall-clock ms: the `count` years, months or days that
- * end with the one of `today` (wall-clock ms, one a Date holds). An end beyond what a Date holds is
- * infinite (-Infinity, Infinity): every date of the data is on its side of today.
+ * end with the one of `reference` (wall-clock ms, one a Date holds: today, or the data's latest
+ * date). An end beyond what a Date holds is infinite (-Infinity, Infinity): every date of the data
+ * is on its side of the reference.
  * @param {string} unit  of RELATIVE_UNITS
  * @param {number} count
- * @param {number} today
+ * @param {number} reference
  */
-function rangeOf(unit, count, today) {
-    const d = new Date(today);
+function rangeOf(unit, count, reference) {
+    const d = new Date(reference);
     const y = d.getUTCFullYear();
     const m = unit === "year" ? 0 : d.getUTCMonth();
     const day = unit === "day" ? d.getUTCDate() : 1;
@@ -117,21 +125,28 @@ function rangeOf(unit, count, today) {
 /**
  * The days a relative date range keeps, today being `options.now` (a Date, epoch ms or an ISO string;
  * default the current time) read in `options.timeZone` ("UTC" by default, never the machine's zone),
- * as computePivot() reads them: { from: "2022-01-01", to: "2026-12-31" }, both included. Null for a
- * unit not of RELATIVE_UNITS, a count that is not a whole number from 1 to RELATIVE_MAX_COUNT, or a
- * range that leaves what a Date holds (±8.64e15 ms, the years -271821 to 275760); `now` beyond
- * that throws INVALID_OPTION, as computePivot() does.
+ * as computePivot() reads them: { from: "2022-01-01", to: "2026-12-31" }, both included. With
+ * `anchor: "latest"` the range ends with `options.latest`, the data's latest date (read like `now`;
+ * wall-clock ms as a column holds them), not with today. Null for a unit not of RELATIVE_UNITS, a
+ * count that is not a whole number from 1 to RELATIVE_MAX_COUNT, an anchor not of RELATIVE_ANCHORS,
+ * "latest" without a latest date, or a range that leaves what a Date holds (±8.64e15 ms, the years
+ * -271821 to 275760); `now` or `latest` beyond that throws INVALID_OPTION, as computePivot() does.
  * @param {string} unit  "year", "month" or "day"
  * @param {number} count  1 is this year (month, day) alone
- * @param {{ now?: Date | number | string, timeZone?: string }} [options]
+ * @param {{ now?: Date | number | string, timeZone?: string, anchor?: string, latest?: Date | number | string }} [options]
  * @returns {{ from: string, to: string } | null}
  */
 export function relativeDateRange(unit, count, options) {
     options = optionsOf(options, "relativeDateRange");
-    if (!RELATIVE_UNITS.includes(unit) || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
+    const anchor = options.anchor ?? "today";
+    if (!RELATIVE_UNITS.includes(unit) || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT || !RELATIVE_ANCHORS.includes(anchor)) {
         return null;
     }
-    const { from, to } = rangeOf(unit, count, todayOf(options.now, resolveTimeZone(options.timeZone)));
+    if (anchor === "latest" && options.latest === undefined) {
+        return null;
+    }
+    const timeZone = resolveTimeZone(options.timeZone);
+    const { from, to } = rangeOf(unit, count, anchor === "latest" ? todayOf(options.latest, timeZone) : todayOf(options.now, timeZone));
     if (!Number.isFinite(from) || !Number.isFinite(to)) {
         return null;
     }
@@ -216,22 +231,30 @@ function normalizeLabel(flt, spec, _f, path, ctx) {
 /** The grouping (DERIVED unit) a derived field of the view is made by; undefined for a data column. */
 const unitOfField = (f, view) => (f.derived ? view.derived.find((d) => d.name === f.name)?.by : undefined);
 
+/** Whether a filter's value is a calendar day (text), so a date grouping is compared by its source dates. */
+const byDay = (f) => typeof f.value === "string";
+
 /**
  * A comparison of the item itself: a number (also a grouping's key, year 2022, month 202503) or a
- * date, kept as its calendar day "2022-03-01".
+ * date, kept as its calendar day "2022-03-01". A date grouping takes a day too: then the source
+ * dates are compared, not the key ("between 2025-01-01 and 2025-12-31" keeps the year 2025 of a
+ * month-of-the-year grouping, the Filter level's Years combined).
  */
-function normalizeCompare(flt, spec, f, path, ctx) {
+function normalizeCompare(flt, spec, f, path, ctx, view) {
     if (f.type !== "number" && f.type !== "date") {
         return ctx.issue(path, "compares numbers and dates only", "filterCompareField", { field: f.name });
     }
+    const unit = unitOfField(f, view);
+    const dated = f.type === "date" || (unit !== undefined && DERIVED[unit].source === "date" && typeof get(flt, "value") === "string" && itemFor("number", get(flt, "value")) === undefined);
     const read = (value) => {
-        if (f.type === "number") {
+        if (!dated) {
             // a number, or a text of one ("2022"), as filter items take them
             const n = value === undefined ? undefined : itemFor("number", value);
             return typeof n === "number" ? n : null;
         }
-        // wall-clock ms beyond what a Date holds (±8.64e15) have no calendar day
-        const ms = value === undefined ? undefined : itemFor("date", value);
+        // wall-clock ms beyond what a Date holds (±8.64e15) have no calendar day; a grouping
+        // compared by its source dates takes days as text only (a number would be its key)
+        const ms = value === undefined || (f.type !== "date" && typeof value !== "string") ? undefined : itemFor("date", value);
         return isDateMs(ms) ? isoDay(dayOf(ms)) : null;
     };
     const op = oneOf(get(flt, "op"), VALUE_OPS);
@@ -258,7 +281,13 @@ function normalizeRelative(flt, spec, f, path, ctx, view) {
     if (count === null || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
         return ctx.issue(path, `needs a whole count from 1 to ${RELATIVE_MAX_COUNT}`, "filterRelativeCount", { max: RELATIVE_MAX_COUNT });
     }
-    return Object.assign(spec, { unit: by, count });
+    // today is the default and is not written; "latest" counts back from the data's latest date
+    const anchorIn = get(flt, "anchor");
+    const anchor = anchorIn === undefined ? "today" : oneOf(anchorIn, RELATIVE_ANCHORS);
+    if (!anchor) {
+        return ctx.issue(path, `unknown anchor ${JSON.stringify(anchorIn)}`, "filterRelativeAnchor", { value: shown(anchorIn) });
+    }
+    return Object.assign(spec, { unit: by, count }, anchor === "latest" ? { anchor } : {});
 }
 
 /** The measure a value filter ranks or compares: `by`, default the view's first value. */
@@ -344,9 +373,24 @@ function allowedCompared(column, f) {
     return allowed;
 }
 
-/** Relative: the dates of the range (the column is the source date of a grouping, see applyFilters). */
+/** The latest date of a date column (wall-clock ms), or null without one. */
+export function latestOf(column) {
+    let latest = -Infinity;
+    for (const v of column.dict) {
+        if (typeof v === "number" && v > latest) {
+            latest = v;
+        }
+    }
+    return Number.isFinite(latest) ? latest : null;
+}
+
+/**
+ * Relative: the dates of the range (the column is the source date of a grouping, see applyFilters),
+ * counted back from today, or from the column's latest date (`anchor: "latest"`; a column without
+ * dates counts from today).
+ */
 function allowedRelative(column, f, _locale, today) {
-    const { from, to } = rangeOf(f.unit, f.count, today);
+    const { from, to } = rangeOf(f.unit, f.count, (f.anchor === "latest" ? latestOf(column) : null) ?? today);
     return Uint8Array.from([0, ...column.dict], (v, i) => (i > 0 && typeof v === "number" && v >= from && v < to ? 1 : 0));
 }
 
@@ -384,15 +428,19 @@ function keepTop(f, values, paths) {
  * @property {Function} normalize
  * @property {Function} [allowed]  item filters
  * @property {Function} [keep]     value filters
- * @property {boolean} [source]     item filters that read the source date of a grouping
+ * @property {boolean | ((f: any) => boolean)} [source]  item filters that read the source date of a
+ *   grouping: always, or for a filter that says so (a comparison with a calendar day)
  */
+
+/** Whether an item filter reads the source date of a grouping instead of the grouping's own column. */
+export const readsSource = (def, f) => (typeof def.source === "function" ? def.source(f) : Boolean(def.source));
 
 /** @type {Readonly<Record<string, FilterDef>>} */
 export const FILTERS = Object.freeze({
     include: { stage: "items", normalize: normalizeItems, allowed: allowedItems(true) },
     exclude: { stage: "items", normalize: normalizeItems, allowed: allowedItems(false) },
     label: { stage: "items", normalize: normalizeLabel, allowed: allowedLabels },
-    compare: { stage: "items", normalize: normalizeCompare, allowed: allowedCompared },
+    compare: { stage: "items", normalize: normalizeCompare, allowed: allowedCompared, source: byDay },
     relative: { stage: "items", normalize: normalizeRelative, allowed: allowedRelative, source: true },
     top: { stage: "values", normalize: normalizeTop, keep: keepTop },
     value: { stage: "values", normalize: normalizeValue, keep: keepMatching }
@@ -422,9 +470,9 @@ export function keptByRules(view, field, column, source, locale, today) {
         return null;
     }
     const now = rules.some((f) => f.type === "relative") ? today() : 0;
-    const allowed = (f) => FILTERS[f.type].allowed(FILTERS[f.type].source ? source : column, f, locale, now);
-    const own = rules.filter((f) => !FILTERS[f.type].source).map(allowed);
-    const bySource = rules.filter((f) => FILTERS[f.type].source).map(allowed);
+    const allowed = (f) => FILTERS[f.type].allowed(readsSource(FILTERS[f.type], f) ? source : column, f, locale, now);
+    const own = rules.filter((f) => !readsSource(FILTERS[f.type], f)).map(allowed);
+    const bySource = rules.filter((f) => readsSource(FILTERS[f.type], f)).map(allowed);
     const kept = new Uint8Array(column.dict.length + 1);
     for (let i = 0; i < column.codes.length; i++) {
         const c = column.codes[i] + 1;
@@ -458,7 +506,7 @@ export function applyFilters(ctx, rows) {
     const sourceOf = (name) => view.derived.find((d) => d.name.toLowerCase() === name.toLowerCase())?.field ?? name;
     for (const f of view.filters) {
         const def = FILTERS[f.type];
-        const column = columnOf(def.source ? sourceOf(f.field) : f.field);
+        const column = columnOf(readsSource(def, f) ? sourceOf(f.field) : f.field);
         if (def.stage !== "items" || !column) {
             continue;
         }

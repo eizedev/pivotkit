@@ -98,7 +98,7 @@
               {
                 "if": { "properties": { "type": { "const": "compare" } } },
                 "then": {
-                  "description": "The item itself compared: a number (a grouping's key, year 2022, month 202503) or a date as its calendar day (\"2022-03-01\"); value2 with between and notBetween.",
+                  "description": "The item itself compared: a number (a grouping's key, year 2022, month 202503) or a date as its calendar day (\"2022-03-01\"); value2 with between and notBetween. A date grouping with a day as the value is compared by its source dates (\"between 2025-01-01 and 2025-12-31\" keeps that year).",
                   "required": ["op", "value"],
                   "properties": {
                     "op": { "enum": ["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"] },
@@ -110,11 +110,12 @@
               {
                 "if": { "properties": { "type": { "const": "relative" } } },
                 "then": {
-                  "description": "The dates of the last count years, months or days, today's included, on a date field or a grouping of one; today is the reader's.",
+                  "description": "The dates of the last count years, months or days, today's included, on a date field or a grouping of one; today is the reader's. With anchor \"latest\" the range ends with the latest date of the field's data instead of today.",
                   "required": ["unit", "count"],
                   "properties": {
                     "unit": { "enum": ["year", "month", "day"] },
-                    "count": { "type": "integer", "minimum": 1, "maximum": 500 }
+                    "count": { "type": "integer", "minimum": 1, "maximum": 500 },
+                    "anchor": { "enum": ["today", "latest"] }
                   }
                 }
               }

@@ -52,6 +52,7 @@ export const ISSUE_CASES = Object.freeze({
     filterRelativeField: { filters: [{ field: "Units", type: "relative", unit: "year", count: 1 }] },
     filterRelativeUnit: { filters: [{ field: "Date", type: "relative", unit: "decade", count: 1 }] },
     filterRelativeCount: { filters: [{ field: "Date", type: "relative", unit: "year", count: 2.5 }] },
+    filterRelativeAnchor: { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "yesterday" }] },
     sortNoItems: { sort: [{ field: "Region", by: "custom" }] },
     sortedTwice: { sort: [{ field: "Region" }, { field: "region", order: "desc" }] },
     badTotals: { totals: true },

@@ -133,9 +133,12 @@ The days a relative date range keeps, both included: `relativeDateRange("year", 
 "2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. `unit` is `"year"`, `"month"` or
 `"day"`, `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500); anything else returns
 `null`, as does a range that leaves what a `Date` holds (the years -271821 to 275760). Options: `now`
-(as `computePivot`'s, default the current time; beyond what a `Date` holds, `INVALID_OPTION`) and
-`timeZone` (the data's, default `"UTC"`, never the machine's). A UI shows the range with it ("last 5
-years (2022–2026)").
+(as `computePivot`'s, default the current time; beyond what a `Date` holds, `INVALID_OPTION`),
+`timeZone` (the data's, default `"UTC"`, never the machine's), and `anchor` with `latest`: with
+`anchor: "latest"` the range ends with `latest`, the data's latest date (read like `now`; the
+wall-clock milliseconds a date column holds too), not with today; `"latest"` without a `latest` date,
+or an anchor not of `CATALOG.relativeAnchors`, is `null`. A UI shows the range with it ("last 5
+years (2022–2026)", "last 12 months to Dec 2025").
 
 ### Drill-down
 
@@ -255,7 +258,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `relativeUnits`, `relativeMaxCount`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `relativeUnits`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |

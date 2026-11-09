@@ -100,6 +100,7 @@ export const en = {
         filterRelativeField: "a range like “last 5 years” needs a date field - this filter is left out",
         filterRelativeUnit: "the unit “{value}” is unknown (years, months or days) - this filter is left out",
         filterRelativeCount: "the range needs a whole number from 1 to {max} - this filter is left out",
+        filterRelativeAnchor: "the range can count back from “today” or from “latest” (the latest record), not from “{value}” - this filter is left out",
         sortNoItems: "the custom order lists no items - the usual order is used",
         sortedTwice: "the field is sorted twice - only its first sort is used",
         badTotals: "the totals cannot be read - the usual totals are shown",

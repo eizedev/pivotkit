@@ -85,6 +85,7 @@ export const de = {
         filterRelativeField: "ein Zeitraum wie „letzte 5 Jahre“ braucht ein Datumsfeld - dieser Filter wird weggelassen",
         filterRelativeUnit: "die Einheit „{value}“ ist unbekannt (Jahre, Monate oder Tage) - dieser Filter wird weggelassen",
         filterRelativeCount: "der Zeitraum braucht eine ganze Zahl von 1 bis {max} - dieser Filter wird weggelassen",
+        filterRelativeAnchor: "der Zeitraum kann ab „today“ (heute) oder „latest“ (dem letzten Datensatz) zurückzählen, nicht ab „{value}“ - dieser Filter wird weggelassen",
         sortNoItems: "die eigene Reihenfolge nennt keine Einträge - die übliche Reihenfolge gilt",
         sortedTwice: "das Feld wird zweimal sortiert - nur seine erste Sortierung gilt",
         badTotals: "die Summen lassen sich nicht lesen - die üblichen Summen werden gezeigt",

@@ -246,3 +246,80 @@ test("now at the edge of what a Date holds: INVALID_OPTION in every zone, a rang
     assert.equal(total(computePivot(data, relative, { now: -8.64e15 })), 0);
     assert.equal(kept([{ field: "Date", type: "relative", unit: "day", count: 500 }], {}, { now: -8.64e15 + MS_PER_DAY }), 0);
 });
+
+// ---- the reference date of a relative range: today, or the data's latest record (anchor) ----
+
+test("relative: anchor latest counts back from the data's latest date, whatever today is", () => {
+    // the data end 2026-04-30; today is years later
+    const now = "2030-11-09";
+    const latest = (unit, count) => kept([{ field: "Date", type: "relative", unit, count, anchor: "latest" }], {}, { now });
+    const today = (unit, count) => kept([{ field: "Date", type: "relative", unit, count }], {}, { now });
+    // from today nothing is in range; from the latest record the year 2026 is (all but 2025-12-31)
+    assert.equal(today("year", 1), 0);
+    assert.equal(latest("year", 1), 22);
+    assert.equal(latest("year", 2), 28);
+    // the latest record's month (April 2026) and the three before it
+    assert.equal(latest("month", 1), 4);
+    assert.equal(latest("month", 4), 22);
+    // the latest record's day alone
+    assert.equal(latest("day", 1), 4);
+    // "today" written out is the default, and normalize drops it; "latest" is kept
+    const anchored = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "latest" }] }).view.filters[0];
+    assert.deepEqual(anchored, { field: "Date", type: "relative", unit: "year", count: 1, anchor: "latest" });
+    const plain = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "today" }] }).view.filters[0];
+    assert.deepEqual(plain, { field: "Date", type: "relative", unit: "year", count: 1 });
+    // an unknown anchor: the filter is left out, with its code
+    const bad = normalize({ filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "yesterday" }] }, data);
+    assert.deepEqual(bad.issues.map((i) => i.code), ["filterRelativeAnchor"]);
+    assert.deepEqual(bad.view.filters, []);
+});
+
+test("relative: anchor latest on a grouping goes by the source dates' latest day; fieldItems agrees", () => {
+    const v = { ...byYear, rows: ["Year"], values: [sumUnits] };
+    // the last 2 months to April 2026: March and April (1 + blank + 4)
+    const r = computePivot(data, { ...v, filters: [{ field: "Year", type: "relative", unit: "month", count: 2, anchor: "latest" }] }, { now: "2031-06-01" });
+    assert.deepEqual(r.rowRoot.children.map((n) => [n.key, r.value(n, r.colRoot, 0)]), [[2026, 5]]);
+    const items = fieldItems(data, "Year", { view: { ...v, filters: [{ field: "Year", type: "relative", unit: "year", count: 1, anchor: "latest" }] }, now: "2031-06-01" });
+    assert.deepEqual(items.items.map((i) => [i.value, i.kept]), [[2025, false], [2026, true]]);
+    // from today (2031) the same range keeps nothing
+    const none = fieldItems(data, "Year", { view: { ...v, filters: [{ field: "Year", type: "relative", unit: "year", count: 1 }] }, now: "2031-06-01" });
+    assert.deepEqual(none.items.map((i) => i.kept), [false, false]);
+});
+
+test("relativeDateRange: anchor latest with the data's latest date; year boundaries and time zones", () => {
+    const latest = "2025-12-31";
+    assert.deepEqual(relativeDateRange("year", 1, { now: "2026-11-09", anchor: "latest", latest }), { from: "2025-01-01", to: "2025-12-31" });
+    assert.deepEqual(relativeDateRange("year", 2, { now: "2026-11-09", anchor: "latest", latest }), { from: "2024-01-01", to: "2025-12-31" });
+    assert.deepEqual(relativeDateRange("month", 12, { now: "2026-11-09", anchor: "latest", latest }), { from: "2025-01-01", to: "2025-12-31" });
+    assert.deepEqual(relativeDateRange("day", 7, { now: "2026-11-09", anchor: "latest", latest }), { from: "2025-12-25", to: "2025-12-31" });
+    // anchor today ignores `latest`; the default is today
+    assert.deepEqual(relativeDateRange("year", 1, { now: "2026-11-09", anchor: "today", latest }), { from: "2026-01-01", to: "2026-12-31" });
+    assert.deepEqual(relativeDateRange("year", 1, { now: "2026-11-09", latest }), { from: "2026-01-01", to: "2026-12-31" });
+    // the latest record as an instant is read in the data's time zone: New Year's night in UTC is still 2025 in New York
+    assert.deepEqual(relativeDateRange("year", 1, { anchor: "latest", latest: new Date("2026-01-01T03:00:00Z"), timeZone: "America/New_York" }), { from: "2025-01-01", to: "2025-12-31" });
+    assert.deepEqual(relativeDateRange("year", 1, { anchor: "latest", latest: new Date("2026-01-01T03:00:00Z") }), { from: "2026-01-01", to: "2026-12-31" });
+    // the latest record as wall-clock ms, as a column holds dates
+    assert.deepEqual(relativeDateRange("month", 1, { anchor: "latest", latest: Date.UTC(2024, 1, 10) }), { from: "2024-02-01", to: "2024-02-29" });
+    // anchor latest without a latest date, or an unknown anchor: no range
+    assert.equal(relativeDateRange("year", 1, { anchor: "latest" }), null);
+    assert.equal(relativeDateRange("year", 1, { anchor: "yesterday", latest }), null);
+    assert.throws(() => relativeDateRange("year", 1, { anchor: "latest", latest: "soon" }), { code: "INVALID_OPTION" });
+});
+
+test("compare: a date grouping with a calendar day compares the source dates, not the grouping's key", () => {
+    // "month of the year" combines the years; a day as the value picks the years (the Filter level's Years combined)
+    const v = { derived: [{ name: "Month", field: "Date", by: "month" }], rows: ["Month"], values: [sumUnits] };
+    const year = (op, from, to) => computePivot(data, { ...v, filters: [{ field: "Month", type: "compare", op, value: from, value2: to }] });
+    const r = year("between", "2026-01-01", "2026-12-31");
+    assert.equal(total(r), 22);
+    assert.deepEqual(r.rowRoot.children.map((n) => n.key), [1, 2, 3, 4]);
+    assert.equal(total(year("notBetween", "2026-01-01", "2026-12-31")), 6);
+    assert.equal(total(year("<", "2026-01-01")), 6);
+    // kept as the day, and fieldItems marks the months it leaves out (December has only 2025)
+    assert.deepEqual(r.view.filters, [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: "2026-12-31" }]);
+    const items = fieldItems(data, "Month", { view: { ...v, filters: r.view.filters } });
+    assert.deepEqual(items.items.map((i) => [i.value, i.kept]), [[1, true], [2, true], [3, true], [4, true], [12, false]]);
+    // a key stays a key; a day and a key mixed is no comparison
+    assert.deepEqual(computePivot(data, { ...v, filters: [{ field: "Month", type: "compare", op: ">=", value: "3" }] }).rowRoot.children.map((n) => n.key), [3, 4, 12]);
+    assert.deepEqual(normalize({ ...v, filters: [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: 3 }] }, data).issues.map((i) => i.code), ["filterCompareValue"]);
+});

@@ -25,5 +25,10 @@ export const all = [firstName, read.issues.length, fromSchema.templates.length, 
 // relative date ranges: today from options.now, the range as ISO days or null
 const range: { from: string; to: string } | null = relativeDateRange("year", 5, { now: new Date(), timeZone: "UTC" });
 const today: PivotResult = computePivot(encode([{ d: "2026-01-01" }]), { filters: [{ field: "d", type: "relative", unit: "year", count: 1 }] }, { now: "2026-11-09" });
+// anchored at the data's latest date instead of today
+const anchored: { from: string; to: string } | null = relativeDateRange("month", 12, { anchor: "latest", latest: "2025-12-31", timeZone: "UTC" });
+const latest: PivotResult = computePivot(encode([{ d: "2026-01-01" }]), { filters: [{ field: "d", type: "relative", unit: "year", count: 1, anchor: "latest" }] });
 void range;
 void today;
+void anchored;
+void latest;

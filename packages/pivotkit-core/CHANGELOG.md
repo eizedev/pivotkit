@@ -8,6 +8,16 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- A `relative` filter takes `anchor`: `"latest"` counts the last N years, months or days back from
+  the latest date of the field's data (a grouping's source dates) instead of today, for data that
+  end before today; `"today"` is the default and is not written. `relativeDateRange()` takes the same
+  `anchor` with `latest`, the data's latest date; `CATALOG.relativeAnchors` lists both. An anchor
+  that is neither is the new issue code `filterRelativeAnchor`, and the filter is left out.
+- A `compare` filter on a date grouping takes a calendar day as its value (`"2025-01-01"`): the
+  grouping is then compared by its source dates, not its key, so `between "2025-01-01" and
+  "2025-12-31"` on a month-of-the-year grouping keeps the rows of 2025 (the Filter level's Years
+  combined). A day and a key in one comparison is `filterCompareValue`.
+- The view file's JSON Schema describes `anchor` of a `relative` filter.
 - Two filter types ([#89](https://github.com/eizedev/pivotkit/issues/89)): `compare` compares the
   item itself (`=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween`): a number, a date by its
   calendar day (`"2022-03-01"`) or a grouping's key (year `2022`, month `202503`), so "from 2022"

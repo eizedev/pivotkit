@@ -112,7 +112,7 @@ An issue is `{ path, message, code, params }`:
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
 | `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |
 | `unknownFormat`, `badLabel`, `unknownShowAs`, `showAsNotAdditive`, `showAsNotNumber`, `unknownConditional`, `conditionalNotNumber`, `colorScaleColors`, `dataBarColor` | A value's format, name, "show as" and colours. |
-| `unknownFilterType`, `filterNoItems`, `filterLabelOp`, `filterText`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareField`, `filterCompareValue`, `filterRelativeField`, `filterRelativeUnit`, `filterRelativeCount` | A filter. |
+| `unknownFilterType`, `filterNoItems`, `filterLabelOp`, `filterText`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareField`, `filterCompareValue`, `filterRelativeField`, `filterRelativeUnit`, `filterRelativeCount`, `filterRelativeAnchor` | A filter. |
 | `sortNoItems` | A custom sort order without items. |
 | `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |
 | `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
