@@ -174,9 +174,15 @@ async function licenses(metafile) {
  * words, a format not offered, popovers that keep their side) took the menus to 28.5 (CI about 28.8,
  * budget 30) and their German texts to 4.8 (CI about 5.1, budget 5.3); the first load is 149.4 (the
  * folding's code and rules left it).
+ * The filter rules (#89, #90): pivotkit-core's item comparisons and relative date ranges (the core
+ * is bundled whole) and the chips' words for them ("last 5 years (2022–2026)", "from 2022", which the
+ * first render shows) took the first load to 151.2 measured on a Mac (CI about 151.5), so its budget
+ * went to 152.5; the Filter level's quick choices and rule editor took the menus to 31.7 (CI about
+ * 32.0, budget 33.5), their German texts to 5.0 (CI about 5.3, budget 5.5) and the unused parts'
+ * texts of the new issue codes to 4.5 (CI about 4.8, budget 5).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 151, chart: 211, export: 11.5, link: 7.3, menus: 30, texts: 5.3, unused: 4.7 };
+export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 211, export: 11.5, link: 7.3, menus: 33.5, texts: 5.5, unused: 5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
