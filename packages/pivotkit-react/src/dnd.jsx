@@ -153,7 +153,8 @@ function ownEventsOnly(listener) {
 function split(listeners) {
     const own = Object.fromEntries(Object.entries(listeners ?? {}).map(([name, listener]) => [name, ownEventsOnly(listener)]));
     const { onKeyDown, ...pointer } = own;
-    return { pointer, keyboard: onKeyDown ? { onKeyDown } : {} };
+    // whether dnd-kit gave a keyboard listener at all (the wrapped one is always a function)
+    return { pointer, keyboard: listeners?.onKeyDown ? { onKeyDown } : {} };
 }
 
 /** A field of the field list or a table header cell. */
