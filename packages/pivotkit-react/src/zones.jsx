@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fieldItems, fieldLabel } from "pivotkit-core";
 import { MenuPanel } from "./lazy-menus.jsx";
-import { compareText, layoutSummary, relativeText, sortText, valueConditionText, valueLabel } from "./names.js";
+import { itemRuleText, layoutSummary, sortText, valueConditionText, valueLabel } from "./names.js";
 import { ChipList, useActiveDrag, useChip, useDropTarget } from "./dnd.jsx";
 import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
@@ -42,11 +42,10 @@ function fieldState(view, field, encoded, locale, labels, sourceType) {
     }
     const labelOf = (v) => info?.items.find((i) => i.value === v)?.label;
     const date = sourceType === "date";
-    const rules = filtersOf(view, field, ["relative", "compare"]).map((f) => (f.type === "relative" ? relativeText(f, labels, locale, encoded.timeZone) : compareText(f, labels, locale, { date, labelOf })));
+    const rules = filtersOf(view, field, ["relative", "compare", "label"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf }));
     const top = filtersOf(view, field, ["top"])[0] ?? null;
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
-    const other = filtersOf(view, field, ["label"]).length > 0;
-    return { summary, rules, top, condition, other, sort: sortOf(view, field) };
+    return { summary, rules, top, condition, sort: sortOf(view, field) };
 }
 
 /**
@@ -60,8 +59,6 @@ function stateWords(state, view, labels, locale) {
     const words = [];
     if (state.summary) {
         words.push(`${labels.stateFiltered} ${fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) })}`);
-    } else if (state.other && !state.rules.length) {
-        words.push(labels.stateFiltered);
     }
     words.push(...state.rules);
     if (state.top) {
@@ -86,8 +83,6 @@ function Badges({ state, view, labels, locale }) {
                 {text}
             </span>
         );
-    } else if (state.other && !state.rules.length) {
-        parts.push(<Icon key="filter" name="filter" size={12} className="pk-chip-badge" />);
     }
     // the first rule on the items in the words of the Filter level ("last 5 years (2022–2026)"), "+1"
     // for more (all of them are in the chip's name and the badge's title)
@@ -96,7 +91,8 @@ function Badges({ state, view, labels, locale }) {
         parts.push(
             <span key="rules" className="pk-chip-badge pk-badge-text pk-badge-condition" data-testid="rule-badge" title={state.rules.join(", ")}>
                 {state.summary ? null : <Icon name="filter" size={12} />}
-                {more ? `${state.rules[0]} +${more.toLocaleString(locale)}` : state.rules[0]}
+                <span className="pk-badge-cut">{state.rules[0]}</span>
+                {more ? <span>{` +${more.toLocaleString(locale)}`}</span> : null}
             </span>
         );
     }

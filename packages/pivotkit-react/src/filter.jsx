@@ -27,10 +27,12 @@ export const keyOf = (v) => JSON.stringify(v);
  * shows), and, in a part that scrolls (`children` after them), each value with its row count and
  * "Only". `selected` holds the keys (keyOf) of the values picked; `onChange` gets the next set. The
  * filter popover keeps it as a draft until Apply, the Filter level of a chip menu applies it at once.
- * @param {{ items: Array<{ value: unknown, label: string, count: number }>, selected: Set<string>, onChange: (next: Set<string>) => void,
- *   labels: any, locale: string, autoFocus?: boolean, children?: React.ReactNode }} props
+ * An item the field's rules leave out (`kept` false, pivotkit-core's fieldItems) is muted with
+ * `outText` after its name.
+ * @param {{ items: Array<{ value: unknown, label: string, count: number, kept?: boolean }>, selected: Set<string>, onChange: (next: Set<string>) => void,
+ *   labels: any, locale: string, autoFocus?: boolean, outText?: string, children?: React.ReactNode }} props
  */
-export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, children }) {
+export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, outText, children }) {
     const [query, setQuery] = useState("");
     const q = query.trim().toLocaleLowerCase();
     const matching = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
@@ -77,10 +79,11 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
                     {shown.map((i) => {
                         const k = keyOf(i.value);
                         return (
-                            <li key={k} className="pk-value">
+                            <li key={k} className={`pk-value${outText && i.kept === false ? " pk-value-out" : ""}`}>
                                 <label>
                                     <input type="checkbox" checked={selected.has(k)} onChange={() => toggle(i.value)} />
                                     <span className="pk-value-label">{i.label}</span>
+                                    {outText && i.kept === false ? <span className="pk-value-out-note">{outText}</span> : null}
                                     <span className="pk-count">{i.count.toLocaleString(locale)}</span>
                                 </label>
                                 <button type="button" className="pk-link pk-only" onClick={() => onChange(new Set([k]))} aria-label={`${labels.onlyThis}: ${i.label}`}>

@@ -159,10 +159,11 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
         assert.ok(group.has(mod), `${mod} is not in the ${name}`);
         assert.ok(!first.has(mod), `${mod} is in the first load`);
     }
-    // texts only those show (menu-labels.js): Options' reasons and notes, the filter's conditions, sharing's notes
+    // texts only those show (menu-labels.js): Options' reasons and notes, the filter's rules, sharing's notes
+    // (the words of a rule on names, "does not contain", are the chip's too, so they load first)
     const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
     const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
-    for (const words of ["Nothing is collapsed.", "{count} groups expanded", "Needs a field in Rows.", "does not contain", "Link copied", "View copied as JSON"]) {
+    for (const words of ["Nothing is collapsed.", "{count} groups expanded", "Needs a field in Rows.", "Keep the items for which all of these are true:", "Link copied", "View copied as JSON"]) {
         assert.ok(text(groups.menus).includes(words), `"${words}" is not in the menus`);
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
     }

@@ -182,8 +182,8 @@ const NUMBER_TYPED = /\d+/;
 /**
  * The Filter topic of a field's menu: its state in words ("last 5 years (2022–2026)", "3 of 12"), the
  * rules found by their names (they open the level on them), and from what is typed in the search,
- * for a date field: the quick choices with that count ("Last 3 years (2024–2026)") and its items
- * compared ("From 2022"), applied at once.
+ * for a date field: the quick choices with that count ("Last 3 years (2024–2026)") and, for a grouping
+ * by year, a year compared ("From 2022"), applied at once.
  * @param {{ view: any, field: string, labels: any, locale: string, state?: any, encoded?: any }} input
  * @returns {Topic}
  */
@@ -206,16 +206,14 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
                   const text = `${capital(fill(labels.relative[`${unit}s`], { count: n.toLocaleString(locale) }))} (${rangeText(unit, n, locale, timeZone)})`;
                   return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n }), note }) } };
               });
-              // a year of a year grouping, or the year's first and last day of a date field
-              const yearLike = n >= 1000 && n <= 9999;
-              const year = fk.item === "date" && yearLike ? n : null;
-              const keyed = fk.item === "group" && yearLike && view.derived.some((d) => d.name.toLowerCase() === field.toLowerCase() && d.by === "year") ? n : null;
-              if (year === null && keyed === null) {
+              // a year of a grouping by year, written as its chip will say it ("from 2022"); a date
+              // field compares days, which the rule editor picks
+              const keyed = fk.item === "group" && n >= 1000 && n <= 9999 && view.derived.some((d) => d.name.toLowerCase() === field.toLowerCase() && d.by === "year");
+              if (!keyed) {
                   return ranges;
               }
-              const value = (op) => (keyed !== null ? keyed : `${year}-${op === ">=" || op === "<" ? "01-01" : "12-31"}`);
               const compares = [">=", "<=", "<", ">"].map((op) => {
-                  const entry = { field, type: "compare", op, value: value(op) };
+                  const entry = { field, type: "compare", op, value: n };
                   // the words of the chip, with the year as typed ("from 2022", not a date)
                   const text = capital(fill(labels.compareShort[op], { value: String(n) }));
                   return { id: `compare-${op}-${n}`, text, choice: { id: `compare-${op}-${n}`, text, change: () => ({ view: setRule(view, field, null, entry), note }) } };

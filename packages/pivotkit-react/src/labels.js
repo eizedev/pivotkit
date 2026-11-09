@@ -309,6 +309,8 @@ export const en = {
     valueConditions: { compare: "{value} {op} {number}", between: "{value} between {from} and {to}", notBetween: "{value} not between {from} and {to}" },
     // the measure a sort or a filter goes by when the view shows no value: the rows counted
     countOfRows: "Count of rows",
+    // a rule on the names of a field's items, on its chip and in its menu: "contains “an”"
+    labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
     // a relative date range and a date compared, in short (the chip and the Filter level): "last 5 years (2022–2026)", "from 2022"
     relative: { year: "this year", years: "last {count} years", month: "this month", months: "last {count} months", day: "today", days: "last {count} days" },
     withRange: "{text} ({range})",
@@ -603,6 +605,7 @@ export const de = {
     },
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
     countOfRows: "Anzahl der Zeilen",
+    labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", endsWith: "endet mit" },
     relative: { year: "dieses Jahr", years: "letzte {count} Jahre", month: "dieser Monat", months: "letzte {count} Monate", day: "heute", days: "letzte {count} Tage" },
     withRange: "{text} ({range})",
     compareShort: { "=": "{value}", "!=": "nicht {value}", ">": "nach {value}", ">=": "ab {value}", "<": "vor {value}", "<=": "bis {value}", between: "{from} bis {to}", notBetween: "nicht {from} bis {to}" },

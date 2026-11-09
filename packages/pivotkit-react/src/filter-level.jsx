@@ -16,7 +16,7 @@ import { CATALOG, LIMITS, fieldItems, fieldLabel } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { keyOf, ValueList } from "./filter.jsx";
 import { Icon } from "./icons.jsx";
-import { fill } from "./labels.js";
+import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
 import { rangeText } from "./names.js";
@@ -42,6 +42,21 @@ function QuickChoices({ ctx }) {
     const quick = quickChoice(view, field, fk.months);
     const counts = { year: quick.id === "years" ? quick.count : 5, month: quick.id === "months" ? quick.count : 12 };
     const [texts, setTexts] = useState({ year: numberText(counts.year, locale), month: numberText(counts.month, locale) });
+    // a change that came from elsewhere (Undo, a rule, the search) shows in a count not being typed in
+    const [editing, setEditing] = useState(/** @type {string | null} */ (null));
+    const quickKey = `${quick.id}:${quick.count ?? ""}`;
+    const [seen, setSeen] = useState(quickKey);
+    if (quickKey !== seen) {
+        setSeen(quickKey);
+        const synced = { ...texts };
+        for (const unit of /** @type {const} */ (["year", "month"])) {
+            if (unit !== editing) {
+                synced[unit] = numberText(counts[unit], locale);
+            }
+        }
+        setTexts(synced);
+    }
+    const lang = { lang: labels.lang, locale };
     const later = useLater();
     const group = useId();
     const set = (range) => commit(setQuickRange(view, field, range), note);
@@ -52,24 +67,26 @@ function QuickChoices({ ctx }) {
         </label>
     );
     const counted = (unit) => {
-        const read = readNumber(texts[unit], { kind: "count", labels, locale });
-        const n = read.value !== null && read.value <= CATALOG.relativeMaxCount ? read.value : null;
+        const read = readNumber(texts[unit], { kind: "count", max: CATALOG.relativeMaxCount, labels, locale });
+        const n = read.value;
         const id = unit === "year" ? "years" : "months";
-        const [before, after] = labels.relative[`${unit}s`].split("{count}");
         const shown = n ?? counts[unit];
+        // "Last [5] years", "Letztes [1] Jahr": the words around the count, in its number
+        // (the form of that count with a place for the field instead of the number)
+        const forms = Object.fromEntries(Object.entries(labels.quickLast[unit]).map(([k, v]) => [k, String(v).replace("{count}", "{n}")]));
+        const words = plural(forms, shown, lang);
+        const [before, after] = words.split("{n}");
         const pick = () => set({ unit, count: shown });
         return (
             <div className="pk-quick-row" key={unit}>
-                {radio(id, quick.id === id, pick, capital(fill(labels.relative[`${unit}s`], { count: shown.toLocaleString(locale) }), locale), (
-                    <span aria-hidden="true">{capital(before, locale)}</span>
-                ))}
+                {radio(id, quick.id === id, pick, fill(words, { n: shown.toLocaleString(locale) }), <span aria-hidden="true">{before}</span>)}
                 <NumberField
                     value={texts[unit]}
                     onChange={(t) => {
                         setTexts({ ...texts, [unit]: t });
                         later.later(() => {
-                            const v = readNumber(t, { kind: "count", labels, locale }).value;
-                            if (v !== null && v <= CATALOG.relativeMaxCount) {
+                            const v = readNumber(t, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale }).value;
+                            if (v !== null) {
                                 set({ unit, count: v });
                             }
                         });
@@ -87,7 +104,11 @@ function QuickChoices({ ctx }) {
                         },
                         back
                     })}
-                    onBlur={later.now}
+                    onBlur={() => {
+                        setEditing(null);
+                        later.now();
+                    }}
+                    onFocus={() => setEditing(unit)}
                     problem={read.problem}
                     label={labels.quickCount[unit]}
                     testId={`quick-${id}-count`}
@@ -137,8 +158,8 @@ function ItemRule({ rule, ctx, apply, first }) {
     const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? (/^\d{4,}-\d{2}-\d{2}$/.test(text) ? text : null) : text === "" ? null : Number(text));
     const entryOf = (x) => {
         if (x.op === "last") {
-            const n = readNumber(x.count, { kind: "count", labels, locale }).value;
-            return n !== null && n <= CATALOG.relativeMaxCount ? { field, type: "relative", unit: x.unit, count: n } : null;
+            const n = readNumber(x.count, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale }).value;
+            return n !== null ? { field, type: "relative", unit: x.unit, count: n } : null;
         }
         const [a, b] = [read(x.a), read(x.b)];
         return a === null || (twin(x.op) && b === null) ? null : { field, type: "compare", op: x.op, value: a, ...(twin(x.op) ? { value2: b } : {}) };
@@ -195,13 +216,17 @@ function ItemRule({ rule, ctx, apply, first }) {
         );
     };
     const label = fk.item === "date" ? labels.ruleDate : labels.ruleValue;
+    // "im letzten Monat", "in den letzten 3 Monaten": the words follow the count
+    const lang = { lang: labels.lang, locale };
+    const counted = readNumber(s.count, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale });
+    const many = counted.value ?? 2;
     return (
         <>
             <span className="pk-rule-subject">{fieldLabel(field, labels.core)}</span>
             <select className="pk-rule-op" value={s.op} onChange={(e) => change({ op: e.target.value })} aria-label={labels.valueFilterOp} data-autofocus={first ? "" : undefined} data-testid="rule-item-op">
                 {ops.map((o) => (
                     <option key={o} value={o}>
-                        {words[o] ?? o}
+                        {o === "last" ? plural(labels.lastOp, many, lang) : words[o] ?? o}
                     </option>
                 ))}
             </select>
@@ -212,7 +237,7 @@ function ItemRule({ rule, ctx, apply, first }) {
                         onChange={(t) => change({ count: t }, true)}
                         onKeyDown={keys}
                         onBlur={later.now}
-                        problem={readNumber(s.count, { kind: "count", labels, locale }).problem}
+                        problem={counted.problem}
                         label={labels.quickCount[s.unit]}
                         testId="rule-last-count"
                         className="pk-field-label pk-count-input"
@@ -220,7 +245,7 @@ function ItemRule({ rule, ctx, apply, first }) {
                     <select value={s.unit} onChange={(e) => change({ unit: e.target.value })} aria-label={labels.ruleUnit} data-testid="rule-last-unit">
                         {CATALOG.relativeUnits.map((u) => (
                             <option key={u} value={u}>
-                                {labels.ruleUnits[u] ?? u}
+                                {plural(labels.ruleUnits[u], many, lang)}
                             </option>
                         ))}
                     </select>
@@ -233,6 +258,12 @@ function ItemRule({ rule, ctx, apply, first }) {
                             <span>{labels.valueFilterTo}</span>
                             {value("b", `${labels.valueFilterTo} ${label}`, "rule-item-value2")}
                         </>
+                    ) : null}
+                    {/* a blank item passes no comparison: said where "is not" would suggest otherwise */}
+                    {s.op === "!=" || s.op === "notBetween" ? (
+                        <span className="pk-hint pk-rule-note" data-testid="rule-blanks">
+                            {labels.blanksOut}
+                        </span>
                     ) : null}
                 </>
             )}
@@ -281,6 +312,7 @@ function TotalRule({ rule, ctx, apply, first }) {
     );
     return (
         <>
+            <span className="pk-rule-subject pk-rule-lead">{fill(labels.ruleWhose, { field: fieldLabel(ctx.field, labels.core) })}</span>
             <MeasurePick choices={choices} names={names} index={s.by} onChange={(i) => change({ by: i })} label={labels.valueFilterBy} testId="value-filter-by" />
             <select className="pk-rule-op" value={s.op} onChange={(e) => change({ op: e.target.value })} aria-label={labels.valueFilterOp} data-autofocus={first ? "" : undefined} data-testid="value-filter-op">
                 {CATALOG.valueOps.map((o) => (
@@ -377,7 +409,10 @@ function RuleEditor({ ctx, rules, focusFirst }) {
     }, [gen]);
     useEffect(() => {
         if (draft) {
-            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(".pk-rule:last-child [data-autofocus]"))?.focus();
+            // the new rule in view, whole (it may start below the menu's edge), and its first control focused
+            const row = /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(".pk-rule:last-child"));
+            /** @type {HTMLElement | null | undefined} */ (row?.querySelector("[data-autofocus]"))?.focus({ preventScroll: true });
+            row?.scrollIntoView?.({ block: "nearest" });
         }
     }, [draft]);
     const kinds = /** @type {Array<"item" | "total" | "name">} */ (["item", "total", "name"]).filter((k) => (k === "item" ? Boolean(fk.item) : k === "name" ? Boolean(nameKind) : true));
@@ -454,6 +489,14 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
     const [more, setMore] = useState(hint === "conditions");
     const moreId = useId();
+    // "More ways to filter" opened: what it holds in view, as far as the menu's height allows
+    const moreBody = useRef(/** @type {HTMLDivElement | null} */ (null));
+    const [opened, setOpened] = useState(false);
+    useEffect(() => {
+        if (opened) {
+            moreBody.current?.scrollIntoView?.({ block: "nearest" });
+        }
+    }, [opened]);
     if (!info) {
         return null;
     }
@@ -469,14 +512,22 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const timeZone = encoded.timeZone;
     const labelOf = (v) => info.items.find((i) => i.value === v)?.label;
     const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, timeZone, hint, items: info.items };
-    const texts = rules.map((f) => ruleText(view, f, { labels, locale, timeZone, date: fk.dates, labelOf }));
-    const pickedText = fill(labels.itemsPicked, { shown: picked.length.toLocaleString(locale), total: all.length.toLocaleString(locale) });
+    const say = (f) => ruleText(view, f, { labels, locale, timeZone, date: fk.dates, labelOf });
+    // the first line: the items the picks and the rules on the items keep ("2 of 36 items shown: last 2
+    // years"), then the rules on totals, which keep groups ("plus Count of rows > 3")
+    const onItems = rules.filter((f) => f.type !== "value").map(say);
+    const onTotals = rules.filter((f) => f.type === "value").map(say);
+    const number = (n) => n.toLocaleString(locale);
+    const shown = info.items.filter((i) => i.kept && selected.has(keyOf(i.value))).length;
+    const keeps = onItems.length
+        ? fill(picked.length < all.length ? labels.itemsShownPicked : labels.itemsShown, { shown: number(shown), total: number(all.length), picked: number(picked.length), rules: onItems.join(labels.listAnd) })
+        : fill(labels.itemsPicked, { shown: number(picked.length), total: number(all.length) });
     const itemsFiltered = picked.length < all.length || filtersOf(view, field, ["include"]).length > 0;
     return (
         <div className="pk-filter pk-filter-level">
             <div className="pk-level-result">
                 <p role="status" data-testid="filter-result">
-                    {texts.length ? fill(labels.pickedPlus, { picked: pickedText, conditions: texts.join(labels.listAnd) }) : pickedText}
+                    {onTotals.length ? fill(labels.pickedPlus, { picked: keeps, conditions: onTotals.join(labels.listAnd) }) : keeps}
                 </p>
                 {itemsFiltered ? (
                     <button type="button" className="pk-link pk-link-button" onClick={() => commit(setItemFilter(view, field, all, all), note)} data-testid="filter-clear-picks">
@@ -490,14 +541,17 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                 ) : null}
             </div>
             {fk.dates ? <QuickChoices ctx={ctx} /> : null}
-            <ValueList items={info.items} selected={selected} onChange={(next) => commit(setItemFilter(view, field, all.filter((v) => next.has(keyOf(v))), all), note)} labels={labels} locale={locale} autoFocus={!more && !fk.dates}>
-                <button type="button" className="pk-more-filters" aria-expanded={more} aria-controls={moreId} onClick={() => setMore(!more)} data-testid="filter-more">
+            <ValueList items={info.items} selected={selected} outText={labels.ruleOut} onChange={(next) => commit(setItemFilter(view, field, all.filter((v) => next.has(keyOf(v))), all), note)} labels={labels} locale={locale} autoFocus={!more && !fk.dates}>
+                <button type="button" className="pk-more-filters" aria-expanded={more} aria-controls={moreId} onClick={() => {
+                        setMore(!more);
+                        setOpened(!more);
+                    }} data-testid="filter-more">
                     <Icon name={more ? "chevronDown" : "chevronRight"} size={16} />
                     {labels.moreFilters}
                     {rules.length && !more ? <span className="pk-section-mark">{" ●"}</span> : null}
                 </button>
                 {more ? (
-                    <div id={moreId} className="pk-more-filters-body">
+                    <div id={moreId} ref={moreBody} className="pk-more-filters-body">
                         <RuleEditor ctx={ctx} rules={rules} focusFirst={hint === "conditions"} />
                     </div>
                 ) : null}

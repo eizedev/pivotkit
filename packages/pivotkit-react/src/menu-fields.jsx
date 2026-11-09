@@ -14,13 +14,17 @@ import { measureChoices, withMeasure } from "./menu-ops.js";
 /**
  * A number typed into a menu, read in the report's locale (numbers.js). `kind` says what it must be:
  * "number" any number, "size" above 0, "count" a whole number of 1 or more. The problem shows while
- * the text is not such a number, and for an empty required field once Apply was pressed.
+ * the text is not such a number, and for an empty required field once Apply was pressed; `max`: the
+ * largest count, a larger one says so.
  * @param {string} text
- * @param {{ kind?: "number" | "size" | "count", required?: boolean, tried?: boolean, labels: any, locale: string }} options
+ * @param {{ kind?: "number" | "size" | "count", required?: boolean, tried?: boolean, max?: number, labels: any, locale: string }} options
  * @returns {{ value: number | null, problem: string | null }}
  */
-export function readNumber(text, { kind = "number", required = true, tried = false, labels, locale }) {
+export function readNumber(text, { kind = "number", required = true, tried = false, max, labels, locale }) {
     const value = parseNumber(text, locale);
+    if (max !== undefined && value !== null && Number.isInteger(value) && value > max) {
+        return { value: null, problem: fill(labels.countMax, { max: max.toLocaleString(locale) }) };
+    }
     const ok = value !== null && (kind === "number" || (kind === "size" ? value > 0 : Number.isInteger(value) && value >= 1));
     const say = () => (kind === "count" ? labels.countInvalid : fill(kind === "size" ? labels.sizeInvalid : labels.numberInvalid, { example: (kind === "size" ? 0.5 : 1234.5).toLocaleString(locale) }));
     if (text.trim() === "") {
@@ -34,9 +38,9 @@ export function readNumber(text, { kind = "number", required = true, tried = fal
  * input would read "1.000,5" by the browser's rules, not the report's), its problem under it.
  * @param {{ value: string, onChange: (text: string) => void, problem: string | null, label: string,
  *   testId: string, className?: string, shown?: string, shownClass?: string, onKeyDown?: (e: React.KeyboardEvent) => void,
- *   onBlur?: () => void, autoFocus?: boolean }} props
+ *   onBlur?: () => void, onFocus?: () => void, autoFocus?: boolean }} props
  */
-export function NumberField({ value, onChange, problem, label, testId, className = "pk-field-label", shown, shownClass, onKeyDown, onBlur, autoFocus }) {
+export function NumberField({ value, onChange, problem, label, testId, className = "pk-field-label", shown, shownClass, onKeyDown, onBlur, onFocus, autoFocus }) {
     const id = useId();
     return (
         <>
@@ -51,6 +55,7 @@ export function NumberField({ value, onChange, problem, label, testId, className
                     onChange={(e) => onChange(e.target.value)}
                     onKeyDown={onKeyDown}
                     onBlur={onBlur}
+                    onFocus={onFocus}
                     aria-label={label}
                     aria-invalid={problem ? true : undefined}
                     aria-describedby={problem ? id : undefined}

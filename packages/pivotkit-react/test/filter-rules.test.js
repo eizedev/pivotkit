@@ -3,12 +3,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, normalize, relativeDateRange } from "pivotkit-core";
-import { LABELS } from "../src/labels.js";
+import { LABELS, plural } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { RULES_MAX, RULE_TYPES, filterState, quickChoice, removeRules, ruleKind, ruleText, setItemFilter, setQuickRange, setRule } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
-import { compareText, rangeText, relativeText } from "../src/names.js";
+import { compareText, itemRuleText, rangeText, relativeText } from "../src/names.js";
 import { addField, filtersOf, groupField } from "../src/view-ops.js";
 
 const data = encode([
@@ -116,7 +116,9 @@ test("search: quick choices with the count typed, a year compared, and the rules
     const raw = axisTopics({ view: norm({ rows: ["Released"] }), zone: "rows", index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data });
     const rawHits = (q) => searchHits(searchEntries(raw, q), q, "en-US");
     assert.equal(rawHits("last 6 months").length, 1);
-    assert.deepEqual(filtersOf(rawHits("up to 2022")[0].choice.change().view, "Released", ["compare"]), [{ field: "Released", type: "compare", op: "<=", value: "2022-12-31" }]);
+    // a date field compares days: no year entry, whose chip would say a day ("from Jan 1, 2022")
+    assert.equal(rawHits("up to 2022").length, 0);
+    assert.equal(rawHits("from 2022").length, 0);
     // German words
     const de = axisTopics({ view: byYear, zone: "rows", index: 0, field: YEAR, types, labels: MENU.de, locale: "de-DE", encoded: data });
     assert.equal(searchHits(searchEntries(de, "ab 2022"), "ab 2022", "de-DE")[0].text, "Ab 2022");
@@ -134,4 +136,20 @@ test("the Filters zone's menu: Filter with its state, then Move to (no sort, gro
     assert.equal(topics[0].state, "last 2 years");
     assert.equal(topics[0].changed, true);
     assert.deepEqual(topics[1].groups[0].choices.map((c) => c.id), ["move-cols", "move-rows", "move-values"]);
+});
+
+test("a rule on the names says its words as the others do; counts of one have their own words (en, de)", () => {
+    const label = { field: "Region", type: "label", op: "contains", value: "linux" };
+    assert.equal(itemRuleText(label, MENU.en, "en-US", { timeZone: "UTC", date: false }), "contains “linux”");
+    assert.equal(itemRuleText(label, MENU.de, "de-DE", { timeZone: "UTC", date: false }), "enthält „linux“");
+    // the chip's words already hold it: the first level does not say it twice
+    const v = setRule(norm({ rows: ["Region"] }), "Region", null, label);
+    assert.equal(filterState(v, "Region", { summary: null, rules: ["contains “linux”"] }, MENU.en, "en-US"), "contains “linux”");
+    assert.equal(filterState(v, "Region", null, MENU.en, "en-US"), "contains “linux”");
+    const say = (forms, n, lang) => plural(forms, n, { lang, locale: lang === "de" ? "de-DE" : "en-US" });
+    assert.equal(say(MENU.de.quickLast.year, 1, "de"), "Letztes 1 Jahr");
+    assert.equal(say(MENU.de.quickLast.month, 3, "de"), "Letzte 3 Monate");
+    assert.equal(say(MENU.en.quickLast.year, 1, "en"), "Last 1 year");
+    assert.equal(`${say(MENU.de.lastOp, 1, "de")} 1 ${say(MENU.de.ruleUnits.month, 1, "de")}`, "im letzten 1 Monat");
+    assert.equal(`${say(MENU.de.lastOp, 3, "de")} 3 ${say(MENU.de.ruleUnits.month, 3, "de")}`, "in den letzten 3 Monaten");
 });

@@ -7,7 +7,7 @@
 
 import { isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { compareText, relativeText, valueConditionText } from "./names.js";
+import { itemRuleText, valueConditionText } from "./names.js";
 import { axisOf, clone, filterZoneFields, filtersOf, groupingOf, numericResult, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
@@ -222,17 +222,7 @@ export function ruleKind(encoded, view, field) {
  * @param {{ labels: any, locale: string, timeZone: string, date: boolean, labelOf?: (v: number) => string | undefined }} options
  */
 export function ruleText(view, f, { labels, locale, timeZone, date, labelOf }) {
-    if (f.type === "relative") {
-        return relativeText(f, labels, locale, timeZone);
-    }
-    if (f.type === "compare") {
-        return compareText(f, labels, locale, { date, labelOf });
-    }
-    if (f.type === "value") {
-        return valueConditionText(view, f, labels, locale);
-    }
-    const op = Object.hasOwn(labels.labelOps, f.op) ? labels.labelOps[f.op] : f.op;
-    return `${op} ${fill(labels.quote, { text: f.value })}`;
+    return f.type === "value" ? valueConditionText(view, f, labels, locale) : itemRuleText(f, labels, locale, { timeZone, date, labelOf });
 }
 
 /**
@@ -355,9 +345,10 @@ export function filterState(view, field, state, labels, locale) {
     if (state && state.summary) {
         parts.push(fill(labels.filterSummary, { shown: state.summary.shown.toLocaleString(locale), total: state.summary.total.toLocaleString(locale) }));
     }
+    // the chip's rules on the items (with a text rule), else the text rules said here
     parts.push(...(state?.rules ?? []));
     for (const f of view.filters.filter(same)) {
-        if (f.type === "label" || f.type === "value") {
+        if (f.type === "value" || (f.type === "label" && !state?.rules)) {
             parts.push(ruleText(view, f, { labels, locale, timeZone: "UTC", date: false }));
         }
     }

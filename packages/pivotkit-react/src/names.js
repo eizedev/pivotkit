@@ -141,6 +141,25 @@ export function compareText(f, labels, locale, { date, labelOf }) {
     return date && Object.hasOwn(forms, f.op) ? fill(forms[f.op], { value: shown(f.value) }) : `${Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op} ${shown(f.value)}`;
 }
 
+/**
+ * A rule on a field's items in short, as its chip and its menu say it: "last 5 years (2022–2026)",
+ * "from 2022", "contains “an”".
+ * @param {{ type: string, op?: string, value?: any, value2?: any, unit?: string, count?: number }} f  a `relative`, `compare` or `label` filter
+ * @param {import("./labels.js").UiLabels} labels
+ * @param {string} locale
+ * @param {{ timeZone: string, date: boolean, labelOf?: (value: number) => string | undefined }} kind
+ */
+export function itemRuleText(f, labels, locale, { timeZone, date, labelOf }) {
+    if (f.type === "relative") {
+        return relativeText(/** @type {any} */ (f), labels, locale, timeZone);
+    }
+    if (f.type === "compare") {
+        return compareText(/** @type {any} */ (f), labels, locale, { date, labelOf });
+    }
+    const op = String(f.op);
+    return `${Object.hasOwn(labels.labelOps, op) ? labels.labelOps[op] : op} ${fill(labels.quote, { text: f.value })}`;
+}
+
 /** The name of a derived field for a grouping, in the labels' language: "Date by month", "Amount (by 100)". */
 export function groupingName(source, unit, labels, size) {
     const inName = labels.unitInName && Object.hasOwn(labels.unitInName, unit) ? labels.unitInName[unit] : labels.units[unit];

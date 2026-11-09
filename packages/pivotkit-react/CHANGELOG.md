@@ -93,6 +93,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Filter rules after review: a rule on the names shows its words on the chip ("contains “linux”");
+  the pick list marks the items the field's rules leave out and the first line counts what shows
+  ("2 of 36 items shown: last 2 years (2025–2026)"); the quick choices follow Undo; a count above
+  500 says so; a new rule and the opened rules scroll into view; a narrow chip cuts the rule, not the
+  field's name; "is not" says blank items are not kept; counts of one have their own words ("Letztes
+  1 Jahr", "im letzten 1 Monat"); the rule on a total names the items ("Region items whose …"); the
+  search offers "from 2022" for a grouping by year only. The labels `labelOps` load first now (the
+  chip says them).
 - On a touch screen the field list keeps its desktop rows: the grip, the "i" and the menu of a
   field keep their size and get a hit area 44 px high instead (the grip's 44 px wide), within their
   own row; they made every row 44 px or more high and broke names such as "Sunshine h" into two lines.

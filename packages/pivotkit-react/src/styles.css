@@ -976,6 +976,26 @@
     flex: none;
 }
 
+/* with a condition or a rule in words, that badge ends in "…" (its whole text is in its title and
+   the chip's name) before the field's name gets shorter than a few words; the other badges stay whole */
+.pk-chip-label .pk-btn-text:has(.pk-badge-condition) .pk-chip-name {
+    min-width: min(6em, 40%);
+}
+
+.pk-chip-label .pk-badges-inline:has(> .pk-badge-condition) {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.pk-chip-label .pk-badges-inline > * {
+    flex: none;
+}
+
+.pk-chip-label .pk-badges-inline > .pk-badge-condition {
+    flex: 0 1 auto;
+    min-width: 3em;
+}
+
 .pk-chip-badge {
     color: var(--pk-accent);
 }
@@ -1090,6 +1110,10 @@
 /* a value condition on a chip: at most this wide, the rest an ellipsis */
 .pk-badge-condition {
     max-width: 18em;
+}
+
+.pk-badge-condition > :not(.pk-badge-cut) {
+    flex: none;
 }
 
 .pk-badge-cut {
@@ -1569,6 +1593,12 @@
     font-weight: 600;
 }
 
+/* "Region items whose" leads into the value's name: the sentence's start, not a heading */
+.pk-rule-body > .pk-rule-lead {
+    color: var(--pk-muted);
+    font-weight: 400;
+}
+
 .pk-rule-body .pk-narrow-input {
     flex: 1 1 6em;
 }
@@ -1812,6 +1842,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* an item the field's rules leave out: muted, with a note (its tick still says whether it is picked) */
+.pk-value-out .pk-value-label {
+    color: var(--pk-muted);
+}
+
+.pk-value-out-note {
+    flex: none;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    font-style: italic;
 }
 
 .pk-count {

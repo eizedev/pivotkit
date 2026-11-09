@@ -74,9 +74,15 @@ test.describe("filters say what they keep", () => {
         await expect.poll(async () => (await tableRows(page)).length).toBeLessThan(before);
         await menu.getByTestId("level-back").click();
         await expect(menu.getByTestId("topic-state-filter")).toHaveText("● contains “an”");
+        // the chip says the same words, in its badge, its title and its name
+        const ruleBadge = page.locator('[data-zone="rows"] .pk-chip[data-chip="Country"] [data-testid="rule-badge"]');
+        await expect(ruleBadge).toHaveText("contains “an”");
+        await expect(ruleBadge).toHaveAttribute("title", "contains “an”");
+        await expect(page.getByTestId("chip-menu-Country")).toHaveAccessibleName("Country, contains “an”");
         await openLevel(menu, "filter");
-        // the level says the rule in words
-        await expect(menu.getByTestId("filter-result")).toHaveText(/items picked, plus contains “an”$/);
+        // the level says the rule in words, and how many items it keeps; the others are marked
+        await expect(menu.getByTestId("filter-result")).toHaveText(/^\d+ of \d+ items shown: contains “an”$/);
+        await expect(menu.locator(".pk-value-out").first()).toContainText("left out by a rule");
         await openMoreFilters(menu);
         await expect(menu.getByTestId("filter-condition-text")).toHaveValue("an");
         const filtered = (await tableRows(page)).length;
