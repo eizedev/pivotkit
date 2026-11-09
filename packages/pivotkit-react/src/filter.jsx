@@ -84,10 +84,10 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
                 <ClearInput type="search" value={query} placeholder={labels.searchValues} onChange={setQuery} clearLabel={labels.clearText} data-autofocus={autoFocus ? "" : undefined} data-testid="filter-search" />
             </label>
             <div className="pk-filter-actions">
-                <button type="button" className="pk-link" onClick={() => setAll(true)} data-testid="select-all">
+                <button type="button" className="pk-action" onClick={() => setAll(true)} data-testid="select-all">
                     {labels.selectAll}
                 </button>
-                <button type="button" className="pk-link" onClick={() => setAll(false)} data-testid="select-none">
+                <button type="button" className="pk-action" onClick={() => setAll(false)} data-testid="select-none">
                     {labels.selectNone}
                 </button>
             </div>

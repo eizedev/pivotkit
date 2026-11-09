@@ -6,7 +6,7 @@
 // checked is what the user sees: the chips stay in their zones, the table and the chips' filter
 // marks stay as they were, and no dragged chip follows the pointer.
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openMoreFilters, openZones, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openRules, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
 const MONTH = "Date by month of year";
 const MEAN = "Average of Mean °C";
@@ -64,7 +64,7 @@ async function monthFilterWithPick(page) {
     await chipMenu(page, MONTH, "filter");
     const menu = page.locator(".pk-chip-menu");
     await menu.locator(".pk-value", { hasText: "Jan" }).getByRole("checkbox").click();
-    await expect(menu.getByTestId("filter-result")).toContainText("11 of 12");
+    await expect(menu.getByTestId("filter-summary-head")).toHaveText("11 of 12 months shown");
     await expect(page.locator('[data-zone="cols"] .pk-chip-label')).not.toHaveText(MONTH);
     return menu;
 }
@@ -91,7 +91,7 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
         test(`the native select of a rule: ${variant} over Values`, async ({ page }) => {
             await open(page);
             const menu = await monthFilterWithPick(page);
-            await openMoreFilters(menu);
+            await openRules(menu);
             await menu.getByTestId("rule-add-item").click();
             const select = menu.getByTestId("rule-item-op");
             await expect(select).toBeVisible();
@@ -118,28 +118,28 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
         });
     }
 
-    test("Clear picks clicked with a small jitter while the pointer is over Values: only the picks go", async ({ page }) => {
+    test("Reset filter clicked with a small jitter while the pointer is over Values: only the picks go", async ({ page }) => {
         await open(page);
         const menu = await monthFilterWithPick(page);
-        const clear = menu.getByTestId("filter-clear-picks");
-        const from = await centre(clear);
+        const reset = menu.getByTestId("filter-reset");
+        const from = await centre(reset);
         // the button lies over the Values zone: the press is over that zone as well
         const values = await page.locator('[data-zone="values"]').boundingBox();
-        expect(from.x > values.x && from.x < values.x + values.width && from.y > values.y && from.y < values.y + values.height, "Clear picks covers the Values zone").toBe(true);
+        expect(from.x > values.x && from.x < values.x + values.width && from.y > values.y && from.y < values.y + values.height, "Reset filter covers the Values zone").toBe(true);
         const overlays = await press(page, from, [{ x: from.x + 4, y: from.y + 2 }, { x: from.x + 8, y: from.y + 3 }]);
         expect(overlays, "no dragged chip follows the pointer").toEqual([0, 0]);
         // the click did what it says: every month is back, the chip stays on Columns with no filter mark
-        await expect(menu.getByTestId("filter-result")).toContainText("12 of 12");
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText("All 12 months shown");
         expect(await chips(page, "cols")).toEqual([MONTH]);
         expect(await chips(page, "values")).toEqual([MEAN]);
         await expect(page.locator('[data-zone="cols"] .pk-chip-label')).toHaveText(MONTH);
     });
 
-    test("Clear picks pressed and the mouse moved off over Values: nothing changes", async ({ page }) => {
+    test("Reset filter pressed and the mouse moved off over Values: nothing changes", async ({ page }) => {
         await open(page);
         const menu = await monthFilterWithPick(page);
         const before = await seen(page);
-        const from = await centre(menu.getByTestId("filter-clear-picks"));
+        const from = await centre(menu.getByTestId("filter-reset"));
         const overlays = await press(page, from, [{ x: from.x + 12, y: from.y + 12 }, await inZone(page, "values", { x: 0.05, y: 0.6 })]);
         expect(overlays, "no dragged chip follows the pointer").toEqual([0, 0]);
         expect(await seen(page)).toEqual(before);
@@ -149,7 +149,7 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
         await open(page);
         const menu = await monthFilterWithPick(page);
         const before = await seen(page);
-        const text = await menu.getByTestId("filter-result").boundingBox();
+        const text = await menu.getByTestId("filter-summary-head").boundingBox();
         const from = { x: text.x + 2, y: text.y + text.height / 2 };
         // along the line of text (it is selected then, ready to copy), on over the Values zone
         const overlays = [];
@@ -190,7 +190,7 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
         await chipMenu(page, "Season", "filter");
         const menu = page.locator(".pk-chip-menu");
         const before = await seen(page);
-        const text = await menu.getByTestId("filter-result").boundingBox();
+        const text = await menu.getByTestId("filter-summary-head").boundingBox();
         const from = { x: text.x + 2, y: text.y + text.height / 2 };
         const overlays = await press(page, from, [{ x: text.x + text.width - 2, y: from.y }, await inZone(page, "rows", { x: 0.7, y: 0.5 })]);
         expect(overlays, "no dragged chip follows the pointer").toEqual([0, 0]);
@@ -233,7 +233,7 @@ test.describe("a press inside another menu drags nothing", () => {
         await open(page);
         const menu = await monthFilterWithPick(page);
         const before = await seen(page);
-        const from = await centre(menu.getByTestId("filter-result"));
+        const from = await centre(menu.getByTestId("filter-summary-head"));
         const to = await inZone(page, "values", { x: 0.05, y: 0.6 });
         const cdp = await page.context().newCDPSession(page);
         const touch = (type, p) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: p ? [{ x: p.x, y: p.y }] : [] });

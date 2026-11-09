@@ -148,7 +148,7 @@ test.describe("the Filter level of a date field", () => {
         // an ungrouped date has the months (and days) too; the count starts at the smallest that reaches the latest record
         await expect(menu.getByTestId("quick-days")).toBeVisible();
         await menu.getByTestId("quick-months").check();
-        await expect(badge(page, "filters", "Released")).toHaveText(/^this month \(/);
+        await expect(badge(page, "filters", "Released")).toHaveText(/^last 1 month \(/);
         await menu.getByTestId("quick-years-count").fill("3");
         const kept = eol.filter((x) => x.Released && yearOf(x) >= thisYear - 2).length;
         await expect.poll(async () => (await tableRows(page)).find((r) => r[0] === "Grand Total")?.[1]).toBe(kept.toLocaleString("en-US"));

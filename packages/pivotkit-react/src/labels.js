@@ -312,7 +312,7 @@ export const en = {
     // a rule on the names of a field's items, on its chip and in its menu: "contains “an”"
     labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
     // a relative date range and a date compared, in short (the chip and the Filter level): "last 5 years (2022–2026)", "from 2022"
-    relative: { year: "this year", years: "last {count} years", month: "this month", months: "last {count} months", day: "today", days: "last {count} days" },
+    relative: { year: "this year", years: "last {count} years", month: "last {count} month", months: "last {count} months", day: "last {count} day", days: "last {count} days" },
     withRange: "{text} ({range})",
     // the range counted back from the data's latest record, and the data's share of a range
     relativeTo: "{text} to {end}",
@@ -610,7 +610,7 @@ export const de = {
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
     countOfRows: "Anzahl der Zeilen",
     labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", endsWith: "endet mit" },
-    relative: { year: "dieses Jahr", years: "letzte {count} Jahre", month: "dieser Monat", months: "letzte {count} Monate", day: "heute", days: "letzte {count} Tage" },
+    relative: { year: "dieses Jahr", years: "letzte {count} Jahre", month: "letzter {count} Monat", months: "letzte {count} Monate", day: "letzter {count} Tag", days: "letzte {count} Tage" },
     withRange: "{text} ({range})",
     relativeTo: "{text} bis {end}",
     withShare: "{text} ({range}; {missing})",

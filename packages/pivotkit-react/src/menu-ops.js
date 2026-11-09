@@ -247,11 +247,10 @@ export function quickChoice(view, field, fk, all = []) {
     const ranges = filtersOf(view, field, ["relative"]);
     const compared = filtersOf(view, field, ["compare"]);
     if (fk.cyclic) {
-        if (!compared.length) {
-            return { id: "all", filters: [] };
-        }
-        const years = yearsCombined(compared, all);
-        return years ? { id: "yearsCombined", years, filters: compared } : { id: "custom", filters: [] };
+        // the whole-year comparisons are Years combined; any other comparison is a rule
+        const whole = compared.filter(isWholeYear);
+        const years = whole.length ? yearsCombined(whole, all) : null;
+        return years ? { id: "yearsCombined", years, filters: whole } : { id: "all", filters: [] };
     }
     const offered = { year: true, month: fk.months, day: fk.days };
     const r = ranges.find((f) => offered[f.unit]);
@@ -272,15 +271,14 @@ export function quickChoice(view, field, fk, all = []) {
 function yearsCombined(compared, all) {
     let kept = new Set(all);
     for (const f of compared) {
-        const years = f.op === "between" || f.op === "notBetween" ? wholeYears(f.value, f.value2) : null;
-        if (!years) {
-            return null;
-        }
-        const [a, b] = years.map(Number);
+        const [a, b] = /** @type {[string, string]} */ (wholeYears(f.value, f.value2)).map(Number);
         kept = new Set([...kept].filter((y) => (a <= y && y <= b) === (f.op === "between")));
     }
     return kept.size ? [...kept].sort((x, y) => x - y) : null;
 }
+
+/** A comparison of whole years of days (Jan 1 to Dec 31), as Years combined writes them. */
+export const isWholeYear = (f) => f.type === "compare" && (f.op === "between" || f.op === "notBetween") && wholeYears(f.value, f.value2) !== null;
 
 /** The whole-year comparisons that keep `years` of `all` (ascending): the span they cover, less each gap in it. */
 export function yearRules(field, years, all) {
@@ -300,14 +298,18 @@ export function yearRules(field, years, all) {
 }
 
 /**
- * Years combined of a cyclic grouping: its comparisons are replaced by the whole-year rules that keep
- * `years` (yearRules); all of the data's years keep none. Its other filters stay.
+ * Years combined of a cyclic grouping: its whole-year comparisons are replaced by the ones that keep
+ * `years` (yearRules); all of the data's years keep none. Its other filters, its other comparisons
+ * (rules such as "is from Jun") among them, stay.
  * @param {any} view
  * @param {string} field
  * @param {number[]} years  ascending
  * @param {number[]} all  the years of the data
  */
-export const setYearsCombined = (view, field, years, all) => replaceFilters(view, field, ["relative", "compare"], yearRules(field, years, all));
+export function setYearsCombined(view, field, years, all) {
+    const cleared = filtersOf(view, field, ["compare"]).filter(isWholeYear).reduce((v, f) => setRule(v, field, f, null), view);
+    return yearRules(field, years, all).reduce((v, r) => setRule(v, field, null, r), cleared);
+}
 
 /**
  * A quick choice applied: the field's relative ranges are replaced by one range ({ unit, count,

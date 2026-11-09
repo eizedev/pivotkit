@@ -214,6 +214,7 @@ function periodEnd(iso, unit) {
  * @param {{ min: number, max: number } | null} [span]  the data's first and last date (wall-clock ms)
  */
 export function relativeText(f, labels, locale, timeZone, now, span) {
+    // one year is "this year" (the quick choice of that name); one month or day keeps the count in the singular, as the radio "Last [1] month" says it
     const key = f.count === 1 ? f.unit : `${f.unit}s`;
     let text = fill(Object.hasOwn(labels.relative, key) ? labels.relative[key] : key, { count: f.count.toLocaleString(locale) });
     const range = relativeDays(f, timeZone, now, span?.max);

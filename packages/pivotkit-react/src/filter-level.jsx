@@ -95,6 +95,13 @@ function LeftOut({ out, row, searching, labels, locale }) {
     const [open, setOpen] = useState(false);
     const id = useId();
     const shown = open || searching;
+    const list = useRef(/** @type {HTMLUListElement | null} */ (null));
+    // opened: its first items in view, not below the list's edge
+    useEffect(() => {
+        if (open) {
+            list.current?.firstElementChild?.scrollIntoView?.({ block: "nearest" });
+        }
+    }, [open]);
     return (
         <li className="pk-values-tail">
             <button type="button" className="pk-tail-toggle" aria-expanded={shown} aria-controls={id} onClick={() => setOpen(!shown)} data-testid="tail-toggle">
@@ -102,7 +109,7 @@ function LeftOut({ out, row, searching, labels, locale }) {
                 <span>{fill(plural(labels.tailOut, out.length, { lang: labels.lang, locale }), { count: out.length.toLocaleString(locale) })}</span>
             </button>
             {shown ? (
-                <ul id={id} role="list" className="pk-tail-list" data-testid="tail-list">
+                <ul ref={list} id={id} role="list" className="pk-tail-list" data-testid="tail-list">
                     {out.slice(0, FILTER_LIST_MAX).map(row)}
                 </ul>
             ) : null}
@@ -141,7 +148,7 @@ function Section({ id, title, state, open, onToggle, action, children }) {
  * dates, Reset filter at the right.
  */
 function Summary({ ctx, state }) {
-    const { labels, locale, view, field, commit, note } = ctx;
+    const { labels, locale, view, field } = ctx;
     const { shown, total, noun, unpicked, byQuick, byRules, byTotals, rows, rowsAll, span, yearsText, empty, quickWords } = state;
     const number = (n) => n.toLocaleString(locale);
     const lang = { lang: labels.lang, locale };
@@ -156,11 +163,12 @@ function Summary({ ctx, state }) {
         if (byQuick) {
             why.push(fill(labels.summaryQuick, { count: number(byQuick), quick: quickWords }));
         }
+        // the form by the number of rules, the count the items they leave out
         if (byRules) {
-            why.push(fill(plural(labels.summaryRules, state.itemRules, lang), { count: number(byRules) }));
+            why.push(fill(plural(labels.summaryRules, state.itemRules, lang), { items: number(byRules) }));
         }
         if (byTotals) {
-            why.push(fill(plural(labels.summaryTotals, state.totalRules, lang), { count: number(byTotals) }));
+            why.push(fill(plural(labels.summaryTotals, state.totalRules, lang), { items: number(byTotals) }));
         }
     }
     const meta = [fill(labels.summaryRows, { rows: number(rows), total: number(rowsAll) })];
@@ -177,12 +185,12 @@ function Summary({ ctx, state }) {
                     {head}
                 </p>
                 <p className="pk-summary-why" data-testid="filter-summary-why">
-                    {why.length ? why.join(" · ") : state.anyRule ? labels.summaryKept : labels.summaryOk}
+                    {why.length ? why.join(" · ") : state.rules ? labels.summaryKept : quickWords ? fill(labels.summaryQuickOnly, { quick: quickWords }) : labels.summaryOk}
                 </p>
                 <p className="pk-summary-meta" data-testid="filter-summary-meta">
                     {meta.join(" · ")}
                 </p>
-                <button type="button" className="pk-link pk-link-button pk-summary-reset" disabled={!state.canReset} onClick={() => commit(resetFilter(view, field), note)} data-testid="filter-reset">
+                <button type="button" className="pk-action pk-summary-reset" disabled={!state.canReset} onClick={() => ctx.act(resetFilter(view, field), "section-picks")} data-testid="filter-reset">
                     {labels.resetFilter}
                 </button>
             </div>
@@ -237,7 +245,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const group = useId();
     const set = (range) => commit(setQuickRange(view, field, range ? { ...range, anchor } : null), note);
     /** The sub-line of a choice: the data's share of its days ("2025 (2026 has no data)") and its rows. */
-    const sub = (range, unit) => {
+    const sub = (range, unit, id) => {
         const share = rangeShare(range, unit, span, locale);
         if (share?.none) {
             return null;
@@ -245,7 +253,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
         const period = share ? `${share.data} ` : periodText(range, unit, locale);
         const missing = share ? fill(plural(labels.noData, share.count, lang), { range: share.missing.join(", ") }) : null;
         return (
-            <span className="pk-quick-sub">
+            <span className="pk-quick-sub" id={subId(id)}>
                 <span>
                     {period}
                     {missing ? <span className="pk-quick-missing">({missing})</span> : null}
@@ -254,24 +262,26 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
             </span>
         );
     };
-    const radio = (id, checked, onPick, name, children, sub) => (
+    // the days with data and the rows of a choice describe its radio (aria-describedby)
+    const subId = (id) => `${group}-${id}`;
+    const radio = (id, checked, onPick, name, children, sub, described = Boolean(sub)) => (
         <label className="pk-radio pk-quick" key={id}>
-            <input type="radio" name={group} checked={checked} onChange={onPick} aria-label={name} data-autofocus={checked && ctx.hint !== "conditions" ? "" : undefined} data-testid={`quick-${id}`} />
+            <input type="radio" name={group} checked={checked} onChange={onPick} aria-label={name} aria-describedby={described ? subId(id) : undefined} data-autofocus={checked && ctx.hint !== "conditions" ? "" : undefined} data-testid={`quick-${id}`} />
             {children}
             {sub}
         </label>
     );
     const hidden = [];
     const rows = [radio("all", quick.id === "all" || quick.id === "custom", () => set(null), labels.filterAll, <span>{labels.filterAll}</span>, (
-        <span className="pk-quick-sub">
+        <span className="pk-quick-sub" id={subId("all")}>
             <span>{`${dayText(isoDay(span.min), locale)}–${dayText(latestDay, locale)}`}</span>
             <span className="pk-quick-rows">{fill(labels.quickRows, { rows: column.codes.length.toLocaleString(locale) })}</span>
         </span>
     ))];
     const thisYear = days("year", 1);
     const yearWords = capital(labels.relative.year, locale);
-    if (thisYear && sub(thisYear, "year")) {
-        rows.push(radio("thisYear", quick.id === "thisYear", () => set({ unit: "year", count: 1 }), yearWords, <span>{yearWords}</span>, sub(thisYear, "year")));
+    if (thisYear && sub(thisYear, "year", "thisYear")) {
+        rows.push(radio("thisYear", quick.id === "thisYear", () => set({ unit: "year", count: 1 }), yearWords, <span>{yearWords}</span>, sub(thisYear, "year", "thisYear")));
     } else if (thisYear) {
         hidden.push(`${yearWords} (${periodText(thisYear, "year", locale)})`);
     }
@@ -289,7 +299,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
         const words = plural(forms, shown, lang);
         const [before, after] = words.split("{n}");
         const range = days(unit, shown);
-        const line = range ? sub(range, unit) : null;
+        const line = range ? sub(range, unit, id) : null;
         if (!line) {
             // not one row in reach: not offered, said below
             if (quick.id !== id) {
@@ -300,7 +310,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
         const pick = () => set({ unit, count: shown });
         rows.push(
             <div className="pk-quick-row" key={unit}>
-                {radio(id, quick.id === id, pick, fill(words, { n: shown.toLocaleString(locale) }), <span aria-hidden="true">{before}</span>)}
+                {radio(id, quick.id === id, pick, fill(words, { n: shown.toLocaleString(locale) }), <span aria-hidden="true">{before}</span>, null, Boolean(line))}
                 <NumberField
                     value={texts[unit]}
                     onChange={(t) => {
@@ -890,7 +900,7 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results }) {
                     {quickLine ? (
                         <li className="pk-rule pk-rule-quick" data-testid="rule-quick">
                             <span>{fill(labels.quickLine, { text: quickLine })}</span>
-                            <button type="button" className="pk-link pk-link-button" onClick={ctx.focusQuick} data-testid="rule-quick-change">
+                            <button type="button" className="pk-action" onClick={ctx.focusQuick} data-testid="rule-quick-change">
                                 {labels.changeAbove}
                             </button>
                         </li>
@@ -952,25 +962,54 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const itemRules = rules.filter((f) => f.type !== "value");
     const totalRules = rules.filter((f) => f.type === "value");
     const anyRule = rules.length > 0 || quick.filters.length > 0;
-    // the first rule or quick choice opens Rules (and folds Pick items unless opened by hand); the
-    // last one going folds Rules and opens Pick items
+    // every change from no rule or quick choice to one opens Rules and folds Pick items, every change
+    // back does the reverse - unless a section was folded or opened by hand since the last change:
+    // then that choice stays this once
     const hadRule = useRef(anyRule);
+    const byHand = useRef(false);
+    /**
+     * The focus kept on a control of the level: when a control went (a rule's ×, a button that
+     * disabled itself, a section that folded) it goes to the header of the section it belonged to.
+     */
+    const lost = useRef(false);
+    const refocus = () => {
+        if (!lost.current) {
+            return;
+        }
+        const active = box.current ? activeIn(box.current) : null;
+        if (!active || !active.isConnected || !box.current?.contains(active) || (active instanceof HTMLButtonElement && active.disabled)) {
+            /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector('[data-testid="section-rules"]'))?.focus();
+        }
+        lost.current = false;
+    };
+    // after every render, so after the RuleEditor's own focus move (the first button that adds a
+    // rule) and after the fold that takes that button away
+    useEffect(refocus);
     useEffect(() => {
         if (hadRule.current !== anyRule) {
             hadRule.current = anyRule;
-            setOpenRules(anyRule);
-            setOpenPicks(anyRule ? (o) => (o === null ? false : o) : true);
-            if (!anyRule) {
-                // the focus was in the rules (a × , Remove, Reset): on the folded header, not lost
-                requestAnimationFrame(() => {
-                    const active = box.current ? activeIn(box.current) : null;
-                    if (!active || !active.isConnected || active === box.current?.ownerDocument.body || (active instanceof HTMLButtonElement && active.disabled)) {
-                        /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector('[data-testid="section-rules"]'))?.focus();
-                    }
-                });
+            if (byHand.current) {
+                byHand.current = false;
+            } else {
+                setOpenRules(anyRule);
+                setOpenPicks(!anyRule);
             }
+            // the focus may be on a control that went with the change (a rule's ×, a button that
+            // disabled itself): checked after the render that folds the sections (the effect
+            // above), or, when they do not change, a moment later
+            lost.current = true;
+            setTimeout(refocus, 100);
         }
     }, [anyRule]);
+    // "change it above": the quick choices open and in view, the focus on the choice that is set
+    const [goQuick, setGoQuick] = useState(0);
+    useEffect(() => {
+        if (goQuick) {
+            const target = /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector('[data-testid="quick-choices"] input:checked, [data-testid="years-combined"] [aria-pressed="true"]'));
+            target?.scrollIntoView?.({ block: "center" });
+            target?.focus({ preventScroll: true });
+        }
+    }, [goQuick]);
     const timeZone = encoded.timeZone;
     const noun = nounOf(fk, labels);
     const lang = { lang: labels.lang, locale };
@@ -1084,25 +1123,40 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const scope = scopeParts.length ? scopeParts.join(labels.listAnd) : labels.scopeRows;
     const focusQuick = () => {
         setOpenQuick(true);
-        requestAnimationFrame(() => /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector('[data-testid="quick-choices"] input:checked, [data-testid="years-combined"] [aria-pressed="true"]'))?.focus());
+        setGoQuick((n) => n + 1);
     };
-    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick };
+    /**
+     * A change from a button that disables itself (Clear, Remove, Reset filter): the focus goes to the
+     * header of its section instead of being lost, whatever the sections do.
+     */
+    const act = (next, header) => {
+        commit(next, note);
+        requestAnimationFrame(() => {
+            const active = box.current ? activeIn(box.current) : null;
+            if (!active || !active.isConnected || !box.current?.contains(active) || (active instanceof HTMLButtonElement && active.disabled)) {
+                /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector(`[data-testid="${header}"]`))?.focus();
+            }
+        });
+    };
+    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act };
     const picksOpen = openPicks ?? !anyRule;
     const rulesOpen = openRules ?? anyRule;
     // on a phone one section at a time
     const togglePicks = () => {
+        byHand.current = true;
         setOpenPicks(!picksOpen);
         if (narrow && !picksOpen) {
             setOpenRules(false);
         }
     };
     const toggleRules = () => {
+        byHand.current = true;
         setOpenRules(!rulesOpen);
         if (narrow && !rulesOpen) {
             setOpenPicks(false);
         }
     };
-    const summary = { shown, total: all.length, noun, unpicked, byQuick, byRules, byTotals, itemRules: itemRules.length, totalRules: totalRules.length, rows: totals.rows, rowsAll: encoded.length, span, yearsText, empty, quickWords, anyRule, canReset: unpicked > 0 || anyRule };
+    const summary = { shown, total: all.length, noun, unpicked, byQuick, byRules, byTotals, itemRules: itemRules.length, totalRules: totalRules.length, rows: totals.rows, rowsAll: encoded.length, span, yearsText, empty, quickWords, rules: rules.length, canReset: unpicked > 0 || anyRule };
     const outOf = (i) => i.kept === false;
     const quickSection = fk.quick && span && column && counts ? { id: "quick", title: labels.quickTitle, body: <QuickChoices ctx={ctx} quick={quick} anchor={anchor} setAnchorLocal={setAnchorLocal} span={span} column={column} counts={counts} /> } : fk.cyclic && years.length > 1 && years.length <= 12 ? { id: "years", title: labels.yearsCombined, body: <YearsCombined ctx={ctx} years={years} on={yearsOn} /> } : null;
     return (
@@ -1120,7 +1174,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                 open={picksOpen}
                 onToggle={togglePicks}
                 action={
-                    <button type="button" className="pk-link pk-link-button" disabled={!unpicked} aria-label={labels.clearPicks} onClick={() => commit(setItemFilter(view, field, all, all), note)} data-testid="filter-clear-picks">
+                    <button type="button" className="pk-action" disabled={!unpicked} aria-label={labels.clearPicks} onClick={() => act(setItemFilter(view, field, all, all), "section-picks")} data-testid="filter-clear-picks">
                         {labels.clear}
                     </button>
                 }
@@ -1150,7 +1204,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                 open={rulesOpen}
                 onToggle={toggleRules}
                 action={
-                    <button type="button" className="pk-link pk-link-button" disabled={!rules.length} aria-label={labels.removeRules} onClick={() => commit(removeRules(view, field, quick.filters), note)} data-testid="filter-remove-rules">
+                    <button type="button" className="pk-action" disabled={!rules.length} aria-label={labels.removeRules} onClick={() => act(removeRules(view, field, quick.filters), "section-rules")} data-testid="filter-remove-rules">
                         {labels.removeAll}
                     </button>
                 }

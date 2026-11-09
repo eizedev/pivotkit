@@ -339,9 +339,9 @@ test.describe("what the usability review found", () => {
         // the level opens on the rules while the field has one, with its dot on the header
         await expect(menu.getByTestId("section-rules")).toHaveAttribute("aria-expanded", "true");
         await expect(menu.getByTestId("section-rules").locator(".pk-section-mark")).toHaveCount(1);
-        // Select all reads as a control: underlined (the items are folded while the field has a rule)
+        // Select all reads as a control: a quiet button, padded, not underlined text (the items are folded while the field has a rule)
         await menu.getByTestId("section-picks").click();
-        expect(await menu.getByTestId("select-all").evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe("underline");
+        expect(await menu.getByTestId("select-all").evaluate((el) => [getComputedStyle(el).textDecorationLine, parseFloat(getComputedStyle(el).paddingLeft) > 2])).toEqual(["none", true]);
     });
 
     test("a format a view brings that is not offered is checked by its name; the levels of choices are one column; the head names the field as the levels do", async ({ page }) => {

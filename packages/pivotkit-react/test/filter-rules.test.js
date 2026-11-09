@@ -9,7 +9,7 @@ import { de as menuDe } from "../src/menu-labels-de.js";
 import { RULES_MAX, RULE_TYPES, filterState, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, rangeText, relativeText } from "../src/names.js";
-import { addField, filtersOf, groupField } from "../src/view-ops.js";
+import { addField, dateSpan, filtersOf, groupField } from "../src/view-ops.js";
 
 const data = encode([
     { Region: "North", Units: 3, Price: 10, Released: "2019-05-01" },
@@ -97,7 +97,16 @@ test("years combined: a cyclic grouping's years as whole-year comparisons; a gap
     assert.deepEqual(normalize(v, data).issues, []);
     // every year ticked: no rule; a comparison of a month's own key is a custom rule, not the years
     assert.deepEqual(filtersOf(setYearsCombined(v, CYCLIC, all, all), CYCLIC, ["compare"]), []);
-    assert.deepEqual(quickChoice(setRule(byCyclic, CYCLIC, null, { field: CYCLIC, type: "compare", op: ">=", value: 6 }), CYCLIC, fk, all).id, "custom");
+    // a comparison of a month's own key is a rule of its own, no quick choice; it stays beside Years combined
+    const fromJun = { field: CYCLIC, type: "compare", op: ">=", value: 6 };
+    const withJun = setRule(byCyclic, CYCLIC, null, fromJun);
+    assert.deepEqual(quickChoice(withJun, CYCLIC, fk, all), { id: "all", filters: [] });
+    const both = setYearsCombined(withJun, CYCLIC, [2025], all);
+    const afterToggle = setYearsCombined(both, CYCLIC, [2019, 2025], all);
+    assert.deepEqual(quickChoice(afterToggle, CYCLIC, fk, all).years, [2019, 2025]);
+    assert.deepEqual(filtersOf(afterToggle, CYCLIC, ["compare"]).filter((f) => f.value === 6), [fromJun]);
+    assert.deepEqual(quickChoice(setYearsCombined(afterToggle, CYCLIC, all, all), CYCLIC, fk, all), { id: "all", filters: [] });
+    assert.deepEqual(filtersOf(setYearsCombined(afterToggle, CYCLIC, all, all), CYCLIC, ["compare"]), [fromJun]);
     // the chip says the years, not the days
     const L = MENU.en;
     assert.equal(compareText({ op: "between", value: "2022-01-01", value2: "2025-12-31" }, L, "en-US", { date: true }), "2022 to 2025");
@@ -180,12 +189,16 @@ test("search: quick choices with the count typed, a year compared, and the rules
     const hits = (q) => searchHits(searchEntries(topics, q), q, "en-US");
     const years = relativeDateRange("year", 2);
     const last2 = hits("last 2 years")[0];
-    assert.equal(last2.text, `Last 2 years (${years.from.slice(0, 4)}–${years.to.slice(0, 4)})`);
+    // the words of the chip, with a capital (the data's share of the range included)
+    const span = dateSpan(data, "Released");
+    const chip = (f) => relativeText(f, MENU.en, "en-US", "UTC", undefined, span);
+    assert.equal(last2.text, chip({ unit: "year", count: 2 }).replace(/^l/, "L"));
+    assert.ok(last2.text.startsWith(`Last 2 years (`) && last2.text.includes(years.from.slice(0, 4)));
     assert.deepEqual(filtersOf(last2.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 2 }]);
     // a range counted back from the latest record (2025): the search's choices count from it too
     const anchored = axisTopics({ view: setQuickRange(byYear, YEAR, { unit: "year", count: 1, anchor: "latest" }), zone: "rows", index: 0, field: YEAR, types, labels: MENU.en, locale: "en-US", encoded: data });
     const hit = searchHits(searchEntries(anchored, "last 3 years"), "last 3 years", "en-US")[0];
-    assert.equal(hit.text, "Last 3 years (2023–2025)");
+    assert.equal(hit.text, chip({ unit: "year", count: 3, anchor: "latest" }).replace(/^l/, "L"));
     assert.deepEqual(filtersOf(hit.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 3, anchor: "latest" }]);
     // a cyclic grouping has no quick choices to find
     const cyclic = axisTopics({ view: byCyclic, zone: "rows", index: 0, field: CYCLIC, types, labels: MENU.en, locale: "en-US", encoded: data });

@@ -186,6 +186,111 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await expect(menu.getByTestId("section-picks")).toHaveAttribute("aria-expanded", "true");
     });
 
+    test("the sections fold on every change between no rule and one, and back; a fold by hand holds until the next change", async ({ page }) => {
+        // Years combined: untick, tick, untick again - the fold follows every time
+        await openView(page, "weather", cyclic());
+        await chipMenu(page, CYCLIC, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        const picks = menu.getByTestId("section-picks");
+        const rules = menu.getByTestId("section-rules");
+        await expect(picks).toHaveAttribute("aria-expanded", "true");
+        await expect(rules).toHaveAttribute("aria-expanded", "false");
+        await menu.getByTestId("year-2024").click();
+        await expect(picks).toHaveAttribute("aria-expanded", "false");
+        await expect(rules).toHaveAttribute("aria-expanded", "true");
+        await menu.getByTestId("year-2024").click();
+        await expect(picks).toHaveAttribute("aria-expanded", "true");
+        await expect(rules).toHaveAttribute("aria-expanded", "false");
+        await menu.getByTestId("year-2024").click();
+        await expect(picks).toHaveAttribute("aria-expanded", "false");
+        await expect(rules).toHaveAttribute("aria-expanded", "true");
+        // opened by hand: the next change leaves it, the one after folds again
+        await picks.click();
+        await expect(picks).toHaveAttribute("aria-expanded", "true");
+        await menu.getByTestId("year-2024").click();
+        await expect(picks).toHaveAttribute("aria-expanded", "true");
+        await expect(rules).toHaveAttribute("aria-expanded", "true");
+        await menu.getByTestId("year-2024").click();
+        await expect(picks).toHaveAttribute("aria-expanded", "false");
+        await expect(rules).toHaveAttribute("aria-expanded", "true");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        // Quick choices on a grouping by quarter: All, Last 2 years, All, Last 2 years
+        const QUARTER = "Date by quarter";
+        await openView(page, "weather", { derived: [{ name: QUARTER, field: "Date", by: "yearQuarter" }], rows: [QUARTER], values: [{ field: "Mean °C", agg: "average" }] });
+        await chipMenu(page, QUARTER, "filter");
+        await expect(picks).toHaveAttribute("aria-expanded", "true");
+        for (let i = 0; i < 2; i++) {
+            await menu.getByTestId("quick-years").check();
+            await expect(picks).toHaveAttribute("aria-expanded", "false");
+            await expect(rules).toHaveAttribute("aria-expanded", "true");
+            await menu.getByTestId("quick-all").check();
+            await expect(picks).toHaveAttribute("aria-expanded", "true");
+            await expect(rules).toHaveAttribute("aria-expanded", "false");
+        }
+    });
+
+    test("Reset filter, Clear and Remove are disabled, and look so, exactly while they would change nothing; change it above goes to the choice", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        const reset = menu.getByTestId("filter-reset");
+        const clear = menu.getByTestId("filter-clear-picks");
+        const remove = menu.getByTestId("filter-remove-rules");
+        /** How a text action looks: a disabled one is muted without a pointer; an enabled one has a hover background and no underline. */
+        const look = (el) => el.evaluate((b) => {
+            const s = getComputedStyle(b);
+            return { cursor: s.cursor, underline: s.textDecorationLine, color: s.color, muted: getComputedStyle(b.closest(".pk-root") ?? document.documentElement).getPropertyValue("--pk-muted").trim() };
+        });
+        for (const button of [reset, clear, remove]) {
+            await expect(button).toBeDisabled();
+            const l = await look(button);
+            expect(l.cursor).not.toBe("pointer");
+            expect(l.underline).toBe("none");
+        }
+        // one month only: Clear and Reset can act, Remove not (no rule)
+        const jan = menu.locator(".pk-value", { hasText: "Jan 2023" });
+        await jan.hover();
+        await jan.locator(".pk-only").click();
+        await expect(clear).toBeEnabled();
+        await expect(reset).toBeEnabled();
+        await expect(remove).toBeDisabled();
+        expect((await look(reset)).underline).toBe("none");
+        await reset.hover();
+        expect((await look(reset)).cursor).toBe("pointer");
+        // a quick choice is no rule: Remove stays disabled, Reset can act
+        await reset.click();
+        await expect(reset).toBeDisabled();
+        await menu.getByTestId("quick-years").check();
+        await expect(remove).toBeDisabled();
+        await expect(reset).toBeEnabled();
+        await expect(clear).toBeDisabled();
+        // a rule: Remove can act; Remove leaves the quick choice, so Reset still can
+        await menu.getByTestId("rule-add-total").click();
+        await menu.getByTestId("value-filter-number").fill("0");
+        await expect(remove).toBeEnabled();
+        await remove.click();
+        await expect(remove).toBeDisabled();
+        await expect(reset).toBeEnabled();
+        await expect(menu.getByTestId("quick-years")).toBeChecked();
+        // "change it above" with the choices folded: unfolds them, the checked choice takes the focus and is in view
+        await menu.getByTestId("section-quick").click();
+        await expect(menu.getByTestId("quick-choices")).toHaveCount(0);
+        await menu.getByTestId("rule-quick-change").click();
+        await expect(menu.getByTestId("quick-years")).toBeFocused();
+        await expect(menu.getByTestId("quick-years")).toBeInViewport();
+        // the same for Years combined: the first year ticked
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await openView(page, "weather", cyclic());
+        await chipMenu(page, CYCLIC, "filter");
+        await menu.getByTestId("year-2023").click();
+        await menu.getByTestId("section-years").click();
+        await menu.getByTestId("rule-quick-change").click();
+        await expect(menu.getByTestId("year-2024")).toBeFocused();
+        await expect(menu.getByTestId("fsection-years")).toContainText("2023");
+    });
+
     test("in German: the summary, the share of a quick choice, the reference date", async ({ page }) => {
         await openView(page, "weather", monthly(), "de");
         await chipMenu(page, MONTH, "filter");
@@ -267,5 +372,195 @@ test.describe("the Filter level on data that reach today (endoflife)", () => {
         await expect(page.getByTestId("picker-list")).toHaveCount(0);
         await expect(value).toBeFocused();
         await expect(badge(page, MONTHLY)).toHaveText("from Feb 2024");
+    });
+});
+
+// What the owner's hands-on test and the review found on the rebuilt Filter level (weather, to Dec 31, 2025).
+test.describe("the Filter level: findings of the hands-on test (weather)", () => {
+    const rule = (op, value, extra = {}) => ({ field: CYCLIC, type: "compare", op, value, ...extra });
+    const wholeYear = (y) => rule("between", `${y}-01-01`, { value2: `${y}-12-31` });
+    const menuOf = (page) => page.locator(".pk-chip-menu");
+    /** The focused element inside the menu has a test id: it is on a control, not lost to the page body. */
+    const focusedId = (page) => page.evaluate(() => document.activeElement?.getAttribute("data-testid") ?? document.activeElement?.tagName);
+
+    test("the summary names the items left out, not the number of rules; a total rule says total; a quick choice alone has its own sentence", async ({ page }) => {
+        // two rules on the item (from Apr, until Nov) leave four months out: "4", not "2"
+        await openView(page, "weather", cyclic({ filters: [rule(">=", 4), rule("<=", 11)] }));
+        await chipMenu(page, CYCLIC, "filter");
+        const menu = menuOf(page);
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText("8 of 12 months shown");
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText("4 left out by the rules");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        // one rule, three months out: the form of "rule" follows the rules, the number the months
+        await openView(page, "weather", cyclic({ filters: [rule(">=", 4)] }));
+        await chipMenu(page, CYCLIC, "filter");
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText("9 of 12 months shown");
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText("3 left out by the rule");
+        // a rule on the total reads "items whose total Average of Mean °C is ..."
+        await menu.getByTestId("rule-add-total").click();
+        await expect(menu.locator('[data-kind="total"]')).toContainText(/items whose total\s*Average of Mean °C/);
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        // only Years combined: neither "the rules keep them all" nor "no rules" for the same state
+        await openView(page, "weather", cyclic({ filters: [wholeYear(2025)] }));
+        await chipMenu(page, CYCLIC, "filter");
+        await expect(menu.getByTestId("section-rules")).toContainText("No rules");
+        await expect(menu.getByTestId("filter-summary-why")).toHaveText("Every item is picked; 2025 only.");
+    });
+
+    test("Years combined and a comparison rule live side by side: a year toggled keeps the rule, the rule shows once", async ({ page }) => {
+        await openView(page, "weather", cyclic({ filters: [wholeYear(2025), rule(">=", 6)] }));
+        await chipMenu(page, CYCLIC, "filter");
+        const menu = menuOf(page);
+        await expect(menu.getByTestId("year-2025")).toHaveAttribute("aria-pressed", "true");
+        await expect(menu.getByTestId("year-2023")).toHaveAttribute("aria-pressed", "false");
+        await expect(menu.getByTestId("filter-summary-meta")).toContainText("2025 only");
+        await expect(menu.getByTestId("rule")).toHaveCount(1);
+        await expect(menu.getByTestId("rule-item-op")).toHaveValue(">=");
+        await expect(menu.getByTestId("filter-summary-head")).toHaveText("7 of 12 months shown");
+        // toggling a year keeps "is from Jun"
+        await menu.getByTestId("year-2024").click();
+        await expect(menu.getByTestId("year-2024")).toHaveAttribute("aria-pressed", "true");
+        await expect(menu.getByTestId("rule")).toHaveCount(1);
+        await expect(menu.getByTestId("rule-item-op")).toHaveValue(">=");
+        await expect(menu.getByTestId("filter-summary-meta")).toContainText("2024–2025 combined");
+        await expect.poll(async () => (await bodyRows(page)).length).toBe(7);
+        await menu.getByTestId("year-2024").click();
+        await expect(menu.getByTestId("rule")).toHaveCount(1);
+        await expect(menu.getByTestId("filter-summary-meta")).toContainText("2025 only");
+    });
+
+    test("text actions are quiet buttons: no underline, padding, a hover background; muted when disabled", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = menuOf(page);
+        const style = (el) => el.evaluate((b) => {
+            const s = getComputedStyle(b);
+            return { underline: s.textDecorationLine, padding: parseFloat(s.paddingLeft), background: s.backgroundColor };
+        });
+        for (const id of ["select-all", "select-none", "filter-clear-picks", "filter-reset", "filter-remove-rules"]) {
+            const l = await style(menu.getByTestId(id));
+            expect(l.underline, id).toBe("none");
+            expect(l.padding, id).toBeGreaterThan(2);
+        }
+        const none = (await style(menu.getByTestId("select-all"))).background;
+        await menu.getByTestId("select-all").hover();
+        await expect.poll(async () => (await style(menu.getByTestId("select-all"))).background, "hover background").not.toBe(none);
+        // the quick-choice line's "change it above" is the same kind of button
+        await menu.getByTestId("quick-years").check();
+        const change = menu.getByTestId("rule-quick-change");
+        expect((await style(change)).underline).toBe("none");
+        await change.hover();
+        await expect.poll(async () => (await style(change)).background).not.toBe(none);
+    });
+
+    test("one word for one thing: the radio, the chip and the search hit say the same", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = menuOf(page);
+        await menu.getByTestId("quick-months-count").fill("1");
+        await expect(menu.getByTestId("quick-months")).toBeChecked();
+        await expect(menu.getByTestId("quick-months")).toHaveAccessibleName("Last 1 month");
+        await expect(badge(page, MONTH)).toHaveText(/^last 1 month /);
+        await page.keyboard.press("Escape");
+        // the search: a hit for "Last 3 years" says what the chip will say after it
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH);
+        const search = menu.getByTestId("menu-search");
+        await search.fill("last 3 years");
+        const hit = menu.getByTestId("menu-search-hits").locator('[role^="menuitem"]', { hasText: "Last 3 years" }).first();
+        const hitText = (await hit.innerText()).replace(/\s+/g, " ");
+        await hit.click();
+        const chip = (await badge(page, MONTH).innerText()).replace(/\s+/g, " ");
+        expect(chip).toMatch(/^last 3 years \(/);
+        expect(hitText).toContain(chip.charAt(0).toUpperCase() + chip.slice(1));
+    });
+
+    test("the quick choices describe each radio (aria-describedby), the months and years as well as All", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = menuOf(page);
+        for (const id of ["quick-all", "quick-thisYear", "quick-years", "quick-months"]) {
+            const radio = menu.getByTestId(id);
+            if (!(await radio.count())) continue;
+            const text = await radio.evaluate((el) => {
+                const ref = el.getAttribute("aria-describedby");
+                return ref ? (el.getRootNode().getElementById(ref)?.textContent ?? "") : null;
+            });
+            expect(text, id).toMatch(/rows/);
+        }
+        await expect(menu.getByTestId("quick-months")).toHaveAttribute("aria-describedby", /.+/);
+        await expect(menu.getByTestId("quick-years")).toHaveAttribute("aria-describedby", /.+/);
+    });
+
+    test("the left-out group, expanded, shows its first item", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = menuOf(page);
+        await menu.getByTestId("quick-years").check();
+        await menu.getByTestId("section-picks").click();
+        const toggle = menu.getByTestId("tail-toggle");
+        await toggle.scrollIntoViewIfNeeded();
+        await toggle.click();
+        const first = menu.getByTestId("tail-list").locator("li").first();
+        await expect(first).toBeVisible();
+        // inside what its scrolling parent shows, not below its edge
+        await expect.poll(() => first.evaluate((el) => {
+            let p = el.parentElement;
+            while (p && !(p.scrollHeight > p.clientHeight && /auto|scroll/.test(getComputedStyle(p).overflowY))) p = p.parentElement;
+            if (!p) return true;
+            const [a, b] = [el.getBoundingClientRect(), p.getBoundingClientRect()];
+            return a.top >= b.top - 1 && a.bottom <= b.bottom + 1;
+        })).toBe(true);
+    });
+
+    test("the searchable picker closes on a press elsewhere in the menu; one Escape closes only the picker", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = menuOf(page);
+        await menu.getByTestId("section-rules").click();
+        await menu.getByTestId("rule-add-item").click();
+        const value = menu.getByTestId("rule-item-value");
+        await value.click();
+        await expect(page.getByTestId("picker-list")).toBeVisible();
+        await menu.getByTestId("filter-summary-head").click();
+        await expect(page.getByTestId("picker-list")).toHaveCount(0);
+        await expect(menu.getByTestId("filter-summary")).toBeVisible();
+        // Escape: the picker only, the level stays
+        await value.click();
+        await expect(page.getByTestId("picker-search")).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(page.getByTestId("picker-list")).toHaveCount(0);
+        await expect(menu.getByTestId("filter-summary")).toBeVisible();
+        await expect(value).toBeFocused();
+    });
+
+    test("the focus stays on a control of the level after Clear and after the last rule goes", async ({ page }) => {
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        const menu = menuOf(page);
+        // Clear by mouse
+        await menu.getByTestId("select-none").click();
+        await expect(menu.getByTestId("filter-clear-picks")).toBeEnabled();
+        await menu.getByTestId("filter-clear-picks").click();
+        await expect(menu.getByTestId("filter-clear-picks")).toBeDisabled();
+        await expect.poll(() => focusedId(page)).toBe("section-picks");
+        // Clear by keyboard
+        await menu.getByTestId("select-none").focus();
+        await page.keyboard.press("Enter");
+        await menu.getByTestId("filter-clear-picks").focus();
+        await page.keyboard.press("Enter");
+        await expect(menu.getByTestId("filter-clear-picks")).toBeDisabled();
+        await expect.poll(() => focusedId(page)).toBe("section-picks");
+        // Rules opened by hand, a rule added, then taken off by its x: the focus is not lost
+        await menu.getByTestId("section-rules").click();
+        await menu.getByTestId("rule-add-total").click();
+        await menu.getByTestId("value-filter-number").fill("0");
+        await expect(menu.getByTestId("rule-result")).toContainText("Keeps");
+        await menu.getByTestId("rule-remove").click();
+        await expect(menu.getByTestId("rule")).toHaveCount(0);
+        await expect.poll(async () => (await focusedId(page)) !== "BODY").toBe(true);
+        await expect(page.locator(".pk-chip-menu :focus")).toHaveCount(1);
     });
 });

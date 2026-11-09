@@ -67,10 +67,12 @@ export const en = {
     summaryNone: "Nothing shown",
     summaryOk: "Every item is picked, no rules.",
     summaryKept: "Every item is picked; the rules keep them all.",
+    summaryQuickOnly: "Every item is picked; {quick}.",
     summaryPicks: "{count} left out by your picks",
     summaryQuick: "{count} outside {quick}",
-    summaryRules: { one: "{count} left out by the rule", other: "{count} left out by the rules" },
-    summaryTotals: { one: "{count} left out by the rule on the total", other: "{count} left out by the rules on the totals" },
+    // {items}: the items left out; the plural form goes by the number of rules
+    summaryRules: { one: "{items} left out by the rule", other: "{items} left out by the rules" },
+    summaryTotals: { one: "{items} left out by the rule on the total", other: "{items} left out by the rules on the totals" },
     summaryRows: "{rows} of {total} rows",
     summaryData: "data {range}",
     yearsAll: "{years} combined",
@@ -161,7 +163,7 @@ export const en = {
     lastOp: { one: "is in the last", other: "is in the last" },
     ruleUnits: { year: { one: "year", other: "years" }, month: { one: "month", other: "months" }, day: { one: "day", other: "days" } },
     // a rule on the total, as a sentence: "Product items whose / Count of Cycle / is greater than / 3"
-    ruleWhose: "{field} items whose",
+    ruleWhose: "{field} items whose total",
     blanksOut: "Blank items are not kept.",
     ruleUnit: "Unit",
     moveLeft: "Move left",
