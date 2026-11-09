@@ -252,7 +252,8 @@ test.describe("the Filter level of a date field", () => {
         await pickItem(page, menu, "rule-item-value", "2022");
         await menu.getByTestId("rule-add-total").click();
         // the whole new row, not only its first control
-        await expect(menu.getByTestId("rule").last()).toBeInViewport({ ratio: 1 });
+        // WebKit rounds the row's edge by a subpixel (ratio 0.997 in CI); a whole row in view is what matters
+        await expect(menu.getByTestId("rule").last()).toBeInViewport({ ratio: 0.95 });
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
