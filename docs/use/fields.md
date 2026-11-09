@@ -68,7 +68,7 @@ same.
 
 | To | Do |
 | --- | --- |
-| Reorder a chip or move it to another zone | Drag it. |
+| Reorder a chip or move it to another zone | Drag it. A press inside its open menu (selecting text, choosing in a list) never moves it. |
 | Remove it | Drag it back to the field list, or press its **x**. A note in the status line offers Undo ("Region removed"); the focus goes to the neighbouring chip, or to the zone. |
 | Change everything else | Open its menu (the arrow). |
 

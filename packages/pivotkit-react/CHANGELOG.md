@@ -93,6 +93,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A press inside a menu that a chip or a field opened no longer drags that chip or field: selecting
+  text in the menu, pressing a native select of a rule, or a click that moves a little (Clear picks
+  over the Values zone) moved the field to another zone and lost its filters. The menu is rendered
+  through a portal, and React passed its mouse and touch events up to the chip's drag listeners;
+  they now take only events from the chip's or field's own elements.
 - Filter rules after review: a rule on the names shows its words on the chip ("contains “linux”");
   the pick list marks the items the field's rules leave out and the first line counts what shows
   ("2 of 36 items shown: last 2 years (2025–2026)"); the quick choices follow Undo; a count above

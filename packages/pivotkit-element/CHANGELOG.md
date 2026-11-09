@@ -30,6 +30,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- pivotkit-react's chips and fields are no longer dragged by a press inside the menu they opened
+  (selecting text, a native select, a click that moves a little), which moved the field to another
+  zone and lost its filters.
 - pivotkit-react's field list on a touch screen keeps its desktop rows, with 44 px high hit areas
   for a field's grip, "i" and menu.
 - pivotkit-react's Highlight keeps a value's own colours (a checked Colour scale changes nothing;
