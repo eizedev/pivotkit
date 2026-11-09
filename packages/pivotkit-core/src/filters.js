@@ -2,7 +2,12 @@
  * Filters, one table entry per type: how normalize() reads it from a view and how the pivot applies
  * it. A new filter type is one entry here (see CONTRIBUTING.md, "Adding a view feature").
  *
- * - Item filters (include, exclude, label) decide per dictionary code and run first, on the rows.
+ * - Item filters (include, exclude, label, compare, relative) decide per dictionary code and run
+ *   first, on the rows. `compare` compares the item itself (a number, a date by its calendar day, the
+ *   key of a grouping: year 2022, month 202503); `relative` keeps the dates of a range that moves with
+ *   today ("the last 5 years": this year and the four before it), on the source date of a grouping,
+ *   so a year's total only counts its days in the range. Today is the wall clock of `options.now` of
+ *   computePivot() in the data's time zone, never the machine's.
  * - Value filters (top N, value conditions) aggregate a measure per group and keep or drop whole
  *   groups, so totals show the visible items only, as in Excel. A filter on a field of an axis groups
  *   by the axis fields down to it ("top 3 products" keeps three products within each region above
@@ -14,11 +19,18 @@
  */
 
 import { labelOf } from "./labels.js";
-import { toWallMs } from "./time.js";
-import { finite, get, shown } from "./util.js";
+import { DERIVED } from "./derive.js";
+import { PivotkitError } from "./errors.js";
+import { resolveTimeZone, toWallMs, wallClock } from "./time.js";
+import { MS_PER_DAY, finite, get, optionsOf, shown } from "./util.js";
 
 export const LABEL_OPS = Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "endsWith"]);
+/** The comparisons of a value condition (`value`) and of an item with a value (`compare`). */
 export const VALUE_OPS = Object.freeze(["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"]);
+/** The units of a relative date range: the last N years, months or days, today's included. */
+export const RELATIVE_UNITS = Object.freeze(["year", "month", "day"]);
+/** The most years, months or days a relative range reaches back (10,000 years stay inside a Date). */
+export const RELATIVE_MAX_COUNT = 10_000;
 
 const oneOf = (value, allowed) => (typeof value === "string" && allowed.includes(value) ? value : null);
 
@@ -43,14 +55,14 @@ function matchLabel(op, label, value) {
     }
 }
 
-function matchValue(filter, v) {
+/** A number against a comparison: `a` (and `b` for between); a blank or no number never matches. */
+function compare(op, v, a, b) {
     if (typeof v !== "number" || Number.isNaN(v)) {
         return false;
     }
-    const a = filter.value;
-    const lo = Math.min(a, filter.value2 ?? a);
-    const hi = Math.max(a, filter.value2 ?? a);
-    switch (filter.op) {
+    const lo = Math.min(a, b ?? a);
+    const hi = Math.max(a, b ?? a);
+    switch (op) {
         case "=":
             return v === a;
         case "!=":
@@ -70,6 +82,65 @@ function matchValue(filter, v) {
         default:
             return true;
     }
+}
+
+const matchValue = (filter, v) => compare(filter.op, v, filter.value, filter.value2);
+
+/** The calendar day (wall-clock ms at 00:00) of a date's wall-clock ms. */
+const dayOf = (ms) => Math.floor(ms / MS_PER_DAY) * MS_PER_DAY;
+
+/** "2022-03-01" of a day's wall-clock ms; years before 0 and after 9999 as Date writes them. */
+const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * The days of a relative range, [from, to) in wall-clock ms: the `count` years, months or days that
+ * end with the one of `today` (wall-clock ms).
+ * @param {string} unit  of RELATIVE_UNITS
+ * @param {number} count
+ * @param {number} today
+ */
+function rangeOf(unit, count, today) {
+    const d = new Date(today);
+    const y = d.getUTCFullYear();
+    const m = unit === "year" ? 0 : d.getUTCMonth();
+    const day = unit === "day" ? d.getUTCDate() : 1;
+    // setUTCFullYear takes every year (Date.UTC reads 0 to 99 as 1900 to 1999) and rolls months over
+    const at = (yy, mm, dd) => new Date(0).setUTCFullYear(yy, mm, dd);
+    const step = (n) => (unit === "year" ? at(y + n, m, day) : unit === "month" ? at(y, m + n, day) : at(y, m, day + n));
+    return { from: step(1 - count), to: step(1) };
+}
+
+/**
+ * The days a relative date range keeps, today being `options.now` (a Date, epoch ms or an ISO string;
+ * default the current time) read in `options.timeZone` ("UTC" by default, never the machine's zone),
+ * as computePivot() reads them: { from: "2022-01-01", to: "2026-12-31" }, both included. Null for a
+ * unit not of RELATIVE_UNITS or a count that is not a whole number from 1 to RELATIVE_MAX_COUNT.
+ * @param {string} unit  "year", "month" or "day"
+ * @param {number} count  1 is this year (month, day) alone
+ * @param {{ now?: Date | number | string, timeZone?: string }} [options]
+ * @returns {{ from: string, to: string } | null}
+ */
+export function relativeDateRange(unit, count, options) {
+    options = optionsOf(options, "relativeDateRange");
+    if (!RELATIVE_UNITS.includes(unit) || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
+        return null;
+    }
+    const { from, to } = rangeOf(unit, count, todayOf(options.now, resolveTimeZone(options.timeZone)));
+    return { from: isoDay(from), to: isoDay(to - MS_PER_DAY) };
+}
+
+/**
+ * Today's wall-clock ms in a time zone: `now` (a Date, epoch ms or an ISO string; an ISO string
+ * without an offset is taken as written), default the current time.
+ * @param {unknown} now
+ * @param {string} timeZone  canonical
+ */
+export function todayOf(now, timeZone) {
+    const ms = toWallMs(now === undefined ? Date.now() : now, wallClock(timeZone));
+    if (Number.isNaN(ms)) {
+        throw new PivotkitError("INVALID_OPTION", "now must be a Date, epoch milliseconds or an ISO date string");
+    }
+    return ms;
 }
 
 /** A dimension value from a view (filter item, collapsed path), converted to the column's type. */
@@ -128,6 +199,51 @@ function normalizeLabel(flt, spec, _f, path, ctx) {
         return ctx.issue(path, "needs a text value", "filterText");
     }
     return Object.assign(spec, { op, value });
+}
+
+/** The grouping (DERIVED unit) a derived field of the view is made by; undefined for a data column. */
+const unitOfField = (f, view) => (f.derived ? view.derived.find((d) => d.name === f.name)?.by : undefined);
+
+/**
+ * A comparison of the item itself: a number (also a grouping's key, year 2022, month 202503) or a
+ * date, kept as its calendar day "2022-03-01".
+ */
+function normalizeCompare(flt, spec, f, path, ctx) {
+    if (f.type !== "number" && f.type !== "date") {
+        return ctx.issue(path, "compares numbers and dates only", "filterCompareField", { field: f.name });
+    }
+    const read = (value) => {
+        if (f.type === "number") {
+            return finite(value);
+        }
+        const ms = value === undefined ? undefined : itemFor("date", value);
+        return typeof ms === "number" ? isoDay(dayOf(ms)) : null;
+    };
+    const op = oneOf(get(flt, "op"), VALUE_OPS);
+    const value = read(get(flt, "value"));
+    const twin = op === "between" || op === "notBetween";
+    const value2 = twin ? read(get(flt, "value2")) : null;
+    if (!op || value === null || (twin && value2 === null)) {
+        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type });
+    }
+    return Object.assign(spec, { op, value }, twin ? { value2 } : {});
+}
+
+/** A relative date range on a date field or a grouping of one: the last `count` years, months or days. */
+function normalizeRelative(flt, spec, f, path, ctx, view) {
+    const unit = unitOfField(f, view);
+    if (unit === undefined ? f.type !== "date" : DERIVED[unit].source !== "date") {
+        return ctx.issue(path, "needs a date field or a grouping of one", "filterRelativeField", { field: f.name });
+    }
+    const by = oneOf(get(flt, "unit"), RELATIVE_UNITS);
+    if (!by) {
+        return ctx.issue(path, `unknown unit ${JSON.stringify(get(flt, "unit"))}`, "filterRelativeUnit", { value: shown(get(flt, "unit")) });
+    }
+    const count = finite(get(flt, "count"));
+    if (count === null || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
+        return ctx.issue(path, `needs a whole count from 1 to ${RELATIVE_MAX_COUNT}`, "filterRelativeCount", { max: RELATIVE_MAX_COUNT });
+    }
+    return Object.assign(spec, { unit: by, count });
 }
 
 /** The measure a value filter ranks or compares: `by`, default the view's first value. */
@@ -201,6 +317,24 @@ function allowedLabels(column, f, locale) {
     return allowed;
 }
 
+/** Compare: a date item by its calendar day; a number as it is. */
+function allowedCompared(column, f) {
+    const date = column.type === "date";
+    const read = (v) => (date ? Date.parse(`${v}T00:00Z`) : v);
+    const [a, b] = [read(f.value), f.value2 === undefined ? undefined : read(f.value2)];
+    const allowed = new Uint8Array(column.dict.length + 1);
+    column.dict.forEach((v, code) => {
+        allowed[code + 1] = compare(f.op, date && typeof v === "number" ? dayOf(v) : v, a, b) ? 1 : 0;
+    });
+    return allowed;
+}
+
+/** Relative: the dates of the range (the column is the source date of a grouping, see applyFilters). */
+function allowedRelative(column, f, _locale, today) {
+    const { from, to } = rangeOf(f.unit, f.count, today);
+    return Uint8Array.from([0, ...column.dict], (v, i) => (i > 0 && typeof v === "number" && v >= from && v < to ? 1 : 0));
+}
+
 /** Value filters: keep[group] from the aggregated values and the group paths. */
 function keepMatching(f, values) {
     return Uint8Array.from(values, (v) => (matchValue(f, v) ? 1 : 0));
@@ -235,6 +369,7 @@ function keepTop(f, values, paths) {
  * @property {Function} normalize
  * @property {Function} [allowed]  item filters
  * @property {Function} [keep]     value filters
+ * @property {boolean} [source]     item filters that read the source date of a grouping
  */
 
 /** @type {Readonly<Record<string, FilterDef>>} */
@@ -242,6 +377,8 @@ export const FILTERS = Object.freeze({
     include: { stage: "items", normalize: normalizeItems, allowed: allowedItems(true) },
     exclude: { stage: "items", normalize: normalizeItems, allowed: allowedItems(false) },
     label: { stage: "items", normalize: normalizeLabel, allowed: allowedLabels },
+    compare: { stage: "items", normalize: normalizeCompare, allowed: allowedCompared },
+    relative: { stage: "items", normalize: normalizeRelative, allowed: allowedRelative, source: true },
     top: { stage: "values", normalize: normalizeTop, keep: keepTop },
     value: { stage: "values", normalize: normalizeValue, keep: keepMatching }
 });
@@ -266,14 +403,16 @@ function filterRows(rows, keep) {
  * @returns {Int32Array}
  */
 export function applyFilters(ctx, rows) {
-    const { view, columnOf, locale } = ctx;
+    const { view, columnOf, locale, today } = ctx;
+    // a filter on a grouping's source (relative ranges): the date column the grouping is made of
+    const sourceOf = (name) => view.derived.find((d) => d.name.toLowerCase() === name.toLowerCase())?.field ?? name;
     for (const f of view.filters) {
         const def = FILTERS[f.type];
-        const column = columnOf(f.field);
+        const column = columnOf(def.source ? sourceOf(f.field) : f.field);
         if (def.stage !== "items" || !column) {
             continue;
         }
-        const allowed = def.allowed(column, f, locale);
+        const allowed = def.allowed(column, f, locale, today);
         const codes = column.codes;
         rows = filterRows(rows, (r) => allowed[codes[r] + 1] === 1);
     }

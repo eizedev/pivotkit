@@ -6,7 +6,7 @@
 import { AGGREGATOR_NAMES } from "./aggregators.js";
 import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
-import { FILTER_TYPES, LABEL_OPS, VALUE_OPS } from "./filters.js";
+import { FILTER_TYPES, LABEL_OPS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, VALUE_OPS } from "./filters.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
 import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
@@ -24,6 +24,9 @@ export const CATALOG = Object.freeze({
     filterTypes: FILTER_TYPES,
     labelOps: LABEL_OPS,
     valueOps: VALUE_OPS,
+    /** the units of a relative date range ("the last 5 years"), and the most it reaches back */
+    relativeUnits: RELATIVE_UNITS,
+    relativeMaxCount: RELATIVE_MAX_COUNT,
     formats: FORMAT_NAMES,
     showAs: SHOW_AS_NAMES,
     /** show-as types that walk along an axis (Excel's "base field") */

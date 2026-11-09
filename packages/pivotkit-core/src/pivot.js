@@ -17,7 +17,7 @@ import { aggregatorOf } from "./aggregators.js";
 import { derivedColumn } from "./derive.js";
 import { checkLimit, expect } from "./errors.js";
 import { isEncoded } from "./encode.js";
-import { applyFilters } from "./filters.js";
+import { applyFilters, todayOf } from "./filters.js";
 import { DEFAULT_LABELS, labelOf, ranksOf } from "./labels.js";
 import { KEEPS_VALUES_WEIGHT, resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
@@ -31,6 +31,7 @@ import { normalize } from "./view.js";
  * @typedef {object} PivotContext  what the steps of one computePivot() call share
  * @property {import("./view.js").View} view
  * @property {string} locale
+ * @property {number} today  wall-clock ms of `options.now` in the data's time zone (relative date ranges)
  * @property {(name: string | null) => import("./encode.js").Column | null} columnOf
  * @property {typeof groupBy} groupBy
  * @property {(ref: import("./view.js").ValueRef, rows: Int32Array, groupOf: Int32Array, groupCount: number) => any[]} aggregateGroups
@@ -246,8 +247,10 @@ function sortAxis(tree, fields, columns, sortOf, valueOfNode, ranks) {
  *
  * @param {import("./encode.js").Encoded} data  from encode()
  * @param {unknown} viewInput  a view; normalized here, so it may come straight from a user
- * @param {{ locale?: string, limits?: Partial<import("./limits.js").Limits> }} [options]  locale: used
- *   when the view names none (natural sort, label filters, labels); default "en-US". limits: the view
+ * @param {{ locale?: string, now?: Date | number | string, limits?: Partial<import("./limits.js").Limits> }} [options]  locale: used
+ *   when the view names none (natural sort, label filters, labels); default "en-US". now: today for
+ *   relative date ranges ("the last 5 years"), a Date, epoch ms or an ISO string read in the data's
+ *   time zone; default the current time (an invalid one throws INVALID_OPTION). limits: the view
  *   limits for normalize(), `work` for the cell updates (computed before the trees are built),
  *   `groups` for the nodes of both key trees and `pivotCells` for the cells (each counted while it
  *   grows); more throws a PivotkitError (LIMIT_EXCEEDED)
@@ -274,6 +277,7 @@ export function computePivot(data, viewInput, options) {
     const ctx = {
         view,
         locale,
+        today: todayOf(options.now, data.timeZone),
         columnOf,
         groupBy,
         aggregateGroups: (ref, rows, groupOf, groupCount) => {

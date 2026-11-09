@@ -54,6 +54,7 @@ export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
 export { suggestDateUnit } from "./derive.js";
+export { relativeDateRange } from "./filters.js";
 export { toGrid } from "./grid.js";
 export { autoChartType, toSeries, toEChartsOption } from "./chart.js";
 export { createHistory } from "./history.js";

@@ -36,6 +36,7 @@ export const VIEW_ISSUE_CODES = /* @__PURE__ */ Object.freeze([
     "unknownFormat", "badLabel", "unknownShowAs", "showAsNotAdditive", "showAsNotNumber",
     "unknownConditional", "conditionalNotNumber", "colorScaleColors", "dataBarColor",
     "unknownFilterType", "filterNoItems", "filterLabelOp", "filterText", "filterNotNumber", "filterCount", "filterValue", "filterValue2",
+    "filterCompareField", "filterCompareValue", "filterRelativeField", "filterRelativeUnit", "filterRelativeCount",
     "sortNoItems", "sortedTwice",
     "badTotals", "collapsedPath", "unknownSetting", "badTitle", "unknownLocale", "unknownTimeZone", "timeZoneMismatch"
 ]);
@@ -85,8 +86,9 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ type: "colorScale", colors: string[] } | { type: "dataBar", color: string | null }} Conditional
  * @typedef {{ field: string | null, agg: string, format: string | null, label: string | null,
  *   showAs: ShowAs | null, conditional: Conditional | null }} ValueSpec
- * @typedef {{ field: string, type: string, items?: any[], op?: string, value?: any, value2?: number,
- *   count?: number, bottom?: boolean, by?: ValueRef }} FilterSpec
+ * @typedef {{ field: string, type: string, items?: any[], op?: string, value?: any, value2?: any,
+ *   count?: number, bottom?: boolean, by?: ValueRef, unit?: string }} FilterSpec  `compare`: value and
+ *   value2 a number or a calendar day "2022-03-01"; `relative`: unit and count
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,

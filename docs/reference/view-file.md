@@ -15,8 +15,9 @@ Its JSON Schema is published at `https://pivotkit.eize.dev/schema/view-file-1.js
 ([view-file-1.json](../schema/view-file-1.json)) and ships in pivotkit-core as
 `pivotkit-core/schema/view-file-1.json` (the same bytes), so a host or an editor can use it without
 the website. A file names it in `$schema`; reading never depends on that key. The schema describes the
-envelope (its keys, types and limits) and only the `version` of the view inside it: the view itself
-is checked by `normalize()` against the data, which says what it leaves out. The repository's tests
+envelope (its keys, types and limits) and, of the view inside it, its `version` and its `filters`
+(each filter's field and type, and the parts of the item comparisons and relative date ranges): the
+view itself is checked by `normalize()` against the data, which says what it leaves out. The repository's tests
 validate real exports against the schema with a JSON Schema 2020-12 validator.
 
 ## An example
@@ -130,6 +131,10 @@ source in `sources` and handles `onSourceSwitch` ([Sharing](../concepts/sharing.
   `formatVersion` with a new schema file (`view-file-2.json`); readers of version 1 refuse it.
 - A change of the view itself goes through `view.version` and pivotkit-core's `MIGRATIONS`, not
   through the envelope: an older view is migrated when it is read.
+- A new filter type keeps both versions: a reader that does not know it reports that filter as an
+  unused part ("the filter type “compare” is unknown - this filter is left out") and shows the report
+  without it, so nothing is read wrong. pivotkit 0.2.0 reads the item comparisons (`compare`) and
+  relative date ranges (`relative`) that way.
 
 ## The link profile
 

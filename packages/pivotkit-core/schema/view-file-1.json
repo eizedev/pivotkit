@@ -79,7 +79,45 @@
       "description": "The view itself, with its own version (pivotkit-core's View). Every reader passes it through normalize() against its data.",
       "type": "object",
       "properties": {
-        "version": { "type": "integer", "minimum": 1 }
+        "version": { "type": "integer", "minimum": 1 },
+        "filters": {
+          "description": "The filters, applied together (and). Each names a field and its type; normalize() checks the rest. A reader that does not know a type reports that filter as an unused part and leaves it out.",
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "required": ["field", "type"],
+            "properties": {
+              "field": { "description": "A column of the data or a grouping of the view.", "type": "string" },
+              "type": { "enum": ["include", "exclude", "label", "compare", "relative", "top", "value"] }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "type": { "const": "compare" } } },
+                "then": {
+                  "description": "The item itself compared: a number (a grouping's key, year 2022, month 202503) or a date as its calendar day (\"2022-03-01\"); value2 with between and notBetween.",
+                  "required": ["op", "value"],
+                  "properties": {
+                    "op": { "enum": ["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"] },
+                    "value": { "type": ["number", "string"] },
+                    "value2": { "type": ["number", "string"] }
+                  }
+                }
+              },
+              {
+                "if": { "properties": { "type": { "const": "relative" } } },
+                "then": {
+                  "description": "The dates of the last count years, months or days, today's included, on a date field or a grouping of one; today is the reader's.",
+                  "required": ["unit", "count"],
+                  "properties": {
+                    "unit": { "enum": ["year", "month", "day"] },
+                    "count": { "type": "integer", "minimum": 1, "maximum": 10000 }
+                  }
+                }
+              }
+            ]
+          }
+        }
       }
     }
   }

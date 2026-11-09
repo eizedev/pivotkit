@@ -7,15 +7,17 @@ description: Item filters, text conditions, value conditions and top N in a pivo
 
 ## Filters
 
-A view's `filters` are a list; every filter names a field and a `type`. Item and text filters drop
-source rows before anything is computed; value filters and top N drop whole groups after the values
-are aggregated.
+A view's `filters` are a list; every filter names a field and a `type`, and all of them apply
+together (and). Item, text, comparison and date range filters drop source rows before anything is
+computed; value filters and top N drop whole groups after the values are aggregated.
 
 ```json
 "filters": [
     { "field": "Region", "type": "include", "items": ["North", null] },
     { "field": "Status", "type": "exclude", "items": ["Retired"] },
     { "field": "Rep", "type": "label", "op": "contains", "value": "an" },
+    { "field": "Released (Year)", "type": "compare", "op": ">=", "value": 2022 },
+    { "field": "Released", "type": "relative", "unit": "year", "count": 5 },
     { "field": "Region", "type": "value", "op": ">", "value": 1000 },
     { "field": "Country", "type": "top", "count": 5, "bottom": false }
 ]
@@ -26,11 +28,46 @@ are aggregated.
 | `include` | Keep only the listed `items`; `null` is (blank). |
 | `exclude` | Drop the listed `items`. |
 | `label` | A text condition on the label. `op`: `equals`, `notEquals`, `contains`, `notContains`, `beginsWith`, `endsWith`. |
+| `compare` | The item itself compared with `value`: a number, a date or a grouping's key. `op` as `value`'s, `value2` with `between` and `notBetween`. |
+| `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included. |
 | `value` | A condition on an aggregated value. `op`: `=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween` (with `value2`). |
 | `top` | Keep the `count` largest items, or with `bottom: true` the smallest. |
 
 `value` and `top` rank by `by`, a value reference such as `{ "field": "Sales", "agg": "sum" }`; without
 it they use the view's first value.
+
+### Compare an item
+
+`compare` keeps the items of a number or date field that pass a comparison: `=`, `!=`, `>`, `>=`,
+`<`, `<=`, `between` and `notBetween` (both bounds included, in either order, as a value condition).
+What is compared:
+
+- A number field: the number. A grouping of numbers (ranges) compares each range by its lower bound.
+- A date field: the calendar day. `value` is a date, `"2022-03-01"`; a time in it is left out, so
+  "before 2022-03-01" keeps every row of 28 February and none of 1 March, whatever its clock time.
+- A date grouping: its key, the number the grouping gives each item: a year `2022`, a month `202503`
+  (year × 100 + month), a quarter `20251` (year × 10 + quarter), a week `202512` (ISO year × 100 +
+  week), the cyclic ones their number (month `3`, weekday `1` for Monday); a day is a date.
+
+A blank item (no value) is never kept by a comparison, not even by `!=` or `notBetween`, as a value
+condition never keeps a group without a value. Only number and date fields can be compared; a text
+field has the `label` conditions.
+
+### Relative date ranges
+
+`relative` keeps the dates of a range that moves with today, so a saved report stays right next
+year: `{ "unit": "year", "count": 5 }` is this year and the four before it, `{ "unit": "month",
+"count": 1 }` this month, `{ "unit": "day", "count": 7 }` today and the six days before it. A range
+ends with the end of the current year, month or day, so later dates of this year are in "this year".
+
+On a date grouping ("Released (Year)") the range filters the grouping's **source dates**: with
+"the last 18 months" on a year grouping, the oldest year keeps only its months in the range, and its
+total counts only those.
+
+Today is the wall clock of `computePivot`'s `options.now` in the data's time zone (the `timeZone` of
+`encode()`, default UTC), never the machine's zone: the same data and `now` give the same result
+everywhere. Without `now` it is the current time. `relativeDateRange(unit, count, { now, timeZone })`
+says which days a range keeps, for a UI's "last 5 years (2022–2026)".
 
 A filter on a field that is on rows or columns filters that axis. A filter on any other field - in
 the UI, a field in the **Filters** zone - filters the whole report.
@@ -88,10 +125,12 @@ under Use a report. What they write into the view:
 | In the UI | In the view |
 | --- | --- |
 | Values ticked in the filter | An `exclude` filter of the values **not** ticked, as Excel does: a value that appears in later data is shown. With every value ticked, the field has no item filter at all. |
-| Text condition, Condition on the label | A `label` filter. |
-| Condition on a value ("Keep Region items whose Sum of Revenue is greater than …") | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. "is anything" removes that `value` filter. |
+| Quick choices of a date field: This year, Last N years, Last N months | A `relative` filter (`year` 1, `year` N, `month` N); All removes it. |
+| Rule "Released (Year) is at least 2022" (compare the item itself) | A `compare` filter. |
+| Rule "Count of Released is greater than 3" (compare its total) | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
+| Rule "name contains …" (text rules on names) | A `label` filter. |
 | Top items (Top 3, Top 5, Top 10, Top N…) | A `top` filter, `by` the value chosen; Off removes it. |
-| Remove filter (in the Filter level) | Removes the field's `include`, `exclude`, `label` and `value` filters; `top` stays. |
+| Remove rules (in the Filter level) | Removes the field's `label`, `compare`, `relative` and `value` filters; Clear picks its `include` and `exclude` filters; `top` stays. |
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

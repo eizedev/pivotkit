@@ -6,6 +6,23 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- Two filter types ([#89](https://github.com/eizedev/pivotkit/issues/89)): `compare` compares the
+  item itself (`=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween`): a number, a date by its
+  calendar day (`"2022-03-01"`) or a grouping's key (year `2022`, month `202503`), so "from 2022"
+  keeps the years from 2022 on; `relative` keeps the dates of the last N years, months or days,
+  today's included, and on a date grouping filters its source dates. Today is `computePivot`'s new
+  option `now` (default the current time), read in the data's time zone, never the machine's.
+  `normalize()` reports the new issue codes `filterCompareField`, `filterCompareValue`,
+  `filterRelativeField`, `filterRelativeUnit` and `filterRelativeCount`. pivotkit-core 0.2.0
+  reports both types as unused parts (`unknownFilterType`) and leaves them out.
+- `relativeDateRange(unit, count, { now, timeZone })`: the days a relative range keeps
+  (`{ from: "2022-01-01", to: "2026-12-31" }`), for a UI's "last 5 years (2022–2026)".
+- `CATALOG.relativeUnits` and `CATALOG.relativeMaxCount` (10,000).
+- The view file's JSON Schema (`schema/view-file-1.json`) describes the view's `filters`: each
+  filter's field and type and the parts of the two new types. `formatVersion` stays 1.
+
 ## [0.2.0] - 2026-11-08
 
 ### Added

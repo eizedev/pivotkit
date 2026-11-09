@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { Validator } from "@cfworker/json-schema";
-import { VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, encode, normalize, toViewFile } from "pivotkit-core";
+import { CATALOG, LIMITS, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION, encode, normalize, toViewFile } from "pivotkit-core";
 
 const file = new URL("../packages/pivotkit-core/schema/view-file-1.json", import.meta.url);
 const schema = JSON.parse(readFileSync(file, "utf8"));
@@ -81,4 +81,48 @@ test("real exports validate against the schema (JSON Schema 2020-12), broken env
     }
     // an unknown key is fine: the envelope is open
     assert.equal(validator.validate({ ...good, later: 1 }).valid, true);
+});
+
+// the view's filters: their types and the parts of the comparisons and relative ranges, from the
+// same tables normalize() reads; a view of 0.2.0's filter types stays valid (formatVersion 1)
+test("the schema's filters match the core's: types, operators, units, the count's range", () => {
+    const filters = schema.properties.view.properties.filters;
+    assert.equal(filters.maxItems, LIMITS.filters);
+    assert.deepEqual([...filters.items.properties.type.enum].sort(), [...CATALOG.filterTypes].sort());
+    const [compare, relative] = filters.items.allOf.map((a) => a.then.properties);
+    assert.deepEqual(compare.op.enum, [...CATALOG.valueOps]);
+    assert.deepEqual(relative.unit.enum, [...CATALOG.relativeUnits]);
+    assert.equal(relative.count.maximum, CATALOG.relativeMaxCount);
+    const validator = new Validator(schema, "2020-12", false);
+    const data = encode([{ Region: "North", Units: 3, Date: "2026-01-01" }]);
+    const view = normalize(
+        {
+            derived: [{ name: "Year", field: "Date", by: "year" }],
+            rows: ["Year"],
+            values: [{ field: "Units", agg: "sum" }],
+            filters: [
+                { field: "Region", type: "exclude", items: ["South"] },
+                { field: "Year", type: "compare", op: ">=", value: 2022 },
+                { field: "Date", type: "compare", op: "between", value: "2022-01-01", value2: "2026-12-31" },
+                { field: "Year", type: "relative", unit: "year", count: 5 },
+                { field: "Year", type: "value", op: ">", value: 3 }
+            ]
+        },
+        data
+    ).view;
+    assert.equal(view.filters.length, 5);
+    const good = JSON.parse(JSON.stringify(toViewFile(view)));
+    assert.equal(validator.validate(good).valid, true);
+    const withFilter = (f) => ({ ...good, view: { ...good.view, filters: [f] } });
+    for (const broken of [
+        { field: "Date", type: "between" },
+        { field: "Date", type: "relative", unit: "week", count: 1 },
+        { field: "Date", type: "relative", unit: "year", count: 0 },
+        { field: "Date", type: "relative", unit: "year" },
+        { field: "Year", type: "compare", op: "~", value: 1 },
+        { field: "Year", type: "compare", op: ">" },
+        { type: "include", items: [] }
+    ]) {
+        assert.equal(validator.validate(withFilter(broken)).valid, false, JSON.stringify(broken));
+    }
 });

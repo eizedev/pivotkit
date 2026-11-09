@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computePivot, encode, findNode, validate } from "../src/index.js";
+import { CATALOG, computePivot, encode, findNode, relativeDateRange, validate } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -90,4 +90,108 @@ test("filters combine: items first, then value filters from the outer level in",
         ]
     });
     assert.deepEqual(regions(r), ["South", null]);
+});
+
+// ---- comparisons of the item itself (compare) and relative date ranges (relative) ----
+
+/** Sum of Units of the rows a filter list keeps, with `now` for relative ranges. */
+const kept = (filters, view = {}, options = {}) => total(computePivot(data, { values: [sumUnits], filters, ...view }, options));
+const byYear = { derived: [{ name: "Year", field: "Date", by: "year" }, { name: "Month", field: "Date", by: "yearMonth" }] };
+
+test("compare: a number item with each operator; blanks never match", () => {
+    const keep = (op, value, value2) => kept([{ field: "Price", type: "compare", op, value, value2 }]);
+    // prices 10 12 20 10 25 30 11 9 with units 3 5 2 7 1 (blank) 4 6
+    assert.equal(keep("=", 10), 10);
+    assert.equal(keep("!=", 10), 18);
+    assert.equal(keep(">", 20), 1);
+    assert.equal(keep(">=", 20), 3);
+    assert.equal(keep("<", 10), 6);
+    assert.equal(keep("<=", 10), 16);
+    assert.equal(keep("between", 11, 20), 11);
+    // the bounds in either order, as a value condition reads them
+    assert.equal(keep("between", 20, 11), 11);
+    assert.equal(keep("notBetween", 11, 20), 17);
+    // a blank item is never kept, not even by != or notBetween
+    const blank = computePivot(data, { rows: ["Region"], values: [{ agg: "count" }], filters: [{ field: "Units", type: "compare", op: "!=", value: 99 }] });
+    assert.equal(total(blank), 7);
+});
+
+test("compare: a date by its calendar day, a grouping by its key", () => {
+    assert.equal(kept([{ field: "Date", type: "compare", op: ">=", value: "2026-02-14" }]), 12);
+    // a value with a time is read as its day, and normalized to it
+    const r = computePivot(data, { values: [sumUnits], filters: [{ field: "Date", type: "compare", op: "<", value: "2026-01-05T18:00" }] });
+    assert.equal(total(r), 6);
+    assert.deepEqual(r.view.filters, [{ field: "Date", type: "compare", op: "<", value: "2026-01-05" }]);
+    assert.equal(kept([{ field: "Date", type: "compare", op: "between", value: "2026-01-20", value2: "2026-02-14" }]), 14);
+    // year 2026 and later; months from 2026-03 (key 202603)
+    assert.equal(kept([{ field: "Year", type: "compare", op: ">=", value: 2026 }], byYear), 22);
+    assert.equal(kept([{ field: "Month", type: "compare", op: ">=", value: 202603 }], byYear), 5);
+});
+
+test("compare: normalize reports what it cannot use, with codes", () => {
+    const issues = (filters) => validate({ filters, ...byYear }, data).errors.map((i) => i.code);
+    assert.deepEqual(issues([{ field: "Region", type: "compare", op: ">", value: 1 }]), ["filterCompareField"]);
+    assert.deepEqual(issues([{ field: "Price", type: "compare", op: "~", value: 1 }]), ["filterCompareValue"]);
+    assert.deepEqual(issues([{ field: "Price", type: "compare", op: ">", value: "ten" }]), ["filterCompareValue"]);
+    assert.deepEqual(issues([{ field: "Price", type: "compare", op: "between", value: 1 }]), ["filterCompareValue"]);
+    assert.deepEqual(issues([{ field: "Date", type: "compare", op: ">", value: "2026-02-30" }]), ["filterCompareValue"]);
+    assert.deepEqual(issues([{ field: "Year", type: "compare", op: ">", value: 2020 }]), []);
+});
+
+test("relative: the last N years, months and days end with today's", () => {
+    const now = "2026-03-05";
+    const rel = (unit, count, view = {}) => kept([{ field: "Date", type: "relative", unit, count }], view, { now });
+    // every date of 2026: all but 2025-12-31 (6 units)
+    assert.equal(rel("year", 1), 22);
+    assert.equal(rel("year", 2), 28);
+    // March 2026 (1 + blank); January to March
+    assert.equal(rel("month", 1), 1);
+    assert.equal(rel("month", 3), 18);
+    // 2026-03-01 to 2026-03-05: the 1 of 2026-03-01; today's later dates are in the range too
+    assert.equal(rel("day", 5), 1);
+    assert.equal(rel("day", 4), 0);
+});
+
+test("relative: across a year boundary, months reach into the year before", () => {
+    const r = (count, now) => kept([{ field: "Date", type: "relative", unit: "month", count }], {}, { now });
+    // Jan 2026 and Dec 2025: 3 + 5 + 6
+    assert.equal(r(2, "2026-01-31"), 14);
+    // a grouping filters by its source dates: the 2025 group keeps only its December
+    const v = { ...byYear, rows: ["Year"] };
+    const result = computePivot(data, { ...v, values: [sumUnits], filters: [{ field: "Year", type: "relative", unit: "month", count: 2 }] }, { now: "2026-01-15" });
+    assert.deepEqual(result.rowRoot.children.map((n) => [n.key, result.value(n, result.colRoot, 0)]), [[2025, 6], [2026, 8]]);
+});
+
+test("relative: now is read in the data's time zone, never the machine's", () => {
+    const zoned = encode(SALES, { timeZone: "America/New_York" });
+    const view = { values: [sumUnits], filters: [{ field: "Date", type: "relative", unit: "year", count: 1 }] };
+    // 2026-01-01 03:00 UTC is still 2025 in New York: only 2025-12-31 is kept
+    assert.equal(total(computePivot(zoned, view, { now: new Date("2026-01-01T03:00:00Z") })), 6);
+    assert.equal(total(computePivot(data, view, { now: new Date("2026-01-01T03:00:00Z") })), 22);
+    // an ISO string without an offset is today as written
+    assert.equal(total(computePivot(zoned, view, { now: "2026-01-01T00:00" })), 22);
+    assert.throws(() => computePivot(data, view, { now: "soon" }), { code: "INVALID_OPTION" });
+});
+
+test("relative: normalize checks the field, the unit and the count", () => {
+    const issues = (filters) => validate({ filters, derived: [...byYear.derived, { name: "Band", field: "Units", by: "bin", size: 5 }] }, data).errors.map((i) => i.code);
+    assert.deepEqual(issues([{ field: "Region", type: "relative", unit: "year", count: 1 }]), ["filterRelativeField"]);
+    assert.deepEqual(issues([{ field: "Band", type: "relative", unit: "year", count: 1 }]), ["filterRelativeField"]);
+    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "week", count: 1 }]), ["filterRelativeUnit"]);
+    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "year", count: 0 }]), ["filterRelativeCount"]);
+    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "year", count: CATALOG.relativeMaxCount + 1 }]), ["filterRelativeCount"]);
+    assert.deepEqual(issues([{ field: "Month", type: "relative", unit: "year", count: CATALOG.relativeMaxCount }]), []);
+});
+
+test("relativeDateRange says the days a range keeps", () => {
+    assert.deepEqual(relativeDateRange("year", 5, { now: "2026-11-09" }), { from: "2022-01-01", to: "2026-12-31" });
+    assert.deepEqual(relativeDateRange("month", 3, { now: "2026-01-31" }), { from: "2025-11-01", to: "2026-01-31" });
+    assert.deepEqual(relativeDateRange("month", 1, { now: "2024-02-10" }), { from: "2024-02-01", to: "2024-02-29" });
+    assert.deepEqual(relativeDateRange("day", 7, { now: "2026-03-02" }), { from: "2026-02-24", to: "2026-03-02" });
+    assert.deepEqual(relativeDateRange("year", 1, { now: new Date("2026-01-01T03:00:00Z"), timeZone: "America/New_York" }), { from: "2025-01-01", to: "2025-12-31" });
+    // years before 100 are years, not 1900 + n
+    assert.deepEqual(relativeDateRange("year", 1990, { now: "2026-06-01" }), { from: "0037-01-01", to: "2026-12-31" });
+    assert.equal(relativeDateRange("week", 1), null);
+    assert.equal(relativeDateRange("year", 0), null);
+    assert.equal(relativeDateRange("year", 1.5), null);
 });

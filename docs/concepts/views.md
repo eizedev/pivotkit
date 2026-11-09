@@ -66,7 +66,7 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 | --- | --- | --- |
 | `rows`, `cols` | Field names on each axis, outer first. A derived field is used by its `name`. | |
 | `values` | What is computed in the cells: field, aggregator, format, label, "show as", highlighting. | [Values](values.md) |
-| `filters` | Item lists, text conditions, top N, value conditions. | [Filters](filters.md) |
+| `filters` | Item lists, text conditions, comparisons of an item, relative date ranges, top N, value conditions. | [Filters](filters.md) |
 | `derived` | New fields from a date (year, month, ...) or a number (ranges). | [Dates and number ranges](dates.md) |
 | `sort` | Per field: by label, by a value or in a custom order, ascending or descending. | [Sorting](filters.md#sorting) |
 | `totals` | Grand total row and column, row and column subtotals; all on by default. | |
@@ -112,7 +112,7 @@ An issue is `{ path, message, code, params }`:
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
 | `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |
 | `unknownFormat`, `badLabel`, `unknownShowAs`, `showAsNotAdditive`, `showAsNotNumber`, `unknownConditional`, `conditionalNotNumber`, `colorScaleColors`, `dataBarColor` | A value's format, name, "show as" and colours. |
-| `unknownFilterType`, `filterNoItems`, `filterLabelOp`, `filterText`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2` | A filter. |
+| `unknownFilterType`, `filterNoItems`, `filterLabelOp`, `filterText`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareField`, `filterCompareValue`, `filterRelativeField`, `filterRelativeUnit`, `filterRelativeCount` | A filter. |
 | `sortNoItems` | A custom sort order without items. |
 | `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |
 | `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
