@@ -345,7 +345,8 @@ export const en = {
     groupLabels: "Group labels under the axis",
     groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
     defaultName: "Use the default name",
-    // sharing a view (the Views menu)
+    // sharing a view (the Views menu): the group heading above the Share row, and the row
+    shareThisView: "Share this view",
     share: "Share",
     copyLink: "Copy link",
     copyJson: "Copy view as JSON",

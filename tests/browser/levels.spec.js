@@ -189,6 +189,13 @@ test.describe("the search of a menu", () => {
 });
 
 test.describe("the Views menu in levels", () => {
+    test("German: the group heading above Share", async ({ page }) => {
+        await page.goto("?data=tickets&lang=de");
+        await toolbar(page, "views");
+        await expect(page.getByTestId("topic-title-share")).toHaveText("Diese Ansicht teilen");
+        await expect(page.getByRole("menu", { name: "Ansichten" }).getByRole("group", { name: "Diese Ansicht teilen" }).getByRole("menuitem", { name: "Teilen" })).toBeVisible();
+    });
+
     test("a flat list to scan; Save as… and Share open levels; an entry's Delete is reached by the arrow keys and asks in a level", async ({ page }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "views");
@@ -203,8 +210,15 @@ test.describe("the Views menu in levels", () => {
               - menuitem "Median lead time by month"
               - menuitem "Open work per team (chart)"
             - group "My views"
-            - menuitem "Share"
+            - group "Share this view":
+              - menuitem "Share"
         `);
+        // the Share row under a group heading of its own, above it, marked up as the other headings
+        const shareHeading = page.getByTestId("topic-title-share");
+        await expect(shareHeading).toHaveText("Share this view");
+        await expect(shareHeading).toHaveClass(/pk-subtitle/);
+        await expect(page.getByTestId("topic-title-myViews")).toHaveClass(/pk-subtitle/);
+        expect(await shareHeading.evaluate((h) => h.compareDocumentPosition(document.querySelector('[data-testid="topic-share"]')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
         // no fold anywhere: every group is there at once
         await expect(page.locator(".pk-popover button.pk-section-title")).toHaveCount(0);
         // Save as… by keyboard: its level with the name field, saved with Enter

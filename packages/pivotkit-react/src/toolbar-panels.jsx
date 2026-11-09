@@ -636,6 +636,8 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
                   {
                       id: "share",
                       title: labels.share,
+                      // under a heading of its own, like the lists before it
+                      heading: labels.shareThisView,
                       kind: /** @type {const} */ ("menu"),
                       icon: "link",
                       groups: [

@@ -44,22 +44,23 @@ save, or when Undo brings the report back to the view as it was saved. While Vie
 ## The Views menu
 
 **Views** in the toolbar is one list to scan: **This view** (save and start over), then the saved
-reports in two groups, then **Share**. Each entry loads its view with one click; the first three are
-also offered in the empty report. The view you loaded has a check mark in its group. **Save as…**
+reports in two groups, then **Share this view** with its one entry, **Share**. Each entry loads its
+view with one click; the first three are also offered in the empty report. The view you loaded has a check mark in its group. **Save as…**
 (**Save current view…** before a view is loaded), **Share** and the questions before a delete or a
 publish open a level of their own in the menu's place, titled "Views › Share" and so on; **‹ Back** or
 Escape goes back to the entry it came from. The keys are those of the other menus
 ([keyboard](keyboard.md#keys)): the arrow keys move through the list, Enter loads a view or opens a
 level, Tab closes the menu.
 
-![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share](../assets/screenshots/views-menu-light.png#only-light)
-![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share](../assets/screenshots/views-menu-dark.png#only-dark)
+![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with Share](../assets/screenshots/views-menu-light.png#only-light)
+![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with Share](../assets/screenshots/views-menu-dark.png#only-dark)
 
 | Group | What |
 | --- | --- |
 | **This view** | **Save “…”** for the view you loaded, **Save current view…** (**Save as…** once a view is loaded), which opens the name field, and **New, empty report**. |
 | **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who (by default "Only admins can change shared views."). |
 | **My views** | Your own. **Save current view…** saves the report under a name; your views can be deleted, and published for everyone where the application allows it. |
+| **Share this view** | One entry, **Share**, which opens the level of [Share a view](#share-a-view). |
 
 A group without entries is not shown; My views shows while you can save.
 
@@ -133,7 +134,7 @@ could not be deleted: the views were changed in another tab; open the menu again
 ![The Share level of the Views menu: Copy link, Copy view as JSON, Download view, Load view and what a view gives away](../assets/screenshots/share-menu-light.png#only-light)
 ![The Share level of the Views menu: Copy link, Copy view as JSON, Download view, Load view and what a view gives away](../assets/screenshots/share-menu-dark.png#only-dark)
 
-**Share**, the last entry of the Views menu, opens its level:
+**Share**, the last entry of the Views menu (under the heading **Share this view**), opens its level:
 
 | Entry | Gives |
 | --- | --- |

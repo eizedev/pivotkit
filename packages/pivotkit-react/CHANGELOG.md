@@ -93,6 +93,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   Load view…) and the questions before a delete, a publish or a Save over a shared view open levels of
   their own. An entry's Publish and Delete are items next to it, reached by the arrow keys; after a
   delete the focus goes to the entry that takes its place.
+- The Views menu's **Share** row sits under a group heading of its own, **Share this view** (German
+  "Diese Ansicht teilen"), like This view, Shared views and My views, so it is not lost under the lists.
 - No menu folds any more: the chart type menu (its Display settings shown at once) and the Export
   menus are flat lists in titled groups. The folding (`SECTIONS`, `open:<section>` and
   `closed:<section>` in the tips' list) and **Reset menu sections** are gone; a stored state of a
@@ -111,7 +113,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   its first "i", whose explanation opened over the entries; the menu takes the focus itself.
 - Text fields, searches and selects in the menus have an edge of 3:1 contrast in both themes: the new
   token `--pk-input-border`.
-- Labels of the menus (a host's `labels` for them): new `back`, `backTo`, `levelTitle`, `searchMenu`,
+- Labels of the menus (a host's `labels` for them): new `shareThisView`, `back`, `backTo`, `levelTitle`, `searchMenu`,
   `searchMenuShort`, `searchResults`, `searchNothing`, `sortByValue`, `sortOldestShort`,
   `sortNewestShort`, `filterTopic`, `filterAll`, `groupTopic`, `groupNoneShort`, `off`,
   `moveToTitle`, `topOwn`, `binsOff`, `itemsPicked`, `valueConditionTitle`, `keepWhose`,

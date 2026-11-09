@@ -309,6 +309,7 @@ export const de = {
     groupLabels: "Gruppen unter der Achse",
     groupLabelNames: { auto: "Automatisch", on: "Ein", off: "Aus" },
     defaultName: "Standardnamen verwenden",
+    shareThisView: "Diese Ansicht teilen",
     share: "Teilen",
     copyLink: "Link kopieren",
     copyJson: "Ansicht als JSON kopieren",

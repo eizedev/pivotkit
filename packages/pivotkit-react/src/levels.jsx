@@ -308,7 +308,21 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
         return null;
     }
     if (topic.kind === "menu" || topic.kind === "panel") {
-        return <TopicRow topic={topic} labels={labels} onOpen={onOpen} />;
+        const row = <TopicRow topic={topic} labels={labels} onOpen={onOpen} />;
+        // a row under a group heading of its own ("Share this view" above Share), marked up as the
+        // titled inline topics are, so the row is not lost under the lists before it
+        return topic.heading ? (
+            <>
+                <div className="pk-subtitle" id={titleId} role="presentation" data-testid={`topic-title-${topic.id}`}>
+                    {topic.heading}
+                </div>
+                <div role="group" aria-labelledby={titleId}>
+                    {row}
+                </div>
+            </>
+        ) : (
+            row
+        );
     }
     const choices = topic.groups?.[0]?.choices ?? [];
     if (topic.kind === "segmented") {
