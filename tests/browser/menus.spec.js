@@ -456,6 +456,33 @@ test.describe("sort, top N and value conditions by a chosen value", () => {
 });
 
 test.describe("menus in levels", () => {
+    test("Highlight keeps a value's own colours: its checked choice changes nothing, None and back brings them back, Undo too", async ({ page }) => {
+        // the weather start: a colour scale from blue to red of the view's own
+        await page.goto("?data=weather&preset=0");
+        const colours = () => page.locator('[data-testid="pivot-table"] tbody tr[data-r]').first().locator("td").evaluateAll((tds) => tds.map((td) => getComputedStyle(td).backgroundColor).join(" "));
+        await expect.poll(colours).toContain("rgb(");
+        const own = await colours();
+        const value = page.getByTestId("chip-menu-Average of Mean °C");
+        const menu = page.locator(".pk-chip-menu");
+        await value.click();
+        await expect(menu.getByTestId("cond-colorScale")).toHaveAttribute("aria-checked", "true");
+        await menu.getByTestId("cond-colorScale").click();
+        await expect(page.getByTestId("undo")).toBeDisabled();
+        expect(await colours()).toBe(own);
+        await menu.getByTestId("cond-none").click();
+        await expect.poll(colours).not.toBe(own);
+        await menu.getByTestId("cond-dataBar").click();
+        await menu.getByTestId("cond-colorScale").click();
+        await expect.poll(colours).toBe(own);
+        await page.keyboard.press("Escape");
+        // Undo walks back through data bars and None, Redo brings the own colours again
+        await page.getByTestId("undo").click();
+        await page.getByTestId("undo").click();
+        await page.getByTestId("undo").click();
+        await expect.poll(colours).toBe(own);
+        await expect(page.getByTestId("undo")).toBeDisabled();
+    });
+
     test("a value's first level says what each topic holds; a level opens in place, titled with the value; the rare choices under a heading", async ({ page }) => {
         await page.goto("?data=sales");
         await chipMenu(page, "Sum of Revenue");

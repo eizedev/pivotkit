@@ -30,6 +30,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- pivotkit-react's Highlight keeps a value's own colours (a checked Colour scale changes nothing;
+  None or Data bars and back bring them back).
 - pivotkit-react's popovers appear at their final size and place
   ([#91](https://github.com/eizedev/pivotkit/issues/91)).
 - With reduced motion pivotkit-react's menus take the focus when they open

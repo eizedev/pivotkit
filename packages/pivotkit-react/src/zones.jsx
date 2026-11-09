@@ -133,7 +133,7 @@ function Badges({ state, view, labels, locale }) {
     );
 }
 
-function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, onRemove, state, locale, defaultsOf, rangeOf, info, showInfo, encoded }) {
+function Chip({ id, zone, index, count, field, text, typeName, view, types, labels, commit, onRemove, state, locale, defaultsOf, earlier, rangeOf, info, showInfo, encoded }) {
     const { setNodeRef, isDragging, style, itemProps, handleProps } = useChip(id, { kind: "chip", zone, index, count, field, label: text, type: typeName });
     const badges = state ? <Badges state={state} view={view} labels={labels} locale={locale} /> : null;
     const words = stateWords(state, view, labels, locale);
@@ -164,7 +164,7 @@ function Chip({ id, zone, index, count, field, text, typeName, view, types, labe
             >
                 {(close) =>
                     zone === "values" ? (
-                        <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info, locale }} />
+                        <MenuPanel name="ValueMenu" loadingText={labels.loadingMenu} props={{ view, index, types, labels, commit, close, onRemove: remove, defaultsOf, info, locale, earlier }} />
                     ) : zone === "filters" ? (
                         <MenuPanel name="FilterMenu" loadingText={labels.loadingMenu} props={{ view, index, field, types, labels, commit, close, onRemove: remove, locale, info, state, encoded }} />
                     ) : (
@@ -266,16 +266,17 @@ function ZoneSummary({ entries, labels, id, onShow, buttonRef }) {
 
 /**
  * @param {{ view: any, types: Map<string, string>, labels: import("./labels.js").UiLabels,
- *   commit: (view: object, note?: any) => void,
+ *   commit: (view: object, note?: any) => void, earlier?: () => any[],
  *   encoded: import("pivotkit-core").Encoded, locale: string, onSwap: () => void,
  *   id: string, folded: boolean, onShow: () => void, defaultsOf?: (field: string) => import("./index.js").FieldDefaults | undefined,
  *   infoOf?: (field: string) => import("./field-info.js").FieldInfo | undefined, explain?: boolean, showInfo?: boolean }} props
  *   `explain`: an "i" next to each zone's title that says what the zone does; `showInfo` false: no "i"
  *   of a field description on the chips (Options → Help)
  *   `folded`: the compact layout's one line; `defaultsOf`: the host's settings for a source field (fieldDefaults);
- *   `infoOf`: the host's description of a field (its source field's for a grouping)
+ *   `infoOf`: the host's description of a field (its source field's for a grouping); `earlier`: the
+ *   history's views before this one (a value's own colours for its Highlight)
  */
-export function Zones({ view, types, labels, commit, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf, explain = false, showInfo = true }) {
+export function Zones({ view, types, labels, commit, earlier, encoded, locale, onSwap, id, folded, onShow, defaultsOf, infoOf, explain = false, showInfo = true }) {
     const entries = useMemo(() => zoneEntries(view, types, labels), [view, types, labels]);
     // while something is dragged the zones are open, so it can be dropped into one
     const dragging = Boolean(useActiveDrag());
@@ -388,6 +389,7 @@ export function Zones({ view, types, labels, commit, encoded, locale, onSwap, id
                             state={zone === "values" ? null : states.get(e.field)}
                             locale={locale}
                             defaultsOf={defaultsOf}
+                            earlier={earlier}
                             rangeOf={rangeOf}
                             info={e.field ? infoOf?.(e.field) : undefined}
                             showInfo={showInfo}

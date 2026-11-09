@@ -1237,6 +1237,7 @@ function Report(props) {
                                 onShow={() => setFolded(false)}
                                 defaultsOf={defaultsOf}
                                 infoOf={infoOf}
+                                earlier={history.earlier}
                                 explain={zoneSwitch.on}
                                 showInfo={fieldSwitch.on}
                             />

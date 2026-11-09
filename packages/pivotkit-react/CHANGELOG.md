@@ -93,6 +93,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Highlight keeps a value's own colours: Colour scale while it is checked changes nothing (it
+  replaced a view's own colours by the theme's), and None or Data bars and back bring the value's
+  colours of an earlier step of the history back.
 - The "i" popover (and every other popover) appears at its final size and place
   ([#91](https://github.com/eizedev/pivotkit/issues/91)). Where the area of fixed elements ends before
   the window's edge (a classic scroll bar, as on Windows; a transformed host element), it narrowed a

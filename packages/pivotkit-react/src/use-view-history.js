@@ -41,7 +41,7 @@ export function schemaKeyOf(encoded) {
  *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
  * @returns {{ view: import("pivotkit-core").View, viewKey: string, tag: any, setTag: (tag: any) => void, commit: (next: object, note: string, tag?: any) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
- *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, canUndo: boolean, canRedo: boolean, canReset: boolean }}
+ *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, earlier: () => any[], canUndo: boolean, canRedo: boolean, canReset: boolean }}
  */
 export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf }) {
     const controlled = view !== undefined;
@@ -123,11 +123,13 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
 
     const restore = useCallback((next, tag = null) => apply(createState(schema, start, json(next), tag)), [schema, start, json, apply]);
 
+    /** The views before this one, oldest first (a value's earlier colours, for its Highlight). */
+    const earlier = useCallback(() => live.past.map((p) => JSON.parse(p.view)), [live.past]);
     const canUndo = live.past.length > 0;
     const canRedo = live.future.length > 0;
     const canReset = live.present !== live.start;
     return useMemo(
-        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, canUndo, canRedo, canReset }),
-        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, canUndo, canRedo, canReset]
+        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, earlier, canUndo, canRedo, canReset }),
+        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, earlier, canUndo, canRedo, canReset]
     );
 }

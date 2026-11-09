@@ -24,7 +24,7 @@ value's name ("Sum of Revenue › Number format").
 | **Summarize by** | A level: sum, count, average, minimum, maximum; under them, under **More statistics**, median, distinct count, standard deviation, variance, first, last ([below](#summarize-by)). |
 | **Show as** | A level: the value itself, % of grand total, % of row total, % of column total; under **More calculations** differences, running totals and ranks, and **Along** for those that walk along Rows or Columns. The **i** next to its title explains it. |
 | **Number format** | A level: Automatic, number (also with no or two decimals), currency, percent; under **More formats** whole number, compact (1.2K), bytes and durations from hours or seconds; each with an example on its right. A format the view brings that is not among them ("Number, 1 decimal") is the first entry, checked. |
-| **Highlight** | None, Colour scale and Data bars side by side on the first level, in the theme's colours. |
+| **Highlight** | None, Colour scale and Data bars side by side on the first level, in the theme's colours or the value's own ([below](#highlight)). |
 | **Name** | A level with the name: it applies with Enter or when you leave the field. |
 | **Move to** | A level: another zone, left or right. |
 | **Remove field** | The menu's last entry. |
@@ -120,6 +120,11 @@ median, minimum or maximum of dates. Such a value keeps Summarize by, Name and M
   largest cell of that value.
 
 Totals are not highlighted. The Excel export keeps both as Excel's own conditional formats.
+
+A value can bring colours of its own (a saved view's colour scale from blue to red). The choice
+that is checked changes nothing, and switching to None or Data bars and back gives the value its own
+colours again, as long as that earlier step is in the report's history (Undo); otherwise the theme's
+colours are used.
 
 ## Name
 

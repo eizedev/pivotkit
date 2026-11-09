@@ -355,10 +355,10 @@ export function FilterMenu({ view, index, field, types, labels, commit, close, o
 }
 
 /** The menu of a value chip. */
-export function ValueMenu({ view, index, types, labels, commit, close, onRemove, defaultsOf, info, locale = "en-US" }) {
+export function ValueMenu({ view, index, types, labels, commit, close, onRemove, defaultsOf, info, earlier, locale = "en-US" }) {
     const { explain } = React.useContext(HelpContext);
     const name = valueLabel(view.values[index], labels);
-    const topics = valueTopics({ view, index, types, labels, locale, defaultsOf });
+    const topics = valueTopics({ view, index, types, labels, locale, defaultsOf, earlier });
     return (
         <LevelMenu
             name={name}

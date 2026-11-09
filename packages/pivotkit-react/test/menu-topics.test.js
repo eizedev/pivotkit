@@ -235,3 +235,20 @@ test("a format the menu does not offer (number:1) is a checked entry of its own,
     // an offered one has no such entry
     assert.equal(choice(byId(valueTopics({ view: norm({ rows: ["Region"], values: [units] }), index: 0, types, labels: MENU.en, locale: "en-US" }), "format"), "format-current"), undefined);
 });
+
+test("Highlight: the checked choice changes nothing; None or Data bars and back bring the value's own colours back", () => {
+    const own = { type: "colorScale", colors: ["#2166ac", "#b2182b"] };
+    const view = norm({ rows: ["Region"], values: [{ ...units, conditional: own }] });
+    const highlight = (v, earlier) => byId(valueTopics({ view: v, index: 0, types, labels: MENU.en, locale: "en-US", earlier }), "highlight");
+    // the colour scale again: no change, the view keeps its colours
+    assert.equal(choice(highlight(view), "cond-colorScale").change(), null);
+    // None, then the colour scale: the colours of the earlier step, not the theme's
+    const none = norm(choice(highlight(view), "cond-none").change().view);
+    assert.equal(none.values[0].conditional, null);
+    const back = choice(highlight(none, () => [view]), "cond-colorScale").change().view;
+    assert.deepEqual(back.values[0].conditional, own);
+    // through data bars too; without such a step it is the theme's scale
+    const bars = norm(choice(highlight(view), "cond-dataBar").change().view);
+    assert.deepEqual(choice(highlight(bars, () => [view]), "cond-colorScale").change().view.values[0].conditional, own);
+    assert.deepEqual(choice(highlight(bars), "cond-colorScale").change().view.values[0].conditional, { type: "colorScale" });
+});

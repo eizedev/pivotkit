@@ -21,7 +21,7 @@ import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, 
  * `reason`; `info`: the id of its explanation (labels.settingInfo). `open`: the id of a topic whose
  * level it opens (after `run`; Back puts the focus on `backTo`, else on the choice), instead of applying; `actions`: an entry's own actions next to it
  * (choices themselves, drawn as icon buttons with `label`); `current`: the entry shown now.
- * @typedef {{ id: string, text: string, change?: () => { view: any, note: any }, run?: () => void, checked?: boolean,
+ * @typedef {{ id: string, text: string, change?: () => { view: any, note: any } | null, run?: () => void, checked?: boolean,
  *   hint?: string, icon?: string, closes?: boolean, checkbox?: boolean, disabled?: boolean, reason?: string, info?: string,
  *   keywords?: string, open?: string, backTo?: string, actions?: Array<Choice & { label: string }>, current?: boolean, testId?: string, label?: string }} Choice
  */
@@ -281,10 +281,11 @@ export function formatLabel(format, labels, locale) {
 /**
  * The topics of a value's menu: Summarize by, Show as, Number format (each a level), Highlight (side
  * by side), Name, Move to. A value whose result is no number has no Show as, format or highlight.
- * @param {{ view: any, index: number, types: Map<string, string>, labels: any, locale: string, defaultsOf?: (field: string) => any }} input
+ * @param {{ view: any, index: number, types: Map<string, string>, labels: any, locale: string, defaultsOf?: (field: string) => any,
+ *   earlier?: () => any[] }} input  `earlier`: the history's views before this one, oldest first
  * @returns {Topic[]}
  */
-export function valueTopics({ view, index, types, labels, locale, defaultsOf }) {
+export function valueTopics({ view, index, types, labels, locale, defaultsOf, earlier }) {
     const spec = view.values[index];
     const type = spec.field ? types.get(spec.field.toLowerCase()) ?? "string" : "number";
     const defaults = spec.field ? defaultsOf?.(spec.field) : undefined;
@@ -349,7 +350,26 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
                 { title: labels.moreFormats, choices: MORE_FORMATS.map(format) }
             ]
         });
-        // three choices: side by side on the first level; no colours, pivotkit-core's DEFAULT_THEME gives them
+        /**
+         * A highlight of the value: its own of that type when it had one (the view's colours; also an
+         * earlier step's, so None and back keeps them), else the theme's colours (pivotkit-core's
+         * DEFAULT_THEME gives them).
+         */
+        const ownOf = (type) => {
+            const same = (v) => v.agg === spec.agg && (v.field ?? null) === (spec.field ?? null);
+            for (const v of [view, ...[...(earlier?.() ?? [])].reverse()]) {
+                const c = (v.values ?? []).find(same)?.conditional;
+                if (c?.type === type) {
+                    return c;
+                }
+            }
+            return type === "colorScale" ? { type } : { type, color: null };
+        };
+        const highlight = (id, text, type) => {
+            const checked = (spec.conditional?.type ?? null) === type;
+            return { id, text, checked, change: checked ? () => null : set({ conditional: type ? ownOf(type) : null }) };
+        };
+        // three choices: side by side on the first level
         topics.push({
             id: "highlight",
             title: labels.conditional,
@@ -358,10 +378,11 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf }) 
             changed: Boolean(spec.conditional),
             groups: [
                 {
+                    // the one checked changes nothing; another brings back the value's own colours of that kind
                     choices: [
-                        { id: "cond-none", text: labels.conditionalNone, checked: !spec.conditional, change: set({ conditional: null }) },
-                        { id: "cond-colorScale", text: labels.colorScale, checked: spec.conditional?.type === "colorScale", change: set({ conditional: { type: "colorScale" } }) },
-                        { id: "cond-dataBar", text: labels.dataBar, checked: spec.conditional?.type === "dataBar", change: set({ conditional: { type: "dataBar", color: null } }) }
+                        highlight("cond-none", labels.conditionalNone, null),
+                        highlight("cond-colorScale", labels.colorScale, "colorScale"),
+                        highlight("cond-dataBar", labels.dataBar, "dataBar")
                     ]
                 }
             ]
