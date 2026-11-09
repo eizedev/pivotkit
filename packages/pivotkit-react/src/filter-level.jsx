@@ -1005,7 +1005,11 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const [goQuick, setGoQuick] = useState(0);
     useEffect(() => {
         if (goQuick) {
-            const target = /** @type {HTMLElement | null | undefined} */ (box.current?.querySelector('[data-testid="quick-choices"] input:checked, [data-testid="years-combined"] [aria-pressed="true"]'));
+            // the checked choice; for Years combined the first year on that can take the focus (the
+            // only one on is disabled), else the first year
+            const target = /** @type {HTMLElement | null | undefined} */ (
+                box.current?.querySelector('[data-testid="quick-choices"] input:checked, [data-testid="years-combined"] [aria-pressed="true"]:not(:disabled)') ?? box.current?.querySelector('[data-testid="years-combined"] button:not(:disabled)')
+            );
             target?.scrollIntoView?.({ block: "center" });
             target?.focus({ preventScroll: true });
         }

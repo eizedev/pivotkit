@@ -563,4 +563,27 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await expect.poll(async () => (await focusedId(page)) !== "BODY").toBe(true);
         await expect(page.locator(".pk-chip-menu :focus")).toHaveCount(1);
     });
+
+    test("change it above puts the focus (document.activeElement) on the active control, also with one year on", async ({ page }) => {
+        const active = () => page.evaluate(() => document.activeElement?.getAttribute("data-testid"));
+        // Years combined with 2025 only: that toggle is disabled, so the first year that can take the focus gets it
+        await openView(page, "weather", cyclic({ filters: [wholeYear(2025)] }));
+        await chipMenu(page, CYCLIC, "filter");
+        const menu = menuOf(page);
+        await menu.getByTestId("section-years").click();
+        await expect(menu.getByTestId("years-combined")).toHaveCount(0);
+        await menu.getByTestId("rule-quick-change").click();
+        await expect(menu.getByTestId("years-combined")).toBeVisible();
+        await expect.poll(active).toBe("year-2023");
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        // Quick choices: the checked radio
+        await openView(page, "weather", monthly());
+        await chipMenu(page, MONTH, "filter");
+        await menu.getByTestId("quick-years").check();
+        await menu.getByTestId("section-quick").click();
+        await expect(menu.getByTestId("quick-choices")).toHaveCount(0);
+        await menu.getByTestId("rule-quick-change").click();
+        await expect.poll(active).toBe("quick-years");
+    });
 });
