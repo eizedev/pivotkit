@@ -34,7 +34,7 @@ sections that fold: **Quick choices** (dates only), **Pick items** and **Rules**
 | The summary | In bold, what the table shows of the field: "All 12 months shown", "3 of 12 months shown", or "Nothing shown" in red. Under it, why the rest does not show, each reason with its count: "9 left out by your picks", "24 outside last 2 years (2025; 2026 has no data)", "11 left out by the rule", "2 left out by the rule on the total". With nothing shown, the one reason and the nearest value: "No month has a total Average of Mean °C that is greater than 25 – the totals go from 13.4 (Jan) to 22.2 (Jul)." The small line says the rows ("1,104 of 4,386 rows") and, for a date, the data's dates ("data Jan 1, 2023 – Dec 31, 2025"; a grouping that combines the years adds "2023–2025 combined" or "2025 only"). A screen reader hears the card as it changes. **Reset filter** at its right takes the picks, the quick choice and the rules off; Top N stays. |
 | Quick choices | A date along the time line only (a date field, or a grouping by year, quarter, month, week or day), open at first: **All**, **This year**, **Last [N] years**, **Last [N] months**, **Last [N] days**, each with the days it keeps and its rows. [Below](#quick-choices-for-dates). A grouping that combines the years (month of the year, weekday, hour) has **Years combined** instead. |
 | Pick items | Its header says what is picked ("3 of 12 picked", "all 12 picked"); **Clear** beside it ticks every value again. Inside: a search, **Select all**, **Select none**, and the values with their row counts; at most 300 are listed, below them "300 of 1,045 values; search to find more" says that the search finds the rest. The items a quick choice or a rule leaves out are not among them: they stand in a folded group at the end, "Left out by the rules (24) – their ticks apply again once they go", muted, their ticks kept and still yours to change. Open when the field has no rule, folded once it has one. |
-| Rules | Its header says "No rules" or "● 1 rule" (the quick choice is no rule); **Remove** beside it takes the rules off, the quick choice stays. Inside, the rules as sentences that must all be true ([below](#value-filter)); the quick choice stands first among them as a line to read, "Quick choice: last 2 years (2025; 2026 has no data) – change it above". Folded while the field has no rule; the first rule or quick choice opens it and folds Pick items, the last one going does the reverse, and a fold by hand wins afterwards. |
+| Rules | Its header says "No rules" or "● 1 rule" (the quick choice is no rule); **Remove** beside it takes the rules off, the quick choice stays. Inside, the rules as sentences that must all be true ([below](#value-filter)); the quick choice stands first among them as a line to read, "Quick choice: last 2 years (2025; 2026 has no data) – change it above". Folded while the field has no rule; the first rule or quick choice opens it and folds Pick items, the last one going does the reverse, every time the field goes from none to one and back, and a fold by hand wins until the next such change. "Change it above" scrolls to the quick choice, unfolds its section and puts the focus on the choice that is set. |
 
 Details:
 
@@ -112,7 +112,7 @@ lone December. Instead, **Years combined** shows one toggle per year in the data
 years), each with its rows, all on at first. Switch a year off and the table combines the others; the
 summary's small line says which ("2024–2025 combined", "2025 only") and the chip says the years
 ("2024 to 2025"). The last year on cannot go. Under the hood this is a rule on the dates (below), not
-a rule of its own: Rules says "No rules" and shows it as a line, "Quick choice: 2024–2025 combined".
+a rule of its own: Rules says "No rules" and shows it as a line, "Quick choice: 2024–2025 combined". A rule of your own on the same grouping ("is from Jun") stays when you switch a year.
 
 ![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-light.png#only-light)
 ![The Filter level of Date by month of year on the weather data: Years combined with 2023, 2024 and 2025, the summary saying 2023–2025 combined, and the months to pick](../assets/screenshots/filter-cyclic-dark.png#only-dark)
@@ -207,7 +207,7 @@ greater than 2,000,000".
   a year compared ("from 2022", "up to 2022", "before 2022", "after 2022"); Enter applies a found
   choice at once. A date field compares days: its rule editor picks them.
 - **Remove** beside Rules takes every rule away; the values ticked and the quick choice stay. **Reset
-  filter** in the summary takes all three away.
+  filter** in the summary takes all three away. **Reset filter**, **Clear** and **Remove** are greyed out while they would change nothing: Reset when nothing is picked out, no rule and no quick choice is set and all years are on, Remove when only a quick choice is set.
 
 ## Top N
 

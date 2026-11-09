@@ -30,9 +30,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   to Dec 2025"); the chip says Years combined as years ("2024 to 2025"). New labels (`summary*`,
   `nouns`, `quickRows`, `quickHidden`, `anchor*`, `yearsCombined*`, `pickItems`, `picksState`,
   `rulesState`, `tailOut`, `ruleKeeps*`, `ruleInfo`, `scope*`, `picker*`, `relativeTo`, `withShare`,
-  `noData` and more); gone: `moreFilters`, `itemsPicked`, `itemsShown*`, `pickedPlus`, `ruleOut`,
+  `noData`, `summaryQuickOnly` and more); gone: `moreFilters`, `itemsPicked`, `itemsShown*`, `pickedPlus`, `ruleOut`,
   `quickCustom`, `conditionOnNames`, `removeConditions`. New tokens `--pk-danger-soft` and
-  `--pk-warn`.
+  `--pk-warn`. Text actions in the menus (Reset filter, Clear, Remove, Select all, "change it above")
+  are quiet buttons, disabled while they would change nothing. The data range in the footer and the
+  axis title and the Group level's names come in a separate change.
 - Filter rules ([#89](https://github.com/eizedev/pivotkit/issues/89),
   [#90](https://github.com/eizedev/pivotkit/issues/90)). The Filter level of a date field (or a
   grouping of one) starts with quick choices: All, This year, Last [N] years and, unless it is
