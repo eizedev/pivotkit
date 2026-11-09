@@ -45,6 +45,19 @@ const VALUE_FILTER = encodeViewLink({
     sort: [{ field: "Region", by: "value", order: "desc", value: { field: "Revenue", agg: "sum" } }]
 });
 
+/** Release cycles by the year they came out (endoflife): the Filter level's quick choices and rules. */
+const RELEASED = { derived: [{ name: "Released by year", field: "Released", by: "year" }], rows: ["Released by year"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }] };
+const DATES = encodeViewLink({ ...RELEASED, filters: [{ field: "Released by year", type: "relative", unit: "year", count: 5 }] });
+const RULES = encodeViewLink({
+    ...RELEASED,
+    filters: [
+        { field: "Released by year", type: "compare", op: ">=", value: 2022 },
+        { field: "Released by year", type: "value", op: ">", value: 500, by: { field: "Cycle", agg: "count" } }
+    ]
+});
+/** A date in Filters: the whole report counts the release cycles of the last 12 months. */
+const ZONE = encodeViewLink({ rows: ["Category"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }], filters: [{ field: "Released", type: "relative", unit: "month", count: 12 }] });
+
 /** A view that asks for more than the earthquakes data and the report can give: the warning above the result. */
 const UNUSED = encodeViewLink({
     rows: ["Region"],
@@ -285,11 +298,43 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await page.getByTestId("chip-menu-Region").click();
-            // the Filter level scrolled to the condition on a value, written as a sentence
+            // the Filter level scrolled to its rules: the rule on the total, written as a sentence
             await page.getByTestId("topic-filter").click();
             await page.getByTestId("filter-more").click();
-            await page.getByTestId("value-condition").scrollIntoViewIfNeeded();
+            await page.getByTestId("rules").scrollIntoViewIfNeeded();
         }
+    },
+    // a date field's Filter level: the quick choices (Last 5 years checked) above the list
+    {
+        name: "filter-dates",
+        query: "data=endoflife&empty",
+        hash: DATES,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Released by year").click();
+            await page.getByTestId("topic-filter").click();
+        }
+    },
+    // its rules open: the year compared ("is from 2022") and its total, both together
+    {
+        name: "filter-rules",
+        query: "data=endoflife&empty",
+        hash: RULES,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Released by year").click();
+            await page.getByTestId("topic-filter").click();
+            await page.getByTestId("filter-more").click();
+            await page.getByTestId("rules").scrollIntoViewIfNeeded();
+        }
+    },
+    // a field in Filters: its menu with the Filter row and Move to
+    {
+        name: "filter-zone",
+        query: "data=endoflife&empty",
+        hash: ZONE,
+        size: WIDE,
+        open: (page) => page.getByTestId("chip-menu-Released").click()
     },
     {
         // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…

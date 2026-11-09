@@ -16,7 +16,7 @@ computed; value filters and top N drop whole groups after the values are aggrega
     { "field": "Region", "type": "include", "items": ["North", null] },
     { "field": "Status", "type": "exclude", "items": ["Retired"] },
     { "field": "Rep", "type": "label", "op": "contains", "value": "an" },
-    { "field": "Released (Year)", "type": "compare", "op": ">=", "value": 2022 },
+    { "field": "Released by year", "type": "compare", "op": ">=", "value": 2022 },
     { "field": "Released", "type": "relative", "unit": "year", "count": 5 },
     { "field": "Region", "type": "value", "op": ">", "value": 1000 },
     { "field": "Country", "type": "top", "count": 5, "bottom": false }
@@ -60,7 +60,7 @@ year: `{ "unit": "year", "count": 5 }` is this year and the four before it, `{ "
 "count": 1 }` this month, `{ "unit": "day", "count": 7 }` today and the six days before it. A range
 ends with the end of the current year, month or day, so later dates of this year are in "this year".
 
-On a date grouping ("Released (Year)") the range filters the grouping's **source dates**: with
+On a date grouping ("Released by year") the range filters the grouping's **source dates**: with
 "the last 18 months" on a year grouping, the oldest year keeps only its months in the range, and its
 total counts only those.
 
@@ -117,20 +117,20 @@ to Z" in the menu is then kept as a sort entry of its own, so the host's order d
 
 ## Filters in the UI
 
-The filter, the value condition and Top N as people use them - the list of values with their row
-counts, the text condition, the condition on a value, **Top items**, numbers typed in the
-report's language, what Remove filter takes away - are on [Filters, top N and sorting](../use/filters.md)
-under Use a report. What they write into the view:
+The filter and Top N as people use them - the list of values with their row counts, the quick
+choices of a date, the rules, **Top items**, numbers typed in the report's language, what Clear picks
+and Remove the rules take away - are on [Filters, top N and sorting](../use/filters.md) under Use a
+report. What they write into the view:
 
 | In the UI | In the view |
 | --- | --- |
 | Values ticked in the filter | An `exclude` filter of the values **not** ticked, as Excel does: a value that appears in later data is shown. With every value ticked, the field has no item filter at all. |
-| Quick choices of a date field: This year, Last N years, Last N months | A `relative` filter (`year` 1, `year` N, `month` N); All removes it. |
-| Rule "Released (Year) is at least 2022" (compare the item itself) | A `compare` filter. |
+| Quick choices of a date field: This year, Last N years, Last N months | One `relative` filter (`year` 1, `year` N, `month` N) in place of the field's `relative` and `compare` filters; All removes them. The field's filters match no quick choice (a `compare` filter, two ranges): "Custom rules". |
+| Rule "Released by year is from 2022" (compare the item itself) | A `compare` filter; "is in the last N years" a `relative` filter. |
 | Rule "Count of Released is greater than 3" (compare its total) | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
-| Rule "name contains …" (text rules on names) | A `label` filter. |
+| Rule "The name contains …" (a rule on the name) | A `label` filter. |
 | Top items (Top 3, Top 5, Top 10, Top N…) | A `top` filter, `by` the value chosen; Off removes it. |
-| Remove rules (in the Filter level) | Removes the field's `label`, `compare`, `relative` and `value` filters; Clear picks its `include` and `exclude` filters; `top` stays. |
+| Remove the rules (in the Filter level) | Removes the field's `label`, `compare`, `relative` and `value` filters; Clear picks its `include` and `exclude` filters; `top` stays. |
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

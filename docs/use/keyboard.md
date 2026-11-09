@@ -29,8 +29,8 @@ changed. **Options**, **Help**, **Keyboard shortcuts** lists the keys in the rep
   without a number).
 - From 300 rows on a row label is cut to one line; the status line under the table shows the whole
   label of the row the focus is on, or of a label you tap.
-- A chip's name says what is set on it: the filter ("3 of 4"), the top N, the whole value condition,
-  the sort.
+- A chip's name says what is set on it: the filter ("3 of 4"), its rules ("last 5 years
+  (2022–2026)", "from 2022"), the top N, the whole value condition, the sort.
 - In a chip's menu each row says what is set and whether it is the default: "Filter, 3 of 4,
   changed". A level's title names the field ("Month › Group"); a level with fields is a group with
   that heading, a level of choices a menu. The Filter level says how many items it keeps as it

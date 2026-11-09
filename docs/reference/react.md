@@ -369,14 +369,21 @@ with Enter or when the field is left, and Escape in a field gives back what appl
 | Menu | First level | Levels |
 | --- | --- | --- |
 | A field on Rows or Columns | Sort (A to Z, Z to A side by side), sort by its one value, Filter, Top items, Move to, Remove field | Sort by value (two or more values, or a custom order), Filter, Group (dates), Number ranges (numbers), Top items, Move to |
+| A field in Filters | Filter, Move to, Remove field | Filter, Move to |
 | A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
 | Options | Totals, Rows (Expand all, Collapse all), Help | Keyboard shortcuts |
 | Views | This view (Save "…", Save as…, New, empty report), Shared views, My views (each entry with its Publish and Delete as items next to it), Share | Save as, Share (a menu), Load view, the question before a delete, a publish or a Save over a shared view |
 
 The chip menus have a search above their first level (`/` focuses it): it finds a choice of any level
 by its text, the titles above it and a few more words (labels `showAsKeywords`, `nameKeywords`,
-`filterKeywords`), and opens a level by its title; Enter runs a hit the arrow keys reached, not the
-text typed. What is typed in a level applies when the level or the menu closes too (a click outside).
+`filterKeywords`), and opens a level by its title; for a date field it also makes hits from a number
+typed: the quick choices with that count ("last 3 years") and a year compared ("from 2022"). Enter
+runs a hit the arrow keys reached, not the text typed.
+
+The Filter level of a date field shows its quick choices and the days each keeps relative to today
+(the current time read in `encode`'s `timeZone`, through pivotkit-core's `relativeDateRange`), and
+the rules write pivotkit-core's `relative`, `compare`, `value` and `label` filters
+([Filters](../concepts/filters.md#filters-in-the-ui)). What is typed in a level applies when the level or the menu closes too (a click outside).
 A popover keeps its side of the anchor while its content changes (a level opening), as long as that
 side has room.
 
