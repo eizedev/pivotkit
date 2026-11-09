@@ -69,6 +69,20 @@ async function monthFilterWithPick(page) {
     return menu;
 }
 
+/**
+ * Closes an open chip menu with Escape: each press closes what is on top - a native select's own
+ * list (Chromium on Linux draws it in the page, so it takes an Escape; on a Mac it does not), the
+ * level (back to the first one), the menu - so the number of presses differs by engine and system.
+ */
+async function closeChipMenu(page) {
+    const menu = page.locator(".pk-chip-menu");
+    for (let i = 0; i < 4 && (await menu.count()); i++) {
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(50);
+    }
+    await expect(menu).toHaveCount(0);
+}
+
 test.describe("a press inside a chip's menu never drags the chip", () => {
     // A native select's list opens on the press and takes the release (Firefox and WebKit here; in
     // Playwright's Chromium the list takes the whole pointer, so there it shows nothing either way):
@@ -98,10 +112,8 @@ test.describe("a press inside a chip's menu never drags the chip", () => {
             expect(overlays, "no dragged chip follows the pointer").toEqual([0, 0]);
             expect((await seen(page)).zones).toEqual(before.zones);
             expect(await chips(page, "cols")).toEqual([MONTH]);
-            // the filter is still there (the menu may have closed with Escape)
-            await page.keyboard.press("Escape");
-            await page.keyboard.press("Escape");
-            await expect(page.locator(".pk-chip-menu")).toHaveCount(0);
+            // the filter is still there, once the menu is closed
+            await closeChipMenu(page);
             expect(await seen(page)).toEqual(before);
         });
     }
@@ -244,9 +256,7 @@ test.describe("dragging still works", () => {
     test("the Month chip by its handle, after its menu was used, moves to Rows", async ({ page }) => {
         await open(page);
         await monthFilterWithPick(page);
-        await page.keyboard.press("Escape");
-        await page.keyboard.press("Escape");
-        await expect(page.locator(".pk-chip-menu")).toHaveCount(0);
+        await closeChipMenu(page);
         const handle = page.locator(`[data-zone="cols"] .pk-chip[data-chip="${MONTH}"] .pk-handle`);
         const overlays = await press(page, await centre(handle), [{ x: (await centre(handle)).x + 12, y: (await centre(handle)).y + 12 }, await inZone(page, "rows", { x: 0.8, y: 0.5 })]);
         expect(overlays.at(-1), "the dragged chip follows the pointer").toBe(1);
