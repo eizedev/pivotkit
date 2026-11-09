@@ -51,6 +51,14 @@ A `Date` built from local parts (a date picker's value) is local midnight, an in
 time zone is UTC. Pass `timeZone="local"` (prop), `time-zone="local"` (attribute) or the zone the dates
 belong to. See [Time zones](concepts/limits.md#time-zones).
 
+## Why do I see only four quarters (or twelve months) for several years?
+
+The date is grouped by **Quarter of year** or **Month of year**: the same period of every year in
+one row, so Q1 is Q1 2024 and Q1 2025 together, for comparing seasons. For one row per quarter of
+each year group by **Quarter** (along the time line); for one year next to another put the date on
+Rows by **Year** and on Columns by **Quarter of year**. The steps, and how to keep one year only, are
+under [Which grouping do I need?](use/values.md#dates-and-number-ranges).
+
 ## Does the Excel file contain formulas?
 
 No. Values are written as typed cells with number formats, text as inline strings; totals are values

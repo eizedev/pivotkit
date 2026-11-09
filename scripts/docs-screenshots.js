@@ -58,6 +58,14 @@ const RULES = encodeViewLink({
 /** A date in Filters: the whole report counts the release cycles of the last 12 months. */
 const ZONE = encodeViewLink({ rows: ["Category"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }], filters: [{ field: "Released", type: "relative", unit: "month", count: 12 }] });
 
+/** The weather's years side by side: the date grouped by year on rows and by quarter of the year on columns. */
+const DATE_YEARS = encodeViewLink({
+    rows: ["Date by year"],
+    cols: ["Date by quarter of year"],
+    derived: [{ name: "Date by year", field: "Date", by: "year" }, { name: "Date by quarter of year", field: "Date", by: "quarter" }],
+    values: [{ field: "Mean °C", agg: "average", format: "number:1" }]
+});
+
 /** A view that asks for more than the earthquakes data and the report can give: the warning above the result. */
 const UNUSED = encodeViewLink({
     rows: ["Region"],
@@ -161,6 +169,8 @@ const SHOTS = [
             await page.getByTestId("topic-group").click();
         }
     },
+    // years as rows, the quarters of the year as columns: one year compared with another (docs/use/values.md)
+    { name: "date-years", query: "data=weather&empty", hash: DATE_YEARS, size: WIDE },
     {
         name: "drill-down",
         query: "data=tickets",

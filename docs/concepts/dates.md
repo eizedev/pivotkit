@@ -31,7 +31,11 @@ Along the time line, each value is one period of one year:
 | `yearWeek` | 2025-W03 | ISO 8601 week and its year |
 | `day` | the date | |
 
-Across years, each value repeats every year (or every day), for comparing periods:
+Across years, each value repeats every year (or every day), for comparing periods: the rows of every
+year of the data land in the same item (`quarter` 1 holds Q1 2024 and Q1 2025), and nothing in the
+result says which years it spans. A view that wants one year keeps a `year` grouping of the same
+column in `filters`; one that sets years side by side puts `year` on one axis and `quarter` or
+`month` on the other ([the steps in the UI](../use/values.md#dates-and-number-ranges)).
 
 | `by` | Label | |
 | --- | --- | --- |

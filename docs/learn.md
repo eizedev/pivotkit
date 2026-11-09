@@ -45,7 +45,8 @@ Sydney is summer.
 ![The weather data: the average temperature of each city by month as a colour scale from blue to red](assets/screenshots/learn-weather-dark.png#only-dark)
 
 **How warm is each city, month by month?** Cities on rows, the month on columns (across all three
-years), the average of "Mean °C" coloured from cold to warm.
+years: January is every January of the data in one column, see [which grouping do I
+need?](use/values.md#dates-and-number-ranges)), the average of "Mean °C" coloured from cold to warm.
 
 - Read it: Reykjavik is the coldest city (‑1.4 °C in January), Dubai the hottest (35.7 °C in August).
   Cape Town, Sydney and São Paulo are warm in January and cool in July: the southern hemisphere.

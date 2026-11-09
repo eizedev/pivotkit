@@ -152,10 +152,59 @@ headings. A choice applies and closes the menu (the chip is another field then).
 | Week | 2025-W03 | Weekday | Mon to Sun (Monday first) |
 | Day | Jan 15, 2025 | Hour of day | 00:00 to 23:00 |
 
-**No grouping (every date and time)** takes the grouping off.
-Along the time line each item is one period; across years an item repeats every year (or every day),
-for comparing periods. Labels follow the report's language; the "Q" of quarters and the "W" of weeks
-are the same in every language.
+**No grouping (every date and time)** takes the grouping off. Labels follow the report's language;
+the "Q" of quarters and the "W" of weeks are the same in every language.
+
+**Along the time line** each item is one period of one year: Q1 2024 and Q1 2025 are two rows.
+**Same period every year** puts the years together: Q1 is Q1 2024 and Q1 2025 in one row, Jan is
+every January of the data in one, and the cell summarizes them all (the average of both quarters,
+the sum of all the Januaries). This is for comparing seasons, months or weekdays with one another;
+the table does not say which years it combined. So three years of data grouped by **Quarter of
+year** are four rows, not twelve.
+
+??? question "Which grouping do I need?"
+    The steps below use the [weather data](../learn.md#weather) of the live demo: fourteen cities,
+    one row per day from 2023 to 2025, the date in the field "Date" and the average of "Mean °C" in
+    Values.
+
+    **The quarters of one year only.**
+
+    1. Group the date by **Quarter** (along the time line): one row per quarter, Q1 2023 to Q4 2025.
+    2. Open the chip's menu › **Filter** and tick the four quarters of 2025 only (**Select none**, then
+       the four), or add under **More ways to filter** the rule "Date by quarter is from Q1 2025".
+
+    The table shows Q1 2025 to Q4 2025; the chip says "4 of 12" or "from Q1 2025".
+
+    **One year next to another (compare 2024 with 2025).**
+
+    1. Put the date on **Rows** and group it by **Year**.
+    2. Add the date a second time, to **Columns** (**Add to Columns** in the field's menu in the
+       field list), and group that chip by **Quarter of year** (or **Month of year**).
+
+    One row per year, the columns Q1 to Q4: a row reads along one year, a column compares the same
+    quarter across the years. The Grand Total row is the combined "Quarter of year" of before.
+
+    ![Years as rows and the quarters of the year as columns: the average temperature of 2023, 2024 and 2025 side by side](../assets/screenshots/date-years-light.png#only-light)
+    ![Years as rows and the quarters of the year as columns: the average temperature of 2023, 2024 and 2025 side by side](../assets/screenshots/date-years-dark.png#only-dark)
+
+    **The same period every year, but of one year only** (Quarter of year on Columns, 2025 only).
+
+    1. Put the date on **Rows** (next to City, say) and group it by **Year**.
+    2. Open that chip's menu › **Move to** › **Move to Filters**: the chip moves to Filters as "Date
+       by year", with its years.
+    3. Open it › **Filter** and keep only 2025 (**Only** next to 2025).
+
+    A chip in Filters has no Group level, and a date added to Filters straight from the field list is
+    grouped by the span of its dates, as on an axis (by quarter for three years; you could tick the
+    four quarters of 2025 there). To filter by year, group it on Rows or Columns first and move it.
+
+    **Which years does the data cover?**
+
+    - Group the date by **Year** and open the chip's menu › **Filter**: the years with their row
+      counts ("2023 5,110 · 2024 5,124 · 2025 5,110"). The same list for a date in Filters.
+    - Or add the date to **Values** twice and summarize one by **Minimum**, the other by
+      **Maximum**: the first and the last date, "Jan 1, 2023" and "Dec 31, 2025", per row or in the
+      Grand Total alone.
 
 ### Number ranges
 
