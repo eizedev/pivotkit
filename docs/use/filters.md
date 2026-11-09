@@ -28,9 +28,9 @@ same words.
 
 | In the Filter level | What it does |
 | --- | --- |
-| The first line | How many of the field's items the list keeps, and the rules in words ("4 of 5 items picked, plus last 5 years (2022–2026)"), said again by a screen reader as it changes. Under it, while there is something to take away, **Clear picks** (every value ticked again) and **Remove the rules** (every rule, the quick choice of a date too); Top N stays. |
+| The first line | How many of the field's items the list keeps ("4 of 5 items picked"); with rules on the items, how many of them show and why ("2 of 36 items shown: last 2 years (2025–2026)", with picks "… shown: 4 picked, last 2 years …"), then the rules on totals ("plus Count of rows > 3"); said again by a screen reader as it changes. Under it, while there is something to take away, **Clear picks** (every value ticked again) and **Remove the rules** (every rule, the quick choice of a date too); Top N stays. |
 | Quick choices | A date field (or a grouping of one) only, above the list: **All**, **This year**, **Last [5] years**, and, unless it is grouped by year or quarter, **Last [12] months**, each with the years or months it keeps ("2022–2026"). [Below](#quick-choices-for-dates). |
-| The values | Each with its row count, in a list of limited height that scrolls. At most 300 are listed; below them "300 of 1,045 values; search to find more" says that the search finds the rest. |
+| The values | Each with its row count, in a list of limited height that scrolls. An item the field's rules leave out is muted with "left out by a rule"; its tick still says whether it is picked. At most 300 are listed; below them "300 of 1,045 values; search to find more" says that the search finds the rest. |
 | Search | Narrows the list; **Select all** and **Select none** then act on the values it finds (all of them, also those past the first 300). |
 | **Only** | Next to each value: keeps that one alone. |
 | **More ways to filter** | Folded each time the level opens (a dot on it while a rule is set); it holds the rules ([below](#value-filter)). |
@@ -74,7 +74,7 @@ stay right over time: "Last 5 years" is this year and the four before it, today 
 | --- | --- |
 | **All** | Every date (it takes the quick choice and the rules on the item away). |
 | **This year** | The dates of this year, also those later this year. |
-| **Last [N] years** | This year and the N - 1 before it. Type N; it applies a moment after you stop typing, or with Enter. |
+| **Last [N] years** | This year and the N - 1 before it. Type N, from 1 to 500 (more says "Enter a whole number up to 500." and changes nothing); it applies a moment after you stop typing, or with Enter. The words follow the number: "Last 1 year", "Letztes 1 Jahr". |
 | **Last [N] months** | This month and the N - 1 before it. Not offered for a grouping by year or by quarter. |
 | **Custom rules** | Shown, checked, while the rules hold something no quick choice says (a comparison, two ranges); a quick choice then replaces them. |
 
@@ -88,6 +88,8 @@ stay right over time: "Last 5 years" is this year and the four before it, today 
 - On a grouping, the range goes by the dates themselves: with "Last 18 months" on a grouping by year,
   the oldest year shows only its months in the range.
 - The arrow keys move between the choices and apply each, as radio buttons do; Tab goes to a count.
+- Undo, or a rule that changes the range, shows in the choices and their counts at once, unless you
+  are typing in that count.
 
 ## Rules { #value-filter }
 
@@ -112,13 +114,14 @@ with a button under them; its **×** takes it away at once.
   is not between, and **is in the last** N years, months or days (a quick choice as a rule).
 - A date is compared by its day: "is before Mar 1, 2022" keeps every row of 28 February, whatever its
   time.
-- An item without a value ("(blank)") is never kept by a comparison.
+- An item without a value ("(blank)") is never kept by a comparison; with **is not** and **is not
+  between** the rule says so under it ("Blank items are not kept.").
 - The chip says it in short: "from 2022", "2022 to 2024", "≥ 10".
 
 ### Compare its total
 
-The rule keeps the items whose value meets it, as a sentence: "Sum of Revenue is greater than
-2,000,000".
+The rule keeps the items whose value meets it, as a sentence: "Region items whose Sum of Revenue is
+greater than 2,000,000".
 
 1. Pick the value it compares: a choice appears when the report has several values that give
    numbers; the first one is chosen. With no value in **Values** it is the **Count of rows**, named so.
@@ -146,14 +149,16 @@ The rule keeps the items whose value meets it, as a sentence: "Sum of Revenue is
 ### More about rules
 
 - A new rule applies once it is complete (a number typed, an item picked); until then it changes
-  nothing. A rule's **×** takes it away and puts the focus on the first button that adds one.
+  nothing. It scrolls into view, and so do the rules when **More ways to filter** opens. A rule's **×** takes it away and puts the focus on the first button that adds one.
 - A field takes at most 10 rules.
-- The chip shows the first rule on the item itself and "+1" for each more ("last 2 years (2025–2026)
-  +1"); the whole list is in its tooltip and its name for screen readers. A rule on the total has its
-  own badge.
+- The chip shows the first rule on the item or its name and "+1" for each more ("last 2 years
+  (2025–2026) +1", "contains “linux”"); the whole list is in its tooltip and its name for screen
+  readers. A rule on the total has its own badge. On a narrow chip the rule ends in "…" before the
+  field's name gets shorter than a few words.
 - The search of the menu finds the rules ("rule", "compare its total"), the quick choices with the
-  count you type ("last 3 years") and, for a date or a grouping by year, a year compared ("from
-  2022", "up to 2022", "before 2022", "after 2022"); Enter applies a found choice at once.
+  count you type ("last 3 years") and, for a grouping by year, a year compared ("from 2022", "up to
+  2022", "before 2022", "after 2022"); Enter applies a found choice at once. A date field compares
+  days: its rule editor picks them.
 - Remove the rules (the first line of the level) takes every rule away; the values ticked stay.
 
 ## Top N
@@ -231,6 +236,6 @@ The first level of a row or column field's menu:
   A to Z to sort it by label instead, and the report keeps that choice.
 
 !!! note "For developers"
-    The view's `filters` (`include`, `exclude`, `label`, `value`, `top`) and `sort` (`label`,
+    The view's `filters` (`include`, `exclude`, `label`, `compare`, `relative`, `value`, `top`) and `sort` (`label`,
     `value`, `custom`), and how a field gets its order (`fieldDefaults.order`), are in
     [Filters, top N and sorting](../concepts/filters.md).

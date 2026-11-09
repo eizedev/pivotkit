@@ -15,8 +15,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
-- Size budgets: the first load 152.5 KiB (151.2 measured on a Mac; the core's new filters and the
-  chips' words for them), the menus 33.5 KiB (31.7 measured), their German texts 5.5 KiB, the texts
+- Size budgets: the first load 153 KiB (151.8 measured on a Mac; the core's new filters and the
+  chips' words for them, the touch hit areas of the field list), the menus 33.5 KiB (31.7 measured), their German texts 5.5 KiB, the texts
   of a view's unused parts 5 KiB.
 - pivotkit-react's chip menus, Options and Views are in levels, and no menu folds any more (Reset
   menu sections is gone; stored folds are dropped): a first level that says what each topic

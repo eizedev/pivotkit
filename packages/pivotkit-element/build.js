@@ -179,10 +179,12 @@ async function licenses(metafile) {
  * first render shows) took the first load to 151.2 measured on a Mac (CI about 151.5), so its budget
  * went to 152.5; the Filter level's quick choices and rule editor took the menus to 31.7 (CI about
  * 32.0, budget 33.5), their German texts to 5.0 (CI about 5.3, budget 5.5) and the unused parts'
- * texts of the new issue codes to 4.5 (CI about 4.8, budget 5).
+ * texts of the new issue codes to 4.5 (CI about 4.8, budget 5). The review's fixes (a rule on names
+ * in words on the chip, so the label operators load first; the chip's cut rule; the field list's
+ * touch hit areas) took the first load to 151.8 (CI about 152.1), budget 153.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 152.5, chart: 211, export: 11.5, link: 7.3, menus: 33.5, texts: 5.5, unused: 5 };
+export const SIZE_BUDGET_KIB = { initial: 153, chart: 211, export: 11.5, link: 7.3, menus: 33.5, texts: 5.5, unused: 5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
