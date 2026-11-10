@@ -8,7 +8,7 @@ description: The pivotkit view file - a view with its name, its source and the f
 A view file is a pivotkit [view](../concepts/views.md) with what a person and another pivotkit need
 to know about it: its name, the data it was made for and the fields it uses. pivotkit-react writes it
 for **Copy view as JSON** and **Download view** in the Views menu, a shortened form of it travels in
-links, and **Load view…** reads it ([Sharing](../concepts/sharing.md)). pivotkit-core writes and reads
+links, and **Open view file…** reads it ([Sharing](../concepts/sharing.md)). pivotkit-core writes and reads
 it with `toViewFile` and `fromViewFile`.
 
 Its JSON Schema is published at `https://pivotkit.eize.dev/schema/view-file-1.json`
@@ -150,7 +150,7 @@ opens.
 
 A view holds field names and, in its filters, the items chosen there: those are values of the data
 (a customer's name, a country). A file, a copied view and a link give them to whoever gets them. The
-Share level of the Views menu says so: "A view holds the names of fields and, in its filters, the
+Share this view group of the Views menu says so: "A view holds the names of fields and, in its filters, the
 values chosen there: share it only where those may be seen." A link keeps the view in the URL
 fragment, which browsers do not send to the server, but it stays in the browser's history and
 wherever the link is pasted.

@@ -129,8 +129,8 @@ passes the new list back, or the browser keeps them (`templateStore="browser"`).
 menu and says "View “…” saved"; the view loaded has a check mark in its group. Entries marked `deletable` get a delete button with a
 confirmation; with `canPublish` people publish one of their views as a shared view. Names need not be
 unique. [Templates and shared views](templates.md) describes the groups, where templates are kept and
-how to provide them. The menu's last entry, **Share**, copies or downloads the view as a
-[view file](../reference/view-file.md) and loads one ([sharing](sharing.md)).
+how to provide them. The menu's last group, **Share this view**, copies or downloads the view as a
+[view file](../reference/view-file.md) and opens one ([sharing](sharing.md)).
 
 ## Versions
 

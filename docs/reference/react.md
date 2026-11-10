@@ -296,11 +296,13 @@ The report adapts to its own width, not the window's: wide (1024 px and more) ha
 the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (below 640 px) opens the
 field list as a drawer from the toolbar and shows menus as bottom sheets (at the bottom of the
 window, at most 82 % of its height, scrolling inside). Toolbar buttons move into "More" by a fixed
-priority (`OVERFLOW_ORDER`: Reset, Layout, Options, the chart type, Views last: Views shows from a
-window about 1280 px wide, where the chart type is in "More") and the toolbar's width
-measured against the room each button takes with the longest of its texts in English, German and the
-report's own labels, measured in the font the toolbar is drawn in (`toolbarRoom` in `overflow.js`),
-so English and German show the same buttons in every browser. Decided before the first paint. The
+priority (`OVERFLOW_ORDER`: Start over, Layout, Options, the chart type,
+Views last), but only those the room left cannot hold (`overflowHidden` in `overflow.js`): the
+first ones in the order go until the rest fits, then each of them the room left still holds comes
+back. Each button's room is measured with the texts of the report's labels in the font the toolbar is
+drawn in (`toolbarRoom`), the chart type's with its longest type, so a pick never moves a button; a
+shorter language keeps more buttons. "More" lists them in groups (`MORE_GROUPS`): Start over's
+Reset and New as entries of their own, then Layout, the chart type and Options, then Views. Decided before the first paint. The
 name of the view loaded takes the room left and is cut with "…", never below 4em. The zones stack, one line
 each, whenever the area next to the field list is narrower than 640 px (a container query on that
 area: the narrow layout, and a medium one such as a half-width card of 650 px). "Swap rows and
@@ -381,7 +383,7 @@ with Enter or when the field is left, and Escape in a field gives back what appl
 | A field in Filters | Filter, Move to, Remove field | Filter, Move to |
 | A value | Summarize by, Show as, Number format, Highlight (side by side), Name, Move to, Remove field | Summarize by, Show as, Number format, Name, Move to |
 | Options | Totals, Rows (Expand all, Collapse all), Help | Keyboard shortcuts |
-| Views | This view (Save "…", Save as…, New, empty report), Shared views, My views (each entry with its Publish and Delete as items next to it), Share | Save as, Share (a menu), Load view, the question before a delete, a publish or a Save over a shared view |
+| Views | This view (Save "…", Save as…), Shared views, My views (each entry with its Publish and Delete as items next to it), Share this view (Copy link, Copy view as JSON, Download view, Open view file…) | Save as, Open view file, the question before a delete, a publish or a Save over a shared view |
 
 The chip menus have a search above their first level (`/` focuses it): it finds a choice of any level
 by its text, the titles above it and a few more words (labels `showAsKeywords`, `nameKeywords`,

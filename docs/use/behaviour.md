@@ -12,13 +12,13 @@ at the bottom, a note above the result, an empty table.
 
 A button or menu entry that would do nothing is greyed out. Where the reason is not obvious, a short
 line under it says why, only while it is greyed out. In a menu in levels (a chip's menu, Options) the
-arrow keys still stop on it, so a screen reader hears the reason.
+arrow keys still stop on it, so a screen reader hears the reason; the same in Start over and More.
 
 | Entry | Available when |
 | --- | --- |
 | Undo, Redo | there is a step to take back or to repeat |
-| Reset | the report differs from the start view |
-| Views, **New, empty report** | a field is placed ("The report is empty already.") |
+| Start over, **Reset** | the report differs from the start view ("Already at the start view."), and the start view is not the empty report ("The start view is empty: use New, empty report.") |
+| Start over, **New, empty report** | a field is placed ("The report is empty already.") |
 | Export, every entry | a field is placed ("Add a field first.") |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |
@@ -27,7 +27,7 @@ arrow keys still stop on it, so a screen reader hears the reason.
 | Views, **Save “…”** | a saved view is loaded and you may change it: greyed out for a shared view you may not change ("Shared view: you cannot change it. Use Save as."), for a view opened from a file or a link ("Not saved yet. Use Save as.") and while no field is placed ("Add a field first.") |
 | Views, the button next to the name field (**Save**, **Save as**) | the name holds text |
 | Chart type, Display, **Labels** (pie and donut) | value labels are not Off |
-| Load view, **Load** | the box holds text (a chosen file loads at once) |
+| Open view file, **Load** | the box holds text (a chosen file loads at once) |
 | The chart title's **Apply** | the title differs from the current one |
 
 ## Status messages

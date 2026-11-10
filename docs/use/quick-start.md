@@ -62,10 +62,11 @@ brings the table back.
 
 ## Then: save, share or export
 
-- **Undo** takes back any step; **Reset** goes back to the start; **New** starts an empty report.
+- **Undo** takes back any step; **Start over** has **Reset** (back to the start) and **New, empty
+  report**.
 - **Views**, **Save current view** keeps the report under a name, for you; once you work on a saved
-  view, **Save** writes your changes into it with one click. **Share** copies a link or downloads it
-  as a file ([Views, saving and sharing](views.md)).
+  view, **Save** writes your changes into it with one click. **Share this view** copies a link or
+  downloads it as a file ([Views, saving and sharing](views.md)).
 - **Export** downloads the table as Excel or CSV, or the chart as a picture, and copies the table into
   a spreadsheet ([Export and copy](export.md)).
 - Click any number to see the rows behind it ([The rows behind a number](drill-down.md)).

@@ -1,6 +1,6 @@
 ---
 title: Views, saving and sharing
-description: Undo and redo every step, reset, start an empty report, pick a shared view or one of your own, save changes to it or save it under a new name, publish views, share a report as a link, as JSON or as a view file, and load one - with a check when it was made for other data.
+description: Undo and redo every step, start over (reset or an empty report), pick a shared view or one of your own, save changes to it or save it under a new name, publish views, share a report as a link, as JSON or as a view file, and open one - with a check when it was made for other data.
 ---
 
 # Views, saving and sharing
@@ -11,17 +11,32 @@ file. A view holds the names of fields and settings and, in its filters, the val
 customer, a country), but none of the other data: whoever opens it sees the report on their own data.
 Share it only where those filter values may be seen.
 
-## Undo, redo, reset
+## Undo, redo, start over
 
 | Button | Keys | Does |
 | --- | --- | --- |
 | **Undo** | Ctrl+Z, on a Mac Cmd+Z | Takes back the last change. |
 | **Redo** | Ctrl+Shift+Z or Ctrl+Y, on a Mac Cmd+Shift+Z | Repeats it. |
-| **Reset** | | Goes back to the start view, as one step you can undo. |
-| **New, empty report** (in Views) | | Empties the report: no fields, the three first steps. One step you can undo; greyed out while the report is empty. |
+| **Start over** | | Opens a menu with **Reset** and **New, empty report** (below). |
 
 Every change is a step: placing a field, a filter, a chart setting, loading a view. Saved views are
 not changed by any of them, only by saving.
+
+### Start over
+
+**Start over**, next to Redo, has the two ways to begin again. Each says under its name what it does,
+or, while it is greyed out, why:
+
+| Entry | Does | Greyed out |
+| --- | --- | --- |
+| **Reset** | "Back to the start view. Your data stays." The view the report started with, as one step you can undo. | "Already at the start view."; or, when the report started empty, "The start view is empty: use New, empty report." (both would do the same) |
+| **New, empty report** | "No fields. Undo brings it back. Your data stays." The three first steps and up to three saved views to start from; a note "New, empty report" appears with **Undo**, which brings the report back. | "The report is empty already." |
+
+Saved views are not changed by either. On a narrow report, where Start over is in **More**, Reset
+and New, empty report are entries of their own there, first in the list.
+
+![Start over in the toolbar, open: Reset greyed out at the start view, New, empty report with what it does](../assets/screenshots/start-over-light.png#only-light)
+![Start over in the toolbar, open: Reset greyed out at the start view, New, empty report with what it does](../assets/screenshots/start-over-dark.png#only-dark)
 
 ## The view you are working on
 
@@ -44,29 +59,31 @@ save, or when Undo brings the report back to the view as it was saved. While Vie
 
 ## The Views menu
 
-**Views** in the toolbar is one list to scan: **This view** (save and start over), then the saved
-reports in two groups, then **Share this view** with its one entry, **Share**. Each entry loads its
-view with one click; the first three are also offered in the empty report. The view you loaded has a check mark in its group. **Save as…**
-(**Save current view…** before a view is loaded), **Share** and the questions before a delete or a
-publish open a level of their own in the menu's place, titled "Views › Share" and so on; **‹ Back** or
-Escape goes back to the entry it came from. The keys are those of the other menus
+**Views** in the toolbar holds what is kept: one list to scan in four groups, each under its title
+with a line between them - **This view** (save it), the saved reports in two groups, then **Share
+this view**. Each saved view loads with one click; the first three are also offered in the empty
+report. The view you loaded has a check mark in its group. **Save as…** (**Save current view…**
+before a view is loaded), **Open view file…** and the questions before a delete or a publish open a
+level of their own in the menu's place, titled "Views › Open view file" and so on; **‹ Back** or
+Escape goes back to the entry it came from. Starting over is not here: it is **Start over** in the
+toolbar. The keys are those of the other menus
 ([keyboard](keyboard.md#keys)): the arrow keys move through the list, Enter loads a view or opens a
 level, Tab closes the menu.
 
-![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with Share](../assets/screenshots/views-menu-light.png#only-light)
-![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with Share](../assets/screenshots/views-menu-dark.png#only-dark)
+![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with its entries](../assets/screenshots/views-menu-light.png#only-light)
+![The Views menu: This view, Shared views, My views with a saved view and the note where it is kept, Share this view with its entries](../assets/screenshots/views-menu-dark.png#only-dark)
 
 | Group | What |
 | --- | --- |
-| **This view** | **Save “…”** for the view you loaded, **Save current view…** (**Save as…** once a view is loaded), which opens the name field, and **New, empty report**. |
+| **This view** | **Save “…”** for the view you loaded, and **Save current view…** (**Save as…** once a view is loaded), which opens the name field. |
 | **Shared views** | The same for everyone who uses the report: the views the application provides. Where someone can change them, an **i** next to one says who (by default "Only admins can change shared views."). |
 | **My views** | Your own. **Save current view…** saves the report under a name; your views can be deleted, and published for everyone where the application allows it. |
-| **Share this view** | One entry, **Share**, which opens the level of [Share a view](#share-a-view). |
+| **Share this view** | **Copy link**, **Copy view as JSON**, **Download view** and **Open view file…** ([Share a view](#share-a-view)). |
 
 A group without entries is not shown; My views shows while you can save.
 
-![This view in the Views menu: Save for the loaded view, Save as… and New, empty report](../assets/screenshots/views-this-view-light.png#only-light)
-![This view in the Views menu: Save for the loaded view, Save as… and New, empty report](../assets/screenshots/views-this-view-dark.png#only-dark)
+![This view in the Views menu: Save for the loaded view and Save as…](../assets/screenshots/views-this-view-light.png#only-light)
+![This view in the Views menu: Save for the loaded view and Save as…](../assets/screenshots/views-this-view-dark.png#only-dark)
 
 ### Save your changes
 
@@ -106,13 +123,6 @@ Every save closes the menu, the same for **Save “…”**, **Save current view
 focus goes back to **Views** (or **More**); a note says "View “…” saved". The name field has an **×**; Escape in it empties it first, then goes back to the list. Every name is shown
 as plain text.
 
-### Start over with an empty report
-
-**New, empty report** in Views (under This view, with Save and Save as) empties the report: no
-fields, the three first steps and up to three saved views to start from. "New, empty report" appears
-with **Undo**, which brings the report back. Saved views are not changed. The **i** next to the
-entry in Views says the same.
-
 ### Delete or publish one of your views
 
 - The delete button next to one of your views asks first, in a level of its own ("Delete “…”?"),
@@ -132,25 +142,22 @@ could not be deleted: the views were changed in another tab; open the menu again
 
 ## Share a view
 
-![The Share level of the Views menu: Copy link, Copy view as JSON, Download view, Load view and what a view gives away](../assets/screenshots/share-menu-light.png#only-light)
-![The Share level of the Views menu: Copy link, Copy view as JSON, Download view, Load view and what a view gives away](../assets/screenshots/share-menu-dark.png#only-dark)
-
-**Share**, the last entry of the Views menu (under the heading **Share this view**), opens its level:
+**Share this view**, the last group of the Views menu, has:
 
 | Entry | Gives |
 | --- | --- |
 | **Copy link** | An address with the view in it, when the application allows links. Whoever opens it sees the same report on the same data; Reset still goes to the application's start view. A view too large for a link says so: share it as a file. |
 | **Copy view as JSON** | The view file as text, for a message or a ticket. |
 | **Download view (.pivotkit.json)** | The view as a file, named `<name>.pivotkit.json` after the view's name (the saved view or file it came from), else the data's name, else the application's file name (`pivot.pivotkit.json` without one). |
-| **Load view…** | Opens a view from pasted text, a link or a file (below). |
+| **Open view file…** | Opens a view from a file, pasted text or a link (below). |
 
 Under the entries a line says what a shared view gives away: "A view holds the names of fields and,
 in its filters, the values chosen there: share it only where those may be seen." Where a page does not
 allow the clipboard, the report says so and points to Download view.
 
-## Load a view
+## Open a view file
 
-1. **Views**, **Share**, **Load view…** (a level of its own; **‹ Back** goes back to Share).
+1. **Views**, **Open view file…** (a level of its own; **‹ Back** goes back to the list).
 2. Paste a view file, a view's JSON or a link and press **Load** (greyed out while the box is empty),
    or press **Choose file…**, which loads the file at once.
 

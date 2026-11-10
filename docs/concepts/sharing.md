@@ -15,14 +15,14 @@ not fit is left out and said in plain words.
 
 ## In the Views menu (for the people who use the report)
 
-The **Share** level of the Views menu - Copy link, Copy view as JSON, Download view, Load view… -
+The **Share this view** group of the Views menu - Copy link, Copy view as JSON, Download view, Open view file… -
 and what people see while a view loads are on [Views, saving and sharing](../use/views.md#share-a-view)
 under Use a report. For the host:
 
 - **Copy link** shows only with `shareLink` ([Links](#links-for-developers)).
 - **Download view** names the file `<name>.pivotkit.json` after the view's name, else `source.name`,
   else `fileName` (`pivot.pivotkit.json` without one); it passes `onExport` (`"json"`) first.
-- **Load view…** caps the text at 1,000,000 characters and a file at 1,000,000 bytes before it is
+- **Open view file…** caps the text at 1,000,000 characters and a file at 1,000,000 bytes before it is
   parsed, reads a view file, a bare view's JSON or a link, and normalizes what it gets against the
   data; a view file of a newer format or view version is refused
   ([reading a view file](../reference/view-file.md#reading-a-view-file)).
@@ -95,7 +95,7 @@ have their own. Only that entry is added or replaced: the rest of the fragment s
 also a hash route with its own query (`#/reports/a?tab=2&pivot=1.…`). With `shareLink` set the report
 reads its entry after the first render (so a server render and its hydration match): a link at load is
 where the report starts, with a new undo history (Reset still goes to the start view). When only the
-fragment changes later (a link opened in the same tab), its view is one step, like Load view, and Undo
+fragment changes later (a link opened in the same tab), its view is one step, like Open view file, and Undo
 goes back to the view before.
 
 The text is pivotkit's share format, `encodeViewLink` and `decodeViewLink` of

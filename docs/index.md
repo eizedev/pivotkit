@@ -49,7 +49,7 @@ Start with the [quick start](use/quick-start.md) (your first report in six steps
 - Switch to a chart: the type follows the data (lines over dates, else bars) until you pick bars,
   lines, area, pie, donut or heatmap, with value labels, legend, title and group labels
   ([charts](use/charts.md)).
-- Undo and redo every step; Reset goes back to the start, New empties the report. Pick a shared view
+- Undo and redo every step; Start over has Reset (back to the start) and New (an empty report). Pick a shared view
   or one of your own under Views, save changes to it with one click or under a new name, publish it
   for everyone where allowed, or share it as a link, as JSON or as a
   view file; a view for other data asks first ([views and sharing](use/views.md)).

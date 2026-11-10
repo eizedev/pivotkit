@@ -15,7 +15,7 @@ whole report. A field in a zone is a **chip**; its menu changes how it is shown.
 | --- | --- | --- |
 | **Fields** | left | Every column of the data, with an icon for its type (text, number, date, yes/no) and a search. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only; a word too long for its line ends in "…", and pointing at the name shows it whole. |
 | **The zones** | top | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what it does, with an example; Options, Help, **Show explanations** switches these off and on. |
-| **The toolbar** | above the zones | Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, the name of the view you loaded, Views and Export. What does not fit moves into **More** ([small screens](layout.md#small-screens)). |
+| **The toolbar** | above the zones | Table or Chart, the chart type, Undo, Redo, Start over (Reset, New), Layout, Options, the name of the view you loaded, Views and Export. What does not fit moves into **More** ([small screens](layout.md#small-screens)). |
 | **The result** | below | The table or the chart, with tips above it, **Enlarge** and **Full screen** at its top right, and a status line below it. |
 
 ## Adding fields
