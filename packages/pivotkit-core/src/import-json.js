@@ -59,14 +59,16 @@ function findRows(doc) {
  * @param {number} depth
  * @param {Map<string, number>} names
  * @param {() => void} grow  checks the columns limit before a name is added
+ * @param {{ nested: string | null }} seen  the first name made from a nested object, for the note
  */
-function collectNames(obj, prefix, depth, names, grow) {
+function collectNames(obj, prefix, depth, names, grow, seen) {
     for (const key of Object.keys(obj)) {
         const name = prefix + key;
         const v = obj[key];
         if (isObject(v) && depth < FLATTEN_DEPTH && Object.keys(v).length > 0) {
-            collectNames(/** @type {Record<string, unknown>} */ (v), `${name}.`, depth + 1, names, grow);
+            collectNames(/** @type {Record<string, unknown>} */ (v), `${name}.`, depth + 1, names, grow, seen);
         } else if (!names.has(name)) {
+            if (depth > 0) seen.nested ??= name;
             grow();
             names.set(name, names.size);
         }
@@ -162,17 +164,11 @@ export async function read(file, options) {
             for (const c of shape.columns) if (typeof c === "string" && !names.has(c)) names.set(c, names.size);
         }
         const grow = () => checkFileLimit("columns", names.size + 1, limits.columns, name, "columns");
-        let nested = null;
+        const seen = { nested: null };
         for (const row of rows) {
-            if (row) collectNames(/** @type {Record<string, unknown>} */ (row), "", 0, names, grow);
+            if (row) collectNames(/** @type {Record<string, unknown>} */ (row), "", 0, names, grow, seen);
         }
-        for (const n of names.keys()) {
-            if (n.includes(".") && rows.some((row) => row && !Object.hasOwn(row, n))) {
-                nested = n;
-                break;
-            }
-        }
-        if (nested) table.note("JSON_FLATTENED", { example: nested });
+        if (seen.nested) table.note("JSON_FLATTENED", { example: seen.nested });
         table.header([...names.keys()]);
         for (const row of rows) {
             const cells = new Array(names.size).fill(null);

@@ -105,7 +105,7 @@ export async function read(file, options) {
 
 Test a plugin on real files of its format: a well-formed one, one with every kind of value, a broken
 one, one over each limit, one stopped by `signal`. A shared conformance test kit for plugins is
-planned.
+planned ([#122](https://github.com/eizedev/pivotkit/issues/122)).
 
 ## Publish
 
