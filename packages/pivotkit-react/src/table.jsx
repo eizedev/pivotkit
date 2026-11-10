@@ -26,13 +26,15 @@ const MEASURED_LABELS = 50;
 /** The widest a row label column of a virtual table gets, in em: a longer label ends in "…" (its title is whole). */
 const LABEL_MAX_EM = 28;
 
-/** A canvas to measure text on, made once. */
-let measureCanvas = /** @type {HTMLCanvasElement | null} */ (null);
+/** Pixels added to the widest label: the layout rounds, a font's hinting differs by a pixel. */
+const LABEL_SLACK = 2;
 
 /**
  * The width of each row label column of a virtual table, in px: its longest labels (by characters)
- * measured in the table's font, with a group's toggle where a label has one, at most LABEL_MAX_EM.
- * Measured once per grid, so the column keeps its width while the rows on screen change (#110).
+ * measured in the table itself (a hidden span next to a label, so its font, weight, figures and size
+ * are the table's; a total's label bold, as drawn), with a group's toggle where a label has one, at
+ * most LABEL_MAX_EM. Measured per grid and again when the font changes (see the effect), so the
+ * column keeps its width while the rows on screen change (#110, #121).
  * @param {import("pivotkit-core").Grid} grid
  * @param {HTMLTableElement} table
  * @returns {number[] | null}
@@ -40,30 +42,40 @@ let measureCanvas = /** @type {HTMLCanvasElement | null} */ (null);
 function labelWidths(grid, table) {
     const text = table.querySelector("tbody th.pk-rowHeader .pk-th-text");
     const content = text?.parentElement;
-    measureCanvas ??= table.ownerDocument.createElement("canvas");
-    const ctx = measureCanvas.getContext("2d");
-    if (!text || !content || !ctx) {
+    if (!text || !content) {
         return null;
     }
-    const style = getComputedStyle(text);
-    // the font's parts (the shorthand is empty in some engines); a total's label is bold (styles.css)
-    const font = (weight) => `${style.fontStyle} ${weight} ${style.fontSize} ${style.fontFamily}`;
-    const widthOf = (/** @type {{ text: string, total: boolean }} */ l) => {
-        ctx.font = font(l.total ? 700 : style.fontWeight);
-        return ctx.measureText(l.text).width;
-    };
-    const em = parseFloat(style.fontSize) || 14;
-    const toggle = table.querySelector(".pk-toggle");
-    const gap = parseFloat(getComputedStyle(content).columnGap) || 0;
-    const toggleWidth = (toggle ? toggle.getBoundingClientRect().width : em * 1.7) + gap;
-    const widths = [];
-    for (let c = 0; c < grid.rowHeaderColumns; c++) {
-        const most = Math.max(0, ...longestLabels(grid, c, MEASURED_LABELS).map((l) => widthOf(l) + (l.toggle ? toggleWidth : 0)));
-        // a pixel more: the canvas and the layout round differently
-        widths.push(Math.min(Math.ceil(most) + 1, LABEL_MAX_EM * em));
+    const probe = table.ownerDocument.createElement("span");
+    probe.className = "pk-th-text";
+    probe.setAttribute("aria-hidden", "true");
+    Object.assign(probe.style, { position: "absolute", visibility: "hidden", whiteSpace: "pre", width: "auto", minWidth: "0", maxWidth: "none", overflow: "visible" });
+    content.append(probe);
+    try {
+        const widthOf = (/** @type {{ text: string, total: boolean }} */ l) => {
+            probe.style.fontWeight = l.total ? "700" : "";
+            probe.textContent = l.text;
+            return probe.getBoundingClientRect().width;
+        };
+        const em = parseFloat(getComputedStyle(text).fontSize) || 14;
+        const toggle = table.querySelector(".pk-toggle");
+        const gap = parseFloat(getComputedStyle(content).columnGap) || 0;
+        const toggleWidth = (toggle ? toggle.getBoundingClientRect().width : em * 1.7) + gap;
+        const widths = [];
+        for (let c = 0; c < grid.rowHeaderColumns; c++) {
+            const most = Math.max(0, ...longestLabels(grid, c, MEASURED_LABELS).map((l) => widthOf(l) + (l.toggle ? toggleWidth : 0)));
+            widths.push(Math.min(Math.ceil(most) + LABEL_SLACK, LABEL_MAX_EM * em));
+        }
+        return widths;
+    } finally {
+        probe.remove();
     }
-    return widths;
 }
+
+/** What the labels' width depends on besides the grid: the table's font and size. */
+const fontOf = (/** @type {HTMLTableElement} */ table) => {
+    const s = getComputedStyle(table);
+    return `${s.fontFamily}|${s.fontSize}|${s.fontWeight}`;
+};
 
 /**
  * Inline style of a value cell with conditional formatting: custom properties the stylesheet reads.
@@ -151,7 +163,9 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     const [width, setWidth] = useState(0);
     const [active, setActive] = useState(/** @type {{ r: number, c: number } | null} */ (null));
     // a virtual table's row label columns: one width each, measured once per grid (labelWidths)
-    const [labelsWide, setLabelsWide] = useState(/** @type {{ grid: unknown, widths: number[] } | null} */ (null));
+    const [labelsWide, setLabelsWide] = useState(/** @type {{ grid: unknown, font: string, fonts: number, widths: number[] } | null} */ (null));
+    // web fonts that finished loading (document.fonts): the labels are measured again
+    const [fontsLoaded, setFontsLoaded] = useState(0);
     const fixedWidths = virtual && labelsWide?.grid === grid ? labelsWide.widths : null;
     const focusNext = useRef(false);
     // what a screen reader hears after a header sorted the rows
@@ -165,15 +179,39 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         [toggleGroup]
     );
 
-    // a virtual table measures its row labels once, before the first paint of a grid
+    // a virtual table measures its row labels before the first paint of a grid, and again when the
+    // table's font or size changed (a host's --pk-font-size, a theme) or a web font arrived; never
+    // because other rows came into view
     useIsoLayoutEffect(() => {
-        if (virtual && table.current && labelsWide?.grid !== grid) {
-            const widths = labelWidths(grid, table.current);
+        const t = table.current;
+        if (!virtual || !t) {
+            return;
+        }
+        const font = fontOf(t);
+        if (labelsWide?.grid !== grid || labelsWide.font !== font || labelsWide.fonts !== fontsLoaded) {
+            const widths = labelWidths(grid, t);
             if (widths) {
-                setLabelsWide({ grid, widths });
+                setLabelsWide({ grid, font, fonts: fontsLoaded, widths });
             }
         }
-    }, [grid, virtual, labelsWide]);
+    });
+    useEffect(() => {
+        const fonts = virtual ? table.current?.ownerDocument.fonts : undefined;
+        if (!fonts) {
+            return undefined;
+        }
+        let live = true;
+        const loaded = () => live && setFontsLoaded((n) => n + 1);
+        fonts.addEventListener?.("loadingdone", loaded);
+        // a font still loading when the table was first measured
+        if (fonts.status === "loading") {
+            fonts.ready.then(loaded, () => undefined);
+        }
+        return () => {
+            live = false;
+            fonts.removeEventListener?.("loadingdone", loaded);
+        };
+    }, [virtual]);
 
     // the measured height of a body row and the widths of the row label columns (sticky offsets)
     useIsoLayoutEffect(() => {
@@ -217,6 +255,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         update();
         const ro = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
         ro?.observe(el);
+        // the table itself too: a new font or size changes it, and its labels are measured again
+        if (table.current) {
+            ro?.observe(table.current);
+        }
         return () => ro?.disconnect();
     }, []);
 
