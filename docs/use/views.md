@@ -192,7 +192,7 @@ not take the focus; one opened later in the tab is a step Undo takes back once l
   view from the link", or "View loaded; some parts did not fit this data" (a warning, not an error).
 - What was left out stays above the result as a warning, "2 parts of this view could not be used",
   open with one line per part in plain words, until you dismiss it with its **×** or load another
-  view ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
+  view; a line goes once you change its part by hand ([details](behaviour.md#parts-of-a-view-that-were-not-used)).
   A saved view from **Views** that the data cannot fully use (a field that is gone) shows the same
   warning, as does one that has more fields in a zone than the limits allow.
 - Real errors (a damaged link, an application that could not save) stay in the status line until

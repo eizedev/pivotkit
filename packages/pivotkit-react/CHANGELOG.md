@@ -6,6 +6,39 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- Identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field of whole numbers whose name ends in the word ID, Nr,
+  No, Number or Key ("ID", "CustomerId", "customer_id", "Order No"; not "Paid" or "UUID"), for which
+  `fieldDefaults` sets none of `agg`, `format` and `drillFormat`, is counted when it is added to
+  Values (from the field list, by a drag or by Move to; Sum stays a choice) and shows its numbers as
+  they are in the drill-down (27000, not 27,000). Any of the three entries overrides it.
+- The token `--pk-layer-z` (default `50`): the z-index of the layer of menus, sheets and popups in a
+  browser without the Popover API ([#111](https://github.com/eizedev/pivotkit/issues/111)).
+- The host's own view (`view`, else the first `defaultView`) is warned about like a loaded view when
+  the data cannot use parts of it, once per distinct view, not while `loading` ([#83](https://github.com/eizedev/pivotkit/issues/83)).
+
+### Fixed
+
+- Menus, bottom sheets and "i" popups open in the browser's top layer (`popover="manual"`): a host's
+  fixed navigation above z-index 50 (PowerShell Universal's drawer at 1200) no longer covers the left
+  of a sheet or an "About" popup at 800 px or less ([#111](https://github.com/eizedev/pivotkit/issues/111)). They stay in the report's DOM, so its
+  tokens and the web component's shadow styles apply; Tab inside them is moved by the report (WebKit
+  left a top-layer popover for the page's body), past the last control a popover closes and the
+  focus goes back to its button.
+- A large table scrolls in one box: the screen reader texts of empty cells no longer made the result
+  area scroll as well, with two scroll bars side by side ([#112](https://github.com/eizedev/pivotkit/issues/112)).
+- A virtual table's row label column (300 rows or more) keeps its width while the table scrolls:
+  measured once per view and data over its 50 longest labels, at most 28em, a longer label cut with
+  "…" and whole in its tooltip ([#110](https://github.com/eizedev/pivotkit/issues/110)).
+- Field names in the field list break between words only; a word too long for its line ends in "…"
+  ([#114](https://github.com/eizedev/pivotkit/issues/114)).
+- Every `input`, `select` and `textarea` has a `name` of its own report (unique also across two web
+  components on a page) and a label; Chrome listed them as form fields without an id or name
+  ([#115](https://github.com/eizedev/pivotkit/issues/115)).
+- A line of the warning about a view's unused parts goes once its part of the view is changed by
+  hand, and comes back with Undo ([#82](https://github.com/eizedev/pivotkit/issues/82)).
+
 ## [0.3.0] - 2026-11-09
 
 ### Added

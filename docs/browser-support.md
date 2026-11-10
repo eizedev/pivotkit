@@ -21,6 +21,12 @@ Safari) from Playwright; the Safari app itself and iOS are not tested.
 Features it relies on include ES modules, container queries (its layout follows its own width), `Intl` for numbers, dates and plural rules, and for the web component custom
 elements, shadow DOM and constructable stylesheets (with a `<style>` fallback).
 
+Menus, bottom sheets and popups use the Popover API where the browser has it (Chrome and Edge 114,
+Firefox 125, Safari 17 or newer): they open in the browser's top layer, above everything of the page,
+whatever z-index the page's own fixed parts have. In an older browser they open in the report's own
+layer, stacked by `--pk-layer-z` ([theming](reference/theming.md#popovers-above-the-page)), which a
+page with a fixed navigation above z-index 50 raises.
+
 ## React
 
 pivotkit-react supports React **18.2 and later, and React 19** (`>=18.2 <20`). The browser tests run on

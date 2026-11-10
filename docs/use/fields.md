@@ -13,7 +13,7 @@ whole report. A field in a zone is a **chip**; its menu changes how it is shown.
 
 | Part | Where | What it does |
 | --- | --- | --- |
-| **Fields** | left | Every column of the data, with an icon for its type (text, number, date, yes/no) and a search. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines, with the whole name when you point at it. |
+| **Fields** | left | Every column of the data, with an icon for its type (text, number, date, yes/no) and a search. A mark next to a field shows which zone it is in. When the application describes a field, an **i** next to it says what the field means. A long field name takes two lines and breaks between words only; a word too long for its line ends in "…", and pointing at the name shows it whole. |
 | **The zones** | top | **Rows**, **Columns**, **Values** and **Filters**. The **i** next to a zone's title says what it does, with an example; Options, Help, **Show explanations** switches these off and on. |
 | **The toolbar** | above the zones | Table or Chart, the chart type, Undo, Redo, Reset, Layout, Options, the name of the view you loaded, Views and Export. What does not fit moves into **More** ([small screens](layout.md#small-screens)). |
 | **The result** | below | The table or the chart, with tips above it, **Enlarge** and **Full screen** at its top right, and a status line below it. |
@@ -33,6 +33,11 @@ All three give the same result. Details:
   so a second click or Enter never adds it twice.
 - For a field in Values already the menu entry reads **Add to Values again**: it adds a second value
   of the field (a second "Sum of Revenue", to show it as a share, say).
+- A number field that is an identifier is counted, not summed: its name ends in the word ID, Nr, No,
+  Number or Key ("ID", "CustomerId", "customer_id", "Order No") and it holds whole numbers. "Count
+  of ID" instead of a sum no one needs; **Sum** stays a choice of its menu. Its numbers show as they
+  are, 27000 and not 27,000, on Rows and Columns and in the rows behind a value. The application can
+  set this otherwise ([field settings](../concepts/fields.md#identifier-fields)).
 - A field that is not in the report yet also has **Filter…** in its menu: see
   [Filters](filters.md#filter-a-field-that-is-not-in-the-report).
 - An empty report shows three first steps and up to three saved views to start from.
@@ -130,7 +135,8 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
   its own, and a word longer than the column breaks anywhere as a last resort.
 - From 300 rows on the table draws only the rows in view (it stays fast), and a row label is cut to
   one line; the status line under the table shows the whole label of the row the focus is on, or of a
-  label you tap.
+  label you tap, and the cut label's tooltip shows it too. The row label column is as wide as its
+  longest labels (at most 28em) and keeps that width while the table scrolls.
 
 ![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-light.png#only-light)
 ![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-dark.png#only-dark)

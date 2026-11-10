@@ -113,7 +113,7 @@ Attribute: `template-store`. Type: `"browser"`; default: off.
 
 Type: `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }`.
 
-The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md).
+The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count); `drillFormat` (else `format`) for its values in the drill-down (`"text"`: an identifier as it is); `order`: the field's custom order of items on Rows or Columns (also in a view without a sort entry for it), offered as "Custom order" and "Custom order, reversed" in its menu; `label`, `description`, `href` and `type`: the field's display name, its description behind an "i", a "Learn more" link (https) and its column type, see [Field descriptions and names](../concepts/fields.md). A number field named ID, …Id, …_id, Nr, No, Number or Key with whole numbers, for which none of `agg`, `format` and `drillFormat` is set, is counted and shown as it is: [Identifier fields](../concepts/fields.md#identifier-fields).
 
 ### `height` { #prop-height }
 
@@ -149,6 +149,10 @@ As with `<PivotReport>`:
   report shows it only when the page sets `view = event.detail.view`; a page that does not set it keeps
   the report on its view. A view the page sets on its own becomes one undo step. `view = undefined`
   makes it uncontrolled again; switching back and forth is not meant for normal use.
+
+What of the page's `view` or `defaultView` the data cannot use shows above the result as a warning,
+once per distinct view, as for `<PivotReport>`
+([controlled and uncontrolled](react.md#controlled-and-uncontrolled)).
 
 Undo and redo always stay inside the element. When the element is removed from the page, its React
 root is unmounted (in a microtask: a move in the same task, `parent.append(el)` say, keeps the report
@@ -241,12 +245,18 @@ document (`adoptedStyleSheets`). Where a browser has none, or refuses one, the e
 `<style>` element to its shadow root instead (a browser test covers it). An element moved into
 another document (an iframe) after it was created keeps what it had; that case is not tested.
 
-Menus and popovers are `position: fixed`. Inside an ancestor with a `transform`, a `filter` or
-`contain` (router animations, dialogs, carousels) fixed elements are placed relative to that
-ancestor; the report measures its origin and places them at their button all the same (browser test
-with a transformed wrapper). The narrow layout's bottom sheets, the field drawer and the drill-down
-cover that ancestor, not the window, in such a case. The drag preview (also `position: fixed`) is not
-corrected there and is not tested; a scaled ancestor (`scale()`) is not corrected either.
+Menus, bottom sheets and popups open in the browser's top layer (`popover="manual"`, where the
+browser has the Popover API): above the page's own layout whatever its z-indexes, placed against the
+window whatever the element's ancestors (a `transform`, a `filter`, `contain`), and still in the shadow
+root, so its styles and the tokens set on the element apply
+([popovers above the page](theming.md#popovers-above-the-page)). Without the API they are `position:
+fixed` in the report's layer, stacked by `--pk-layer-z`: inside an ancestor with a `transform`, a
+`filter` or `contain` (router animations, dialogs, carousels) fixed elements are placed relative to
+that ancestor; the report measures its origin and places them at their button all the same (browser
+test with a transformed wrapper), and the narrow layout's bottom sheets cover that ancestor, not the
+window. The field drawer and the drill-down are part of the report's box. The drag preview (also
+`position: fixed`) is not corrected inside such an ancestor and is not tested; a scaled ancestor
+(`scale()`) is not corrected either.
 
 ## Escape and the host page
 

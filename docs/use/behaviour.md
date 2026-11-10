@@ -48,8 +48,9 @@ At most two show at a time. A save closes the Views menu (the focus goes back to
 
 ## Parts of a view that were not used
 
-A saved view (shared or your own), a link or a loaded file can name things the data does not have (a field that is gone, a
-value the field cannot compute) or settings this version does not know. The report leaves them out,
+A saved view (shared or your own), a link, a loaded file or the view the application starts with can
+name things the data does not have (a field that is gone, a value the field cannot compute) or
+settings this version does not know. The report leaves them out,
 shows the rest, and puts a warning above the result: "3 parts of this view could not be used".
 
 ![The warning above the result: three parts of the view in plain words, each with a line for developers](../assets/screenshots/unused-parts-light.png#only-light)
@@ -65,6 +66,10 @@ shows the rest, and puts a warning above the result: "3 parts of this view could
   fewer** hides them again.
 - **Fold it** with a click on its title, or Enter or Space on it. It stays folded while you change
   the view; another view loaded opens it again.
+- **A line goes when you fix its part by hand**: remove the value with the colour scale that did not
+  fit, or pick its colours, and its line goes; change something else (swap rows and columns) and the
+  lines stay. **Undo** back to the view as it was loaded brings the line back. When no line is left,
+  the warning goes.
 - **For developers**: below each line, in small grey text, the part's place in the view
   (`values[0].conditional.colors`) and, after a dot, pivotkit-core's message. A person who builds reports can
   ignore it; a developer finds the setting with it.

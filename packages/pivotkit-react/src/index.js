@@ -37,7 +37,9 @@
  */
 
 /**
- * @typedef {object} FieldDefaults  the host's settings for a field
+ * @typedef {object} FieldDefaults  the host's settings for a field. A number field of whole numbers
+ *   named ID, …Id, …_id, Nr, No, Number or Key without `agg`, `format` and `drillFormat` is an
+ *   identifier: `{ agg: "count", drillFormat: "text" }` (field-info.js fieldDefaultsFor)
  * @property {string} [agg]  aggregator of a new value, when it fits the field's type ("average" for durations)
  * @property {string} [format]  a format of pivotkit-core ("duration:h", "currency:EUR") for a new value,
  *   and for the field's own numbers in the drill-down unless `drillFormat` is set

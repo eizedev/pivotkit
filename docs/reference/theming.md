@@ -83,10 +83,31 @@ through the element.
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |
 | `--pk-chart-1` ... `--pk-chart-8` | Chart series colours, in this order; read by ECharts | `#2a78d6`<br>`#eb6834`<br>`#1baf7a`<br>`#eda100`<br>`#e87ba4`<br>`#008300`<br>`#6250d6`<br>`#e34948` | `#3987e5`<br>`#d95926`<br>`#199e70`<br>`#c98500`<br>`#d55181`<br>`#008300`<br>`#9085e9`<br>`#e66767` |
 | `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
+| `--pk-layer-z` | The z-index of the layer of menus, sheets and popups, only in a browser without the Popover API ([below](#popovers-above-the-page)) | `50` | as light |
 
 Both themes meet WCAG contrast: 4.5:1 for text, 3:1 for interface colours such as borders, the focus
 ring and the dashed edge of a zone. A test (`test/contrast.test.js` of pivotkit-react) checks every
 pair of the defaults. When you change colours, keep those ratios.
+
+## Popovers above the page
+
+Menus, the bottom sheets of a narrow report and the "i" popups open in the browser's top layer
+(`popover="manual"`, the Popover API): above everything of the page, a navigation drawer or an app
+bar with a z-index of 1200 too, and never cut off by a box of the page that clips. They stay inside the
+report in the DOM, so the tokens above and the theme reach them, also inside the web component's
+shadow root, and they are placed against the window.
+
+A browser without the Popover API (Chrome before 114, Firefox before 125, Safari before 17) opens
+them in the report's own layer, stacked by `--pk-layer-z` (default `50`). A page whose fixed parts
+have a higher z-index raises it:
+
+```css
+.pk-root { --pk-layer-z: 1300; }   /* pivotkit-react */
+pivot-report { --pk-layer-z: 1300; }   /* the web component */
+```
+
+It lifts the layer only as far as the report's stacking context reaches: an ancestor of the report
+with a `z-index`, a `transform` or an `opacity` below 1 keeps it inside.
 
 ## Sizes and motion
 

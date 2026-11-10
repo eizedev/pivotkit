@@ -6,6 +6,24 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- pivotkit-react's identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field named ID, …Id, …_id, Nr, No, Number
+  or Key with whole numbers, without `agg`, `format` or `drillFormat` in `fieldDefaults`, is counted
+  in Values and shown as it is in the drill-down.
+- The token `--pk-layer-z`, set on the element like every `--pk-*` token ([#111](https://github.com/eizedev/pivotkit/issues/111)). No new
+  attribute or event.
+- What of the page's `view` or `defaultView` the data cannot use shows above the result ([#83](https://github.com/eizedev/pivotkit/issues/83)).
+
+### Fixed
+
+- Menus, bottom sheets and popups open in the browser's top layer, still inside the shadow root:
+  above a page's fixed navigation whatever its z-index ([#111](https://github.com/eizedev/pivotkit/issues/111)).
+- pivotkit-react's fixes of one scroll container for a large table ([#112](https://github.com/eizedev/pivotkit/issues/112)), a row label column
+  that keeps its width while it scrolls ([#110](https://github.com/eizedev/pivotkit/issues/110)), field names that break between words only
+  ([#114](https://github.com/eizedev/pivotkit/issues/114)), form fields with names of their own element ([#115](https://github.com/eizedev/pivotkit/issues/115)) and the unused-parts warning
+  that follows changes by hand ([#82](https://github.com/eizedev/pivotkit/issues/82)).
+
 ## [0.3.0] - 2026-11-09
 
 ### Added
