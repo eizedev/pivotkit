@@ -39,7 +39,7 @@ feedback.
 
 | Kind | Example | Stays |
 | --- | --- | --- |
-| Note | "Region removed" with **Undo**, "New, empty report" with **Undo**, "View “Sales” saved", "View loaded", "Opened the view from the link", "Table copied: tab-separated, pastes into Excel or Google Sheets as columns" | 6 seconds; longer while the pointer is on it or the focus is in it |
+| Note | "Region removed" with **Undo**, "New, empty report" and "Back to the start view" with **Undo**, "View “Sales” saved", "View loaded", "Opened the view from the link", "Table copied: tab-separated, pastes into Excel or Google Sheets as columns" | 6 seconds; longer while the pointer is on it or the focus is in it |
 | Warning | "View loaded; some parts did not fit this data" | like a note; the details stay above the result (below) |
 | Error | "Export failed: ..." | until you close it with its **x** |
 

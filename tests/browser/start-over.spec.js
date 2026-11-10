@@ -52,6 +52,9 @@ test("Start over follows Undo and Redo; its menu says what Reset and New do, and
     await toolbar(page, "reset");
     await expect(note).toContainText("Back to the start view");
     await expect(page.getByTestId("show-table")).toHaveAttribute("aria-pressed", "true");
+    // its note has Undo too, as New's: the chart comes back
+    await note.locator(".pk-toast").filter({ hasText: "Back to the start view" }).getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByTestId("show-chart")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("no start view: Reset is off with its reason, so the menu never offers New twice", async ({ page }) => {
@@ -71,7 +74,7 @@ test("German: Neu beginnen with Zurücksetzen and Neuer, leerer Bericht", async 
     await page.goto("?data=sales&lang=de");
     await page.getByTestId("start-over").click();
     const menu = page.getByRole("menu", { name: "Neu beginnen" });
-    await expect(menu.getByRole("menuitem")).toHaveText(["Zurücksetzen" + "Schon in der Startansicht.", "Neuer, leerer Bericht" + "Keine Felder. Rückgängig holt ihn zurück. Deine Daten bleiben."]);
+    await expect(menu.getByRole("menuitem")).toHaveText(["Zurücksetzen" + "Schon in der Startansicht.", "Neuer, leerer Bericht" + "Keine Felder. Rückgängig bringt den Bericht zurück. Deine Daten bleiben."]);
 });
 
 test("by keyboard: Enter, Space and the down arrow open it, the arrows move over every entry, Escape returns, Tab moves on", async ({ page }) => {
@@ -119,4 +122,23 @@ test("in More (a phone): Reset and New are entries of their own, with the same r
     await page.getByTestId("more").click();
     await expect(page.getByTestId("more-new-report")).toContainText("The report is empty already.");
     await expect(page.getByTestId("more-reset")).toBeEnabled();
+});
+
+test("in More: a letter jumps to the next entry that starts with it; Layout is a checkbox item", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("?data=sales");
+    const more = page.getByTestId("more");
+    await more.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId("more-reset")).toBeFocused();
+    await page.keyboard.press("o");
+    await expect(page.getByTestId("more-options")).toBeFocused();
+    await page.keyboard.press("l");
+    await expect(page.getByTestId("more-layout")).toBeFocused();
+    await page.keyboard.press("n");
+    await expect(page.getByTestId("more-new-report")).toBeFocused();
+    // Layout is a toggle of its own, not one of a set of choices
+    await expect(page.getByTestId("more-layout")).toHaveAttribute("role", "menuitemcheckbox");
+    // the groups without a title are no unnamed groups for a screen reader
+    expect(await page.locator('.pk-popover [role="group"]:not([aria-label]):not([aria-labelledby])').count()).toBe(0);
 });

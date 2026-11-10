@@ -29,7 +29,7 @@ or, while it is greyed out, why:
 
 | Entry | Does | Greyed out |
 | --- | --- | --- |
-| **Reset** | "Back to the start view. Your data stays." The view the report started with, as one step you can undo. | "Already at the start view."; or, when the report started empty, "The start view is empty: use New, empty report." (both would do the same) |
+| **Reset** | "Back to the start view. Your data stays." The view the report started with, as one step you can undo; a note "Back to the start view" appears with **Undo**. | "Already at the start view."; or, when the report started empty, "The start view is empty: use New, empty report." (both would do the same) |
 | **New, empty report** | "No fields. Undo brings it back. Your data stays." The three first steps and up to three saved views to start from; a note "New, empty report" appears with **Undo**, which brings the report back. | "The report is empty already." |
 
 Saved views are not changed by either. On a narrow report, where Start over is in **More**, Reset

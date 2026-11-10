@@ -43,6 +43,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   (`Group` in popover.jsx) ([#105](https://github.com/eizedev/pivotkit/issues/105)).
 - An item of a toolbar menu (Start over, More) that is greyed out stays reachable with the arrow keys
   (`aria-disabled`), so a screen reader hears its reason.
+- Reset's note "Back to the start view" has **Undo**, as New's has. In More, a letter jumps to the
+  next entry that starts with it, as in the other menus, and Layout is a checkbox item
+  (`menuitemcheckbox`), not one of a set of choices.
 
 ### Fixed
 

@@ -237,6 +237,22 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             onClose();
             return;
         }
+        if (role === "menu" && e.key.length === 1 && e.key !== " " && !e.altKey && !e.ctrlKey && !e.metaKey) {
+            // type-ahead: a letter moves to the next entry whose text starts with it
+            const options = /** @type {HTMLElement[]} */ ([...(ref.current?.querySelectorAll(OPTION) ?? [])]).filter((o) => o.getClientRects().length > 0);
+            const at = options.indexOf(/** @type {HTMLElement} */ (activeIn(ref.current)));
+            const texts = options.map((o) => (o.querySelector(".pk-option-text")?.firstChild?.textContent ?? "").trim().toLowerCase());
+            const want = e.key.toLowerCase();
+            for (let i = 1; i <= options.length; i++) {
+                const k = (Math.max(0, at) + i) % options.length;
+                if (texts[k].startsWith(want)) {
+                    e.preventDefault();
+                    options[k].focus();
+                    break;
+                }
+            }
+            return;
+        }
         if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
             const options = /** @type {HTMLElement[]} */ ([...(ref.current?.querySelectorAll(OPTION) ?? [])]).filter((o) => o.getClientRects().length > 0);
             if (options.length === 0 || (e.target instanceof HTMLInputElement && e.target.type !== "checkbox")) {
@@ -358,10 +374,11 @@ export function Group({ title, label, menu = false, head, after, children, testI
     ) : null;
     const name = title ? { "aria-labelledby": titleId } : { "aria-label": label };
     if (menu) {
+        // a group without a name is only the rule for a screen reader: no unnamed group
         return (
             <div className="pk-section" role="none">
                 {top}
-                <div role="group" {...name} data-testid={testId}>
+                <div role={title || label ? "group" : "none"} {...(title || label ? name : {})} data-testid={testId}>
                     {children}
                 </div>
                 {after}
@@ -381,14 +398,15 @@ export function Group({ title, label, menu = false, head, after, children, testI
  * One option of a menu or of a chip's settings: one line. `hint` is a short second line that belongs
  * to the option (a date unit's example); `reason` says why a disabled option does nothing and shows
  * only while it is disabled (it is state, not an explanation: those go into an "i").
- * @param {{ onSelect: () => void, icon?: string, checked?: boolean, children: React.ReactNode, hint?: React.ReactNode,
+ * @param {{ onSelect: () => void, icon?: string, checked?: boolean, checkbox?: boolean, children: React.ReactNode, hint?: React.ReactNode,
  *   reason?: React.ReactNode, inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string, current?: boolean }} props
+ *   `checkbox`: a toggle of its own in a menu (menuitemcheckbox), not one of a set of choices;
  *   `tone`: "accent" for an option that says what is set (a filter); `current`: the entry shown now
  *   (the view loaded), with a check and aria-current
  */
-export function Option({ onSelect, icon, checked, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
+export function Option({ onSelect, icon, checked, checkbox = false, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
     const second = disabled && reason ? reason : hint;
-    const role = inMenu ? (checked === undefined ? "menuitem" : "menuitemradio") : undefined;
+    const role = inMenu ? (checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio") : undefined;
     // an item of a menu that does nothing now stays in the arrow keys' way (aria-disabled), so its
     // reason is heard (WAI-ARIA Authoring Practices: disabled menu items are focusable)
     const off = inMenu && disabled;

@@ -470,7 +470,8 @@ function Report(props) {
     // Reset shows the start view, no saved view: the history's step has no tag (Undo brings it back)
     const reset = useCallback(() => {
         history.reset(labels.steps.reset);
-        announce(labels.toastReset);
+        // as New's note: Undo right there brings the view back
+        announce(labels.toastReset, { action: { label: labels.undo, run: () => undoLater.current() } });
     }, [history, labels, announce]);
 
     // a view that comes back by itself: the tab's stored one, then a shared link (which wins); read
@@ -485,7 +486,7 @@ function Report(props) {
     /**
      * Opens the view of a link text; the result waits while the link module loads. At load the link is
      * where the report starts (a new history); a link opened later in the tab (only the fragment
-     * changed) is a step Undo takes back, like Load view.
+     * changed) is a step Undo takes back, like Open view file.
      */
     const openLink = useCallback((text, asStep = false) => {
         appliedLink.current = text;

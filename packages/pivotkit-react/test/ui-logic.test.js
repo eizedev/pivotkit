@@ -433,8 +433,11 @@ test("toolbar: which buttons go into More follows a fixed priority and the room 
     assert.deepEqual(overflowHidden(all, false, present), [], "room for every button");
     assert.deepEqual(overflowHidden(all - 0.1, false, present), ["startOver"], "a little less: Start over goes first");
     assert.deepEqual(overflowHidden(0, false, present), present, "no room: all of them");
-    // a narrow report has the Fields button too
-    assert.ok(overflowHidden(all, true, present).length > 0);
+    // a narrow report has the Fields button too: what goes makes room for it and for More
+    const narrowHidden = overflowHidden(all, true, present);
+    const freed = narrowHidden.reduce((n, id) => n + TOOLBAR_ROOM[id], 0) - TOOLBAR_ROOM.more;
+    assert.ok(freed >= TOOLBAR_ROOM.fields, "the Fields button fits");
+    assert.ok(freed - Math.min(...narrowHidden.map((id) => TOOLBAR_ROOM[id])) < TOOLBAR_ROOM.fields, "no button more than needed");
     // a Data button's place costs nothing while there is none: the same as without it in the order
     for (let w = 40; w <= all + 1; w += 0.5) {
         assert.deepEqual(overflowHidden(w, false, present, { ...TOOLBAR_ROOM, data: 50 }), overflowHidden(w, false, present));
@@ -449,7 +452,8 @@ test("toolbar: a button the room left holds stays, even when one before it in th
     // fixed parts 100; Options is wide: once it has gone, Layout fits again
     const room = { display: 60, sep: 4, undo: 18, redo: 18, export: 0, startOver: 10, layout: 10, options: 30, chartType: 10, views: 10, more: 5 };
     const fixed = 100;
-    // the order alone would put Start over, Layout and Options into More (100 + 10 + 10 + 5 = 125 fits)
+    // the order alone puts Start over, Layout and Options into More: then 100 + Chart type 10 +
+    // Views 10 + More 5 = 125 fits in 140, and Layout (10) still fits in the 15 left
     assert.deepEqual(overflowHidden(fixed + 40, false, present, room), ["startOver", "options"]);
     // with a little more room Start over comes back too, the wide Options still does not fit
     assert.deepEqual(overflowHidden(fixed + 50, false, present, room), ["options"]);

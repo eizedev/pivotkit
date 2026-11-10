@@ -227,7 +227,7 @@ export function Toolbar(props) {
                     <span className="pk-btn-text">{labels.layout}</span>
                 </button>
             ),
-            entry: (close) => <Option key="layout" inMenu icon="layout" checked={!layoutFolded} onSelect={() => { close(); onLayout(); }} testId="more-layout">{labels.layout}</Option>
+            entry: (close) => <Option key="layout" inMenu checkbox icon="layout" checked={!layoutFolded} onSelect={() => { close(); onLayout(); }} testId="more-layout">{labels.layout}</Option>
         },
         options: {
             place: "end",

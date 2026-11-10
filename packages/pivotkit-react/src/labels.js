@@ -423,7 +423,7 @@ export const de = {
     resetHint: "Zurück zur Startansicht. Deine Daten bleiben.",
     resetAlready: "Schon in der Startansicht.",
     resetStartEmpty: "Die Startansicht ist leer: Nimm „Neuer, leerer Bericht“.",
-    newHint: "Keine Felder. Rückgängig holt ihn zurück. Deine Daten bleiben.",
+    newHint: "Keine Felder. Rückgängig bringt den Bericht zurück. Deine Daten bleiben.",
     newAlready: "Der Bericht ist schon leer.",
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
