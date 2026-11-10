@@ -228,10 +228,11 @@ const SHOTS = [
     },
     { name: "chart-groups", query: "data=countries", hash: GROUPED, size: WIDE, chart: true },
     {
-        // Start over open at the start view: Reset greyed out with its reason, New with what it does
+        // Start over open at the start view: Reset greyed out with its reason, New with what it does;
+        // a window of 1920 px, where Start over is in the toolbar with the field list open
         name: "start-over",
         query: "data=sales",
-        size: WIDE,
+        size: { width: 1920, height: 900 },
         open: (page) => page.getByTestId("start-over").click()
     },
     {
