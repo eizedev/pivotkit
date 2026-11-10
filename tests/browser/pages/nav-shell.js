@@ -4,7 +4,7 @@
 // element-nav.html (the web component). The report goes into the returned element, right of the
 // drawer and under the app bar, as in the host.
 //
-// The data: one row per server, with a numeric `ID` (> 9999, one per row: an identifier), host
+// The data: one row per server, with a numeric `ID` (six digits from 109400, one per row: an identifier), host
 // names of many lengths in `Name` (srv-app-frankfurt-prod-042.corp.example), and field names that
 // are single words longer than a narrow field list ("Environment", "Manufacturer") or two words
 // ("Date Commissioned"). The same rows on every run (a fixed seed).
@@ -66,7 +66,7 @@ export function servers(n = 10_000, seed = 31) {
                 ? `${pick(rnd, roles)}-${String(i).padStart(4, "0")}`
                 : `${pick(rnd, roles)}-${pick(rnd, apps)}-${pick(rnd, cities)}-${short[env]}-${String(i).padStart(4, "0")}${rnd() < 0.5 ? ".corp.example" : ""}`;
         rows[i] = {
-            ID: 27_000 + i,
+            ID: 109_400 + i,
             Name: name,
             Environment: env,
             Manufacturer: maker,
@@ -82,13 +82,14 @@ export function servers(n = 10_000, seed = 31) {
 
 /**
  * The start views of the page (`?view=`): "basic" (the default) a small table of environments,
- * "hosts" the host names by environment (#110), "wide" host names by environment and location (a
+ * "hosts" the host names by environment (#110), "ids" the IDs on Rows without a grand total, "wide" host names by environment and location (a
  * table larger than its area both ways, most of its cells empty), "broken" a view with parts the data
  * cannot use (a field it lacks, an unknown format), "none" an empty report.
  */
 export const VIEWS = {
     basic: { rows: ["Environment"], values: [{ field: "Cost", agg: "sum" }] },
     hosts: { rows: ["Name"], cols: ["Environment"], values: [{ field: "Name", agg: "count" }] },
+    ids: { rows: ["ID"], values: [{ field: "Cost", agg: "sum" }], totals: { grandTotalRow: false } },
     wide: { rows: ["Name"], cols: ["Environment", "Location"], values: [{ field: "Cost", agg: "sum" }] },
     broken: { rows: ["Environment", "Hostname"], values: [{ field: "Cost", agg: "sum", format: "money" }] },
     none: undefined

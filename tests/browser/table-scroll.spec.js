@@ -107,3 +107,15 @@ test.describe("the row label column's width follows the font (#110, #121)", () =
     });
 
 });
+
+test("short numeric row labels of a virtual table show whole: the IDs on Rows, none cut", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // no grand total: the IDs are the column's longest labels. The page's system font draws its
+    // figures narrower unless asked for tabular ones, as the table does; a measure without them cut
+    // every ID ("1094…")
+    await page.goto("pages/nav.html?view=ids&rows=2000");
+    await expect(page.locator(".pk-table.pk-virtual")).toHaveCount(1);
+    const labels = await page.locator(".pk-table tbody th.pk-rowHeader .pk-th-text").evaluateAll((els) => els.map((e) => ({ text: e.textContent, cut: e.scrollWidth > e.clientWidth })));
+    expect(labels.length).toBeGreaterThan(10);
+    expect(labels.filter((l) => /^\d+$/.test(l.text) && l.cut)).toEqual([]);
+});
