@@ -115,9 +115,10 @@ test("the menus' German texts load only for a German report: neither in the firs
     assert.ok(!text(groups.menus).includes("Anwenden"), "the German menu texts are in the menus");
     assert.ok(!text(groups.initial).includes("Anwenden"), "the German menu texts are in the first load");
     assert.ok(text(groups.menus).includes("Apply"), "the English menu texts are not in the menus");
-    // the menus' sections (section.jsx) load with the menus, only their context (help.js) first
-    assert.ok(text(groups.menus).includes('className:"pk-section-head"'));
-    assert.ok(!text(groups.initial).includes('className:"pk-section-head"'), "the menus' sections are in the first load");
+    // the "i" of the menus' sections (section.jsx) loads with the menus, only their context (help.js)
+    // first; the groups themselves (popover.jsx: Group) are first load, as More draws its groups
+    assert.ok(text(groups.menus).includes('className:"pk-setting-info"'));
+    assert.ok(!text(groups.initial).includes('className:"pk-setting-info"'), "the menus' sections are in the first load");
 });
 
 test("the plain words of a view's unused parts load only when a view has such parts", () => {

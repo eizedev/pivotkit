@@ -82,8 +82,15 @@ export const en = {
     chartTypes: { auto: "Automatic", bar: "Bars", stacked: "Stacked bars", horizontal: "Horizontal bars", line: "Lines", area: "Area", pie: "Pie", donut: "Donut", heatmap: "Heatmap" },
     undo: "Undo",
     redo: "Redo",
+    // Start over: the toolbar's menu of Reset and New (or their entries in More), each with what it
+    // does and, while it does nothing, why
+    startOver: "Start over",
     reset: "Reset",
-    resetHint: "Back to the start view",
+    resetHint: "Back to the start view. Your data stays.",
+    resetAlready: "Already at the start view.",
+    resetStartEmpty: "The start view is empty: use New, empty report.",
+    newHint: "No fields. Undo brings it back. Your data stays.",
+    newAlready: "The report is empty already.",
     // next to Views: the name of the view loaded, and the mark while it has changes not saved
     unsavedChanges: "Unsaved changes",
     swap: "Swap rows and columns",
@@ -184,7 +191,7 @@ export const en = {
     toastUndone: "Undone: {step}",
     toastRedone: "Redone: {step}",
     toastReset: "Back to the start view",
-    // New's step said in the status line, and its entry in the Views menu
+    // New's entry under Start over, and its step said in the status line
     newEmpty: "New, empty report",
     toastLoaded: "View “{name}” loaded",
     toastExportFailed: "Export failed: {message}",
@@ -411,8 +418,13 @@ export const de = {
     chartTypes: { auto: "Automatisch", bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap" },
     undo: "Rückgängig",
     redo: "Wiederholen",
+    startOver: "Neu beginnen",
     reset: "Zurücksetzen",
-    resetHint: "Zurück zur Startansicht",
+    resetHint: "Zurück zur Startansicht. Deine Daten bleiben.",
+    resetAlready: "Schon in der Startansicht.",
+    resetStartEmpty: "Die Startansicht ist leer: Nimm „Neuer, leerer Bericht“.",
+    newHint: "Keine Felder. Rückgängig holt ihn zurück. Deine Daten bleiben.",
+    newAlready: "Der Bericht ist schon leer.",
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
     layout: "Anordnung",

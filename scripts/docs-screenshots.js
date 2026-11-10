@@ -26,6 +26,8 @@ const base = `http://127.0.0.1:${port}/`;
 const WIDE = { width: 1440, height: 900 };
 const THEMES = ["light", "dark"];
 const PHONE = { width: 390, height: 844 };
+/** A window of 1000 px with the field list open: every toolbar button that can move is in More. */
+const MEDIUM = { width: 1000, height: 760 };
 
 /** The three largest countries per region as bars: the regions are the group labels under the axis. */
 const GROUPED = encodeViewLink({
@@ -226,13 +228,18 @@ const SHOTS = [
     },
     { name: "chart-groups", query: "data=countries", hash: GROUPED, size: WIDE, chart: true },
     {
-        name: "share-menu",
+        // Start over open at the start view: Reset greyed out with its reason, New with what it does
+        name: "start-over",
         query: "data=sales",
         size: WIDE,
-        open: async (page) => {
-            await toolbar(page, "views");
-            await page.getByTestId("topic-share").click();
-        }
+        open: (page) => page.getByTestId("start-over").click()
+    },
+    {
+        // More in a window where every button that can move is in it: its groups with a rule between
+        name: "more-menu",
+        query: "data=sales",
+        size: MEDIUM,
+        open: (page) => page.getByTestId("more").click()
     },
     {
         // Shared views (the presets and the views of the OpenAPI document) and My views with one saved
@@ -263,7 +270,7 @@ const SHOTS = [
         }
     },
     {
-        // This view in the Views menu: Save for one of my views, changed, Save as… and New
+        // This view in the Views menu: Save for one of my views, changed, and Save as…
         name: "views-this-view",
         query: "data=tickets",
         size: WIDE,
@@ -413,7 +420,6 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
-            await page.getByTestId("topic-share").click();
             await page.getByTestId("load-view").click();
             const file = toViewFile({ rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] }, { name: "Sunshine per city", source: { id: "weather", name: "Weather" } });
             await page.getByTestId("load-view-text").fill(JSON.stringify(file));

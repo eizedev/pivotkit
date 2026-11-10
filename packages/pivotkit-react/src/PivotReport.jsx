@@ -981,9 +981,7 @@ function Report(props) {
                 now.setTag(tag);
             }
         },
-        viewKey: history.viewKey,
-        onNew: newReport,
-        canNew: !empty
+        viewKey: history.viewKey
     };
 
     const onKeyDown = (e) => {
@@ -1238,9 +1236,12 @@ function Report(props) {
                                 canUndo={history.canUndo}
                                 canRedo={history.canRedo}
                                 canReset={history.canReset}
+                                startEmpty={history.startEmpty}
+                                canNew={!empty}
                                 onUndo={undo}
                                 onRedo={redo}
                                 onReset={reset}
+                                onNew={newReport}
                                 loadedView={loadedView ? { name: loadedView.name, changed: unsaved } : null}
                                 onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
                                 onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}

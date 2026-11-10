@@ -41,7 +41,7 @@ export function schemaKeyOf(encoded) {
  *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
  * @returns {{ view: import("pivotkit-core").View, viewKey: string, tag: any, setTag: (tag: any) => void, commit: (next: object, note: string, tag?: any) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
- *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, earlier: () => any[], canUndo: boolean, canRedo: boolean, canReset: boolean }}
+ *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, earlier: () => any[], canUndo: boolean, canRedo: boolean, canReset: boolean, startEmpty: boolean }}
  */
 export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf }) {
     const controlled = view !== undefined;
@@ -128,8 +128,12 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     const canUndo = live.past.length > 0;
     const canRedo = live.future.length > 0;
     const canReset = live.present !== live.start;
+    // the start view is the empty one (no defaultView, or one with nothing in it): Reset would do what
+    // New does, so it is off and says so
+    const emptyKey = useMemo(() => json(null), [json]);
+    const startEmpty = live.start === emptyKey;
     return useMemo(
-        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, earlier, canUndo, canRedo, canReset }),
-        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, earlier, canUndo, canRedo, canReset]
+        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, earlier, canUndo, canRedo, canReset, startEmpty }),
+        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, earlier, canUndo, canRedo, canReset, startEmpty]
     );
 }

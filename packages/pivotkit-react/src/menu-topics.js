@@ -32,11 +32,10 @@ import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, 
  * "panel" a row that opens a level with a form (the menu's component draws it, by the topic's id).
  * `state` is what is set, in short, on the row's right; `changed` marks a setting that is not the
  * default; `info` the id of an explanation next to the level's title. `hidden`: a level a choice
- * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices;
- * `heading`: a group heading above a "menu" or "panel" row on the first level, as an inline topic's title.
+ * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices.
  * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
- *   icon?: string, titled?: boolean, heading?: string, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
+ *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
  *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice }>,
  *   searchFor?: (query: string) => Array<{ id: string, text: string, focus?: string, choice: Choice }> }} Topic
  * `keywords`: more words the search finds the topic's entries by (a choice's own `keywords` put it

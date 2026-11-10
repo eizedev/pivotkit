@@ -84,6 +84,26 @@ function ChartTitle({ title, labels, onDisplay }) {
 }
 
 /**
+ * One group of the chart's Display (Value labels, Legend, ...): its title, with an "i" where it needs
+ * explaining, and its choices; a dashed rule between the groups (styles.css: .pk-subsection).
+ * @param {{ title?: string, info?: string, children: React.ReactNode }} props
+ */
+function Sub({ title, info, children }) {
+    const titleId = useId();
+    return (
+        <div className="pk-subsection" role={title ? "group" : undefined} aria-labelledby={title ? titleId : undefined}>
+            {title ? (
+                <div className={`pk-subtitle${info ? " pk-setting-row" : ""}`}>
+                    <span id={titleId}>{title}</span>
+                    {info ? <SettingInfo id={info} name={title} /> : null}
+                </div>
+            ) : null}
+            {children}
+        </div>
+    );
+}
+
+/**
  * How the chart is drawn: value labels, legend, title, smooth lines (line and area). Each choice
  * applies at once and the panel stays open, so the chart behind it shows the change.
  */
@@ -99,20 +119,17 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
     const valueLabels = !pie && (chart.valueLabels === "percent" || chart.valueLabels === "both") ? "value" : chart.valueLabels;
     return (
         <Section title={labels.chartDisplay}>
-            <div className="pk-subtitle">{labels.valueLabels}</div>
-            <div className="pk-choice-grid">
-                {choices.map((v) => (
-                    <Option key={v} checked={valueLabels === v} onSelect={() => onDisplay({ valueLabels: v })} testId={`labels-${v}`}>
-                        {labels.valueLabelNames[v]}
-                    </Option>
-                ))}
-            </div>
+            <Sub title={labels.valueLabels}>
+                <div className="pk-choice-grid">
+                    {choices.map((v) => (
+                        <Option key={v} checked={valueLabels === v} onSelect={() => onDisplay({ valueLabels: v })} testId={`labels-${v}`}>
+                            {labels.valueLabelNames[v]}
+                        </Option>
+                    ))}
+                </div>
+            </Sub>
             {pie ? (
-                <>
-                    <div className="pk-subtitle pk-setting-row">
-                        <span>{labels.labelPosition}</span>
-                        <SettingInfo id="labelPosition" name={labels.labelPosition} />
-                    </div>
+                <Sub title={labels.labelPosition} info="labelPosition">
                     <div className="pk-choice-grid">
                         {LABEL_POSITIONS.map((v) => (
                             <Option key={v} checked={(chart.labelPosition ?? "outside") === v} disabled={chart.valueLabels === "off"} onSelect={() => onDisplay({ labelPosition: v })} testId={`label-position-${v}`}>
@@ -120,21 +137,22 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                             </Option>
                         ))}
                     </div>
-                </>
+                </Sub>
             ) : null}
-            <div className="pk-subtitle">{labels.legend}</div>
-            <div className="pk-choice-grid">
-                {LEGENDS.map((v) => (
-                    <Option key={v} checked={chart.legend === v} onSelect={() => onDisplay({ legend: v })} testId={`legend-${v}`}>
-                        {labels.legendNames[v]}
-                    </Option>
-                ))}
-            </div>
-            <div className="pk-subtitle">{labels.chartTitle}</div>
-            <ChartTitle title={chart.title} labels={labels} onDisplay={onDisplay} />
+            <Sub title={labels.legend}>
+                <div className="pk-choice-grid">
+                    {LEGENDS.map((v) => (
+                        <Option key={v} checked={chart.legend === v} onSelect={() => onDisplay({ legend: v })} testId={`legend-${v}`}>
+                            {labels.legendNames[v]}
+                        </Option>
+                    ))}
+                </div>
+            </Sub>
+            <Sub title={labels.chartTitle}>
+                <ChartTitle title={chart.title} labels={labels} onDisplay={onDisplay} />
+            </Sub>
             {axis ? (
-                <>
-                    <div className="pk-subtitle">{labels.axisLabels}</div>
+                <Sub title={labels.axisLabels}>
                     <div className="pk-choice-grid">
                         {AXIS_LABELS.map((v) => (
                             <Option key={v} checked={chart.axisLabels === v} onSelect={() => onDisplay({ axisLabels: v })} testId={`axis-${v}`}>
@@ -142,14 +160,10 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                             </Option>
                         ))}
                     </div>
-                </>
+                </Sub>
             ) : null}
             {axis && view.rows.length >= 2 ? (
-                <>
-                    <div className="pk-subtitle pk-setting-row">
-                        <span>{labels.groupLabels}</span>
-                        <SettingInfo id="groupLabels" name={labels.groupLabels} />
-                    </div>
+                <Sub title={labels.groupLabels} info="groupLabels">
                     <div className="pk-choice-grid">
                         {GROUP_LABELS.map((v) => (
                             <Option key={v} checked={chart.groupLabels === v} onSelect={() => onDisplay({ groupLabels: v })} testId={`groups-${v}`}>
@@ -157,9 +171,15 @@ function ChartDisplay({ view, plan, labels, onDisplay }) {
                             </Option>
                         ))}
                     </div>
-                </>
+                </Sub>
             ) : null}
-            {drawn === "line" || drawn === "area" ? <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">{labels.smoothLines}</Switch> : null}
+            {drawn === "line" || drawn === "area" ? (
+                <Sub>
+                    <Switch checked={chart.smooth} onChange={(on) => onDisplay({ smooth: on })} testId="chart-smooth">
+                        {labels.smoothLines}
+                    </Switch>
+                </Sub>
+            ) : null}
         </Section>
     );
 }
@@ -381,7 +401,7 @@ export function LoadCheck({ check, labels, onCancel, close, title, quiet = false
 }
 
 /**
- * "Load view…": a view file, a view pasted as JSON or a link, or a .pivotkit.json file. Nothing
+ * "Open view file…": a view file, a view pasted as JSON or a link, or a .pivotkit.json file. Nothing
  * changes until it is loaded; what cannot be used is said in the panel; a view for other data asks
  * first (LoadCheck); what was left out after the load is said above the result.
  */
@@ -539,11 +559,12 @@ function viewActions(ctx, labels) {
 }
 
 /**
- * The Views menu in levels: its first level is the list to scan - "This view" (Save the loaded view
- * under its name, or why not; Save as…; New, an empty report), "Shared views" (the host's, for
- * everyone) and "My views" (the user's own: the host's or the browser store's), each shown only when
- * it has entries ("My views" also when the user can save), then Share. Save as…, Share (copy a link
- * or the JSON, download, load a view) and the questions before a change open levels of their own. An
+ * The Views menu in levels: what persists, as one list to scan in groups - "This view" (Save the
+ * loaded view under its name, or why not; Save as…), "Shared views" (the host's, for everyone) and
+ * "My views" (the user's own: the host's or the browser store's), each shown only when it has entries
+ * ("My views" also when the user can save), then "Share this view" (copy a link or the JSON, download
+ * the view file, open one). Save as…, Open view file… and the questions before a change open levels
+ * of their own. (Starting over, New and Reset, is the toolbar's Start over.) An
  * entry loads its view; a deletable one has Delete next to it, a user's view Publish when the host
  * allows it, a shared one that is not deletable the "i" that says who changes shared views. Delete,
  * publish and Save over a shared view ask first, in a level; the entry changes only when the host's
@@ -610,7 +631,6 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
     if (canSaveAs(can)) {
         thisView.push({ id: "save-as", text: actions.loaded ? labels.saveAs : `${labels.saveView}…`, icon: "save", open: "saveAs" });
     }
-    thisView.push({ id: "new-report", text: labels.newEmpty, icon: "newFile", disabled: !actions.canNew, reason: actions.canNew ? undefined : labels.newAlready, info: "newReport", closes: true, run: () => actions.onNew() });
     const act = share ? shareActions(share, labels) : null;
     const question =
         asking?.kind === "replaceShared"
@@ -620,7 +640,7 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
               : null;
     /** @type {import("./menu-topics.js").Topic[]} */
     const topics = [
-        { id: "thisView", title: labels.thisView, kind: "inline", titled: true, groups: [{ choices: thisView }] },
+        ...(thisView.length ? [{ id: "thisView", title: labels.thisView, kind: /** @type {const} */ ("inline"), titled: true, groups: [{ choices: thisView }] }] : []),
         ...(shared.length ? [{ id: "sharedViews", title: labels.sharedViews, kind: /** @type {const} */ ("inline"), titled: true, groups: [{ choices: shared.map((at) => entry(at, shared)) }] }] : []),
         ...(mine.length || canSaveAs(can) || !shared.length
             ? [
@@ -640,11 +660,9 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
             ? [
                   {
                       id: "share",
-                      title: labels.share,
-                      // under a heading of its own, like the lists before it
-                      heading: labels.shareThisView,
-                      kind: /** @type {const} */ ("menu"),
-                      icon: "link",
+                      title: labels.shareThisView,
+                      kind: /** @type {const} */ ("inline"),
+                      titled: true,
                       groups: [
                           {
                               choices: [

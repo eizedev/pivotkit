@@ -19,8 +19,40 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The host's own view (`view`, else the first `defaultView`) is warned about like a loaded view when
   the data cannot use parts of it, once per distinct view, not while `loading` ([#83](https://github.com/eizedev/pivotkit/issues/83)).
 
+### Changed
+
+- UI: **Start over** in the toolbar, a menu button after Undo and Redo, replaces the Reset button. It
+  holds **Reset** ("Back to the start view. Your data stays.") and **New, empty report** ("No fields.
+  Undo brings it back. Your data stays."), each greyed out with its reason ("Already at the start
+  view.", "The report is empty already."); Reset is also off when the start view is the empty report
+  ("The start view is empty: use New, empty report."). Enter, Space or the down arrow opens it. In
+  More, Reset and New are entries of their own. The test id `reset` is now Reset's entry in that menu
+  (`start-over` is the button; `new-report` and `more-new-report` New's), so a host's test that
+  clicked `reset` opens Start over first. New labels `startOver`, `resetAlready`, `resetStartEmpty`,
+  `newHint`; `resetHint` is the new longer text; `newAlready` is a first-load text now
+  ([#88](https://github.com/eizedev/pivotkit/issues/88)).
+- UI: the Views menu holds what persists, in four groups: This view (Save, Save as…), Shared views,
+  My views, Share this view (Copy link, Copy view as JSON, Download view, Open view file…), with no
+  Share level in between. "New, empty report" left it for Start over; "Load view…" reads "Open view
+  file…" (the label `loadView`; German "Ansichtsdatei öffnen…"), its level "Views › Open view file".
+  The labels `share` and `settingInfo.newReport` are gone.
+- UI: every menu draws its groups alike: each group's title in bold, as Export's, with a rule between
+  one group and the next (Options, Views, the chart type, More, a chip menu's levels such as "More
+  statistics"); More has rules only; the chart's Display parts its own groups (Value labels, Legend,
+  Title, ...) with a dashed rule, each a named group for a screen reader. One component draws them
+  (`Group` in popover.jsx) ([#105](https://github.com/eizedev/pivotkit/issues/105)).
+- An item of a toolbar menu (Start over, More) that is greyed out stays reachable with the arrow keys
+  (`aria-disabled`), so a screen reader hears its reason.
+
 ### Fixed
 
+- Toolbar buttons moved into More although the free room would hold some of them (a report about
+  1,000 px wide showed Reset, Layout and Options in More next to a wide gap). A button moves now only
+  when the room left cannot hold it: the room is measured with the texts of the report's language
+  (not the longest of every language), and a button that fits stays even when one before it in the
+  order had to go. The chart type keeps the room of its longest type, so picking one never moves a
+  button. The order is Start over, Layout, Options, the chart type, Views; More lists them in groups
+  ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and "i" popups opened by a click open in the browser's top layer
   (`popover="manual"`; a description shown on hover stays in the report's layer): a host's
   fixed navigation above z-index 50 (PowerShell Universal's drawer at 1200) no longer covers the left

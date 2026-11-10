@@ -15,8 +15,19 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   attribute or event.
 - What of the page's `view` or `defaultView` the data cannot use shows above the result ([#83](https://github.com/eizedev/pivotkit/issues/83)).
 
+### Changed
+
+- pivotkit-react's **Start over** menu in the toolbar (Reset and New, empty report, each with what it
+  does or why it is off) replaces the Reset button; the Views menu holds This view, Shared views, My
+  views and Share this view (with "Open view file…", formerly "Load view…"), New moved to Start over;
+  every menu's groups have bold titles and a rule between them
+  ([#88](https://github.com/eizedev/pivotkit/issues/88), [#105](https://github.com/eizedev/pivotkit/issues/105)). The test id `reset` is Reset's entry in Start over's menu now.
+  No new attribute or event.
+
 ### Fixed
 
+- Toolbar buttons move into More only when the room left cannot hold them, measured with the texts
+  of the element's language ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and popups open in the browser's top layer, still inside the shadow root:
   above a page's fixed navigation whatever its z-index ([#111](https://github.com/eizedev/pivotkit/issues/111)).
 - pivotkit-react's fixes of one scroll container for a large table ([#112](https://github.com/eizedev/pivotkit/issues/112)), a row label column

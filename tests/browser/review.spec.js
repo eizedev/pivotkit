@@ -5,7 +5,7 @@
 // without its change.
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, chips, expect, openSaveAs, openShare, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openSaveAs, test, toolbar } from "./fixtures.js";
 
 /** The playground's address of a view (its link parameter). */
 const withView = (query, view) => `?${query}#pivot-playground=${encodeViewLink(toViewFile(view, {}, { link: true }))}`;
@@ -54,18 +54,18 @@ test("a pie of many slices suggests bars; a pie with columns says it adds them u
     await expect(page.getByTestId("tip-pieColumns")).toContainText("adds up the columns (Channel)");
 });
 
-test("the toolbar shows the same buttons at the same width in English and German, Undo next to Redo", async ({ page }) => {
+// which buttons each language shows at which width: toolbar-overflow.spec.js (issue #88: measured
+// with the texts shown, so a shorter language keeps more buttons)
+test("the toolbar keeps Undo next to Redo in English and German", async ({ page }) => {
     for (const width of [1100, 1440, 1920]) {
         await page.setViewportSize({ width, height: 900 });
-        const shown = {};
         for (const lang of ["en", "de"]) {
             await page.goto(`?data=sales&lang=${lang}`);
             await expect(page.getByTestId("undo")).toBeVisible();
-            shown[lang] = await page.locator(".pk-toolbar [data-testid]").evaluateAll((els) => els.filter((e) => e.getClientRects().length).map((e) => e.getAttribute("data-testid")));
             const [undo, redo] = await Promise.all(["undo", "redo"].map((id) => page.getByTestId(id).boundingBox()));
             expect(Math.abs(undo.y - redo.y), `${lang} ${width}: Undo and Redo in one line`).toBeLessThan(2);
+            expect(redo.x, `${lang} ${width}: Redo right after Undo`).toBeGreaterThan(undo.x);
         }
-        expect(shown.de, `at ${width} px`).toEqual(shown.en);
     }
 });
 
@@ -97,7 +97,6 @@ test.describe("phone", () => {
         const v = await views.boundingBox();
         expect(v.y + v.height).toBeLessThanOrEqual(844 + 1);
         await views.click();
-        await openShare(page);
         await expect(page.getByTestId("copy-json")).toBeVisible();
     });
 
@@ -215,9 +214,7 @@ test("a save closes the Views menu, the focus back on Views; the saved view is m
     await expect(page.getByTestId("views")).toBeFocused();
     await toolbar(page, "views");
     await expect(page.getByTestId("saved-view-Mine")).toHaveAttribute("aria-current", "true");
-    await openShare(page);
     await expect(page.getByTestId("copy-link")).toBeVisible();
-    await page.keyboard.press("Escape");
     // the name field starts empty again
     await openSaveAs(page);
     await expect(page.getByTestId("saved-view-name")).toHaveValue("");

@@ -289,11 +289,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
  *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
- *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode }} props
+ *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode, arrowOpens?: boolean }} props
  *   `tabIndex`: -1 where a list moves the focus itself (the field list); `mark`: after the text (the
- *   dot for unsaved changes on "More")
+ *   dot for unsaved changes on "More"); `arrowOpens`: the down arrow opens it (a toolbar's menu)
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark, arrowOpens = false }) {
     const [open, setOpen] = useState(false);
     const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const ref = buttonRef ?? own;
@@ -315,6 +315,13 @@ export function MenuButton({ label, icon, text, showText = true, className, role
                 data-pk-slot={slot}
                 data-testid={testId}
                 onClick={() => setOpen((o) => !o)}
+                // the menu button pattern: the down arrow opens the menu too (Enter and Space click)
+                onKeyDown={arrowOpens ? (e) => {
+                    if (e.key === "ArrowDown" && !open) {
+                        e.preventDefault();
+                        setOpen(true);
+                    }
+                } : undefined}
             >
                 {icon ? <Icon name={/** @type {any} */ (icon)} /> : null}
                 {showText && text ? <span className="pk-btn-text">{text}</span> : null}
@@ -325,6 +332,48 @@ export function MenuButton({ label, icon, text, showText = true, className, role
                 {children(close)}
             </Popover>
         </>
+    );
+}
+
+/**
+ * A group of a menu's entries, the one way every menu draws its groups (the toolbar's menus, More,
+ * a chip menu's levels; section.jsx's Section adds the "i"): its title in bold above it, a rule
+ * between it and what comes before (styles.css: .pk-section), none above the first. In a dialog the
+ * group is the whole block, named by its title. In an ARIA menu (`menu`) the block is presentational
+ * and the group holds only the items, as a menu may own groups of items but no other text; a group
+ * without a title (More) is named by `label`.
+ * @param {{ title?: React.ReactNode, label?: string, menu?: boolean, head?: React.ReactNode, after?: React.ReactNode, children: React.ReactNode, testId?: string, titleTestId?: string }} props
+ *   `head`: next to the title (an "i"); `after`: under the entries, inside the block (a note);
+ *   `testId`: the group's, `titleTestId`: the title's
+ */
+export function Group({ title, label, menu = false, head, after, children, testId, titleTestId }) {
+    const titleId = useId();
+    const top = title ? (
+        <div className="pk-section-head">
+            <div className="pk-section-title" id={titleId} role={menu ? "presentation" : undefined} data-testid={titleTestId}>
+                {title}
+            </div>
+            {head}
+        </div>
+    ) : null;
+    const name = title ? { "aria-labelledby": titleId } : { "aria-label": label };
+    if (menu) {
+        return (
+            <div className="pk-section" role="none">
+                {top}
+                <div role="group" {...name} data-testid={testId}>
+                    {children}
+                </div>
+                {after}
+            </div>
+        );
+    }
+    return (
+        <div className="pk-section" role="group" {...name} data-testid={testId}>
+            {top}
+            {children}
+            {after}
+        </div>
     );
 }
 
@@ -340,6 +389,9 @@ export function MenuButton({ label, icon, text, showText = true, className, role
 export function Option({ onSelect, icon, checked, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
     const second = disabled && reason ? reason : hint;
     const role = inMenu ? (checked === undefined ? "menuitem" : "menuitemradio") : undefined;
+    // an item of a menu that does nothing now stays in the arrow keys' way (aria-disabled), so its
+    // reason is heard (WAI-ARIA Authoring Practices: disabled menu items are focusable)
+    const off = inMenu && disabled;
     return (
         <button
             type="button"
@@ -347,11 +399,12 @@ export function Option({ onSelect, icon, checked, children, hint, reason, inMenu
             aria-checked={inMenu && checked !== undefined ? checked : undefined}
             aria-pressed={!inMenu && checked !== undefined ? checked : undefined}
             aria-current={current ? "true" : undefined}
-            className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${tone === "accent" ? " pk-accent" : ""}`}
+            aria-disabled={off || undefined}
+            className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${tone === "accent" ? " pk-accent" : ""}${off ? " pk-disabled" : ""}`}
             data-pk-option=""
             data-testid={testId}
-            disabled={disabled}
-            onClick={onSelect}
+            disabled={off ? undefined : disabled}
+            onClick={off ? undefined : onSelect}
         >
             <span className="pk-option-icon">{checked || current ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">

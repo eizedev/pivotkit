@@ -4,7 +4,7 @@
 // once its part of the view is changed by hand and comes back with Undo (#82); the host's own view
 // (defaultView, a controlled view, the element's default-view) is warned about too, once per view (#83).
 import { test as plain } from "@playwright/test";
-import { chipMenu, expect, openSaveAs, openShare, openZones, test, toolbar } from "./fixtures.js";
+import { chipMenu, expect, openSaveAs, openZones, test, toolbar } from "./fixtures.js";
 
 /** A view for the sales data with a value whose colour scale has one colour and a legend place the chart does not know. */
 const VIEW = {
@@ -13,10 +13,9 @@ const VIEW = {
     chart: { legend: "left" }
 };
 
-/** Loads a view as pasted JSON (Views → Share → Load). */
+/** Loads a view as pasted JSON (Views → Open view file…). */
 async function paste(page, view) {
     await toolbar(page, "views");
-    await openShare(page);
     await page.getByTestId("load-view").click();
     await page.getByTestId("load-view-text").fill(JSON.stringify(view));
     await page.getByTestId("load-view-apply").click();

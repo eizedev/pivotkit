@@ -17,6 +17,7 @@ import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { ClearInput } from "./clear-input.jsx";
 import { HelpContext } from "./help.js";
+import { Group } from "./popover.jsx";
 import { SettingInfo } from "./section.jsx";
 import { rowName, searchEntries, searchHits, stepIndex, typeAheadIndex } from "./menu-topics.js";
 
@@ -269,63 +270,42 @@ function TopicRow({ topic, labels, onOpen }) {
     );
 }
 
-/** The choices of a topic's groups as menu items, each group with its title. */
+/** The choices of a topic's groups as menu items, each group with its title (popover.jsx: Group). */
 function Groups({ topic, onPick }) {
-    const ids = useId();
-    const groups = (topic.groups ?? []).map((g, i) => {
-        const items = g.choices.map((c) => <ChoiceItem key={c.id} choice={c} start={c.checked} onPick={onPick} />);
-        return g.title ? (
-            <React.Fragment key={i}>
-                <div className="pk-subtitle" id={`${ids}-${i}`} role="presentation">
-                    {g.title}
-                </div>
-                <div role="group" aria-labelledby={`${ids}-${i}`} >
-                    {items}
-                </div>
-            </React.Fragment>
-        ) : (
-            <div key={i} role="group" aria-label={topic.title}>
-                {items}
-            </div>
-        );
-    });
     return (
         <>
-            {groups}
-            {topic.note ? (
-                <p className="pk-hint pk-menu-hint" role="none" data-testid={topic.noteId}>
-                    {topic.note}
-                </p>
-            ) : null}
+            {(topic.groups ?? []).map((g, i) => (
+                <Group key={i} menu title={g.title} label={g.title ? undefined : topic.title}>
+                    {g.choices.map((c) => (
+                        <ChoiceItem key={c.id} choice={c} start={c.checked} onPick={onPick} />
+                    ))}
+                </Group>
+            ))}
+            <TopicNote topic={topic} />
         </>
     );
 }
 
+/** The line under a topic's choices (where the views are kept, what sharing gives away). */
+function TopicNote({ topic }) {
+    return topic.note ? (
+        <p className="pk-hint pk-menu-hint" role="none" data-testid={topic.noteId}>
+            {topic.note}
+        </p>
+    ) : null;
+}
+
 /**
  * A topic on the first level: a row that opens its level, or its choices right there (side by side
- * with its title before them, or one below the other).
+ * with its title before them, or one below the other; `titled`: a group under its title, with a rule
+ * between it and what comes before, as every menu's groups).
  */
 function TopicFirst({ topic, labels, onPick, onOpen }) {
-    const titleId = useId();
     if (topic.hidden) {
         return null;
     }
     if (topic.kind === "menu" || topic.kind === "panel") {
-        const row = <TopicRow topic={topic} labels={labels} onOpen={onOpen} />;
-        // a row under a group heading of its own ("Share this view" above Share), marked up as the
-        // titled inline topics are, so the row is not lost under the lists before it
-        return topic.heading ? (
-            <>
-                <div className="pk-subtitle" id={titleId} role="presentation" data-testid={`topic-title-${topic.id}`}>
-                    {topic.heading}
-                </div>
-                <div role="group" aria-labelledby={titleId}>
-                    {row}
-                </div>
-            </>
-        ) : (
-            row
-        );
+        return <TopicRow topic={topic} labels={labels} onOpen={onOpen} />;
     }
     const choices = topic.groups?.[0]?.choices ?? [];
     if (topic.kind === "segmented") {
@@ -358,23 +338,17 @@ function TopicFirst({ topic, labels, onPick, onOpen }) {
             </div>
         );
     }
-    return (
+    const items = choices.map((c) => <ChoiceItem key={c.id} choice={c} onPick={onPick} />);
+    return topic.titled ? (
+        <Group menu title={topic.title} testId={`topic-${topic.id}`} titleTestId={`topic-title-${topic.id}`} after={<TopicNote topic={topic} />}>
+            {items}
+        </Group>
+    ) : (
         <>
-            {topic.titled ? (
-                <div className="pk-subtitle" id={titleId} role="presentation" data-testid={`topic-title-${topic.id}`}>
-                    {topic.title}
-                </div>
-            ) : null}
-            <div role="group" aria-label={topic.titled ? undefined : topic.title} aria-labelledby={topic.titled ? titleId : undefined} data-testid={`topic-${topic.id}`}>
-                {choices.map((c) => (
-                    <ChoiceItem key={c.id} choice={c} onPick={onPick} />
-                ))}
+            <div role="group" aria-label={topic.title} data-testid={`topic-${topic.id}`}>
+                {items}
             </div>
-            {topic.note ? (
-                <p className="pk-hint pk-menu-hint" role="none" data-testid={topic.noteId}>
-                    {topic.note}
-                </p>
-            ) : null}
+            <TopicNote topic={topic} />
         </>
     );
 }

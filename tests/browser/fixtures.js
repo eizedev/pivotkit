@@ -48,25 +48,31 @@ export async function tableRows(page) {
     );
 }
 
+/** The actions of Start over's menu ("reset", "new-report"): entries of their own in "More". */
+export const START_OVER = ["reset", "new-report"];
+
 /**
  * Clicks a toolbar action: its own button, or its entry in "More" when the report is too narrow for
- * all buttons. `testId` is the button's ("redo", "reset", "options", "views", "chart-type"). A menu
- * that is open already (Views stays open after a save) stays open: a click on its button would close it.
+ * all buttons. `testId` is the button's ("redo", "options", "views", "chart-type"), or an action of
+ * Start over ("reset", "new-report": its menu, then the action). A menu that is open already (Views
+ * stays open after a save) stays open: a click on its button would close it.
  */
 export async function toolbar(page, testId) {
     // the report has its data (a real data set loads as a chunk of its own) and its toolbar has settled
     await page.locator('[data-testid="pivot-table"], [data-testid="pivot-chart"], [data-testid="empty-state"]').first().waitFor();
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-    const own = page.getByTestId(testId);
+    const button = START_OVER.includes(testId) ? "start-over" : testId;
+    const own = page.getByTestId(button);
     if (await own.count()) {
         if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
+        if (button !== testId) await page.getByTestId(testId).click();
     } else {
         await page.getByTestId("more").click();
         await page.getByTestId(`more-${testId}`).click();
     }
     // a menu takes the focus a frame after it opens (from More once its panel is there): wait for it,
     // so a test that moves the focus inside does not lose it to that
-    if (!["redo", "reset", "layout"].includes(testId)) {
+    if (!["redo", "layout", ...START_OVER].includes(testId)) {
         await expect.poll(() => page.evaluate(() => {
             const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
             return Boolean(deep(document)?.closest(".pk-popover"));
@@ -93,9 +99,18 @@ export async function openZones(page) {
     await expect(page.locator(".pk-zone").first()).toBeVisible();
 }
 
-/** Opens the Share level of an open Views menu (its row on the first level). */
-export async function openShare(scope) {
-    if (!(await scope.getByTestId("level-share").count())) await openLevel(scope, "share");
+/**
+ * Opens Start over's menu of a report (its button, or "More" when the toolbar has no room for it) and
+ * returns an action there ("reset", "new-report"); `scope` is the page or one report of several.
+ */
+export async function startOver(scope, action) {
+    const own = scope.getByTestId("start-over");
+    if (await own.count()) {
+        if ((await own.getAttribute("aria-expanded")) !== "true") await own.click();
+        return scope.getByTestId(action);
+    }
+    await scope.getByTestId("more").click();
+    return scope.getByTestId(`more-${action}`);
 }
 
 /** Opens the Save as level of an open Views menu ("Save as…", or "Save current view…"). */

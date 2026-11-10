@@ -28,7 +28,6 @@ export const en = {
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views.",
-        newReport: "Takes every field out, to start over. Undo brings them back; saved views stay.",
         valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."
     },
     // a menu in levels: the way back, a level's title, the search of a menu
@@ -211,7 +210,6 @@ export const en = {
     replaceConfirm: "“{name}” exists. Replace it?",
     replaceAction: "Replace",
     replaceSharedConfirm: "Replace the shared view “{name}” for everyone?",
-    newAlready: "The report is empty already.",
     save: "Save",
     cancel: "Cancel",
     expandAll: "Expand all",
@@ -345,15 +343,14 @@ export const en = {
     groupLabels: "Group labels under the axis",
     groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
     defaultName: "Use the default name",
-    // sharing a view (the Views menu): the group heading above the Share row, and the row
+    // sharing a view (the Views menu): the group's title
     shareThisView: "Share this view",
-    share: "Share",
     copyLink: "Copy link",
     copyJson: "Copy view as JSON",
     downloadView: "Download view (.pivotkit.json)",
     // said where a view leaves the report as a file, as JSON or as a link
     sharePrivacy: "A view holds the names of fields and, in its filters, the values chosen there: share it only where those may be seen.",
-    loadView: "Load view…",
+    loadView: "Open view file…",
     loadViewHint: "Paste a view file, a view as JSON or a link, or choose a .pivotkit.json file.",
     loadViewText: "View as JSON or link",
     chooseFile: "Choose file…",
