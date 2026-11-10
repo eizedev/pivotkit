@@ -17,9 +17,49 @@ import { fieldLabel } from "pivotkit-core";
 import { fill } from "./labels.js";
 import { refLabel, sortText } from "./names.js";
 import { headerSortState, headerSortTarget, nextHeaderSort } from "./view-ops.js";
-import { VIRTUAL_FROM, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
+import { VIRTUAL_FROM, longestLabels, rowLabelOf, sliceRows, windowOf } from "./virtual.js";
 
 const totalClass = (t) => (t === 2 ? " pk-grand" : t === 1 ? " pk-sub" : "");
+
+/** The labels of a row label column a virtual table measures for its width: the longest by characters. */
+const MEASURED_LABELS = 50;
+/** The widest a row label column of a virtual table gets, in em: a longer label ends in "…" (its title is whole). */
+const LABEL_MAX_EM = 28;
+
+/** A canvas to measure text on, made once. */
+let measureCanvas = /** @type {HTMLCanvasElement | null} */ (null);
+
+/**
+ * The width of each row label column of a virtual table, in px: its longest labels (by characters)
+ * measured in the table's font, with a group's toggle where a label has one, at most LABEL_MAX_EM.
+ * Measured once per grid, so the column keeps its width while the rows on screen change (#110).
+ * @param {import("pivotkit-core").Grid} grid
+ * @param {HTMLTableElement} table
+ * @returns {number[] | null}
+ */
+function labelWidths(grid, table) {
+    const text = table.querySelector("tbody th.pk-rowHeader .pk-th-text");
+    const content = text?.parentElement;
+    measureCanvas ??= table.ownerDocument.createElement("canvas");
+    const ctx = measureCanvas.getContext("2d");
+    if (!text || !content || !ctx) {
+        return null;
+    }
+    const style = getComputedStyle(text);
+    // the font's parts: the shorthand is empty in some engines
+    ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const em = parseFloat(style.fontSize) || 14;
+    const toggle = table.querySelector(".pk-toggle");
+    const gap = parseFloat(getComputedStyle(content).columnGap) || 0;
+    const toggleWidth = (toggle ? toggle.getBoundingClientRect().width : em * 1.7) + gap;
+    const widths = [];
+    for (let c = 0; c < grid.rowHeaderColumns; c++) {
+        const most = Math.max(0, ...longestLabels(grid, c, MEASURED_LABELS).map((l) => ctx.measureText(l.text).width + (l.toggle ? toggleWidth : 0)));
+        // a pixel more: the canvas and the layout round differently
+        widths.push(Math.min(Math.ceil(most) + 1, LABEL_MAX_EM * em));
+    }
+    return widths;
+}
 
 /**
  * Inline style of a value cell with conditional formatting: custom properties the stylesheet reads.
@@ -106,6 +146,9 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
     // the width of the table's box, measured: the sticky offsets of the label columns follow it
     const [width, setWidth] = useState(0);
     const [active, setActive] = useState(/** @type {{ r: number, c: number } | null} */ (null));
+    // a virtual table's row label columns: one width each, measured once per grid (labelWidths)
+    const [labelsWide, setLabelsWide] = useState(/** @type {{ grid: unknown, widths: number[] } | null} */ (null));
+    const fixedWidths = virtual && labelsWide?.grid === grid ? labelsWide.widths : null;
     const focusNext = useRef(false);
     // what a screen reader hears after a header sorted the rows
     const [sortNote, setSortNote] = useState("");
@@ -117,6 +160,16 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         },
         [toggleGroup]
     );
+
+    // a virtual table measures its row labels once, before the first paint of a grid
+    useIsoLayoutEffect(() => {
+        if (virtual && table.current && labelsWide?.grid !== grid) {
+            const widths = labelWidths(grid, table.current);
+            if (widths) {
+                setLabelsWide({ grid, widths });
+            }
+        }
+    }, [grid, virtual, labelsWide]);
 
     // the measured height of a body row and the widths of the row label columns (sticky offsets)
     useIsoLayoutEffect(() => {
@@ -146,7 +199,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
             setLefts((old) => (old.length === xs.length && old.every((v, i) => Math.abs(v - xs[i]) < 0.5) ? old : xs));
         }
         // width: the label columns get narrower or wider with the report (their cap is a share of it)
-    }, [grid, version, width]);
+    }, [grid, version, width, fixedWidths]);
 
     useEffect(() => {
         const el = wrap.current;
@@ -342,7 +395,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         if (cell.kind === "rowHeader") {
             return (
                 <th key={col} scope="row" className={`pk-th pk-rowHeader pk-sticky${totalClass(cell.total)}${rowSpan > 1 ? " pk-span" : ""}`} style={stickyStyle(col)} rowSpan={rowSpan > 1 ? rowSpan : undefined} colSpan={colSpan > 1 ? colSpan : undefined} title={virtual ? cell.text : undefined} onClick={showRowLabel ? () => showRowLabel(r, rowSpan) : undefined}>
-                    <span className="pk-th-content">
+                    <span className="pk-th-content" style={fixedWidths && colSpan <= 1 && fixedWidths[col] !== undefined ? { width: fixedWidths[col] } : undefined}>
                         {cell.toggle ? <Toggle toggle={cell.toggle} text={cell.text} labels={labels} onToggle={onToggle} /> : null}
                         <span className="pk-th-text">{cell.text}</span>
                     </span>

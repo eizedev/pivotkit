@@ -76,3 +76,40 @@ export function rowLabelOf(grid, r) {
     }
     return texts.join(" / ");
 }
+
+/**
+ * The longest row labels of a column by their number of characters, at most `n`: what a virtual table
+ * measures for the column's width once, instead of the rows it happens to show (they change as it
+ * scrolls). With each label whether it has a group's toggle in front of it.
+ * @param {import("pivotkit-core").Grid} grid
+ * @param {number} col  a row label column (below grid.rowHeaderColumns)
+ * @param {number} n
+ * @returns {Array<{ text: string, toggle: boolean }>}
+ */
+export function longestLabels(grid, col, n) {
+    /** @type {Array<{ text: string, toggle: boolean }>} */
+    const out = [];
+    if (n < 1) {
+        return out;
+    }
+    for (let r = grid.headerRows; r < grid.rows.length; r++) {
+        const cell = grid.rows[r][col];
+        if (!cell || cell.kind !== "rowHeader" || !cell.text) {
+            continue;
+        }
+        // kept sorted, longest first: a label shorter than the n-th is passed by
+        if (out.length === n && cell.text.length <= out[n - 1].text.length) {
+            continue;
+        }
+        const entry = { text: cell.text, toggle: Boolean(cell.toggle) };
+        let at = out.length;
+        while (at > 0 && out[at - 1].text.length < entry.text.length) {
+            at--;
+        }
+        out.splice(at, 0, entry);
+        if (out.length > n) {
+            out.pop();
+        }
+    }
+    return out;
+}
