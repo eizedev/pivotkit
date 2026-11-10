@@ -17,7 +17,7 @@ import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
-import { displayNames, fieldInfoOf, typesOf } from "./field-info.js";
+import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
 import { errorText, fill, plural, resolveLabels } from "./labels.js";
@@ -190,15 +190,6 @@ function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto",
 
 /** A subscription to something that never changes (useSyncExternalStore of a value chosen once). */
 const staysTheSame = () => () => undefined;
-
-/** The host's settings for a field (fieldDefaults), matched case-insensitively like column names. */
-function defaultsFor(fieldDefaults, field) {
-    if (!fieldDefaults || typeof fieldDefaults !== "object") {
-        return undefined;
-    }
-    const key = Object.keys(fieldDefaults).find((k) => k.toLowerCase() === String(field).toLowerCase());
-    return key === undefined ? undefined : fieldDefaults[key];
-}
 
 function EmptyState({ labels, templates, onTemplate }) {
     return (
@@ -771,17 +762,17 @@ function Report(props) {
         }
     }, [size, drawerOpen]);
 
-    /** How a field from the field list is placed: a date grouped by its span, a value with the host's defaults. */
+    /** A field's settings: the host's (fieldDefaults), and an identifier's own when the host says nothing (field-info.js). */
+    const defaultsOf = useCallback((field) => fieldDefaultsFor(fieldDefaults, field, encoded.column(field)), [fieldDefaults, encoded]);
+    /** How a field from the field list is placed: a date grouped by its span, a value with the field's settings. */
     const placeOptions = useCallback(
         (field, zone, index = undefined) => {
             const column = encoded.column(field);
             const unit = zone !== "values" && column && column.type === "date" && !column.derived ? suggestDateUnit(encoded, field) : null;
-            return { index, type: typeOf(field), defaults: defaultsFor(fieldDefaults, field), dateUnit: unit, groupName: unit ? groupingName(nameOf(column.name), unit, labels) : undefined };
+            return { index, type: typeOf(field), defaults: defaultsOf(field), dateUnit: unit, groupName: unit ? groupingName(nameOf(column.name), unit, labels) : undefined };
         },
-        [encoded, typeOf, fieldDefaults, labels, nameOf]
+        [encoded, typeOf, defaultsOf, labels, nameOf]
     );
-    /** The host's settings for a field (fieldDefaults), for the chip menus: its format, its custom order. */
-    const defaultsOf = useCallback((field) => defaultsFor(fieldDefaults, field), [fieldDefaults]);
     const addTo = useCallback(
         (field, zone, index = undefined) => {
             const options = placeOptions(field, zone, index);
@@ -826,10 +817,11 @@ function Report(props) {
             } else {
                 const zone = /** @type {any} */ (target.zone);
                 const note = src.zone !== zone ? { step: "moved", field: src.label ?? src.field, zone } : { step: "reordered", zone };
-                commit(moveField(view, src.zone, src.index, zone, target.index, { type: typeOf(src.field) }), note);
+                // into Values: a new value, counted or summed by the field's settings as one from the field list
+                commit(moveField(view, src.zone, src.index, zone, target.index, { type: typeOf(src.field), defaults: zone === "values" && src.field ? defaultsOf(src.field) : undefined }), note);
             }
         },
-        [view, typeOf, commit, addTo]
+        [view, typeOf, commit, addTo, defaultsOf]
     );
 
     const openCell = useCallback(
@@ -844,14 +836,14 @@ function Report(props) {
             if (drillDown) {
                 // the values as the table shows them; a host's format for a field (fieldDefaults) applies
                 const formatOf = (name) => {
-                    const d = defaultsFor(fieldDefaults, name);
+                    const d = defaultsOf(name);
                     return d ? (d.drillFormat ?? d.format) : undefined;
                 };
                 // the panel's table is drill-table.js's, with the menus: here only what it is made of
                 setDrill({ result, rowPath, colPath, count, indices, formatOf, nameOf, infoOf });
             }
         },
-        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, fieldDefaults, nameOf, infoOf]
+        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
     const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });

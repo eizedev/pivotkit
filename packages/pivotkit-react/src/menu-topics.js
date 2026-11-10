@@ -59,10 +59,11 @@ export const TOP_COUNTS = Object.freeze([3, 5, 10]);
  * Move to another zone, and left or right in its own: each closes the menu (the chip moves).
  * @returns {Topic}
  */
-function moveTopic(view, zone, index, count, labels, name, type) {
+function moveTopic(view, zone, index, count, labels, name, type, defaults) {
     const note = (z) => ({ step: "moved", field: name, zone: z });
+    // into Values: a new value, counted or summed by the field's settings (an identifier is counted)
     /** @type {Choice[]} */
-    const choices = ZONES.filter((z) => z !== zone).map((z) => ({ id: `move-${z}`, text: fill(labels.moveTo, { zone: labels.zones[z] }), icon: "chevronRight", closes: true, change: () => ({ view: moveField(view, zone, index, z, undefined, { type }), note: note(z) }) }));
+    const choices = ZONES.filter((z) => z !== zone).map((z) => ({ id: `move-${z}`, text: fill(labels.moveTo, { zone: labels.zones[z] }), icon: "chevronRight", closes: true, change: () => ({ view: moveField(view, zone, index, z, undefined, { type, defaults: z === "values" ? defaults : undefined }), note: note(z) }) }));
     if (zone !== "filters" && index > 0) {
         choices.push({ id: "move-left", text: labels.moveLeft, icon: "chevronRight", closes: true, change: () => ({ view: reorder(view, zone, index, index - 1), note: { step: "reordered", zone } }) });
     }
@@ -173,7 +174,7 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
             choice: { id: `top-${n}`, text: fill(labels.topBadge, { count: n.toLocaleString(locale) }), checked: Boolean(top && !top.bottom && top.count === n), change: () => ({ view: setTopFilter(view, field, { count: n, bottom: false, by: topBy }, top), note: { step: "top", field: name } }) }
         }))
     });
-    topics.push(moveTopic(view, zone, index, view[zone].length, labels, name, sourceType));
+    topics.push(moveTopic(view, zone, index, view[zone].length, labels, name, sourceType, defaultsOf?.(field)));
     return topics;
 }
 

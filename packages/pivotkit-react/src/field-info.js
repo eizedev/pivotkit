@@ -3,7 +3,8 @@
  * description in plain text and a link to more (`href`, https only), and the column type a field is
  * encoded as (`type`). Cleaned by the rules of pivotkit-core's fieldDefaultsFromSchema: texts cut to
  * its caps, control characters gone, a link that is not https dropped. A field without any of these
- * shows exactly as without fieldDefaults. Pure, tested without a DOM.
+ * shows exactly as without fieldDefaults. And the one rule for a field the host says nothing about
+ * that is an identifier (fieldDefaultsFor): counted, shown as it is. Pure, tested without a DOM.
  */
 
 import { fieldDefaultsFromSchema } from "pivotkit-core";
@@ -123,4 +124,59 @@ export function fieldMatches(field, query, info) {
         return true;
     }
     return [field, info?.label, info?.description].some((t) => typeof t === "string" && t.toLowerCase().includes(query));
+}
+
+/** The last word of a field's name that makes a number field an identifier ("ID", "Order No", "asset_nr"). */
+const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key"]);
+
+/**
+ * Whether a field's name says it is an identifier: its last word is ID, Nr, No, Number or Key, in any
+ * case, after a space, "_", "-", "." or a change from a small letter to a capital ("CustomerId",
+ * "CustomerID"). "Paid", "PAID" or "UUID" are one word, not one ending in "id".
+ * @param {string} name
+ */
+export function isIdentifierName(name) {
+    const words = String(name)
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .split(/[\s_.\-/#:]+/)
+        .filter(Boolean);
+    const last = words[words.length - 1];
+    return last !== undefined && IDENTIFIER_WORDS.includes(last.toLowerCase());
+}
+
+/**
+ * Whether a column is an identifier: a number column of whole numbers whose name says so
+ * (isIdentifierName). That every value is another is no sign: a count per row is too.
+ * @param {{ name: string, type: string, dict: ArrayLike<unknown>, derived?: boolean } | undefined} column
+ */
+export function isIdentifier(column) {
+    if (!column || column.type !== "number" || column.derived || !isIdentifierName(column.name)) {
+        return false;
+    }
+    for (let i = 0; i < column.dict.length; i++) {
+        if (!Number.isInteger(column.dict[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * The settings of a field: the host's (fieldDefaults, matched case-insensitively like column names),
+ * and for an identifier the host says nothing about how to count or show (no `agg`, `format` or
+ * `drillFormat`): counted when it is added as a value, and its numbers shown as they are in the
+ * drill-down (27000, not 27,000). A host overrides it with any of the three.
+ * @param {unknown} fieldDefaults
+ * @param {string} field
+ * @param {Parameters<typeof isIdentifier>[0]} column  the field's column (encoded.column(field))
+ * @returns {import("./index.js").FieldDefaults | undefined}
+ */
+export function fieldDefaultsFor(fieldDefaults, field, column) {
+    const key = isObject(fieldDefaults) ? Object.keys(/** @type {object} */ (fieldDefaults)).find((k) => k.toLowerCase() === String(field).toLowerCase()) : undefined;
+    const host = key === undefined ? undefined : own(fieldDefaults, key);
+    const set = ["agg", "format", "drillFormat"].some((k) => own(host, k) !== undefined);
+    if (set || !isIdentifier(column)) {
+        return isObject(host) ? host : undefined;
+    }
+    return { ...(isObject(host) ? host : {}), agg: "count", drillFormat: "text" };
 }

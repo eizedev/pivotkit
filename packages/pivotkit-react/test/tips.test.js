@@ -1,10 +1,11 @@
 // The tips (tips.js) and the field descriptions (field-info.js): when each tip shows, which show at a
-// time, what a host allows, what is stored; how a host's labels and descriptions are cleaned.
+// time, what a host allows, what is stored; how a host's labels and descriptions are cleaned; which
+// fields are identifiers (counted, shown as they are).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode, toSeries } from "pivotkit-core";
 import { MANY_SERIES, MAX_CATEGORIES, chartPlan } from "../src/chart-types.js";
-import { displayNames, fieldInfoOf, fieldMatches, typesOf } from "../src/field-info.js";
+import { displayNames, fieldDefaultsFor, fieldInfoOf, fieldMatches, isIdentifier, isIdentifierName, typesOf } from "../src/field-info.js";
 import { LABELS, resolveLabels } from "../src/labels.js";
 import { LABELS as ALL_LABELS } from "../src/all-labels.js";
 import { valueLabel } from "../src/names.js";
@@ -325,4 +326,34 @@ test("no menu folds any more: a stored state of a section (open: or closed:) is 
     const stored = [ALL_TIPS, ...gone.map((id) => `closed:${id}`), ...gone.map((id) => `open:${id}`), "values", FIELDS_COLLAPSED];
     assert.deepEqual(cleanDismissed(stored), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
     assert.deepEqual(parseStored(JSON.stringify(stored)), [ALL_TIPS, "values", FIELDS_COLLAPSED]);
+});
+
+test("identifier fields: a number field of whole numbers named ID, …Id, …_id, Nr, No, Number or Key (#113)", () => {
+    for (const name of ["ID", "id", "Id", "CustomerId", "CustomerID", "customer_id", "Customer ID", "asset-id", "Nr", "Asset Nr.", "No", "Order No", "OrderNo", "Number", "Inventory number", "order_number", "Key", "Primary key"]) {
+        assert.equal(isIdentifierName(name), true, name);
+    }
+    for (const name of ["Paid", "PAID", "UUID", "Valid", "Number of items", "Nobel", "Monkey", "Keys", "Cost", "Width", "Idle"]) {
+        assert.equal(isIdentifierName(name), false, name);
+    }
+    const encoded = encode([
+        { ID: 27880, OrderNo: 12, Cost: 2.5, "Paid": 1, Ratio_id: 0.5, Name_id: "a" },
+        { ID: 27881, OrderNo: 13, Cost: 3, "Paid": 0, Ratio_id: 1, Name_id: "b" }
+    ]);
+    const col = (n) => encoded.column(n);
+    assert.equal(isIdentifier(col("ID")), true);
+    assert.equal(isIdentifier(col("OrderNo")), true);
+    assert.equal(isIdentifier(col("Paid")), false, "not by its name");
+    assert.equal(isIdentifier(col("Ratio_id")), false, "not whole numbers");
+    assert.equal(isIdentifier(col("Name_id")), false, "not a number field");
+    assert.equal(isIdentifier(col("Cost")), false);
+    assert.equal(isIdentifier(undefined), false);
+    // counted and shown as it is, unless the host says how to count or show it
+    assert.deepEqual(fieldDefaultsFor(undefined, "ID", col("ID")), { agg: "count", drillFormat: "text" });
+    assert.deepEqual(fieldDefaultsFor({ id: { label: "Ticket" } }, "ID", col("ID")), { label: "Ticket", agg: "count", drillFormat: "text" });
+    assert.deepEqual(fieldDefaultsFor({ ID: { agg: "sum" } }, "ID", col("ID")), { agg: "sum" });
+    assert.deepEqual(fieldDefaultsFor({ ID: { format: "number:0" } }, "id", col("ID")), { format: "number:0" });
+    assert.deepEqual(fieldDefaultsFor({ ID: { drillFormat: "number" } }, "ID", col("ID")), { drillFormat: "number" });
+    // any other field: the host's settings as they are
+    assert.equal(fieldDefaultsFor(undefined, "Cost", col("Cost")), undefined);
+    assert.deepEqual(fieldDefaultsFor({ cost: { agg: "average" } }, "Cost", col("Cost")), { agg: "average" });
 });
