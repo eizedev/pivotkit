@@ -73,9 +73,9 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
                 aria-description={info ? undefined : action.description || undefined}
                 aria-describedby={info ? describedBy : undefined}
             >
-                {/* two lines at most; the whole name on hover */}
+                {/* two lines at most, broken between words only; the whole name on hover */}
                 <span className="pk-field-title" title={name}>
-                    {name}
+                    {wordsOf(name)}
                 </span>
             </button>
             {info ? (
@@ -129,6 +129,15 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
             </MenuButton>
         </li>
     );
+}
+
+/**
+ * A field's name as words, each a box of its own: the name wraps between them only, and a word longer
+ * than its line ends in "…" (styles.css: .pk-word) instead of breaking in the middle.
+ * @param {string} name
+ */
+function wordsOf(name) {
+    return name.split(/(\s+)/).map((part, i) => (i % 2 === 1 ? " " : part ? <span key={i} className="pk-word">{part}</span> : null));
 }
 
 /**
