@@ -117,10 +117,10 @@ pages: they link to the site and repeat none of it.
 
 ## Releasing
 
-Version 0.1.0 of each package was published by hand. The release workflow
-(`.github/workflows/release.yml`) is prepared but skipped until it is switched on. A trusted publisher
-is configured in a package's settings on npm, so each package is published once by hand before the
-workflow takes over. Once:
+The release workflow (`.github/workflows/release.yml`) publishes every package. It was set up once
+with the steps below, and a new package needs steps 2 and 3 again: a trusted publisher is configured
+in a package's settings on npm, so each package is published once by hand before the workflow takes
+over.
 
 1. Make the repository public: npm generates no provenance for private repositories (npm's
    documentation, "Generating provenance statements").
