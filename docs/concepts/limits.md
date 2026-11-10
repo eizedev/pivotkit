@@ -51,12 +51,18 @@ over it and reports it as an issue.
 
 | Limit | Default | Counts | When |
 | --- | --- | --- | --- |
-| `rows` | 1,000,000 | Rows `encode` accepts. | Before any column is built. |
+| `rows` | 1,000,000 | Rows `encode` accepts, and rows of a loaded file. | Before any column is built; for a file, as its rows are read. |
 | `groups` | 500,000 | Nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals. | The distinct leaves of an axis before its first node is made, then each node before it is made. |
 | `pivotCells` | 2,000,000 | Cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included. | A lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored. |
 | `work` | 100,000,000 | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell. | Exactly, after the filters and before the key trees are built. |
 | `cells` | 2,000,000 | Cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`). | Before the grid or the series is built. |
 | `cacheEntries` | 16 | Derived columns and sort orders kept per data set. | On each new entry; the least recently used go first. |
+| `fileBytes` | 104,857,600 (100 MiB) | Bytes of a file [loaded](../reference/import.md#limits). | Before a byte is read. |
+| `columns` | 1,000 | Columns of a loaded table. | As they appear. |
+| `importCells` | 10,000,000 | Rows x columns of a loaded table. | As the rows are read. |
+| `textLength` | 32,767 | Characters of one value of a loaded table (Excel's cell limit). | As the value is read; longer text is cut, with a note. |
+| `archiveEntries` | 10,000 | Parts of an archive file (an `.xlsx` is a ZIP). | From its directory, before anything is unpacked. |
+| `unpackedBytes` | 524,288,000 (500 MiB) | Bytes the parts of an archive file unpack to. | From its directory, before anything is unpacked; a part that unpacks to more than its directory states stops the read. |
 | `axisFields` | 8 | Fields per axis (rows, columns). | In `normalize`: more is dropped as an issue. |
 | `values` | 16 | Values. | In `normalize`. |
 | `json` | 5,000,000 | Characters of the serialized view. | In `normalize`. |
@@ -82,7 +88,7 @@ are row node id x column count + column node id and stay exact in a double only 
 value is `INVALID_OPTION`.
 
 Not counted: the data itself (the host's rows and the encoded columns, rows x columns; `rows` caps the
-rows, the number of columns is not limited), "show values as" and sorting after the aggregation (they
+rows, the number of columns of the host's data is not limited; a loaded file's are), "show values as" and sorting after the aggregation (they
 grow with the cells, which `pivotCells` bounds), and the time a pivot within the limits takes.
 
 ### Why the defaults are what they are
@@ -109,6 +115,16 @@ Measured in Node 26 on arm64; other engines and machines differ.
   `work` bounds what they cost.
 - `cacheEntries`: a derived column takes 12 bytes per row, so 16 entries of a million rows stay at
   about 200 MB.
+- `fileBytes`, `importCells`: a loaded table keeps each value twice until it is encoded (as read and
+  typed) and the encoded columns once more; a CSV file of 100 MiB or 10 million values is about what a
+  tab handles without slowing to a crawl. A workbook of 94,000 rows x 20 columns (12 MB) took about
+  650 MB of memory while it was read ([measured](../reference/plugins.md#pivotkit-xlsx)).
+- `textLength`: Excel's own limit per cell; longer text in a CSV file is more likely an error than a
+  value.
+- `archiveEntries`, `unpackedBytes`: a workbook has a few dozen parts; 94,000 rows x 20 columns
+  unpack to about 100 MB. 500 MiB leaves room for a used range of formatted empty cells (a sheet
+  formatted to row 900,000 unpacks to about 300 MB) and refuses a ZIP bomb, which unpacks to
+  gigabytes, before anything is unpacked.
 
 In the UI, a layout over a limit shows a message in place of the result that says which limit and
 what to change, for example "This layout makes more than 500,000 groups of rows and columns. Remove a
@@ -133,7 +149,8 @@ the cost of time and memory; see the [performance numbers](../reference/react.md
 | --- | --- |
 | `INVALID_ARGUMENT` | A wrong argument, for example `computePivot(null)` or `toGrid({})`. |
 | `INVALID_OPTION` | An unknown locale or time zone in the options, an unknown or invalid limit. |
-| `LIMIT_EXCEEDED` | A limit; `error.details` is `{ limit, value, max }`. |
+| `LIMIT_EXCEEDED` | A limit; `error.details` is `{ limit, value, max }`, with `file` for a file being loaded. |
+| `INVALID_FILE` | A file that cannot be read ([Loading files](../reference/import.md#errors)); `error.details` is `{ reason, file }`. |
 
 ```js
 import { PivotkitError } from "pivotkit-core";

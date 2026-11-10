@@ -285,6 +285,9 @@ test("plugins: the contract is checked, another API version is refused with both
     await rejects(readFile(text("a.xlsx", "x")), (e) => e.details.reason === "NO_READER");
     // a module without read() is refused when loaded
     await assert.rejects(loadReader({ ...plugin, name: "empty", load: async () => ({}) }), /read\(file, options\)/);
+    // what a plugin's read() returns is checked
+    const sloppy = { ...plugin, name: "sloppy", load: async () => ({ read: async () => ({ columns: ["a"], types: ["money"], data: [[1]], notes: [] }) }) };
+    await assert.rejects(readFile(text("x.demo", "x"), { plugins: [sloppy] }), (e) => e.code === "INVALID_ARGUMENT" && /plugin "sloppy".*a type is none/.test(e.message));
     // a module's default export is accepted
     const viaDefault = await loadReader({ ...plugin, name: "dflt", load: async () => ({ default: { read: async () => "ok" } }) });
     assert.equal(await viaDefault.read(), "ok");

@@ -81,6 +81,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - The web component `<pivot-report>` for pages without React: Angular, PHP, plain HTML ([web component](getting-started/web-component.md)).
 - Runs in PowerShell Universal on the React it provides ([PowerShell Universal](getting-started/react.md#powershell-universal)), ready-made as `New-UDPivotReport` in [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/).
 - The engine alone, in the browser or in Node: pivots, grids, chart options, XLSX and CSV ([engine](getting-started/engine.md)).
+- CSV, TSV and JSON files read in the browser into typed columns, Excel workbooks with the plugin pivotkit-xlsx, limits checked before parsing ([loading files](reference/import.md), [plugins](reference/plugins.md)).
 - The report is a JSON view: store it, pass it back, controlled or not ([views](concepts/views.md)).
 - A view is user input: names only (and the values chosen in its filters), checked against fixed lists and limits, never run ([security](security.md)).
 - Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).

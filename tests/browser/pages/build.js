@@ -19,6 +19,7 @@
 //   a fixed navigation (element-nav.html, nav-shell.js). The element example
 //   (examples/element/) is copied to dist/examples/element/ next to it, at the same relative path as
 //   in the repository.
+// - xlsx.html: pivotkit-xlsx's dist/ reading a picked workbook under the element's strict CSP.
 //
 // PIVOTKIT_REACT=19 takes React and ReactDOM from tests/react19 (npm ci --prefix tests/react19);
 // the default is the React 18 of the workspace.
@@ -120,6 +121,11 @@ await cp(`${root}packages/pivotkit-element/dist/`, `${out}element-copy/`, { recu
 await mkdir(`${playground}examples/element/`, { recursive: true });
 for (const file of ["index.html", "app.js", "example.css"]) {
     await copyFile(`${root}examples/element/${file}`, `${playground}examples/element/${file}`);
+}
+// pivotkit-xlsx as it ships (dist/: the descriptor and its chunks) and its page under a strict CSP
+await cp(`${root}packages/pivotkit-xlsx/dist/`, `${playground}packages/pivotkit-xlsx/dist/`, { recursive: true });
+for (const file of ["xlsx.html", "xlsx.js"]) {
+    await copyFile(`${here}${file}`, `${out}${file}`);
 }
 const elementDir = `${here}element/`;
 const sources = await readdir(elementDir);

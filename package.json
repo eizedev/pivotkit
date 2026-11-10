@@ -21,7 +21,7 @@
     "coverage": "npm run coverage --workspaces --if-present",
     "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react && node scripts/check-pack.js pivotkit-element && node scripts/check-pack.js pivotkit-xlsx",
     "playground": "node examples/playground/build.js --serve",
-    "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node tests/browser/pages/build.js",
+    "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node packages/pivotkit-xlsx/build.js && node tests/browser/pages/build.js",
     "test:browser": "npm run build:playground && playwright test",
     "docs:demo": "npm run build:playground && node scripts/docs-demo.js",
     "docs:screenshots": "npm run build:playground && node scripts/docs-screenshots.js",

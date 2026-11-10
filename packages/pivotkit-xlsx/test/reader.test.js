@@ -11,7 +11,6 @@ import { read, sheets } from "pivotkit-xlsx/reader";
 import { TICKET_COLUMNS, makeXlsx, ticketRows } from "./make-xlsx.js";
 
 const col = (t, name) => t.data[t.columns.indexOf(name)];
-const typeOf = (t, name) => t.types[t.columns.indexOf(name)];
 const fileOf = (bytes, name = "book.xlsx") => new File([bytes], name);
 const rejects = (promise, reason, check = () => true) =>
     assert.rejects(promise, (e) => e instanceof PivotkitError && e.details.reason === reason && check(e));
@@ -299,4 +298,47 @@ test("abort and progress", async () => {
     await assert.rejects(read(fileOf(tickets(10)), { signal: controller.signal }), (e) => e.name === "AbortError");
     const late = new AbortController();
     await assert.rejects(read(fileOf(tickets(3_000)), { signal: late.signal, onProgress: (p) => p.phase === "unpack" && late.abort() }), (e) => e.name === "AbortError");
+});
+
+test("the sheet filter gives the same XML however the sheet arrives in pieces", async () => {
+    const { createSheetFilter, createXmlCheck } = await import("../src/xml.js");
+    const xml = [
+        '<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:C9"/><sheetData>',
+        '<row r="1"><c r="A1" t="s"><v>0</v></c></row>\n',
+        '<row r="2" s="3" customFormat="1"/>',
+        "<!-- a comment between rows -->",
+        '<row r="3"><c r="A3" s="3"/><c r="B3" s="3"/></row>',
+        '<row r="4"><c r="C4" t="e"><v>#N/A</v></c><c r="D4"><f>A1</f><v>2</v></c></row>',
+        '<row r="9" spans="1:3"><c r="A9" s="1"/></row>',
+        '</sheetData><pageMargins left="0.7"/></worksheet>'
+    ].join("");
+    const expected = xml
+        .replace('<row r="2" s="3" customFormat="1"/>', "")
+        .replace('<row r="3"><c r="A3" s="3"/><c r="B3" s="3"/></row>', "")
+        .replace('<row r="9" spans="1:3"><c r="A9" s="1"/></row>', "")
+        // whitespace between rows goes with the rows
+        .replace("</row>\n", "</row>");
+    const bytes = strToU8(xml);
+    for (const size of [1, 2, 3, 7, 16, 64, bytes.length]) {
+        const parts = [];
+        const filter = createSheetFilter({ write: (b, from = 0, to = b.length) => parts.push(b.slice(from, to)) });
+        const check = createXmlCheck("s.xlsx", "sheet");
+        for (let at = 0; at < bytes.length; at += size) {
+            const piece = bytes.subarray(at, at + size);
+            check(piece);
+            filter.push(piece);
+        }
+        const stats = filter.end();
+        const out = new TextDecoder().decode(Uint8Array.from(parts.flatMap((p) => [...p])));
+        assert.equal(out, expected, `pieces of ${size} bytes`);
+        assert.deepEqual(stats, { lastRow: 9, lastValueRow: 4, dropped: 3, errors: 1 }, `pieces of ${size} bytes`);
+    }
+    // a declaration split over two pieces is still found
+    const evil = strToU8('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]><worksheet/>');
+    for (const size of [1, 3, 5]) {
+        const check = createXmlCheck("s.xlsx", "sheet");
+        assert.throws(() => {
+            for (let at = 0; at < evil.length; at += size) check(evil.subarray(at, at + size));
+        }, (e) => e.details?.reason === "XML_DECLARATION", `pieces of ${size} bytes`);
+    }
 });

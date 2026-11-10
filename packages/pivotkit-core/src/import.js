@@ -15,7 +15,7 @@
 
 import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
-import { fileError, fileName, limitError } from "./import-table.js";
+import { IMPORT_TYPES, fileError, fileName, limitError } from "./import-table.js";
 
 export { createTable, retype, noteMessage, fileError, limitError, checkFileLimit, bytesOf, readOptions, fileName, dateToIso, IMPORT_NOTE_CODES, IMPORT_TYPES } from "./import-table.js";
 
@@ -181,5 +181,27 @@ export async function readFile(file, options = {}) {
     const readOptionsOnly = { ...options };
     delete readOptionsOnly.plugins;
     delete readOptionsOnly.reader;
-    return reader.read(file, readOptionsOnly);
+    return checkTable(await reader.read(file, readOptionsOnly), plugin.name);
+}
+
+/**
+ * The table a reader returned, checked: names, types and one array per column of one length. A
+ * plugin that returns something else is a programmer error (INVALID_ARGUMENT naming it).
+ * @param {any} table
+ * @param {string} plugin
+ * @returns {ImportTable}
+ */
+function checkTable(table, plugin) {
+    const fail = (what) => {
+        throw new PivotkitError("INVALID_ARGUMENT", `plugin "${plugin}": read() must return a table of pivotkit-core/import (createTable().finish()); ${what}`);
+    };
+    if (!table || typeof table !== "object" || !Array.isArray(table.columns) || !Array.isArray(table.types) || !Array.isArray(table.data) || !Array.isArray(table.notes)) {
+        fail("it needs columns, types, data and notes");
+    }
+    const n = table.data[0]?.length ?? 0;
+    if (table.types.length !== table.columns.length || table.data.length !== table.columns.length) fail("columns, types and data differ in length");
+    if (!table.columns.every((c) => typeof c === "string")) fail("a column name is no string");
+    if (!table.types.every((t) => IMPORT_TYPES.includes(t))) fail("a type is none of string, number, date, boolean");
+    if (!table.data.every((c) => Array.isArray(c) && c.length === n)) fail("the columns differ in length");
+    return table;
 }

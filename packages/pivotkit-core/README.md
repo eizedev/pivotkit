@@ -22,7 +22,9 @@ npm install pivotkit-core
 ES modules (no `require`) for Node 22 or later and browsers from Chrome 111, Firefox 113 and
 Safari 16.4. The only dependency is
 [fflate](https://github.com/101arrowz/fflate) (MIT), loaded only by the `pivotkit-core/export` and
-`pivotkit-core/link` entries. TypeScript declarations are included.
+`pivotkit-core/link` entries. TypeScript declarations are included. `pivotkit-core/import` reads CSV
+and JSON files into a table; Excel workbooks with the plugin
+[pivotkit-xlsx](https://www.npmjs.com/package/pivotkit-xlsx).
 
 ## Example
 
@@ -56,6 +58,7 @@ const option = toEChartsOption(result, { chart: { type: "bar", stacked: true } }
 | Topic | Page |
 | --- | --- |
 | Getting started: rows to a table, drawing the grid, on a server | [Getting started with the engine](https://pivotkit.eize.dev/getting-started/engine/) |
+| Loading CSV, JSON and (with a plugin) Excel files | [Loading files](https://pivotkit.eize.dev/reference/import/), [Plugins](https://pivotkit.eize.dev/reference/plugins/) |
 | Every function, constant and type | [pivotkit-core reference](https://pivotkit.eize.dev/reference/core/): [data](https://pivotkit.eize.dev/reference/core/#data), [views](https://pivotkit.eize.dev/reference/core/#views), [pivot](https://pivotkit.eize.dev/reference/core/#pivot), [output and export](https://pivotkit.eize.dev/reference/core/#output), [helpers](https://pivotkit.eize.dev/reference/core/#helpers), [types](https://pivotkit.eize.dev/reference/core/#types) |
 | The view and every key | [Views and saved views](https://pivotkit.eize.dev/concepts/views/#a-complete-view) |
 | Aggregators, show as, formats | [Values](https://pivotkit.eize.dev/concepts/values/) |

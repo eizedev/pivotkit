@@ -6,6 +6,32 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- Columnar data ([#44](https://github.com/eizedev/pivotkit/issues/44)): `encode` takes
+  `{ columns, types, data }`, one array per column (a typed array too), besides an array of objects;
+  no object per row is built. Its `types` name a column's type by position; `options.types` wins.
+  A wrong shape throws `INVALID_ARGUMENT` that says what is wrong; `limits.rows` caps the length. The
+  type `ColumnarData`.
+- The entry point `pivotkit-core/import` ([#44](https://github.com/eizedev/pivotkit/issues/44)):
+  `readFile` reads CSV, TSV, text and JSON files into a table that is `encode`'s columnar input, in
+  the browser or in Node. Encoding from a byte order mark, else strict UTF-8, else Windows-1252; the
+  separator from Excel's `sep=` line or the first lines; quotes with separators and line breaks; a
+  title block above the header skipped; column names cleaned, empty ones numbered and repeated ones
+  counted; control and direction characters removed; types inferred (dates before numbers, German and
+  English numbers per column, a leading zero or more than 15 digits keeps text); `notes` for what was
+  read how and what changed; `retype` changes column types from the values as read. The readers load
+  on demand; the main entry does not load them.
+- Reader plugins, contract version 1: `validatePlugin`, `readerFor`, `loadReader`,
+  `PLUGIN_API_VERSION`, the built-in `csvReader` and `jsonReader`, and the helpers a plugin builds its
+  table with (`createTable`, `bytesOf`, `readOptions`, `fileName`, `fileError`, `limitError`,
+  `checkFileLimit`, `dateToIso`, `noteMessage`). The first plugin is the new package `pivotkit-xlsx`.
+- Limits for loading files: `fileBytes` (checked before a byte is read), `columns`, `importCells`,
+  `textLength`, `archiveEntries` and `unpackedBytes`; a limit names the file in its message and in
+  `details.file`.
+- The error code `INVALID_FILE` for a file that cannot be read, with `details.reason` and
+  `details.file`.
+
 ## [0.3.0] - 2026-11-09
 
 ### Added

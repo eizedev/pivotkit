@@ -1,10 +1,10 @@
 # AGENTS.md
 
-pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference) as three npm
+pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference) as npm
 packages in this repository with npm workspaces: the engine `pivotkit-core`, the React UI
-`pivotkit-react` and the web component `pivotkit-element`; see [README.md](README.md). The workspaces
-are listed in build order (core, react, element) in the root `package.json`: `npm run types` and the
-builds depend on it.
+`pivotkit-react`, the web component `pivotkit-element` and the reader plugin `pivotkit-xlsx`; see
+[README.md](README.md). The workspaces are listed in build order (core, react, element, xlsx) in the
+root `package.json`: `npm run types` and the builds depend on it.
 
 ## Layout
 
@@ -13,7 +13,15 @@ builds depend on it.
   consumer), `bench/`. Public entry points: `src/index.js`, `src/export.js` (XLSX, CSV, TSV and JSON of a grid; `rows.js`: CSV and XLSX of source rows),
   `src/link.js` (a view as a link text: `encodeViewLink`, `decodeViewLink`, with the capped inflate of
   `src/inflate.js`), the two that import fflate, and `src/templates.js` (`parseTemplates`, a list of
-  named views; `templatesFromSchema`, pivotkit's extension `x-pivotkit-views` of an OpenAPI document);
+  named views; `templatesFromSchema`, pivotkit's extension `x-pivotkit-views` of an OpenAPI document),
+  and `src/import.js` (`pivotkit-core/import`: `readFile`, `retype`, the reader plugin contract v1 with
+  `validatePlugin`, `readerFor`, `loadReader`, the built-in `csvReader` and `jsonReader` whose code it
+  loads on demand: `import-csv.js`, `import-json.js`, with `import-text.js` for encodings; the shared
+  table every reader builds, `createTable` in `import-table.js`: header, names, cleaning, type
+  inference, limits, notes `IMPORT_NOTE_CODES`); the main entry never reaches the import modules
+  (`test/api.test.js`). `encode` takes rows or columnar data (`{ columns, types, data }`, one array per
+  column); `test/import-fixtures/` holds real public exports with their sources and licences in
+  `SOURCES.md`, kept byte for byte (`.gitattributes`);
   every other module is internal. The vocabulary of a view lives in tables:
   `AGGREGATORS` (aggregators.js), `DERIVED` (derive.js), `FILTERS` (filters.js), `SHOW_AS`
   (show-as.js); `CATALOG` (catalog.js) lists them for a UI. Every issue `normalize()` (view.js, filters.js) and `computePivot()` report has a `code` of `VIEW_ISSUE_CODES` (view.js) and the `params` a text needs; a new kind of issue is a new code there, its case in `test/issue-cases.js` and its texts in pivotkit-react's `unused-texts*.js`. `schema.js` reads field defaults from a JSON Schema or OpenAPI document (`fieldDefaultsFromSchema`). `view-file.js` is the view file, the one format a view is shared in (file, JSON, link): `toViewFile`, `fromViewFile`, `viewFileText`, `viewFileName`, `viewFileFields`; its JSON Schema is `schema/view-file-1.json` of the package (exported, shipped; `scripts/docs-demo.js` copies it to `docs/schema/` for the site; `tests/view-file-schema.test.js` keeps schema and writer in step).
@@ -66,12 +74,25 @@ builds depend on it.
   `reference/view-file.md` embeds: pivotkit-core in the browser, nothing uploaded.
 - `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run
   build:playground` copies it to `examples/playground/dist/examples/element/`.
+- `packages/pivotkit-xlsx/` - the reader plugin for Excel workbooks: `src/index.js` the descriptor
+  (imports nothing), `src/reader.js` the reader (`read`, `sheets`): its own checks before parsing
+  (`zip.js`: the ZIP directory against `archiveEntries` and `unpackedBytes`, parts unpacked into
+  buffers of their stated size; `xml.js`: no `<!DOCTYPE`/`<!ENTITY`, the sheet's rows without a value
+  left out while it streams; `workbook.js`: the sheets and their parts), then read-excel-file's
+  `universal` entry on an uncompressed ZIP of only the needed parts (`createStoredZip`), so it starts
+  no worker (a strict CSP blocks fflate's `blob:` workers), then pivotkit-core's `createTable`.
+  `build.js` writes `dist/` (for pages without a bundler) with `THIRD_PARTY_LICENSES.txt`
+  (`scripts/third-party-licenses.js`) and checks `SIZE_BUDGET_KIB`. `test/make-xlsx.js` generates the
+  workbooks the tests read (none is committed), `test/bench.js` measures a 94,000-row workbook.
+- `examples/reader-plugin/` - a complete reader plugin (JSON Lines) to copy, the example of the docs
+  page `reference/write-a-plugin.md`; tested by `tests/reader-plugin.test.js`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
   `pages/` (a host page that loads `dist/index.js` with React from an import map and renders again
   all the time; a shadow root; `nav.html` next to a fixed navigation and app bar above the report's
   z-index, as PowerShell Universal draws its apps (`nav-shell.js`, helpers in `host-nav.js`); the web
   component's pages in `pages/element/`: two elements, upgrade, loaded twice, strict CSP, listener
-  counts, a page with its own React, the element next to the fixed navigation); CI runs them on React 18 and
+  counts, a page with its own React, the element next to the fixed navigation; `xlsx.html`:
+  pivotkit-xlsx's dist/ reading a picked workbook under the strict CSP); CI runs them on React 18 and
   React 19 (`tests/react19/`, own lock file), one job per engine and React version. `tests/ci.test.js` checks the pinning (Playwright image = locked `@playwright/test`, exact
   versions, caret ranges for this repository's own packages).
 - `scripts/check-pack.js` - checks what `npm pack` would publish.
@@ -104,6 +125,8 @@ npm test                            # node --test in every workspace (as CI)
 npm run coverage                    # the tests with a coverage report (as CI); pivotkit-react: its .js modules only
 npm run pack:check                  # npm pack --dry-run of the three packages, checked (as CI)
 npm run size -w pivotkit-element    # build the element and print what a page loads, gzip
+npm run size -w pivotkit-xlsx       # build pivotkit-xlsx's dist/, gzip of the plugin and its reader against the budget
+npm run bench -w pivotkit-xlsx      # read time and memory of a generated 94,000-row workbook (-- --browser: Chromium too)
 npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
 npm run playground                  # playground with rebuilds on http://localhost:5173
 npm run test:browser                # build the playground, the element and the test pages, Playwright in three browsers (as CI)
@@ -148,6 +171,13 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   0.3.x), so a host that also uses pivotkit-core directly must use a version inside the range;
   npm shares one copy only when the ranges overlap. Chart wrapper packages have been hijacked on npm
   before: prefer a small own wrapper over a wrapper package.
+- A loaded file is user input like a view: every reader counts what a file can make grow against
+  `LIMITS` before the step it guards (the size before reading, an archive's directory before
+  unpacking, rows and cells while reading), refuses what a table never needs (macros, `<!DOCTYPE`,
+  encrypted or old binary workbooks) with what to do, never evaluates or fetches anything a file
+  names, and builds its table with `createTable`, so names and values are cleaned the same for every
+  format. A reader starts no worker of its own (a strict CSP blocks `blob:` workers). Errors are
+  `INVALID_FILE` with `details.reason`, or `LIMIT_EXCEEDED` with `details.file`.
 - Exports must be safe to open: CSV text that a spreadsheet would run as a formula gets a leading `'`
   (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace and control
   characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
@@ -214,5 +244,6 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
 - Add a runtime dependency to `pivotkit-core`, or bundle React or ECharts into `pivotkit-react`
   (pivotkit-element is the package that bundles them).
 - Add a UI framework or an animation library to `pivotkit-react`; it has its own CSS.
-- Put secrets, host names or real data into code, examples or tests; the one exception is the public
-  data of `examples/playground/data/`, with its licence and attribution in `SOURCES.md`.
+- Put secrets, host names or real data into code, examples or tests; the exceptions are the public
+  data of `examples/playground/data/` and the excerpts of public exports in
+  `packages/pivotkit-core/test/import-fixtures/`, each with its licence and attribution in `SOURCES.md`.

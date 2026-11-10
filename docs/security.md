@@ -1,6 +1,6 @@
 ---
 title: Security
-description: How pivotkit treats views as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, and runs under a strict Content-Security-Policy.
+description: How pivotkit treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, and runs under a strict Content-Security-Policy.
 ---
 
 # Security
@@ -79,6 +79,29 @@ reference depth and the number of schema objects it reads.
   cancelable `pivot-export` event) your page gets every file and every copy first and can keep it
   instead.
 
+## Loaded files are untrusted input
+
+A file a person loads ([Loading files](reference/import.md)) is read in the browser; nothing is
+uploaded, and a hostile file affects only that person's tab. Its readers treat it as hostile:
+
+- **Limits before the expensive step**: the file's size before a byte is read; rows, columns and
+  values while they are read; for a workbook, the number of ZIP parts and the size they unpack to,
+  from the ZIP's directory, before anything is unpacked. Each part is unpacked into a buffer of the
+  size the directory states and stops when it would grow beyond it, so a ZIP bomb or a forged
+  directory cannot take more memory than the limits allow.
+- **Nothing in a file runs**: no formula is evaluated (a workbook's saved values are read), a workbook
+  with macros (`.xlsm`, `vbaProject.bin`) is refused, and an XML part that declares a document type or
+  entities (`<!DOCTYPE`, `<!ENTITY`) is refused before it is parsed, which rules out entity expansion
+  ("billion laughs") and external entities. Nothing is fetched.
+- **Names and values are text**: control characters and the characters that turn text around
+  (U+202E) are removed from column names and values, which are then shown as text as any data.
+  Text that a spreadsheet would run as a formula stays as it is in the table, and the
+  [exports](#exports) guard it.
+- **Clear refusals**: a file that is something else (an `.xls`, a password-protected workbook, a
+  workbook named `.csv`) is refused with what it is and what to do.
+- **Plugins** run with the rights of the page: use [plugins](reference/plugins.md) whose source you
+  can read, pinned to an exact version.
+
 ## Content-Security-Policy
 
 The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,
@@ -108,6 +131,11 @@ a page script that sets the element's properties must be a file or carry a nonce
 pivotkit-react has no measured policy of its own: what it needs depends on how your app is built and
 served.
 
+The readers of `pivotkit-core/import` and pivotkit-xlsx start no worker and evaluate no code, so the
+policy above is enough for them (measured for pivotkit-xlsx in Chromium, Firefox and WebKit,
+`tests/browser/xlsx.spec.js`); a host that runs them in a module worker of its own needs
+`worker-src 'self'`.
+
 ## Loading from another origin
 
 Module scripts from another origin (a CDN) are fetched with CORS: the server must send
@@ -125,6 +153,9 @@ it loads only its own chunks from where you host it.
 
 - pivotkit-core has one runtime dependency: [fflate](https://github.com/101arrowz/fflate) for the XLSX
   zip.
+- pivotkit-xlsx depends on pivotkit-core, fflate and [read-excel-file](https://www.npmjs.com/package/read-excel-file)
+  (MIT), which brings saxen, worker-f and unzipper-esm (for its Node entry, not used by pivotkit-xlsx);
+  its `dist/` bundles read-excel-file and fflate, with their licenses in `dist/THIRD_PARTY_LICENSES.txt`.
 - pivotkit-react depends on pivotkit-core and @dnd-kit; React, ReactDOM and ECharts come from your app,
   so their security updates stay with you.
 - pivotkit-element bundles everything it needs and has no runtime dependency; the licenses of the

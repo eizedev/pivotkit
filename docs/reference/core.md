@@ -1,19 +1,21 @@
 ---
 title: pivotkit-core reference
-description: Every public function, constant and type of pivotkit-core and its entry points pivotkit-core/export, /link and /templates, with their options.
+description: Every public function, constant and type of pivotkit-core and its entry points pivotkit-core/export, /link, /templates and /import, with their options.
 ---
 
 # pivotkit-core reference
 
-Four entry points: `pivotkit-core` (the engine), `pivotkit-core/export` (XLSX and CSV) and
-`pivotkit-core/link` (a view in a link), the only importers of fflate, and `pivotkit-core/templates`
-(a list of templates). Every function takes its required inputs first and all optional settings in one
+Five entry points: `pivotkit-core` (the engine), `pivotkit-core/export` (XLSX and CSV) and
+`pivotkit-core/link` (a view in a link), the only importers of fflate, `pivotkit-core/templates`
+(a list of templates) and `pivotkit-core/import` (reading CSV, JSON and, with plugins, other files
+into a table: [Loading files](import.md)). Every function takes its required inputs first and all optional settings in one
 options object last. Modules not listed here are internal and may change in any release.
 
 ```js
 import { encode, normalize, computePivot, toGrid, toEChartsOption } from "pivotkit-core";
 import { toXlsx, toCsv, toCsvBytes, toTsv, toJson, rowsToCsv, rowsToCsvBytes, rowsToXlsx } from "pivotkit-core/export";
 import { parseTemplates, templatesFromSchema } from "pivotkit-core/templates";
+import { readFile, retype } from "pivotkit-core/import";
 import type { PivotResult, Grid, View, Encoded } from "pivotkit-core";   // TypeScript
 ```
 
@@ -21,12 +23,12 @@ import type { PivotResult, Grid, View, Encoded } from "pivotkit-core";   // Type
 
 ### `encode(rows, options?)`
 
-Turns an array of objects into typed columns: Int32 codes with dictionaries for labels, Float64 for
-measures. Returns `Encoded`.
+Turns an array of objects, or [columnar data](#columnar-input), into typed columns: Int32 codes with
+dictionaries for labels, Float64 for measures. Returns `Encoded`.
 
 | Option | Type | Default | What |
 | --- | --- | --- | --- |
-| `types` | `{ [column]: "string"` or `"number"` or `"boolean"` or `"date" }` | detected | The type of a column, by name (case-insensitive). |
+| `types` | `{ [column]: "string"` or `"number"` or `"boolean"` or `"date" }` | detected | The type of a column, by name (case-insensitive); it wins over the `types` of columnar data. |
 | `columns` | `string[]` | all | Only these columns, in this order (case-insensitive). |
 | `timeZone` | `string` | `"UTC"` | The wall clock that `Date` objects, epoch milliseconds and ISO strings with an offset are read in: `"UTC"`, an IANA zone (`"Europe/Berlin"`) or `"local"` (the machine's zone, resolved to its name). See [time zones](../concepts/limits.md#time-zones). |
 | `inferNumbers` | `boolean` | `false` | Numeric text (`"12"`, `"-3.5"`) makes a number column. |
@@ -36,6 +38,27 @@ measures. Returns `Encoded`.
 holds only numbers, so a UI can offer `inferNumbers` or a `types` override), `column(name)` (a
 case-insensitive lookup), `timeZone`, and `issues` (column names that collide case-insensitively).
 Names match case-insensitively; the data's own spelling is kept for display.
+
+#### Columnar input
+
+Instead of an array of objects, `encode` takes one array per column:
+
+```js
+encode({
+    columns: ["Region", "Units", "Date"],
+    types: ["string", "number", "date"],          // optional; an entry may be null (inferred)
+    data: [["North", "South"], [3, 7], ["2026-01-05", "2026-02-14"]]
+});
+```
+
+`data[c][r]` is the value of column `columns[c]` in row `r`. No object per row is built, and no name
+is repeated per row, so a large data set takes less memory, in the browser and on the wire: a
+server can send this shape as JSON. Every array must have the same length (a typed array such as a
+`Float64Array` works too, `NaN` is blank); `types` has one entry per column. Two names that match
+case-insensitively keep the first column and report the second in `issues`. A wrong shape throws
+`INVALID_ARGUMENT` that says what is wrong; `limits.rows` caps the length. The tables of
+[`pivotkit-core/import`](import.md) are this shape: `encode(table)`. A pivot of columnar data and of
+the same rows as objects is the same.
 
 ### `fieldItems(data, field, options?)`
 
@@ -235,6 +258,14 @@ its menus). See [Templates and shared views](../concepts/templates.md).
 | `TEMPLATE_LIMITS` | `{ count: 500, text: 5000000 }`: templates read from one list, and characters of its JSON. |
 | `TEMPLATES_EXTENSION` | `"x-pivotkit-views"`. |
 
+### Loading files: `pivotkit-core/import`
+
+`readFile(file, { plugins })` reads CSV, TSV, text and JSON, and other formats with reader plugins,
+into a table that is `encode`'s columnar input; `retype` changes column types without reading the file
+again; the plugin contract (`validatePlugin`, `readerFor`, `loadReader`) and the helpers a plugin
+builds its table with. A separate entry point whose readers load on demand. See
+[Loading files](import.md), [Plugins](plugins.md) and [Write a plugin](write-a-plugin.md).
+
 ### Export: `pivotkit-core/export`
 
 | Function | What |
@@ -264,12 +295,12 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
 | `DEFAULT_THEME` | Default colours for colour scales and data bars, and the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
-| `PivotkitError` | The error class; `code` is `INVALID_ARGUMENT`, `INVALID_OPTION` or `LIMIT_EXCEEDED`, `details` holds `{ limit, value, max }` for a limit. |
+| `PivotkitError` | The error class; `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `LIMIT_EXCEEDED` or `INVALID_FILE` (a file that cannot be read, [Loading files](import.md#errors)); `details` holds `{ limit, value, max }` for a limit (and `file` for a file), `{ reason, file }` for a file. |
 
 ## Types
 
 `View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `IssueParams`, `Encoded`, `Column`,
-`ColumnType`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
+`ColumnType`, `ColumnarData`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
 `Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults`, `PivotkitErrorCode`, `ViewFileMeta`, `ViewFileRead`,
 `ViewFileCompatibility` and `ViewFileSource`, from `pivotkit-core`.
 

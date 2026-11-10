@@ -15,7 +15,10 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
    changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
    at the playground (`npm run playground`) in light and dark, wide and narrow; for the web component
    also `npm run size -w pivotkit-element` and the example (`examples/element/`, served after
-   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`).
+   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`);
+   for a reader (`pivotkit-core/import`, pivotkit-xlsx) tests on real files of its format (see
+   `packages/pivotkit-core/test/import-fixtures/SOURCES.md`), and for pivotkit-xlsx also
+   `npm run size -w pivotkit-xlsx` and `npm run bench -w pivotkit-xlsx`.
    The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
    `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
 4. Describe what people see on the [documentation site](https://pivotkit.eize.dev/) too: its pages are
@@ -44,6 +47,10 @@ React 19 for the browser tests is a separate install with its own lock file in `
 alias in the workspace would clash with React 18's peer dependencies). Check the license of every library
 you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime
 dependency except `fflate` for the XLSX zip; keep it that way.
+`pivotkit-xlsx` depends on pivotkit-core (a caret range, as above), fflate and read-excel-file (exact
+versions); its `dist/` bundles them for pages without a bundler, with their licenses (and saxen's, of
+which read-excel-file carries a copy) in `dist/THIRD_PARTY_LICENSES.txt`, written by `build.js`
+through `scripts/third-party-licenses.js`.
 
 ## Package commands
 
@@ -61,6 +68,11 @@ npm test -w pivotkit-react             # build, then node --test: view changes, 
 npm run build -w pivotkit-element      # pivotkit-react's dist, then dist/ of this package (esbuild)
 npm test -w pivotkit-element           # build, then node --test: attributes, events, stylesheet, bundle, Node import
 npm run types -w pivotkit-element      # tsc: types/ from the JSDoc, plus src/global.d.ts and src/jsx.d.ts
+
+npm test -w pivotkit-xlsx              # node --test on generated workbooks (test/make-xlsx.js): types, sheets, used range, refusals
+npm run build -w pivotkit-xlsx         # dist/: the plugin for pages without a bundler, THIRD_PARTY_LICENSES.txt
+npm run size -w pivotkit-xlsx          # build, gzip size of the plugin and its reader, fails above SIZE_BUDGET_KIB
+npm run bench -w pivotkit-xlsx         # read time and memory of a 94,000-row workbook (-- --browser: Chromium too)
 ```
 
 `npm run coverage -w pivotkit-react` covers its `.js` modules; the `.jsx` components are covered by
@@ -125,7 +137,7 @@ over.
 1. Make the repository public: npm generates no provenance for private repositories (npm's
    documentation, "Generating provenance statements").
 2. Publish the first version of each package by hand, in the order `pivotkit-core`, `pivotkit-react`,
-   `pivotkit-element`, from tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`,
+   `pivotkit-element`, `pivotkit-xlsx`, from tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`,
    `npm pack -w <package>`), with an npm account that has two-factor authentication:
    `npm publish <tarball> --access public`. Provenance is not in `publishConfig`: the workflow
    asks for it with `--provenance`, which needs the CI's OIDC token.
@@ -144,7 +156,8 @@ over.
 6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
 
 Then for each release of a package, in the order `pivotkit-core`, `pivotkit-react`,
-`pivotkit-element` (pivotkit-react depends on a published pivotkit-core; the element bundles both):
+`pivotkit-element`, `pivotkit-xlsx` (pivotkit-react and pivotkit-xlsx depend on a published
+pivotkit-core; the element bundles core and react):
 
 1. Move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md` under the new version and
    date; set `version` in `packages/<package>/package.json`, and the caret range or the
@@ -162,5 +175,5 @@ Then for each release of a package, in the order `pivotkit-core`, `pivotkit-reac
    tag that exists, or `main` for a preview of unreleased docs; the next release replaces it).
 
 `npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
-`dist/`, `types/`, and for pivotkit-element `dist/THIRD_PARTY_LICENSES.txt`); it fails while a
+`dist/`, `types/`, and for pivotkit-element and pivotkit-xlsx `dist/THIRD_PARTY_LICENSES.txt`); it fails while a
 package is marked `"private": true`.
