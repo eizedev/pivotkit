@@ -189,9 +189,13 @@ async function licenses(metafile) {
  * shows, took the first load to 153.7 measured on a Mac (CI about 154.0), budget 155; the level
  * itself took the menus to 39.1 (CI about 39.4, budget 41) and their German texts to 6.2 (CI about
  * 6.5, budget 6.8).
+ * The fixes of the PowerShell Universal test (#110-#115, #82, #83): popovers in the top layer with
+ * Tab moved inside them, a name for every form field, the row label column measured once, the
+ * identifier rule, the unused-parts warning for the host's view and its lines that follow the view
+ * shown took the first load to 155.5 measured on a Mac (CI about 155.8), budget 157.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 155, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5 };
+export const SIZE_BUDGET_KIB = { initial: 157, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
