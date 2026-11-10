@@ -18,7 +18,7 @@ with npm provenance.
 
 | Plugin | What | Size (gzip) | pivotkit-core |
 | --- | --- | --- | --- |
-| <span id="pivotkit-xlsx"></span>[`pivotkit-xlsx`](https://www.npmjs.com/package/pivotkit-xlsx) | Excel workbooks (`.xlsx`): one sheet, the first visible one or the one asked for; dates from the cell formats; the values Excel saved, never formulas. Refuses `.xls`, `.xlsb`, macro and password-protected workbooks, ZIP bombs and XML with a document type, before anything is parsed. Built on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). | 0.2 KiB descriptor, 28.6 KiB when the first workbook is read | 0.4.0 or later (plugin API 1) |
+| <span id="pivotkit-xlsx"></span>[`pivotkit-xlsx`](https://www.npmjs.com/package/pivotkit-xlsx) | Excel workbooks (`.xlsx`): one sheet, the first visible one or the one asked for; dates from the cell formats; the values Excel saved, never formulas. Refuses `.xls`, `.xlsb`, macro and password-protected workbooks, ZIP bombs and XML with a document type, before anything is parsed. Built on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). | 0.2 KiB descriptor, 29.4 KiB when the first workbook is read | 0.4.0 or later (plugin API 1) |
 
 ### pivotkit-xlsx
 
@@ -67,8 +67,8 @@ What it reads and refuses:
 
     | File | pivotkit-xlsx, Node | read-excel-file alone, Node | pivotkit-xlsx, Chromium (strict CSP) |
     | --- | --- | --- | --- |
-    | 12 MB, 94,000 rows | 2.1 s, about 650 MB more memory (RSS) | 1.2 s, about 500 MB | 1.9 s |
-    | 52 MB, used range to row 900,000 | 4.2 s, about 790 MB | 8.1 s, about 2,000 MB | 4.0 s |
+    | 12 MB, 94,000 rows | 2.3 s, about 650 MB more memory (RSS) | 1.2 s, about 500 MB | 2.0 s |
+    | 52 MB, used range to row 900,000 | 4.4 s, about 780 MB | 7.8 s, about 2,100 MB | 4.0 s |
 
     pivotkit-xlsx takes longer than read-excel-file alone on a plain file: it unpacks and checks the
     sheet itself, copies it once more into the archive read-excel-file gets, and cleans and types the
