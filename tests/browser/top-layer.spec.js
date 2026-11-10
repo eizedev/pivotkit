@@ -49,6 +49,9 @@ test.describe("menus and sheets above a fixed host navigation (#111)", () => {
             const aboutBox = await about.boundingBox();
             expect((await hitAt(page, aboutBox.x + 20, aboutBox.y + aboutBox.height / 2))?.inPopover).toBe(true);
             expect((await labelsOnTop(page, about)).filter((l) => l.on !== "popover")).toEqual([]);
+            // a sheet like every other: as wide as the window, not a 320 px box at its left
+            expect(aboutBox.x).toBe(0);
+            expect(Math.abs(aboutBox.width - (await page.evaluate(() => document.documentElement.clientWidth)))).toBeLessThan(1);
         });
 
         test(`${name} at 1280 px: a chip menu opens under its chip, above the app bar's stacking`, async ({ page }) => {

@@ -3044,6 +3044,11 @@
     padding: 8px 10px;
 }
 
+/* a description opened on a narrow report is a bottom sheet as wide as the window, like every sheet */
+.pk-popover.pk-sheet.pk-info-pop {
+    max-width: none;
+}
+
 .pk-field-desc {
     margin: 0;
     font-size: var(--pk-small);
