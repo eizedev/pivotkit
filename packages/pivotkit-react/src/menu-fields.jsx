@@ -100,6 +100,7 @@ export const fieldKeys = ({ now, restore, back }) => (/** @type {React.KeyboardE
  *   onChange: (index: number) => void, label: string, prefix?: string, testId: string }} props
  */
 export function MeasurePick({ choices, names, index, onChange, label, prefix, testId }) {
+    const name = useFormName();
     if (choices.length < 2) {
         return (
             <span className="pk-by" data-testid={testId}>

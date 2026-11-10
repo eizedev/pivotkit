@@ -16,6 +16,9 @@ test.describe("form fields have names of their own per report (#115)", () => {
                 const seen = [];
                 await expect(report.locator(".pk-field")).toHaveCount(9);
                 await openZonesIn(report);
+                // a second value: a top N and a rule on the total then choose the value they go by (a select)
+                await report.locator('.pk-field[data-field="Memory GB"] .pk-field-name').click();
+                await expect(report.getByTestId("chip-menu-Sum of Memory GB")).toBeVisible();
                 seen.push(...(await formFields(report)));
                 await everyTopic(page, report, () => report.getByTestId("chip-menu-Environment").click(), seen);
                 await everyTopic(page, report, () => report.getByTestId("chip-menu-Sum of Cost").click(), seen);
