@@ -187,6 +187,9 @@
     border-radius: var(--pk-radius-sm);
 }
 
+/* read by a screen reader only: one pixel, clipped to nothing (clip-path, and clip for older engines),
+   so it never adds to a scroll area; its positioned ancestor is the box it is in (a table's spans:
+   .pk-table-wrap), not one further out that would scroll for spans outside the visible part */
 .pk-sr {
     position: absolute !important;
     width: 1px;
@@ -195,6 +198,7 @@
     margin: -1px;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
 }
@@ -2329,6 +2333,9 @@
 /* table */
 
 .pk-table-wrap {
+    /* the containing block of the cells' screen reader texts (.pk-sr): positioned against
+       .pk-result they would reach past the table's box and make the result area scroll too (#112) */
+    position: relative;
     flex: 1;
     min-width: 0;
     overflow: auto;
