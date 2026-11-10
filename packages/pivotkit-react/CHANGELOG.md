@@ -38,7 +38,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   a level with fields keeps Tab inside the sheet (Chromium let it out to the page). One definition of
   a Tab stop for every layer (`tabStops`).
 - Field names in the field list break between words only; a word too long for its line ends in "…"
-  ([#114](https://github.com/eizedev/pivotkit/issues/114)).
+  ([#114](https://github.com/eizedev/pivotkit/issues/114)). The field list is wider (`--pk-panel-w`
+  288 px, at most 284 px on a medium report; it was 268 and 244) and a field's menu button takes the
+  least room a control may (24 px), so a name of up to about 16 characters fits next to its zone mark.
+- A description opened on a narrow report is a bottom sheet as wide as the window, not a 320 px box.
 - Every `input`, `select` and `textarea` has a `name` of its own report (unique also across two web
   components on a page) and a label; Chrome listed them as form fields without an id or name
   ([#115](https://github.com/eizedev/pivotkit/issues/115)).

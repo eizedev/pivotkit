@@ -20,7 +20,8 @@
     --pk-radius: 10px;
     --pk-radius-sm: 7px;
     --pk-row-h: 2.45em;
-    --pk-panel-w: 268px;
+    /* the field list: room for a name of about 16 characters next to its grip, type, zone mark and menu */
+    --pk-panel-w: 288px;
     --pk-rail-w: 40px;
     --pk-duration: 180ms;
     --pk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -388,9 +389,9 @@
     min-height: 0;
 }
 
-/* medium: the field list at most 244 px wide; derived here, so --pk-panel-w stays the host's token */
+/* medium: the field list at most 284 px wide; derived here, so --pk-panel-w stays the host's token */
 .pk-root[data-pk-size="medium"] .pk-layout {
-    grid-template-columns: min(var(--pk-panel-w), 244px) minmax(0, 1fr);
+    grid-template-columns: min(var(--pk-panel-w), 284px) minmax(0, 1fr);
 }
 
 /* the field list collapsed to a rail: "Fields" upright and a search button (not on a narrow report) */
@@ -636,6 +637,8 @@
 }
 
 .pk-field-menu {
+    /* as narrow as a control may be: the room goes to the field's name (a touch screen keeps its hit area) */
+    width: var(--pk-target);
     opacity: 0.6;
 }
 

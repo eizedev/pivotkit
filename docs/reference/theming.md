@@ -77,7 +77,7 @@ through the element.
 | `--pk-radius`<br>`--pk-radius-sm` | Corners of panels, of buttons and chips | `10px`<br>`7px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
-| `--pk-panel-w` | Width of the field list; at most 244 px in the medium layout | `268px` | as light |
+| `--pk-panel-w` | Width of the field list; at most 284 px in the medium layout | `288px` | as light |
 | `--pk-rail-w` | Width of the field list collapsed to a rail | `40px` | as light |
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |

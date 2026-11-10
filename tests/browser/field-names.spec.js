@@ -10,7 +10,7 @@ test.describe("field names in the field list (#114)", () => {
             await page.goto("pages/nav.html");
             // Environment is in Rows: its badge takes room from its name
             await expect(page.locator('.pk-field[data-field="Environment"].pk-placed')).toHaveCount(1);
-            await expect(page.locator(".pk-field-title")).toHaveCount(9);
+            await expect(page.locator(".pk-field-title")).toHaveCount(10);
             const names = await page.locator(".pk-field-title").evaluateAll((els) =>
                 els.map((el) => {
                     const button = el.closest(".pk-field-name").getBoundingClientRect();
@@ -47,6 +47,21 @@ test.describe("field names in the field list (#114)", () => {
             }
             // the names of the issue are whole words here
             expect(names.map((n) => n.name)).toEqual(expect.arrayContaining(["Environment", "Manufacturer", "Date Commissioned"]));
+        });
+    }
+});
+
+test.describe("a field name of up to 16 characters fits the field list on a desktop", () => {
+    for (const width of [1280, 1440, 1920]) {
+        test(`at ${width} px next to the navigation, with zone marks: no word of a name is cut`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto("pages/nav.html?view=placed");
+            // in zones, so each shows its zone mark beside its name
+            for (const f of ["Environment", "Manufacturer", "Responsibilities"]) {
+                await expect(page.locator(`.pk-field[data-field="${f}"].pk-placed`)).toHaveCount(1);
+            }
+            const cut = await page.locator(".pk-field .pk-word").evaluateAll((els) => els.filter((w) => w.textContent.length <= 16 && w.scrollWidth > w.clientWidth).map((w) => w.textContent));
+            expect(cut).toEqual([]);
         });
     }
 });

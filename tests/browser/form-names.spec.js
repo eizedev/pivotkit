@@ -14,7 +14,7 @@ test.describe("form fields have names of their own per report (#115)", () => {
             for (const id of ["one", "two"]) {
                 const report = page.locator(`#${id}`);
                 const seen = [];
-                await expect(report.locator(".pk-field")).toHaveCount(9);
+                await expect(report.locator(".pk-field")).toHaveCount(10);
                 await openZonesIn(report);
                 // a second value: a top N and a rule on the total then choose the value they go by (a select)
                 await report.locator('.pk-field[data-field="Memory GB"] .pk-field-name').click();

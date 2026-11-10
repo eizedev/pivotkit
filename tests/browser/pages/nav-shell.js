@@ -47,7 +47,7 @@ export function hostFrame(title) {
 
 const pick = (rnd, list) => list[Math.floor(rnd() * list.length)];
 
-/** `n` servers: ID, Name, Environment, Manufacturer, Model, Date Commissioned, Location, Memory GB, Cost. */
+/** `n` servers: ID, Name, Environment, Manufacturer, Model, Date Commissioned, Location, Responsibilities, Memory GB, Cost. */
 export function servers(n = 10_000, seed = 31) {
     const rnd = random(seed);
     const roles = ["srv", "web", "db", "app", "k8s-node", "backup", "sql-cluster", "vdi", "ad"];
@@ -73,6 +73,8 @@ export function servers(n = 10_000, seed = 31) {
             Model: pick(rnd, makers[maker]),
             "Date Commissioned": new Date(Date.UTC(2019, 0, 1) + Math.floor(rnd() * 2400) * 86_400_000).toISOString().slice(0, 10),
             Location: pick(rnd, ["Datacenter 1", "Datacenter 2", "Cloud"]),
+            // a single word of 16 characters
+            Responsibilities: pick(rnd, ["Platform", "Database team", "Network", "Workplace"]),
             "Memory GB": pick(rnd, [16, 32, 64, 128, 256]),
             Cost: Math.round((800 + rnd() * 6000) * 100) / 100
         };
@@ -82,7 +84,8 @@ export function servers(n = 10_000, seed = 31) {
 
 /**
  * The start views of the page (`?view=`): "basic" (the default) a small table of environments,
- * "hosts" the host names by environment (#110), "ids" the IDs on Rows without a grand total, "wide" host names by environment and location (a
+ * "hosts" the host names by environment (#110), "ids" the IDs on Rows without a grand total, "placed" the long single-word
+ * names in zones (their zone marks take room in the field list), "wide" host names by environment and location (a
  * table larger than its area both ways, most of its cells empty), "broken" a view with parts the data
  * cannot use (a field it lacks, an unknown format), "none" an empty report.
  */
@@ -90,6 +93,7 @@ export const VIEWS = {
     basic: { rows: ["Environment"], values: [{ field: "Cost", agg: "sum" }] },
     hosts: { rows: ["Name"], cols: ["Environment"], values: [{ field: "Name", agg: "count" }] },
     ids: { rows: ["ID"], values: [{ field: "Cost", agg: "sum" }], totals: { grandTotalRow: false } },
+    placed: { rows: ["Environment", "Manufacturer"], cols: ["Responsibilities"], values: [{ field: "Memory GB", agg: "sum" }] },
     wide: { rows: ["Name"], cols: ["Environment", "Location"], values: [{ field: "Cost", agg: "sum" }] },
     broken: { rows: ["Environment", "Hostname"], values: [{ field: "Cost", agg: "sum", format: "money" }] },
     none: undefined
