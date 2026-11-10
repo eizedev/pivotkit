@@ -35,9 +35,9 @@ export function openerOf(el) {
 }
 
 /**
- * Tab in a menu leaves it: the focus goes to what follows its button (moved here: from a popover in
- * the top layer WebKit's own Tab goes to the page's body), else to the button, from where the
- * browser's Tab moves on; the menu closes.
+ * Tab in a menu leaves it: the focus goes to what follows its button, else (at the end of the page)
+ * to the button; the menu closes. The Tab is taken (preventDefault), so the popover or sheet around
+ * the menu leaves it alone (dom.js: who takes Tab).
  * @param {KeyboardEvent | React.KeyboardEvent} e
  * @param {() => void} close
  */
@@ -47,17 +47,11 @@ export function tabLeaves(e, close) {
     }
     const opener = openerOf(/** @type {Element} */ (e.target));
     const next = opener ? stopAfter(opener) : null;
-    if (next) {
-        e.preventDefault();
-        next.focus();
-        // a stop that would not take the focus: from the button, as the browser goes on
-        if (activeIn(next) !== next && opener) {
-            opener.focus({ preventScroll: true });
-        }
-    } else if (opener) {
+    e.preventDefault();
+    next?.focus();
+    // no stop after it, or one that would not take the focus: its button
+    if (opener && (!next || activeIn(next) !== next)) {
         opener.focus({ preventScroll: true });
-    } else {
-        e.preventDefault();
     }
     close();
     return true;

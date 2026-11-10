@@ -3,7 +3,7 @@
 // Escape or the left arrow to the row it came from, Escape on the first level closes the menu and the
 // focus goes back to its button, Tab closes it and moves on; levels with form controls are groups
 // with a heading; the search finds a choice in any level. Every test fails without its feature.
-import { chipMenu, chips, expect, openLevel, tableRows, test, toolbar } from "./fixtures.js";
+import { chipMenu, chips, expect, openLevel, openZones, tableRows, test, toolbar } from "./fixtures.js";
 
 /** The data-testid of the focused element, inside a shadow root too. */
 const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute("data-testid"));
@@ -389,5 +389,60 @@ test.describe("what the usability review found", () => {
         await toolbar(page, "options");
         await expect(page.getByTestId("expand-all")).toHaveAttribute("aria-disabled", "true");
         await expect(page.getByTestId("expand-all")).not.toHaveAttribute("aria-checked", /.*/);
+    });
+});
+
+// a report next to a fixed navigation at 800 px is narrow: its menus are bottom sheets
+test.describe("Tab in a bottom sheet (800 px)", () => {
+    /** What has the focus, through shadow roots: its test id or class, and whether it is in the sheet. */
+    const focused = (page) =>
+        page.evaluate(() => {
+            const deep = (root) => (root.activeElement?.shadowRoot ? deep(root.activeElement.shadowRoot) : root.activeElement);
+            const el = deep(document);
+            return { id: el?.getAttribute("data-testid") ?? el?.className ?? el?.localName, inSheet: Boolean(el?.closest(".pk-sheet")) };
+        });
+
+    test("one Tab from a chip menu's first level closes it and moves on from its chip, as on a wide report", async ({ page }) => {
+        await page.setViewportSize({ width: 800, height: 800 });
+        await page.goto("pages/nav.html");
+        await openZones(page);
+        const chip = page.getByTestId("chip-menu-Environment");
+        await chip.focus();
+        await page.keyboard.press("Enter");
+        const menu = page.locator(".pk-chip-menu");
+        await expect(menu).toHaveClass(/pk-sheet/);
+        await expect(menu.getByTestId("sort-label-asc")).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(menu).toHaveCount(0);
+        await expect(page.locator('[data-zone="rows"] .pk-chip[data-chip="Environment"] .pk-chip-x')).toBeFocused();
+    });
+
+    test("a level with fields in a sheet keeps Tab inside: forward and back, every stop once, past the ends around", async ({ page }) => {
+        await page.setViewportSize({ width: 800, height: 800 });
+        await page.goto("pages/nav.html");
+        await openZones(page);
+        await page.getByTestId("chip-menu-Environment").click();
+        await openLevel(page.locator(".pk-chip-menu"), "top");
+        await expect(page.locator(".pk-chip-menu")).toHaveClass(/pk-sheet/);
+        await expect(page.getByTestId("top-off")).toBeFocused();
+        const forward = [];
+        for (let i = 0; i < 12; i++) {
+            await page.keyboard.press("Tab");
+            forward.push(await focused(page));
+        }
+        // never out of the sheet (a modal), and around: the stops repeat in the same order
+        expect(forward.filter((f) => !f.inSheet)).toEqual([]);
+        const ids = forward.map((f) => f.id);
+        const cycle = ids.indexOf(ids[0], 1);
+        expect(cycle).toBeGreaterThan(1);
+        expect(ids.slice(cycle, 2 * cycle)).toEqual(ids.slice(0, Math.min(cycle, ids.length - cycle)));
+        // a radio group is one stop
+        expect(ids.filter((id) => typeof id === "string" && id.startsWith("top-") && id !== "top-count").length).toBeLessThanOrEqual(Math.ceil(ids.length / cycle));
+        const back = [];
+        for (let i = 0; i < cycle; i++) {
+            await page.keyboard.press("Shift+Tab");
+            back.push(await focused(page));
+        }
+        expect(back.filter((f) => !f.inSheet)).toEqual([]);
     });
 });

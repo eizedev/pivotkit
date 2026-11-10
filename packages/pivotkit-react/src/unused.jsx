@@ -12,6 +12,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fieldLabel } from "pivotkit-core";
+import { tabStops } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { valueLabel } from "./names.js";
@@ -25,7 +26,6 @@ import { loadUnused, unusedNow, unusedTexts } from "./unused-load.js";
 
 /** The lines an open warning shows before "Show N more": fewer on a narrow report. */
 const FIRST = { narrow: 2, wide: 3 };
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * @param {{ notes: UnusedNote[], notesKey: string, dismissed: boolean, onDismiss: (next: HTMLElement | null) => void,
@@ -73,7 +73,7 @@ export function Unused({ notes, notesKey, dismissed, onDismiss, labels, locale, 
     const dismiss = () => {
         const el = box.current;
         const root = el?.closest(".pk-root");
-        const next = el && root ? [...root.querySelectorAll(FOCUSABLE)].find((c) => !el.contains(c) && el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) : null;
+        const next = el && root ? tabStops(root).find((c) => !el.contains(c) && el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) : null;
         onDismiss(/** @type {HTMLElement | null} */ (next ?? null));
     };
     // each issue's line in plain words, once they are here

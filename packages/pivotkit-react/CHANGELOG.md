@@ -9,7 +9,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 ### Added
 
 - Identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field of whole numbers whose name ends in the word ID, Nr,
-  No, Number or Key ("ID", "CustomerId", "customer_id", "Order No"; not "Paid" or "UUID"), for which
+  No, Number, Key or "#" ("ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2", "ID
+  (Asset)"; not "Paid", "UUID" or "Number of items"), for which
   `fieldDefaults` sets none of `agg`, `format` and `drillFormat`, is counted when it is added to
   Values (from the field list, by a drag or by Move to; Sum stays a choice) and shows its numbers as
   they are in the drill-down (27000, not 27,000). Any of the three entries overrides it.
@@ -20,7 +21,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
-- Menus, bottom sheets and "i" popups open in the browser's top layer (`popover="manual"`): a host's
+- Menus, bottom sheets and "i" popups opened by a click open in the browser's top layer
+  (`popover="manual"`; a description shown on hover stays in the report's layer): a host's
   fixed navigation above z-index 50 (PowerShell Universal's drawer at 1200) no longer covers the left
   of a sheet or an "About" popup at 800 px or less ([#111](https://github.com/eizedev/pivotkit/issues/111)). They stay in the report's DOM, so its
   tokens and the web component's shadow styles apply; Tab inside them is moved by the report (WebKit
@@ -29,8 +31,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - A large table scrolls in one box: the screen reader texts of empty cells no longer made the result
   area scroll as well, with two scroll bars side by side ([#112](https://github.com/eizedev/pivotkit/issues/112)).
 - A virtual table's row label column (300 rows or more) keeps its width while the table scrolls:
-  measured once per view and data over its 50 longest labels, at most 28em, a longer label cut with
-  "…" and whole in its tooltip ([#110](https://github.com/eizedev/pivotkit/issues/110)).
+  measured per view and data over its 50 longest labels in the table's own font (again when the font,
+  its size or a web font changes), at most 28em, a longer label cut with "…" and whole in its tooltip
+  ([#110](https://github.com/eizedev/pivotkit/issues/110), [#121](https://github.com/eizedev/pivotkit/issues/121)).
+- Tab in a bottom sheet: one Tab from a chip menu's first level closes it and moves on from its chip;
+  a level with fields keeps Tab inside the sheet (Chromium let it out to the page). One definition of
+  a Tab stop for every layer (`tabStops`).
 - Field names in the field list break between words only; a word too long for its line ends in "…"
   ([#114](https://github.com/eizedev/pivotkit/issues/114)).
 - Every `input`, `select` and `textarea` has a `name` of its own report (unique also across two web
