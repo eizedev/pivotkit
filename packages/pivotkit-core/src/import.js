@@ -53,7 +53,7 @@ export const PLUGIN_API_VERSION = 1;
  * @property {"reader"} kind
  * @property {string} name  unique, lower case: letters, digits and "-" ("csv", "xlsx")
  * @property {string} label  what a file picker shows ("Excel workbook")
- * @property {string[]} accept  file name extensions (".xlsx") and media types ("text/csv")
+ * @property {readonly string[]} accept  file name extensions (".xlsx") and media types ("text/csv")
  * @property {() => Promise<ReaderModule>} load  imports the reader's code, e.g. `() => import("./reader.js")`
  */
 
@@ -118,7 +118,8 @@ export const BUILT_IN_READERS = Object.freeze([csvReader, jsonReader]);
  * @returns {ReaderPlugin | undefined}
  */
 export function readerFor(file, plugins = []) {
-    const all = [...plugins.map(validatePlugin), ...BUILT_IN_READERS];
+    for (const p of plugins) validatePlugin(p);
+    const all = [...plugins, ...BUILT_IN_READERS];
     const name = typeof file?.name === "string" ? file.name.toLowerCase() : "";
     const dot = name.lastIndexOf(".");
     const ext = dot === -1 ? "" : name.slice(dot);

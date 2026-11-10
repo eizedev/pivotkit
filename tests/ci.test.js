@@ -21,10 +21,12 @@ test("the Playwright container image matches @playwright/test in package-lock.js
 // package of this repository that another one depends on takes a caret range on its current version
 // (in 0.x that spans patch versions only; a host shares one copy only when its own range overlaps).
 // The lock file pins it in development.
-const OWN = new Set(["pivotkit-core", "pivotkit-react", "pivotkit-element"]);
+// the workspaces of the root package.json, in build order: every package of this repository
+const WORKSPACES = JSON.parse(readFileSync(new URL("package.json", root), "utf8")).workspaces;
+const OWN = new Set(WORKSPACES.map((w) => w.split("/").pop()));
 
 test("every dependency is pinned to an exact version; this repository's own packages take a caret range", () => {
-    const manifests = ["package.json", "packages/pivotkit-core/package.json", "packages/pivotkit-react/package.json", "packages/pivotkit-element/package.json", "tests/react19/package.json"];
+    const manifests = ["package.json", ...WORKSPACES.map((w) => `${w}/package.json`), "tests/react19/package.json"];
     for (const file of manifests) {
         const pkg = JSON.parse(readFileSync(new URL(file, root), "utf8"));
         for (const section of ["dependencies", "devDependencies"]) {
@@ -63,7 +65,7 @@ test("caretSatisfies reads caret ranges as npm does", () => {
 // publish order core, react, element: a range of an own package must take the version in this
 // repository, else npm would fetch another one from the registry instead of linking the workspace
 test("every caret range on an own package is satisfied by the workspace version", () => {
-    for (const name of ["pivotkit-core", "pivotkit-react", "pivotkit-element"]) {
+    for (const name of OWN) {
         const pkg = JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, root), "utf8"));
         for (const [dep, range] of Object.entries(pkg.dependencies ?? {})) {
             if (OWN.has(dep)) {
@@ -78,6 +80,20 @@ test("the own packages' caret ranges take the version of the package in this rep
     const core = JSON.parse(readFileSync(new URL("packages/pivotkit-core/package.json", root), "utf8"));
     const react = JSON.parse(readFileSync(new URL("packages/pivotkit-react/package.json", root), "utf8"));
     assert.equal(react.dependencies["pivotkit-core"], `^${core.version}`);
+    const xlsx = JSON.parse(readFileSync(new URL("packages/pivotkit-xlsx/package.json", root), "utf8"));
+    assert.equal(xlsx.dependencies["pivotkit-core"], `^${core.version}`);
+});
+
+test("every package of this repository is checked, packed and released", () => {
+    const pkg = JSON.parse(readFileSync(new URL("package.json", root), "utf8"));
+    const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
+    for (const name of OWN) {
+        assert.ok(pkg.scripts["pack:check"].includes(`check-pack.js ${name}`), `pack:check misses ${name}`);
+        assert.ok(release.includes(`"${name}@*"`), `release.yml has no tag pattern for ${name}`);
+        // the case of the tag check: "pivotkit-core|pivotkit-react|...) ;;"
+        const accepted = /^\s*((?:pivotkit-[a-z]+\|?)+)\) ;;$/m.exec(release)?.[1].split("|") ?? [];
+        assert.ok(accepted.includes(name), `release.yml does not accept a ${name} tag`);
+    }
 });
 
 // pivotkit-element bundles its own packages: they are build-time devDependencies, pinned to the

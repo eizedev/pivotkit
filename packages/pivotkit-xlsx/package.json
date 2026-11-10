@@ -1,0 +1,65 @@
+{
+  "name": "pivotkit-xlsx",
+  "version": "0.1.0",
+  "description": "Reader plugin for pivotkit: load Excel workbooks (.xlsx) into a pivot report in the browser, with checks against ZIP bombs, macros and oversized used ranges before parsing.",
+  "license": "MIT",
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev/reference/plugins/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-xlsx"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivotkit-plugin",
+    "pivotkit",
+    "xlsx",
+    "excel",
+    "import",
+    "spreadsheet"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./reader": {
+      "types": "./types/reader.d.ts",
+      "default": "./src/reader.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "types",
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "size": "node build.js --size",
+    "test": "node --test \"test/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "bench": "node test/bench.js",
+    "prepack": "npm run types && node build.js && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\"",
+    "test:types": "tsc -p test/types"
+  },
+  "dependencies": {
+    "fflate": "0.8.3",
+    "pivotkit-core": "^0.3.0",
+    "read-excel-file": "9.3.14"
+  },
+  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
+}

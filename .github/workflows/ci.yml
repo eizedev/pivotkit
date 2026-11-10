@@ -55,6 +55,10 @@ jobs:
         # what a page loads (first, on the first chart, on the first export), gzip, for the log
         if: matrix.node == '24'
         run: npm run size -w pivotkit-element
+      - name: Excel reader size
+        # pivotkit-xlsx's dist/: the plugin's descriptor and the reader it loads, gzip; fails above its budget
+        if: matrix.node == '24'
+        run: npm run size -w pivotkit-xlsx
 
   browser:
     # The playground (examples/playground), the host pages and the web component's pages
