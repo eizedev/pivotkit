@@ -8,6 +8,7 @@
  */
 
 import React, { useRef } from "react";
+import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
 
 /**
@@ -39,6 +40,7 @@ export function emptyField(el) {
  */
 export function ClearInput({ value, onChange, onClear, clearLabel, multiline = false, className, inputRef, ...rest }) {
     const own = useRef(/** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (null));
+    const name = useFormName();
     const ref = inputRef ?? own;
     const clear = () => {
         if (ref.current) {
@@ -58,7 +60,7 @@ export function ClearInput({ value, onChange, onClear, clearLabel, multiline = f
     const Tag = multiline ? "textarea" : "input";
     return (
         <span className={`pk-clear-input${multiline ? " pk-clear-multi" : ""}${className ? ` ${className}` : ""}`}>
-            <Tag {...rest} ref={ref} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
+            <Tag name={name} {...rest} ref={ref} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
             {value !== "" ? (
                 <button
                     type="button"

@@ -10,6 +10,7 @@
 import React, { useMemo, useState } from "react";
 import { CATALOG, fieldItems, fieldLabel } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
+import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
@@ -35,6 +36,8 @@ export const keyOf = (v) => JSON.stringify(v);
  */
 export function ValueList({ items, selected, onChange, labels, locale, autoFocus = false, tail, children }) {
     const [query, setQuery] = useState("");
+    // one name for the list's checkboxes, as a form's list of choices has
+    const name = useFormName();
     const q = query.trim().toLocaleLowerCase();
     const matching = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
     const inList = tail ? matching.filter((i) => !tail.isOut(i)) : matching;
@@ -66,7 +69,7 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
         return (
             <li key={k} className={`pk-value${muted ? " pk-value-out" : ""}`}>
                 <label>
-                    <input type="checkbox" checked={selected.has(k)} onChange={() => toggle(i.value)} />
+                    <input type="checkbox" name={name} checked={selected.has(k)} onChange={() => toggle(i.value)} />
                     <span className="pk-value-label">{i.label}</span>
                     <span className="pk-count">{i.count.toLocaleString(locale)}</span>
                 </label>
@@ -109,6 +112,7 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
 function FilterBody({ view: current, base, field, encoded, locale, labels, commit, close }) {
     // the view the filter applies to: the report's, or a draft with the field placed in Filters
     const view = base ?? current;
+    const formName = useFormName();
     const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
     const all = useMemo(() => (info ? info.items.map((i) => i.value) : []), [info]);
     const [selected, setSelected] = useState(() => new Set(selectedItems(view, field, all).map(keyOf)));
@@ -143,7 +147,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
             {kind ? (
             <fieldset className="pk-condition">
                 <legend>{kind === "number" ? labels.conditionNumber : labels.condition}</legend>
-                <select value={op} onChange={(e) => setOp(e.target.value)} aria-label={kind === "number" ? labels.conditionNumber : labels.condition}>
+                <select name={`${formName}-op`} value={op} onChange={(e) => setOp(e.target.value)} aria-label={kind === "number" ? labels.conditionNumber : labels.condition}>
                     <option value="">{labels.conditionNone}</option>
                     {CATALOG.labelOps.map((o) => (
                         <option key={o} value={o}>

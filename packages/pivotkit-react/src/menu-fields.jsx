@@ -5,6 +5,7 @@
  */
 
 import React, { useId } from "react";
+import { useFormName } from "./dom.js";
 import { fill } from "./labels.js";
 import { refLabel } from "./names.js";
 import { parseNumber } from "./numbers.js";
@@ -42,12 +43,14 @@ export function readNumber(text, { kind = "number", required = true, tried = fal
  */
 export function NumberField({ value, onChange, problem, label, testId, className = "pk-field-label", shown, shownClass, onKeyDown, onBlur, onFocus, autoFocus }) {
     const id = useId();
+    const name = useFormName();
     return (
         <>
             <label className={className}>
                 {shown ? <span className={shownClass}>{shown}</span> : <span className="pk-sr">{label}</span>}
                 <input
                     type="text"
+                    name={name}
                     inputMode="decimal"
                     autoComplete="off"
                     spellCheck={false}
@@ -107,7 +110,7 @@ export function MeasurePick({ choices, names, index, onChange, label, prefix, te
     return (
         <label className="pk-field-label pk-by-pick">
             {prefix ? <span>{prefix}</span> : <span className="pk-sr">{label}</span>}
-            <select value={index} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} data-testid={testId}>
+            <select name={name} value={index} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} data-testid={testId}>
                 {choices.map((c, i) => (
                     <option key={`${c.field}:${c.agg}`} value={i}>
                         {names[i]}

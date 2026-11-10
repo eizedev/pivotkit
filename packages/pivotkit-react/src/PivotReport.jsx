@@ -34,7 +34,7 @@ import { templateEntries, viewsName } from "./templates.js";
 import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
-import { activeIn } from "./dom.js";
+import { FormNameContext, activeIn } from "./dom.js";
 import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
@@ -188,6 +188,9 @@ function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto",
     );
 }
 
+/** A subscription to something that never changes (useSyncExternalStore of a value chosen once). */
+const staysTheSame = () => () => undefined;
+
 /** The host's settings for a field (fieldDefaults), matched case-insensitively like column names. */
 function defaultsFor(fieldDefaults, field) {
     if (!fieldDefaults || typeof fieldDefaults !== "object") {
@@ -308,6 +311,11 @@ function Report(props) {
     const [folded, setFolded] = useState(/** @type {boolean | null} */ (null));
     const layoutFolded = folded ?? short;
     const zonesId = useId();
+    // the prefix of the names of this report's form fields (dom.js useFormName): useId is unique in
+    // one React root only, two web components are two roots; chosen in the browser, so a server
+    // render and its hydration agree (the server's snapshot is the plain prefix)
+    const ownPrefix = useRef(/** @type {string | null} */ (null));
+    const formPrefix = useSyncExternalStore(staysTheSame, () => (ownPrefix.current ??= `pk-${Math.random().toString(36).slice(2, 8)}`), () => "pk");
     const [drawer, setDrawer] = useState(false);
     const [filterTarget, setFilterTarget] = useState(/** @type {{ field: string, anchor: HTMLElement, base?: object } | null} */ (null));
     const [drill, setDrill] = useState(/** @type {import("./drill-table.js").DrillSource | null} */ (null));
@@ -1145,6 +1153,7 @@ function Report(props) {
             onKeyDown={onKeyDown}
         >
             <LayerContext.Provider value={layerValue}>
+              <FormNameContext.Provider value={formPrefix}>
               <HelpContext.Provider value={help}>
                 <PivotDnd
                     labels={labels}
@@ -1354,6 +1363,7 @@ function Report(props) {
                     <span className="pk-origin" aria-hidden="true" />
                 </div>
               </HelpContext.Provider>
+              </FormNameContext.Provider>
             </LayerContext.Provider>
         </div>
     );

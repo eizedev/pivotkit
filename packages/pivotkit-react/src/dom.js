@@ -4,7 +4,24 @@
  * composed path, and Escape closes only the topmost layer (popover, dialog, drawer) of a page.
  */
 
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useId, useRef } from "react";
+
+/**
+ * The prefix of the names of a report's form fields (PivotReport sets one per report instance, after
+ * mounting: React's useId is unique inside one React root only, and two web components are two roots).
+ */
+export const FormNameContext = createContext("pk");
+
+/**
+ * A name for a form field (input, select, textarea) of this report: browsers autofill and restore by
+ * name, and list a field without a name or id as a problem of the page. A component with several
+ * fields adds a suffix of its own to it (`${name}-op`); a group of radios or checkboxes shares one.
+ * @returns {string}
+ */
+export function useFormName() {
+    const prefix = useContext(FormNameContext);
+    return `${prefix}-${useId().replace(/[^A-Za-z0-9_-]/g, "")}`;
+}
 
 /** Elements that take the focus with Tab. */
 export const FOCUSABLE = "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";

@@ -12,6 +12,7 @@
 import React, { useId, useState } from "react";
 import { fieldLabel } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
+import { useFormName } from "./dom.js";
 import { FilterLevel } from "./filter-level.jsx";
 import { HelpContext } from "./help.js";
 import { InfoButton } from "./info.jsx";
@@ -48,7 +49,7 @@ function TopLevel({ view, field, types, labels, locale, commit, back }) {
             set({ count: n, bottom: s.bottom, by: choices[s.by] });
         }
     };
-    const groupName = useId();
+    const groupName = useFormName();
     const radio = (id, text, checked, onPick) => (
         <label className="pk-radio">
             <input type="radio" name={groupName} checked={checked} onChange={onPick} data-autofocus={checked ? "" : undefined} data-testid={`top-${id}`} />

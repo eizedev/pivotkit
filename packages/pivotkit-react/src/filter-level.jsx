@@ -18,7 +18,7 @@
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
-import { activeIn } from "./dom.js";
+import { activeIn, useFormName } from "./dom.js";
 import { FILTER_LIST_MAX, keyOf, ValueList } from "./filter.jsx";
 import { HelpContext } from "./help.js";
 import { Icon } from "./icons.jsx";
@@ -243,6 +243,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     }
     const later = useLater();
     const group = useId();
+    const groupName = useFormName();
     const set = (range) => commit(setQuickRange(view, field, range ? { ...range, anchor } : null), note);
     /** The sub-line of a choice: the data's share of its days ("2025 (2026 has no data)") and its rows. */
     const sub = (range, unit, id) => {
@@ -266,7 +267,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const subId = (id) => `${group}-${id}`;
     const radio = (id, checked, onPick, name, children, sub, described = Boolean(sub)) => (
         <label className="pk-radio pk-quick" key={id}>
-            <input type="radio" name={group} checked={checked} onChange={onPick} aria-label={name} aria-describedby={described ? subId(id) : undefined} data-autofocus={checked && ctx.hint !== "conditions" ? "" : undefined} data-testid={`quick-${id}`} />
+            <input type="radio" name={groupName} checked={checked} onChange={onPick} aria-label={name} aria-describedby={described ? subId(id) : undefined} data-autofocus={checked && ctx.hint !== "conditions" ? "" : undefined} data-testid={`quick-${id}`} />
             {children}
             {sub}
         </label>
@@ -355,6 +356,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const periodStart = fk.months ? Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) : Date.UTC(today.getUTCFullYear(), 0, 1);
     const showAnchor = latest < periodStart;
     const anchorId = useId();
+    const anchorName = useFormName();
     return (
         <>
             <div role="radiogroup" aria-label={labels.quickTitle} className="pk-radios pk-quick-choices" data-testid="quick-choices">
@@ -365,6 +367,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                     <label htmlFor={anchorId}>{labels.anchorLabel}</label>
                     <select
                         id={anchorId}
+                        name={anchorName}
                         value={anchor}
                         onChange={(e) => {
                             const next = /** @type {"today" | "latest"} */ (e.target.value);
@@ -431,6 +434,7 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
     const [active, setActive] = useState(0);
     const anchor = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const listId = useId();
+    const searchName = useFormName();
     const q = query.trim().toLocaleLowerCase();
     const found = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
     const matching = found.slice(0, FILTER_LIST_MAX);
@@ -485,6 +489,7 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
             <Popover open={open} anchor={anchor} onClose={close} label={label} className="pk-picker-pop">
                 <input
                     type="search"
+                    name={searchName}
                     role="combobox"
                     className="pk-picker-search"
                     value={query}
@@ -550,6 +555,7 @@ function ItemRule({ rule, ctx, apply, first }) {
         unit: ranged?.unit ?? "year"
     }));
     const later = useLater();
+    const formName = useFormName();
     const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? (/^\d{4,}-\d{2}-\d{2}$/.test(text) ? text : null) : text === "" ? null : Number(text));
     const entryOf = (x) => {
         if (x.op === "last") {
@@ -591,7 +597,7 @@ function ItemRule({ rule, ctx, apply, first }) {
             return <NumberField value={s[key]} onChange={(t) => change({ [key]: t }, true)} onKeyDown={keys} onBlur={later.now} problem={problem} label={label} testId={testId} className="pk-field-label pk-narrow-input" />;
         }
         if (fk.item === "date") {
-            return <input type="date" value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId} />;
+            return <input type="date" name={`${formName}-${key}`} value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId} />;
         }
         // a grouping: one of its items ("2022", "Mar 2025"), or the view's own when the data has it no more
         const listed = items.filter((i) => typeof i.value === "number");
@@ -600,7 +606,7 @@ function ItemRule({ rule, ctx, apply, first }) {
             return <ItemPicker items={own ? [{ value: Number(s[key]), label: s[key], count: 0 }, ...listed] : listed} value={s[key]} onChange={(v) => change({ [key]: v })} label={label} testId={testId} labels={labels} locale={locale} />;
         }
         return (
-            <select value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId}>
+            <select name={`${formName}-${key}`} value={s[key]} onChange={(e) => change({ [key]: e.target.value })} aria-label={label} data-testid={testId}>
                 <option value="" disabled>
                     {labels.ruleValue}
                 </option>
@@ -621,7 +627,7 @@ function ItemRule({ rule, ctx, apply, first }) {
     return (
         <>
             <span className="pk-rule-subject">{fieldLabel(field, labels.core)}</span>
-            <select className="pk-rule-op" value={s.op} onChange={(e) => change({ op: e.target.value })} aria-label={labels.valueFilterOp} data-autofocus={first ? "" : undefined} data-testid="rule-item-op">
+            <select className="pk-rule-op" name={`${formName}-op`} value={s.op} onChange={(e) => change({ op: e.target.value })} aria-label={labels.valueFilterOp} data-autofocus={first ? "" : undefined} data-testid="rule-item-op">
                 {ops.map((o) => (
                     <option key={o} value={o}>
                         {o === "last" ? plural(labels.lastOp, many, lang) : words[o] ?? o}
@@ -640,7 +646,7 @@ function ItemRule({ rule, ctx, apply, first }) {
                         testId="rule-last-count"
                         className="pk-field-label pk-count-input"
                     />
-                    <select value={s.unit} onChange={(e) => change({ unit: e.target.value })} aria-label={labels.ruleUnit} data-testid="rule-last-unit">
+                    <select name={`${formName}-unit`} value={s.unit} onChange={(e) => change({ unit: e.target.value })} aria-label={labels.ruleUnit} data-testid="rule-last-unit">
                         {CATALOG.relativeUnits.map((u) => (
                             <option key={u} value={u}>
                                 {plural(labels.ruleUnits[u], many, lang)}
@@ -678,6 +684,7 @@ function TotalRule({ rule, ctx, apply, first }) {
     const { choices, names } = measuresOf(view, types, labels, rule?.by);
     const [s, setS] = useState(() => ({ by: choiceIndex(choices, rule?.by), op: rule?.op ?? ">", a: numberText(rule?.value, locale), b: numberText(rule?.value2, locale) }));
     const later = useLater();
+    const formName = useFormName();
     const change = (patch, wait = false) => {
         const next = { ...s, ...patch };
         setS(next);
@@ -712,7 +719,7 @@ function TotalRule({ rule, ctx, apply, first }) {
         <>
             <span className="pk-rule-subject pk-rule-lead">{fill(labels.ruleWhose, { field: fieldLabel(ctx.field, labels.core) })}</span>
             <MeasurePick choices={choices} names={names} index={s.by} onChange={(i) => change({ by: i })} label={labels.valueFilterBy} testId="value-filter-by" />
-            <select className="pk-rule-op" value={s.op} onChange={(e) => change({ op: e.target.value })} aria-label={labels.valueFilterOp} data-autofocus={first ? "" : undefined} data-testid="value-filter-op">
+            <select className="pk-rule-op" name={`${formName}-op`} value={s.op} onChange={(e) => change({ op: e.target.value })} aria-label={labels.valueFilterOp} data-autofocus={first ? "" : undefined} data-testid="value-filter-op">
                 {CATALOG.valueOps.map((o) => (
                     <option key={o} value={o}>
                         {labels.valueOps[o] ?? o}
@@ -735,11 +742,13 @@ function NameRule({ rule, ctx, apply, first }) {
         }
     };
     const text = useAppliedText(rule?.value ?? "", (value) => send(op, value));
+    const opName = useFormName();
     return (
         <>
             <span className="pk-rule-subject">{labels.ruleName}</span>
             <select
                 className="pk-rule-op"
+                name={opName}
                 value={op}
                 onChange={(e) => {
                     setOp(e.target.value);

@@ -9,6 +9,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { VIEW_FILE_LIMITS } from "pivotkit-core";
 import { CHART_TYPES, CHART_TYPE_NAMES, SLICE_TYPES, chartTypeOf } from "./chart-types.js";
 import { ClearInput } from "./clear-input.jsx";
+import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill, hostFailure } from "./labels.js";
 import { Option } from "./popover.jsx";
@@ -204,9 +205,10 @@ function Shortcuts({ labels, mod }) {
  * @param {{ checked: boolean, onChange: (on: boolean) => void, testId?: string, children: React.ReactNode }} props
  */
 function Switch({ checked, onChange, testId, children }) {
+    const name = useFormName();
     return (
         <label className="pk-switch">
-            <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
+            <input type="checkbox" name={name} checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
             <span className="pk-switch-track" aria-hidden="true" />
             <span className="pk-switch-text">{children}</span>
         </label>
@@ -391,6 +393,7 @@ function LoadView({ labels, onLoadText, close }) {
     const file = useRef(/** @type {HTMLInputElement | null} */ (null));
     const field = useRef(/** @type {HTMLTextAreaElement | null} */ (null));
     const problemId = useId();
+    const fileName = useFormName();
     // opened from its menu entry, which is gone now: the focus goes into the field
     useEffect(() => {
         if (!check) {
@@ -446,10 +449,12 @@ function LoadView({ labels, onLoadText, close }) {
             <input
                 ref={file}
                 type="file"
+                name={`${fileName}-file`}
                 accept="application/json,.json"
                 className="pk-sr"
                 tabIndex={-1}
                 aria-hidden="true"
+                aria-label={labels.chooseFile}
                 data-testid="load-view-file"
                 onChange={async (e) => {
                     const chosen = e.target.files?.[0];
