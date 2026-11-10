@@ -56,13 +56,14 @@ test.describe("menus and sheets above a fixed host navigation (#111)", () => {
             const report = reportOf(page);
             await openZones(page);
             const chip = report.getByTestId("chip-menu-Environment");
+            // the zones open with an animation: the chip at its own place before it is clicked (a
+            // popover is placed when it opens; it does not follow an anchor that moves afterwards)
+            await settled(report.locator(".pk-root"));
             await chip.click();
             const menu = report.locator(".pk-popover.pk-chip-menu");
             await expect(menu).toBeVisible();
             await expect(menu).not.toHaveClass(/pk-sheet/);
             await settled(menu);
-            // the zones open with an animation: the chip's own place once it is over
-            await settled(report.locator(".pk-root"));
             // placed against the window as before: below its button, its left edge at the button's
             const a = await chip.boundingBox();
             const m = await menu.boundingBox();

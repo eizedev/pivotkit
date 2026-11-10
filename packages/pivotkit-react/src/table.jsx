@@ -46,15 +46,19 @@ function labelWidths(grid, table) {
         return null;
     }
     const style = getComputedStyle(text);
-    // the font's parts: the shorthand is empty in some engines
-    ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    // the font's parts (the shorthand is empty in some engines); a total's label is bold (styles.css)
+    const font = (weight) => `${style.fontStyle} ${weight} ${style.fontSize} ${style.fontFamily}`;
+    const widthOf = (/** @type {{ text: string, total: boolean }} */ l) => {
+        ctx.font = font(l.total ? 700 : style.fontWeight);
+        return ctx.measureText(l.text).width;
+    };
     const em = parseFloat(style.fontSize) || 14;
     const toggle = table.querySelector(".pk-toggle");
     const gap = parseFloat(getComputedStyle(content).columnGap) || 0;
     const toggleWidth = (toggle ? toggle.getBoundingClientRect().width : em * 1.7) + gap;
     const widths = [];
     for (let c = 0; c < grid.rowHeaderColumns; c++) {
-        const most = Math.max(0, ...longestLabels(grid, c, MEASURED_LABELS).map((l) => ctx.measureText(l.text).width + (l.toggle ? toggleWidth : 0)));
+        const most = Math.max(0, ...longestLabels(grid, c, MEASURED_LABELS).map((l) => widthOf(l) + (l.toggle ? toggleWidth : 0)));
         // a pixel more: the canvas and the layout round differently
         widths.push(Math.min(Math.ceil(most) + 1, LABEL_MAX_EM * em));
     }

@@ -80,28 +80,29 @@ export function rowLabelOf(grid, r) {
 /**
  * The longest row labels of a column by their number of characters, at most `n`: what a virtual table
  * measures for the column's width once, instead of the rows it happens to show (they change as it
- * scrolls). With each label whether it has a group's toggle in front of it.
+ * scrolls). With each label whether it has a group's toggle in front of it and whether it is a total's
+ * (drawn bolder). A label spanning several columns (a total) is left out: it widens no single column.
  * @param {import("pivotkit-core").Grid} grid
  * @param {number} col  a row label column (below grid.rowHeaderColumns)
  * @param {number} n
- * @returns {Array<{ text: string, toggle: boolean }>}
+ * @returns {Array<{ text: string, toggle: boolean, total: boolean }>}
  */
 export function longestLabels(grid, col, n) {
-    /** @type {Array<{ text: string, toggle: boolean }>} */
+    /** @type {Array<{ text: string, toggle: boolean, total: boolean }>} */
     const out = [];
     if (n < 1) {
         return out;
     }
     for (let r = grid.headerRows; r < grid.rows.length; r++) {
         const cell = grid.rows[r][col];
-        if (!cell || cell.kind !== "rowHeader" || !cell.text) {
+        if (!cell || cell.kind !== "rowHeader" || !cell.text || (cell.colSpan ?? 1) > 1) {
             continue;
         }
         // kept sorted, longest first: a label shorter than the n-th is passed by
         if (out.length === n && cell.text.length <= out[n - 1].text.length) {
             continue;
         }
-        const entry = { text: cell.text, toggle: Boolean(cell.toggle) };
+        const entry = { text: cell.text, toggle: Boolean(cell.toggle), total: Boolean(cell.total) };
         let at = out.length;
         while (at > 0 && out[at - 1].text.length < entry.text.length) {
             at--;

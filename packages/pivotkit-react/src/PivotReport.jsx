@@ -189,6 +189,19 @@ function WaitingReport({ locale = "en-US", labels: customLabels, theme = "auto",
     );
 }
 
+/**
+ * The host's view as JSON, to compare it by value; "null" for none, and for one that is no JSON (a
+ * cycle, a BigInt): normalize() reports nothing of that kind here.
+ * @param {unknown} view
+ */
+function keyOfHostView(view) {
+    try {
+        return JSON.stringify(view ?? null) ?? "null";
+    } catch {
+        return "null";
+    }
+}
+
 /** A subscription to something that never changes (useSyncExternalStore of a value chosen once). */
 const staysTheSame = () => () => undefined;
 
@@ -397,13 +410,16 @@ function Report(props) {
     // above the result like a loaded view's unused parts, once per distinct view (a host may render the
     // same view again and again), not while the data is still on its way
     const [startView] = useState(() => defaultView);
-    const hostKey = JSON.stringify((viewProp !== undefined ? viewProp : startView) ?? null);
+    const hostKey = keyOfHostView(viewProp !== undefined ? viewProp : startView);
     const keyOf = history.keyOf;
     const hostNotes = useMemo(() => {
         if (hostKey === "null" || loading || encoded.schema.fields.length === 0) {
             return null;
         }
         const raw = JSON.parse(hostKey);
+        if (raw === null) {
+            return null;
+        }
         const notes = unusedNotes(normalize(raw, encoded, { limits }).issues, raw);
         return notes.length ? { notes, loaded: JSON.parse(keyOf(raw)) } : null;
     }, [hostKey, loading, encoded, limits, keyOf]);

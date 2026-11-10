@@ -50,6 +50,10 @@ export function tabLeaves(e, close) {
     if (next) {
         e.preventDefault();
         next.focus();
+        // a stop that would not take the focus: from the button, as the browser goes on
+        if (activeIn(next) !== next && opener) {
+            opener.focus({ preventScroll: true });
+        }
     } else if (opener) {
         opener.focus({ preventScroll: true });
     } else {

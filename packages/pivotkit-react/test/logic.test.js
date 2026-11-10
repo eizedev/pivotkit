@@ -100,12 +100,15 @@ test("the longest row labels of a column by characters, with their toggles, from
     assert.deepEqual(inner.slice(0, 2).map((l) => l.text).sort(), ["host-Alpha-with-a-much-longer-name-377", "host-B-with-a-much-longer-name-377"]);
     assert.ok(inner.every((l, i) => i === 0 || l.text.length <= inner[i - 1].text.length), "longest first");
     assert.equal(inner[0].toggle, false);
-    // the outer level has a toggle; its subtotals and the grand total are labels too
+    // the outer level has a toggle; its subtotals and the grand total span both columns: they widen
+    // neither column alone and are left out
     const outer = longestLabels(grid, 0, 50);
-    assert.deepEqual(outer.map((l) => l.text).slice(0, 1), ["Alpha Total"]);
-    assert.ok(outer.some((l) => l.text === "Alpha" && l.toggle));
-    assert.ok(outer.some((l) => l.text === "Grand Total"));
+    assert.deepEqual(outer.map((l) => l.text), ["Alpha", "B"]);
+    assert.ok(outer.every((l) => l.toggle && !l.total));
     assert.deepEqual(longestLabels(grid, 0, 0), []);
+    // with one row field the grand total is a label of the column, drawn bold: marked as a total
+    const one = toGrid(computePivot(encode(rows), { rows: ["G"], values: [{ field: "V", agg: "sum" }] }));
+    assert.deepEqual(longestLabels(one, 0, 50).map((l) => [l.text, l.total]), [["Grand Total", true], ["Alpha", false], ["B", false]]);
 });
 
 test("popover placement: below, above when there is no room, inside the viewport", () => {

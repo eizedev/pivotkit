@@ -37,8 +37,9 @@ export const hasTopLayer = () => typeof HTMLElement === "function" && typeof HTM
  * @param {boolean} open
  * @param {Array<React.RefObject<HTMLElement | null>>} refs
  * @param {unknown} key  what re-shows them (the sheet's scrim coming or going)
+ * @param {unknown} layer  the report's layer: the elements are there only once it is
  */
-function useTopLayer(open, refs, key) {
+function useTopLayer(open, refs, key, layer) {
     useIsoLayoutEffect(() => {
         if (!open || !hasTopLayer()) {
             return undefined;
@@ -61,7 +62,7 @@ function useTopLayer(open, refs, key) {
             }
         };
         // the refs are stable objects
-    }, [open, key]);
+    }, [open, key, layer]);
 }
 
 /**
@@ -115,12 +116,12 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
     const sheet = size === "narrow" && !passive;
     const scrim = useRef(/** @type {HTMLDivElement | null} */ (null));
-    // whether this popover goes into the top layer: read once per opening, the same in every render of it
+    // whether this popover goes into the top layer: read when it mounts, the same in every render of it
     const [top] = useState(hasTopLayer);
     // the attribute as a spread: React 18's types do not know it yet (React passes it on as it is)
     const inTopLayer = /** @type {any} */ (top ? { popover: "manual" } : {});
     // into the top layer before it is placed: there it is fixed to the window, whatever its ancestors
-    useTopLayer(open, [scrim, ref], sheet);
+    useTopLayer(open, [scrim, ref], sheet, layer);
 
     useIsoLayoutEffect(() => {
         if (!open) {

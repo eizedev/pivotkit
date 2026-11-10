@@ -75,7 +75,7 @@ export function tabbables(container) {
  * @returns {HTMLElement[]}
  */
 export function tabStops(container) {
-    const all = tabbables(container).filter((el) => el.tabIndex >= 0);
+    const all = tabbables(container).filter((el) => el.tabIndex >= 0 && el.ownerDocument.defaultView?.getComputedStyle(el).visibility !== "hidden");
     const radio = (/** @type {Element} */ el) => el instanceof HTMLInputElement && el.type === "radio" && el.name !== "";
     return all.filter((el) => {
         if (!radio(el)) {
