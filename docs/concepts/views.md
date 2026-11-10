@@ -79,7 +79,8 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 
 pivotkit treats every view as untrusted, wherever it comes from:
 
-- It holds **names only**. Field names are resolved against the data, aggregators, formats, filter
+- It holds **names only**, and in its filters the values chosen there (plain values of the data, which
+  a shared view gives away: see [Privacy](../reference/view-file.md#privacy)). Field names are resolved against the data, aggregators, formats, filter
   operators and chart types against fixed lists, colours against `#rgb`/`#rrggbb`. Nothing in a view
   is evaluated as code or rendered as HTML.
 - **A bad view never throws.** What cannot be used is dropped and reported as an issue with its path

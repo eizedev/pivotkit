@@ -5,7 +5,8 @@ description: Share a pivotkit view as a link, as JSON or as a view file, load on
 
 # Sharing and keeping a view
 
-A report is its [view](views.md): a small JSON object with field names. The **Views** menu shares
+A report is its [view](views.md): a small JSON object with field names and, in its filters, the
+values chosen there ([privacy](../reference/view-file.md#privacy)). The **Views** menu shares
 it in three ways and loads one, and a host can keep it per tab. What is shared is a
 [view file](../reference/view-file.md): the view with its name, the data it was made for (the
 host's `source`) and the fields it uses. Every view that comes in - from a link, pasted text, a file

@@ -12,7 +12,8 @@ channel described in the repository's
 
 ## Views are untrusted input
 
-- A view holds **names only**. Field names are resolved against the data's columns; aggregators,
+- A view holds **names only**, and in its filters the values chosen there (plain values of the data,
+  which a shared view gives away: see [Privacy](reference/view-file.md#privacy)). Field names are resolved against the data's columns; aggregators,
   formats, filter operators, "show as" calculations and chart types against fixed lists; colours
   against `#rgb` and `#rrggbb`. A name is never evaluated as code and never used as an object key
   without an own-property check.

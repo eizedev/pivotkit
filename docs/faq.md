@@ -42,7 +42,7 @@ Store the view that `onViewChange` (or `pivot-view-change`) hands you, as JSON, 
 
 ## Is it safe to load a view someone else saved?
 
-Yes: a view holds names only and is checked against the data and fixed lists; it cannot run code and
+Yes: a view holds names only (and the values chosen in its filters, as plain data) and is checked against the data and fixed lists; it cannot run code and
 cannot allocate unbounded memory. See [Security](security.md).
 
 ## My dates are a day off.

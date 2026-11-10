@@ -82,7 +82,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - Runs in PowerShell Universal on the React it provides ([PowerShell Universal](getting-started/react.md#powershell-universal)), ready-made as `New-UDPivotReport` in [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/).
 - The engine alone, in the browser or in Node: pivots, grids, chart options, XLSX and CSV ([engine](getting-started/engine.md)).
 - The report is a JSON view: store it, pass it back, controlled or not ([views](concepts/views.md)).
-- A view is user input: names only, checked against fixed lists and limits, never run ([security](security.md)).
+- A view is user input: names only (and the values chosen in its filters), checked against fixed lists and limits, never run ([security](security.md)).
 - Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
 - `chartOptions` merges plain JSON over the ECharts option, for what the menus do not offer ([charts](concepts/charts.md#chartoptions-for-developers)).
 - `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it ([sharing](concepts/sharing.md)).
@@ -103,7 +103,7 @@ Every behaviour, also the small ones, is in the [feature list](features.md), wit
 
 - **Up to about 100,000 rows** in the browser: typed columns, no object per row in the hot loops. A
   change stays within a frame or two (see [Performance](reference/react.md#performance)).
-- **Safe input**: a view is user input. It holds names only, cannot run code and is checked against
+- **Safe input**: a view is user input. It holds names only (and the values chosen in its filters), cannot run code and is checked against
   limits before anything big is allocated. Exports are safe to open. See [Security](security.md).
 - **Excel as the reference**: subtotals, "show values as", top N and the export behave as people know
   them from Excel's PivotTable; the [concepts](concepts/views.md) name the few places that differ.

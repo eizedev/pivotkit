@@ -49,6 +49,6 @@ small behaviours; the [start page](index.md) has the short version.
 | <span id="props-and-attributes"></span>Web component | Attributes, properties, `pivot-*` events with `respondWith()`, styles through tokens, bundle size, CSP | [pivotkit-element](reference/element.md) |
 | <span id="embedding"></span>Hosts | Bundlers and import maps, PowerShell Universal, PHP, Angular, several reports on one page | [Recipes](embed/recipes.md) |
 | Engine | `encode`, `normalize`, `computePivot`, `toGrid`, `toEChartsOption`, `toXlsx`, `toCsv`, drill-down rows, links, templates | [pivotkit-core](reference/core.md), [engine](getting-started/engine.md) |
-| <span id="security"></span>Security | A view holds names only, checked against fixed lists and limits; exports safe to open; data written as text, never markup; a strict CSP works | [Security](security.md) |
+| <span id="security"></span>Security | A view holds names only (and the values chosen in its filters), checked against fixed lists and limits; exports safe to open; data written as text, never markup; a strict CSP works | [Security](security.md) |
 | <span id="limits"></span>Limits | Rows, groups, cells and work capped before anything big is allocated; links capped while they are inflated | [Limits](concepts/limits.md#limits) |
 | Performance | About 100,000 rows; heavy parts loaded on first use | [Performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size) |

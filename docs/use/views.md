@@ -7,8 +7,9 @@ description: Undo and redo every step, reset, start an empty report, pick a shar
 
 A report you built is a **view**: which fields are where, the filters, the chart settings. You can
 undo every step, save the view under a name, pick one someone else saved, and share it as a link or a
-file. A view holds the names of fields and settings, not the data: whoever opens it sees the report on
-their own data.
+file. A view holds the names of fields and settings and, in its filters, the values chosen there (a
+customer, a country), but none of the other data: whoever opens it sees the report on their own data.
+Share it only where those filter values may be seen.
 
 ## Undo, redo, reset
 
