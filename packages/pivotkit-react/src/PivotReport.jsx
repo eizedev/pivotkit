@@ -35,6 +35,7 @@ import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTip
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
 import { FormNameContext, activeIn } from "./dom.js";
+import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
@@ -326,7 +327,9 @@ function Report(props) {
     const [viewsRequest, setViewsRequest] = useState(0);
     // what a loaded view (a file, a link, a saved view) left out, for the area above the result; it
     // stays until it is dismissed or another view is loaded
-    const [leftOut, setLeftOut] = useState(/** @type {import("./unused.jsx").UnusedNote[]} */ ([]));
+    // (`loaded`: that view normalized, for the lines that still apply to the view shown, unused-keep.js;
+    // `after`: the host's view then, so a host's broken view given later takes the area over)
+    const [leftOut, setLeftOut] = useState(/** @type {{ notes: import("./unused.jsx").UnusedNote[], loaded: any, after: string | null }} */ ({ notes: [], loaded: null, after: null }));
     const [issuesDismissed, setIssuesDismissed] = useState(/** @type {string | null} */ (null));
     // views loaded from outside (a template, a file, a link, New): a new one is a new warning of its
     // unused parts (open again, not dismissed), also with the same parts as the view before
@@ -390,6 +393,22 @@ function Report(props) {
     }, [ordersKey]);
     const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
     const view = history.view;
+    // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
+    // above the result like a loaded view's unused parts, once per distinct view (a host may render the
+    // same view again and again), not while the data is still on its way
+    const [startView] = useState(() => defaultView);
+    const hostKey = JSON.stringify((viewProp !== undefined ? viewProp : startView) ?? null);
+    const keyOf = history.keyOf;
+    const hostNotes = useMemo(() => {
+        if (hostKey === "null" || loading || encoded.schema.fields.length === 0) {
+            return null;
+        }
+        const raw = JSON.parse(hostKey);
+        const notes = unusedNotes(normalize(raw, encoded, { limits }).issues, raw);
+        return notes.length ? { notes, loaded: JSON.parse(keyOf(raw)) } : null;
+    }, [hostKey, loading, encoded, limits, keyOf]);
+    /** What a loaded view (`given`, as given) left out, for the area above the result. */
+    const leaveOut = useCallback((notes, given) => setLeftOut({ notes, loaded: given ? JSON.parse(keyOf(given)) : null, after: hostKey }), [keyOf, hostKey]);
     // the saved view shown: the history step's, when it was loaded for the data shown now (another
     // source with the same columns keeps the history, not the name)
     const loadedView = tagFor(history.tag, sourceId);
@@ -597,7 +616,7 @@ function Report(props) {
                 commit(loaded.view, { step: "viewLoaded" }, tag);
             }
             const notes = unusedNotes(loaded.issues, loaded.file?.view);
-            setLeftOut(notes);
+            leaveOut(notes, loaded.view);
             setIssuesDismissed(null);
             setLoads((x) => x + 1);
             // the status note says some parts did not fit: the warning's live region stays quiet
@@ -605,7 +624,7 @@ function Report(props) {
             const text = link ? (notes.length ? labels.toastLinkOpenedPartly : labels.toastLinkOpened) : notes.length ? labels.toastViewLoadedPartly : labels.toastViewLoaded;
             announce(text, restored ? undefined : { action: { label: labels.undo, run: () => undoLater.current() } });
         },
-        [commit, labels, announce, remember]
+        [commit, labels, announce, remember, leaveOut]
     );
 
     useEffect(() => {
@@ -886,13 +905,13 @@ function Report(props) {
             // what else of it the data cannot use (a field that is gone, a setting this version lacks);
             // a zone over the limit is said in its own words above
             const issues = normalize(t.view, encoded, { limits }).issues.filter((i) => !over || i.code !== "tooMany");
-            setLeftOut([...(over ? [{ text: fill(labels.viewTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }) }] : []), ...unusedNotes(issues, t.view)]);
+            leaveOut([...(over ? [{ text: fill(labels.viewTrimmed, { name: t.name, zone: labels.zones[over.zone], max: over.max.toLocaleString(locale) }), path: over.zone }] : []), ...unusedNotes(issues, t.view)], t.view);
             setIssuesDismissed(null);
             setLoads((x) => x + 1);
             setUnusedSaid(false);
             announce(fill(labels.toastLoaded, { name: t.name }));
         },
-        [commit, labels, announce, limits, locale, history, remember, sourceId, encoded]
+        [commit, labels, announce, limits, locale, history, remember, sourceId, encoded, leaveOut]
     );
     /** New: an empty report (the start screen), one step Undo takes back; the loaded view's name goes. */
     const newReport = () => {
@@ -900,7 +919,7 @@ function Report(props) {
             return;
         }
         commit(emptyView(), { step: "new" }, null);
-        setLeftOut([]);
+        leaveOut([], null);
         setLoads((x) => x + 1);
         setUnusedSaid(false);
         announce(labels.newEmpty, { action: { label: labels.undo, run: () => undoLater.current() } });
@@ -1118,9 +1137,20 @@ function Report(props) {
         appliedLink.current = null;
         setLinkCheck(null);
     };
-    // the area above the result: what a loaded view left out, then what normalize() dropped from the view shown
-    const notes = useMemo(() => [...leftOut, ...(result && !empty ? result.issues.slice(0, 20).map((issue) => ({ issue, raw: view })) : [])], [leftOut, result, empty, view]);
-    const notesKey = useMemo(() => JSON.stringify([loads, ...notes.map((n) => ("issue" in n ? [n.issue.path, n.issue.message] : n.text))]), [notes, loads]);
+    // the area above the result: what a loaded view (or the host's, when it came later) left out, the
+    // lines that still apply to the view shown (unused-keep.js), then what computePivot() could not use
+    const fromHost = hostNotes !== null && leftOut.after !== hostKey;
+    const given = fromHost ? hostNotes : leftOut;
+    const notes = useMemo(
+        () => [...given.notes.filter((n) => stillApplies(n, given.loaded, view)), ...(result && !empty ? result.issues.slice(0, 20).map((issue) => ({ issue, raw: view })) : [])],
+        [given, result, empty, view]
+    );
+    // the warning's identity: its view's lines, all of them (one that no longer applies does not open
+    // or bring back a warning folded or dismissed), and the load
+    const notesKey = useMemo(
+        () => JSON.stringify([fromHost ? "host" : loads, ...given.notes.map((n) => ("issue" in n ? [n.issue.path, n.issue.message] : n.text)), ...(result && !empty ? result.issues.slice(0, 20).map((i) => [i.path, i.message]) : [])]),
+        [fromHost, given, loads, result, empty]
+    );
     // while enlarged, the fields in one line: what the result shows, without the zones
     const summaryParts = big.enlarged ? layoutSummary(zoneEntries(view, types, labels), labels) : [];
     const summaryText = summaryParts.length ? summaryParts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
@@ -1265,7 +1295,7 @@ function Report(props) {
                                 locale={locale}
                                 narrow={size === "narrow"}
                                 // the status note "View loaded; some parts did not fit this data" said it
-                                quiet={unusedSaid}
+                                quiet={unusedSaid && !fromHost}
                             />
                             <Tips
                                 tips={shownTips}

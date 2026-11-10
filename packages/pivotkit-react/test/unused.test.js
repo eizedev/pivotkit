@@ -1,5 +1,6 @@
 // A view's unused parts in plain words (unused-texts.js): a text for every issue code of
-// pivotkit-core in every language, the line each issue of normalize() becomes, and the loader.
+// pivotkit-core in every language, the line each issue of normalize() becomes, and the loader; which
+// lines still apply once the view is changed by hand (unused-keep.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { encode, fieldLabel, normalize, VIEW_ISSUE_CODES } from "pivotkit-core";
@@ -10,6 +11,7 @@ import { valueLabel } from "../src/names.js";
 import { de } from "../src/unused-texts-de.js";
 import { en, unusedItem, unusedItems } from "../src/unused-texts.js";
 import { UNUSED_TEXTS_OF, loadUnused, unusedNow, unusedTexts } from "../src/unused-load.js";
+import { partOf, stillApplies } from "../src/unused-keep.js";
 
 const data = encode(SALES);
 const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
@@ -120,4 +122,43 @@ test("the loader gives the language's texts with the English module, once per la
     assert.equal(await loadUnused("de"), first);
     // a language without texts of its own: English alone
     assert.equal((await loadUnused("fr")).lang, null);
+});
+
+test("a line of the warning goes once the part of the view it names is changed by hand, and comes back with Undo (#82)", () => {
+    const raw = {
+        rows: ["Region", "Nope"],
+        values: [{ field: "Bogus", agg: "sum" }, { field: "Units", agg: "sum", conditional: { type: "colorScale", colors: ["red"] } }],
+        chart: { legend: "left" }
+    };
+    const { view: loaded, issues } = normalize(raw, data);
+    const note = (path) => ({ issue: issues.find((i) => i.path.startsWith(path)), raw });
+    const scale = note("values[1].conditional");
+    const legend = note("chart.legend");
+    const field = note("rows[1]");
+    assert.ok(scale.issue && legend.issue && field.issue, JSON.stringify(issues.map((i) => i.path)));
+    // the value is found by its field and aggregator: the first value was dropped, it is values[0] now
+    assert.equal(partOf("values[1].conditional.colors", raw, loaded), JSON.stringify(loaded.values[0]));
+    const same = JSON.parse(JSON.stringify(loaded));
+    for (const n of [scale, legend, field]) {
+        assert.equal(stillApplies(n, loaded, same), true);
+    }
+    // a change elsewhere (rows and columns swapped) keeps the value's and the chart's lines
+    const swapped = { ...same, rows: [], cols: same.rows };
+    assert.equal(stillApplies(scale, loaded, swapped), true);
+    assert.equal(stillApplies(legend, loaded, swapped), true);
+    assert.equal(stillApplies(field, loaded, swapped), false, "Rows changed");
+    // the value removed, or its colour scale set by hand: its line goes; the legend's stays
+    const removed = { ...same, values: [] };
+    assert.equal(stillApplies(scale, loaded, removed), false);
+    assert.equal(stillApplies(legend, loaded, removed), true);
+    const scaled = { ...same, values: [{ ...same.values[0], conditional: { type: "colorScale", colors: ["#ff0000", "#00ff00"] } }] };
+    assert.equal(stillApplies(scale, loaded, scaled), false);
+    // a legend of the user's choice: the legend's line goes
+    assert.equal(stillApplies(legend, loaded, { ...same, chart: { ...same.chart, legend: "bottom" } }), false);
+    // a line in words names its zone, or nothing; without a view loaded every line stays
+    assert.equal(stillApplies({ text: "trimmed", path: "values" }, loaded, removed), false);
+    assert.equal(stillApplies({ text: "trimmed" }, loaded, removed), true);
+    assert.equal(stillApplies(scale, null, removed), true);
+    // a view that could not be read at all: the line stays while the view is the one shown then
+    assert.equal(partOf("", "x", same), JSON.stringify(same));
 });

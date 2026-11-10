@@ -83,11 +83,13 @@ export function servers(n = 10_000, seed = 31) {
 /**
  * The start views of the page (`?view=`): "basic" (the default) a small table of environments,
  * "hosts" the host names by environment (#110), "wide" host names by environment and location (a
- * table larger than its area both ways, most of its cells empty), "none" an empty report.
+ * table larger than its area both ways, most of its cells empty), "broken" a view with parts the data
+ * cannot use (a field it lacks, an unknown format), "none" an empty report.
  */
 export const VIEWS = {
     basic: { rows: ["Environment"], values: [{ field: "Cost", agg: "sum" }] },
     hosts: { rows: ["Name"], cols: ["Environment"], values: [{ field: "Name", agg: "count" }] },
     wide: { rows: ["Name"], cols: ["Environment", "Location"], values: [{ field: "Cost", agg: "sum" }] },
+    broken: { rows: ["Environment", "Hostname"], values: [{ field: "Cost", agg: "sum", format: "money" }] },
     none: undefined
 };

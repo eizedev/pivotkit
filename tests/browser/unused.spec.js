@@ -1,8 +1,10 @@
 // A view with parts the report cannot use: a warning above the result in plain words, open the first
 // time it shows for a view and foldable, the technical path below each line for developers, German
-// too, and the core's short message (or English) when the plain words cannot be loaded.
+// too, and the core's short message (or English) when the plain words cannot be loaded. A line goes
+// once its part of the view is changed by hand and comes back with Undo (#82); the host's own view
+// (defaultView, a controlled view, the element's default-view) is warned about too, once per view (#83).
 import { test as plain } from "@playwright/test";
-import { expect, openSaveAs, openShare, test, toolbar } from "./fixtures.js";
+import { chipMenu, expect, openSaveAs, openShare, openZones, test, toolbar } from "./fixtures.js";
 
 /** A view for the sales data with a value whose colour scale has one colour and a legend place the chart does not know. */
 const VIEW = {
@@ -166,4 +168,71 @@ test("a narrow report shows the first two lines of a long warning", async ({ pag
     await expect(warning.getByTestId("unused-more")).toHaveText("Show 7 more");
     const box = await warning.boundingBox();
     expect(box?.height ?? 999).toBeLessThan(330);
+});
+
+test("a line goes once its part of the view is changed by hand, and comes back with Undo (#82)", async ({ page }) => {
+    await page.goto("?data=sales");
+    await paste(page, VIEW);
+    const warning = page.getByTestId("view-issues");
+    await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+    // the value whose colour scale did not fit is removed: its line goes, the legend's stays
+    await chipMenu(page, "Quakes");
+    await page.locator(".pk-chip-menu").getByTestId("menu-remove").click();
+    await expect(warning.getByTestId("unused-title")).toHaveText("1 part of this view could not be used");
+    await expect(warning.getByTestId("unused-item")).toHaveCount(1);
+    await expect(warning.getByTestId("unused-item")).toContainText("Chart: the legend position “left” is unknown");
+    // Undo brings the value and its line back
+    await page.getByTestId("undo").click();
+    await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+    await expect(warning.getByTestId("unused-item").first()).toContainText("Quakes: the colour scale needs two or three colours");
+});
+
+test.describe("the host's own view (#83)", () => {
+    for (const [name, url] of [
+        ["defaultView of pivotkit-react", "pages/nav.html?view=broken"],
+        ["default-view of the web component", "pages/element-nav.html?view=broken"]
+    ]) {
+        test(`${name}: what the data cannot use is said above the result, in words, aloud once`, async ({ page }) => {
+            await page.goto(url);
+            const report = page.locator("#one");
+            const warning = report.getByTestId("view-issues");
+            await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+            await expect(warning.getByTestId("unused-item").first()).toContainText("Hostname: the data has no field of this name - it is left out of Rows");
+            await expect(warning.getByTestId("unused-item").nth(1)).toContainText("Sum of Cost: the number format “money” is unknown");
+            // no status note said it: the live region does
+            await expect(report.getByTestId("unused-live")).toHaveText("2 parts of this view could not be used");
+            // the value with the unknown format, its format chosen by hand: its line goes
+            await openZones(page);
+            await report.getByTestId("chip-menu-Sum of Cost").click();
+            await report.locator(".pk-chip-menu").getByTestId("menu-remove").click();
+            await expect(warning.getByTestId("unused-title")).toHaveText("1 part of this view could not be used");
+        });
+    }
+
+    test("a controlled view the host gives on every render: the warning shows once, stays dismissed, and goes with the user's change", async ({ page }) => {
+        await page.goto("pages/host.html?broken");
+        const warning = page.getByTestId("view-issues");
+        await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+        // folded, it stays folded while the host renders again and again (every 200 ms)
+        await warning.getByTestId("unused-title").click();
+        await expect(warning.locator("details")).not.toHaveAttribute("open", "");
+        const renders = Number(await page.getByTestId("host-renders").textContent());
+        await expect.poll(async () => Number(await page.getByTestId("host-renders").textContent())).toBeGreaterThan(renders + 3);
+        await expect(warning.locator("details")).not.toHaveAttribute("open", "");
+        // dismissed, it stays away over the host's renders
+        await page.getByTestId("dismiss-issues").click();
+        await expect(warning).toHaveCount(0);
+        const later = Number(await page.getByTestId("host-renders").textContent());
+        await expect.poll(async () => Number(await page.getByTestId("host-renders").textContent())).toBeGreaterThan(later + 3);
+        await expect(warning).toHaveCount(0);
+    });
+
+    test("a controlled view: the user's change ends the warning, as the host gives back the view it got", async ({ page }) => {
+        await page.goto("pages/host.html?broken");
+        const warning = page.getByTestId("view-issues");
+        await expect(warning.getByTestId("unused-title")).toHaveText("2 parts of this view could not be used");
+        await openZones(page);
+        await page.getByTestId("swap").click();
+        await expect(warning).toHaveCount(0);
+    });
 });
