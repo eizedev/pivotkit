@@ -188,7 +188,7 @@ const KEY_OF = {
 /**
  * Builds one encoded column from its raw values.
  * @param {string} name
- * @param {unknown[]} raw
+ * @param {ArrayLike<unknown>} raw
  * @param {ColumnType} type
  * @param {(instant: number) => number} toWall
  * @returns {Column}
@@ -235,14 +235,42 @@ function encodeColumn(name, raw, type, toWall) {
 }
 
 /**
- * Encodes an array of row objects.
+ * Columnar input of `encode`: one array per column instead of one object per row, the shape a reader
+ * of `pivotkit-core/import` returns and a server can send without repeating every name per row.
+ * `data[c][r]` is the value of column `columns[c]` in row `r`; every array has the same length.
+ * `types[c]`, when given, is the column's type (as `options.types`, which takes precedence); a
+ * missing or `null` entry is inferred.
+ * @typedef {object} ColumnarData
+ * @property {string[]} columns
+ * @property {Array<Exclude<ColumnType, "null"> | null | undefined>} [types]
+ * @property {ArrayLike<unknown>[]} data
+ */
+
+/**
+ * True for the columnar input of `encode` (an object with `columns` and `data` arrays), as opposed to
+ * an array of row objects.
+ * @param {unknown} input
+ * @returns {input is ColumnarData}
+ */
+export function isColumnar(input) {
+    const d = /** @type {any} */ (input);
+    return d !== null && typeof d === "object" && !Array.isArray(d) && Array.isArray(d.columns) && Array.isArray(d.data);
+}
+
+/** An array or a typed array: the values of one column. */
+const isColumnArray = (v) => Array.isArray(v) || (ArrayBuffer.isView(v) && !(v instanceof DataView));
+
+/**
+ * Encodes the source data: an array of row objects, or columnar data (`{ columns, types, data }`, one
+ * array per column, see `ColumnarData`), which needs no object per row.
  *
  * Column names are matched case-insensitively: "Team" and "team" are one column, displayed with the
- * spelling seen first, and reported in `issues`. Types are inferred (number, boolean, date for Date
- * objects and ISO date strings, otherwise string; a column of mixed types is string) unless
- * `options.types` names them. Functions and symbols are blank.
+ * spelling seen first, and reported in `issues` (in columnar data the later of two such columns is
+ * left out). Types are inferred (number, boolean, date for Date objects and ISO date strings,
+ * otherwise string; a column of mixed types is string) unless `options.types` or the columnar
+ * `types` name them. Functions and symbols are blank.
  *
- * @param {Array<Record<string, unknown>>} rows
+ * @param {Array<Record<string, unknown>> | ColumnarData} rows
  * @param {object} [options]
  * @param {Record<string, Exclude<ColumnType, "null">>} [options.types]  type per column name (case-insensitive)
  * @param {string[]} [options.columns]  only these columns (case-insensitive), in this order
@@ -254,10 +282,9 @@ function encodeColumn(name, raw, type, toWall) {
  */
 export function encode(rows, options) {
     options = optionsOf(options, "encode");
-    expect(Array.isArray(rows), "encode(rows): rows must be an array of objects");
+    const columnar = isColumnar(rows);
+    expect(columnar || Array.isArray(rows), "encode(rows): rows must be an array of objects or columnar data { columns, data }");
     const limits = resolveLimits(options);
-    checkLimit("rows", rows.length, limits.rows, "rows");
-    const n = rows.length;
     const timeZone = resolveTimeZone(options.timeZone);
     const toWall = wallClock(timeZone);
     const inferNumbers = options.inferNumbers === true;
@@ -272,6 +299,43 @@ export function encode(rows, options) {
             issues.push({ path, message });
         }
     };
+    const { n, found } = columnar
+        ? columnsOf(/** @type {ColumnarData} */ (rows), wanted, limits, report)
+        : columnsOfRows(/** @type {Array<Record<string, unknown>>} */ (rows), wanted, limits, report);
+
+    const typeOverrides = new Map();
+    if (options.types && typeof options.types === "object") {
+        for (const k of Object.keys(options.types)) {
+            const t = options.types[k];
+            if (COLUMN_TYPES.includes(t)) {
+                typeOverrides.set(k.toLowerCase(), t);
+            }
+        }
+    }
+
+    const order = wanted ? [...wanted].filter((k) => found.has(k)) : [...found.keys()];
+    const detected = new Map();
+    const columns = order.map((key) => {
+        const { name, raw, type } = found.get(key);
+        const plain = inferType(raw, inferNumbers);
+        const asNumbers = plain === "string" && !inferNumbers ? inferType(raw, true) : plain;
+        detected.set(key, asNumbers);
+        return encodeColumn(name, raw, typeOverrides.get(key) ?? type ?? plain, toWall);
+    });
+    return makeEncoded(n, columns, { timeZone, issues, detected, cacheEntries: limits.cacheEntries });
+}
+
+/**
+ * @typedef {Map<string, { name: string, raw: ArrayLike<unknown>, type?: Exclude<ColumnType, "null">, spellings?: Set<string> }>} FoundColumns
+ */
+
+/**
+ * The columns of an array of row objects, by lower-case name.
+ * @returns {{ n: number, found: FoundColumns }}
+ */
+function columnsOfRows(rows, wanted, limits, report) {
+    checkLimit("rows", rows.length, limits.rows, "rows");
+    const n = rows.length;
     /** @type {Map<string, { name: string, raw: unknown[], spellings: Set<string> }>} */
     const found = new Map();
     for (let r = 0; r < n; r++) {
@@ -300,27 +364,43 @@ export function encode(rows, options) {
             col.raw[r] = row[k];
         }
     }
+    return { n, found };
+}
 
-    const typeOverrides = new Map();
-    if (options.types && typeof options.types === "object") {
-        for (const k of Object.keys(options.types)) {
-            const t = options.types[k];
-            if (COLUMN_TYPES.includes(t)) {
-                typeOverrides.set(k.toLowerCase(), t);
-            }
-        }
+/**
+ * The columns of columnar data, by lower-case name; the arrays are used as they are, not copied.
+ * @param {ColumnarData} input
+ * @returns {{ n: number, found: FoundColumns }}
+ */
+function columnsOf(input, wanted, limits, report) {
+    const { columns, data, types } = input;
+    expect(data.length === columns.length, `encode(data): ${columns.length} column names but ${data.length} arrays in data`);
+    expect(types === undefined || types === null || Array.isArray(types), "encode(data): types must be an array, one entry per column");
+    const n = data.length === 0 ? 0 : data[0]?.length;
+    for (let c = 0; c < data.length; c++) {
+        expect(isColumnArray(data[c]), `encode(data): data[${c}] must be an array of the values of column ${c}`);
+        expect(data[c].length === n, `encode(data): every column must have the same length; data[0] has ${n} values, data[${c}] ${data[c].length}`);
     }
-
-    const order = wanted ? [...wanted].filter((k) => found.has(k)) : [...found.keys()];
-    const detected = new Map();
-    const columns = order.map((key) => {
-        const { name, raw } = found.get(key);
-        const plain = inferType(raw, inferNumbers);
-        const asNumbers = plain === "string" && !inferNumbers ? inferType(raw, true) : plain;
-        detected.set(key, asNumbers);
-        return encodeColumn(name, raw, typeOverrides.get(key) ?? plain, toWall);
-    });
-    return makeEncoded(n, columns, { timeZone, issues, detected, cacheEntries: limits.cacheEntries });
+    checkLimit("rows", n, limits.rows, "rows");
+    /** @type {FoundColumns} */
+    const found = new Map();
+    for (let c = 0; c < columns.length; c++) {
+        const name = columns[c];
+        expect(typeof name === "string", `encode(data): columns[${c}] must be a string`);
+        const key = name.toLowerCase();
+        if (wanted && !wanted.has(key)) {
+            continue;
+        }
+        const earlier = found.get(key);
+        if (earlier !== undefined) {
+            report(earlier.name, `"${name}" and "${earlier.name}" are one column: names match case-insensitively; the later column is left out`);
+            continue;
+        }
+        const t = types ? types[c] : undefined;
+        expect(t === undefined || t === null || COLUMN_TYPES.includes(t), `encode(data): types[${c}] must be one of ${COLUMN_TYPES.join(", ")}`);
+        found.set(key, { name, raw: data[c], type: t ?? undefined });
+    }
+    return { n, found };
 }
 
 /**

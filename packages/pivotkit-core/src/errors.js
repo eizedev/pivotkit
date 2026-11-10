@@ -6,15 +6,18 @@
  * - A programmer error throws a PivotkitError: a wrong argument (computePivot(null), toGrid({})), an
  *   invalid option (an unknown locale or time zone in the options) or a resource limit (more cells
  *   than `limits.cells`, more rows than an XLSX sheet holds). `code` tells them apart.
+ * - A file that cannot be read (pivotkit-core/import and reader plugins) throws INVALID_FILE, with
+ *   `details.reason` (WRONG_TYPE, UNCLOSED_QUOTE, ENCRYPTED, ...) and `details.file`; a file over a
+ *   limit throws LIMIT_EXCEEDED with `details.file`.
  */
 
-/** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "LIMIT_EXCEEDED"} PivotkitErrorCode */
+/** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "LIMIT_EXCEEDED" | "INVALID_FILE"} PivotkitErrorCode */
 
 export class PivotkitError extends Error {
     /**
      * @param {PivotkitErrorCode} code
      * @param {string} message
-     * @param {Record<string, unknown>} [details]  for LIMIT_EXCEEDED: { limit, value, max }
+     * @param {Record<string, unknown>} [details]  for LIMIT_EXCEEDED: { limit, value, max }; for INVALID_FILE: { reason, file }
      */
     constructor(code, message, details = {}) {
         super(message);

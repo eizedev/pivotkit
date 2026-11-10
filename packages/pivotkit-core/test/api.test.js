@@ -7,6 +7,7 @@ import * as core from "pivotkit-core";
 import * as exporters from "pivotkit-core/export";
 import * as links from "pivotkit-core/link";
 import * as templates from "pivotkit-core/templates";
+import * as importer from "pivotkit-core/import";
 import { CATALOG, aggregatorsFor, encode, validate } from "pivotkit-core";
 
 const src = fileURLToPath(new URL("../src/", import.meta.url));
@@ -20,8 +21,12 @@ test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(exporters).sort(), ["rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
     assert.deepEqual(Object.keys(links).sort(), ["LINK_LIMITS", "decodeViewLink", "encodeViewLink"]);
     assert.deepEqual(Object.keys(templates).sort(), ["TEMPLATES_EXTENSION", "TEMPLATE_LIMITS", "parseTemplates", "templatesFromSchema"]);
+    assert.deepEqual(Object.keys(importer).sort(), [
+        "BUILT_IN_READERS", "IMPORT_NOTE_CODES", "IMPORT_TYPES", "PLUGIN_API_VERSION", "bytesOf", "checkFileLimit", "createTable", "csvReader", "dateToIso", "fileError", "fileName",
+        "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "validatePlugin"
+    ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./link", "./templates", "./schema/view-file-1.json", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./import", "./link", "./templates", "./schema/view-file-1.json", "./package.json"]);
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */
@@ -46,6 +51,14 @@ test("the main entry does not load fflate; only the export and link entries do",
     assert.deepEqual([...importGraph("export.js").bare], ["fflate"]);
     assert.deepEqual([...importGraph("link.js").bare], ["fflate"]);
     assert.ok(!importGraph("index.js").seen.has("xlsx.js"));
+});
+
+test("the import entry loads no dependency and no reader until a file is read", () => {
+    const { seen, bare } = importGraph("import.js");
+    assert.deepEqual([...bare], []);
+    for (const reader of ["import-csv.js", "import-json.js", "import-text.js"]) assert.ok(!seen.has(reader), reader);
+    // and the main entry never reaches the import modules
+    assert.ok(![...importGraph("index.js").seen].some((f) => f.startsWith("import")));
 });
 
 test("the catalog lists exactly what normalize accepts", () => {

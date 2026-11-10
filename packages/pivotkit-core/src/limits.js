@@ -29,7 +29,14 @@ export const LIMITS = Object.freeze({
     pivotCells: 2_000_000, // aggregated cells of computePivot(): per distinct (row leaf, column leaf) pair, (row depth + 1) x (column depth + 1)
     work: 100_000_000, // cell updates of computePivot(): filtered rows x (row depth + 1) x (column depth + 1) x measures, KEEPS_VALUES_WEIGHT each for median, countUnique, listUnique
     cells: 2_000_000, // cells of a grid (toGrid) or data points of a chart (toSeries)
-    cacheEntries: 16 // derived columns and sort orders kept per encoded data set (least recently used go)
+    cacheEntries: 16, // derived columns and sort orders kept per encoded data set (least recently used go)
+    // loading a file (pivotkit-core/import and reader plugins), each checked before the step it guards
+    fileBytes: 104_857_600, // bytes of a file, before it is read (100 MiB)
+    columns: 1_000, // columns of a loaded table
+    importCells: 10_000_000, // rows x columns of a loaded table, counted while its rows are read
+    textLength: 32_767, // characters of one value of a loaded table (Excel's cell limit); longer text is cut
+    archiveEntries: 10_000, // parts of an archive format (an .xlsx is a ZIP), from its directory, before any is unpacked
+    unpackedBytes: 524_288_000 // bytes all parts of an archive unpack to, from its directory, before any is unpacked (500 MiB)
 });
 
 /**

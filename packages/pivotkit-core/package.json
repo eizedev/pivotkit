@@ -30,6 +30,10 @@
       "types": "./types/export.d.ts",
       "default": "./src/export.js"
     },
+    "./import": {
+      "types": "./types/import.d.ts",
+      "default": "./src/import.js"
+    },
     "./link": {
       "types": "./types/link.d.ts",
       "default": "./src/link.js"

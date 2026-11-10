@@ -32,3 +32,14 @@ void range;
 void today;
 void anchored;
 void latest;
+
+// loading a file: the built-in readers and a reader plugin; the table is encode's columnar input
+import { BUILT_IN_READERS, readFile, retype, validatePlugin, type ImportTable, type ReaderPlugin } from "pivotkit-core/import";
+import { type ColumnarData } from "pivotkit-core";
+const plugin: ReaderPlugin = validatePlugin({ apiVersion: 1, kind: "reader", name: "demo", label: "Demo", accept: [".demo"], load: async () => ({ read: async () => ({}) }) });
+export async function load(file: File): Promise<number> {
+    const table: ImportTable = await readFile(file, { plugins: [plugin, ...BUILT_IN_READERS], limits: { fileBytes: 1_000_000 }, signal: new AbortController().signal, onProgress: (p) => void p.phase, types: { Zip: "string" } });
+    const again: ImportTable = retype(table, ["string", "number"]);
+    const columnar: ColumnarData = { columns: again.columns, types: again.types, data: again.data };
+    return encode(columnar).length + encode(table).length + table.notes.filter((n) => n.code === "TEXT_CUT").length;
+}

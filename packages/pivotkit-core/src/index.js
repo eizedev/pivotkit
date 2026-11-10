@@ -23,6 +23,7 @@
  * @typedef {import("./encode.js").Column} Column
  * @typedef {import("./encode.js").ColumnType} ColumnType
  * @typedef {import("./encode.js").SchemaField} SchemaField
+ * @typedef {import("./encode.js").ColumnarData} ColumnarData
  * @typedef {import("./view.js").View} View
  * @typedef {import("./view.js").ValueSpec} ValueSpec
  * @typedef {import("./view.js").ValueRef} ValueRef
