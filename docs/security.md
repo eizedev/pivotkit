@@ -88,13 +88,21 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   values while they are read; for a workbook, the number of ZIP parts and the size they unpack to,
   from the ZIP's directory, before anything is unpacked. Each part is unpacked into a buffer of the
   size the directory states and stops when it would grow beyond it, so a ZIP bomb or a forged
-  directory cannot take more memory than the limits allow.
+  directory cannot take more memory than the limits allow. A sheet's values are checked against
+  `rows`, `columns` and `importCells` by the row and column they stand in, while the sheet streams
+  in and before it is parsed: a file of a few hundred bytes with a value in row 300,000 and column
+  XFD would otherwise become a dense array of billions of cells in the parser. Leaving out rows
+  without a value (a used range of formatted empty cells) saves time and memory; the limits do not
+  depend on it.
 - **Nothing in a file runs**: no formula is evaluated (a workbook's saved values are read), a workbook
   with macros (`.xlsm`, `vbaProject.bin`) is refused, and an XML part that declares a document type or
   entities (`<!DOCTYPE`, `<!ENTITY`) is refused before it is parsed, which rules out entity expansion
   ("billion laughs") and external entities. Nothing is fetched.
-- **Names and values are text**: control characters and the characters that turn text around
-  (U+202E) are removed from column names and values, which are then shown as text as any data.
+- **Names and values are text**: control characters, invisible format characters and the
+  characters that turn text around (U+202E) are removed from column names and values, which are then
+  shown as text as any data. The `params` of a table's notes and the messages of errors quote the file
+  too (a sheet name, a JSON key): cleaned the same way and cut to 256 characters, they are still the
+  file's text, to be shown as text (`textContent`), never as HTML.
   Text that a spreadsheet would run as a formula stays as it is in the table, and the
   [exports](#exports) guard it.
 - **Clear refusals**: a file that is something else (an `.xls`, a password-protected workbook, a

@@ -14,7 +14,7 @@
  * Not part of the public API.
  */
 
-import { fileError } from "pivotkit-core/import";
+import { fileError, limitError } from "pivotkit-core/import";
 
 const ascii = (s) => Uint8Array.from(s, (c) => c.charCodeAt(0));
 const LT = 0x3c;
@@ -55,7 +55,14 @@ function wordAt(buf, i, word) {
  */
 export function createXmlCheck(file, part) {
     let tail = new Uint8Array(0);
+    let first = true;
     return (chunk) => {
+        // the check reads ASCII bytes: an XML part in UTF-16 or UTF-32 (a byte order mark, zero bytes)
+        // could hide a declaration from it, and Excel writes UTF-8
+        if ((first && chunk.length >= 2 && ((chunk[0] === 0xfe && chunk[1] === 0xff) || (chunk[0] === 0xff && chunk[1] === 0xfe))) || chunk.indexOf(0) !== -1) {
+            throw fileError("XML_DECLARATION", file, `the part "${part}" is not UTF-8 XML, which a workbook always is; it is refused.`, { part });
+        }
+        first = false;
         const buf = tail.length ? concat(tail, chunk) : chunk;
         // "!" is rare in a workbook's XML (comments, CDATA, text); "<" is in every tag
         for (let i = buf.indexOf(BANG, 1); i !== -1; i = buf.indexOf(BANG, i + 1)) {
@@ -92,12 +99,48 @@ function rowNumber(buf, from, to) {
     return 0;
 }
 
+/** The largest row (or start of a sheet before its <sheetData>) the filter holds while it waits for its end. */
+const MAX_PENDING = 64 * 1024 * 1024;
+const CELL = ascii("<c ");
+
+/** The highest column (1 for A) and row of the cells' `r` attributes in buf[from, to). */
+function cellExtent(buf, from, to) {
+    let column = 0;
+    let row = 0;
+    for (let i = indexOf(buf, CELL, from, to); i !== -1; i = indexOf(buf, CELL, i + 3, to)) {
+        const gt = buf.indexOf(0x3e, i);
+        const stop = gt === -1 || gt > to ? to : gt;
+        for (let k = i + 2; k < stop - 3; k++) {
+            if ((buf[k] === 0x20 || buf[k] === 0x09) && buf[k + 1] === 0x72 && buf[k + 2] === 0x3d && buf[k + 3] === 0x22) {
+                let c = 0;
+                let q = k + 4;
+                for (; q < stop && ((buf[q] | 0x20) >= 0x61 && (buf[q] | 0x20) <= 0x7a) && c <= 1e7; q++) c = c * 26 + ((buf[q] | 0x20) - 0x60);
+                let r = 0;
+                for (; q < stop && buf[q] >= 0x30 && buf[q] <= 0x39 && r <= 1e12; q++) r = r * 10 + (buf[q] - 0x30);
+                column = Math.max(column, c);
+                row = Math.max(row, r);
+                break;
+            }
+        }
+    }
+    return { column, row };
+}
+
 /**
  * Streams a sheet's XML and leaves out its rows without a value. Feed pieces with `push`; the XML
  * kept goes to `out.write`; `end()` gives the row numbers seen.
+ *
+ * It also checks where the values are against the limits, before read-excel-file sees them: the
+ * parser makes a dense array of the sheet's extent (every row up to the last row with a value, each
+ * as wide as the widest), so a value in row 1,000,000 or column XFD costs that much memory however
+ * small the file is. A value beyond `maxRow` or `maxColumn`, or an extent of more than `maxCells`,
+ * stops the read with LIMIT_EXCEEDED.
  * @param {{ write: (bytes: Uint8Array, from?: number, to?: number) => void }} out
+ * @param {{ file?: string, maxRow?: number, maxColumn?: number, maxCells?: number }} [limits]
  */
-export function createSheetFilter(out) {
+export function createSheetFilter(out, limits = {}) {
+    const file = limits.file ?? "file";
+    let widest = 0;
     let state = 0; // 0 before <sheetData>, 1 inside, 2 after
     let pending = new Uint8Array(0);
     let lastValueRow = 0;
@@ -176,8 +219,14 @@ export function createSheetFilter(out) {
             const stop = end + ROW_END.length;
             lastRow = Math.max(lastRow, number);
             if (indexOf(buf, CELL_END, tagEnd, end) !== -1) {
+                const extent = cellExtent(buf, tagEnd, end);
+                const at = Math.max(number, extent.row);
+                widest = Math.max(widest, extent.column);
+                if (limits.maxRow !== undefined && at > limits.maxRow) throw limitError("rows", at, limits.maxRow, file, "rows");
+                if (limits.maxColumn !== undefined && widest > limits.maxColumn) throw limitError("columns", widest, limits.maxColumn, file, "columns");
+                if (limits.maxCells !== undefined && at * widest > limits.maxCells) throw limitError("importCells", at * widest, limits.maxCells, file, "values (rows x columns)");
                 out.write(buf, lt, stop);
-                lastValueRow = Math.max(lastValueRow, number);
+                lastValueRow = Math.max(lastValueRow, at);
                 for (let e = indexOf(buf, ERROR_TYPE, tagEnd, end); e !== -1; e = indexOf(buf, ERROR_TYPE, e + 1, end)) errors++;
             } else {
                 dropped++;
@@ -185,16 +234,42 @@ export function createSheetFilter(out) {
             i = stop;
         }
         pending = i < buf.length ? buf.slice(i) : new Uint8Array(0);
+        if (pending.length > MAX_PENDING) {
+            throw fileError("DAMAGED", file, "a row of the sheet is larger than 64 MiB, or the sheet's XML is broken; the workbook is refused.");
+        }
+    };
+
+    // pieces wait until they double what is pending, so a long row is scanned a few times, not once per piece
+    let waiting = [];
+    let size = 0;
+    let need = 0;
+    const gather = () => {
+        if (waiting.length === 1) return waiting[0];
+        const all = new Uint8Array(size);
+        let at = 0;
+        for (const w of waiting) {
+            all.set(w, at);
+            at += w.length;
+        }
+        return all;
     };
 
     return {
         /** @param {Uint8Array} chunk */
         push(chunk) {
-            pending = pending.length ? concat(pending, chunk) : chunk;
+            waiting.push(chunk);
+            size += chunk.length;
+            if (size < need) return;
+            pending = gather();
             run(false);
+            waiting = pending.length ? [pending] : [];
+            size = pending.length;
+            need = pending.length * 2;
         },
         /** @returns {{ lastRow: number, lastValueRow: number, dropped: number, errors: number }} */
         end() {
+            pending = size ? gather() : new Uint8Array(0);
+            waiting = [];
             run(true);
             if (pending.length) out.write(pending);
             return { lastRow, lastValueRow, dropped, errors };

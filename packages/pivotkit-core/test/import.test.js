@@ -326,3 +326,28 @@ test("encode: columnar input is checked, typed and selected like rows", () => {
     assert.throws(() => encode({ columns: ["a"], data: [[1, 2, 3]] }, { limits: { rows: 2 } }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "rows");
     assert.equal(encode({ columns: [], data: [] }).length, 0);
 });
+
+// findings of the security review of the readers
+
+test("a wide row late in a long file is refused before a column of every row is allocated", async () => {
+    const lines = "A\n" + "1\n".repeat(300_000) + Array.from({ length: 1_000 }, (_, i) => i).join(",") + "\n";
+    const started = performance.now();
+    await rejects(readFile(text("late.csv", lines)), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.file === "late.csv");
+    assert.ok(performance.now() - started < 5_000, `${performance.now() - started} ms`);
+    // a row of more fields than limits.columns stops while it is split
+    await rejects(readFile(text("commas.csv", "A\n" + ",".repeat(5_000) + "x\n")), (e) => e.details.limit === "columns");
+});
+
+test("invisible format characters and lone surrogates are removed; joiners stay", async () => {
+    const t = await readFile(text("z.csv", "Name\nab\u{200B}c\u{2060}d\u{FEFF}e\u{AD}f\u{E0041}g\n\u{1F469}\u{200D}\u{1F4BB}\n"));
+    assert.deepEqual(t.data[0], ["abcdefg", "\u{1F469}\u{200D}\u{1F4BB}"]);
+    assert.equal(t.notes.find((n) => n.code === "CHARACTERS_REMOVED").params.count, 1);
+});
+
+test("a JSON key in a note is cleaned and cut", async () => {
+    const key = `rows\u{202E}${"x".repeat(1_000)}`;
+    const t = await readFile(text("k.json", JSON.stringify({ [key]: [{ a: 1 }] })));
+    const p = t.notes.find((n) => n.code === "JSON_PROPERTY").params.property;
+    assert.ok(!p.includes("\u{202E}"));
+    assert.equal(p.length, 256);
+});

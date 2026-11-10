@@ -88,12 +88,14 @@ const HEADER_SAMPLE = 50;
 /** Rows between two progress reports and abort checks. */
 export const ROW_STEP = 16_384;
 
-// C0 controls except tab, line feed and carriage return (made spaces), DEL, C1 controls, and the
+// C0 controls except tab, line feed and carriage return (made spaces), DEL, C1 controls, invisible
+// format characters (soft hyphen, zero width space, word joiner, byte order mark, tag characters; the
+// joiners U+200C and U+200D stay, scripts and emoji need them), lone surrogates, and the
 // characters that change the direction of text (U+061C, U+200E, U+200F, U+202A-U+202E, U+2066-U+2069):
 // a name like "invoice" + U+202E + "txt.exe" shows reversed.
 // eslint-disable-next-line no-control-regex
-const REMOVED = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
-const REMOVED_ANY = new RegExp(REMOVED.source);
+const REMOVED = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b\u200e-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff\u{E0000}-\u{E007F}]|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/gu;
+const REMOVED_ANY = new RegExp(REMOVED.source, "u");
 const BREAKS = /[\t\r\n\u2028\u2029]+/g;
 
 /**
@@ -224,7 +226,10 @@ export function noteMessage(code, p) {
 
 /** A note with its English text. */
 export function note(code, params = {}) {
-    return { code, params, message: noteMessage(code, params) };
+    // a param can come from the file (a sheet name, a JSON key, a separator): text, cleaned and short
+    const clean = {};
+    for (const [k, v] of Object.entries(params)) clean[k] = typeof v === "string" ? v.replace(REMOVED, "").slice(0, 256) : v;
+    return { code, params: clean, message: noteMessage(code, clean) };
 }
 
 /**
@@ -628,6 +633,11 @@ export function createTable(options) {
         }
         if (filled > headerWidth) {
             counts.extraRows++;
+        }
+        if (filled > columns.length) {
+            // a wide row late in a long file: the limits before a column of rowCount values is allocated
+            checkFileLimit("columns", filled, limits.columns, file, "columns");
+            checkFileLimit("importCells", (rowCount + 1) * filled, limits.importCells, file, "values (rows x columns)");
         }
         while (columns.length < filled) addColumn();
         rowCount++;

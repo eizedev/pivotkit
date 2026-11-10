@@ -342,3 +342,53 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         }, (e) => e.details?.reason === "XML_DECLARATION", `pieces of ${size} bytes`);
     }
 });
+
+// findings of the security review of the readers
+
+test("a small sheet with a value far out (row 300,000, column XFD) is refused before read-excel-file makes it dense", async () => {
+    const sheet = (rows) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`);
+    const wide = sheet('<row r="1"><c r="XFD1"><v>1</v></c></row><row r="300000"><c r="A300000"><v>1</v></c></row>');
+    assert.ok(wide.length < 10_000, `${wide.length} bytes`);
+    const started = performance.now();
+    await assert.rejects(read(fileOf(wide)), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns" && e.details.file === "book.xlsx");
+    await assert.rejects(read(fileOf(sheet('<row r="1"><c r="A1"><v>1</v></c></row><row r="999999999"><c r="A999999999"><v>1</v></c></row>'))), (e) => e.details.limit === "rows");
+    await assert.rejects(read(fileOf(sheet('<row r="1"><c r="ALL1"><v>1</v></c></row><row r="200000"><c r="A200000"><v>1</v></c></row>'))), (e) => e.details.limit === "importCells");
+    assert.ok(performance.now() - started < 2_000, "refused at once");
+});
+
+test("a list of sheets with <sheet repeated and never closed is read in linear time", async () => {
+    const workbook = `<?xml version="1.0"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${"<sheet".repeat(40_000)}`; // and no ">" after them
+    const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/workbook.xml": strToU8(workbook) });
+    const started = performance.now();
+    await rejects(read(fileOf(bytes)), "NO_TABLE");
+    assert.ok(performance.now() - started < 2_000, `${performance.now() - started} ms`);
+});
+
+test("a row that never ends is refused once it passes 64 MiB, not held whole", async () => {
+    const open = `<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>`;
+    const body = new Uint8Array(65 * 1024 * 1024).fill(0x61);
+    const xml = new Uint8Array(open.length + body.length);
+    xml.set(strToU8(open));
+    xml.set(body, open.length);
+    const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/worksheets/sheet1.xml": xml });
+    await rejects(read(fileOf(bytes)), "DAMAGED", (e) => /64 MiB/.test(e.message));
+});
+
+test("an XML part in UTF-16 is refused: the declaration check reads UTF-8", async () => {
+    const utf16 = (text) => {
+        const out = new Uint8Array(2 + text.length * 2);
+        out.set([0xff, 0xfe]);
+        for (let i = 0; i < text.length; i++) out[2 + i * 2] = text.charCodeAt(i);
+        return out;
+    };
+    const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), {
+        "xl/sharedStrings.xml": utf16('<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE sst [<!ENTITY a "b">]><sst/>')
+    });
+    await rejects(read(fileOf(bytes)), "XML_DECLARATION", (e) => /not UTF-8/.test(e.message));
+});
+
+test("a sheet name from the file is cleaned in notes and messages", async () => {
+    const t = await read(fileOf(makeXlsx({ sheets: [{ name: "Q\u{202E}4 data", rows: [["A"], [1]] }] })));
+    assert.equal(t.notes[0].params.sheet, "Q4 data");
+    assert.equal(t.notes[0].message, 'Read sheet "Q4 data".');
+});

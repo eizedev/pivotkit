@@ -10,7 +10,7 @@
  * - The header is found below a title block, values are cleaned and typed by import-table.js.
  */
 
-import { ROW_STEP, bytesOf, createTable, fileError, fileName, pause, readOptions } from "./import-table.js";
+import { ROW_STEP, bytesOf, createTable, fileError, fileName, limitError, pause, readOptions } from "./import-table.js";
 import { decodeText } from "./import-text.js";
 
 const CANDIDATES = [",", ";", "\t", "|"];
@@ -30,7 +30,7 @@ const CR = 13;
  * @param {string} sep  one character
  * @param {number} start
  * @param {(fields: string[], line: number) => boolean | void} onRow  returns true to stop
- * @param {{ sample?: boolean, file?: string, line?: number }} [opts]  `line`: the line `start` is in; updated to the line reached
+ * @param {{ sample?: boolean, file?: string, line?: number, maxFields?: number }} [opts]  `maxFields`: a row with more fields stops the read (limits.columns)  `line`: the line `start` is in; updated to the line reached
  */
 export function splitRows(text, sep, start, onRow, opts = {}) {
     const S = sep.charCodeAt(0);
@@ -82,6 +82,9 @@ export function splitRows(text, sep, start, onRow, opts = {}) {
                 i = e;
             }
             fields.push(value);
+            if (opts.maxFields !== undefined && fields.length > opts.maxFields) {
+                throw limitError("columns", fields.length, opts.maxFields, opts.file ?? "file", "columns");
+            }
             const c = i < n ? text.charCodeAt(i) : -1;
             if (c === S) {
                 i++;
@@ -195,7 +198,7 @@ export async function read(file, options) {
 
     // splitRows runs synchronously; between steps of ROW_STEP rows the event loop gets a turn
     let at = start;
-    const where = { file: name, line: start > 0 ? 2 : 1 };
+    const where = { file: name, line: start > 0 ? 2 : 1, maxFields: o.limits.columns };
     while (at < text.length) {
         let rows = 0;
         at = splitRows(text, sep, at, (fields) => {

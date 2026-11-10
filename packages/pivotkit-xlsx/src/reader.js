@@ -18,7 +18,7 @@
  *    CSV and JSON.
  */
 
-import { bytesOf, createTable, fileError, fileName, readOptions } from "pivotkit-core/import";
+import { bytesOf, cleanText, createTable, fileError, fileName, readOptions } from "pivotkit-core/import";
 import { readSheet } from "read-excel-file/universal";
 import { checkXml, createSheetFilter, createXmlCheck } from "./xml.js";
 import { createStoredZip, readDirectory, unpack, unpackStream } from "./zip.js";
@@ -27,6 +27,10 @@ import { sharedParts, worksheets } from "./workbook.js";
 const CFB = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 const ZIP = [0x50, 0x4b, 0x03, 0x04];
 const startsWith = (bytes, sig) => sig.every((b, i) => bytes[i] === b);
+/** A sheet name in a message: it comes from the file. */
+const shown = (name) => cleanText(String(name)).slice(0, 100);
+/** The most a workbook's list of sheets and its relationships may be; real ones are a few kilobytes. */
+const MAX_WORKBOOK_PART = 4 * 1024 * 1024;
 const ascii = (s) => Array.from(s, (c) => c.charCodeAt(0));
 // a password-protected .xlsx is a compound file holding the encrypted package (UTF-16 stream name)
 const ENCRYPTED_STREAM = ascii("EncryptedPackage").flatMap((c) => [c, 0]);
@@ -78,21 +82,24 @@ async function open(bytes, file, limits, between) {
     }
     /** @type {Map<string, Uint8Array>} */
     const parts = new Map();
-    const read = async (path) => {
+    const read = async (path, max = Infinity) => {
         const entry = entries.get(path);
         if (!entry) return null;
+        if (entry.size > max) {
+            throw fileError("DAMAGED", file, `the part "${path}" is ${entry.size.toLocaleString("en-US")} bytes, far more than a workbook's list of sheets holds; it is refused.`);
+        }
         const data = await unpack(bytes, entry, file, between);
         checkXml(data, file, path);
         parts.set(path, data);
         return data;
     };
-    const types = await read("[Content_Types].xml");
+    const types = await read("[Content_Types].xml", MAX_WORKBOOK_PART);
     if (types && /macroEnabled/i.test(new TextDecoder().decode(types))) {
         throw fileError("MACROS", file, "a workbook with macros (.xlsm) is not loaded; save it as an Excel workbook (.xlsx) or as CSV.");
     }
     const decode = (data) => (data ? new TextDecoder().decode(data) : "");
-    const workbook = decode(await read("xl/workbook.xml"));
-    const rels = decode(await read("xl/_rels/workbook.xml.rels"));
+    const workbook = decode(await read("xl/workbook.xml", MAX_WORKBOOK_PART));
+    const rels = decode(await read("xl/_rels/workbook.xml.rels", MAX_WORKBOOK_PART));
     const sheets = worksheets(workbook, rels);
     if (sheets.length === 0) {
         throw fileError("NO_TABLE", file, "the workbook has no worksheet.");
@@ -104,7 +111,7 @@ async function open(bytes, file, limits, between) {
 function pickSheet(sheets, wanted, file) {
     if (typeof wanted === "string") {
         const s = sheets.find((x) => x.name === wanted);
-        if (!s) throw fileError("NO_SHEET", file, `the workbook has no sheet "${wanted}".`, { sheet: wanted });
+        if (!s) throw fileError("NO_SHEET", file, `the workbook has no sheet "${shown(wanted)}".`, { sheet: wanted });
         return s;
     }
     if (typeof wanted === "number") {
@@ -156,7 +163,7 @@ export async function read(file, options) {
         }
     }
     const entry = entries.get(sheet.path);
-    if (!entry) throw fileError("DAMAGED", name, `the part of sheet "${sheet.name}" is missing; open the workbook in Excel and save it again.`);
+    if (!entry) throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is missing; open the workbook in Excel and save it again.`);
     // read-excel-file reads the parts from a ZIP: one without compression, of only these parts, with
     // the sheet's rows without a value left out while it streams in
     // sized for the whole sheet: the buffer never grows (no copy); what the filter leaves out is never
@@ -167,7 +174,8 @@ export async function read(file, options) {
     for (const [path, data] of parts) zip.add(path, data);
     parts.clear();
     const sheetPart = zip.begin(sheet.path);
-    const filter = createSheetFilter(sheetPart);
+    // a title block above the header may hold a few rows more than the table
+    const filter = createSheetFilter(sheetPart, { file: name, maxRow: o.limits.rows + 1_000, maxColumn: o.limits.columns, maxCells: o.limits.importCells + o.limits.columns * 1_000 });
     const check = createXmlCheck(name, sheet.path);
     let unpacked = 0;
     await unpackStream(bytes, entry, name, (chunk) => {
@@ -192,7 +200,7 @@ export async function read(file, options) {
         stored = null;
         rows = await readSheet(buffer, sheet.name);
     } catch (error) {
-        throw fileError("DAMAGED", name, `sheet "${sheet.name}" cannot be read (${String(/** @type {Error} */ (error)?.message ?? error).slice(0, 200)}); open the workbook in Excel and save it again.`);
+        throw fileError("DAMAGED", name, `sheet "${shown(sheet.name)}" cannot be read (${String(/** @type {Error} */ (error)?.message ?? error).slice(0, 200)}); open the workbook in Excel and save it again.`);
     }
     signal?.throwIfAborted();
     o.onProgress?.({ phase: "parse", done: trimmed.lastValueRow, total: trimmed.lastValueRow });

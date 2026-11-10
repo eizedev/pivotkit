@@ -17,7 +17,7 @@ import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
 import { IMPORT_TYPES, fileError, fileName, limitError } from "./import-table.js";
 
-export { createTable, retype, noteMessage, fileError, limitError, checkFileLimit, bytesOf, readOptions, fileName, dateToIso, IMPORT_NOTE_CODES, IMPORT_TYPES } from "./import-table.js";
+export { createTable, retype, noteMessage, cleanText, fileError, limitError, checkFileLimit, bytesOf, readOptions, fileName, dateToIso, IMPORT_NOTE_CODES, IMPORT_TYPES } from "./import-table.js";
 
 /**
  * @typedef {import("./import-table.js").ImportTable} ImportTable

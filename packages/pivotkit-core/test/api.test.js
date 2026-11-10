@@ -22,7 +22,7 @@ test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(links).sort(), ["LINK_LIMITS", "decodeViewLink", "encodeViewLink"]);
     assert.deepEqual(Object.keys(templates).sort(), ["TEMPLATES_EXTENSION", "TEMPLATE_LIMITS", "parseTemplates", "templatesFromSchema"]);
     assert.deepEqual(Object.keys(importer).sort(), [
-        "BUILT_IN_READERS", "IMPORT_NOTE_CODES", "IMPORT_TYPES", "PLUGIN_API_VERSION", "bytesOf", "checkFileLimit", "createTable", "csvReader", "dateToIso", "fileError", "fileName",
+        "BUILT_IN_READERS", "IMPORT_NOTE_CODES", "IMPORT_TYPES", "PLUGIN_API_VERSION", "bytesOf", "checkFileLimit", "cleanText", "createTable", "csvReader", "dateToIso", "fileError", "fileName",
         "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "validatePlugin"
     ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));

@@ -56,7 +56,7 @@ What it reads and refuses:
 | --- | --- |
 | Sheets | The first visible worksheet; another by name or position (`sheet`); `sheets(file)` from `pivotkit-xlsx/reader` lists them with `visible`. Hidden sheets are listed, never read unless asked for. |
 | Values | Numbers, text (shared and inline), booleans; a date where the cell's format is a date format; a formula's saved value. A cell with an Excel error (`#N/A`) is blank, with a note. A time without a date reads as that time on 30 December 1899, Excel's day 0. |
-| The used range | Rows without a value are left out while the sheet is unpacked, before it is parsed: a sheet whose formatting reaches row 900,000 below 94,000 rows of data is read as 94,000 rows, with a note. |
+| The used range | Rows without a value are left out while the sheet is unpacked, before it is parsed: a sheet whose formatting reaches row 900,000 below 94,000 rows of data is read as 94,000 rows, with a note. A value beyond `limits.rows` or `limits.columns`, or a sheet whose values span more than `limits.importCells`, is refused at that point too, before the parser makes the sheet a dense table. |
 | Refused | `.xls` (Excel 97-2003), `.xlsb`, `.xlsm` and any workbook with `vbaProject.bin` or the macro content type, password-protected workbooks, encrypted ZIP entries; a ZIP whose directory names more than `limits.archiveEntries` parts or more than `limits.unpackedBytes` bytes (checked before anything is unpacked); a part that unpacks to more than its directory states; `<!DOCTYPE` or `<!ENTITY` in any XML part it reads. |
 | Content-Security-Policy | No worker, no `eval`, no inline script: a strict policy works (`script-src 'self'`). |
 

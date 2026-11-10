@@ -135,6 +135,8 @@ is blank, with a note that counts them.
 | `ERROR_CELLS` | Cells with an Excel error (`#N/A`) | `count` |
 
 `message` is the English text (`noteMessage(code, params)`); a UI shows its own text per code.
+`params` can quote the file (a sheet name, a JSON key, a separator), cleaned and at most 256
+characters: show them as text, never as HTML.
 
 ## Limits
 
