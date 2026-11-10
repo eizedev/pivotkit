@@ -68,6 +68,68 @@ export function tabbables(container) {
 }
 
 /**
+ * The stops Tab makes in a container, in order: what takes the focus with Tab (a tabindex of 0 or
+ * more; a roving list's other items are -1), shown and not inert, and of a group of radios the
+ * checked one (else its first), as the browser steps.
+ * @param {Element} container
+ * @returns {HTMLElement[]}
+ */
+export function tabStops(container) {
+    const all = tabbables(container).filter((el) => el.tabIndex >= 0);
+    const radio = (/** @type {Element} */ el) => el instanceof HTMLInputElement && el.type === "radio" && el.name !== "";
+    return all.filter((el) => {
+        if (!radio(el)) {
+            return true;
+        }
+        const group = all.filter((o) => radio(o) && /** @type {HTMLInputElement} */ (o).name === /** @type {HTMLInputElement} */ (el).name);
+        const checked = group.find((o) => /** @type {HTMLInputElement} */ (o).checked);
+        return el === (checked ?? group[0]);
+    });
+}
+
+/**
+ * The stop Tab goes to from an element of the page or its shadow root, popovers left out (the one it
+ * leaves closes); null at the end of the root, where the browser goes on.
+ * @param {HTMLElement} el
+ * @returns {HTMLElement | null}
+ */
+export function stopAfter(el) {
+    const root = rootOf(el);
+    const scope = root && root.nodeType === 9 ? /** @type {Document} */ (root).body : root;
+    if (!scope) {
+        return null;
+    }
+    const stops = tabStops(/** @type {Element} */ (scope)).filter((s) => !s.closest(".pk-popover"));
+    const at = stops.indexOf(el);
+    return at === -1 ? null : stops[at + 1] ?? null;
+}
+
+/**
+ * Tab and Shift+Tab inside a popover in the browser's top layer, moved here: WebKit leaves such a
+ * popover for the page's body on Tab instead of going to its next control. Moves the focus to the
+ * next (or previous) stop inside and returns "moved", or returns "out" when the focus is at the last
+ * (first) stop, for the caller to decide; null for any other key or a focus outside the container.
+ * @param {KeyboardEvent | React.KeyboardEvent} event
+ * @param {Element | null} container
+ * @returns {"moved" | "out" | null}
+ */
+export function tabWithin(event, container) {
+    const active = activeIn(container);
+    if (event.key !== "Tab" || !container || !active || !container.contains(active)) {
+        return null;
+    }
+    const stops = tabStops(container);
+    const at = stops.indexOf(/** @type {HTMLElement} */ (active));
+    const next = at === -1 ? (event.shiftKey ? stops.length - 1 : 0) : at + (event.shiftKey ? -1 : 1);
+    if (next < 0 || next >= stops.length) {
+        return "out";
+    }
+    event.preventDefault();
+    stops[next].focus();
+    return "moved";
+}
+
+/**
  * Keeps Tab and Shift+Tab inside a container: from the last element to the first and back.
  * @param {KeyboardEvent | React.KeyboardEvent} event
  * @param {Element | null} container

@@ -3,13 +3,18 @@
  * sheet on narrow reports. Escape (wherever the focus is), a click outside and the focus leaving
  * close them, and focus goes back to the button; arrow keys move between the options. A bottom sheet
  * is modal: Tab stays inside. They render into the report's own layer element, so the --pk-* tokens
- * and the theme apply, also inside a shadow root. A popover keeps the mouse wheel to itself: what
- * it cannot scroll further never scrolls the table or the page behind it (wheelStays).
+ * and the theme apply, also inside a shadow root, and from there into the browser's top layer
+ * (popover="manual" with showPopover(), where the Popover API is there): above the host page's own
+ * layout whatever its z-indexes and stacking contexts (a fixed navigation drawer), never clipped,
+ * placed against the window. "manual" leaves closing to this module, as before: no light dismiss,
+ * Escape through dom.js. Without the API the layer is stacked by --pk-layer-z (styles.css). A
+ * popover keeps the mouse wheel to itself: what it cannot scroll further never scrolls the table or
+ * the page behind it (wheelStays).
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FOCUSABLE, activeIn, eventWithin, trapTab, useEscapeLayer } from "./dom.js";
+import { FOCUSABLE, activeIn, eventWithin, tabWithin, trapTab, useEscapeLayer } from "./dom.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { Icon } from "./icons.jsx";
 import { fromOrigin, keepPlace, placePopover, viewportOf } from "./place.js";
@@ -18,6 +23,46 @@ import { fromOrigin, keepPlace, placePopover, viewportOf } from "./place.js";
 export const LayerContext = createContext({ layer: /** @type {HTMLElement | null} */ (null), size: "wide" });
 
 const OPTION = "[data-pk-option]:not([disabled])";
+
+/**
+ * Whether the browser has the Popover API, so a popover goes into the top layer. Read when a popover
+ * opens (a page may load a polyfill or lack the API; a server has no HTMLElement).
+ */
+export const hasTopLayer = () => typeof HTMLElement === "function" && typeof HTMLElement.prototype.showPopover === "function";
+
+/**
+ * Shows elements in the top layer while a popover is open, in order (the scrim, then the sheet above
+ * it); a popover opened later from this one is shown later, so it is above. Hidden again when it
+ * closes (an element removed from the page has left the top layer by itself).
+ * @param {boolean} open
+ * @param {Array<React.RefObject<HTMLElement | null>>} refs
+ * @param {unknown} key  what re-shows them (the sheet's scrim coming or going)
+ */
+function useTopLayer(open, refs, key) {
+    useIsoLayoutEffect(() => {
+        if (!open || !hasTopLayer()) {
+            return undefined;
+        }
+        const shown = /** @type {HTMLElement[]} */ (refs.map((r) => r.current).filter((el) => el && el.isConnected && el.hasAttribute("popover")));
+        for (const el of shown) {
+            try {
+                el.showPopover();
+            } catch {
+                // already shown, or another popover is being shown at this moment: it stays in the layer
+            }
+        }
+        return () => {
+            for (const el of shown) {
+                try {
+                    el.hidePopover();
+                } catch {
+                    // gone from the page or not shown: nothing to hide
+                }
+            }
+        };
+        // the refs are stable objects
+    }, [open, key]);
+}
 
 /**
  * Whether a wheel turn inside a popover may scroll something there: an element on its way from the
@@ -69,6 +114,13 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const within = (/** @type {Element} */ n) => n === ref.current || n.getAttribute("data-pk-parent") === elId;
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
     const sheet = size === "narrow" && !passive;
+    const scrim = useRef(/** @type {HTMLDivElement | null} */ (null));
+    // whether this popover goes into the top layer: read once per opening, the same in every render of it
+    const [top] = useState(hasTopLayer);
+    // the attribute as a spread: React 18's types do not know it yet (React passes it on as it is)
+    const inTopLayer = /** @type {any} */ (top ? { popover: "manual" } : {});
+    // into the top layer before it is placed: there it is fixed to the window, whatever its ancestors
+    useTopLayer(open, [scrim, ref], sheet);
 
     useIsoLayoutEffect(() => {
         if (!open) {
@@ -92,7 +144,8 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             const place = keepPlace(last, placePopover(r, size, viewport, align, { fill }), r, size, viewport);
             last = { top: place.top, side: place.side, anchorTop: r.top };
             // the origin of the fixed containing block: not the viewport inside a transformed ancestor
-            const probe = layer?.querySelector(".pk-origin");
+            // (in the top layer it is the viewport, whatever the ancestors)
+            const probe = el.hasAttribute("popover") ? null : layer?.querySelector(".pk-origin");
             setPos(probe ? fromOrigin(place, probe.getBoundingClientRect()) : place);
         };
         place();
@@ -174,6 +227,12 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         if (sheet) {
             trapTab(e, ref.current);
         }
+        if (top && !e.defaultPrevented && tabWithin(e, ref.current) === "out" && !sheet) {
+            // past its last control (or before its first): it closes, the focus back on its button
+            e.preventDefault();
+            onClose();
+            return;
+        }
         if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
             const options = /** @type {HTMLElement[]} */ ([...(ref.current?.querySelectorAll(OPTION) ?? [])]).filter((o) => o.getClientRects().length > 0);
             if (options.length === 0 || (e.target instanceof HTMLInputElement && e.target.type !== "checkbox")) {
@@ -196,9 +255,10 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const style = sheet ? undefined : pos ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight } : { top: 0, left: 0, visibility: /** @type {const} */ ("hidden") };
     return createPortal(
         <>
-            {sheet ? <div className="pk-scrim" onClick={onClose} aria-hidden="true" /> : null}
+            {sheet ? <div ref={scrim} className="pk-scrim" {...inTopLayer} onClick={onClose} aria-hidden="true" /> : null}
             <div
                 ref={ref}
+                {...inTopLayer}
                 id={elId}
                 data-pk-parent={parentId}
                 role={role}

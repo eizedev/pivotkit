@@ -24,6 +24,9 @@
     --pk-rail-w: 40px;
     --pk-duration: 180ms;
     --pk-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* the stacking of the menus' layer where the browser has no Popover API (no top layer): a host
+       with fixed parts above it (a navigation at z-index 1200) raises it */
+    --pk-layer-z: 50;
     --pk-heat-low: #eaf1fb;
     --pk-heat-high: #2a78d6;
     /* colour scales a view leaves to the theme: low, middle, high (Excel's red, yellow, green) */
@@ -1051,15 +1054,27 @@
 
 /* ---- popovers ---- */
 
+/* popovers, sheets and their scrims are in the browser's top layer (popover="manual", popover.jsx):
+   above everything of the host page, whatever its z-indexes, and never clipped; they stay in the
+   report's DOM, so its tokens and styles reach them. Without the Popover API they are fixed inside
+   this layer, stacked by --pk-layer-z. */
 .pk-layer {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 50;
+    z-index: var(--pk-layer-z);
 }
 
 .pk-layer > * {
     pointer-events: auto;
+}
+
+/* in the top layer: the browser's own box of a popover (inset 0, margin auto, a border, padding, the
+   page's canvas colours) is undone; the rules below set what the report draws */
+.pk-layer > [popover] {
+    inset: auto;
+    margin: 0;
+    height: auto;
 }
 
 /* where position: fixed starts: the viewport, or a transformed ancestor (popover.jsx) */
@@ -1170,6 +1185,11 @@
 /* a bottom sheet's scrim covers the window, as the sheet is placed in it */
 .pk-layer > .pk-scrim {
     position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
 }
 
 .pk-section {

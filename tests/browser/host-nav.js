@@ -30,8 +30,12 @@ export const hitAt = (page, x, y) =>
         return el ? { inPopover: Boolean(el.closest(".pk-popover")), inScrim: Boolean(el.closest(".pk-scrim")), where: el.closest(".host-drawer, .host-appbar")?.className ?? el.className ?? el.localName } : null;
     }, [x, y]);
 
+/** Waits until a popover is where it ends up: a sheet slides in from the bottom, a popover grows in. */
+export const settled = (popover) => popover.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
+
 /** Every visible label of an open popover: each is what the window shows at its own left edge. */
 export async function labelsOnTop(page, popover) {
+    await settled(popover);
     const boxes = await popover.locator(".pk-level-row, [data-pk-option], .pk-option, [role='menuitem'], [role='menuitemradio'], p, h3").evaluateAll((els) =>
         els
             .map((el) => {
