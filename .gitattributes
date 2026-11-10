@@ -7,3 +7,7 @@
 *.gif binary
 *.ico binary
 *.xlsx binary
+# real exports for the import tests keep their bytes: line ends (CRLF), encodings (UTF-16, Windows-1252)
+packages/pivotkit-core/test/import-fixtures/*.csv -text
+packages/pivotkit-core/test/import-fixtures/*.txt -text
+packages/pivotkit-core/test/import-fixtures/*.json -text
