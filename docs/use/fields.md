@@ -34,7 +34,8 @@ All three give the same result. Details:
 - For a field in Values already the menu entry reads **Add to Values again**: it adds a second value
   of the field (a second "Sum of Revenue", to show it as a share, say).
 - A number field that is an identifier is counted, not summed: its name ends in the word ID, Nr, No,
-  Number or Key ("ID", "CustomerId", "customer_id", "Order No") and it holds whole numbers. "Count
+  Number, Key or "#" ("ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2", "ID
+  (Asset)") and it holds whole numbers. "Count
   of ID" instead of a sum no one needs; **Sum** stays a choice of its menu. Its numbers show as they
   are, 27000 and not 27,000, on Rows and Columns and in the rows behind a value. The application can
   set this otherwise ([field settings](../concepts/fields.md#identifier-fields)).
@@ -136,7 +137,9 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 - From 300 rows on the table draws only the rows in view (it stays fast), and a row label is cut to
   one line; the status line under the table shows the whole label of the row the focus is on, or of a
   label you tap, and the cut label's tooltip shows it too. The row label column is as wide as its
-  longest labels (at most 28em) and keeps that width while the table scrolls.
+  longest labels (at most 28em) and keeps that width while the table scrolls; it is measured again
+  when the font or its size changes. "Longest" counts characters: a label of fewer but wider
+  characters (Chinese, emoji) can end in "…" although it would fit, with its whole text in the tooltip.
 
 ![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-light.png#only-light)
 ![Options: the totals, each with an "i", a total that changes nothing greyed out with what it needs, and the Help switches](../assets/screenshots/explanations-dark.png#only-dark)

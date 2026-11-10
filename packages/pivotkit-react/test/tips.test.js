@@ -329,10 +329,10 @@ test("no menu folds any more: a stored state of a section (open: or closed:) is 
 });
 
 test("identifier fields: a number field of whole numbers named ID, …Id, …_id, Nr, No, Number or Key (#113)", () => {
-    for (const name of ["ID", "id", "Id", "CustomerId", "CustomerID", "customer_id", "Customer ID", "asset-id", "Nr", "Asset Nr.", "No", "Order No", "OrderNo", "Number", "Inventory number", "order_number", "Key", "Primary key"]) {
+    for (const name of ["ID", "id", "Id", "CustomerId", "CustomerID", "customer_id", "Customer ID", "asset-id", "Nr", "Asset Nr.", "No", "Order No", "OrderNo", "Number", "Inventory number", "order_number", "Key", "Primary key", "userID2", "user_id_2", "ID (Asset)", "Asset ID (old) (2)", "Serial#", "Serial #", "#", "Ticket No.2"]) {
         assert.equal(isIdentifierName(name), true, name);
     }
-    for (const name of ["Paid", "PAID", "UUID", "Valid", "Number of items", "Nobel", "Monkey", "Keys", "Cost", "Width", "Idle"]) {
+    for (const name of ["Paid", "PAID", "UUID", "UUID2", "Valid", "Number of items", "Number of items (total)", "Nobel", "Monkey", "Keys", "Cost", "Width", "Idle", "Paid (EUR)", "2", "Width2", "#items"]) {
         assert.equal(isIdentifierName(name), false, name);
     }
     const encoded = encode([
@@ -347,6 +347,13 @@ test("identifier fields: a number field of whole numbers named ID, …Id, …_id
     assert.equal(isIdentifier(col("Name_id")), false, "not a number field");
     assert.equal(isIdentifier(col("Cost")), false);
     assert.equal(isIdentifier(undefined), false);
+    // its dictionary is read once per column, not on every call (fieldDefaultsFor runs on every add)
+    let reads = 0;
+    const counted = { name: "Order ID", type: "number", dict: new Proxy([1, 2, 3], { get: (t, k) => (k !== "length" && reads++, t[k]) }) };
+    assert.equal(isIdentifier(counted), true);
+    const once = reads;
+    assert.equal(isIdentifier(counted), true);
+    assert.equal(reads, once);
     // counted and shown as it is, unless the host says how to count or show it
     assert.deepEqual(fieldDefaultsFor(undefined, "ID", col("ID")), { agg: "count", drillFormat: "text" });
     assert.deepEqual(fieldDefaultsFor({ id: { label: "Ticket" } }, "ID", col("ID")), { label: "Ticket", agg: "count", drillFormat: "text" });
