@@ -51,46 +51,17 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     const leaving = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
     const id = useId();
     const textId = useId();
-    // the peek came from the pointer (not the focus): where the pointer is decides how long it stays
-    const byPointer = useRef(false);
-    const stay = useCallback(() => {
+    const stay = () => {
         if (leaving.current) {
             clearTimeout(leaving.current);
             leaving.current = null;
         }
-    }, []);
-    const leaveSoon = useCallback(() => {
+    };
+    const leaveSoon = () => {
         stay();
         leaving.current = setTimeout(() => setMode((m) => (m === "peek" ? null : m)), LEAVE_DELAY);
-    }, [stay]);
-    useEffect(() => stay, [stay]);
-    // a peek shown by the pointer stays while the pointer is over the button or the description, by
-    // the pointer's place: a description in the top layer gets no pointerenter in WebKit when the
-    // pointer comes from the button
-    useEffect(() => {
-        const button = ref.current;
-        if (mode !== "peek" || !byPointer.current || !button) {
-            return undefined;
-        }
-        const over = (/** @type {Element | null | undefined} */ el, /** @type {PointerEvent} */ e) => {
-            const r = el?.getBoundingClientRect();
-            return Boolean(r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom);
-        };
-        const onMove = (/** @type {PointerEvent} */ e) => {
-            if (e.pointerType !== "mouse") {
-                return;
-            }
-            const pop = /** @type {Document | ShadowRoot} */ (button.getRootNode()).getElementById?.(id);
-            if (over(button, e) || over(pop, e)) {
-                stay();
-            } else if (!leaving.current) {
-                leaveSoon();
-            }
-        };
-        const doc = button.ownerDocument;
-        doc.addEventListener("pointermove", onMove, true);
-        return () => doc.removeEventListener("pointermove", onMove, true);
-    }, [mode, id, stay, leaveSoon]);
+    };
+    useEffect(() => stay, []);
     const close = useCallback(() => {
         quiet.current = true;
         setMode(null);
@@ -116,9 +87,6 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 onPointerEnter={(e) => {
                     if (e.pointerType === "mouse") {
                         stay();
-                        if (mode === null) {
-                            byPointer.current = true;
-                        }
                         setMode((m) => m ?? "peek");
                     }
                 }}
@@ -129,7 +97,6 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
                 }}
                 onFocus={() => {
                     if (mode === null && !quiet.current) {
-                        byPointer.current = false;
                         setMode("peek");
                     }
                 }}

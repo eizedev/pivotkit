@@ -116,8 +116,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
     const [pos, setPos] = useState(/** @type {null | { top: number, left: number, maxHeight: number, side: string }} */ (null));
     const sheet = size === "narrow" && !passive;
     const scrim = useRef(/** @type {HTMLDivElement | null} */ (null));
-    // whether this popover goes into the top layer: read when it mounts, the same in every render of it
-    const [top] = useState(hasTopLayer);
+    // whether this popover goes into the top layer: read when it mounts, the same in every render of
+    // it. A description shown on hover (passive) stays in the report's layer: in CI's WebKit (Linux)
+    // the pointer moving from its "i" onto it in the top layer closed it, so its link could not be
+    // reached; a click shows it as a dialog, which goes into the top layer
+    const [top] = useState(() => !passive && hasTopLayer());
     // the attribute as a spread: React 18's types do not know it yet (React passes it on as it is)
     const inTopLayer = /** @type {any} */ (top ? { popover: "manual" } : {});
     // into the top layer before it is placed: there it is fixed to the window, whatever its ancestors
@@ -225,11 +228,11 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             onClose();
             return;
         }
+        // Tab (dom.js: who takes it): a sheet is modal, Tab stays inside; a popover moves between
+        // its stops and closes past its last (or before its first), the focus back on its button
         if (sheet) {
             trapTab(e, ref.current);
-        }
-        if (top && !e.defaultPrevented && tabWithin(e, ref.current) === "out" && !sheet) {
-            // past its last control (or before its first): it closes, the focus back on its button
+        } else if (tabWithin(e, ref.current) === "out") {
             e.preventDefault();
             onClose();
             return;

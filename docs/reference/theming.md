@@ -97,6 +97,10 @@ bar with a z-index of 1200 too, and never cut off by a box of the page that clip
 report in the DOM, so the tokens above and the theme reach them, also inside the web component's
 shadow root, and they are placed against the window.
 
+A description shown while the pointer rests on an "i" stays in the report's own layer (stacked by
+`--pk-layer-z`): in WebKit a pointer that moved from the "i" onto it in the top layer closed it, so
+its link could not be reached. A click or tap on the "i" opens it in the top layer.
+
 A browser without the Popover API (Chrome before 114, Firefox before 125, Safari before 17) opens
 them in the report's own layer, stacked by `--pk-layer-z` (default `50`). A page whose fixed parts
 have a higher z-index raises it:
