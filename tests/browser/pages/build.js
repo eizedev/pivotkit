@@ -7,12 +7,16 @@
 //   of the rows and a controlled view.
 // - shadow.html: the report inside a shadow root with its stylesheet linked there, as the web
 //   component mounts it.
+// - nav.html: the same host setup (React from the import map) next to a fixed navigation drawer and
+//   an app bar with z-indexes above the report's, as PowerShell Universal draws its apps
+//   (nav-shell.js; element-nav.html is the web component in that frame).
 // - hydrate.html: the report rendered to HTML with react-dom/server and hydrated, with dismissed tips
 //   in localStorage.
 // - element-*.html: pages of the web component pivotkit-element (sources in element/), which loads
 //   from dist/packages/pivotkit-element/dist/ as it ships (npm run build -w pivotkit-element first):
 //   two elements, properties set before the definition, the package loaded twice, a strict CSP,
-//   listener and observer counts, the <style> fallback, a page with its own React. The element example
+//   listener and observer counts, the <style> fallback, a page with its own React, the element next to
+//   a fixed navigation (element-nav.html, nav-shell.js). The element example
 //   (examples/element/) is copied to dist/examples/element/ next to it, at the same relative path as
 //   in the repository.
 //
@@ -88,12 +92,14 @@ await esbuild.build({
 // the package as it ships: dist/index.js, the echarts.js and menus.js it loads next to it with the
 // chunks they share (dist/chunks/), dist/styles.css, not rebuilt
 await copyFile(`${root}packages/pivotkit-react/dist/index.js`, `${out}pivotkit-react.js`);
-await copyFile(`${root}packages/pivotkit-react/dist/echarts.js`, `${out}echarts.js`);
-await copyFile(`${root}packages/pivotkit-react/dist/menus.js`, `${out}menus.js`);
+// (and every other entry of dist/: the German menu texts, the labels subpath), as a host serves dist/
+for (const file of (await readdir(`${root}packages/pivotkit-react/dist/`)).filter((f) => f.endsWith(".js") && f !== "index.js")) {
+    await copyFile(`${root}packages/pivotkit-react/dist/${file}`, `${out}${file}`);
+}
 await cp(`${root}packages/pivotkit-react/dist/chunks/`, `${out}chunks/`, { recursive: true });
 await copyFile(`${root}packages/pivotkit-react/dist/styles.css`, `${out}pivotkit-react.css`);
 // the host page's own code: every package left to the import map
-await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { host: "host.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "pivotkit-react", "react/jsx-runtime"] });
+await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { host: "host.jsx", nav: "nav.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "pivotkit-react", "react/jsx-runtime"] });
 // the shadow root page bundles its React like any app
 await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { shadow: "shadow.jsx", hydrate: "hydrate.jsx" }, outdir: out, jsx: "automatic", alias: { react: real.react.replace(/index\.js$/, ""), "react-dom": real["react-dom"].replace(/index\.js$/, "") } });
 
@@ -102,6 +108,7 @@ const importMap = { imports: { ...Object.fromEntries(Object.entries(VENDOR).map(
 await writeFile(`${out}jsx-runtime.js`, 'import React from "react";\nexport const Fragment = React.Fragment;\nexport const jsx = (type, props, key) => React.createElement(type, key === undefined ? props : { ...props, key });\nexport const jsxs = jsx;\n');
 const page = (title, body) => `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1" />\n<title>${title}</title>\n${body}\n</head>\n<body><div id="app"></div></body>\n</html>\n`;
 await writeFile(`${out}host.html`, page("pivotkit host page", `<link rel="stylesheet" href="./pivotkit-react.css" />\n<script type="importmap">${JSON.stringify(importMap)}</script>\n<script type="module" src="./host.js"></script>`));
+await writeFile(`${out}nav.html`, page("pivotkit next to a fixed navigation", `<link rel="stylesheet" href="./pivotkit-react.css" />\n<script type="importmap">${JSON.stringify(importMap)}</script>\n<script type="module" src="./nav.js"></script>`).replace('<div id="app"></div>', ""));
 await writeFile(`${out}shadow.html`, page("pivotkit in a shadow root", '<script type="module" src="./shadow.js"></script>'));
 await writeFile(`${out}hydrate.html`, page("pivotkit rendered on a server and hydrated", '<link rel="stylesheet" href="./pivotkit-react.css" />\n<script type="module" src="./hydrate.js"></script>'));
 
