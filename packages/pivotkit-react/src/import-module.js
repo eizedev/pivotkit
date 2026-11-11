@@ -6,4 +6,4 @@
  */
 
 export { DataMenuPanel, ImportLayer, SourceLine, pickFile, startFiles } from "./import-host.jsx";
-export { moveData } from "./import-steps.js";
+export { moveData, restoreData } from "./import-steps.js";

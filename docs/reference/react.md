@@ -62,7 +62,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `loading` | `boolean` | `false` | The host is loading the data: before the report has had data it shows its skeleton (toolbar, zones and table rows in the theme, `role="status"` with "Loading the report…", announced once). [More](#prop-loading) |
 | `allowImport` | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview before it replaces the data; nothing is uploaded. [More](#prop-allowimport) |
 | `plugins` | `ReaderPlugin[]` |  | Reader plugins for more formats ([pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel); CSV, TSV, text and JSON are built in. [More](#prop-plugins) |
-| `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, or one of those undone or redone. [More](#prop-ondataload) |
+| `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, one of those undone or redone, or the file shown again after a new mount. [More](#prop-ondataload) |
 | `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
 
 Exports: `PivotReport` and the types `PivotReportProps`, `CellClick`,
@@ -157,7 +157,7 @@ Every exported file (`"xlsx"`, `"csv"`, `"png"`, or `"json"` for the [view file]
 
 Type: `string`.
 
-Remembers the dismissed tips and the help switches in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again. Read after the first render, so server rendering and hydration match. With `templateStore="browser"` the user's own views are kept under `pivotkit:views:<key>` too.
+Remembers the dismissed tips and the help switches in the browser's `localStorage` under `pivotkit:tips:<storageKey>`. Give each report on a page its own key. Without it the tips stay dismissed until the page is loaded again. Read after the first render, so server rendering and hydration match. With `templateStore="browser"` the user's own views are kept under `pivotkit:views:<key>` too. With [`allowImport`](#prop-allowimport) a loaded file survives a new mount of the report under this key (in memory only).
 
 ### `dismissedTips` { #prop-dismissedtips }
 
@@ -244,6 +244,18 @@ on [Load your own data](../use/load-data.md); what the readers do on [Loading fi
   file and a view shared from one names it. The host's `source` comes back with its data.
 - The host's data and props stay as they are: a new `data` from the host while a file is shown is
   used when its data is shown again.
+- A host that mounts the report again (a new `key`, a component library that remounts on a theme
+  switch: PowerShell Universal on its light/dark switch and `Sync-UDElement`) gets the file back: the
+  report with the same [`storageKey`](#prop-storagekey) shows the file's data, its view and its undo
+  steps again, and tells `onDataLoad` with `cause` `"restore"` before its view (`onViewChange`), so a
+  host that controls the view takes the file's. Only when the host's data is the same: the same
+  `dataKey` (without one, the same column names and types) and the same `source.id`; otherwise the
+  host's data is shown and the file is let go. It is kept in the page's memory only, never in
+  `localStorage` or `sessionStorage`, so a reload still shows the host's data: the latest state per
+  `storageKey`, for at most four reports (the one written longest ago goes first), let go as soon as
+  the host's data is shown again ("Back to original data", Undo of the load). Without a `storageKey`
+  nothing is kept. Two reports mounted at once with the same `storageKey` would share it: give each
+  its own.
 - The import UI is a chunk of its own (`dist/import-ui.js`, with `pivotkit-core/import`), loaded when
   the Data menu opens, a file is dragged over the report or the empty report's **Load data…** is
   clicked. Without `allowImport` nothing of it loads.
@@ -274,7 +286,7 @@ The data shown changed, with what it is now:
 
 | Key | What |
 | --- | --- |
-| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone. |
+| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone; `"restore"`: the report was mounted again and shows the file it had ([`allowImport`](#prop-allowimport)). |
 | `source` | `{ id, name }` of the data shown: the file's, or the host's `source` (`null` without one). |
 | `file` | `{ name, size, type }` of the file shown, or `null` for the host's data. |
 | `sheet` | The sheet of a workbook, else `null`. |

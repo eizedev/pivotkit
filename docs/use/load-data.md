@@ -78,7 +78,10 @@ shown; the others keep the type found.
 - **Undo** takes back loading too: first your changes on the file, then the loading itself; **Redo**
   goes forward again, file and changes included. Undo goes back over the last three data steps (loads
   and Back to original data); older ones are let go, since each one keeps a whole data set.
-- Reloading the page shows the application's data: the file is not kept.
+- Reloading the page shows the application's data: the file is not kept. Where the application
+  builds the report anew on the same page (some switch it on a change of light and dark), the file
+  comes back with your view and your Undo steps, as long as the application's data is the same; after
+  **Back to original data** it does not.
 
 ## When a file cannot be loaded
 
@@ -120,6 +123,7 @@ A sheet of a workbook that cannot be read says why above the sheet list; pick an
     Loading data is off by default: `allowImport` (React) or the attribute `allow-import` (the web
     component) turns it on. Excel needs the [pivotkit-xlsx plugin](../reference/plugins.md#pivotkit-xlsx)
     in `plugins`; `onDataLoad` (React) or the event `pivot-data-load` reports every change of the data
-    shown and can refuse a file. See the [React props](../reference/react.md#prop-allowimport), the
+    shown and can refuse a file. A file comes back after a new mount of the report only with a
+    `storageKey` ([details](../reference/react.md#prop-allowimport)). See the [React props](../reference/react.md#prop-allowimport), the
     [element reference](../reference/element.md#prop-allowimport) and
     [Loading files](../reference/import.md) for what the readers do.

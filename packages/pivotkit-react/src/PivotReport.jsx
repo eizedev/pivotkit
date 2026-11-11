@@ -41,7 +41,8 @@ import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
-import { useViewHistory } from "./use-view-history.js";
+import { schemaKeyOf, useViewHistory } from "./use-view-history.js";
+import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
@@ -323,21 +324,15 @@ function Report(props) {
     // the data the view is made for (the host's source), for the view files and the check before a load
     const hostSourceId = typeof sourceProp?.id === "string" && sourceProp.id ? sourceProp.id : undefined;
     const hostSourceName = typeof sourceProp?.name === "string" && sourceProp.name ? sourceProp.name : undefined;
-    // loading data in the browser (allowImport): the file's data shown, null for the host's; the data
-    // steps of the undo history (data-history.js), the file being read (the import dialog), a file
-    // dragged over the report, and the import UI once loaded (lazy-import.jsx)
-    const [imported, setImported] = useState(/** @type {import("./import-steps.js").ShownData | null} */ (null));
-    const [dataSteps, setDataSteps] = useState(/** @type {import("./data-history.js").DataSteps} */ (NO_STEPS));
+    // loading data in the browser (allowImport): the file being read (the import dialog), a file
+    // dragged over the report, and the import UI once loaded (lazy-import.jsx); the file's data shown
+    // and the data steps further down, with the host's data
     const [job, setJob] = useState(/** @type {{ file: File, n: number } | null} */ (null));
     const [dragging, setDragging] = useState(false);
     const dragDepth = useRef(0);
     const [importMod, setImportMod] = useState(importNow);
     const fileInput = useRef(/** @type {HTMLInputElement | null} */ (null));
     const plugins = Array.isArray(pluginsProp) ? pluginsProp : [];
-    // the data the view is made for: the file's (its name and the hash of its columns, so the browser
-    // store keeps views per file), else the host's source
-    const sourceId = imported ? imported.source.id : hostSourceId;
-    const sourceName = imported ? imported.source.name : hostSourceName;
 
     // props a host may rebuild on every render, compared by value
     const labelsKey = JSON.stringify(customLabels ?? null);
@@ -397,9 +392,8 @@ function Report(props) {
     // its group ("user", "shared"; null for a file or a link), whether the browser store keeps it, and
     // its view as saved (`key`, history.keyOf), so the toolbar shows when it has unsaved changes
     // the saved view each step of the history shows travels with it (history.tag, view-save.js's
-    // LoadedView); `savedKeys` holds each saved view as it was loaded or saved (history.keyOf, by
-    // savedKeyOf), so the toolbar shows when the view shown has unsaved changes
-    const [savedKeys, setSavedKeys] = useState(/** @type {Record<string, string>} */ ({}));
+    // LoadedView); `savedKeys` (with the file's data, below) holds each saved view as it was loaded or
+    // saved
     // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
@@ -427,6 +421,21 @@ function Report(props) {
         // data is read through dataIdentity: with a dataKey a new array with the same key is the same data
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [encodedProp, dataIdentity, timeZone, limits, typesKey]);
+    // the file's data shown (null: the host's) and the data steps of the undo history (data-history.js);
+    // a report mounted again with its storageKey over the same host data starts where it was
+    // (data-keep.js: memory only, restored by the layout effect below)
+    const keepKey = allowImport && typeof storageKey === "string" && storageKey ? storageKey : null;
+    const hostData = hostIdentity({ dataKey, sourceId: hostSourceId, schemaKey: schemaKeyOf(source.encoded) });
+    const [kept] = useState(() => (keepKey ? keptData(keepKey, hostData) : null));
+    const [imported, setImported] = useState(/** @type {import("./import-steps.js").ShownData | null} */ (kept?.imported ?? null));
+    const [dataSteps, setDataSteps] = useState(/** @type {import("./data-history.js").DataSteps} */ (kept?.steps ?? NO_STEPS));
+    // each saved view as it was loaded or saved (history.keyOf, by savedKeyOf), so the toolbar shows
+    // when the view shown has unsaved changes
+    const [savedKeys, setSavedKeys] = useState(/** @type {Record<string, string>} */ (kept?.savedKeys ?? {}));
+    // the data the view is made for: the file's (its name and the hash of its columns, so the browser
+    // store keeps views per file), else the host's source
+    const sourceId = imported ? imported.source.id : hostSourceId;
+    const sourceName = imported ? imported.source.name : hostSourceName;
     const encoded = imported ? imported.encoded : source.encoded;
     // the display names (labels.fields), told apart where two fields would look the same
     const fieldNamesKey = encoded.schema.fields.map((f) => f.name).join("\u0000");
@@ -593,6 +602,11 @@ function Report(props) {
         );
     }, []);
     useIsoLayoutEffect(() => {
+        // a report mounted again with its file's data (data-keep.js) is where it was: its own view
+        // comes back below, not the link's or the tab's
+        if (kept) {
+            return;
+        }
         const page = here();
         const link = shareLink ? readLinkParam(page?.hash ?? "", param) : null;
         if (link) {
@@ -953,6 +967,34 @@ function Report(props) {
     useEffect(() => {
         apiNow.current = api;
     });
+    // a report mounted again with its file's data (data-keep.js): the host hears that the file is
+    // shown again (onDataLoad "restore"), then the view history comes back, which shows its view
+    // (and tells a host that controls the view through onViewChange) before the browser paints
+    useIsoLayoutEffect(() => {
+        if (kept) {
+            importMod?.restoreData(api);
+            history.replace(kept.history);
+        }
+        // once per mounted report
+    }, []);
+    // while a file's data is shown the report's latest state is kept for a new mount; the host's data
+    // shown again lets it go (Back to original data, Undo of the load). An unmount keeps it.
+    const snapshot = history.snapshot;
+    const keptKey = useRef(keepKey);
+    useEffect(() => {
+        if (keptKey.current !== keepKey && keptKey.current !== null) {
+            forgetData(keptKey.current);
+        }
+        keptKey.current = keepKey;
+        if (keepKey === null) {
+            return;
+        }
+        if (imported) {
+            keepData(keepKey, { host: hostData, imported, steps: dataSteps, history: snapshot(), savedKeys });
+        } else {
+            forgetData(keepKey);
+        }
+    }, [keepKey, hostData, imported, dataSteps, snapshot, savedKeys]);
     /** A file dragged over the report and dropped: counted in and out of its parts, then read. */
     const fileDrag = (/** @type {React.DragEvent} */ e) => {
         if (!Array.prototype.includes.call(e.dataTransfer?.types ?? [], "Files")) {

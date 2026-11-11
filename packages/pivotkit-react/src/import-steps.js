@@ -1,6 +1,7 @@
 /*
  * What the report does when the data shown changes through the import UI: a file loaded, the host's
- * data shown again, and Undo or Redo of one of those steps (data-history.js). Each tells the host
+ * data shown again, Undo or Redo of one of those steps (data-history.js), and a file's data a report
+ * mounted again shows where it was (data-keep.js). Each tells the host
  * (onDataLoad: a load can be refused, the others are reported), records the step and says what
  * happened in a status note with Undo. The report hands in its state and setters (`ImportContext`);
  * loaded with the import UI, so the first load holds none of it.
@@ -33,7 +34,7 @@ import { fill, messageOf, plural } from "./labels.js";
  * @property {() => void} undo  the report's Undo, for the status note's action
  *
  * @typedef {object} DataLoad  what onDataLoad gets
- * @property {"load" | "original" | "undo" | "redo"} cause  a file loaded (refuse it with false), the host's data shown again, or Undo or Redo of one of those
+ * @property {"load" | "original" | "undo" | "redo" | "restore"} cause  a file loaded (refuse it with false), the host's data shown again, Undo or Redo of one of those, or a file's data shown again by a report mounted again (data-keep.js)
  * @property {{ id?: string, name?: string } | null} source  the data shown now: the file's (its id names its saved views), or the host's `source`
  * @property {{ name: string, size: number, type: string } | null} file  the file, for "load" and when a step shows a file's data
  * @property {string | null} sheet  the sheet of a workbook
@@ -140,4 +141,16 @@ export function moveData(ctx, back) {
     ctx.history.replace(moved.step.history);
     tell(ctx, describe(ctx, moved.step.data, back ? "undo" : "redo"));
     return moved.step.note;
+}
+
+/**
+ * A report mounted again shows the file's data it kept (data-keep.js): the host is told, as for the
+ * other steps, so a host that follows the data shown (and controls the view) knows the view that
+ * comes next is the file's.
+ * @param {ImportContext} ctx
+ */
+export function restoreData(ctx) {
+    if (ctx.imported) {
+        tell(ctx, describe(ctx, ctx.imported, "restore"));
+    }
 }

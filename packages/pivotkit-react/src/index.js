@@ -174,13 +174,16 @@
  *   the first data) or covers its result (later loads)
  * @property {boolean} [allowImport]  people may load a file into the report in the browser: a Data
  *   button with "Load data…", a file dropped onto the report, a preview before it replaces the data
- *   (nothing is uploaded; Undo and "Back to original data" bring the host's data back). Default false
+ *   (nothing is uploaded; Undo and "Back to original data" bring the host's data back). With a
+ *   `storageKey` a report mounted again over the same host data shows the file again (memory only).
+ *   Default false
  * @property {import("pivotkit-core/import").ReaderPlugin[]} [plugins]  reader plugins (contract v1,
  *   pivotkit-core/import's validatePlugin) for more formats, such as pivotkit-xlsx; CSV, TSV, text and
  *   JSON are built in
  * @property {(load: DataLoad) => unknown} [onDataLoad]  the data shown changed: a file is loaded
  *   (`cause` "load"; returning false refuses it, the data stays), the host's data shown again
- *   ("original"), or one of those undone or redone ("undo", "redo")
+ *   ("original"), one of those undone or redone ("undo", "redo"), or the file shown again by a report
+ *   mounted again with its storageKey ("restore")
  * @property {() => Worker} [importWorker]  starts a module worker that runs pivotkit-react's
  *   `import-worker` entry, so CSV and JSON files are read off the page; without it they are read on
  *   the page (pivotkit-element brings its own)

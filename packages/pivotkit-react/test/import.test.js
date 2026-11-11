@@ -1,5 +1,6 @@
 // Loading data in the browser, the parts without a DOM: the source id of a file (import-source.js),
-// the data steps of the undo history (data-history.js, import-steps.js), the texts of the import UI
+// the data steps of the undo history (data-history.js, import-steps.js), the file kept over a new
+// mount (data-keep.js), the texts of the import UI
 // and of the readers' notes (import-labels.js), and how a file is read: in the host's worker for the
 // built-in readers, on the page for a plugin or when the worker does not start (import-run.js).
 import { test } from "node:test";
@@ -11,7 +12,8 @@ import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, w
 import { IMPORT_TEXTS, de, en, importLabels, noteText } from "../src/import-labels.js";
 import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { SHOWN_MAX, sha256Bytes, sha256Hex, shownName, sourceIdOf } from "../src/import-source.js";
-import { backToOriginal, loadData, moveData } from "../src/import-steps.js";
+import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
+import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
 import { resolveLabels } from "../src/labels.js";
 import { createState } from "../src/view-history.js";
 
@@ -360,4 +362,58 @@ test("a host whose onDataLoad throws: a load is refused with its message; a step
     } finally {
         globalThis.setTimeout = realTimeout;
     }
+});
+
+test("a report mounted again: its file's data is kept per storageKey in memory, for the same host data only, for at most KEPT_REPORTS reports", () => {
+    const host = hostIdentity({ dataKey: "sales-2000", sourceId: "sales", schemaKey: "[]" });
+    const entry = (name) => ({ host, imported: { key: 1, encoded: encode([]), source: { id: `${name}#0`, name }, sheet: null, file: { name, size: 1, type: "text/csv" } }, steps: NO_DATA_STEPS, history: createState("1|x", "s"), savedKeys: {} });
+    const a = entry("a.csv");
+    keepData("report-a", a);
+    assert.equal(keptData("report-a", host), a);
+    assert.equal(keptData("report-a", host), a, "reading keeps it: the report writes it again while the file is shown");
+    // two reports, two keys
+    const b = entry("b.csv");
+    keepData("report-b", b);
+    assert.equal(keptData("report-a", host), a);
+    assert.equal(keptData("report-b", host), b);
+    // the host's data is other data: another dataKey, another source, or (without a dataKey) other columns
+    assert.notEqual(hostIdentity({ dataKey: "sales-500", sourceId: "sales", schemaKey: "[]" }), host);
+    assert.notEqual(hostIdentity({ dataKey: "sales-2000", sourceId: "other", schemaKey: "[]" }), host);
+    assert.equal(hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","string"]]' }), hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","string"]]' }));
+    assert.notEqual(hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","string"]]' }), hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","number"]]' }));
+    assert.notEqual(hostIdentity({ dataKey: 1, sourceId: undefined, schemaKey: "[]" }), hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: "1" }));
+    // a report mounted over other data takes nothing, and the entry goes
+    assert.equal(keptData("report-a", hostIdentity({ dataKey: "sales-500", sourceId: "sales", schemaKey: "[]" })), null);
+    assert.equal(keptData("report-a", host), null);
+    // the host's data shown again lets it go
+    forgetData("report-b");
+    assert.equal(keptData("report-b", host), null);
+    // bounded: the key written longest ago goes first
+    for (let i = 0; i <= KEPT_REPORTS; i++) {
+        keepData(`r${i}`, entry(`${i}.csv`));
+    }
+    assert.equal(keptData("r0", host), null);
+    for (let i = 1; i <= KEPT_REPORTS; i++) {
+        assert.equal(keptData(`r${i}`, host)?.imported.source.name, `${i}.csv`);
+    }
+    // written again, a key is the latest
+    keepData("r1", entry("1.csv"));
+    keepData("r9", entry("9.csv"));
+    assert.equal(keptData("r2", host), null);
+    assert.ok(keptData("r1", host));
+    for (let i = 0; i <= 9; i++) {
+        forgetData(`r${i}`);
+    }
+});
+
+test("a file's data shown again by a report mounted again tells the host (onDataLoad \"restore\"); the host's data tells nothing", () => {
+    const labels = resolveLabels("en-US");
+    const file = encode({ columns: ["Id", "Team"], types: ["number", "string"], data: [[1, 2], ["x", "y"]] });
+    const told = [];
+    const imported = { key: 7, encoded: file, source: { id: "t.csv#0123456789abcdef", name: "t.csv" }, sheet: null, file: { name: "t.csv", size: 10, type: "text/csv" } };
+    const ctx = { imported, hostEncoded: encode([{ Team: "A" }]), hostSource: { id: "sales" }, onDataLoad: (d) => told.push(d), labels, locale: "en-US" };
+    restoreData(/** @type {any} */ (ctx));
+    assert.deepEqual(told, [{ cause: "restore", source: imported.source, file: imported.file, sheet: null, rows: 2, columns: [{ name: "Id", type: "number" }, { name: "Team", type: "string" }], notes: [] }]);
+    restoreData(/** @type {any} */ ({ ...ctx, imported: null }));
+    assert.equal(told.length, 1);
 });

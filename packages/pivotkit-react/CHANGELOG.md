@@ -24,6 +24,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   that reads CSV and JSON off the page, with the page as the fallback.
 - While a file's data is shown the report's source is the file's: its name and the first 16 hex digits
   of the SHA-256 of its name and column names, so the browser store keeps views per file.
+- A report mounted again by its host ([#131](https://github.com/eizedev/pivotkit/issues/131)), as
+  PowerShell Universal does on its light/dark switch and on `Sync-UDElement`, shows the loaded file
+  again with its view and its undo steps, when it has the same `storageKey` and the host's data is
+  the same (`dataKey`, else its columns, and `source`). Kept in the page's memory only, never in
+  browser storage, for up to four reports; let go when the host's data is shown again. `onDataLoad`
+  hears it as `cause` "restore".
 - `data` takes columnar data (`{ columns, types, data }`), as pivotkit-core's `encode` does.
 - The import UI is a file of its own, `dist/import-ui.js` (with `pivotkit-core/import`, which this
   release needs from pivotkit-core), loaded on its first use; the first load keeps the Data button and

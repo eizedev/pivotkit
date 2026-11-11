@@ -2,7 +2,7 @@
 // worker (dist/import-worker.js) for CSV and JSON, pivotkit-xlsx's dist/ as a plugin (the property
 // `plugins`), every pivot-data-load in window.__loads, every violation of the policy in
 // window.__violations. ?refuse prevents the loads, ?columnar sets the data as columns, ?empty sets
-// none, ?limits sets limits.importCells to 10 (a workbook's larger sheet fails). window.__selects counts the native <select> elements the report creates: WebKit reports a
+// none, ?limits sets limits.importCells to 10 (a workbook's larger sheet fails). ?key sets storageKey. window.__selects counts the native <select> elements the report creates: WebKit reports a
 // style-src-attr violation for each (its own shadow tree of the control), with or without pivotkit.
 import { DATASETS } from "../../../../examples/playground/src/data.js";
 
@@ -28,6 +28,9 @@ el.addEventListener("pivot-data-load", (e) => {
         e.preventDefault();
     }
 });
+if (query.has("key")) {
+    el.storageKey = "element-import";
+}
 if (query.has("limits")) {
     el.limits = { importCells: 10 };
 }

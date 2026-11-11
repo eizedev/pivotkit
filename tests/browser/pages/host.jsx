@@ -5,7 +5,11 @@
 // tooltip formatter, ?loading holds the data back for 800 ms, ?broken starts on a view with parts the
 // data cannot use (a field it lacks, an unknown format), ?import allows loading data (pivotkit-xlsx
 // as a plugin, a new plugins array on every render, no worker; window.__loads keeps onDataLoad's
-// details). window.__chartOption() reads the option
+// details). ?remount adds the host's buttons that mount the report again (a new React key, as
+// PowerShell Universal does on its light/dark switch and Sync-UDElement): "Mount again" with the same
+// data, "New data" with other rows under another dataKey; both start the controlled view again at the
+// host's start view, as a remounted PowerShell Universal component does; ?two a second report under its own
+// storageKey; ?nokey leaves storageKey out. window.__chartOption() reads the option
 // the chart draws, from the ECharts the report loaded (the same module through the import map).
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -14,6 +18,7 @@ import xlsxReader from "pivotkit-xlsx";
 import { DATASETS } from "../../../examples/playground/src/data.js";
 
 const rows = DATASETS.sales.make(2000);
+const otherRows = DATASETS.sales.make(500);
 const query = new URLSearchParams(location.search);
 const start = query.has("broken") ? { rows: ["Region", "Hostname"], values: [{ field: "Revenue", agg: "sum", format: "money" }] } : DATASETS.sales.presets[0].view;
 
@@ -21,6 +26,9 @@ function Host() {
     const [view, setView] = useState(start);
     const [tick, setTick] = useState(0);
     const [loading, setLoading] = useState(query.has("loading"));
+    // ?remount: the report's React key (a new one mounts it again) and which rows the host passes
+    const [mount, setMount] = useState(0);
+    const [other, setOther] = useState(false);
     useEffect(() => {
         const t = setInterval(() => setTick((n) => n + 1), 200);
         const l = setTimeout(() => setLoading(false), 800);
@@ -33,12 +41,32 @@ function Host() {
         ...(query.has("persist") ? { persistView: "session", storageKey: "host" } : {}),
         ...(query.has("options") ? { chartOptions: { title: { textStyle: { fontSize: 20 } }, series: { barMaxWidth: 12 }, grid: { left: 40 } } } : {}),
         ...(query.has("xss") ? { chartOptions: { tooltip: { formatter: '<img src="x" onerror="window.__xss = true">' }, series: { barMaxWidth: 10 } } } : {}),
-        ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => window.__loads.push(d), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {})
+        ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => window.__loads.push(d), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
+        ...(query.has("nokey") ? { storageKey: undefined } : {})
     };
+    const shown = loading ? [] : other ? otherRows : rows;
+    const dataKey = loading ? "none" : other ? "sales-500" : "sales-2000";
     return (
         <>
             <p data-testid="host-renders">{tick}</p>
-            <PivotReport data={loading ? [] : [...rows]} dataKey={loading ? "none" : "sales-2000"} view={view} onViewChange={setView} height={640} loading={loading} {...extra} />
+            {query.has("remount") ? (
+                <p>
+                    <button type="button" data-testid="host-remount" onClick={() => (setView(start), setMount((n) => n + 1))}>
+                        Mount again
+                    </button>
+                    <button type="button" data-testid="host-new-data" onClick={() => (setView(start), setOther(true), setMount((n) => n + 1))}>
+                        New data
+                    </button>
+                </p>
+            ) : null}
+            <section data-testid="first">
+                <PivotReport key={mount} data={[...shown]} dataKey={dataKey} view={view} onViewChange={setView} height={640} loading={loading} {...extra} />
+            </section>
+            {query.has("two") ? (
+                <section data-testid="second">
+                    <PivotReport key={mount} data={[...shown]} dataKey={dataKey} defaultView={start} height={640} {...extra} storageKey="host-import-2" />
+                </section>
+            ) : null}
         </>
     );
 }

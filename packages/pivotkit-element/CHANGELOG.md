@@ -14,8 +14,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   `dist/` as a plugin); the cancelable event `pivot-data-load` for every change of the data shown.
   CSV and JSON files are read in the element's own worker, `dist/import-worker.js` (a file of the
   page's origin, so a strict CSP with `script-src 'self'` allows it; where it cannot start, the
-  element reads on the page). The import UI is the load group "import" (19.8 KiB gzip), loaded on its
+  element reads on the page). The import UI is the load group "import" (19.9 KiB gzip), loaded on its
   first use.
+- An element with `storage-key` taken out of the page and put back
+  ([#131](https://github.com/eizedev/pivotkit/issues/131)) shows the loaded file again with its view
+  and its undo steps (in the page's memory only); `pivot-data-load` says so with `cause` "restore".
 - `data` takes columnar data (`{ columns, types, data }`).
 - pivotkit-react's identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field named ID, …Id, …_id, Nr, No, Number
   or Key with whole numbers, without `agg`, `format` or `drillFormat` in `fieldDefaults`, is counted
@@ -26,7 +29,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
-- The first load grows from 157.5 to 160.0 KiB gzip (the Data button, the drop handler and the rules
+- The first load grows from 157.5 to 160.3 KiB gzip (the Data button, the drop handler and the rules
   of the import UI, and two more files esbuild splits off); its budget is 161.5.
 - pivotkit-react's **Start over** menu in the toolbar (Reset and New, empty report, each with what it
   does or why it is off) replaces the Reset button; the Views menu holds This view, Shared views, My

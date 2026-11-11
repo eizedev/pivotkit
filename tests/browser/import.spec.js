@@ -514,3 +514,146 @@ test("review fixes: the formats in German; the empty report without data says it
     await page.waitForFunction(() => window.__ready === true);
     await expect(page.locator("pivot-report").getByTestId("empty-drop")).toContainText("Drop a file onto the report, or");
 });
+
+const TICKET_FIELDS = ["Id", "Team", "Opened", "Hours", "Zip"];
+
+/** Clicks a host button that mounts the report again and waits until the report shown is a new one. */
+async function mountAgain(page, button, scope = page) {
+    const old = await scope.locator(".pk-root").first().elementHandle();
+    await page.getByTestId(button).click();
+    await expect.poll(() => old.evaluate((n) => n.isConnected)).toBe(false);
+    await expect(scope.locator(".pk-root").first()).toBeVisible();
+}
+
+test("a host that mounts the report again (PowerShell Universal's theme switch): the loaded file comes back with its view and its undo steps", async ({ page }) => {
+    await page.goto("pages/host.html?import&remount");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    const before = await fieldNames(page);
+    const hostChips = await chips(page, "rows");
+    await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await page.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
+    await drag(page, page.locator('.pk-field[data-field="Team"]'), page.locator('[data-zone="rows"]'));
+    await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    const table = await tableRows(page);
+    expect(table.slice(0, 3).map((r) => r[0])).toEqual(["Client", "Network", "Server"]);
+    // the host mounts the report again and starts its own (controlled) view again, as PSU does
+    await mountAgain(page, "host-remount");
+    await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
+    await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+    await expect(page.getByTestId("data-loaded")).toHaveCount(1);
+    await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    expect(await tableRows(page)).toEqual(table);
+    // the host hears that the file is shown again, before the view it shows
+    const loads = await page.evaluate(() => window.__loads);
+    expect(loads.map((l) => l.cause)).toEqual(["load", "restore"]);
+    expect(loads[1]).toMatchObject({ source: { name: "tickets.csv" }, file: { name: "tickets.csv" }, rows: 4, notes: [] });
+    expect(loads[1].source.id).toBe(loads[0].source.id);
+    // the undo steps came along: the step on the file, then the load; Redo both again
+    await page.getByTestId("undo").click();
+    await expect.poll(() => chips(page, "rows")).toEqual([]);
+    await page.getByTestId("undo").click();
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect.poll(() => chips(page, "rows")).toEqual(hostChips);
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await page.getByTestId("redo").click();
+    await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
+    await page.getByTestId("redo").click();
+    await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    // twice in a row works the same
+    await mountAgain(page, "host-remount");
+    await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+});
+
+test("what a report mounted again does not bring back: the host's data after Back to original data or Undo, other data from the host, a report without storageKey", async ({ page }) => {
+    const load = async () => {
+        await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+        await page.getByTestId("import-apply").click();
+        await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
+    };
+    await page.goto("pages/host.html?import&remount");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    const before = await fieldNames(page);
+    // Back to original data: nothing of the file is kept
+    await load();
+    await dataMenu(page);
+    await page.getByTestId("back-to-original").click();
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await mountAgain(page, "host-remount");
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await expect(page.getByTestId("undo")).toBeDisabled();
+    // Undo of the load: the same
+    await load();
+    await page.getByTestId("undo").click();
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await mountAgain(page, "host-remount");
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await expect(page.getByTestId("undo")).toBeDisabled();
+    // the host passes other data (another dataKey) when it mounts the report again: its data is shown
+    await load();
+    await mountAgain(page, "host-new-data");
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await expect(page.getByTestId("undo")).toBeDisabled();
+    // without storageKey the report keeps nothing
+    await page.goto("pages/host.html?import&remount&nokey");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await load();
+    await mountAgain(page, "host-remount");
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+});
+
+test("two reports on a page, each with its own storageKey: each gets its own file back", async ({ page }) => {
+    await page.goto("pages/host.html?import&remount&two");
+    const first = page.getByTestId("first");
+    const second = page.getByTestId("second");
+    await expect(first.getByTestId("pivot-table")).toBeVisible();
+    await expect(second.getByTestId("pivot-table")).toBeVisible();
+    const before = await fieldNames(second);
+    await dropFiles(page, first.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await first.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(first)).toEqual(TICKET_FIELDS);
+    await mountAgain(page, "host-remount", second);
+    await expect.poll(() => fieldNames(first)).toEqual(TICKET_FIELDS);
+    await expect.poll(() => fieldNames(second)).toEqual(before);
+    await expect(second.getByTestId("source-line")).toHaveCount(0);
+    // the second report loads a file of its own
+    const teams = JSON.stringify([{ Team: "A", Hours: 2 }, { Team: "B", Hours: 3 }]);
+    await dropFiles(page, second.getByTestId("pivot-table"), [{ name: "teams.json", type: "application/json", text: teams }]);
+    await second.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(second)).toEqual(["Team", "Hours"]);
+    await mountAgain(page, "host-remount", second);
+    await expect.poll(() => fieldNames(first)).toEqual(TICKET_FIELDS);
+    await expect.poll(() => fieldNames(second)).toEqual(["Team", "Hours"]);
+    await expect(first.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+    await expect(second.getByTestId("source-line")).toHaveText("teams.json, only in this browser");
+});
+
+strict("the element taken out of the page and put back (with storage-key): the loaded file comes back with its view and its undo steps", async ({ page }) => {
+    const report = await elementPage(page, "?key");
+    await expect(report.getByTestId("pivot-table")).toBeVisible();
+    const before = await fieldNames(report);
+    await dropFiles(page, report.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await report.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(report)).toEqual(TICKET_FIELDS);
+    await drag(page, report.locator('.pk-field[data-field="Team"]'), report.locator('[data-zone="rows"]'));
+    await expect.poll(() => chips(report, "rows")).toEqual(["Team"]);
+    // out of the page long enough to unmount its React root, then back
+    await page.evaluate(() => {
+        window.__parked = document.getElementById("report");
+        window.__parked.remove();
+    });
+    await expect.poll(() => page.evaluate(() => window.__parked.shadowRoot.querySelector(".pk-root") === null)).toBe(true);
+    await page.evaluate(() => document.body.append(window.__parked));
+    await expect.poll(() => fieldNames(report)).toEqual(TICKET_FIELDS);
+    await expect.poll(() => chips(report, "rows")).toEqual(["Team"]);
+    await expect(report.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+    expect((await page.evaluate(() => window.__loads)).map((l) => l.cause)).toEqual(["load", "restore"]);
+    await report.getByTestId("undo").click();
+    await expect.poll(() => chips(report, "rows")).toEqual([]);
+    await report.getByTestId("undo").click();
+    await expect.poll(() => fieldNames(report)).toEqual(before);
+});

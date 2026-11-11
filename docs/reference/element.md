@@ -127,7 +127,7 @@ Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then 
 
 Attribute: `storage-key`. Type: `string`.
 
-Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too.
+Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too. With `allow-import` a loaded file survives taking the element out of the page and putting it back under this key (in memory only).
 
 ### `sourceId` { #prop-sourceid }
 
@@ -144,8 +144,11 @@ People may load a CSV, TSV, text or JSON file (and with `plugins` other formats)
 before the data is replaced. Read in the browser, nothing is uploaded; Undo and "Back to original
 data" bring the page's data back. Each change of the data shown is a `pivot-data-load` event; while a
 file's data is shown its source id is the file's name and a hash of its columns, so
-`template-store="browser"` keeps views per file. Behaviour: [Load your own data](../use/load-data.md),
-and as the React prop [`allowImport`](react.md#prop-allowimport).
+`template-store="browser"` keeps views per file. An element with a `storage-key` that is taken out of
+the page and put back (its React root unmounts once it stays out past the task) shows the loaded file
+again with its view and its undo steps, if its data is the same; kept in the page's memory only, as for
+the React prop. Behaviour: [Load your own data](../use/load-data.md), and as the React prop
+[`allowImport`](react.md#prop-allowimport).
 
 The element reads CSV and JSON files in a worker of its own, `dist/import-worker.js` (pivotkit-core's
 readers in one file, about 10 KiB gzip), started from its chunk by relative URL: serve it with `dist/`.
@@ -210,7 +213,7 @@ would for the data itself.
 | `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard; cancelable. [More](#event-pivot-export)<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
-| `pivot-data-load` | The data shown changed (with `allow-import`): a file loaded (cancelable), the page's data again, or one of those undone or redone. [More](#event-pivot-data-load)<br><small>`detail`: `{ cause, source, file, sheet, rows, columns, notes }`</small> |
+| `pivot-data-load` | The data shown changed (with `allow-import`): a file loaded (cancelable), the page's data again, one of those undone or redone, or the file shown again after the element was put back. [More](#event-pivot-data-load)<br><small>`detail`: `{ cause, source, file, sheet, rows, columns, notes }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" or "Published" (or removes the entry)
@@ -256,7 +259,8 @@ Every exported file before its download and every copy before it goes on the cli
 
 `cause` is `"load"` for a file, sent before it is shown: `preventDefault()` refuses it and the data
 stays (cancelable for `"load"` only); `"original"` when "Back to original data" shows the page's
-data; `"undo"` and `"redo"` when one of those steps is undone or redone. `source` is `{ id, name }` of
+data; `"undo"` and `"redo"` when one of those steps is undone or redone; `"restore"` when an element
+with `storage-key` put back into the page shows the file it had. `source` is `{ id, name }` of
 the data shown now (the file's, or the element's `source-id` and `source-name`), `file` its
 `{ name, size, type }` (`null` for the page's data), `sheet` a workbook's sheet, `rows` and `columns`
 (`[{ name, type }]`) what it holds, `notes` the readers' notes for `"load"`

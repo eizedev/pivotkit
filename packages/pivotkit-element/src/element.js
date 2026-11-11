@@ -111,8 +111,9 @@ export { EVENTS };
 
 /**
  * @typedef {object} DataLoad  the detail of pivot-data-load: the data shown changed (with allow-import)
- * @property {"load" | "original" | "undo" | "redo"} cause  a file loaded ("load": preventDefault()
- *   refuses it, the data stays), the page's data shown again, or one of those undone or redone
+ * @property {"load" | "original" | "undo" | "redo" | "restore"} cause  a file loaded ("load": preventDefault()
+ *   refuses it, the data stays), the page's data shown again, one of those undone or redone, or the
+ *   file shown again by an element with storage-key put back into the page ("restore")
  * @property {{ id?: string, name?: string } | null} source  the data shown now: the file's (its id names
  *   the views kept for it), or the element's source-id and source-name
  * @property {{ name: string, size: number, type: string } | null} file
