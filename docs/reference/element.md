@@ -143,8 +143,9 @@ People may load a CSV, TSV, text or JSON file (and with `plugins` other formats)
 **Data** button with the data source and **Load data…**, a file dropped onto the report, a preview
 before the data is replaced. Read in the browser, nothing is uploaded; Undo and "Back to original
 data" bring the page's data back. Each change of the data shown is a `pivot-data-load` event; while a
-file's data is shown its source id is the file's name and a hash of its columns, so
-`template-store="browser"` keeps views per file. An element with a `storage-key` that is taken out of
+file's data is shown its source id is the file's name and a hash of its name and columns
+([How a loaded file is named](import.md#how-a-loaded-file-is-named)), so `template-store="browser"`
+keeps views per file. An element with a `storage-key` that is taken out of
 the page and put back (its React root unmounts once it stays out past the task) shows the loaded file
 again with its view and its undo steps, if its data is the same; kept in the page's memory only, as for
 the React prop. Behaviour: [Load your own data](../use/load-data.md), and as the React prop

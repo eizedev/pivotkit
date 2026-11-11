@@ -548,6 +548,8 @@ test("a host that mounts the report again (PowerShell Universal's theme switch):
     const loads = await page.evaluate(() => window.__loads);
     expect(loads.map((l) => l.cause)).toEqual(["load", "restore"]);
     expect(loads[1]).toMatchObject({ source: { name: "tickets.csv" }, file: { name: "tickets.csv" }, rows: 4, notes: [] });
+    // the id as docs/reference/import.md works it out ("How a loaded file is named")
+    expect(loads[0].source.id).toBe("tickets.csv#e51bd4bc21e98ee8");
     expect(loads[1].source.id).toBe(loads[0].source.id);
     // the undo steps came along: the step on the file, then the load; Redo both again
     await page.getByTestId("undo").click();

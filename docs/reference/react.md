@@ -238,10 +238,11 @@ on [Load your own data](../use/load-data.md); what the readers do on [Loading fi
 - Loading a file is a step of the undo history: Undo goes back to the data before it with the view it
   had, Redo forward again; "Back to original data" shows the host's data with its view. Up to three
   such steps are kept, since each holds a data set.
-- While a file's data is shown, the report's [`source`](#prop-source) is the file's: its name, and as
-  `id` the name and the first 16 hex digits of the SHA-256 of the name and the column names joined
-  with U+0000 (`tickets.csv#4f1c…`), so the browser store (`templateStore="browser"`) keeps views per
-  file and a view shared from one names it. The host's `source` comes back with its data.
+- While a file's data is shown, the report's [`source`](#prop-source) is the file's: its name and an
+  `id` made of the name and a hash of the name and the column names (`tickets.csv#e51bd4bc21e98ee8`;
+  the rule: [How a loaded file is named](import.md#how-a-loaded-file-is-named)), so the browser store
+  (`templateStore="browser"`) keeps views per file and a view shared from one names it. The host's
+  `source` comes back with its data.
 - The host's data and props stay as they are: a new `data` from the host while a file is shown is
   used when its data is shown again.
 - A host that mounts the report again (a new `key`, a component library that remounts on a theme

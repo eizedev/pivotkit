@@ -73,6 +73,39 @@ and one shared part (`createTable`) does the rest.
 - **Empty rows** are left out; a column without a name and without a single value is left out; a row
   with more values than there are names adds columns named `Column N`. Each is a note.
 
+## How a loaded file is named { #how-a-loaded-file-is-named }
+
+A file loaded in the report ([`allowImport`](react.md#prop-allowimport)) becomes the report's
+[`source`](react.md#prop-source) while its data is shown. Its `id` names the views saved for it in the
+browser store (`templateStore="browser"`) and in the view files and links shared from it, so the same
+file loaded again finds its views and other data does not. The rule, in this order:
+
+1. **The name** is the file's name as the browser gives it (without a folder), cleaned as a column
+   name is: control and direction characters taken out, line breaks and tabs as one space, trimmed;
+   then cut to 256 characters (UTF-16 code units). An empty name becomes `file`.
+2. **The columns** are the names of the table after the readers' cleanup
+   ([above](#column-names-and-values)): cleaned and cut to `limits.name` (256) characters, empty ones
+   named `Column N`, repeated ones `Name (2)`, columns without a name and a value left out, nested JSON
+   as `a.b`. A type picked in the preview changes nothing.
+3. **The hash**: SHA-256 of the UTF-8 bytes of the name and the column names in their order, joined
+   with U+0000. The browser's `crypto.subtle` computes it; a page without it (plain `http` on a host
+   other than `localhost`) uses pivotkit-react's own implementation, which gives the same digest.
+4. **`source.id`** is the shown name, `#` and the first 16 hex digits of the hash.
+   **`source.name`** is the shown name: the name itself, or, above 120 characters, its first 117
+   followed by `...` (116 when the 117th is the first half of a surrogate pair, so no character is
+   split). The hash always covers the whole name.
+
+| File | Columns | `source.id` |
+| --- | --- | --- |
+| `tickets.csv` | `Id`, `Team`, `Opened`, `Hours`, `Zip` | `tickets.csv#e51bd4bc21e98ee8` |
+| `tickets.csv` | `Team`, `Id`, `Opened`, `Hours`, `Zip` | `tickets.csv#d11fe64346f1d906` |
+
+The first row is SHA-256 of `tickets.csv\0Id\0Team\0Opened\0Hours\0Zip`
+(`e51bd4bc21e98ee818b3a8efcb49347b…`). Reordered, renamed or added columns, or another file name
+(`Tickets.csv` too: the name is compared as it is), make other data. The sheet of a workbook is not
+part of it: two sheets with the same columns share their views. The rows are not part of it either: a
+newer export of the same table keeps its views.
+
 ## Types
 
 A column's type is inferred from all its values, unless the caller names it (`types`, by position or

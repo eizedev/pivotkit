@@ -67,9 +67,11 @@ shown; the others keep the type found.
 - **Data** carries a dot, and the line under the result names the file: "tickets.csv, only in this
   browser" (with the sheet of a workbook).
 - A note says what was loaded: "tickets.csv loaded: 240 rows, 6 columns", with **Undo**.
-- Views you save now belong to this file: loading the same file again (the same name and the same
-  columns) offers them under **Views**; the application's data and other files do not show them
-  ([saved views](views.md)).
+- Views you save now belong to this file: loading a file with the same name and the same columns in
+  the same order offers them again under **Views**, also a newer export with other rows. A renamed
+  file, or columns renamed, added or in another order, make it other data, and the application's data
+  and other files do not show them ([saved views](views.md);
+  [how a file is named](../reference/import.md#how-a-loaded-file-is-named)).
 
 ## Back to the original data
 
