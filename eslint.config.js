@@ -42,7 +42,7 @@ export default [
     {
         // the package's version, replaced by build.js (esbuild define)
         files: ["packages/pivotkit-element/src/**"],
-        languageOptions: { globals: { __PIVOTKIT_ELEMENT_VERSION__: "readonly" } }
+        languageOptions: { globals: { __PIVOTKIT_ELEMENT_VERSION__: "readonly", __PIVOTKIT_IMPORT_WORKER__: "readonly" } }
     },
     {
         // the package's version, replaced by build.js (esbuild define)

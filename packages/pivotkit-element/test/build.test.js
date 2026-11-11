@@ -173,6 +173,35 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     assert.ok(text(groups.initial).includes('"aria-sort"'));
 });
 
+test("loading data (allow-import) loads on first use: the import UI, its texts and the readers are no part of the first load or the menus", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    for (const name of ["pivotkit-react/dist/import-ui.js", "pivotkit-core/src/import.js", "pivotkit-core/src/import-table.js", "pivotkit-core/src/import-csv.js", "pivotkit-core/src/import-json.js"]) {
+        assert.ok(inputsOf(groups.import).some((i) => i.includes(name)), `${name} is not in the import group`);
+        for (const other of ["initial", "menus"]) {
+            assert.ok(!inputsOf(groups[other]).some((i) => i.includes(name)), `${name} is in ${other}`);
+        }
+    }
+    // the dialog's and the notes' texts, English and German, come with it; the Data button's first
+    for (const words of ["Back to original data", "Datenquelle", "empty rows were left out."]) {
+        assert.ok(text(groups.import).includes(words), `"${words}" is not in the import group`);
+        assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
+    }
+    assert.ok(text(groups.initial).includes("Or load your own data"), "the empty report's line is not in the first load");
+});
+
+test("the import worker is one file next to dist/, without imports, where the element's code looks for it", async () => {
+    const { workerOptions } = await import("../build.js");
+    const worker = await esbuild.build({ ...workerOptions, write: false, metafile: true, logLevel: "silent" });
+    assert.deepEqual(worker.outputFiles.map((f) => f.path.slice(f.path.indexOf("/dist/") + 1)), ["dist/import-worker.js"]);
+    assert.deepEqual(Object.values(worker.metafile.outputs)[0].imports, [], "the worker imports a module");
+    assert.ok(Object.keys(worker.metafile.inputs).some((i) => i.includes("pivotkit-core/src/import-csv.js")));
+    // the element's code asks for "../import-worker.js" from its module: that module is in dist/chunks/
+    const holder = built.outputFiles.filter((f) => f.text.includes('"../import-worker.js"'));
+    assert.equal(holder.length, 1);
+    assert.match(holder[0].path, /\/dist\/chunks\/[^/]+\.js$/);
+});
+
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {
     const pkg = JSON.parse(await readFile(new URL("package.json", pkgDir), "utf8"));
     assert.equal(pkg.devDependencies.react, "18.3.1");

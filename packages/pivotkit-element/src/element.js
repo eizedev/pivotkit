@@ -110,12 +110,50 @@ export { EVENTS };
  */
 
 /**
+ * @typedef {object} DataLoad  the detail of pivot-data-load: the data shown changed (with allow-import)
+ * @property {"load" | "original" | "undo" | "redo"} cause  a file loaded ("load": preventDefault()
+ *   refuses it, the data stays), the page's data shown again, or one of those undone or redone
+ * @property {{ id?: string, name?: string } | null} source  the data shown now: the file's (its id names
+ *   the views kept for it), or the element's source-id and source-name
+ * @property {{ name: string, size: number, type: string } | null} file
+ * @property {string | null} sheet  the sheet of a workbook
+ * @property {number} rows
+ * @property {Array<{ name: string, type: string }>} columns
+ * @property {Array<{ code: string, params: Record<string, unknown>, message: string }>} notes  the readers' notes ("load")
+ */
+
+/**
+ * @typedef {object} ReaderPlugin  a reader plugin of pivotkit-core/import, contract version 1 (pivotkit-xlsx)
+ * @property {1} apiVersion
+ * @property {"reader"} kind
+ * @property {string} name
+ * @property {string} label
+ * @property {readonly string[]} accept
+ * @property {() => Promise<unknown>} load
+ */
+
+/**
+ * @typedef {{ columns: string[], types?: Array<"string" | "number" | "date" | "boolean" | null>, data: unknown[][] }} ColumnarData
+ *   one array per column, as pivotkit-core's encode takes it
+ */
+
+/**
  * @typedef {object} SourceSwitch  the detail of pivot-source-switch: the user chose to switch to the
  *   data a loaded view was made for; show that data and set `defaultView` to `view`
  * @property {SourceEntry} source  the entry of `sources`
  * @property {PivotView} view  the view as the file has it (made for that data, not normalized here)
  * @property {string} [name]  the view's name in the file
  */
+
+/**
+ * Starts the import worker of the package (dist/import-worker.js, next to this module's chunk): CSV
+ * and JSON files are read off the page. A file of the page's origin, never blob:, so a policy with
+ * script-src 'self' allows it; where it cannot start, the report reads on the page.
+ */
+const startImportWorker = () => new Worker(new URL(IMPORT_WORKER, import.meta.url), { type: "module" });
+
+/** Where the worker is from the module this code lands in (build.js: the bundle's layout). */
+const IMPORT_WORKER = typeof __PIVOTKIT_IMPORT_WORKER__ === "string" ? __PIVOTKIT_IMPORT_WORKER__ : "./import-worker.js";
 
 /** The tag the package defines. */
 export const TAG = "pivot-report";
@@ -408,6 +446,17 @@ export class PivotReportElement extends Base {
         this.#write("source-name", value);
     }
 
+    /**
+     * People may load a file into the report (attribute allow-import): a Data button with "Load
+     * data…", a file dropped onto the report, a preview first. Read in the browser, nothing uploaded.
+     */
+    get allowImport() {
+        return /** @type {boolean} */ (this.#read("allow-import"));
+    }
+    set allowImport(value) {
+        this.#write("allow-import", value);
+    }
+
     /** The page is loading the data: the report shows its skeleton (attribute loading). */
     get loading() {
         return /** @type {boolean} */ (this.#read("loading"));
@@ -440,9 +489,12 @@ export class PivotReportElement extends Base {
 
     // ---- properties without an attribute ----
 
-    /** The rows: an array of objects; encoded once per array, or once per `dataKey`. */
+    /**
+     * The rows: an array of objects, or columnar data ({ columns, types, data }, one array per column);
+     * encoded once per array or object, or once per `dataKey`.
+     */
     get data() {
-        return /** @type {object[] | undefined} */ (this.#values.data);
+        return /** @type {object[] | ColumnarData | undefined} */ (this.#values.data);
     }
     set data(value) {
         this.#set("data", value);
@@ -508,6 +560,17 @@ export class PivotReportElement extends Base {
     }
     set sources(value) {
         this.#set("sources", value);
+    }
+
+    /**
+     * Reader plugins for more formats with allow-import (pivotkit-xlsx for Excel workbooks); CSV, TSV,
+     * text and JSON are built in.
+     */
+    get plugins() {
+        return /** @type {ReaderPlugin[] | undefined} */ (this.#values.plugins);
+    }
+    set plugins(value) {
+        this.#set("plugins", value);
     }
 
     /** pivotkit-core's limits (rows, cells, ...). */
@@ -611,7 +674,8 @@ export class PivotReportElement extends Base {
         const v = this.#values;
         const controlled = v.view !== undefined;
         return {
-            data: Array.isArray(v.data) ? v.data : [],
+            // rows or columnar data; anything else the report reads as no data
+            data: v.data,
             dataKey: v.dataKey,
             view: v.view,
             defaultView: controlled ? undefined : (this.#lastView ?? v.defaultView),
@@ -652,7 +716,11 @@ export class PivotReportElement extends Base {
             grow: this.grow,
             // another value reaches the report, which ignores it with a warning
             fieldList: /** @type {any} */ (this.fieldList),
-            onSourceSwitch: this.#onSourceSwitch
+            onSourceSwitch: this.#onSourceSwitch,
+            allowImport: this.allowImport,
+            plugins: Array.isArray(v.plugins) ? v.plugins : undefined,
+            onDataLoad: this.#onDataLoad,
+            importWorker: startImportWorker
         };
     }
 
@@ -685,6 +753,9 @@ export class PivotReportElement extends Base {
     #onSourceSwitch = (request) => {
         emit(this, EVENTS.sourceSwitch, request);
     };
+
+    /** false (the file is not loaded) when a listener called preventDefault() on a load @param {DataLoad} load */
+    #onDataLoad = (load) => emit(this, EVENTS.dataLoad, load, { cancelable: load.cause === "load" });
 
     /** false (no download, no copy) when a listener called preventDefault() @param {ExportFile} file */
     #onExport = (file) => emit(this, EVENTS.export, file, { cancelable: true });

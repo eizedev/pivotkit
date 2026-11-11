@@ -2,7 +2,7 @@
 // PivotReportElement, and addEventListener("pivot-view-change", ...) on it (or on a parent: the events
 // bubble and are composed) knows the event's detail. Copied next to the generated declarations by
 // types.js; written by hand because JSDoc cannot augment global interfaces.
-import type { CellClick, ExportFile, PivotReportElement, PivotView, SourceSwitch, TemplateDelete, TemplatePublish, TemplateSave, TipDismiss } from "./element.js";
+import type { CellClick, DataLoad, ExportFile, PivotReportElement, PivotView, SourceSwitch, TemplateDelete, TemplatePublish, TemplateSave, TipDismiss } from "./element.js";
 
 /** The events of <pivot-report>. */
 export interface PivotReportEventMap {
@@ -22,6 +22,8 @@ export interface PivotReportEventMap {
     "pivot-tip-dismiss": CustomEvent<TipDismiss>;
     /** "Switch to <name> and load" for a view made for other data (one of `sources`): show that data with `detail.view`. */
     "pivot-source-switch": CustomEvent<SourceSwitch>;
+    /** The data shown changed (with `allow-import`): a file loaded (`preventDefault()` refuses it), the page's data again, or one of those undone or redone. */
+    "pivot-data-load": CustomEvent<DataLoad>;
 }
 
 declare global {
