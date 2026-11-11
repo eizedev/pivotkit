@@ -62,8 +62,9 @@ The report adapts to its own width, not the window's.
   lands.
 - **Sheets**: on a phone **More** and every menu are a sheet at the bottom of the window, at most
   82 % of its height, scrolling inside: every entry is reachable.
-- **More**: toolbar buttons that do not fit move into **More**, in a fixed order - Start over
-  first, then Layout, Options, the chart type and Views last - but only those the room left in the
+- **More**: toolbar buttons that do not fit move into **More**, in a fixed order - Layout
+  first, then Options, the chart type, and Start over and Views last (Start over holds New, and
+  Views is where you save) - but only those the room left in the
   toolbar cannot hold: a button that fits stays, even when one before it in that order had to go.
   The room is measured with the texts of the report's language, so a shorter language keeps more
   buttons. The chart type keeps the room of its longest type, so picking another type never moves a
@@ -76,9 +77,9 @@ The report adapts to its own width, not the window's.
   | Window (field list open / folded) | English | German |
   | --- | --- | --- |
   | 1920 px | every button / every button | every button / every button |
-  | 1440 px | Start over in More / every button | Start over, Layout and Options in More / Start over in More |
-  | 1280 px | Start over, Layout and Options in More / every button | the chart type too / Start over, Layout and Options in More |
-  | 1000 px | everything in More / Start over, Layout and Options in More | everything in More / everything but Views in More |
+  | 1440 px | Layout and Options in More / every button | Layout, Options and the chart type in More / Layout and Options in More |
+  | 1280 px | Options and the chart type in More / every button | everything but Views in More / Layout and the chart type in More |
+  | 1000 px | everything in More / Layout, Options and the chart type in More | everything in More / everything but Views in More |
 
   Measured in the playground with the sales data (Chromium); another font or other texts move the
   limits a little.

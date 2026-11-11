@@ -305,12 +305,19 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
  *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
- *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode, arrowOpens?: boolean }} props
+ *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode, arrowOpens?: boolean, off?: string }} props
  *   `tabIndex`: -1 where a list moves the focus itself (the field list); `mark`: after the text (the
- *   dot for unsaved changes on "More"); `arrowOpens`: the down arrow opens it (a toolbar's menu)
+ *   dot for unsaved changes on "More"); `arrowOpens`: the down arrow opens it (a toolbar's menu);
+ *   `off`: why it opens nothing now (every entry of its menu is off): it stays focusable
+ *   (aria-disabled) with the reason as its description and tooltip
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark, arrowOpens = false }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark, arrowOpens = false, off }) {
     const [open, setOpen] = useState(false);
+    const offId = useId();
+    // an open menu closes once every entry in it is off (New right in it)
+    if (off && open) {
+        setOpen(false);
+    }
     const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const ref = buttonRef ?? own;
     const id = useId();
@@ -320,20 +327,22 @@ export function MenuButton({ label, icon, text, showText = true, className, role
             <button
                 ref={ref}
                 type="button"
-                className={className ?? "pk-btn"}
                 aria-haspopup={role === "menu" ? "menu" : "dialog"}
                 aria-expanded={open}
                 aria-controls={open ? id : undefined}
                 aria-label={name ?? (showText && text ? undefined : label)}
-                title={title ?? (showText && text ? undefined : label)}
+                aria-disabled={off ? true : undefined}
+                aria-describedby={off ? offId : undefined}
+                title={off ?? title ?? (showText && text ? undefined : label)}
+                className={`${className ?? "pk-btn"}${off ? " pk-off" : ""}`}
                 disabled={disabled}
                 tabIndex={tabIndex}
                 data-pk-slot={slot}
                 data-testid={testId}
-                onClick={() => setOpen((o) => !o)}
+                onClick={() => (off ? undefined : setOpen((o) => !o))}
                 // the menu button pattern: the down arrow opens the menu too (Enter and Space click)
                 onKeyDown={arrowOpens ? (e) => {
-                    if (e.key === "ArrowDown" && !open) {
+                    if (e.key === "ArrowDown" && !open && !off) {
                         e.preventDefault();
                         setOpen(true);
                     }
@@ -343,6 +352,11 @@ export function MenuButton({ label, icon, text, showText = true, className, role
                 {showText && text ? <span className="pk-btn-text">{text}</span> : null}
                 {mark}
                 {showText && text ? <Icon name="chevronDown" size={14} className="pk-caret" /> : null}
+                {off ? (
+                    <span id={offId} hidden>
+                        {off}
+                    </span>
+                ) : null}
             </button>
             <Popover open={open} anchor={ref} onClose={close} label={label} role={role} align={align} className={popoverClass} id={id} fill={fill}>
                 {children(close)}

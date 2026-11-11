@@ -142,3 +142,26 @@ test("in More: a letter jumps to the next entry that starts with it; Layout is a
     // the groups without a title are no unnamed groups for a screen reader
     expect(await page.locator('.pk-popover [role="group"]:not([aria-label]):not([aria-labelledby])').count()).toBe(0);
 });
+
+test("both actions off (an empty start, an empty report): Start over itself is off and says why", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await page.goto("?data=sales&empty");
+    const button = page.getByTestId("start-over");
+    await expect(button).toHaveAttribute("aria-disabled", "true");
+    await expect(button).toHaveAccessibleDescription("The report is empty already.");
+    await expect(button).toHaveAttribute("title", "The report is empty already.");
+    // a click and the keys open nothing; the button keeps the focus, so the reason is heard
+    const at = await button.boundingBox();
+    await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2);
+    await expect(page.getByRole("menu", { name: "Start over" })).toHaveCount(0);
+    await button.focus();
+    for (const key of ["Enter", " ", "ArrowDown"]) await page.keyboard.press(key);
+    await expect(page.getByRole("menu", { name: "Start over" })).toHaveCount(0);
+    await expect(button).toBeFocused();
+    // a field placed: New is possible, Start over opens again
+    await page.getByTestId("field-menu-Region").click();
+    await page.getByRole("menuitem", { name: "Add to Rows" }).click();
+    await expect(button).not.toHaveAttribute("aria-disabled", "true");
+    await button.click();
+    await expect(page.getByRole("menu", { name: "Start over" })).toBeVisible();
+});

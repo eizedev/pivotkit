@@ -19,6 +19,7 @@ arrow keys still stop on it, so a screen reader hears the reason; the same in St
 | Undo, Redo | there is a step to take back or to repeat |
 | Start over, **Reset** | the report differs from the start view ("Already at the start view."), and the start view is not the empty report ("The start view is empty: use New, empty report.") |
 | Start over, **New, empty report** | a field is placed ("The report is empty already.") |
+| **Start over** itself | one of its two entries is available; else greyed out with "The report is empty already." |
 | Export, every entry | a field is placed ("Add a field first.") |
 | Export, **Chart image (.png)** | the chart is shown and drawn ("Switch to Chart first.") |
 | Options, Help, **Show dismissed tips again** | you dismissed a tip |

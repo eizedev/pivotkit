@@ -107,7 +107,9 @@ for (const lang of ["en", "de"]) {
         expect(seen["1920 px, field list open"]).toEqual(Object.keys(MOVABLE));
         expect(seen["1920 px, field list folded"]).toEqual(Object.keys(MOVABLE));
         if (lang === "en") {
-            expect(seen["1440 px, field list open"]).toEqual(expect.arrayContaining(["layout", "options", "views"]));
+            // Start over (where New is) goes late: it stays where Layout and Options already went
+            expect(seen["1440 px, field list open"]).toEqual(expect.arrayContaining(["start-over", "views"]));
+            expect(seen["1280 px, field list open"]).toEqual(expect.arrayContaining(["start-over", "views"]));
             expect(seen["1440 px, field list folded"]).toEqual(Object.keys(MOVABLE));
         }
         // Views is the last to go: wherever any button besides it shows, Views does too

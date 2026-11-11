@@ -10,12 +10,13 @@
 /**
  * The buttons that move into "More" when the toolbar is too narrow, first to go first: a fixed
  * priority. The order never depends on a button's own state (Layout open or folded, the chart type
- * picked: its room is its longest type's), so a click never moves it. Start over goes first. Views
- * goes last: it is where a user saves the report. "data" is the place of a Data button (loading data):
+ * picked: its room is its longest type's), so a click never moves it. Layout goes first. Start over
+ * and Views go last: Start over holds New, which must be as easy to find as Reset, and Views is where
+ * a user saves the report. "data" is the place of a Data button (loading data):
  * a toolbar without one leaves it out and pays nothing for it. Redo is not in the list: it stays next
  * to Undo, which always stays, as do Table | Chart and Export.
  */
-export const OVERFLOW_ORDER = Object.freeze(["startOver", "layout", "options", "chartType", "data", "views"]);
+export const OVERFLOW_ORDER = Object.freeze(["layout", "options", "chartType", "data", "startOver", "views"]);
 
 /**
  * The groups of "More", in order, each with a rule between it and the one before: starting over (its

@@ -195,10 +195,11 @@ async function licenses(metafile) {
  * shown took the first load to 155.5 measured on a Mac (CI about 155.8), budget 157.
  * Start over (a menu of Reset and New with their reasons, first-load texts), the one group style of
  * every menu (popover.jsx's Group, first load as More draws its groups) and the toolbar's measured
- * overflow took the first load from 155.9 to 156.8 measured on a Mac (CI about 157.1), budget 158.
+ * overflow took the first load from 155.9 to 156.8 measured on a Mac; with pivotkit-core's readers
+ * (#123) 157.4 (CI about 157.7), budget 158.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 158, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5 };
+export const SIZE_BUDGET_KIB = { initial: 158.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

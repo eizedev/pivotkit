@@ -258,16 +258,18 @@
     transition: background var(--pk-duration), border-color var(--pk-duration), box-shadow var(--pk-duration), transform var(--pk-duration);
 }
 
-.pk-btn:hover:not(:disabled) {
+.pk-btn:hover:not(:disabled, .pk-off) {
     background: var(--pk-surface-3);
     border-color: var(--pk-border-strong);
 }
 
-.pk-btn:active:not(:disabled) {
+.pk-btn:active:not(:disabled, .pk-off) {
     transform: translateY(1px);
 }
 
-.pk-btn:disabled {
+/* off: a menu button whose entries are all off (pk-off) stays focusable, so its reason is heard */
+.pk-btn:disabled,
+.pk-btn.pk-off {
     opacity: 0.45;
     cursor: default;
 }

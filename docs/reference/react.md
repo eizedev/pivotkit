@@ -296,7 +296,7 @@ The report adapts to its own width, not the window's: wide (1024 px and more) ha
 the left and the zones in a 2 x 2 grid; medium narrows the field list; narrow (below 640 px) opens the
 field list as a drawer from the toolbar and shows menus as bottom sheets (at the bottom of the
 window, at most 82 % of its height, scrolling inside). Toolbar buttons move into "More" by a fixed
-priority (`OVERFLOW_ORDER`: Start over, Layout, Options, the chart type,
+priority (`OVERFLOW_ORDER`: Layout, Options, the chart type, then Start over and
 Views last), but only those the room left cannot hold (`overflowHidden` in `overflow.js`): the
 first ones in the order go until the rest fits, then each of them the room left still holds comes
 back. Each button's room is measured with the texts of the report's labels in the font the toolbar is

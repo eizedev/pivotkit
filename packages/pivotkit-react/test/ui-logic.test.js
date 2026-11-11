@@ -423,15 +423,15 @@ test("history tags: a new schema starts without one, a change from outside keeps
 
 test("toolbar: which buttons go into More follows a fixed priority and the room left, never more than needed", async () => {
     const { MORE_GROUPS, OVERFLOW_ORDER, TOOLBAR_ROOM, overflowHidden } = await import("../src/overflow.js");
-    // Redo stays with Undo: it never moves; Start over goes first; Views, where the report is saved,
-    // goes last; "data" is the place of a Data button
-    assert.deepEqual(OVERFLOW_ORDER, ["startOver", "layout", "options", "chartType", "data", "views"]);
+    // Redo stays with Undo: it never moves; Layout goes first; Start over (where New is) and Views,
+    // where the report is saved, go last; "data" is the place of a Data button
+    assert.deepEqual(OVERFLOW_ORDER, ["layout", "options", "chartType", "data", "startOver", "views"]);
     // More's groups hold every entry of the order once
     assert.deepEqual(MORE_GROUPS.flat().sort(), [...OVERFLOW_ORDER].sort());
-    const present = ["startOver", "layout", "options", "chartType", "views"];
+    const present = ["layout", "options", "chartType", "startOver", "views"];
     const all = TOOLBAR_ROOM.display + TOOLBAR_ROOM.sep + TOOLBAR_ROOM.undo + TOOLBAR_ROOM.redo + TOOLBAR_ROOM.export + present.reduce((n, id) => n + TOOLBAR_ROOM[id], 0);
     assert.deepEqual(overflowHidden(all, false, present), [], "room for every button");
-    assert.deepEqual(overflowHidden(all - 0.1, false, present), ["startOver"], "a little less: Start over goes first");
+    assert.deepEqual(overflowHidden(all - 0.1, false, present), ["layout"], "a little less: Layout goes first");
     assert.deepEqual(overflowHidden(0, false, present), present, "no room: all of them");
     // a narrow report has the Fields button too: what goes makes room for it and for More
     const narrowHidden = overflowHidden(all, true, present);
@@ -442,21 +442,22 @@ test("toolbar: which buttons go into More follows a fixed priority and the room 
     for (let w = 40; w <= all + 1; w += 0.5) {
         assert.deepEqual(overflowHidden(w, false, present, { ...TOOLBAR_ROOM, data: 50 }), overflowHidden(w, false, present));
     }
-    // ... and with one, it goes before Views
-    assert.deepEqual(overflowHidden(all, false, [...present, "data"], { ...TOOLBAR_ROOM, data: 3 }), ["startOver"]);
+    // ... and with one, it goes before Start over and Views
+    assert.deepEqual(overflowHidden(all, false, [...present, "data"], { ...TOOLBAR_ROOM, data: 0.5 }), ["layout"]);
+    assert.deepEqual(overflowHidden(0, false, [...present, "data"], { ...TOOLBAR_ROOM, data: 3 }), ["layout", "options", "chartType", "data", "startOver", "views"]);
 });
 
 test("toolbar: a button the room left holds stays, even when one before it in the order had to go", async () => {
     const { overflowHidden } = await import("../src/overflow.js");
-    const present = ["startOver", "layout", "options", "chartType", "views"];
-    // fixed parts 100; Options is wide: once it has gone, Layout fits again
-    const room = { display: 60, sep: 4, undo: 18, redo: 18, export: 0, startOver: 10, layout: 10, options: 30, chartType: 10, views: 10, more: 5 };
+    const present = ["layout", "options", "chartType", "startOver", "views"];
+    // fixed parts 100; Options is wide: once it has gone, the narrow Layout before it fits again
+    const room = { display: 60, sep: 4, undo: 18, redo: 18, export: 0, layout: 5, options: 30, chartType: 10, startOver: 10, views: 10, more: 5 };
     const fixed = 100;
-    // the order alone puts Start over, Layout and Options into More: then 100 + Chart type 10 +
-    // Views 10 + More 5 = 125 fits in 140, and Layout (10) still fits in the 15 left
-    assert.deepEqual(overflowHidden(fixed + 40, false, present, room), ["startOver", "options"]);
-    // with a little more room Start over comes back too, the wide Options still does not fit
-    assert.deepEqual(overflowHidden(fixed + 50, false, present, room), ["options"]);
+    // the order alone puts Layout and Options into More (100 + 10 + 10 + 10 + More 5 = 135 fits in
+    // 140); Layout (5) fits in the 5 left, so only Options goes
+    assert.deepEqual(overflowHidden(fixed + 40, false, present, room), ["options"]);
+    // a little less: the order takes the chart type too (125 fits in 134); Layout comes back (130)
+    assert.deepEqual(overflowHidden(fixed + 34, false, present, room), ["options", "chartType"]);
     // every button is in the toolbar or in More, never both, and the result is in the order
     for (let w = 0; w <= fixed + 80; w += 1) {
         const hidden = overflowHidden(w, false, present, room);

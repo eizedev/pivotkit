@@ -25,7 +25,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   holds **Reset** ("Back to the start view. Your data stays.") and **New, empty report** ("No fields.
   Undo brings it back. Your data stays."), each greyed out with its reason ("Already at the start
   view.", "The report is empty already."); Reset is also off when the start view is the empty report
-  ("The start view is empty: use New, empty report."). Enter, Space or the down arrow opens it. In
+  ("The start view is empty: use New, empty report."). When both are off, Start over itself is off
+  (focusable, `aria-disabled`, with the reason "The report is empty already." as its description
+  and tooltip). Enter, Space or the down arrow opens it. In
   More, Reset and New are entries of their own. The test id `reset` is now Reset's entry in that menu
   (`start-over` is the button; `new-report` and `more-new-report` New's), so a host's test that
   clicked `reset` opens Start over first. New labels `startOver`, `resetAlready`, `resetStartEmpty`,
@@ -54,7 +56,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   when the room left cannot hold it: the room is measured with the texts of the report's language
   (not the longest of every language), and a button that fits stays even when one before it in the
   order had to go. The chart type keeps the room of its longest type, so picking one never moves a
-  button. The order is Start over, Layout, Options, the chart type, Views; More lists them in groups
+  button. The order is Layout, Options, the chart type, then Start over (where New is) and Views
+  last; More lists them in groups
   ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and "i" popups opened by a click open in the browser's top layer
   (`popover="manual"`; a description shown on hover stays in the report's layer): a host's

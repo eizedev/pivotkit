@@ -212,7 +212,7 @@ export function Toolbar(props) {
         startOver: {
             place: "history",
             button: () => (
-                <MenuButton key="startOver" label={labels.startOver} icon="reset" text={labels.startOver} testId="start-over" arrowOpens>
+                <MenuButton key="startOver" label={labels.startOver} icon="reset" text={labels.startOver} testId="start-over" arrowOpens off={resetWhy && !canNew ? labels.newAlready : undefined}>
                     {(close) => startOverItems(close, "")}
                 </MenuButton>
             ),
