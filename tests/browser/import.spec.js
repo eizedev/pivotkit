@@ -647,6 +647,22 @@ for (const [host, query] of [["", ""], [", a host that passes the view back half
     });
 }
 
+test("a host that passes its own view again after a restore: the next mount shows that view, not the file's from before", async ({ page }) => {
+    await page.goto("pages/host.html?import&remount");
+    await ticketsWithTeam(page);
+    await mountAgain(page, "host-remount");
+    await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    // the host's start view (made for its own data: nothing of it fits the file's columns)
+    await page.getByTestId("host-start-view").click();
+    await expect.poll(() => chips(page, "rows")).toEqual([]);
+    await mountAgain(page, "host-remount");
+    await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+    await expect.poll(() => chips(page, "rows")).toEqual([]);
+    // the host's view was a step from outside: Undo goes back to the file's view
+    await page.getByTestId("undo").click();
+    await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+});
+
 test("a host that mounts the report before its data is there keeps the file for the mount after", async ({ page }) => {
     await page.goto("pages/host.html?import&remount");
     await expect(page.getByTestId("pivot-table")).toBeVisible();

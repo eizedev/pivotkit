@@ -13,7 +13,7 @@
 // `loading` whose data is on its way), which come 300 ms later. "Mount twice" mounts it again and once
 // more in the host's layout effect right after, so the report mounted between is gone before it
 // renders a second time; "Mount twice, 30 ms apart" as PowerShell Universal's Sync-UDElement does
-// (measured). ?asyncecho passes the view back a moment (50 ms, or ?asyncecho=<ms>) after onViewChange,
+// (measured). "Host's view" passes the host's start view again without a new mount. ?asyncecho passes the view back a moment (50 ms, or ?asyncecho=<ms>) after onViewChange,
 // as a host whose view goes through its server; a view not passed back yet is dropped when the report
 // is mounted again, as a remounted PowerShell Universal component starts with its own state. window.__order logs
 // onDataLoad ("data:<cause>") and onViewChange ("view") in their order. window.__chartOption() reads the option
@@ -99,6 +99,9 @@ function Host() {
                 <p>
                     <button type="button" data-testid="host-remount" onClick={remount}>
                         Mount again
+                    </button>
+                    <button type="button" data-testid="host-start-view" onClick={() => setView(start)}>
+                        Host's view
                     </button>
                     <button type="button" data-testid="host-remount-twice" onClick={() => (setTwice(true), remount())}>
                         Mount twice
