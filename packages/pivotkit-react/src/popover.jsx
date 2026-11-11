@@ -39,7 +39,7 @@ export const hasTopLayer = () => typeof HTMLElement === "function" && typeof HTM
  * @param {unknown} key  what re-shows them (the sheet's scrim coming or going)
  * @param {unknown} layer  the report's layer: the elements are there only once it is
  */
-function useTopLayer(open, refs, key, layer) {
+export function useTopLayer(open, refs, key, layer) {
     useIsoLayoutEffect(() => {
         if (!open || !hasTopLayer()) {
             return undefined;

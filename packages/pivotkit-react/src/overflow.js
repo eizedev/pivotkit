@@ -40,6 +40,7 @@ export const TOOLBAR_ROOM = Object.freeze({
     startOver: 10.9,
     layout: 8.4,
     options: 8.75,
+    data: 7.4,
     views: 9.1,
     export: 7.5,
     more: 7.2
@@ -47,7 +48,7 @@ export const TOOLBAR_ROOM = Object.freeze({
 
 /** The parts of the toolbar that are buttons with a text, and those that open a menu (with a caret). */
 const TEXT_BUTTONS = Object.freeze(["fields", "undo", "redo", "layout"]);
-const MENU_BUTTONS = Object.freeze(["chartType", "startOver", "options", "views", "export", "more"]);
+const MENU_BUTTONS = Object.freeze(["chartType", "startOver", "options", "data", "views", "export", "more"]);
 
 /**
  * Every text each part of the toolbar can show with the report's labels: a list of texts per part
@@ -66,6 +67,7 @@ export function toolbarTexts(labels) {
         layout: [text(labels.layout)],
         options: [text(labels.options)],
         views: [text(labels.views)],
+        data: [text(labels.data)],
         export: [text(labels.exportLabel)],
         more: [text(labels.more)],
         chartType: Object.values(labels.chartTypes ?? {}).map(text),

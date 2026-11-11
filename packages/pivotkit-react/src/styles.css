@@ -1343,6 +1343,7 @@
 .pk-inline-form input[type="number"],
 .pk-inline-form select,
 .pk-condition select,
+.pk-import select,
 .pk-condition input {
     flex: 1;
     min-width: 6em;
@@ -3711,4 +3712,81 @@
         right: calc(50% - var(--pk-target-touch) / 2);
     }
 
+}
+
+/* ---- loading data (allowImport, import-ui.jsx) ---- */
+
+/* over the report while a file is dragged over it; the report's drop handlers take the events */
+.pk-layer > .pk-drop {
+    position: fixed;
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: var(--pk-scrim);
+    pointer-events: none;
+}
+
+.pk-drop > div,
+.pk-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 24px;
+    border: 2px dashed var(--pk-accent);
+    border-radius: var(--pk-radius);
+    background: var(--pk-surface-raised);
+}
+
+/* the preview: a dialog in the middle of the window (its head, table and notes as the drill-down's) */
+.pk-layer > .pk-import {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    width: min(900px, calc(100vw - 24px));
+    height: fit-content;
+    max-height: calc(100dvh - 24px);
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--pk-border);
+    border-radius: var(--pk-radius);
+    background: var(--pk-surface-raised);
+    color: var(--pk-text);
+    box-shadow: var(--pk-shadow-lg);
+}
+
+.pk-import-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    padding: 12px 16px;
+    overflow: auto;
+}
+
+.pk-import-body > * {
+    flex: none;
+}
+
+.pk-import progress {
+    width: 100%;
+    accent-color: var(--pk-accent);
+}
+
+.pk-import th select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.pk-import > .pk-popover-foot {
+    padding: 12px 16px;
+    border-top: 1px solid var(--pk-border);
+}
+
+.pk-data-menu p {
+    padding: 0 8px;
+    overflow-wrap: anywhere;
 }

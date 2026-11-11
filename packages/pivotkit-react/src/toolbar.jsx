@@ -2,7 +2,9 @@
  * The toolbar: Table | Chart, the chart type with how the chart is drawn (value labels, legend, title,
  * smooth lines), Undo, Redo, Start over (Reset to the start view, New, an empty report), Layout (the
  * zones folded into one line or open), the table options (totals, expand and collapse, help), the
- * name of the view loaded (with a mark while it has unsaved changes, next to Views), Views (Save and
+ * name of the view loaded (with a mark while it has unsaved changes, next to Views), Data (with
+ * allowImport: where the data comes from and loading a file, with a dot while a file's data is
+ * shown), Views (Save and
  * Save as; the saved views and sharing: link, JSON, file) and export. (Swap rows and columns sits with
  * the zones.) Every button keeps its text. When the report is too narrow for all of them, the less
  * used ones move into a "More" menu (OVERFLOW_ORDER), only those the room left cannot hold, measured
@@ -181,7 +183,9 @@ export function Toolbar(props) {
     const bar = useRef(/** @type {HTMLDivElement | null} */ (null));
     const more = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const viewsButton = useRef(/** @type {HTMLButtonElement | null} */ (null));
-    const [panel, setPanel] = useState(/** @type {"options" | "views" | "chartType" | null} */ (null));
+    const [panel, setPanel] = useState(/** @type {"options" | "views" | "chartType" | "data" | null} */ (null));
+    // the Data menu (allowImport): its panel, and whether a file's data is shown (the dot)
+    const data = props.data;
     // every text a part of the toolbar can show in the report's language
     const texts = useMemo(() => toolbarTexts(labels), [labels]);
     // the type drawn (an automatic chart's icon is the type it draws) and the one chosen
@@ -195,8 +199,15 @@ export function Toolbar(props) {
         // the panels load with the chip menus (menus.js), on demand
         options: (close) => <MenuPanel name="OptionsPanel" loadingText={labels.loadingMenu} props={{ view, labels, onTotal, onExpand, onCollapse, close, tips, mod, folding, help: props.help }} />,
         views: (close) => <MenuPanel name="ViewsPanel" loadingText={labels.loadingMenu} props={{ templates, labels, onLoad: onLoadTemplate, actions: templateActions, close, share }} />,
-        chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, labels, onChart, onDisplay: onChartDisplay, close }} />
+        chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, labels, onChart, onDisplay: onChartDisplay, close }} />,
+        data: (close) => data?.panel(close)
     };
+    // the dot while a file's data is shown, with its words for a screen reader
+    const loadedMark = (testId) => (data?.loaded ? (
+        <span className="pk-view-changed" data-testid={testId}>
+            <span className="pk-sr">{labels.dataLoaded}</span>
+        </span>
+    ) : null);
     // Start over's two actions, in its menu and as entries of More (`prefix` of their test ids): each
     // says what it does, or, while it does nothing, why. Reset is off where it would do what New does
     // (the start view is the empty report).
@@ -253,6 +264,19 @@ export function Toolbar(props) {
             ),
             entry: (close) => <Option key="options" inMenu icon="sliders" onSelect={() => { close(); setPanel("options"); }} testId="more-options">{`${labels.options}…`}</Option>
         },
+        ...(data
+            ? {
+                  data: {
+                      place: /** @type {const} */ ("end"),
+                      button: () => (
+                          <MenuButton key="data" label={labels.data} icon="file" text={labels.data} role="dialog" align="end" testId="data" mark={loadedMark("data-loaded")}>
+                              {panels.data}
+                          </MenuButton>
+                      ),
+                      entry: (close) => <Option key="data" inMenu icon="file" onSelect={() => { close(); setPanel("data"); }} testId="more-data">{`${labels.data}…`}{loadedMark("more-data-loaded")}</Option>
+                  }
+              }
+            : {}),
         views: {
             place: "end",
             button: () => (
@@ -265,7 +289,7 @@ export function Toolbar(props) {
     };
     // the order of the table is the order in the toolbar
     const ORDER = Object.keys(actions);
-    // the entries of OVERFLOW_ORDER this toolbar has (no Data button: its place costs nothing)
+    // the entries of OVERFLOW_ORDER this toolbar has (no Data button without allowImport: its place costs nothing)
     const present = OVERFLOW_ORDER.filter((id) => ORDER.includes(id));
     const hiddenList = useOverflow(bar, `${labels.lang}:${labels.undo}:${size}:${present.join()}`, size === "narrow", present, texts);
     const hidden = new Set(hiddenList);
@@ -367,14 +391,14 @@ export function Toolbar(props) {
                 {(close) => <MenuPanel name="ExportPanel" loadingText={labels.loadingMenu} props={{ labels, onExport, chartReady, display: view.display, empty, prepare: props.prepareExport, close }} />}
             </MenuButton>
             {hidden.size > 0 ? (
-                <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more} arrowOpens mark={hidden.has("views") && loadedView?.changed ? changedMark("more-changed") : null}>
+                <MenuButton label={labels.more} icon="more" text={labels.more} align="end" testId="more" buttonRef={more} arrowOpens mark={hidden.has("views") && loadedView?.changed ? changedMark("more-changed") : hidden.has("data") ? loadedMark("more-loaded") : null}>
                     {moreGroups}
                 </MenuButton>
             ) : null}
             {/* a toolbar in two lines (a phone): the name last, in the room left on its line */}
             {wrap ? name : null}
             {panel ? (
-                <Popover open anchor={more} onClose={closePanel} label={panel === "chartType" ? chartTypeText : panel === "views" ? labels.views : labels.options} role="dialog" align="end" className={panel === "chartType" ? "pk-chart-menu" : undefined}>
+                <Popover open anchor={more} onClose={closePanel} label={panel === "chartType" ? chartTypeText : panel === "views" ? labels.views : panel === "data" ? labels.data : labels.options} role="dialog" align="end" className={panel === "chartType" ? "pk-chart-menu" : undefined}>
                     {panels[panel](closePanel)}
                 </Popover>
             ) : null}

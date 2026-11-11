@@ -9,6 +9,9 @@
  *
  * New data with the same columns (schema) keeps the history; another schema starts a new one from the
  * view shown, normalized against the new columns. Reset goes back to the first view the report got.
+ * `dataKey` names the data set beyond its columns: a file loaded in the report (or the host's data
+ * shown again) starts a new history even with the same columns, since loading it is a step of its
+ * own (data-history.js); snapshot() is the history as it is, replace(state) shows one kept before.
  *
  * Every step carries a tag (view-history.js): the saved view it shows. commit(next, note, tag) sets
  * it (undefined: the tag of the view before), `tag` is the present one, setTag(tag) changes it
@@ -37,15 +40,16 @@ export function schemaKeyOf(encoded) {
 /**
  * @param {{ encoded: import("pivotkit-core").Encoded, view: object | undefined, defaultView: object | undefined,
  *   onViewChange?: (view: import("pivotkit-core").View) => void, limits: object | undefined, outsideNote: string,
- *   orderOf?: (field: string) => unknown[] | undefined }} options  `orderOf`: the host's custom order of a
+ *   orderOf?: (field: string) => unknown[] | undefined, dataKey?: string | number }} options  `orderOf`: the host's custom order of a
  *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
  * @returns {{ view: import("pivotkit-core").View, viewKey: string, tag: any, setTag: (tag: any) => void, commit: (next: object, note: string, tag?: any) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
- *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, earlier: () => any[], canUndo: boolean, canRedo: boolean, canReset: boolean, startEmpty: boolean }}
+ *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, earlier: () => any[], canUndo: boolean, canRedo: boolean, canReset: boolean, startEmpty: boolean,
+ *   snapshot: () => import("./view-history.js").HistoryState, replace: (state: import("./view-history.js").HistoryState) => void }}
  */
-export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf }) {
+export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf, dataKey = 0 }) {
     const controlled = view !== undefined;
-    const schema = useMemo(() => schemaKeyOf(encoded), [encoded]);
+    const schema = useMemo(() => `${dataKey}|${schemaKeyOf(encoded)}`, [encoded, dataKey]);
     const json = useCallback(
         (v) => {
             const normalized = normalize(v ?? emptyView(), encoded, { limits }).view;
@@ -122,6 +126,8 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     );
 
     const restore = useCallback((next, tag = null) => apply(createState(schema, start, json(next), tag)), [schema, start, json, apply]);
+    /** The history as it is now (settled), to keep while other data is shown. */
+    const snapshot = useCallback(() => live, [live]);
 
     /** The views before this one, oldest first (a value's earlier colours, for its Highlight). */
     const earlier = useCallback(() => live.past.map((p) => JSON.parse(p.view)), [live.past]);
@@ -133,7 +139,7 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     const emptyKey = useMemo(() => json(null), [json]);
     const startEmpty = live.start === emptyKey;
     return useMemo(
-        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, earlier, canUndo, canRedo, canReset, startEmpty }),
-        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, earlier, canUndo, canRedo, canReset, startEmpty]
+        () => ({ view: current, viewKey: shown, tag: live.tag, setTag, commit, undo, redo, reset, restore, keyOf: json, earlier, canUndo, canRedo, canReset, startEmpty, snapshot, replace: apply }),
+        [current, shown, live.tag, setTag, commit, undo, redo, reset, restore, json, earlier, canUndo, canRedo, canReset, startEmpty, snapshot, apply]
     );
 }

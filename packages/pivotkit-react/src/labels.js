@@ -12,9 +12,10 @@ import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
  * only, so they stay out of the first load).
- * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts }} UiLabels
+ * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts, dataImport?: import("./import-labels.js").ImportTexts }} UiLabels
  *   `unused`: the texts of a view's unused parts (unused-texts.js), loaded when a view has such parts;
- *   a host's are kept aside as the menus' are
+ *   `dataImport`: those of loading data (import-labels.js), loaded with the import UI; a host's of
+ *   both are kept aside as the menus' are
  */
 
 export const en = {
@@ -101,6 +102,12 @@ export const en = {
     more: "More",
     // the Views menu: the saved views (the host's templates) and sharing
     views: "Views",
+    // loading data (allowImport): the Data button, its dot while a file's data is shown, the empty report
+    data: "Data",
+    dataLoaded: "Data from a file",
+    loadData: "Load data…",
+    emptyLoad: "Or load your own data: drop a file onto the report, or",
+    emptyNoData: "Load data to start",
     exportLabel: "Export",
     options: "Options",
     expand: "Expand {label}",
@@ -432,6 +439,11 @@ export const de = {
     layoutEmpty: "Noch keine Felder angeordnet",
     more: "Mehr",
     views: "Ansichten",
+    data: "Daten",
+    dataLoaded: "Daten aus einer Datei",
+    loadData: "Daten laden…",
+    emptyLoad: "Oder eigene Daten laden: eine Datei auf den Bericht ziehen, oder",
+    emptyNoData: "Daten laden, um zu beginnen",
     exportLabel: "Export",
     options: "Optionen",
     expand: "{label} aufklappen",

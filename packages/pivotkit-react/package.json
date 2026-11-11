@@ -34,6 +34,7 @@
       "types": "./types/all-labels.d.ts",
       "default": "./dist/labels.js"
     },
+    "./import-worker": "./dist/import-worker.js",
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },

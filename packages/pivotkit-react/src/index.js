@@ -86,7 +86,9 @@
 
 /**
  * @typedef {object} PivotReportProps
- * @property {object[]} [data]  the rows; encoded once per array, or once per `dataKey`
+ * @property {object[] | import("pivotkit-core").ColumnarData} [data]  the rows, or columnar data
+ *   (`{ columns, types, data }`, one array per column, as pivotkit-core's encode takes it); encoded once
+ *   per array or object, or once per `dataKey`
  * @property {string | number} [dataKey]  identity of `data`: a new array with the same key is not encoded again
  * @property {import("pivotkit-core").Encoded} [encoded]  already encoded data, instead of `data`
  * @property {ViewInput} [view]  controlled: the view to show; pass back what onViewChange gives
@@ -170,6 +172,22 @@
  *   decides. With it the user can still change it until the page is loaded again
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
  *   the first data) or covers its result (later loads)
+ * @property {boolean} [allowImport]  people may load a file into the report in the browser: a Data
+ *   button with "Load data…", a file dropped onto the report, a preview before it replaces the data
+ *   (nothing is uploaded; Undo and "Back to original data" bring the host's data back). Default false
+ * @property {import("pivotkit-core/import").ReaderPlugin[]} [plugins]  reader plugins (contract v1,
+ *   pivotkit-core/import's validatePlugin) for more formats, such as pivotkit-xlsx; CSV, TSV, text and
+ *   JSON are built in
+ * @property {(load: DataLoad) => unknown} [onDataLoad]  the data shown changed: a file is loaded
+ *   (`cause` "load"; returning false refuses it, the data stays), the host's data shown again
+ *   ("original"), or one of those undone or redone ("undo", "redo")
+ * @property {() => Worker} [importWorker]  starts a module worker that runs pivotkit-react's
+ *   `import-worker` entry, so CSV and JSON files are read off the page; without it they are read on
+ *   the page (pivotkit-element brings its own)
+ */
+
+/**
+ * @typedef {import("./import-steps.js").DataLoad} DataLoad
  */
 
 /**
