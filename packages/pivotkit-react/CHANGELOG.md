@@ -78,6 +78,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A loaded file shown again after a new mount lost its view when the host mounted the report twice in
+  a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again
+  before it passed back a view it was told: the report now starts on the kept view history at once,
+  and keeps the view it told a host that controls the view, not the host's view from before
+  ([#135](https://github.com/eizedev/pivotkit/issues/135)).
 - Toolbar buttons moved into More although the free room would hold some of them (a report about
   1,000 px wide showed Reset, Layout and Options in More next to a wide gap). A button moves now only
   when the room left cannot hold it: the room is measured with the texts of the report's language

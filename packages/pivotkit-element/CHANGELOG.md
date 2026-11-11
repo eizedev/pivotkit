@@ -40,6 +40,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- A loaded file shown again lost its view when the element was taken out and put back twice in a row
+  while its view is controlled (pivotkit-react's fix,
+  [#135](https://github.com/eizedev/pivotkit/issues/135)).
 - Toolbar buttons move into More only when the room left cannot hold them, measured with the texts
   of the element's language ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and popups open in the browser's top layer, still inside the shadow root:
