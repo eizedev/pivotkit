@@ -580,6 +580,73 @@ test(`a host that mounts the report again (PowerShell Universal's theme switch)$
 });
 }
 
+/** Loads tickets.csv into the report and puts Team into Rows; the table rows it shows then. */
+async function ticketsWithTeam(page, scope = page) {
+    await expect(scope.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, scope.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await scope.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(scope)).toEqual(TICKET_FIELDS);
+    await drag(page, scope.locator('.pk-field[data-field="Team"]'), scope.locator('[data-zone="rows"]'));
+    await expect.poll(() => chips(scope, "rows")).toEqual(["Team"]);
+    return tableRows(scope);
+}
+
+// PowerShell Universal mounts the report twice within about 30 ms on Sync-UDElement (#135); "Mount
+// twice" mounts it the second time before the report mounted the first time renders again
+for (const [title, button] of [["in the same commit", "host-remount-twice"], ["30 ms apart", "host-remount-twice-30"]]) {
+    for (const [host, query] of [["", ""], [", a host that passes the view back a moment later", "&asyncecho"]]) {
+        test(`a host that mounts the report twice in a row (${title})${host}: the loaded file comes back with its view and its undo steps`, async ({ page }) => {
+            await page.goto(`pages/host.html?import&remount${query}`);
+            await expect(page.getByTestId("pivot-table")).toBeVisible();
+            const before = await fieldNames(page);
+            const table = await ticketsWithTeam(page);
+            await mountAgain(page, button);
+            await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
+            await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+            await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+            expect(await tableRows(page)).toEqual(table);
+            // both mounts restored the file
+            await expect.poll(() => page.evaluate(() => window.__loads.map((l) => l.cause))).toEqual(["load", "restore", "restore"]);
+            // the undo steps came along: the step on the file, then the load
+            await page.getByTestId("undo").click();
+            await expect.poll(() => chips(page, "rows")).toEqual([]);
+            await page.getByTestId("undo").click();
+            await expect.poll(() => fieldNames(page)).toEqual(before);
+            await expect(page.getByTestId("undo")).toBeDisabled();
+            await page.getByTestId("redo").click();
+            await page.getByTestId("redo").click();
+            await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+            // and once more
+            await mountAgain(page, button);
+            await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+            expect(await tableRows(page)).toEqual(table);
+        });
+    }
+}
+
+// a host whose view goes through its server shows its own view a moment longer than the report: a
+// change made then is what the next mount brings back, not the host's view as a change from outside
+for (const [host, query] of [["", ""], [", a host that passes the view back half a second later", "&asyncecho=500"]]) {
+    test(`a file restored, changed at once and the report mounted again${host}: the change stays`, async ({ page }) => {
+        await page.goto(`pages/host.html?import&remount${query}`);
+        await ticketsWithTeam(page);
+        await mountAgain(page, "host-remount");
+        await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+        // Opened into Columns, and the host mounts the report again before it passed that view back
+        await drag(page, page.locator('.pk-field[data-field="Opened"]'), page.locator('[data-zone="cols"]'));
+        await mountAgain(page, "host-remount");
+        await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+        await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+        await expect.poll(() => chips(page, "cols")).not.toEqual([]);
+        const columns = await chips(page, "cols");
+        expect(columns[0]).toMatch(/^Opened/);
+        // the change is one step: Undo takes it back, the restored view before it
+        await page.getByTestId("undo").click();
+        await expect.poll(() => chips(page, "cols")).toEqual([]);
+        await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    });
+}
+
 test("a host that mounts the report before its data is there keeps the file for the mount after", async ({ page }) => {
     await page.goto("pages/host.html?import&remount");
     await expect(page.getByTestId("pivot-table")).toBeVisible();
@@ -666,6 +733,25 @@ test("two reports on a page, each with its own storageKey: each gets its own fil
     await expect(first.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
     await expect(second.getByTestId("source-line")).toHaveText("teams.json, only in this browser");
 });
+
+for (const [title, query] of [["", ""], [", its view controlled and started again by the page", "&controlled"]]) {
+    strict(`the element taken out of the page and put back twice in a row (with storage-key)${title}: the loaded file comes back with its view and its undo steps`, async ({ page }) => {
+        const report = await elementPage(page, `?key${query}`);
+        await expect(report.getByTestId("pivot-table")).toBeVisible();
+        const before = await fieldNames(report);
+        const table = await ticketsWithTeam(page, report);
+        await page.evaluate(() => window.__putBackTwice());
+        await expect.poll(() => fieldNames(report)).toEqual(TICKET_FIELDS);
+        await expect(report.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+        await expect.poll(() => chips(report, "rows")).toEqual(["Team"]);
+        expect(await tableRows(report)).toEqual(table);
+        expect((await page.evaluate(() => window.__loads)).map((l) => l.cause)).toEqual(["load", "restore", "restore"]);
+        await report.getByTestId("undo").click();
+        await expect.poll(() => chips(report, "rows")).toEqual([]);
+        await report.getByTestId("undo").click();
+        await expect.poll(() => fieldNames(report)).toEqual(before);
+    });
+}
 
 strict("the element taken out of the page and put back (with storage-key): the loaded file comes back with its view and its undo steps", async ({ page }) => {
     const report = await elementPage(page, "?key");

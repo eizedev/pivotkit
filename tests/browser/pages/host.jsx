@@ -10,11 +10,15 @@
 // data, "New data" with other rows under another dataKey (a second click goes back to the first rows); both start the controlled view again at the
 // host's start view, as a remounted PowerShell Universal component does; ?two a second report under its own
 // storageKey; ?nokey leaves storageKey out; "Mount empty" mounts it with no rows yet (a host without
-// `loading` whose data is on its way), which come 300 ms later. ?asyncecho passes the view back a
-// moment after onViewChange, as a host whose view goes through its server. window.__order logs
+// `loading` whose data is on its way), which come 300 ms later. "Mount twice" mounts it again and once
+// more in the host's layout effect right after, so the report mounted between is gone before it
+// renders a second time; "Mount twice, 30 ms apart" as PowerShell Universal's Sync-UDElement does
+// (measured). ?asyncecho passes the view back a moment (50 ms, or ?asyncecho=<ms>) after onViewChange,
+// as a host whose view goes through its server; a view not passed back yet is dropped when the report
+// is mounted again, as a remounted PowerShell Universal component starts with its own state. window.__order logs
 // onDataLoad ("data:<cause>") and onViewChange ("view") in their order. window.__chartOption() reads the option
 // the chart draws, from the ECharts the report loaded (the same module through the import map).
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
 import xlsxReader from "pivotkit-xlsx";
@@ -23,6 +27,7 @@ import { DATASETS } from "../../../examples/playground/src/data.js";
 const rows = DATASETS.sales.make(2000);
 const otherRows = DATASETS.sales.make(500);
 const query = new URLSearchParams(location.search);
+const echoDelay = Number(query.get("asyncecho")) || 50;
 const start = query.has("broken") ? { rows: ["Region", "Hostname"], values: [{ field: "Revenue", agg: "sum", format: "money" }] } : DATASETS.sales.presets[0].view;
 
 function Host() {
@@ -33,6 +38,24 @@ function Host() {
     const [mount, setMount] = useState(0);
     const [other, setOther] = useState(false);
     const [empty, setEmpty] = useState(false);
+    // ?asyncecho: the views on their way back
+    const echoes = useRef(new Set());
+    const remount = () => {
+        echoes.current.forEach(clearTimeout);
+        echoes.current.clear();
+        setView(start);
+        setMount((n) => n + 1);
+    };
+    // "Mount twice": the second mount in the same commit as the first mount's layout effects (a state
+    // set in a layout effect on purpose: the host this page plays does it)
+    const [twice, setTwice] = useState(false);
+    useLayoutEffect(() => {
+        if (twice) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setTwice(false);
+            remount();
+        }
+    }, [twice]);
     useEffect(() => {
         if (!empty) {
             return undefined;
@@ -43,7 +66,11 @@ function Host() {
     const onViewChange = (next) => {
         window.__order.push("view");
         if (query.has("asyncecho")) {
-            setTimeout(() => setView(next), 50);
+            const t = setTimeout(() => {
+                echoes.current.delete(t);
+                setView(next);
+            }, echoDelay);
+            echoes.current.add(t);
         } else {
             setView(next);
         }
@@ -70,8 +97,14 @@ function Host() {
             <p data-testid="host-renders">{tick}</p>
             {query.has("remount") ? (
                 <p>
-                    <button type="button" data-testid="host-remount" onClick={() => (setView(start), setMount((n) => n + 1))}>
+                    <button type="button" data-testid="host-remount" onClick={remount}>
                         Mount again
+                    </button>
+                    <button type="button" data-testid="host-remount-twice" onClick={() => (setTwice(true), remount())}>
+                        Mount twice
+                    </button>
+                    <button type="button" data-testid="host-remount-twice-30" onClick={() => (remount(), setTimeout(remount, 30))}>
+                        Mount twice, 30 ms apart
                     </button>
                     <button type="button" data-testid="host-new-data" onClick={() => (setView(start), setOther((o) => !o), setMount((n) => n + 1))}>
                         New data
