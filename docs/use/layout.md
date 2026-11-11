@@ -68,7 +68,9 @@ The report adapts to its own width, not the window's.
   toolbar cannot hold: a button that fits stays, even when one before it in that order had to go.
   The room is measured with the texts of the report's language, so a shorter language keeps more
   buttons. The chart type keeps the room of its longest type, so picking another type never moves a
-  button, and a click on Layout never moves it either. Table or Chart, Undo with Redo next to it,
+  button, and a click on Layout never moves it either. While a menu of the toolbar is open nothing
+  moves (a narrower window, another language): the buttons settle when it closes. A menu opened
+  from **More** closes when its own button fits in the toolbar again. Table or Chart, Undo with Redo next to it,
   and Export always stay. In **More** the entries come in groups with a line between them: Start
   over's **Reset** and **New, empty report** as entries of their own; Layout, the chart type and
   Options; Views. The name of the view you loaded takes the room that is left on its line and is

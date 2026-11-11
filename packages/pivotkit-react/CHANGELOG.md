@@ -56,7 +56,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   when the room left cannot hold it: the room is measured with the texts of the report's language
   (not the longest of every language), and a button that fits stays even when one before it in the
   order had to go. The chart type keeps the room of its longest type, so picking one never moves a
-  button. The order is Layout, Options, the chart type, then Start over (where New is) and Views
+  button, and while a toolbar menu is open nothing moves (a language change keeps the menu, its
+  button and its focus). The order is Layout, Options, the chart type, then Start over (where New is) and Views
   last; More lists them in groups
   ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and "i" popups opened by a click open in the browser's top layer

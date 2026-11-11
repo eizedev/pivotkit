@@ -94,6 +94,9 @@ function measuredRoom(el, texts) {
  * @param {boolean} narrow  the report is narrow (the Fields button is in the toolbar)
  * @param {string[]} present  the entries of OVERFLOW_ORDER this toolbar has
  * @param {ReturnType<typeof toolbarTexts>} texts
+ * While a menu of a toolbar button is open (aria-expanded), nothing moves: a change of the width or
+ * the texts (another language) waits until it closes, so an open menu keeps its button, its place
+ * and its focus. (A panel opened from "More" is not held: it closes when its button fits again.)
  * @returns {string[]}
  */
 function useOverflow(ref, key, narrow, present, texts) {
@@ -103,10 +106,13 @@ function useOverflow(ref, key, narrow, present, texts) {
     const [measure, setMeasure] = useState(0);
     const [lastKey, setLastKey] = useState(key);
     const latest = useRef({ texts, present });
+    // a decision that waits for an open menu to close
+    const waiting = useRef(false);
     // before the effect below, which reads it
     useIsoLayoutEffect(() => {
         latest.current = { texts, present };
     });
+    const isOpen = (/** @type {HTMLElement} */ el) => Boolean(el.querySelector('[aria-expanded="true"]'));
     if (key !== lastKey) {
         setLastKey(key);
         setMeasure((m) => m + 1);
@@ -118,6 +124,11 @@ function useOverflow(ref, key, narrow, present, texts) {
         }
         let width = -1;
         const decide = () => {
+            if (isOpen(el)) {
+                waiting.current = true;
+                return;
+            }
+            waiting.current = false;
             const em = parseFloat(getComputedStyle(el).fontSize) || 14;
             const room = measuredRoom(el, latest.current.texts);
             const own = latest.current.present;
@@ -137,12 +148,16 @@ function useOverflow(ref, key, narrow, present, texts) {
         width = Math.round(el.getBoundingClientRect().width);
         decide();
         ro.observe(el);
+        // a menu of the toolbar closed: what waited for it is decided now
+        const mo = typeof MutationObserver === "function" ? new MutationObserver(() => waiting.current && decide()) : null;
+        mo?.observe(el, { subtree: true, attributes: true, attributeFilter: ["aria-expanded"] });
         // a web font that arrives later draws the texts wider or narrower
         let live = true;
         el.ownerDocument.fonts?.ready.then(() => live && width >= 0 && decide(), () => undefined);
         return () => {
             live = false;
             ro.disconnect();
+            mo?.disconnect();
         };
     }, [ref, narrow, key]);
     const order = OVERFLOW_ORDER.filter((id) => present.includes(id));
@@ -150,7 +165,7 @@ function useOverflow(ref, key, narrow, present, texts) {
     const more = shown.slice(0, extra);
     useIsoLayoutEffect(() => {
         const el = ref.current;
-        if (el && el.scrollWidth > el.clientWidth + 1 && extra < shown.length) {
+        if (el && !isOpen(el) && el.scrollWidth > el.clientWidth + 1 && extra < shown.length) {
             setExtra(extra + 1);
         }
     }, [ref, extra, measure, key, shown.length]);
