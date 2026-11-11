@@ -202,12 +202,8 @@ export function Toolbar(props) {
         chartType: (close) => <MenuPanel name="ChartTypePanel" loadingText={labels.loadingMenu} props={{ view, plan, labels, onChart, onDisplay: onChartDisplay, close }} />,
         data: (close) => data?.panel(close)
     };
-    // the dot while a file's data is shown, with its words for a screen reader
-    const loadedMark = (testId) => (data?.loaded ? (
-        <span className="pk-view-changed" data-testid={testId}>
-            <span className="pk-sr">{labels.dataLoaded}</span>
-        </span>
-    ) : null);
+    // the dot while a file's data is shown (dot() below), with its words for a screen reader
+    const loadedMark = (testId) => (data?.loaded ? dot(testId, labels.dataLoaded) : null);
     // Start over's two actions, in its menu and as entries of More (`prefix` of their test ids): each
     // says what it does, or, while it does nothing, why. Reset is off where it would do what New does
     // (the start view is the empty report).
@@ -318,13 +314,14 @@ export function Toolbar(props) {
         }
     }, [clickFor]);
     const buttons = (place) => ORDER.filter((id) => actions[id].place === place && !hidden.has(id)).map((id) => actions[id].button());
-    // the dot for unsaved changes, with its words for a screen reader: after the name, and on "More"
-    // while Views is in there
-    const changedMark = (testId) => (
+    // a dot with its words for a screen reader: unsaved changes (after the name, and on "More" while
+    // Views is in there), a file's data shown (on Data, and on "More" while Data is in there)
+    const dot = (testId, text) => (
         <span className="pk-view-changed" data-testid={testId}>
-            <span className="pk-sr">{labels.unsavedChanges}</span>
+            <span className="pk-sr">{text}</span>
         </span>
     );
+    const changedMark = (testId) => dot(testId, labels.unsavedChanges);
     // the name of the view loaded, next to Views (before Export while Views is in "More"); it takes the
     // room left and is cut with "…"; a click opens Views (Save is one click more, also on a phone,
     // where Views is in "More")
