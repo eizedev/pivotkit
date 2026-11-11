@@ -8,7 +8,7 @@
 
 import { hostHistory, pushData, redoData, undoData } from "./data-history.js";
 import { importLabels } from "./import-labels.js";
-import { fill, plural } from "./labels.js";
+import { fill, messageOf, plural } from "./labels.js";
 
 /**
  * @typedef {object} ShownData  a loaded file's data as the report keeps it
@@ -59,6 +59,28 @@ function describe(ctx, data, cause, notes = []) {
 let keys = 0;
 
 /**
+ * Tells the host (onDataLoad). Whatever the host's code throws stays the host's: for a load it
+ * refuses the file and says why; for the steps that have happened already it is reported to the
+ * page (an error a moment later, outside the report), and the step stands. Only `false` itself
+ * refuses: a promise is not waited for.
+ * @param {ImportContext} ctx
+ * @param {DataLoad} detail
+ * @returns {{ refused: boolean, error?: unknown }}
+ */
+function tell(ctx, detail) {
+    try {
+        return { refused: ctx.onDataLoad?.(detail) === false };
+    } catch (error) {
+        if (detail.cause !== "load") {
+            setTimeout(() => {
+                throw error;
+            }, 0);
+        }
+        return { refused: true, error };
+    }
+}
+
+/**
  * "Load data" in the preview: the host may refuse it (onDataLoad returns false); else the file's data
  * is shown, a step Undo takes back. Returns whether it was loaded.
  * @param {ImportContext} ctx
@@ -66,10 +88,14 @@ let keys = 0;
  */
 export function loadData(ctx, loaded) {
     const data = { key: ++keys, encoded: loaded.encoded, source: loaded.source, sheet: loaded.sheet, file: loaded.file };
-    if (ctx.onDataLoad?.(describe(ctx, data, "load", loaded.notes)) === false) {
+    const t = importLabels(ctx.labels);
+    const told = tell(ctx, describe(ctx, data, "load", loaded.notes));
+    if (told.refused) {
+        if (told.error !== undefined) {
+            ctx.announce(fill(t.refused, { name: loaded.source.name, message: messageOf(told.error) }), { tone: "error" });
+        }
         return false;
     }
-    const t = importLabels(ctx.labels);
     const where = { lang: ctx.labels.lang, locale: ctx.locale };
     ctx.setSteps(pushData(ctx.steps, { data: ctx.imported, history: ctx.history.snapshot() }, fill(t.stepLoaded, { name: loaded.source.name })));
     ctx.setImported(data);
@@ -93,7 +119,7 @@ export function backToOriginal(ctx) {
     if (kept) {
         ctx.history.replace({ ...kept, past: [], future: [] });
     }
-    ctx.onDataLoad?.(describe(ctx, null, "original"));
+    tell(ctx, describe(ctx, null, "original"));
     ctx.announce(t.originalShown, { action: { label: ctx.labels.undo, run: ctx.undo } });
 }
 
@@ -112,6 +138,6 @@ export function moveData(ctx, back) {
     ctx.setSteps(moved.steps);
     ctx.setImported(moved.step.data);
     ctx.history.replace(moved.step.history);
-    ctx.onDataLoad?.(describe(ctx, moved.step.data, back ? "undo" : "redo"));
+    tell(ctx, describe(ctx, moved.step.data, back ? "undo" : "redo"));
     return moved.step.note;
 }

@@ -249,6 +249,12 @@ on [Load your own data](../use/load-data.md); what the readers do on [Loading fi
   clicked. Without `allowImport` nothing of it loads.
 - The limits of the readers are the report's [`limits`](#prop-limits) (`fileBytes`, `rows`,
   `columns`, `importCells`, ...); a file over one is refused with what to do, and the data stays.
+- Memory: while the preview is open the page holds the table as read (values and their text) and,
+  after a change of a type, a second one; after **Load data** only the encoded columns stay, for the
+  file shown and for each data step Undo keeps. A rough, unverified guide from one measurement in
+  Node (not a browser): a CSV of 1,000,000 rows and 5 columns (46 MB) took about 650 MB more memory
+  while it was read and loaded. Lower `limits.rows` or `limits.fileBytes` where people's machines are
+  small.
 
 ### `plugins` { #prop-plugins }
 
@@ -275,7 +281,10 @@ The data shown changed, with what it is now:
 | `rows`, `columns` | The rows, and `[{ name, type }]` per column. |
 | `notes` | For `"load"`: the readers' notes `[{ code, params, message }]` ([the codes](import.md#the-table)). |
 
-Names and notes come from the file: show them as text, never as HTML.
+Only `false` itself refuses a file: a promise is not waited for. A function that throws refuses a
+load too, with "<name> was not loaded: <message>"; for the other causes the step has happened, and
+the error is thrown again a moment later, outside the report, so the page sees it. Names and notes
+come from the file: show them as text, never as HTML.
 
 ### `importWorker` { #prop-importworker }
 
@@ -291,7 +300,9 @@ const importWorker = () => new Worker(new URL("./import-worker.js", import.meta.
 <PivotReport data={rows} allowImport importWorker={importWorker} />
 ```
 
-One worker per file, ended when it is read or cancelled. A worker that does not start (a
+One worker per file, ended when it is read or cancelled. A worker that does not say it is ready
+within 10 seconds, or answers with something that is no table, ends: the first leaves the read to
+the page, the second is reported as an error. A worker that does not start (a
 Content-Security-Policy without `worker-src` for it, a browser without module workers, a file that is
 not there) leaves the read to the page without a message. Without `importWorker` the file is read on
 the page; the readers give the page a turn every 16,384 rows, so progress and **Cancel** still work.

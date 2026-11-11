@@ -389,7 +389,7 @@ CI reads about 0.3 KiB more than these numbers):
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
 | Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 123 KiB | 40 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 17 KiB | 6 KiB |
-| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 47 KiB | 19 KiB |
+| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 50 KiB | 20 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no

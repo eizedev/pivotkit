@@ -80,7 +80,7 @@ test("a CSV dropped onto the report: the overlay, the preview with types and not
     const notes = dialog.getByTestId("import-notes");
     await expect(notes.locator("li[data-code='ROWS_EMPTY']")).toHaveText("1 empty row was left out.");
     await expect(notes.locator("li[data-code='SEPARATOR']")).toContainText("semicolon");
-    // the focus is on Load data: Enter loads, Shift+Tab reaches the types
+    // the focus is on Load data: Enter loads, Tab reaches the types
     await expect(dialog.getByTestId("import-apply")).toBeFocused();
     // the Id as text: its values as the file has them, not as numbers
     await dialog.getByTestId("import-type-0").selectOption("string");
@@ -418,7 +418,7 @@ strict("the element takes columnar data; without data, the empty report offers t
     expect((await tableRows(report)).slice(0, 2).map((r) => r[0])).toEqual(["Network", "Server"]);
     report = await elementPage(page, "?empty");
     await expect(report.getByTestId("empty-state").getByRole("heading")).toHaveText("Load data to start");
-    await expect(report.getByTestId("empty-drop")).toContainText("Or load your own data: drop a file onto the report, or");
+    await expect(report.getByTestId("empty-drop")).toContainText("Drop a file onto the report, or");
     const chooser = page.waitForEvent("filechooser");
     await report.getByTestId("empty-load").click();
     await (await chooser).setFiles({ name: "teams.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ data: [{ Team: "A", Hours: 2 }, { Team: "B", Hours: 3 }] })) });
@@ -451,4 +451,66 @@ test("a host that renders again all the time (React from an import map, no worke
     await pickThroughMenu(page, page, fileOf("assets.xlsx", XLSX, makeXlsx({ sheets: [{ name: "Assets", rows: [["Host"], ["a"]] }] })));
     await page.getByTestId("import-apply").click();
     await expect.poll(() => fieldNames(page)).toEqual(["Host"]);
+});
+
+test("review fixes: Undo's keys in the preview leave the report behind it alone; no warning about the host's view after a load; a new file closes old error notes", async ({ page }) => {
+    await page.goto("?data=sales&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await page.getByRole("button", { name: "Swap rows and columns" }).click();
+    const rowsBefore = await chips(page, "rows");
+    // an error note first
+    await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "slides.pdf", type: "application/pdf", text: "%PDF" }]);
+    await expect(page.locator(".pk-toast.pk-error")).toHaveCount(1);
+    await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    const dialog = page.getByTestId("import-dialog");
+    await expect(dialog.getByTestId("import-apply")).toBeFocused();
+    // the next file closed the note about the last one
+    await expect(page.locator(".pk-toast.pk-error")).toHaveCount(0);
+    for (const keys of ["ControlOrMeta+z", "ControlOrMeta+Shift+z", "Control+y"]) {
+        await page.keyboard.press(keys);
+    }
+    await expect(page.locator(".pk-toast")).toHaveCount(0);
+    expect(await chips(page, "rows")).toEqual(rowsBefore);
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId("import-apply").click();
+    await expect(page.getByTestId("source-line")).toBeVisible();
+    // the playground's start view has fields the file lacks: no warning about it for the person
+    await expect(page.getByTestId("view-issues")).toHaveCount(0);
+});
+
+strict("review fixes: a sheet over the limits says so and keeps the sheet list; another sheet keeps the focus on the list", async ({ page }) => {
+    await page.goto("pages/element-import.html?limits");
+    await page.waitForFunction(() => window.__ready === true);
+    const report = page.locator("pivot-report");
+    await expect(report.getByTestId("pivot-table")).toBeVisible();
+    const book = makeXlsx({ sheets: [{ name: "Small", rows: [["a", "b"], [1, 2]] }, { name: "Large", rows: [["a", "b"], ...Array.from({ length: 8 }, (_, i) => [i, i * 2])] }] });
+    await dropFiles(page, report.getByTestId("pivot-table"), [fileOf("two.xlsx", XLSX, book)]);
+    const dialog = report.getByTestId("import-dialog");
+    await expect(dialog.getByTestId("import-apply")).toBeFocused();
+    const sheet = dialog.getByTestId("import-sheet");
+    await sheet.focus();
+    await sheet.selectOption({ label: "Large" });
+    await expect(dialog.getByTestId("import-error")).toContainText("limits.importCells");
+    await expect(dialog.getByTestId("import-progress")).toHaveCount(0);
+    await expect(dialog.getByTestId("import-apply")).toHaveCount(0);
+    await expect(dialog).not.toHaveAttribute("aria-busy", "true");
+    await expect(sheet).toBeEnabled();
+    await expect(sheet).toBeFocused();
+    await sheet.selectOption({ label: "Small" });
+    await expect(dialog.getByTestId("import-apply")).toBeVisible();
+    await expect(dialog.getByTestId("import-error")).toHaveCount(0);
+    // the focus stays where the person is, on the list
+    await expect(sheet).toBeFocused();
+    await dialog.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(report)).toEqual(["a", "b"]);
+});
+
+test("review fixes: the formats in German; the empty report without data says it once", async ({ page }) => {
+    await page.goto("?data=sales&lang=de&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await dataMenu(page);
+    await expect(page.getByTestId("drop-hint")).toHaveText("oder eine Datei auf den Bericht ziehen. Liest Excel-Arbeitsmappe, CSV oder Text und JSON");
+    await page.goto("pages/element-import.html?empty");
+    await page.waitForFunction(() => window.__ready === true);
+    await expect(page.locator("pivot-report").getByTestId("empty-drop")).toContainText("Drop a file onto the report, or");
 });

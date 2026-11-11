@@ -74,7 +74,7 @@ export function DataPanel({ labels, locale, source, plugins, onPick, onBack, clo
                         {t.backToOriginal}
                     </Option>
                 ) : null}
-                <p className="pk-hint" data-testid="drop-hint">{`${t.dropHint}. ${fill(t.formats, { formats: listOf(formatsOf(plugins), locale) })}`}</p>
+                <p className="pk-hint" data-testid="drop-hint">{`${t.dropHint}. ${fill(t.formats, { formats: listOf(formatsOf(plugins, t.formatNames), locale) })}`}</p>
             </Group>
         </div>
     );
@@ -110,7 +110,7 @@ export function DropOverlay({ labels, locale, plugins, box: boxOf }) {
             <div>
                 <Icon name="upload" size={24} />
                 <strong>{t.dropTitle}</strong>
-                <span>{fill(t.formats, { formats: listOf(formatsOf(plugins), locale) })}</span>
+                <span>{fill(t.formats, { formats: listOf(formatsOf(plugins, t.formatNames), locale) })}</span>
             </div>
         </div>,
         layer
@@ -186,7 +186,10 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     const [progress, setProgress] = useState(/** @type {import("pivotkit-core/import").ImportProgress | null} */ (null));
     const [error, setError] = useState(/** @type {string | null} */ (null));
     const [busy, setBusy] = useState(false);
-    const reading = !read || read.sheet !== sheet;
+    // the sheet whose read failed: no preview and no Load data, the sheet list stays to pick another
+    const [failed, setFailed] = useState(/** @type {number | undefined | null} */ (null));
+    const current = read && read.sheet === sheet ? read : null;
+    const reading = !current && failed !== sheet;
     // what a read takes from the report, read when it starts: a host that passes new plugins or a new
     // worker function on every render does not start the read again
     const latest = useRef({ onClose, announce, t, name, plugins, worker, locale, limits });
@@ -231,6 +234,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                     latest.current.announce(text, { tone: "error" });
                     latest.current.onClose();
                 } else {
+                    setFailed(sheet);
                     setError(text);
                 }
             }
@@ -247,14 +251,20 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
         return () => controller.abort();
     }, [file]);
 
-    const base = read?.table ?? null;
-    // the table as the preview shows it: the types the person picked, from the values as read
-    const shown = useMemo(() => {
+    const base = current?.table ?? null;
+    // the table as the preview shows it: the types the person picked, from the values as read (a type
+    // that cannot be read that way keeps the types as they were and says why)
+    const typed = useMemo(() => {
         if (!base || !types || types.every((ty, i) => ty === base.types[i])) {
-            return base;
+            return { table: base, error: null };
         }
-        return retype(base, types);
+        try {
+            return { table: retype(base, types), error: null };
+        } catch (e) {
+            return { table: base, error: messageOf(e) };
+        }
     }, [base, types]);
+    const shown = typed.table;
 
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
     const scrim = useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -262,19 +272,27 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     const [top] = useState(hasTopLayer);
     useTopLayer(true, [scrim, box], null, layer);
     const { onKeyDown } = useModal(box, true, onClose);
-    // the preview is there: the focus goes to "Load data" (Enter loads, Shift+Tab reaches the types)
+    // the first rows are there: the focus goes to "Load data" (Enter loads), once; after another sheet
+    // it stays on the sheet list, where the person is
     const ready = Boolean(shown) && !reading;
+    const focused = useRef(false);
     useEffect(() => {
-        if (ready) {
+        if (ready && !focused.current) {
+            focused.current = true;
             applyRef.current?.focus({ preventScroll: true });
         }
     }, [ready]);
+    // the dialog closed while "Load data" was still at work (encoding, the source id): nothing loads
+    const live = useRef(true);
+    useEffect(() => () => void (live.current = false), []);
     const titleId = useId();
+    const metaId = useId();
+    const notesId = useId();
     const formName = useFormName();
 
     const sheetName = (() => {
         const n = shown?.notes.find((x) => x.code === "SHEET");
-        return n ? String(n.params.sheet) : null;
+        return n && n.params?.sheet !== undefined ? String(n.params.sheet) : null;
     })();
     const sheetIndex = sheet ?? sheets.find((s) => s.name === sheetName)?.index ?? 0;
 
@@ -284,8 +302,13 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
         }
         setBusy(true);
         try {
+            // a frame for "Load data" to show it is at work before a large table is encoded
+            await new Promise((resolve) => setTimeout(resolve, 0));
             const encoded = encode({ columns: shown.columns, types: shown.types, data: shown.data }, { timeZone: timeZone ?? "UTC", limits });
             const id = await sourceIdOf(name, shown.columns);
+            if (!live.current) {
+                return;
+            }
             onApply({
                 encoded,
                 source: { id, name: shownName(name) },
@@ -296,8 +319,10 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                 notes: shown.notes.map((n) => ({ code: n.code, params: { ...n.params }, message: n.message }))
             });
         } catch (e) {
-            setError(fill(t.failed, { name, message: readerMessage(e, name) }));
-            setBusy(false);
+            if (live.current) {
+                setError(fill(t.failed, { name, message: readerMessage(e, name) }));
+                setBusy(false);
+            }
         }
     };
 
@@ -307,16 +332,18 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     const inTop = /** @type {any} */ (top ? { popover: "manual" } : {});
     const cols = shown ? shown.columns.slice(0, PREVIEW_COLUMNS) : [];
     const rows = shown ? Math.min(PREVIEW_ROWS, shown.rowCount) : 0;
+    // the phase a reader reports, in words; a phase this version has no words for reads as "Reading the file"
+    const phase = progress && Object.hasOwn(t.phases, String(progress.phase)) ? /** @type {any} */ (t.phases)[String(progress.phase)] : t.phases.read;
     const percent = progress && progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : null;
     const meta = shown && !reading ? `${plural(t.rows, shown.rowCount, where)} · ${plural(t.columns, shown.columns.length, where)} · ${sizeText(file.size, locale)}` : sizeText(file.size, locale);
     return createPortal(
         <>
             <div ref={scrim} {...inTop} className="pk-scrim pk-import-scrim" aria-hidden="true" />
-            <div ref={box} {...inTop} className="pk-import" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={reading || undefined} tabIndex={-1} onKeyDown={onKeyDown} data-testid="import-dialog">
+            <div ref={box} {...inTop} className="pk-import" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={shown && shown.notes.length ? `${metaId} ${notesId}` : metaId} aria-busy={reading || undefined} tabIndex={-1} onKeyDown={onKeyDown} data-testid="import-dialog">
                 <div className="pk-drill-head">
                     <div className="pk-drill-heading">
                         <h2 id={titleId}>{fill(t.previewTitle, { name })}</h2>
-                        <p className="pk-hint" role="status" data-testid="import-meta">
+                        <p id={metaId} className="pk-hint" role="status" data-testid="import-meta">
                             {meta}
                         </p>
                     </div>
@@ -325,9 +352,11 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                     {sheets.length > 1 ? (
                         <label className="pk-inline-form">
                             {t.sheet}
-                            <select name={`${formName}-sheet`} value={sheetIndex} disabled={reading} onChange={(e) => {
+                            <select name={`${formName}-sheet`} value={sheetIndex} onChange={(e) => {
                                     setProgress(null);
                                     setError(null);
+                                    setFailed(null);
+                                    setTypes(null);
                                     setSheet(Number(e.target.value));
                                 }} data-testid="import-sheet">
                                 {sheets.map((s) => (
@@ -338,16 +367,16 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                             </select>
                         </label>
                     ) : null}
-                    {error ? (
+                    {error || typed.error ? (
                         <p className="pk-error" role="alert" data-testid="import-error">
-                            {error}
+                            {error ?? typed.error}
                         </p>
                     ) : null}
                     {reading ? (
                         <div data-testid="import-progress">
                             <p>{fill(t.reading, { name })}</p>
-                            <progress max={100} value={percent ?? undefined} aria-label={progress ? t.phases[progress.phase] ?? t.phases.read : t.phases.read} />
-                            <p className="pk-hint">{progress ? `${t.phases[progress.phase] ?? ""}${percent !== null ? ` · ${percent} %` : ""}` : t.phases.read}</p>
+                            <progress max={100} value={percent ?? undefined} aria-label={phase} />
+                            <p className="pk-hint">{`${phase}${percent !== null ? ` · ${percent} %` : ""}`}</p>
                         </div>
                     ) : shown ? (
                         <>
@@ -392,7 +421,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                             </div>
                             {shown.columns.length > cols.length ? <p className="pk-hint">{fill(t.someColumns, { shown: cols.length.toLocaleString(locale), count: shown.columns.length.toLocaleString(locale) })}</p> : null}
                             {shown.notes.length ? (
-                                <div className="pk-note" data-testid="import-notes">
+                                <div id={notesId} className="pk-note" data-testid="import-notes">
                                     <div>
                                         <h3>{plural(t.notesTitle, shown.notes.length, where)}</h3>
                                         <ul>

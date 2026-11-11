@@ -54,8 +54,10 @@ The texts of [loading data](../use/load-data.md) (`labels.dataImport`: the Data 
 overlay, the preview, the notes of the readers per note code in `labels.dataImport.notes`) load with
 the import UI, English and German in one file; a language of a host's own takes English there unless
 its `labels` give `dataImport`. The Data button's text (`data`), its dot's words for a screen reader
-(`dataLoaded`) and the empty report's line and button (`emptyLoad`, `emptyNoData`, `loadData`) are
-part of the first load.
+(`dataLoaded`) and the empty report's lines and button (`emptyLoad`, `emptyNoData`, `emptyDrop`,
+`loadData`) are part of the first load. `labels.dataImport.formatNames` names the formats of the
+built-in readers and pivotkit-xlsx by the reader's `name`; another plugin's own `label` is shown as
+it is.
 
 ## Changing single texts
 

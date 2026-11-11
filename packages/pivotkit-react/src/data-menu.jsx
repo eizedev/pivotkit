@@ -17,17 +17,22 @@ export function DataMenu({ api, close, labels }) {
     const [attempt, setAttempt] = useState(0);
     const box = useRef(/** @type {HTMLDivElement | null} */ (null));
     const [late] = useState(() => !mod);
+    // the report's api is a new object on every render: the load starts once per try, not per render
+    const load = useRef(api.load);
+    useEffect(() => {
+        load.current = api.load;
+    });
     useEffect(() => {
         if (mod) {
             return undefined;
         }
         let live = true;
-        api.load().catch(() => live && setFailed(true));
+        load.current().catch(() => live && setFailed(true));
         return () => {
             live = false;
         };
         // a new try: attempt
-    }, [mod, attempt, api]);
+    }, [mod, attempt]);
     useEffect(() => {
         // loaded after the menu opened: the focus goes to its first entry, as on an open
         const popover = box.current?.closest(".pk-popover");

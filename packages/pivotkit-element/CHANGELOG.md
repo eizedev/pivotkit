@@ -14,7 +14,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   `dist/` as a plugin); the cancelable event `pivot-data-load` for every change of the data shown.
   CSV and JSON files are read in the element's own worker, `dist/import-worker.js` (a file of the
   page's origin, so a strict CSP with `script-src 'self'` allows it; where it cannot start, the
-  element reads on the page). The import UI is the load group "import" (19.1 KiB gzip), loaded on its
+  element reads on the page). The import UI is the load group "import" (19.8 KiB gzip), loaded on its
   first use.
 - `data` takes columnar data (`{ columns, types, data }`).
 - pivotkit-react's identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field named ID, …Id, …_id, Nr, No, Number

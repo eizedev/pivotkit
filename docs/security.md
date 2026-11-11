@@ -112,8 +112,10 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
 - **In the report** (`allowImport`): the file is read only after a person picked or dropped it, and
   shown first in a preview; the data is replaced only by **Load data**, and the host can refuse it
   (`onDataLoad`, `pivot-data-load`). Names and values from the file are shown as text in the preview,
-  the field list and the table. A loaded file's data lives only in the tab's memory: nothing is
-  stored, a reload brings the host's data back. Undo keeps at most three data sets, so loading one
+  the field list and the table. A loaded file's data lives only in the tab's memory: none of its
+  values is stored, a reload brings the host's data back. Its name and its column names are, where
+  views are kept or shared: the source id of a saved view, a view file or a link names the file
+  (up to 120 characters and a hash), and a view file lists the fields it uses. Undo keeps at most three data sets, so loading one
   file after another does not keep every one in memory.
 
 ## Content-Security-Policy

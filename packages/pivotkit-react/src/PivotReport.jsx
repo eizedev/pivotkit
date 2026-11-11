@@ -242,7 +242,7 @@ function EmptyState({ labels, templates, onTemplate, onLoad, noData }) {
             )}
             {onLoad ? (
                 <div className="pk-drop-zone" data-testid="empty-drop">
-                    <p>{labels.emptyLoad}</p>
+                    <p>{noData ? labels.emptyDrop : labels.emptyLoad}</p>
                     <button type="button" className="pk-btn" onClick={onLoad} data-testid="empty-load">
                         <Icon name="upload" />
                         <span className="pk-btn-text">{labels.loadData}</span>
@@ -457,7 +457,8 @@ function Report(props) {
     const hostKey = keyOfHostView(viewProp !== undefined ? viewProp : startView);
     const keyOf = history.keyOf;
     const hostNotes = useMemo(() => {
-        if (hostKey === "null" || loading || encoded.schema.fields.length === 0) {
+        // a file's data shown: the host's view is the host's data's business, not the person's
+        if (hostKey === "null" || loading || imported || encoded.schema.fields.length === 0) {
             return null;
         }
         const raw = JSON.parse(hostKey);
@@ -466,7 +467,7 @@ function Report(props) {
         }
         const notes = unusedNotes(normalize(raw, encoded, { limits }).issues, raw);
         return notes.length ? { notes, loaded: JSON.parse(keyOf(raw)) } : null;
-    }, [hostKey, loading, encoded, limits, keyOf]);
+    }, [hostKey, loading, imported, encoded, limits, keyOf]);
     /** What a loaded view (`given`, as given) left out, for the area above the result. */
     const leaveOut = useCallback((notes, given) => setLeftOut({ notes, loaded: given ? JSON.parse(keyOf(given)) : null, after: hostKey }), [keyOf, hostKey]);
     // the saved view shown: the history step's, when it was loaded for the data shown now (another
@@ -943,7 +944,7 @@ function Report(props) {
     const requestImport = () => loadImport().then((m) => (flushSync(() => setImportMod(() => m)), m));
     /** What the import UI works on: this render's state, its setters and the props it needs. */
     const api = {
-        imported, setImported, steps: dataSteps, setSteps: setDataSteps, job, setJob, dragging, history, encoded, hostEncoded: source.encoded, hostSource: sourceProp, sourceName, labels, locale, plugins, worker: importWorker, limits, timeZone, onDataLoad, announce,
+        imported, setImported, steps: dataSteps, setSteps: setDataSteps, job, setJob, dragging, history, encoded, hostEncoded: source.encoded, hostSource: sourceProp, sourceName, labels, locale, plugins, worker: importWorker, limits, timeZone, onDataLoad, announce, dismiss,
         undo: () => undoLater.current(),
         box: () => root.current?.getBoundingClientRect(),
         pick: () => importMod?.pickFile(fileInput.current),
@@ -1076,7 +1077,8 @@ function Report(props) {
             big.setEnlarged(false);
             return;
         }
-        if (target.closest("input, textarea, select, [contenteditable]")) {
+        // a modal dialog of the report (the preview of a file) keeps its keys: Undo never changes what is behind it
+        if (target.closest("input, textarea, select, [contenteditable], [aria-modal='true']")) {
             return;
         }
         const mod = e.ctrlKey || e.metaKey;
@@ -1443,7 +1445,7 @@ function Report(props) {
                                         <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
-                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => undefined) : undefined} noData={allowImport && fields.length === 0} />
+                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
                                 ) : view.display === "chart" && chartResult ? (
                                     <PivotChart
                                         result={chartResult}

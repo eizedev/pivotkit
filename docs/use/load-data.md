@@ -76,8 +76,8 @@ shown; the others keep the type found.
 - **Data**, **Back to original data** shows the application's data again, with the view you had on it.
   It is there only while a file's data is shown.
 - **Undo** takes back loading too: first your changes on the file, then the loading itself; **Redo**
-  goes forward again, file and changes included. Undo goes back over the last three loads (and
-  returns to the original data); older ones are let go, since each one keeps a whole file's data.
+  goes forward again, file and changes included. Undo goes back over the last three data steps (loads
+  and Back to original data); older ones are let go, since each one keeps a whole data set.
 - Reloading the page shows the application's data: the file is not kept.
 
 ## When a file cannot be loaded
@@ -92,8 +92,11 @@ The data you had stays, and a note says why, in the words of the reader:
 | "… no reader for this kind of file." | The report does not read this format (a PDF, say); save the data as CSV. |
 | "Drop one file at a time." | More than one file was dropped. |
 
-An empty report of an application without data of its own says "Load data to start", with the
-place to drop a file and **Load data…**.
+An empty report of an application without data of its own says "Load data to start", with "Drop a
+file onto the report, or" and **Load data…**.
+
+A sheet of a workbook that cannot be read says why above the sheet list; pick another sheet, or
+**Cancel**. A note about a file that could not be loaded closes when you drop or pick the next one.
 
 ![The empty report: the three steps, and below them "Or load your own data: drop a file onto the report, or" with Load data…](../assets/screenshots/import-empty-light.png#only-light)
 ![The empty report: the three steps, and below them "Or load your own data: drop a file onto the report, or" with Load data…](../assets/screenshots/import-empty-dark.png#only-dark)
@@ -103,8 +106,11 @@ place to drop a file and **Load data…**.
 - **Data** is a toolbar button like the others: Tab to it, Enter opens it, **Load data…** is the
   first entry. On a narrow report it is under **More**, which then carries the dot.
 - The preview is a dialog: the focus moves in, Tab stays inside, Escape cancels, and the focus goes
-  back to where it was. When the rows are there the focus is on **Load data**, so Enter loads;
-  Shift+Tab reaches the types, each a list named "Type of Hours".
+  back to where it was. When the first rows are there the focus is on **Load data**, so Enter loads;
+  Tab from there goes to the sheet and the types, each a list named "Type of Hours", Shift+Tab to
+  **Cancel**. After another sheet is picked the focus stays on the sheet list. The dialog is described
+  by its line of rows and columns and by the notes, so a screen reader reads them out.
+- Undo's keys (Ctrl+Z, Ctrl+Y) do nothing while the preview is open.
 - On a phone the preview fills the width of the window; the table scrolls sideways.
 
 ![The preview on a phone: the table scrolls sideways, the notes below, Cancel and Load data](../assets/screenshots/import-phone-light.png#only-light)

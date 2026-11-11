@@ -214,7 +214,9 @@ async function licenses(metafile) {
  * (#123) 157.4 (CI about 157.7), budget 158.5.
  * Loading data in the browser (#44, allow-import): the import UI, its texts and pivotkit-core/import
  * with its readers are the group "import", loaded on the first use of the Data menu, a drop or the
- * empty report's button: 19.1 measured on a Mac (CI about 19.4), budget 20. The first load keeps the
+ * empty report's button: 19.1 measured on a Mac, then 19.8 with the review's fixes (a worker's
+answers checked, a plugin's minimal table completed, failed sheets, the host's errors; CI about
+20.1), budget 21. The first load keeps the
  * Data button, the drop handler, the data steps' state in the report, the empty report's line and the
  * rules of the overlay and the preview (one stylesheet): about 1.9 KiB more code, and 0.6 KiB more
  * because esbuild splits the modules the import UI shares with the first load into two more files,
@@ -222,7 +224,7 @@ async function licenses(metafile) {
  * the menus 39.7 with the Data menu's panel, within 41.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 161.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5, import: 20 };
+export const SIZE_BUDGET_KIB = { initial: 161.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

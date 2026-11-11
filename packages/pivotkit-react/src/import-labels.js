@@ -19,6 +19,8 @@ export const en = {
     backHint: "Undo brings the file back",
     dropHint: "or drop a file onto the report",
     formats: "Reads {formats}",
+    // the formats of the built-in readers and pivotkit-xlsx by the reader's name; a plugin's own label otherwise
+    formatNames: { csv: "CSV or text", json: "JSON", xlsx: "Excel workbook" },
     dropTitle: "Drop the file to load it",
     dropOne: "Drop one file at a time.",
     reading: "Reading {name}…",
@@ -40,6 +42,7 @@ export const en = {
     stepLoaded: "{name} loaded",
     originalShown: "The original data is shown",
     failed: "{name} could not be loaded: {message}",
+    refused: "{name} was not loaded: {message}",
     sourceLine: "{name}, only in this browser",
     sourceSheet: "{name}, sheet “{sheet}”, only in this browser",
     notes: {
@@ -81,6 +84,7 @@ export const de = {
     backHint: "Rückgängig holt die Datei zurück",
     dropHint: "oder eine Datei auf den Bericht ziehen",
     formats: "Liest {formats}",
+    formatNames: { csv: "CSV oder Text", json: "JSON", xlsx: "Excel-Arbeitsmappe" },
     dropTitle: "Loslassen, um die Datei zu laden",
     dropOne: "Bitte nur eine Datei auf einmal ziehen.",
     reading: "{name} wird gelesen…",
@@ -102,6 +106,7 @@ export const de = {
     stepLoaded: "{name} geladen",
     originalShown: "Die Originaldaten werden gezeigt",
     failed: "{name} konnte nicht geladen werden: {message}",
+    refused: "{name} wurde nicht geladen: {message}",
     sourceLine: "{name}, nur in diesem Browser",
     sourceSheet: "{name}, Blatt „{sheet}“, nur in diesem Browser",
     notes: {

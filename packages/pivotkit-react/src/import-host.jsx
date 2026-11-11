@@ -15,7 +15,8 @@ import { useFormName } from "./dom.js";
 
 /**
  * @typedef {import("./import-steps.js").ImportContext & {
- *   job: { file: File, n: number } | null, setJob: (job: { file: File, n: number } | null) => void,
+ *   job: { file: File, n: number } | null, setJob: React.Dispatch<React.SetStateAction<{ file: File, n: number } | null>>,
+ *   dismiss?: (id: number) => void,
  *   dragging: boolean, encoded: import("pivotkit-core").Encoded, sourceName: string | undefined,
  *   plugins: any[], worker?: () => Worker, limits?: object, timeZone?: string,
  *   box: () => DOMRect | undefined, pick: () => void }} ImportApi
@@ -25,15 +26,40 @@ import { useFormName } from "./dom.js";
 let jobs = 0;
 
 /**
- * Files picked or dropped: one opens its preview, more than one is said to be too many.
+ * The error notes of loading data each report shows (by its `dismiss`, one per report): a new file
+ * closes them, so a note about an earlier file never stands next to the next one's.
+ * @type {WeakMap<Function, number[]>}
+ */
+const shownErrors = new WeakMap();
+
+/**
+ * An error note of loading data, kept to be closed when the next file comes.
+ * @param {ImportApi} api
+ * @param {string} text
+ */
+function sayError(api, text) {
+    const id = api.announce(text, { tone: "error" });
+    if (typeof id === "number" && typeof api.dismiss === "function") {
+        shownErrors.set(api.dismiss, [...(shownErrors.get(api.dismiss) ?? []), id]);
+    }
+}
+
+/**
+ * Files picked or dropped: one opens its preview, more than one is said to be too many. The error
+ * notes of earlier files go.
  * @param {ImportApi} api
  * @param {File[]} files
  */
 export function startFiles(api, files) {
+    const dismiss = api.dismiss;
+    if (typeof dismiss === "function") {
+        (shownErrors.get(dismiss) ?? []).forEach((id) => dismiss(id));
+        shownErrors.delete(dismiss);
+    }
     if (files.length === 1) {
         api.setJob({ file: files[0], n: ++jobs });
     } else if (files.length > 1) {
-        api.announce(importLabels(api.labels).dropOne, { tone: "error" });
+        sayError(api, importLabels(api.labels).dropOne);
     }
 }
 
@@ -54,6 +80,7 @@ export function pickFile(input) {
  */
 export function ImportLayer({ api, input }) {
     const name = useFormName();
+    const job = api.job;
     return (
         <>
             <input
@@ -68,21 +95,22 @@ export function ImportLayer({ api, input }) {
                 data-testid="file-input"
             />
             {api.dragging ? <DropOverlay labels={api.labels} locale={api.locale} plugins={api.plugins} box={api.box} /> : null}
-            {api.job ? (
+            {job ? (
                 <ImportDialog
-                    key={api.job.n}
-                    job={api.job}
+                    key={job.n}
+                    job={job}
                     labels={api.labels}
                     locale={api.locale}
                     plugins={api.plugins}
                     worker={api.worker}
                     limits={api.limits}
                     timeZone={api.timeZone}
-                    announce={api.announce}
-                    onClose={() => api.setJob(null)}
+                    announce={(text, extra) => (extra?.tone === "error" ? sayError(api, text) : api.announce(text, extra))}
+                    // only this dialog's job: a file dropped meanwhile has its own
+                    onClose={() => api.setJob((j) => (j === job ? null : j))}
                     onApply={(loaded) => {
                         loadData(api, loaded);
-                        api.setJob(null);
+                        api.setJob((j) => (j === job ? null : j));
                     }}
                 />
             ) : null}

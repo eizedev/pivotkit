@@ -9,7 +9,7 @@ import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
 import { IMPORT_TEXTS, de, en, importLabels, noteText } from "../src/import-labels.js";
-import { acceptOf, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
+import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { SHOWN_MAX, sha256Bytes, sha256Hex, shownName, sourceIdOf } from "../src/import-source.js";
 import { backToOriginal, loadData, moveData } from "../src/import-steps.js";
 import { resolveLabels } from "../src/labels.js";
@@ -187,6 +187,8 @@ test("the file picker takes what the readers read: the host's plugins first; the
     assert.equal(acceptOf([]), ".csv,.tsv,.txt,.tab,text/csv,text/tab-separated-values,text/plain,.json,application/json");
     assert.ok(acceptOf([jsonl]).startsWith(".jsonl,application/x-ndjson,.csv"));
     assert.deepEqual(formatsOf([jsonl]), ["JSON Lines", "CSV or text", "JSON"]);
+    // in the report's language where it has a name for the reader; a plugin of others keeps its own
+    assert.deepEqual(formatsOf([jsonl, { name: "xlsx", label: "Excel workbook", accept: [".xlsx"] }], de.formatNames), ["JSON Lines", "Excel-Arbeitsmappe", "CSV oder Text", "JSON"]);
 });
 
 /**
@@ -283,4 +285,79 @@ test("a plugin's file is never sent to the worker: the plugin is code of the pag
     // no reader for the file: the message says so
     await assert.rejects(readImport(new File(["x"], "notes.pdf", { type: "application/pdf" }), { worker: fakeWorker({ log }) }), (e) => e.details?.reason === "NO_READER");
     assert.deepEqual(log, []);
+});
+
+/** A worker double that answers with what `script` says, for the shapes a worker should not send. */
+function scriptedWorker(script) {
+    return () => {
+        const w = { onmessage: null, onerror: null, onmessageerror: null, terminated: false, terminate() { this.terminated = true; }, postMessage(msg) { script.onPost?.(w, msg); } };
+        setTimeout(() => script.onStart?.(w), 0);
+        return /** @type {any} */ (w);
+    };
+}
+
+test("a worker that answers without a table, cannot take the options or never starts: no hang, an error or the page's read", async () => {
+    const file = csv(TICKETS);
+    await assert.rejects(readImport(file, { worker: scriptedWorker({ onStart: (w) => w.onmessage({ data: { type: "ready" } }), onPost: (w) => w.onmessage({ data: { type: "done" } }) }) }), /no table/);
+    await assert.rejects(readImport(file, { worker: scriptedWorker({ onStart: (w) => w.onmessage({ data: { type: "ready" } }), onPost: (w) => w.onmessage({ data: { type: "done", table: "x" } }) }) }), /no table/);
+    await assert.rejects(readImport(file, { worker: scriptedWorker({ onStart: (w) => w.onmessage({ data: { type: "ready" } }), onPost: (w) => w.onmessageerror() }) }), /could not be read/);
+    // options it cannot take, a factory that gives no worker, a worker that never says it is ready: the page reads
+    const throwing = scriptedWorker({ onStart: (w) => w.onmessage({ data: { type: "ready" } }), onPost: () => { throw new DOMException("could not be cloned", "DataCloneError"); } });
+    assert.equal((await readImport(file, { worker: throwing })).rowCount, 3);
+    assert.equal((await readImport(file, { worker: () => /** @type {any} */ (undefined) })).rowCount, 3);
+    const silent = scriptedWorker({});
+    assert.equal((await readImport(file, { worker: silent, readyMs: 50 })).rowCount, 3);
+});
+
+test("a plugin's minimal table (columns, types, data, notes) gets what the preview and retype need", async () => {
+    const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }, null, { nope: 1 }] };
+    const t = completeTable(minimal);
+    assert.equal(t.rowCount, 2);
+    assert.deepEqual(t.raw, minimal.data);
+    assert.deepEqual(t.detected, ["string", "string"]);
+    assert.deepEqual(t.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
+    const plugin = { apiVersion: 1, kind: "reader", name: "mini", label: "Mini", accept: [".mini"], load: async () => ({ read: async () => minimal }) };
+    const read = await readImport(new File(["x"], "a.mini"), { plugins: [plugin] });
+    assert.equal(read.rowCount, 2);
+    // the preview's change of a type works on it (retype needs raw and hints)
+    const { retype } = await import("pivotkit-core/import");
+    assert.deepEqual(retype(read, ["number", "string"]).data[0], [1, 2]);
+});
+
+test("a host whose onDataLoad throws: a load is refused with its message; a step that happened stays, the error goes to the page", async () => {
+    const labels = resolveLabels("en-US");
+    const said = [];
+    let state = { imported: null, steps: NO_DATA_STEPS, history: createState("0|host", "start", "host view") };
+    const thrown = [];
+    const realTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => thrown.push(fn);
+    try {
+        const ctx = (onDataLoad) => ({
+            ...state,
+            setSteps: (s) => (state = { ...state, steps: s }),
+            setImported: (d) => (state = { ...state, imported: d }),
+            history: { snapshot: () => state.history, replace: (h) => (state = { ...state, history: h }) },
+            hostEncoded: encode([{ a: 1 }]),
+            hostSource: undefined,
+            onDataLoad,
+            labels,
+            locale: "en-US",
+            announce: (text, extra) => said.push({ text, tone: extra?.tone }),
+            undo: () => undefined
+        });
+        const loaded = { encoded: encode([{ b: 2 }]), source: { id: "f#1", name: "f.csv" }, file: { name: "f.csv", size: 3, type: "text/csv" }, sheet: null, rows: 1, columns: [{ name: "b", type: "number" }], notes: [] };
+        assert.equal(loadData(ctx(() => { throw new Error("Not today"); }), loaded), false);
+        assert.equal(state.imported, null);
+        assert.deepEqual(said.at(-1), { text: "f.csv was not loaded: Not today", tone: "error" });
+        // a promise is not waited for: only false refuses
+        assert.equal(loadData(ctx(() => Promise.resolve(false)), loaded), true);
+        backToOriginal(ctx(() => { throw new Error("host bug"); }));
+        assert.equal(state.imported, null, "the step stands");
+        assert.equal(said.at(-1).text, "The original data is shown");
+        assert.equal(moveData(ctx(() => { throw new Error("host bug"); }), true), "Back to original data");
+        assert.equal(thrown.length, 2, "the host's errors are thrown later, outside the report");
+        assert.throws(() => thrown[0](), /host bug/);
+    } finally {
+        globalThis.setTimeout = realTimeout;
+    }
 });

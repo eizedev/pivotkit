@@ -40,6 +40,7 @@ export function useToasts() {
             if (toast.tone !== "error" && !paused.current) {
                 arm(id);
             }
+            return id;
         },
         [arm]
     );

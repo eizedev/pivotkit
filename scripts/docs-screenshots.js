@@ -122,6 +122,7 @@ const TICKETS_CSV = (() => {
 /** Drags the ticket CSV over the report (`drop`: lets go, the preview opens). */
 async function dragTickets(page, drop) {
     const dt = await page.evaluateHandle((text) => {
+        // eslint-disable-next-line no-undef -- runs in the page
         const t = new DataTransfer();
         t.items.add(new File([text], "tickets-2026.csv", { type: "text/csv" }));
         return t;
