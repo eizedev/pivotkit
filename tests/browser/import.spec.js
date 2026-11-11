@@ -621,8 +621,13 @@ test("what a report mounted again does not bring back: the host's data after Bac
     await mountAgain(page, "host-remount");
     await expect(page.getByTestId("source-line")).toHaveCount(0);
     await expect(page.getByTestId("undo")).toBeDisabled();
-    // the host passes other data (another dataKey) when it mounts the report again: its data is shown
+    // the host passes other data (another dataKey) when it mounts the report again: its data is shown,
+    // and the file is let go: mounted again on the first data, the report shows that data
     await load();
+    await mountAgain(page, "host-new-data");
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await expect(page.getByTestId("undo")).toBeDisabled();
     await mountAgain(page, "host-new-data");
     await expect.poll(() => fieldNames(page)).toEqual(before);
     await expect(page.getByTestId("source-line")).toHaveCount(0);

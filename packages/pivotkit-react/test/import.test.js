@@ -38,6 +38,9 @@ test("a file's source id is its name and 16 hex digits of the SHA-256 of its nam
     // other or reordered columns are other data; the same file again is the same
     assert.notEqual(await sourceIdOf("tickets.csv", ["Team", "Id", "Opened"]), want);
     assert.equal(await sourceIdOf("tickets.csv", [...columns]), want);
+    // the worked example of docs/reference/import.md ("How a loaded file is named")
+    assert.equal(await sourceIdOf("tickets.csv", ["Id", "Team", "Opened", "Hours", "Zip"]), "tickets.csv#e51bd4bc21e98ee8");
+    assert.equal(await sourceIdOf("tickets.csv", ["Team", "Id", "Opened", "Hours", "Zip"], { subtle: null }), "tickets.csv#d11fe64346f1d906");
     // a long name is cut for people, the hash still covers all of it
     const long = `${"a".repeat(130)}.csv`;
     const other = `${"a".repeat(130)}x.csv`;

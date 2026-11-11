@@ -7,7 +7,7 @@
 // as a plugin, a new plugins array on every render, no worker; window.__loads keeps onDataLoad's
 // details). ?remount adds the host's buttons that mount the report again (a new React key, as
 // PowerShell Universal does on its light/dark switch and Sync-UDElement): "Mount again" with the same
-// data, "New data" with other rows under another dataKey; both start the controlled view again at the
+// data, "New data" with other rows under another dataKey (a second click goes back to the first rows); both start the controlled view again at the
 // host's start view, as a remounted PowerShell Universal component does; ?two a second report under its own
 // storageKey; ?nokey leaves storageKey out; "Mount empty" mounts it with no rows yet (a host without
 // `loading` whose data is on its way), which come 300 ms later. ?asyncecho passes the view back a
@@ -73,7 +73,7 @@ function Host() {
                     <button type="button" data-testid="host-remount" onClick={() => (setView(start), setMount((n) => n + 1))}>
                         Mount again
                     </button>
-                    <button type="button" data-testid="host-new-data" onClick={() => (setView(start), setOther(true), setMount((n) => n + 1))}>
+                    <button type="button" data-testid="host-new-data" onClick={() => (setView(start), setOther((o) => !o), setMount((n) => n + 1))}>
                         New data
                     </button>
                     <button type="button" data-testid="host-remount-empty" onClick={() => (setView(start), setEmpty(true), setMount((n) => n + 1))}>

@@ -80,13 +80,19 @@ A file loaded in the report ([`allowImport`](react.md#prop-allowimport)) becomes
 browser store (`templateStore="browser"`) and in the view files and links shared from it, so the same
 file loaded again finds its views and other data does not. The rule, in this order:
 
-1. **The name** is the file's name as the browser gives it (without a folder), cleaned as a column
-   name is: control and direction characters taken out, line breaks and tabs as one space, trimmed;
-   then cut to 256 characters (UTF-16 code units). An empty name becomes `file`.
+1. **The name** is the file's `File.name` as the browser gives it, cleaned as a column name is:
+   control characters (but tabs and line breaks), the characters that turn text around and the
+   invisible ones (zero-width characters, the soft hyphen, the byte order mark, tag characters, a
+   lone half of a surrogate pair) taken out, each run of tabs and line breaks as one space, trimmed;
+   then cut to 256 characters (UTF-16 code units, a fixed cut that `limits` does not change, and not
+   trimmed again). An empty name becomes `file`. Two names that differ only in characters taken out
+   are the same name.
 2. **The columns** are the names of the table after the readers' cleanup
-   ([above](#column-names-and-values)): cleaned and cut to `limits.name` (256) characters, empty ones
-   named `Column N`, repeated ones `Name (2)`, columns without a name and a value left out, nested JSON
-   as `a.b`. A type picked in the preview changes nothing.
+   ([above](#column-names-and-values)): cleaned the same way and cut to `limits.name` characters (256
+   by default); a number or date in the header row as its text (a date in ISO form); columns without a
+   name and without a value left out; an empty name `Column N` (N its place among the columns kept);
+   a name that repeats, compared without case, `Name (2)` ("Team" and "team" become "Team" and
+   "team (2)"); nested JSON as `a.b`. A type picked in the preview changes nothing.
 3. **The hash**: SHA-256 of the UTF-8 bytes of the name and the column names in their order, joined
    with U+0000. The browser's `crypto.subtle` computes it; a page without it (plain `http` on a host
    other than `localhost`) uses pivotkit-react's own implementation, which gives the same digest.
