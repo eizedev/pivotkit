@@ -505,6 +505,36 @@ strict("review fixes: a sheet over the limits says so and keeps the sheet list; 
     await expect.poll(() => fieldNames(report)).toEqual(["a", "b"]);
 });
 
+strict("a slow first frame (issue #136): the dialog's first focus does not take the focus back from Load data or the sheet list", async ({ page }) => {
+    // every frame comes 2 s late, as WebKit's headless frames sometimes do: the file is read and the
+    // person is in the dialog before its first frame; a frame asked for later still runs after it
+    await page.addInitScript(() => {
+        window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(performance.now()), 2000);
+        window.cancelAnimationFrame = (id) => window.clearTimeout(id);
+    });
+    const nextFrame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    const report = await elementPage(page, "?limits");
+    await expect(report.getByTestId("pivot-table")).toBeVisible();
+    const book = makeXlsx({ sheets: [{ name: "Small", rows: [["a", "b"], [1, 2]] }, { name: "Large", rows: [["a", "b"], ...Array.from({ length: 8 }, (_, i) => [i, i * 2])] }] });
+    const dialog = report.getByTestId("import-dialog");
+    // the first rows are there before the dialog's first frame: "Load data" keeps the focus after it
+    await dropFiles(page, report.getByTestId("pivot-table"), [fileOf("two.xlsx", XLSX, book)]);
+    await expect(dialog.getByTestId("import-apply")).toBeFocused();
+    await nextFrame();
+    await expect(dialog.getByTestId("import-apply")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    // the person picks a sheet over the limits before the dialog's first frame: the list keeps the focus
+    await dropFiles(page, report.getByTestId("pivot-table"), [fileOf("two.xlsx", XLSX, book)]);
+    await expect(dialog.getByTestId("import-apply")).toBeFocused();
+    const sheet = dialog.getByTestId("import-sheet");
+    await sheet.focus();
+    await sheet.selectOption({ label: "Large" });
+    await expect(dialog.getByTestId("import-error")).toContainText("limits.importCells");
+    await nextFrame();
+    await expect(sheet).toBeFocused();
+});
+
 test("review fixes: the formats in German; the empty report without data says it once", async ({ page }) => {
     await page.goto("?data=sales&lang=de&import");
     await expect(page.getByTestId("pivot-table")).toBeVisible();

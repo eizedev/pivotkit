@@ -113,6 +113,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#115](https://github.com/eizedev/pivotkit/issues/115)).
 - A line of the warning about a view's unused parts goes once its part of the view is changed by
   hand, and comes back with Undo ([#82](https://github.com/eizedev/pivotkit/issues/82)).
+- A modal layer (the file preview, the drill-down, the field drawer) whose first frame comes late
+  (WebKit) no longer takes the focus back from a control inside it: **Load data** keeps the focus once
+  the first rows are read, and the sheet list keeps it after a sheet over the limits
+  ([#136](https://github.com/eizedev/pivotkit/issues/136)).
 
 ## [0.3.0] - 2026-11-09
 

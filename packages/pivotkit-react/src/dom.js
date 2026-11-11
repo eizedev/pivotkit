@@ -187,8 +187,8 @@ export function useEscapeLayer(open, onClose) {
 }
 
 /**
- * A modal layer (drill-down, field drawer, bottom sheet): focus moves into it when it opens and back
- * to where it was when it closes; Tab stays inside (`onKeyDown`); Escape closes it.
+ * A modal layer (drill-down, field drawer, bottom sheet): focus moves into it when it opens (unless a
+ * control inside has it by then) and back to where it was when it closes; Tab stays inside (`onKeyDown`); Escape closes it.
  * @param {React.RefObject<HTMLElement | null>} ref
  * @param {boolean} open
  * @param {() => void} onClose
@@ -206,8 +206,14 @@ export function useModal(ref, open, onClose, opener) {
         const was = activeIn(el);
         const plain = !was || was === el.ownerDocument.body || was.classList.contains("pk-root");
         const back = plain && opener ? el.closest(".pk-root")?.querySelector(opener) ?? was : was;
-        // on the next frame: the layer may still be inert or hidden in this one
+        // on the next frame: the layer may still be inert or hidden in this one. A frame can come late
+        // (WebKit, a busy page): when the focus is already on a control inside by then (put there by the
+        // layer's own code or by the person), it stays there (issue #136)
         const t = requestAnimationFrame(() => {
+            const now = activeIn(el);
+            if (now && now !== el && el.contains(now)) {
+                return;
+            }
             const first = /** @type {HTMLElement | null} */ (el.querySelector("[data-autofocus]")) ?? tabStops(el)[0] ?? el;
             first.focus({ preventScroll: true });
         });
