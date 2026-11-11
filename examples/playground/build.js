@@ -21,7 +21,8 @@ const alias = process.env.PIVOTKIT_REACT === "19" ? { react: `${react19}react`, 
 const options = {
     absWorkingDir: here,
     // the playground, and the view file check the documentation site embeds (docs/reference/view-file.md)
-    entryPoints: { app: "src/main.jsx", validator: "src/validator.js" },
+    // the import worker (pivotkit-react/import-worker): reads CSV and JSON files off the page
+    entryPoints: { app: "src/main.jsx", validator: "src/validator.js", "import-worker": "pivotkit-react/import-worker" },
     outdir: "dist",
     bundle: true,
     format: "esm",

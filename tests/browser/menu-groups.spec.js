@@ -107,6 +107,19 @@ test("More: Start over's two actions, then Layout, Chart type and Options, then 
     await expect(menu.getByRole("group", { name: "Start over" })).toBeVisible();
 });
 
+test("More with the Data button (allowImport): Data in a group of its own between the layout's and Views", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("?data=sales&import");
+    await toolbar(page, "more");
+    const menu = page.getByRole("menu", { name: "More" });
+    const groups = await groupsOf(menu);
+    expect(ruled(groups)).toEqual([false, true, true, true]);
+    expect(groups.map((g) => g.items)).toEqual([["more-reset", "more-new-report"], ["more-layout", "more-chart-type", "more-options"], ["more-data"], ["more-views"]]);
+    // its entry opens the Data menu in More's place
+    await page.getByTestId("more-data").click();
+    await expect(page.getByRole("dialog", { name: "Data" }).getByTestId("data-menu")).toBeVisible();
+});
+
 test("a value's Summarize by: More statistics under its title, a rule above it", async ({ page }) => {
     await page.goto("?data=sales");
     await chipMenu(page, "Sum of Revenue", "summarize");

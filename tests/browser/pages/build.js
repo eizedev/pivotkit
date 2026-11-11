@@ -20,6 +20,9 @@
 //   (examples/element/) is copied to dist/examples/element/ next to it, at the same relative path as
 //   in the repository.
 // - xlsx.html: pivotkit-xlsx's dist/ reading a picked workbook under the element's strict CSP.
+// - host.html?import: the host page with allowImport and pivotkit-xlsx from its dist/ (no worker: a
+//   host like PowerShell Universal has none); element-import.html: the element loading data under the
+//   strict CSP, with its own worker and pivotkit-xlsx's dist/ as a plugin.
 //
 // PIVOTKIT_REACT=19 takes React and ReactDOM from tests/react19 (npm ci --prefix tests/react19);
 // the default is the React 18 of the workspace.
@@ -70,6 +73,7 @@ const VENDOR = {
     "pivotkit-core": "pivotkit-core",
     "pivotkit-core/export": "pivotkit-core-export",
     "pivotkit-core/link": "pivotkit-core-link",
+    "pivotkit-core/import": "pivotkit-core-import",
     "pivotkit-core/templates": "pivotkit-core-templates",
     "echarts/core": "echarts-core",
     "echarts/charts": "echarts-charts",
@@ -100,11 +104,12 @@ for (const file of (await readdir(`${root}packages/pivotkit-react/dist/`)).filte
 await cp(`${root}packages/pivotkit-react/dist/chunks/`, `${out}chunks/`, { recursive: true });
 await copyFile(`${root}packages/pivotkit-react/dist/styles.css`, `${out}pivotkit-react.css`);
 // the host page's own code: every package left to the import map
-await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { host: "host.jsx", nav: "nav.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "pivotkit-react", "react/jsx-runtime"] });
+await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { host: "host.jsx", nav: "nav.jsx" }, outdir: out, jsx: "automatic", external: [...Object.keys(VENDOR), "pivotkit-react", "pivotkit-xlsx", "react/jsx-runtime"] });
 // the shadow root page bundles its React like any app
 await esbuild.build({ ...common, absWorkingDir: here, entryPoints: { shadow: "shadow.jsx", hydrate: "hydrate.jsx" }, outdir: out, jsx: "automatic", alias: { react: real.react.replace(/index\.js$/, ""), "react-dom": real["react-dom"].replace(/index\.js$/, "") } });
 
-const importMap = { imports: { ...Object.fromEntries(Object.entries(VENDOR).map(([spec, name]) => [spec, `./vendor/${name}.js`])), "react/jsx-runtime": "./jsx-runtime.js", "pivotkit-react": "./pivotkit-react.js" } };
+// pivotkit-xlsx as it ships for pages without a bundler (dist/), copied below
+const importMap = { imports: { ...Object.fromEntries(Object.entries(VENDOR).map(([spec, name]) => [spec, `./vendor/${name}.js`])), "react/jsx-runtime": "./jsx-runtime.js", "pivotkit-react": "./pivotkit-react.js", "pivotkit-xlsx": "../packages/pivotkit-xlsx/dist/index.js" } };
 // the automatic JSX runtime of the host page, on the host's React
 await writeFile(`${out}jsx-runtime.js`, 'import React from "react";\nexport const Fragment = React.Fragment;\nexport const jsx = (type, props, key) => React.createElement(type, key === undefined ? props : { ...props, key });\nexport const jsxs = jsx;\n');
 const page = (title, body) => `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8" />\n<meta name="viewport" content="width=device-width, initial-scale=1" />\n<title>${title}</title>\n${body}\n</head>\n<body><div id="app"></div></body>\n</html>\n`;

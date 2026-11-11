@@ -15,6 +15,7 @@ import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
+import xlsxReader from "pivotkit-xlsx";
 import "pivotkit-react/styles.css";
 import "./playground.css";
 import { DATASETS, REAL } from "./data.js";
@@ -27,6 +28,11 @@ const SOURCES = Object.keys(DATASETS).filter((k) => k !== "markup").map((k) => (
 const params = new URLSearchParams(location.search);
 // the report's storageKey; its view is in the fragment under "pivot-<storageKey>" (pivotkit-react's rule)
 const STORAGE_KEY = "playground";
+// loading data (allowImport) with ?import: Excel workbooks with pivotkit-xlsx, CSV and JSON read in a
+// module worker; the host decides, so the playground's other pages show the report without it
+const IMPORT = params.has("import")
+    ? { allowImport: true, plugins: [xlsxReader], importWorker: () => new Worker(new URL("./import-worker.js", import.meta.url), { type: "module" }) }
+    : {};
 const LINK_PARAM = `pivot-${STORAGE_KEY}`;
 
 /** A template's name as it stands in the address: "Which teams are slowest?" -> "which-teams-are-slowest". */
@@ -160,6 +166,7 @@ function App() {
     // views published as shared ones: a host keeps them on its server, the playground in this browser
     const [published, setPublished] = useState(() => stored(`pivotkit-published-${dataset}`, []));
     const [lastClick, setLastClick] = useState(null);
+    const [lastLoad, setLastLoad] = useState(null);
     const timings = useTimings();
 
     const { rows, fetched } = useRows(dataset, size);
@@ -296,10 +303,13 @@ function App() {
                 grow={grow}
                 className={fixedHeight ? "pg-fixed" : undefined}
                 fileName={`pivotkit-${dataset}`}
+                {...IMPORT}
+                onDataLoad={(d) => setLastLoad({ cause: d.cause, name: d.source?.name ?? null, rows: d.rows, columns: d.columns.length })}
             />
             <footer className="pg-foot" aria-live="off">
                 <span data-testid="pg-timings">encode {ms("encode")} · computePivot {ms("computePivot")} · toGrid {ms("toGrid")}</span>
                 <span data-testid="pg-last-click">{lastClick ? `onCellClick: ${JSON.stringify(lastClick.row)} × ${JSON.stringify(lastClick.col)}, ${lastClick.count} rows` : ""}</span>
+                <span data-testid="pg-last-load">{lastLoad ? `onDataLoad: ${lastLoad.cause}, ${lastLoad.name ?? "the playground's data"}, ${lastLoad.rows} rows, ${lastLoad.columns} columns` : ""}</span>
             </footer>
         </div>
     );

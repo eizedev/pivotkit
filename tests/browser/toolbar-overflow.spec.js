@@ -1,12 +1,15 @@
 // Which toolbar buttons are in the toolbar and which in More, in English and German, at the desktop
-// widths of issue #88 with the field list open and folded: a button moves into More only when the
+// widths of issue #88 with the field list open and folded, without and with the Data button
+// (allowImport, the playground's ?import): a button moves into More only when the
 // room left in the toolbar cannot hold it (measured with the texts shown, and the chart type's room
 // for its longest type, so picking a type never moves a button), and the toolbar stays on one line.
 import { expect, test } from "./fixtures.js";
 
 const WIDTHS = [1000, 1280, 1440, 1920];
 /** The buttons that can move, by the test id of their button and of their entry in More. */
-const MOVABLE = { "start-over": "more-reset", layout: "more-layout", options: "more-options", "chart-type": "more-chart-type", views: "more-views" };
+const BUTTONS = { "start-over": "more-reset", layout: "more-layout", options: "more-options", "chart-type": "more-chart-type", views: "more-views" };
+/** The same with the Data button. */
+const WITH_DATA = { ...BUTTONS, data: "more-data" };
 
 /** Waits until the report has its data and its toolbar has settled (it measures after the fonts). */
 async function settled(page) {
@@ -19,9 +22,9 @@ async function settled(page) {
  * type's button is with its longest type than with the one shown: read with every button in the
  * toolbar (a window 2560 px wide).
  */
-async function buttonSizes(page, lang) {
+async function buttonSizes(page, lang, query = "") {
     await page.setViewportSize({ width: 2560, height: 900 });
-    await page.goto(`?data=sales&lang=${lang}`);
+    await page.goto(`?data=sales&lang=${lang}${query}`);
     await settled(page);
     await page.getByTestId("chart-type").click();
     const names = await page.locator(".pk-chart-menu [data-testid^='chart-'] .pk-option-text").evaluateAll((els) => els.map((e) => e.firstChild.textContent));
@@ -36,13 +39,13 @@ async function buttonSizes(page, lang) {
         return {
             gap: parseFloat(getComputedStyle(bar).columnGap),
             chartTypeReserve: longest - shown.getBoundingClientRect().width,
-            widths: Object.fromEntries(["start-over", "layout", "options", "chart-type", "views"].map((id) => [id, width(id)]))
+            widths: Object.fromEntries(["start-over", "layout", "options", "chart-type", "views", "data"].filter((id) => bar.querySelector(`[data-testid="${id}"]`)).map((id) => [id, width(id)]))
         };
     }, names);
 }
 
 /** What the toolbar shows: the movable buttons in it, those in More, the free room, More's width. */
-async function toolbarState(page) {
+async function toolbarState(page, MOVABLE = BUTTONS) {
     const state = await page.locator(".pk-toolbar").evaluate((bar, movable) => {
         const shown = Object.keys(movable).filter((id) => bar.querySelector(`[data-testid="${id}"]`));
         // the middle of every part of the toolbar: one line when they all sit at the same height
@@ -67,15 +70,15 @@ async function toolbarState(page) {
     return { ...state, inMore };
 }
 
-for (const lang of ["en", "de"]) {
-    test(`${lang}: a button moves into More only when the room left cannot hold it`, async ({ page }) => {
+for (const [lang, query, MOVABLE] of [["en", "", BUTTONS], ["de", "", BUTTONS], ["en", "&import", WITH_DATA], ["de", "&import", WITH_DATA]]) {
+    test(`${lang}${query ? ", with Data" : ""}: a button moves into More only when the room left cannot hold it`, async ({ page }) => {
         test.slow();
-        const sizes = await buttonSizes(page, lang);
+        const sizes = await buttonSizes(page, lang, query);
         const seen = {};
         for (const width of WIDTHS) {
             for (const fields of ["open", "folded"]) {
                 await page.setViewportSize({ width, height: 900 });
-                await page.goto(`?data=sales&lang=${lang}`);
+                await page.goto(`?data=sales&lang=${lang}${query}`);
                 await settled(page);
                 // the field list keeps its state in the browser: set it either way
                 const toggle = page.getByTestId(fields === "folded" ? "collapse-fields" : "expand-fields");
@@ -84,7 +87,7 @@ for (const lang of ["en", "de"]) {
                     await settled(page);
                 }
                 const at = `${width} px, field list ${fields}`;
-                const s = await toolbarState(page);
+                const s = await toolbarState(page, MOVABLE);
                 seen[at] = s.shown;
                 const hidden = Object.keys(MOVABLE).filter((id) => !s.shown.includes(id));
                 // one line, unless even with every button in More it does not fit (then it wraps)
@@ -106,15 +109,18 @@ for (const lang of ["en", "de"]) {
         // 1440 px, Layout and Options stay in English (they went into More next to a wide gap)
         expect(seen["1920 px, field list open"]).toEqual(Object.keys(MOVABLE));
         expect(seen["1920 px, field list folded"]).toEqual(Object.keys(MOVABLE));
-        if (lang === "en") {
+        if (lang === "en" && !query) {
             // Start over (where New is) goes late: it stays where Layout and Options already went
             expect(seen["1440 px, field list open"]).toEqual(expect.arrayContaining(["start-over", "views"]));
             expect(seen["1280 px, field list open"]).toEqual(expect.arrayContaining(["start-over", "views"]));
             expect(seen["1440 px, field list folded"]).toEqual(Object.keys(MOVABLE));
         }
-        // Views is the last to go: wherever any button besides it shows, Views does too
+        // Views is the last to go: wherever any button besides it shows, Views does too; Data goes
+        // after the chart type and before Start over (OVERFLOW_ORDER)
         for (const [at, shown] of Object.entries(seen)) {
             if (shown.length) expect(shown, at).toContain("views");
+            if (query && shown.includes("chart-type")) expect(shown, at).toContain("data");
+            if (query && shown.includes("data")) expect(shown, at).toContain("start-over");
         }
     });
 }
