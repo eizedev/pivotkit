@@ -109,6 +109,12 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   workbook named `.csv`) is refused with what it is and what to do.
 - **Plugins** run with the rights of the page: use [plugins](reference/plugins.md) whose source you
   can read, pinned to an exact version.
+- **In the report** (`allowImport`): the file is read only after a person picked or dropped it, and
+  shown first in a preview; the data is replaced only by **Load data**, and the host can refuse it
+  (`onDataLoad`, `pivot-data-load`). Names and values from the file are shown as text in the preview,
+  the field list and the table. A loaded file's data lives only in the tab's memory: nothing is
+  stored, a reload brings the host's data back. Undo keeps at most three data sets, so loading one
+  file after another does not keep every one in memory.
 
 ## Content-Security-Policy
 
@@ -143,6 +149,16 @@ The readers of `pivotkit-core/import` and pivotkit-xlsx start no worker and eval
 policy above is enough for them (measured for pivotkit-xlsx in Chromium, Firefox and WebKit,
 `tests/browser/xlsx.spec.js`); a host that runs them in a module worker of its own needs
 `worker-src 'self'`.
+
+Loading data in the element (`allow-import`) was measured with the same policy
+(`tests/browser/import.spec.js`): its import worker, `dist/import-worker.js`, is a file of the page's
+origin started by URL, never `blob:`, which `script-src 'self'` allows (`worker-src` falls back to
+it); pivotkit-xlsx's `dist/` reads workbooks as a plugin; the drop overlay and the preview set their
+places through the CSSOM. Chromium and Firefox report no violation. WebKit reports one
+`style-src-attr` violation, with a console error, for every native `<select>` it creates (the preview's
+type and sheet lists) and for a page's own `<select>` alike: the control's own inner parts, not the
+report's code; the lists work. A policy whose `worker-src` does not allow the worker's origin makes
+the report read on the page instead (the browser logs the refusal).
 
 ## Loading from another origin
 

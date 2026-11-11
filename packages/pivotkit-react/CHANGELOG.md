@@ -8,6 +8,27 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Loading data in the browser ([#44](https://github.com/eizedev/pivotkit/issues/44)), with the new
+  prop `allowImport` (off by default): a **Data** button before Views (under More on a narrow report)
+  with the data source (name, rows × columns), **Load data…** and **Back to original data**; a file
+  dropped onto the report, with an overlay while it is dragged; a preview before the data is
+  replaced: the sheet of a workbook, the first rows, a type per column (Text, Number, Date, Yes/No),
+  the readers' notes, progress and **Cancel** while it reads, Escape to cancel. A file that cannot be
+  read keeps the data and says why with the reader's message. Loading is a step of the undo history
+  (Undo and Redo move between the data sets with their own views, up to three kept); a dot on Data
+  and a line under the result name the file while its data is shown. The empty report offers to load a
+  file ("Load data to start" without data). Texts in English and German (`labels.dataImport`).
+- `plugins`: reader plugins of `pivotkit-core/import` (pivotkit-xlsx for Excel workbooks);
+  `onDataLoad`: every change of the data shown (`cause` "load", "original", "undo", "redo"; returning
+  `false` refuses a file); `importWorker`: a module worker (the new entry `pivotkit-react/import-worker`)
+  that reads CSV and JSON off the page, with the page as the fallback.
+- While a file's data is shown the report's source is the file's: its name and the first 16 hex digits
+  of the SHA-256 of its name and column names, so the browser store keeps views per file.
+- `data` takes columnar data (`{ columns, types, data }`), as pivotkit-core's `encode` does.
+- The import UI is a file of its own, `dist/import-ui.js` (with `pivotkit-core/import`, which this
+  release needs from pivotkit-core), loaded on its first use; the first load keeps the Data button and
+  the drop handler.
+
 - Identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field of whole numbers whose name ends in the word ID, Nr,
   No, Number, Key or "#" ("ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2", "ID
   (Asset)"; not "Paid", "UUID" or "Number of items"), for which

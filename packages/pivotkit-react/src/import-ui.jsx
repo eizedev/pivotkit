@@ -124,7 +124,7 @@ export function DropOverlay({ labels, locale, plugins, box: boxOf }) {
 export function SourceLine({ labels, source }) {
     const t = importLabels(labels);
     return (
-        <span className="pk-row-label" data-testid="source-line">
+        <span className="pk-row-label pk-source" data-testid="source-line">
             <Icon name="file" size={14} />
             {fill(source.sheet ? t.sourceSheet : t.sourceLine, { name: source.name, sheet: source.sheet ?? "" })}
         </span>

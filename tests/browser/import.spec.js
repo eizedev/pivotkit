@@ -380,6 +380,23 @@ strict("the element under a strict CSP: a CSV read in its own worker, a workbook
     expect(loads.at(-1)).toMatchObject({ cause: "original", source: { id: "sales", name: "Sales" }, file: null, rows: 1000 });
 });
 
+plain("a policy that refuses workers: the element reads the file on the page and loads it", async ({ page }) => {
+    const problems = [];
+    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+    await page.goto("pages/element-import-noworker.html");
+    await page.waitForFunction(() => window.__ready === true);
+    const report = page.locator("pivot-report");
+    await expect(report.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, report.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await report.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(report)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
+    // the browser says it refused the worker; nothing else went wrong
+    const violations = await page.evaluate(() => window.__violations);
+    expect(violations.some((v) => v.startsWith("worker-src"))).toBe(true);
+    expect(violations.filter((v) => !v.startsWith("worker-src") && v !== "style-src-attr: inline")).toEqual([]);
+    expect(problems.filter((p) => !/worker|Worker|style-src/.test(p))).toEqual([]);
+});
+
 strict("the element: preventDefault() on pivot-data-load refuses the file, the data stays", async ({ page }) => {
     const report = await elementPage(page, "?refuse");
     await expect(report.getByTestId("pivot-table")).toBeVisible();

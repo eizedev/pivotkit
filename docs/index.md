@@ -55,6 +55,8 @@ Start with the [quick start](use/quick-start.md) (your first report in six steps
   view file; a view for other data asks first ([views and sharing](use/views.md)).
 - Export the table to Excel or CSV and the chart to PNG, or copy the table into a spreadsheet
   ([export and copy](use/export.md)).
+- Where the application allows it, load a CSV, JSON or Excel file of your own: drop it onto the report,
+  check the preview and the column types, go back with Undo ([load your own data](use/load-data.md)).
 - Enlarge the result or put the report on the full screen; tips, one at a time, say what the report
   shows and what to do next; an "i" explains each zone, field and setting that needs it, a field's
   menu says on its first level what is set and opens each topic in a level of its own, and every text
@@ -81,7 +83,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - The web component `<pivot-report>` for pages without React: Angular, PHP, plain HTML ([web component](getting-started/web-component.md)).
 - Runs in PowerShell Universal on the React it provides ([PowerShell Universal](getting-started/react.md#powershell-universal)), ready-made as `New-UDPivotReport` in [PowerShellUniversal.Component.Pivot](https://powershell-universal-components.eize.dev/pivot/).
 - The engine alone, in the browser or in Node: pivots, grids, chart options, XLSX and CSV ([engine](getting-started/engine.md)).
-- CSV, TSV and JSON files read in the browser into typed columns, Excel workbooks with the plugin pivotkit-xlsx, limits checked before parsing ([loading files](reference/import.md), [plugins](reference/plugins.md)).
+- CSV, TSV and JSON files read in the browser into typed columns, Excel workbooks with the plugin pivotkit-xlsx, limits checked before parsing ([loading files](reference/import.md), [plugins](reference/plugins.md)); `allowImport` lets people load them into the report themselves, with a preview and `onDataLoad` ([React props](reference/react.md#prop-allowimport)).
 - The report is a JSON view: store it, pass it back, controlled or not ([views](concepts/views.md)).
 - A view is user input: names only (and the values chosen in its filters), checked against fixed lists and limits, never run ([security](security.md)).
 - Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).

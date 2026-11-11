@@ -26,7 +26,7 @@ Two settings decide how a report reads:
 
 `LABELS` is exported by pivotkit-react's subpath `pivotkit-react/labels` (`import { LABELS } from "pivotkit-react/labels"`; a subpath of its own, so the report's first load does not carry the menus' texts); its keys are the
 reference for every text (in the source: `src/labels.js`, `src/menu-labels.js`,
-`src/menu-labels-de.js`, `src/unused-texts.js` and `src/unused-texts-de.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
+`src/menu-labels-de.js`, `src/unused-texts.js`, `src/unused-texts-de.js` and `src/import-labels.js` of pivotkit-react). The report's `lang` attribute follows the labels, so screen readers use the
 right voice.
 
 The texts only the menus show load with the menus, right after the first render: English with them,
@@ -49,6 +49,13 @@ placeholders `{field}`, `{value}`, `{agg}`, `{type}`, `{max}`, `{zone}`, `{setti
 text for a code it does not know, `item` puts the subject and the text together
 (`"{subject}: {text}"`), `quote` quotes a key of the view (`"“{key}”"`), and `position` tells two
 lines of one name apart (`"{subject} (no. {n} in {part})"`).
+
+The texts of [loading data](../use/load-data.md) (`labels.dataImport`: the Data menu, the drop
+overlay, the preview, the notes of the readers per note code in `labels.dataImport.notes`) load with
+the import UI, English and German in one file; a language of a host's own takes English there unless
+its `labels` give `dataImport`. The Data button's text (`data`), its dot's words for a screen reader
+(`dataLoaded`) and the empty report's line and button (`emptyLoad`, `emptyNoData`, `loadData`) are
+part of the first load.
 
 ## Changing single texts
 

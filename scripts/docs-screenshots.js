@@ -104,6 +104,38 @@ async function toolbar(page, testId) {
     await page.getByTestId(`more-${testId}`).click();
 }
 
+/**
+ * A CSV export as a ticket tool on a German Windows writes it (made up here, with a fixed pattern):
+ * semicolons, German numbers and dates, a title line above the header, an empty line, postcodes.
+ */
+const TICKETS_CSV = (() => {
+    const teams = ["Network", "Server", "Client", "Service desk"];
+    const states = ["Open", "In progress", "Closed"];
+    const lines = ["Ticket export, all teams", "Ticket;Team;Opened;State;Hours;Site postcode"];
+    for (let i = 0; i < 240; i++) {
+        lines.push(`${27_000 + i};${teams[i % 4]};${String((i % 28) + 1).padStart(2, "0")}.${String((i % 12) + 1).padStart(2, "0")}.2026;${states[(i * 7 + Math.floor(i / 5)) % 3]};${(i * 37) % 40},${(i * 3) % 10};0${1000 + ((i * 131) % 8000)}`);
+        if (i === 120) lines.push("");
+    }
+    return `${lines.join("\n")}\n`;
+})();
+
+/** Drags the ticket CSV over the report (`drop`: lets go, the preview opens). */
+async function dragTickets(page, drop) {
+    const dt = await page.evaluateHandle((text) => {
+        const t = new DataTransfer();
+        t.items.add(new File([text], "tickets-2026.csv", { type: "text/csv" }));
+        return t;
+    }, TICKETS_CSV);
+    const target = page.locator(".pk-result");
+    await target.dispatchEvent("dragenter", { dataTransfer: dt });
+    await target.dispatchEvent("dragover", { dataTransfer: dt });
+    await page.getByTestId("drop-overlay").waitFor();
+    if (drop) {
+        await target.dispatchEvent("drop", { dataTransfer: dt });
+        await page.getByTestId("import-apply").waitFor();
+    }
+}
+
 /** @type {{ name: string, query: string, hash?: string, size: typeof WIDE, chart?: boolean, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
 const SHOTS = [
     // the quick start (docs/use/quick-start.md): the sales data from an empty report to a chart
@@ -440,6 +472,35 @@ const SHOTS = [
         }
     },
     { name: "german", query: "data=sales&lang=de", size: WIDE },
+    // loading data (allowImport, the playground's ?import): the Data menu, a file dragged over the
+    // report, its preview, the report on it, the empty report's place to drop, the preview on a phone
+    { name: "data-menu", query: "data=sales&import", size: WIDE, open: (page) => toolbar(page, "data") },
+    { name: "import-drop", query: "data=sales&import", size: WIDE, open: (page) => dragTickets(page, false) },
+    { name: "import-preview", query: "data=sales&import", size: WIDE, open: (page) => dragTickets(page, true) },
+    {
+        name: "import-loaded",
+        query: "data=sales&import",
+        size: WIDE,
+        open: async (page) => {
+            await dragTickets(page, true);
+            await page.getByTestId("import-apply").click();
+            await page.getByTestId("source-line").waitFor();
+            for (const [field, zone] of [["Team", "Add to Rows"], ["State", "Add to Columns"], ["Hours", "Add to Values"]]) {
+                await page.getByTestId(`field-menu-${field}`).click();
+                await page.getByRole("menuitem", { name: zone }).click();
+            }
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+        }
+    },
+    { name: "import-empty", query: "data=sales&empty&import", size: WIDE },
+    {
+        name: "import-phone",
+        query: "data=sales&import",
+        size: PHONE,
+        open: async (page) => {
+            await dragTickets(page, true);
+        }
+    },
     // a field's description (fieldDefaults) opened from its "i", and the tips above the table
     {
         name: "field-info",

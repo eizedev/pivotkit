@@ -17,6 +17,7 @@ nav = [
     { "Overview" = "use/index.md" },
     { "Quick start" = "use/quick-start.md" },
     { "Learn with real data" = "learn.md" },
+    { "Load your own data" = "use/load-data.md" },
     { "Fields, zones and the table" = "use/fields.md" },
     { "Values and formats" = "use/values.md" },
     { "Filters, top N and sorting" = "use/filters.md" },

@@ -28,10 +28,13 @@ or the XLSX file.
 
 ## My data is columnar (`{ columns, rows }`). Can I pass it?
 
-Not directly: pivotkit takes rows as objects. Map them first:
+Data with one array per column, `{ columns, types, data }`, goes in as it is: as `data` of the React
+component and the web component, and into pivotkit-core's [`encode`](reference/core.md#columnar-input),
+without an object per row. Row arrays under `columns` (`{ columns, rows }`) are not taken; turn them
+into one array per column first:
 
 ```js
-const objects = data.rows.map((r) => Object.fromEntries(data.columns.map((c, i) => [c, r[i]])));
+const columnar = { columns: data.columns, data: data.columns.map((_, c) => data.rows.map((r) => r[c])) };
 ```
 
 ## How do I save a report?

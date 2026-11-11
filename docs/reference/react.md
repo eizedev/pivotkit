@@ -17,7 +17,7 @@ Installation and a first example are in [Getting started with React](../getting-
 
 | Prop | Type | Default | What |
 | --- | --- | --- | --- |
-| `data` | `object[]` |  | The rows; encoded once per array, or once per `dataKey`. |
+| `data` | `object[]` or `{ columns, types, data }` |  | The rows, or columnar data (one array per column, as pivotkit-core's [`encode`](core.md#columnar-input) takes it); encoded once per array or object, or once per `dataKey`. |
 | `dataKey` | `string` or `number` |  | The identity of `data`: a host that builds a new array on every render passes a key, and the rows are encoded again only when it changes. |
 | `encoded` | `Encoded` |  | Data already encoded with pivotkit-core's `encode()`, instead of `data`. |
 | `view` | view |  | Controlled: the view to show. Pass back what `onViewChange` gives; the undo history stays in the report however often the host renders. A view the host changes on its own becomes one undo step. |
@@ -60,9 +60,13 @@ Installation and a first example are in [Getting started with React](../getting-
 | `shareLink` | `boolean` or `string` | off | "Copy link" in the Views menu, and opening a shared link: `true` links to the page's own address without its query string (origin, path, fragment), a string is the base URL as it is. [More](#prop-sharelink) |
 | `persistView` | `"session"` |  | `"session"`: the view is kept in `sessionStorage` (`pivotkit:view:<storageKey>`) for this tab and shown again after a reload; read after the first render; a link wins. [More](#prop-persistview) |
 | `loading` | `boolean` | `false` | The host is loading the data: before the report has had data it shows its skeleton (toolbar, zones and table rows in the theme, `role="status"` with "Loading the report…", announced once). [More](#prop-loading) |
+| `allowImport` | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview before it replaces the data; nothing is uploaded. [More](#prop-allowimport) |
+| `plugins` | `ReaderPlugin[]` |  | Reader plugins for more formats ([pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel); CSV, TSV, text and JSON are built in. [More](#prop-plugins) |
+| `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, or one of those undone or redone. [More](#prop-ondataload) |
+| `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
 
 Exports: `PivotReport` and the types `PivotReportProps`, `CellClick`,
-`ExportFile`, `Template`, `TemplateScope`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
+`ExportFile`, `Template`, `TemplateScope`, `FieldDefaults`, `TipDismiss`, `ViewSource`, `SourceSwitch`, `DataLoad`, `View`, `ViewInput` (a view as a host passes it), `UiLabels` and
 `PartialLabels`. The stylesheet is `pivotkit-react/styles.css`. `pivotkit-react/labels` exports
 `LABELS` (`{ en, de }`, every text), a subpath of its own: the menus' texts load with the menus, so
 the report's first load stays small.
@@ -221,6 +225,78 @@ Type: `boolean`; default: `false`.
 
 The host is loading the data: before the report has had data it shows its skeleton (toolbar, zones and table rows in the theme, `role="status"` with "Loading the report…", announced once); later it covers only the result, and the view and its history stay. A data set of more than 10,000 rows shows the skeleton by itself while it is encoded the first time.
 
+### `allowImport` { #prop-allowimport }
+
+Type: `boolean`; default: `false`.
+
+People may load a file of theirs into the report, read in the browser (nothing is uploaded): a
+**Data** button in the toolbar (before Views; under More on a narrow report) with the data source and
+**Load data…**, a file dropped anywhere onto the report, and a preview before the data is replaced
+(the sheet of a workbook, the first rows, a type per column, the readers' notes). What people see is
+on [Load your own data](../use/load-data.md); what the readers do on [Loading files](import.md).
+
+- Loading a file is a step of the undo history: Undo goes back to the data before it with the view it
+  had, Redo forward again; "Back to original data" shows the host's data with its view. Up to three
+  such steps are kept, since each holds a data set.
+- While a file's data is shown, the report's [`source`](#prop-source) is the file's: its name, and as
+  `id` the name and the first 16 hex digits of the SHA-256 of the name and the column names joined
+  with U+0000 (`tickets.csv#4f1c…`), so the browser store (`templateStore="browser"`) keeps views per
+  file and a view shared from one names it. The host's `source` comes back with its data.
+- The host's data and props stay as they are: a new `data` from the host while a file is shown is
+  used when its data is shown again.
+- The import UI is a chunk of its own (`dist/import-ui.js`, with `pivotkit-core/import`), loaded when
+  the Data menu opens, a file is dragged over the report or the empty report's **Load data…** is
+  clicked. Without `allowImport` nothing of it loads.
+- The limits of the readers are the report's [`limits`](#prop-limits) (`fileBytes`, `rows`,
+  `columns`, `importCells`, ...); a file over one is refused with what to do, and the data stays.
+
+### `plugins` { #prop-plugins }
+
+Type: `ReaderPlugin[]` (contract v1 of `pivotkit-core/import`).
+
+Reader plugins for formats beyond CSV, TSV, text and JSON: `plugins={[xlsxReader]}` with
+[pivotkit-xlsx](plugins.md#pivotkit-xlsx) reads Excel workbooks. A plugin is checked when a file is
+read (`validatePlugin`); its code loads with the first file of its kind. The file picker offers what
+the plugins and the built-in readers accept, the Data menu names them by their `label`. A plugin runs
+on the page, never in the import worker (it is code of the page; a worker cannot take it).
+
+### `onDataLoad` { #prop-ondataload }
+
+Type: `({ cause, source, file, sheet, rows, columns, notes }) => unknown`.
+
+The data shown changed, with what it is now:
+
+| Key | What |
+| --- | --- |
+| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone. |
+| `source` | `{ id, name }` of the data shown: the file's, or the host's `source` (`null` without one). |
+| `file` | `{ name, size, type }` of the file shown, or `null` for the host's data. |
+| `sheet` | The sheet of a workbook, else `null`. |
+| `rows`, `columns` | The rows, and `[{ name, type }]` per column. |
+| `notes` | For `"load"`: the readers' notes `[{ code, params, message }]` ([the codes](import.md#the-table)). |
+
+Names and notes come from the file: show them as text, never as HTML.
+
+### `importWorker` { #prop-importworker }
+
+Type: `() => Worker`.
+
+Starts a module worker for the built-in readers, so a large CSV or JSON file is read off the page and
+the report stays responsive (a plugin's file is read on the page). The worker is the package's
+`pivotkit-react/import-worker` entry (`dist/import-worker.js`), which imports `pivotkit-core/import`;
+bundle it the way your bundler bundles workers, as a file of your origin:
+
+```js
+const importWorker = () => new Worker(new URL("./import-worker.js", import.meta.url), { type: "module" });
+<PivotReport data={rows} allowImport importWorker={importWorker} />
+```
+
+One worker per file, ended when it is read or cancelled. A worker that does not start (a
+Content-Security-Policy without `worker-src` for it, a browser without module workers, a file that is
+not there) leaves the read to the page without a message. Without `importWorker` the file is read on
+the page; the readers give the page a turn every 16,384 rows, so progress and **Cancel** still work.
+pivotkit-element starts its own worker.
+
 ## Tips
 
 The report shows short notes above the table or the chart, in the flow (never over it), the most
@@ -280,9 +356,11 @@ back what `onViewChange` gave ends it, since that view is normalized.
 ## Files the package loads
 
 `dist/index.js` imports `dist/echarts.js` (on the first chart), `dist/menus.js` (the menus' panels,
-right after the first render) and, for a German report, `dist/menu-texts-de.js` (the menus' German
-texts, with the menus, or when the locale changes to German) by relative dynamic import, with the
-code they share in `dist/chunks/`.
+right after the first render), for a German report `dist/menu-texts-de.js` (the menus' German
+texts, with the menus, or when the locale changes to German) and, with `allowImport`,
+`dist/import-ui.js` (loading data, on its first use, with `pivotkit-core/import`) by relative dynamic
+import, with the code they share in `dist/chunks/`. `dist/import-worker.js` is the worker of
+[`importWorker`](#prop-importworker), loaded only by a host that starts it.
 A bundler follows these imports with no setting. A host that copies files by hand (an import map, a
 folder of assets) deploys the whole `dist/` folder: without `dist/menus.js` and `dist/chunks/` the
 report works, but its menus say "This menu could not be loaded." with **Try again**. Without

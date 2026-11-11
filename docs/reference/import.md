@@ -10,12 +10,12 @@ text, JSON, and Excel workbooks with the [pivotkit-xlsx](plugins.md#pivotkit-xls
 the browser (nothing is uploaded) and in Node. The table it returns is `encode`'s
 [columnar input](core.md#columnar-input), so it goes into the engine without an object per row.
 
-!!! note "The report's Load data menu follows"
-    This page describes the readers. The report's own "Load data…" entry, a drop zone and a preview
-    where the person picks the column types follow in the next release
-    ([#44](https://github.com/eizedev/pivotkit/issues/44)). Until then a React host reads the file itself and passes
-    `encode(table)` as the `encoded` prop; a page with pivotkit-element turns the table into row
-    objects for `data`.
+!!! note "In the report"
+    This page describes the readers. The report uses them itself with
+    [`allowImport`](react.md#prop-allowimport) (the element's `allow-import`): a Data menu, a file
+    dropped onto the report and a preview where the person picks the column types
+    ([Load your own data](../use/load-data.md)). A host that reads a file itself passes the table as
+    `data` (`{ columns, types, data }` is the columnar input both take).
 
 ```js
 import { readFile, retype } from "pivotkit-core/import";
@@ -188,7 +188,9 @@ page stays responsive enough to show progress and a Cancel button; for files of 
 host can run `readFile` in a module worker of its own: the readers use no DOM, and the table is plain
 arrays, which `postMessage` copies.
 
-The readers start no worker themselves. pivotkit-xlsx hands read-excel-file an uncompressed archive of
+The readers start no worker themselves; the report runs the built-in ones in a worker where the host
+gives one ([`importWorker`](react.md#prop-importworker); pivotkit-element brings its own,
+`dist/import-worker.js`). pivotkit-xlsx hands read-excel-file an uncompressed archive of
 the parts it needs, so no `blob:` worker is started (fflate, which read-excel-file unpacks with, would
 start one for parts over 512 KiB), and a strict Content-Security-Policy without `worker-src blob:`
 works. A host that runs the readers in its own worker needs `worker-src 'self'` (or the worker's
