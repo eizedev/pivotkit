@@ -73,8 +73,12 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
 
     const viewKey = controlled ? JSON.stringify(view) : null;
     // the host's view (controlled) when the report last told it one: while the host still passes that
-    // one, it has not passed the report's view back yet (a history to start on is told on mount)
+    // one, it has not passed the report's view back yet (a history to start on is told on mount). Gone
+    // once the host passes another view, so the same view passed again later is the host's own.
     const [toldOver, setToldOver] = useState(() => (initialState ? viewKey : null));
+    if (toldOver !== null && toldOver !== viewKey) {
+        setToldOver(null);
+    }
     const shown = useMemo(() => {
         if (viewKey !== null) {
             return json(JSON.parse(viewKey));
