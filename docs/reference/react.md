@@ -249,7 +249,10 @@ on [Load your own data](../use/load-data.md); what the readers do on [Loading fi
   switch: PowerShell Universal on its light/dark switch and `Sync-UDElement`) gets the file back: the
   report with the same [`storageKey`](#prop-storagekey) shows the file's data, its view and its undo
   steps again, and tells `onDataLoad` with `cause` `"restore"` before its view (`onViewChange`), so a
-  host that controls the view takes the file's. Only when the host's data is the same: the same
+  host that controls the view takes the file's. However quickly the host mounts it again
+  (PowerShell Universal's `Sync-UDElement` mounts it twice within about 30 ms), the file comes back
+  with its view; a view the host has not passed back yet (one that goes through its server first)
+  counts as the report's, so the next mount shows it, not the host's view from before. Only when the host's data is the same: the same
   `dataKey` (without one, the same column names and types) and the same `source.id`; otherwise the
   host's data is shown and the file is let go. It is kept in the page's memory only, never in
   `localStorage` or `sessionStorage`, so a reload still shows the host's data: the latest state per

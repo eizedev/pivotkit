@@ -80,6 +80,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A loaded file shown again after a new mount lost its view when the host mounted the report twice in
+  a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again
+  before it passed back a view it was told: the report now starts on the kept view history at once,
+  and keeps the view it told a host that controls the view, not the host's view from before
+  ([#135](https://github.com/eizedev/pivotkit/issues/135)).
 - Toolbar buttons moved into More although the free room would hold some of them (a report about
   1,000 px wide showed Reset, Layout and Options in More next to a wide gap). A button moves now only
   when the room left cannot hold it: the room is measured with the texts of the report's language
@@ -115,6 +120,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#115](https://github.com/eizedev/pivotkit/issues/115)).
 - A line of the warning about a view's unused parts goes once its part of the view is changed by
   hand, and comes back with Undo ([#82](https://github.com/eizedev/pivotkit/issues/82)).
+- A modal layer (the file preview, the drill-down, the field drawer) whose first frame comes late
+  (WebKit) no longer takes the focus back from a control inside it: **Load data** keeps the focus once
+  the first rows are read, and the sheet list keeps it after a sheet over the limits
+  ([#136](https://github.com/eizedev/pivotkit/issues/136)).
 
 ## [0.3.0] - 2026-11-09
 

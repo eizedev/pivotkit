@@ -12,6 +12,11 @@
  * `dataKey` names the data set beyond its columns: a file loaded in the report (or the host's data
  * shown again) starts a new history even with the same columns, since loading it is a step of its
  * own (data-history.js); snapshot() is the history as it is, replace(state) shows one kept before.
+ * `initial` starts the report on such a history (a report mounted again, data-keep.js); it tells the
+ * host with replace(initial) in a layout effect. A controlled host that has not passed back the view
+ * it was told yet (onViewChange; a host whose view goes through its server, or one that renders once
+ * more after the report is gone) shows the view it had a moment longer: snapshot() keeps the view the
+ * report told, not that one as a change from outside.
  *
  * Every step carries a tag (view-history.js): the saved view it shows. commit(next, note, tag) sets
  * it (undefined: the tag of the view before), `tag` is the present one, setTag(tag) changes it
@@ -40,14 +45,16 @@ export function schemaKeyOf(encoded) {
 /**
  * @param {{ encoded: import("pivotkit-core").Encoded, view: object | undefined, defaultView: object | undefined,
  *   onViewChange?: (view: import("pivotkit-core").View) => void, limits: object | undefined, outsideNote: string,
- *   orderOf?: (field: string) => unknown[] | undefined, dataKey?: string | number }} options  `orderOf`: the host's custom order of a
- *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable
+ *   orderOf?: (field: string) => unknown[] | undefined, dataKey?: string | number,
+ *   initial?: import("./view-history.js").HistoryState | null }} options  `orderOf`: the host's custom order of a
+ *   field (fieldDefaults.order), applied to every view shown (withHostOrders); keep it stable. `initial`:
+ *   the history to start on (read on the first render only)
  * @returns {{ view: import("pivotkit-core").View, viewKey: string, tag: any, setTag: (tag: any) => void, commit: (next: object, note: string, tag?: any) => boolean,
  *   undo: () => string | null, redo: () => string | null, reset: (note: string) => void,
  *   restore: (view: object, tag?: any) => void, keyOf: (view: object) => string, earlier: () => any[], canUndo: boolean, canRedo: boolean, canReset: boolean, startEmpty: boolean,
  *   snapshot: () => import("./view-history.js").HistoryState, replace: (state: import("./view-history.js").HistoryState) => void }}
  */
-export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf, dataKey = 0 }) {
+export function useViewHistory({ encoded, view, defaultView, onViewChange, limits, outsideNote, orderOf, dataKey = 0, initial: initialState = null }) {
     const controlled = view !== undefined;
     const schema = useMemo(() => `${dataKey}|${schemaKeyOf(encoded)}`, [encoded, dataKey]);
     const json = useCallback(
@@ -62,9 +69,16 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     // the first view the report got is the start: reset goes back to it
     const [initial] = useState(() => (controlled ? view : defaultView) ?? null);
     const start = useMemo(() => json(initial), [json, initial]);
-    const [state, setState] = useState(() => createState(schema, start));
+    const [state, setState] = useState(() => initialState ?? createState(schema, start));
 
     const viewKey = controlled ? JSON.stringify(view) : null;
+    // the host's view (controlled) when the report last told it one: while the host still passes that
+    // one, it has not passed the report's view back yet (a history to start on is told on mount). Gone
+    // once the host passes another view, so the same view passed again later is the host's own.
+    const [toldOver, setToldOver] = useState(() => (initialState ? viewKey : null));
+    if (toldOver !== null && toldOver !== viewKey) {
+        setToldOver(null);
+    }
     const shown = useMemo(() => {
         if (viewKey !== null) {
             return json(JSON.parse(viewKey));
@@ -78,9 +92,10 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     const apply = useCallback(
         (next) => {
             setState(next);
+            setToldOver(viewKey);
             onViewChange?.(JSON.parse(next.present));
         },
-        [onViewChange]
+        [onViewChange, viewKey]
     );
     /** Records a change; false when the view stays (a new tag alone is kept, without a step). */
     const commit = useCallback(
@@ -126,8 +141,13 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     );
 
     const restore = useCallback((next, tag = null) => apply(createState(schema, start, json(next), tag)), [schema, start, json, apply]);
-    /** The history as it is now (settled), to keep while other data is shown. */
-    const snapshot = useCallback(() => live, [live]);
+    /**
+     * The history as it is now (settled), to keep while other data is shown or for a new mount; while
+     * the host has not passed back the view it was told, the history as the report made it.
+     */
+    const waiting = viewKey !== null && viewKey === toldOver && state.schema === schema;
+    const made = waiting ? state : live;
+    const snapshot = useCallback(() => made, [made]);
 
     /** The views before this one, oldest first (a value's earlier colours, for its Highlight). */
     const earlier = useCallback(() => live.past.map((p) => JSON.parse(p.view)), [live.past]);

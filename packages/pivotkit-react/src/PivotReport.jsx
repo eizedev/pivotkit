@@ -457,7 +457,7 @@ function Report(props) {
         }
         return (/** @type {string} */ field) => orders.find(([name]) => name.toLowerCase() === field.toLowerCase())?.[1];
     }, [ordersKey]);
-    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf, dataKey: imported ? imported.key : 0 });
+    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf, dataKey: imported ? imported.key : 0, initial: kept?.history });
     const view = history.view;
     // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
     // above the result like a loaded view's unused parts, once per distinct view (a host may render the
@@ -967,9 +967,11 @@ function Report(props) {
     useEffect(() => {
         apiNow.current = api;
     });
-    // a report mounted again with its file's data (data-keep.js): the host hears that the file is
-    // shown again (onDataLoad "restore"), then the view history comes back, which shows its view
-    // (and tells a host that controls the view through onViewChange) before the browser paints
+    // a report mounted again with its file's data (data-keep.js) starts on its kept view history (the
+    // first render already, so the kept entry is never written from a history before it, even when the
+    // host unmounts the report again before it renders twice); the host hears that the file is shown
+    // again (onDataLoad "restore"), then the history's view through onViewChange (a host that controls
+    // the view takes the file's) before the browser paints
     // (once: React's StrictMode runs a mount's effects twice)
     const restored = useRef(false);
     useIsoLayoutEffect(() => {
