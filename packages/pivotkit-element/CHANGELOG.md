@@ -29,7 +29,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
-- The first load grows from 157.5 to 160.3 KiB gzip (the Data button, the drop handler and the rules
+- The first load grows from 157.5 to 160.4 KiB gzip (the Data button, the drop handler and the rules
   of the import UI, and two more files esbuild splits off); its budget is 161.5.
 - pivotkit-react's **Start over** menu in the toolbar (Reset and New, empty report, each with what it
   does or why it is off) replaces the Reset button; the Views menu holds This view, Shared views, My

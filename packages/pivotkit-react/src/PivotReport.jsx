@@ -970,17 +970,30 @@ function Report(props) {
     // a report mounted again with its file's data (data-keep.js): the host hears that the file is
     // shown again (onDataLoad "restore"), then the view history comes back, which shows its view
     // (and tells a host that controls the view through onViewChange) before the browser paints
+    // (once: React's StrictMode runs a mount's effects twice)
+    const restored = useRef(false);
     useIsoLayoutEffect(() => {
-        if (kept) {
+        if (kept && !restored.current) {
+            restored.current = true;
             importMod?.restoreData(api);
             history.replace(kept.history);
         }
         // once per mounted report
     }, []);
     // while a file's data is shown the report's latest state is kept for a new mount; the host's data
-    // shown again lets it go (Back to original data, Undo of the load). An unmount keeps it.
+    // shown again after a file lets it go (Back to original data, Undo of the load). An unmount keeps
+    // it. A report mounted over other host data lets an entry made over another go; over data without
+    // columns (a host still on its way, without `loading`) it leaves it for the next mount.
     const snapshot = history.snapshot;
     const keptKey = useRef(keepKey);
+    const fileShown = useRef(false);
+    const hostHasColumns = source.encoded.schema.fields.length > 0;
+    useIsoLayoutEffect(() => {
+        if (keepKey !== null && !kept && hostHasColumns) {
+            forgetData(keepKey);
+        }
+        // once per mounted report
+    }, []);
     useEffect(() => {
         if (keptKey.current !== keepKey && keptKey.current !== null) {
             forgetData(keptKey.current);
@@ -990,8 +1003,10 @@ function Report(props) {
             return;
         }
         if (imported) {
+            fileShown.current = true;
             keepData(keepKey, { host: hostData, imported, steps: dataSteps, history: snapshot(), savedKeys });
-        } else {
+        } else if (fileShown.current) {
+            fileShown.current = false;
             forgetData(keepKey);
         }
     }, [keepKey, hostData, imported, dataSteps, snapshot, savedKeys]);

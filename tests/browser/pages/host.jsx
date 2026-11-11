@@ -9,7 +9,10 @@
 // PowerShell Universal does on its light/dark switch and Sync-UDElement): "Mount again" with the same
 // data, "New data" with other rows under another dataKey; both start the controlled view again at the
 // host's start view, as a remounted PowerShell Universal component does; ?two a second report under its own
-// storageKey; ?nokey leaves storageKey out. window.__chartOption() reads the option
+// storageKey; ?nokey leaves storageKey out; "Mount empty" mounts it with no rows yet (a host without
+// `loading` whose data is on its way), which come 300 ms later. ?asyncecho passes the view back a
+// moment after onViewChange, as a host whose view goes through its server. window.__order logs
+// onDataLoad ("data:<cause>") and onViewChange ("view") in their order. window.__chartOption() reads the option
 // the chart draws, from the ECharts the report loaded (the same module through the import map).
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -29,6 +32,22 @@ function Host() {
     // ?remount: the report's React key (a new one mounts it again) and which rows the host passes
     const [mount, setMount] = useState(0);
     const [other, setOther] = useState(false);
+    const [empty, setEmpty] = useState(false);
+    useEffect(() => {
+        if (!empty) {
+            return undefined;
+        }
+        const t = setTimeout(() => setEmpty(false), 300);
+        return () => clearTimeout(t);
+    }, [empty]);
+    const onViewChange = (next) => {
+        window.__order.push("view");
+        if (query.has("asyncecho")) {
+            setTimeout(() => setView(next), 50);
+        } else {
+            setView(next);
+        }
+    };
     useEffect(() => {
         const t = setInterval(() => setTick((n) => n + 1), 200);
         const l = setTimeout(() => setLoading(false), 800);
@@ -41,11 +60,11 @@ function Host() {
         ...(query.has("persist") ? { persistView: "session", storageKey: "host" } : {}),
         ...(query.has("options") ? { chartOptions: { title: { textStyle: { fontSize: 20 } }, series: { barMaxWidth: 12 }, grid: { left: 40 } } } : {}),
         ...(query.has("xss") ? { chartOptions: { tooltip: { formatter: '<img src="x" onerror="window.__xss = true">' }, series: { barMaxWidth: 10 } } } : {}),
-        ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => window.__loads.push(d), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
+        ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => (window.__loads.push(d), window.__order.push(`data:${d.cause}`)), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
         ...(query.has("nokey") ? { storageKey: undefined } : {})
     };
-    const shown = loading ? [] : other ? otherRows : rows;
-    const dataKey = loading ? "none" : other ? "sales-500" : "sales-2000";
+    const shown = loading || empty ? [] : other ? otherRows : rows;
+    const dataKey = loading || empty ? "none" : other ? "sales-500" : "sales-2000";
     return (
         <>
             <p data-testid="host-renders">{tick}</p>
@@ -57,10 +76,13 @@ function Host() {
                     <button type="button" data-testid="host-new-data" onClick={() => (setView(start), setOther(true), setMount((n) => n + 1))}>
                         New data
                     </button>
+                    <button type="button" data-testid="host-remount-empty" onClick={() => (setView(start), setEmpty(true), setMount((n) => n + 1))}>
+                        Mount empty
+                    </button>
                 </p>
             ) : null}
             <section data-testid="first">
-                <PivotReport key={mount} data={[...shown]} dataKey={dataKey} view={view} onViewChange={setView} height={640} loading={loading} {...extra} />
+                <PivotReport key={mount} data={[...shown]} dataKey={dataKey} view={view} onViewChange={onViewChange} height={640} loading={loading} {...extra} />
             </section>
             {query.has("two") ? (
                 <section data-testid="second">
@@ -73,6 +95,7 @@ function Host() {
 
 window.__pivotkitReact = React.version;
 window.__loads = [];
+window.__order = [];
 window.__chartOption = async () => {
     const { getInstanceByDom } = await import("echarts/core");
     const chart = getInstanceByDom(document.querySelector('[data-testid="pivot-chart"]'));

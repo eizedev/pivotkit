@@ -525,8 +525,9 @@ async function mountAgain(page, button, scope = page) {
     await expect(scope.locator(".pk-root").first()).toBeVisible();
 }
 
-test("a host that mounts the report again (PowerShell Universal's theme switch): the loaded file comes back with its view and its undo steps", async ({ page }) => {
-    await page.goto("pages/host.html?import&remount");
+for (const [title, query] of [["", ""], [", a host that passes the view back a moment later", "&asyncecho"]]) {
+test(`a host that mounts the report again (PowerShell Universal's theme switch)${title}: the loaded file comes back with its view and its undo steps`, async ({ page }) => {
+    await page.goto(`pages/host.html?import&remount${query}`);
     await expect(page.getByTestId("pivot-table")).toBeVisible();
     const before = await fieldNames(page);
     const hostChips = await chips(page, "rows");
@@ -551,6 +552,11 @@ test("a host that mounts the report again (PowerShell Universal's theme switch):
     // the id as docs/reference/import.md works it out ("How a loaded file is named")
     expect(loads[0].source.id).toBe("tickets.csv#e51bd4bc21e98ee8");
     expect(loads[1].source.id).toBe(loads[0].source.id);
+    // "restore" first, then the file's view through onViewChange, so a host can tell them apart
+    const order = await page.evaluate(() => window.__order);
+    expect(order.indexOf("data:restore")).toBeGreaterThan(-1);
+    expect(order.slice(order.indexOf("data:restore") + 1)[0]).toBe("view");
+    // the restored history has no step of its own ("change from outside") on top
     // the undo steps came along: the step on the file, then the load; Redo both again
     await page.getByTestId("undo").click();
     await expect.poll(() => chips(page, "rows")).toEqual([]);
@@ -565,6 +571,28 @@ test("a host that mounts the report again (PowerShell Universal's theme switch):
     // twice in a row works the same
     await mountAgain(page, "host-remount");
     await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
+    await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
+    await page.getByTestId("undo").click();
+    await expect.poll(() => chips(page, "rows")).toEqual([]);
+    await page.getByTestId("undo").click();
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect(page.getByTestId("undo")).toBeDisabled();
+});
+}
+
+test("a host that mounts the report before its data is there keeps the file for the mount after", async ({ page }) => {
+    await page.goto("pages/host.html?import&remount");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    const before = await fieldNames(page);
+    await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await page.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
+    // mounted on no rows, the host's rows a moment later: the host's data, the file not dropped
+    await mountAgain(page, "host-remount-empty");
+    await expect.poll(() => fieldNames(page)).toEqual(before);
+    await expect(page.getByTestId("source-line")).toHaveCount(0);
+    await mountAgain(page, "host-remount");
+    await expect.poll(() => fieldNames(page)).toEqual(TICKET_FIELDS);
     await expect(page.getByTestId("source-line")).toHaveText("tickets.csv, only in this browser");
 });
 

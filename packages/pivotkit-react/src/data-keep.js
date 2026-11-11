@@ -10,7 +10,8 @@
  * once the host's data is shown again (Back to original data, Undo of the load). At most KEPT_REPORTS
  * keys, the one written longest ago going first, so reports that never come back free their data.
  * An entry names the host's data it was made over (`host`); a report mounted on other data takes
- * nothing and the entry goes. Pure apart from the module's map, so it is tested without a DOM.
+ * nothing, and lets the entry go (PivotReport.jsx, unless that data has no columns yet). Pure apart
+ * from the module's map, so it is tested without a DOM.
  */
 
 /** Reports (storageKeys) whose loaded file is kept at once: each may hold a few whole data sets. */
@@ -59,19 +60,12 @@ export function forgetData(key) {
 
 /**
  * The entry kept under a key for a report mounted over the host's data `host`; null when there is
- * none, or when it was made over other data (then it goes).
+ * none, or when it was made over other data. Reads only: the report lets an entry go in an effect.
  * @param {string} key
  * @param {string} host
  * @returns {KeptData | null}
  */
 export function keptData(key, host) {
     const entry = kept.get(key);
-    if (!entry) {
-        return null;
-    }
-    if (entry.host !== host) {
-        kept.delete(key);
-        return null;
-    }
-    return entry;
+    return entry && entry.host === host ? entry : null;
 }

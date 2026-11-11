@@ -382,8 +382,10 @@ test("a report mounted again: its file's data is kept per storageKey in memory, 
     assert.equal(hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","string"]]' }), hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","string"]]' }));
     assert.notEqual(hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","string"]]' }), hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: '[["Team","number"]]' }));
     assert.notEqual(hostIdentity({ dataKey: 1, sourceId: undefined, schemaKey: "[]" }), hostIdentity({ dataKey: undefined, sourceId: undefined, schemaKey: "1" }));
-    // a report mounted over other data takes nothing, and the entry goes
+    // a report mounted over other data takes nothing; reading lets nothing go (the report does, in an effect)
     assert.equal(keptData("report-a", hostIdentity({ dataKey: "sales-500", sourceId: "sales", schemaKey: "[]" })), null);
+    assert.equal(keptData("report-a", host), a);
+    forgetData("report-a");
     assert.equal(keptData("report-a", host), null);
     // the host's data shown again lets it go
     forgetData("report-b");

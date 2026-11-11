@@ -256,7 +256,12 @@ on [Load your own data](../use/load-data.md); what the readers do on [Loading fi
   `storageKey`, for at most four reports (the one written longest ago goes first), let go as soon as
   the host's data is shown again ("Back to original data", Undo of the load). Without a `storageKey`
   nothing is kept. Two reports mounted at once with the same `storageKey` would share it: give each
-  its own.
+  its own. Pass a `dataKey` where another table with the same columns can stand under the same
+  `storageKey` (another page of a single-page app, say): without one such a table counts as the same
+  data. A report mounted while the host's data is still on its way should get `loading`: mounted on
+  data without columns it shows that data and keeps the file for the mount after. The restored report
+  starts where it was: a shared link in the address or the tab's stored view (`persistView`) is not
+  read again then.
 - The import UI is a chunk of its own (`dist/import-ui.js`, with `pivotkit-core/import`), loaded when
   the Data menu opens, a file is dragged over the report or the empty report's **Load data…** is
   clicked. Without `allowImport` nothing of it loads.
