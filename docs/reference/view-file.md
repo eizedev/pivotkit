@@ -30,7 +30,7 @@ validate real exports against the schema with a JSON Schema 2020-12 validator.
   "name": "Revenue by region",
   "description": "For the monthly review",
   "createdAt": "2026-11-07T09:30:00.000Z",
-  "generator": { "name": "pivotkit-react", "version": "0.3.0" },
+  "generator": { "name": "pivotkit-react", "version": "0.4.0" },
   "source": {
     "id": "sales",
     "name": "Sales 2026",
@@ -133,7 +133,7 @@ source in `sources` and handles `onSourceSwitch` ([Sharing](../concepts/sharing.
   through the envelope: an older view is migrated when it is read.
 - A new filter type keeps both versions: a reader that does not know it reports that filter as an
   unused part ("the filter type “compare” is unknown - this filter is left out") and shows the report
-  without it, so nothing is read wrong. pivotkit 0.3.0 reads the item comparisons (`compare`) and
+  without it, so nothing is read wrong. pivotkit 0.2.0 reads the item comparisons (`compare`) and
   relative date ranges (`relative`) that way.
 
 ## The link profile
