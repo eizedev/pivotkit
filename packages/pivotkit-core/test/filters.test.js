@@ -439,3 +439,24 @@ test("top: ties at the cut stay with ties all; the first in the data with ties f
     assert.equal(computePivot(data, { filters: [{ field: "Rep", type: "top", count: 1 }] }).view.filters[0].ties, "first");
     assert.deepEqual(validate({ filters: [{ field: "Rep", type: "top", count: 1, ties: "every" }] }, data).errors.map((e) => e.code), ["filterTies"]);
 });
+
+test("each filter says how many rows are left after it, in the order the filters apply", () => {
+    const r = computePivot(data, {
+        version: 2,
+        rows: ["Region"],
+        values: [sumUnits],
+        filters: [
+            { field: "Region", type: "top", count: 2 },
+            { field: "Region", type: "in", items: ["North"], not: true, blanks: "include" },
+            { field: "Product", type: "in", items: ["A"], blanks: "exclude" }
+        ]
+    });
+    // 8 rows: not North leaves 5, product A of those 3 (South, West and the blank region); then the top 2 regions by units: South 7, blank 6
+    assert.deepEqual(r.filters, [
+        { field: "Region", type: "top", kept: 2 },
+        { field: "Region", type: "in", kept: 5 },
+        { field: "Product", type: "in", kept: 3 }
+    ]);
+    assert.equal(r.rows.length, 2);
+    assert.deepEqual(computePivot(data, { rows: ["Region"] }).filters, []);
+});

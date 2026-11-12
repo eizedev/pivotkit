@@ -33,6 +33,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   both sides are taken as the start of their unit. A top N has `ties`: `first` (the default, as it
   was) or `all` (every item tied at the cut stays). New issue codes `filterPrecision` and
   `filterTies`; `CATALOG.comparePrecisions` and `CATALOG.topTies`.
+- `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
+  rows left after it, counted as the filters apply.
 - Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
   another is the issue `filterFieldType` with the type that fits.
 

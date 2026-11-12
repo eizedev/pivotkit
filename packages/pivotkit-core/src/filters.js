@@ -723,25 +723,31 @@ function filterRows(rows, keep) {
 }
 
 /**
- * Applies the view's filters to the source rows.
+ * Applies the view's filters to the source rows. `kept[i]`, when given, gets the rows left after the
+ * view's filter i (filters apply in turn: item filters in the view's order, then value filters from
+ * the outer level in); it stays null for a filter that did not apply (its field is not in the data).
  * @param {import("./pivot.js").PivotContext} ctx
  * @param {Int32Array} rows
+ * @param {Array<number | null>} [kept]
  * @returns {Int32Array}
  */
-export function applyFilters(ctx, rows) {
+export function applyFilters(ctx, rows, kept) {
     const { view, columnOf, locale, today } = ctx;
     // a filter on a grouping's source (relative ranges): the date column the grouping is made of
     const sourceOf = (name) => view.derived.find((d) => d.name.toLowerCase() === name.toLowerCase())?.field ?? name;
-    for (const f of view.filters) {
+    view.filters.forEach((f, i) => {
         const def = FILTERS[f.type];
         const column = columnOf(readsSource(def, f) ? sourceOf(f.field) : f.field);
         if (def.stage !== "items" || !column) {
-            continue;
+            return;
         }
         const allowed = def.allowed(column, f, locale, today, view.formatting.weekStart);
         const codes = column.codes;
         rows = filterRows(rows, (r) => allowed[codes[r] + 1] === 1);
-    }
+        if (kept) {
+            kept[i] = rows.length;
+        }
+    });
     const levelOf = (name) => {
         const r = view.rows.indexOf(name);
         if (r !== -1) {
@@ -753,11 +759,12 @@ export function applyFilters(ctx, rows) {
         }
         return { fields: [name], order: 200 };
     };
+    // i: the filter's place in the view
     const valueFilters = view.filters
-        .filter((f) => FILTERS[f.type].stage === "values")
         .map((f, i) => ({ f, i, ...levelOf(f.field) }))
+        .filter(({ f }) => FILTERS[f.type].stage === "values")
         .sort((a, b) => a.order - b.order || a.i - b.i);
-    for (const { f, fields } of valueFilters) {
+    for (const { f, i, fields } of valueFilters) {
         const columns = fields.map(columnOf);
         if (columns.includes(null)) {
             continue;
@@ -765,7 +772,10 @@ export function applyFilters(ctx, rows) {
         const { groupOf, paths } = ctx.groupBy(columns, rows);
         const values = ctx.aggregateGroups(f.by, rows, groupOf, paths.length);
         const keep = FILTERS[f.type].keep(f, values, paths);
-        rows = filterRows(rows, (_r, i) => keep[groupOf[i]] === 1);
+        rows = filterRows(rows, (_r, j) => keep[groupOf[j]] === 1);
+        if (kept) {
+            kept[i] = rows.length;
+        }
     }
     return rows;
 }

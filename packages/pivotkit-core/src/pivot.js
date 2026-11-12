@@ -45,6 +45,9 @@ import { issueOf, normalize } from "./view.js";
  * @property {string} timeZone                      the data's time zone
  * @property {import("./encode.js").Encoded} encoded
  * @property {Int32Array} rows                      source row indices left after all filters
+ * @property {Array<{ field: string, type: string, kept: number | null }>} filters  per filter of the view, in
+ *   its order: the source rows left after it (filters apply in turn: item filters in the view's
+ *   order, then value filters from the outer level in); null when it did not apply
  * @property {string[]} rowFields
  * @property {string[]} colFields
  * @property {import("./encode.js").Column[]} rowColumns
@@ -289,7 +292,9 @@ export function computePivot(data, viewInput, options) {
     for (let i = 0; i < rows.length; i++) {
         rows[i] = i;
     }
-    rows = applyFilters(ctx, rows);
+    /** @type {Array<number | null>} */
+    const kept = view.filters.map(() => null);
+    rows = applyFilters(ctx, rows, kept);
 
     // Measures: the visible values plus references used only for sorting, each computed once.
     const measureIndex = new Map();
@@ -361,6 +366,7 @@ export function computePivot(data, viewInput, options) {
         timeZone: data.timeZone,
         encoded: data,
         rows,
+        filters: view.filters.map((f, i) => ({ field: f.field, type: f.type, kept: kept[i] })),
         rowFields: view.rows,
         colFields: view.cols,
         rowColumns,

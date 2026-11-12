@@ -145,6 +145,7 @@ The `PivotResult` has, among others:
 | `issues` | What `normalize` dropped, and a time zone that differs from the data's (`code: "timeZoneMismatch"`). |
 | `locale`, `timeZone` | The resolved locale and the data's time zone. |
 | `rows` | The source row indices left after all filters. |
+| `filters` | Per filter of the view, in its order: `{ field, type, kept }`, the source rows left after it. Filters apply in turn, item filters in the view's order, then value filters from the outer level in, so `kept` says what each one took away from the rows before it; `null` for a filter whose field is not in the data. |
 | `rowRoot`, `colRoot`, `rowNodes`, `colNodes` | The key trees and their nodes. |
 | `value(row, col, i)` | The raw aggregate of value `i` at a row and column node. |
 | `display(row, col, i)` | The same after "show values as". |
