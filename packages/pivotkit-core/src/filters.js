@@ -223,8 +223,8 @@ function normalizeLabel(flt, spec, _f, path, ctx) {
     if (!op) {
         return ctx.issue(path, `unknown label operator ${JSON.stringify(get(flt, "op"))}`, "filterLabelOp", { value: shown(get(flt, "op")) });
     }
-    if (typeof value !== "string" || value.length > 1000) {
-        return ctx.issue(path, "needs a text value", "filterText");
+    if (typeof value !== "string" || value.length > ctx.limits.textValue) {
+        return ctx.issue(path, `needs a text value of at most ${ctx.limits.textValue} characters`, "filterText", { max: ctx.limits.textValue });
     }
     return Object.assign(spec, { op, value });
 }

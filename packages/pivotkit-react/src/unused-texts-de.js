@@ -76,7 +76,7 @@ export const de = {
         unknownFilterType: "die Filterart „{value}“ ist unbekannt - dieser Filter wird weggelassen",
         filterNoItems: "der Filter nennt keine Einträge - er wird weggelassen",
         filterLabelOp: "die Textbedingung „{value}“ ist unbekannt - dieser Filter wird weggelassen",
-        filterText: "die Textbedingung hat keinen Text - dieser Filter wird weggelassen",
+        filterText: "die Textbedingung hat keinen Text oder mehr als {max} Zeichen - dieser Filter wird weggelassen",
         filterNotNumber: "{agg} ergibt keine Zahl zum Filtern - dieser Filter wird weggelassen",
         filterCount: "„Oberste“ braucht eine ganze Zahl von 1 bis {max} - dieser Filter wird weggelassen",
         filterValue: "die Bedingung braucht einen Vergleich und eine Zahl - dieser Filter wird weggelassen",

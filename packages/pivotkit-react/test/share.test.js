@@ -192,3 +192,13 @@ test("chartOptions: markup, addresses and text templates are left out wherever t
     assert.ok(problems.includes("chartOptions.series[0].symbol: an image address, not allowed"));
     assert.ok(problems.includes("chartOptions.title.link: markup, an address or the tooltip's element, not allowed"));
 });
+
+test("a view from outside (link, file, pasted JSON, the tab's) keeps at most 50 filters, or the host's lower limit", () => {
+    const many = { filters: Array.from({ length: 60 }, () => ({ field: "Region", type: "include", items: ["North"] })) };
+    const sales = encode([{ Region: "North" }]);
+    const loaded = viewFromObject(many, sales);
+    assert.equal(loaded.view?.filters.length, 50);
+    assert.deepEqual(loaded.issues.map((i) => i.code), ["tooMany"]);
+    assert.equal(viewFromObject(many, sales, { limits: { filters: 5 } }).view?.filters.length, 5);
+    assert.equal(viewFromText(JSON.stringify(many), sales, { limits: { filters: 500 } }).view?.filters.length, 50);
+});

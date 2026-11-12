@@ -91,7 +91,7 @@ export const en = {
         unknownFilterType: "the filter type “{value}” is unknown - this filter is left out",
         filterNoItems: "the filter lists no items - it is left out",
         filterLabelOp: "the text condition “{value}” is unknown - this filter is left out",
-        filterText: "the text condition has no text - this filter is left out",
+        filterText: "the text condition has no text, or more than {max} characters - this filter is left out",
         filterNotNumber: "{agg} gives no number to filter by - this filter is left out",
         filterCount: "Top needs a whole number from 1 to {max} - this filter is left out",
         filterValue: "the condition needs a comparison and a number - this filter is left out",

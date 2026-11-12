@@ -70,7 +70,7 @@ test("an issue's line names the value, the field or the part of the view it is a
         "Planet: the data has no field of this name - it is left out of Rows",
         "Quakes: the colour scale needs two or three colours - the default colours are used",
         "Sum of Region: Sum does not work on “Region” (Text) - this value is left out",
-        "Rep: the text condition has no text - this filter is left out",
+        "Rep: the text condition has no text, or more than 1,000 characters - this filter is left out",
         "Region: the data has no field “Moons” - the usual order is used",
         "Chart: the legend position “left” is unknown - the default is used"
     ]);

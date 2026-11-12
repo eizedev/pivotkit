@@ -12,6 +12,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- Limits `textValue` (1,000 characters of a text filter's text, which was fixed), `srcParams` and
+  `srcParamLength` (a link's data source parameters), and `OUTSIDE_LIMITS` (`{ filters: 50 }`) with
+  `outsideLimits(limits)`: the tighter limits of a view from a link, pasted JSON, an API or an LLM.
+
 - Every issue carries a `severity`: `"error"` (the part is left out or replaced by its default) or
   `"warning"` (used as written, but maybe not what was meant). `VIEW_ISSUES` gives each code's
   severity and whether the view's JSON Schema refuses it; `VIEW_ISSUE_CODES` lists its codes.

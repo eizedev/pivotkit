@@ -6,7 +6,7 @@
  * user input: it goes through normalize() against the data before the report shows it.
  */
 
-import { VIEW_FILE_LIMITS, fromViewFile, normalize } from "pivotkit-core";
+import { VIEW_FILE_LIMITS, fromViewFile, normalize, outsideLimits } from "pivotkit-core";
 import { fill } from "./labels.js";
 
 /** @type {Promise<typeof import("pivotkit-core/link")> | null} */
@@ -169,6 +169,9 @@ export function viewFromText(text, encoded, options = {}) {
 /**
  * A view from a parsed object (a link's) or a text, read as a view file and normalized against the
  * data; `file.compatible` says how it fits (the same source by `options.sourceId`, its fields there).
+ * Every view that comes in this way (a link, a file, pasted JSON, the tab's stored view) comes from
+ * outside the host's code: it is normalized with pivotkit-core's outsideLimits() over the host's
+ * `options.limits` (at most 50 filters, or the host's lower value).
  * @param {unknown} input
  * @param {import("pivotkit-core").Encoded} encoded
  * @param {{ limits?: object, sourceId?: string }} [options]
@@ -180,7 +183,7 @@ export function viewFromObject(input, encoded, options = {}) {
         const failed = file.failed ?? "notView";
         return { view: null, issues: file.issues, failed: Object.hasOwn(FAILED, failed) ? FAILED[failed] : failed, file };
     }
-    const { view, issues } = normalize(file.view, encoded, options.limits ? { limits: options.limits } : undefined);
+    const { view, issues } = normalize(file.view, encoded, { limits: outsideLimits(options.limits) });
     if (issues.some((i) => i.path === "version")) {
         return { view: null, issues, failed: "newer", file };
     }

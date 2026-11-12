@@ -6,6 +6,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters
+  (pivotkit-core's `outsideLimits`), or the host's lower `limits.filters`.
+
 ### Added
 
 - The warning about a view's unused parts says when a filter's item is in the data in another case

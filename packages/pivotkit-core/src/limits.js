@@ -23,6 +23,10 @@ export const LIMITS = Object.freeze({
     sort: 64,
     collapsed: 10_000,
     topCount: 1_000_000,
+    textValue: 1_000, // characters of the text a text filter compares with
+    // a link's data source reference (source.params): parameters and the characters of each name and value
+    srcParams: 16,
+    srcParamLength: 256,
     // resources
     rows: 1_000_000, // source rows encode() accepts
     groups: 500_000, // nodes of the row and column key trees together (leaves, subtotals, grand totals)
@@ -56,6 +60,29 @@ const CEILINGS = Object.freeze({ groups: 2 ** 27 });
 export const KEEPS_VALUES_WEIGHT = 10;
 
 /** @typedef {{ [K in keyof typeof LIMITS]: number }} Limits */
+
+/**
+ * Tighter view limits for a view that comes from outside the host's own UI and code: a link, pasted
+ * or loaded JSON, a request to an API, an LLM. A person builds a view of a few filters; a view with
+ * more was most likely generated, and each filter is a pass over the rows.
+ */
+export const OUTSIDE_LIMITS = Object.freeze({ filters: 50 });
+
+/**
+ * The limits for a view from outside: the host's limits (`custom`, merged over LIMITS) with each key
+ * of OUTSIDE_LIMITS at most its preset value, so a host's lower value stays lower.
+ * @param {Partial<Limits> | null | undefined} [custom]  the host's limits
+ * @returns {Partial<Limits>}  to pass as `options.limits`
+ */
+export function outsideLimits(custom) {
+    const host = resolveLimits({ limits: custom ?? undefined });
+    /** @type {Partial<Limits>} */
+    const out = { ...(custom ?? {}) };
+    for (const [key, max] of Object.entries(OUTSIDE_LIMITS)) {
+        out[key] = Math.min(host[key], max);
+    }
+    return out;
+}
 
 /**
  * The limits with `options.limits` merged over the defaults.

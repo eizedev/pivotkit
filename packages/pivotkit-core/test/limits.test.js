@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIMITS, PivotkitError, computePivot, encode, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { LIMITS, OUTSIDE_LIMITS, PivotkitError, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
 import { toCsv, toXlsx } from "../src/export.js";
 import { derivedColumn } from "../src/derive.js";
 
@@ -193,4 +193,25 @@ test("the cache of derived columns and sort orders is bounded", () => {
     // an evicted column is rebuilt with the same content
     const again = computePivot(small, { rows: ["b"], derived: [{ name: "b", field: "v", by: "bin", size: 1 }], values: [{ agg: "count" }] });
     assert.equal(again.rowRoot.children.length, 1000);
+});
+
+test("a view from outside gets the tighter preset: the host's lower value stays lower, its other limits stay", () => {
+    assert.deepEqual(OUTSIDE_LIMITS, { filters: 50 });
+    assert.deepEqual(outsideLimits(), { filters: 50 });
+    assert.deepEqual(outsideLimits({ filters: 10, rows: 5 }), { filters: 10, rows: 5 });
+    assert.deepEqual(outsideLimits({ filters: 500 }), { filters: 50 });
+    const sales = encode([{ Region: "North" }]);
+    const view = { filters: Array.from({ length: 60 }, () => ({ field: "Region", type: "include", items: ["North"] })) };
+    const { view: kept, issues } = normalize(view, sales, { limits: outsideLimits() });
+    assert.equal(kept.filters.length, 50);
+    assert.deepEqual(issues.map((i) => [i.code, i.params]), [["tooMany", { max: 50 }]]);
+    assert.equal(normalize(view, sales).view.filters.length, 60);
+});
+
+test("the text a text filter compares with is capped by limits.textValue", () => {
+    const sales = encode([{ Region: "North" }]);
+    const filter = (value) => ({ filters: [{ field: "Region", type: "label", op: "contains", value }] });
+    assert.equal(normalize(filter("x".repeat(LIMITS.textValue)), sales).issues.length, 0);
+    assert.deepEqual(normalize(filter("x".repeat(LIMITS.textValue + 1)), sales).issues.map((i) => [i.code, i.params]), [["filterText", { max: LIMITS.textValue }]]);
+    assert.equal(normalize(filter("xx"), sales, { limits: { textValue: 1 } }).issues[0].code, "filterText");
 });
