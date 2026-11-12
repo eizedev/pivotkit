@@ -179,8 +179,9 @@ characters: show them as text, never as HTML.
 
 ## Limits
 
-Each file is checked against [`LIMITS`](../concepts/limits.md#limits) (the host's `limits` merged
-over them) before the step it guards, so a file that is too large costs no memory first:
+Each file is checked against [`LIMITS`](../concepts/limits.md#limits) (the `limits` option merged
+over them; in the report, [`importLimits`](react.md#prop-importlimits) over `limits`) before the
+step it guards, so a file that is too large costs no memory first:
 
 | Limit | Default | When |
 | --- | --- | --- |

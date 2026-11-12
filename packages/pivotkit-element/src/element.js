@@ -574,12 +574,23 @@ export class PivotReportElement extends Base {
         this.#set("plugins", value);
     }
 
-    /** pivotkit-core's limits (rows, cells, ...). */
+    /** pivotkit-core's limits (rows, cells, ...) for the host's data. */
     get limits() {
         return /** @type {Record<string, number> | undefined} */ (this.#values.limits);
     }
     set limits(value) {
         this.#set("limits", value);
+    }
+
+    /**
+     * The limits a file loaded with allow-import is read and shown with, merged key by key over
+     * `limits` (default: `limits`), so uploads can be kept small without capping the host's data.
+     */
+    get importLimits() {
+        return /** @type {Record<string, number> | undefined} */ (this.#values.importLimits);
+    }
+    set importLimits(value) {
+        this.#set("importLimits", value);
     }
 
     // ---- internals ----
@@ -698,6 +709,7 @@ export class PivotReportElement extends Base {
             theme: this.theme,
             height: this.height,
             limits: v.limits,
+            importLimits: v.importLimits,
             fileName: this.fileName,
             label: this.label,
             tips: this.tips,

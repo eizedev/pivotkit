@@ -92,7 +92,7 @@ The data you had stays, and a note says why, in the words of the reader:
 | Note | What to do |
 | --- | --- |
 | "tickets.csv could not be loaded: the quote that opens a value in line 12 is never closed." | Fix the line in the file, or export it again. |
-| "… has more than 1,000,000 rows (limits.rows) …" | Load a smaller extract; the application can raise the limit. |
+| "… has more than 1,000,000 rows (limits.rows) …" | Load a smaller extract; the application can raise the limit. An application can allow fewer rows for a file than its own data has. |
 | "… the workbook holds macros …", "… an Excel 97-2003 workbook …", "… protected with a password …" | Save it as an Excel workbook (`.xlsx`) without macros, or as CSV. |
 | "… no reader for this kind of file." | The report does not read this format (a PDF, say); save the data as CSV. |
 | "Drop one file at a time." | More than one file was dropped. |
@@ -126,6 +126,8 @@ A sheet of a workbook that cannot be read says why above the sheet list; pick an
     component) turns it on. Excel needs the [pivotkit-xlsx plugin](../reference/plugins.md#pivotkit-xlsx)
     in `plugins`; `onDataLoad` (React) or the event `pivot-data-load` reports every change of the data
     shown and can refuse a file. A file comes back after a new mount of the report only with a
-    `storageKey` ([details](../reference/react.md#prop-allowimport)). See the [React props](../reference/react.md#prop-allowimport), the
+    `storageKey` ([details](../reference/react.md#prop-allowimport)). A file's limits are
+    [`importLimits`](../reference/react.md#prop-importlimits) over `limits`, so uploads can be kept
+    smaller than the host's data. See the [React props](../reference/react.md#prop-allowimport), the
     [element reference](../reference/element.md#prop-allowimport) and
     [Loading files](../reference/import.md) for what the readers do.

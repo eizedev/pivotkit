@@ -47,7 +47,7 @@ supported.
 | `canPublish` | `can-publish` (boolean) | `boolean` | `false` | Offers "Publish as shared view" on the user's views and Save on a shared view loaded (without it Save is greyed out there: "Shared view: you cannot change it. Use Save as."); both are a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete. |
 | `fieldDefaults` |  | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count). [More](#prop-fielddefaults) |
 | `labels` |  | partial labels |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
-| `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react. |
+| `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits) for the page's data, as the `limits` prop of pivotkit-react. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
 | `theme` | `theme` | `"auto"` or `"light"` or `"dark"` | `"auto"` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
 | `height` | `height` | `number` or `string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). [More](#prop-height) |
@@ -73,12 +73,13 @@ supported.
 | `persistView` | `persist-view` | `"session"` |  | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`). |
 | `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the skeleton before the first data, the result covered on later loads. |
 | `allowImport` | `allow-import` (boolean) | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview first; nothing is uploaded. [More](#prop-allowimport) |
+| `importLimits` |  | `Partial<Limits>` | `limits` | The limits of a file loaded with `allow-import`, merged key by key over `limits`; the page's data keeps `limits`. As the [`importLimits`](react.md#prop-importlimits) prop. |
 | `plugins` |  | `ReaderPlugin[]` |  | Reader plugins for more formats with `allow-import`: [pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel. CSV, TSV, text and JSON are built in. |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
 is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, sources, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
+Data, templates, sources, labels, field defaults, limits, import limits, plugins and dismissed tips are properties only. A view is user input either
 way: pivotkit-core normalizes it against the data and it cannot run code.
 
 The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
@@ -165,6 +166,7 @@ allows it; where it cannot start, the element reads on the page. The import UI i
     const report = document.querySelector("pivot-report");
     report.data = rows;
     report.plugins = [xlsxReader];
+    report.importLimits = { rows: 200_000 };   // files people load; the page's rows keep report.limits
     report.addEventListener("pivot-data-load", (e) => {
         if (e.detail.cause === "load" && e.detail.rows > 200_000) e.preventDefault();
     });
