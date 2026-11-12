@@ -15,7 +15,8 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
    changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
    at the playground (`npm run playground`) in light and dark, wide and narrow; for the web component
    also `npm run size -w pivotkit-element` and the example (`examples/element/`, served after
-   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`);
+   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`) and the
+   Angular example (`examples/angular/`, see AGENTS.md);
    for a reader (`pivotkit-core/import`, pivotkit-xlsx) tests on real files of its format (see
    `packages/pivotkit-core/test/import-fixtures/SOURCES.md`), and for pivotkit-xlsx also
    `npm run size -w pivotkit-xlsx` and `npm run bench -w pivotkit-xlsx`.

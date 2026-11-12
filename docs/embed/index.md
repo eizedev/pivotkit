@@ -73,6 +73,10 @@ few lines, then follow the getting-started page of that package step by step.
 
 `rows` is an array of plain objects, one per record. Each key is a field the user can drag.
 
+Every row and column you pass can be seen and exported: filters and templates are no permissions.
+Send only what this viewer may see, filtered on your server
+([pivotkit is not access control](../security.md#pivotkit-is-not-access-control)).
+
 ## Next steps
 
 1. Follow the getting-started page of your package in small steps:

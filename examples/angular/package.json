@@ -1,0 +1,25 @@
+{
+  "name": "pivotkit-angular-example",
+  "private": true,
+  "description": "A minimal Angular app with <pivot-report>: built and tested in CI (the angular job of .github/workflows/ci.yml). Its own install and lock file, so Angular's dependencies stay out of the workspaces. pivotkit-element is this repository's package, linked from packages/pivotkit-element (build it first).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "ng build"
+  },
+  "dependencies": {
+    "@angular/common": "22.2.4",
+    "@angular/compiler": "22.2.4",
+    "@angular/core": "22.2.4",
+    "@angular/platform-browser": "22.2.4",
+    "pivotkit-element": "file:../../packages/pivotkit-element",
+    "rxjs": "7.8.2",
+    "tslib": "2.8.1"
+  },
+  "devDependencies": {
+    "@angular/build": "22.2.4",
+    "@angular/cli": "22.2.4",
+    "@angular/compiler-cli": "22.2.4",
+    "typescript": "6.0.3"
+  }
+}

@@ -109,7 +109,8 @@ Every behaviour, also the small ones, is in the [feature list](features.md), wit
 - **Up to about 100,000 rows** in the browser: typed columns, no object per row in the hot loops. A
   change stays within a frame or two (see [Performance](reference/react.md#performance)).
 - **Safe input**: a view is user input. It holds names only (and the values chosen in its filters), cannot run code and is checked against
-  limits before anything big is allocated. Exports are safe to open. See [Security](security.md).
+  limits before anything big is allocated. Exports are safe to open. Not access control: send only
+  the rows a viewer may see. See [Security](security.md).
 - **Excel as the reference**: subtotals, "show values as", top N and the export behave as people know
   them from Excel's PivotTable; the [concepts](concepts/views.md) name the few places that differ.
 

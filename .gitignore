@@ -17,3 +17,7 @@ packages/*/types/
 packages/*/LICENSE
 test-results/
 playwright-report/
+
+# the Angular example: the CLI's build cache and the CI build log
+examples/angular/.angular/
+examples/angular/build.log

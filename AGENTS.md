@@ -95,6 +95,13 @@ root `package.json`: `npm run types` and the builds depend on it.
   `build.js` writes `dist/` (for pages without a bundler) with `THIRD_PARTY_LICENSES.txt`
   (`scripts/third-party-licenses.js`) and checks `SIZE_BUDGET_KIB`. `test/make-xlsx.js` generates the
   workbooks the tests read (none is committed), `test/bench.js` measures a 94,000-row workbook.
+- `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
+  with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled. Its
+  own install and lock file (`npm ci --prefix examples/angular --ignore-scripts`), Angular's packages
+  pinned exactly, `pivotkit-element` linked from `packages/` (`file:`; build its `dist/` and run `npm
+  run types` first). The CI job `angular` builds it (a build warning fails) and runs
+  `test/angular.spec.js` in three browsers (`playwright.config.js` there, served by the playground's
+  `serve.js` from `dist/browser/`); `tests/ci.test.js` checks its pins and lock file.
 - `examples/reader-plugin/` - a complete reader plugin (JSON Lines) to copy, the example of the docs
   page `reference/write-a-plugin.md`; tested by `tests/reader-plugin.test.js`.
 - `tests/browser/` - Playwright tests in Chromium, Firefox and WebKit of the playground and of
@@ -149,6 +156,7 @@ npm run playground                  # playground with rebuilds on http://localho
 npm run test:browser                # build the playground, the element and the test pages, Playwright in three browsers (as CI)
 PLAYGROUND_PORT=4195 npm run test:browser   # on another port, when 4173 is taken
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix tests/react19 first)
+npx playwright test -c examples/angular/playwright.config.js   # the Angular example (build it first: npm run build --prefix examples/angular)
 npm run docs:data                   # fetch the real data sets once more into examples/playground/data/ (network)
 npm run docs:demo                   # build the playground and copy it into docs/playground/ (the live demo)
 npm run docs:screenshots            # build the playground and take docs/assets/screenshots/ again

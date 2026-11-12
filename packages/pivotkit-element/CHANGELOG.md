@@ -19,6 +19,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   pivotkit-react's prop: the limits of a file loaded with `allow-import`, merged key by key over
   `limits`; the page's data keeps `limits`. A property only, as `limits`.
 
+### Fixed
+
+- An app whose bundler reads `sideEffects` (Angular's build) no longer warns about, or may drop,
+  the chunks `dist/index.js` imports for their effects: `sideEffects` lists `dist/chunks/*.js` too
+  ([#174](https://github.com/eizedev/pivotkit/issues/174)).
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

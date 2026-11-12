@@ -1,11 +1,12 @@
 // A static file server for the built playground (examples/playground/dist), for the browser tests and
-// a quick look without a dev server: node examples/playground/serve.js [port]
+// a quick look without a dev server: node examples/playground/serve.js [port] [directory]
+// (another built directory, such as the Angular example's examples/angular/dist/browser)
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 
-const root = new URL("./dist/", import.meta.url).pathname;
 const port = Number(process.argv[2] ?? process.env.PORT ?? 4173);
+const root = process.argv[3] ? `${resolve(process.argv[3])}${sep}` : new URL("./dist/", import.meta.url).pathname;
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png" };
 
 /** The decoded path of a request; null when its percent-encoding is malformed. */
@@ -38,4 +39,4 @@ const server = createServer(async (req, res) => {
     }
 });
 // port 0 picks a free one; the address printed is the one listened on
-server.listen(port, "127.0.0.1", () => console.log(`playground on http://127.0.0.1:${server.address().port}/`));
+server.listen(port, "127.0.0.1", () => console.log(`serving ${root} on http://127.0.0.1:${server.address().port}/`));

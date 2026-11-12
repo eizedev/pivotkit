@@ -22,7 +22,8 @@
   ],
   "type": "module",
   "sideEffects": [
-    "./dist/index.js"
+    "./dist/index.js",
+    "./dist/chunks/*.js"
   ],
   "exports": {
     ".": {
