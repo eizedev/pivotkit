@@ -348,3 +348,7 @@ approximate, other machines differ; `npm run bench -w pivotkit-core` measures yo
 | `toGrid`, 9,268 cells | 3 |
 | `toXlsx`, 75 KB | 10 |
 | `toCsv` | 2 |
+
+These are the engine alone in Node. The report in Chromium, Firefox and WebKit from 100,000 to
+1,000,000 rows, with React's render and the steps of a person, is
+[measured in the browser](../concepts/limits.md#measured-in-the-browser) (`npm run bench:browser`).

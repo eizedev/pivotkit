@@ -569,5 +569,8 @@ darwin/arm64); no test backs them and other machines differ, in ms:
 | 100,000, 100,000 distinct row labels | 114 | 72 | 29 | 112 |
 
 A change stays within a frame or two, so the engine runs on the main thread; a Web Worker would add
-copying the columns and the grid between threads for no visible gain. The timings are in the
+copying the columns and the grid between threads for no visible gain. Above 100,000 rows the first
+table takes longer and the page is frozen while it is built: 1 to 2.5 s at 1,000,000 rows, a change
+then about 0.1 s ([measured in three browsers](../concepts/limits.md#measured-in-the-browser) with
+`npm run bench:browser`). The timings are in the
 browser's performance timeline as `pivotkit:encode`, `pivotkit:computePivot` and `pivotkit:toGrid`.
