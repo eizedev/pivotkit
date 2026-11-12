@@ -259,14 +259,28 @@ What this means for a host:
 - **1,000,000 rows**: the first table takes 1 to 2.5 s with the page frozen meanwhile, a filter or a
   field about 0.1 s. It works, but the start is slow, and the report keeps about as much memory again
   as the host's rows (more with medians and unique counts).
-- More than a million rows need a higher `rows` limit (`limits={{ rows: 2_000_000 }}`). That was not
-  measured; from 100,000 to 1,000,000 rows the times and the memory grew about in proportion to the
-  rows, so expect seconds of a frozen page and memory on top of the host's own rows. Aggregate on
-  the server instead where you can.
+- **More than a million rows**: aggregate on the server first; see
+  [More than a million rows](#more-than-a-million-rows).
 - At 1,000,000 rows the unique count + median view counts 80,000,000 of `work`'s 100,000,000
   (rows x 2 x 2 x 2 values x 10 for aggregations that keep values); one more row field would be
   refused. Raise `work` together with `rows`, knowing that each such aggregation keeps an entry per
   row and cell (about 10 to 40 bytes each, see `work` above).
+
+### More than a million rows
+
+A million rows is the default `rows` limit and the largest size measured. For more:
+
+1. **Aggregate on the server first**, where the rows are stored (SQL `GROUP BY`, an API that returns
+   totals), by the fields people put into Rows, Columns and Filters, and pass the smaller result.
+   Sums add up again in the report: pass a count as a column and sum it too. An average, a median
+   or a distinct count of the original rows cannot be computed again from groups; compute those on
+   the server at the level the report shows.
+2. **Or build the table on the server**: [pivotkit-core runs in Node](../getting-started/engine.md#on-a-server);
+   send the grid or the XLSX file to the page.
+3. **Or raise the `rows` limit** (`limits={{ rows: 2_000_000 }}`). That was not measured; from
+   100,000 to 1,000,000 rows the times and the memory grew about in proportion to the rows, so
+   expect seconds of a frozen page and memory on top of the host's own rows. Raise `work` with it
+   for medians and unique counts (see above).
 
 ## Errors
 

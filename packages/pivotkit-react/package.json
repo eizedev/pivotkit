@@ -18,7 +18,9 @@
     "reporting",
     "drag-and-drop",
     "echarts",
-    "self-service-bi"
+    "self-service-bi",
+    "pivot-grid",
+    "pivottable"
   ],
   "type": "module",
   "sideEffects": [

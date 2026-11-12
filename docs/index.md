@@ -14,6 +14,10 @@ hide:
 
 <p class="hero-lead">A pivot report builder for the web, with Excel's PivotTable as the reference: people drag fields into rows, columns and values, filter, drill into the rows behind a number, switch to a chart and export to Excel - and the whole report is a small JSON object you can save, share as a link or a file and load again.</p>
 
+MIT · Excel-like pivot in the browser · views as [safe](security.md) JSON · native .xlsx · React, web component, Node
+
+[Security](security.md) · [Performance (measured)](concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison](compare.md)
+
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: fields, filters, charts, export" }
 [I embed pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine" }
 [Try the live demo](demo.md){ .md-button }
@@ -103,6 +107,8 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 </div>
 
 Every behaviour, also the small ones, is in the [feature list](features.md), with a link to its page.
+How pivotkit compares with Perspective, AG Grid, Flexmonster and others, and where they are
+stronger: [Comparison](compare.md).
 
 ## Designed for
 

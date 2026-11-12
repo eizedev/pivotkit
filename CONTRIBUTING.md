@@ -23,7 +23,9 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
    The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
    `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
 4. Describe what people see on the [documentation site](https://pivotkit.eize.dev/) too: its pages are
-   in `docs/`. Preview them with `npm run docs:demo` (the live demo), then
+   in `docs/`, a new page also in a section of `[project.plugins.llmstxt.sections]` in `zensical.toml`
+   (`tests/llms-sections.test.js` checks it). Preview them with `npm run docs:demo` (the live demo, the
+   view file schema, the social preview and `robots.txt`), then
    `curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css`
    and `uvx zensical@<version> serve` (the version is in eizedev/brand's
    `docs-site/requirements.txt`); `zensical build --strict` is what CI runs. A change of the UI takes

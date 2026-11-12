@@ -17,7 +17,9 @@
     "reporting",
     "excel-export",
     "echarts",
-    "self-service-bi"
+    "self-service-bi",
+    "pivot-grid",
+    "pivottable"
   ],
   "type": "module",
   "sideEffects": false,

@@ -12,6 +12,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   limit" instead of naming the key a second time, so it fits a UI that reads files with limits of its
   own; the key stays in brackets: `"big.csv" has more than 1,000 rows (limits.rows): load a smaller
   extract of it, or a host can raise this limit` ([#185](https://github.com/eizedev/pivotkit/issues/185)).
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
   has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
   keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.

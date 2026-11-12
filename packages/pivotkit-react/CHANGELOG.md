@@ -8,6 +8,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
   the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`
   filter (case and runs of whitespace ignored, `on: "label"` for a field that is not text), "is not",
