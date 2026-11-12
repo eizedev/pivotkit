@@ -18,6 +18,7 @@ import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
+import { dateContext, dateRangeText, dateDisplayLocale } from "./date-context.js";
 import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
@@ -46,7 +47,7 @@ import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
-    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, dateSpan, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -722,7 +723,8 @@ function Report(props) {
             return { result: null, error };
         }
     }, [encoded, view, locale, limits]);
-    const result = computed.result;
+    const context = useMemo(() => dateContext(computed.result, labels), [computed.result, labels]);
+    const result = context.result;
     // what the chart draws: the user's type, or the one the data suggests ("auto"), for which rows and
     // columns may be swapped for the chart alone (dates on Columns run along the axis)
     const plan = useMemo(() => chartPlan(view, encoded), [view, encoded]);
@@ -736,21 +738,23 @@ function Report(props) {
             return { result: null, error };
         }
     }, [plan.swap, view, encoded, locale, limits, computed, result]);
-    const chartResult = chartComputed.result;
+    const chartContext = useMemo(() => chartComputed.result === computed.result ? context : dateContext(chartComputed.result, labels), [chartComputed.result, computed.result, context, labels]);
+    const chartResult = chartContext.result;
     const empty = isEmptyView(view);
     const gridState = useMemo(() => {
         if (!result || view.display !== "table" || empty) {
             return { grid: null, error: null };
         }
         try {
-            return { grid: measured("toGrid", () => toGrid(result, { locale, labels: labels.core, limits })), error: null };
+            return { grid: measured("toGrid", () => toGrid(result, { locale, labels: context.labels.core, limits })), error: null };
         } catch (error) {
             return { grid: null, error };
         }
-    }, [result, view.display, empty, locale, labels, limits]);
+    }, [result, view.display, empty, locale, context.labels, limits]);
     const error = source.error ?? computed.error ?? gridState.error ?? (view.display === "chart" ? chartComputed.error : null);
 
     // fields: the data's columns for the list; the type of a chip is its source field's
+    const dateLocale = useMemo(() => dateDisplayLocale(view.formatting?.locale || locale), [view.formatting?.locale, locale]);
     const fields = encoded.schema.fields;
     const types = useMemo(() => new Map(viewFields(view, encoded).map((f) => [f.name.toLowerCase(), f.type])), [view, encoded]);
     const typeOf = useCallback((field) => types.get(sourceOf(view, field ?? "").toLowerCase()) ?? "string", [types, view]);
@@ -763,14 +767,24 @@ function Report(props) {
     /** A field's description and link (of its source field for a grouping), or undefined. */
     const infoOf = useCallback(
         (field) => {
-            if (!field || info.size === 0) {
+            if (!field) {
                 return undefined;
             }
             const entry = info.get(sourceOf(view, field).toLowerCase());
-            return entry && entry.description ? entry : undefined;
+            const range = dateRangeText(dateSpan(encoded, sourceOf(view, field)), dateLocale);
+            const description = [entry?.description, range].filter(Boolean).join(" · ");
+            return description ? { ...entry, description } : undefined;
         },
-        [info, view]
+        [info, view, encoded, dateLocale]
     );
+    const fieldInfo = useMemo(() => {
+        const entries = new Map(info);
+        for (const field of encoded.schema.fields) {
+            const entry = infoOf(field.name);
+            if (entry) entries.set(field.name.toLowerCase(), entry);
+        }
+        return entries;
+    }, [info, infoOf, encoded]);
     const placed = useMemo(() => {
         const map = new Map();
         const mark = (name, zone) => {
@@ -949,7 +963,7 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });
+    const doExport = useExport({ fileName, result, locale, labels: context.labels, limits, root, chartRef, announce, onExport });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
     // file dragged over the report, the empty report's button) and renders the file input, the drop
@@ -1190,11 +1204,11 @@ function Report(props) {
             return null;
         }
         try {
-            return toSeries(chartResult, { labels: labels.core, maxCategories: MAX_CATEGORIES });
+            return toSeries(chartResult, { labels: chartContext.labels.core, maxCategories: MAX_CATEGORIES });
         } catch {
             return null;
         }
-    }, [chartResult, view.display, view.values.length, labels]);
+    }, [chartResult, view.display, view.values.length, chartContext.labels]);
 
     // tips: the host allows some or all, the user dismisses them (remembered per storageKey)
     const allowedKey = JSON.stringify(allowedTips(tipsProp));
@@ -1223,7 +1237,7 @@ function Report(props) {
     );
     const tipsOn = allowed !== "off" && !dismissed.includes(ALL_TIPS);
     // the i of the field descriptions and of the zones: the host forces them, else the user's switch
-    const describedFields = [...info.values()].some((i) => i.description);
+    const describedFields = [...fieldInfo.values()].some((i) => i.description);
     // one switch of the user's ("Show explanations") for the three kinds; a host's prop forces its kind
     const fieldSwitch = helpSwitch(fieldInfoProp, dismissed);
     const zoneSwitch = helpSwitch(zoneInfoProp, dismissed);
@@ -1310,7 +1324,7 @@ function Report(props) {
         [fromHost, given, loads, result, empty]
     );
     // while enlarged, the fields in one line: what the result shows, without the zones
-    const summaryParts = big.enlarged ? layoutSummary(zoneEntries(view, types, labels), labels) : [];
+    const summaryParts = big.enlarged ? layoutSummary(zoneEntries(view, types, context.labels), context.labels) : [];
     const summaryText = summaryParts.length ? summaryParts.map((p) => `${p.title}: ${p.fields}`).join(" · ") : labels.layoutEmpty;
 
     return (
@@ -1364,7 +1378,7 @@ function Report(props) {
                                 onNote={(text) => announce(text)}
                                 onFilter={filterNew}
                                 nameOf={nameOf}
-                                info={info}
+                                info={fieldInfo}
                                 showInfo={fieldSwitch.on}
                                 drawer={size === "narrow"}
                                 open={drawerOpen}
@@ -1424,10 +1438,10 @@ function Report(props) {
                             <Zones
                                 view={view}
                                 types={types}
-                                labels={labels}
+                                labels={context.labels}
                                 commit={commit}
                                 encoded={encoded}
-                                locale={locale}
+                                locale={dateLocale}
                                 onSwap={() => commit(swapAxes(view), { step: "swap" })}
                                 id={zonesId}
                                 folded={layoutFolded}
@@ -1458,7 +1472,7 @@ function Report(props) {
                                     }
                                 }}
                                 labels={labels}
-                                locale={locale}
+                                locale={result?.locale ?? "en-US"}
                                 narrow={size === "narrow"}
                                 // the status note "View loaded; some parts did not fit this data" said it
                                 quiet={unusedSaid && !fromHost}
@@ -1510,7 +1524,7 @@ function Report(props) {
                                         result={chartResult}
                                         plan={plan}
                                         series={series}
-                                        labels={labels}
+                                        labels={context.labels}
                                         locale={locale}
                                         themeName={themeName}
                                         root={root}
@@ -1524,11 +1538,12 @@ function Report(props) {
                                         onPoint={(p) => openCell({ rowPath: plan.swap ? p.colPath : p.rowPath, colPath: plan.swap ? p.rowPath : p.colPath, value: p.value, valueIndex: p.valueIndex, text: String(p.value ?? "") })}
                                     />
                                 ) : gridState.grid ? (
-                                    <PivotTable grid={gridState.grid} view={view} labels={labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} typeOf={typeOf} hostOrdered={hostOrdered} onSort={sortFromHeader} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
+                                    <PivotTable grid={gridState.grid} view={view} labels={context.labels} version={history.viewKey} hintId={view.values.length ? hintId : undefined} onRowLabel={setRowLabel} infoOf={infoOf} showInfo={fieldSwitch.on} typeOf={typeOf} hostOrdered={hostOrdered} onSort={sortFromHeader} onToggle={(axis, path) => commit(toggleCollapsed(view, axis, path), { step: "collapse" })} onCell={(cell) => openCell(cell)} />
                                 ) : null}
                             </section>
                             <div className="pk-status">
                                 <span data-testid="row-count">{result ? plural(labels.rowsCount, result.rows.length, { lang: labels.lang, locale }) : ""}</span>
+                                {context.ranges.map(({ field, text }) => <span key={field} data-testid="date-range" title={field}>{" · "}{context.ranges.length > 1 ? `${fieldLabel(field, labels.core)}: ` : ""}{text}</span>)}
                                 {importMod ? <importMod.SourceLine api={api} /> : null}
                                 {rowLabel && showTable ? (
                                     <span className="pk-row-label" data-testid="row-label">
@@ -1542,7 +1557,7 @@ function Report(props) {
                             </div>
                         </div>
                         {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
-                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
+                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels: context.labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}

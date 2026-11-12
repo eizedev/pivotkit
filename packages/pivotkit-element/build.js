@@ -224,7 +224,10 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * the menus 39.7 with the Data menu's panel, within 41.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 161.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5, import: 21 };
+// Approved date context (#109) adds first-render range/year labels and field descriptions.
+// Group hints stay menu-only. Measured on Node 24: initial 161.7 KiB gzip, menus 40.3;
+// allow 1.3 KiB first-load headroom, leaving all lazy-group budgets unchanged.
+export const SIZE_BUDGET_KIB = { initial: 163, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

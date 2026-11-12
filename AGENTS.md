@@ -198,8 +198,10 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   (both themes must pass `test/contrast.test.js`), animations through `--pk-duration` so
   `prefers-reduced-motion` turns them off. Layout follows the report's width (`data-pk-size`), not the
   window's. Check changes with screenshots in both themes at wide and narrow width.
-- A host's field labels and descriptions (`fieldDefaults`) are optional extras: a field without them
-  looks and works exactly as without `fieldDefaults` (no "i", no extra text, its own name); labels are
+- A host's field labels and descriptions (`fieldDefaults`) are optional extras: a non-date field without them
+  looks and works exactly as without `fieldDefaults` (no "i", no extra text, its own name). The
+  approved date-context design (#109) is the exception: a date field’s "i" may show its computed
+  data range without host metadata; this is display-only and never changes `fieldDefaults`. Labels are
   display only, views keep field names. A schema is data: local `$ref`s only, nothing fetched, sizes
   capped (`SCHEMA_CAPS` in `schema.js`).
 - Tips are rows of `TIPS` (`tips.js`): a pure condition, a text in every language, an optional

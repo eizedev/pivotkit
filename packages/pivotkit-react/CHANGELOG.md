@@ -6,6 +6,29 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+- Bound cached date-field ranges to 16 least-recently-used fields per data set; non-date
+  and missing fields consume no cache entries, even for unlimited host schemas.
+
+- Timeline Month grouping hints preserve historical years 0–99 rather than shifting them
+  to 1900–1999, including localized calendar and BCE endpoint labels.
+
+- Keep date field ranges after layout errors and validate display locales before date Group
+  menus render. Drill-down titles retain combined-year context; repeated localized years
+  coalesce across Gregorian boundaries. Timeline year/quarter examples match grouping labels.
+
+- Historical date-context year labels include BCE eras; cyclic month hints use the
+  Gregorian grouping calendar with localized month names. Single-year month items in other
+  calendars describe observed month-year endpoints, never synthetic dates. Range/year formatters
+  are shared in a bounded cache across date fields and Group hints. Combined month items
+  use localized Gregorian grouping keys, and unused saved definitions skip year scans.
+- Invalid locale options with date fields keep the report’s controlled error message instead
+  of throwing during computed field-info rendering.
+
+### Added
+
+- Date range in the footer, field descriptions and Group level; data-derived grouping hints and
+  context for cyclic groupings that combine years, in English and German (#109).
+
 ## [0.4.0] - 2026-11-11
 
 ### Added
@@ -79,6 +102,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   (`menuitemcheckbox`), not one of a set of choices.
 
 ### Fixed
+
+- Avoid distinct-date scratch allocations, localize Group timeline years, keep cyclic context in enlarged summaries, and describe Group menus with valid ARIA ownership (#109).
 
 - A loaded file shown again after a new mount lost its view when the host mounted the report twice in
   a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again

@@ -81,7 +81,7 @@ test("a date's Group level: one column with hints, under the two group headings,
     const view = norm({ rows: ["Date"], values: [units] });
     const group = byId(axis(view, "Date"), "group");
     assert.equal(group.kind, "menu");
-    assert.deepEqual(group.groups.map((g) => g.title), ["Along the time line", "Same period every year", undefined]);
+    assert.deepEqual(group.groups.map((g) => g.title), ["One item per period", "Same period, years combined", undefined]);
     assert.deepEqual([group.state, group.changed], ["None", false]);
     const month = choice(group, "group-month");
     assert.deepEqual([month.text, month.hint, month.closes], ["Month of year", "Jan of every year", true]);

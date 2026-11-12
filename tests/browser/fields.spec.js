@@ -5,16 +5,19 @@ import { readFile } from "node:fs/promises";
 import { chips, expect, test } from "./fixtures.js";
 
 test.describe("without descriptions", () => {
-    test("a report without labels or descriptions has no i, no extra text, the names as they are", async ({ page }) => {
+    test("non-date fields without descriptions have no i; dates have computed context", async ({ page }) => {
         await page.goto("?data=sales");
         await expect(page.locator(".pk-root")).toBeVisible();
-        // no "i" of a field anywhere (the zones' own "i" explains the zones, not a field)
-        await expect(page.locator(".pk-info:not(.pk-zone-info)")).toHaveCount(0);
+        // Date context is the approved #109 exception; other fields keep the old contract.
+        await expect(page.locator('.pk-field[data-field="Month"] .pk-info')).toHaveCount(1);
+        await expect(page.locator('.pk-field:not([data-field="Month"]) .pk-info')).toHaveCount(0);
+        await expect(page.locator('.pk-zone .pk-info:not(.pk-zone-info)')).toHaveCount(0);
         await expect(page.locator(".pk-field-desc")).toHaveCount(0);
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
         expect(await chips(page, "values")).toEqual(["Sum of Revenue"]);
         // no description: the field name keeps its plain accessible description, the headers no tooltip
-        expect(await page.locator(".pk-field-name[aria-describedby]").count()).toBe(0);
+        expect(await page.locator('.pk-field:not([data-field="Month"]) .pk-field-name[aria-describedby]').count()).toBe(0);
+        await expect(page.locator('.pk-field[data-field="Month"] .pk-field-name[aria-describedby]')).toHaveCount(1);
         expect(await page.locator(".pk-table th[title], .pk-table th[aria-description]").count()).toBe(0);
         await page.getByTestId("chip-menu-Region").click();
         await expect(page.locator(".pk-chip-menu").getByTestId("menu-info")).toHaveCount(0);

@@ -62,9 +62,9 @@ export function tabLeaves(e, close) {
  * An ARIA menu: one Tab stop (the item focused last, else the one marked `data-pk-start`, else the
  * first), the arrow keys, Home and End, type-ahead; left and right move inside a group of choices
  * side by side (`data-pk-seg`). `onKey` runs first and may take a key (return true).
- * @param {{ label?: string, labelledBy?: string, className?: string, close: () => void, children: React.ReactNode, testId?: string }} props
+ * @param {{ label?: string, labelledBy?: string, describedBy?: string, className?: string, close: () => void, children: React.ReactNode, testId?: string }} props
  */
-export function MenuList({ label, labelledBy, className, close, children, testId }) {
+export function MenuList({ label, labelledBy, describedBy, className, close, children, testId }) {
     const ref = useRef(/** @type {HTMLDivElement | null} */ (null));
     const last = useRef(/** @type {string | null} */ (null));
     const typed = useRef({ text: "", at: 0 });
@@ -141,7 +141,7 @@ export function MenuList({ label, labelledBy, className, close, children, testId
         }
     };
     return (
-        <div ref={ref} role="menu" aria-label={label} aria-labelledby={labelledBy} className={`pk-level-menu${className ? ` ${className}` : ""}`} onKeyDown={onKeyDown} onFocus={onFocus} data-testid={testId}>
+        <div ref={ref} role="menu" aria-label={label} aria-labelledby={labelledBy} aria-describedby={describedBy} className={`pk-level-menu${className ? ` ${className}` : ""}`} onKeyDown={onKeyDown} onFocus={onFocus} data-testid={testId}>
             {children}
         </div>
     );
@@ -525,9 +525,12 @@ export function LevelMenu({ name, labels, topics, close, onPick, panel, head, fo
                     </div>
                     <div className="pk-level-body" data-testid={`level-${topic.id}`}>
                         {topic.kind === "menu" ? (
-                            <MenuList labelledBy={titleId} close={close}>
-                                <Groups topic={topic} onPick={pick} />
-                            </MenuList>
+                            <>
+                                {topic.intro ? <p id={`${titleId}-intro`} className="pk-field-desc">{topic.intro}</p> : null}
+                                <MenuList labelledBy={titleId} describedBy={topic.intro ? `${titleId}-intro` : undefined} close={close}>
+                                    <Groups topic={topic} onPick={pick} />
+                                </MenuList>
+                            </>
                         ) : (
                             <div role="group" aria-labelledby={titleId} className="pk-level-panel">
                                 {panel(topic.id, back, nav.stack[nav.stack.length - 1]?.hint)}

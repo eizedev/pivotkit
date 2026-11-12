@@ -3800,3 +3800,9 @@
     padding: 0 8px;
     overflow-wrap: anywhere;
 }
+
+/* Date chips also carry computed range information. On phones retain room for the name
+   without shrinking any of the pointer targets or numeric badges. */
+.pk-root[data-pk-size="narrow"] .pk-chip {
+    gap: 3px;
+}

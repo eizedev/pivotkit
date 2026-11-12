@@ -10,6 +10,8 @@
 
 import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
+import { dateRangeText, dateDisplayLocale } from "./date-context.js";
+import { calendarDays, groupHint, groupStats } from "./group-context.js";
 import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
 import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
@@ -35,7 +37,7 @@ import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, 
  * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices.
  * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
- *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
+ *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string, intro?: string,
  *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice }>,
  *   searchFor?: (query: string) => Array<{ id: string, text: string, focus?: string, choice: Choice }> }} Topic
  * `keywords`: more words the search finds the topic's entries by (a choice's own `keywords` put it
@@ -133,15 +135,19 @@ export function axisTopics({ view, zone, index, field, types, labels, locale, st
         filterTopic({ view, field, labels, locale, state, encoded })
     ];
     if (date) {
+        const stats = groupStats(encoded, source);
+        const span = stats?.span;
+        const dateLocale = dateDisplayLocale(view.formatting?.locale || locale);
         const regroup = (unit) => () => {
             const sourceName = fieldLabel(source, labels.core);
             const grouped = unit ? groupingName(sourceName, unit, labels) : null;
             return { view: groupField(view, field, unit, { name: grouped ?? undefined }).view, note: { step: "group", field: sourceName } };
         };
         // the field is replaced by its grouping (another chip): the menu closes
-        const unit = (u) => ({ id: `group-${u}`, text: labels.units[u] ?? u, hint: labels.unitHints[u] || undefined, checked: grouping?.by === u, closes: true, change: regroup(u) });
+        const unit = (u) => ({ id: `group-${u}`, text: labels.units[u] ?? u, hint: groupHint(encoded, source, u, dateLocale, labels, stats), checked: grouping?.by === u, closes: true, change: regroup(u) });
         topics.push({
             id: "group",
+            intro: span ? fill(plural(labels.groupDataRange, calendarDays(span), {lang: labels.lang, locale: dateLocale}), { range: dateRangeText(span, dateLocale) }) : undefined,
             title: labels.groupTopic,
             kind: "menu",
             icon: "date",

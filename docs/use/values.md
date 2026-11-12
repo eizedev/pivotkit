@@ -231,3 +231,36 @@ says it, "Ranges of 100 from 0"; its level opens filled in, with **Remove ranges
     [Values: aggregators, show as, formats](../concepts/values.md); date units, ranges and time zones
     in [Dates and number ranges](../concepts/dates.md). `fieldDefaults` sets what a field gets when it
     is added ([React props](../reference/react.md#props)).
+
+### Which dates and years are included?
+
+When a date is in Rows, Columns or Filters, the footer shows the first and last date in the data.
+The date's **i** also shows that range. The Group level starts with the range and its inclusive
+number of days, followed by examples from your data.
+
+**One item per period** keeps each year separate (for example, Jan 2024 and Jan 2025).
+**Same period, years combined** puts matching periods together. The axis title says which years
+are combined; if filters leave only one year, the items carry that year instead (Jan 2025). Week numbers omit this suffix: an ISO week-year
+can differ from the calendar year. Long year lists show up to 32 observed calendar years,
+followed by an ellipsis when more are included; gaps are never filled in.
+For other calendars, a single-year month item describes its observed month-year endpoints.
+Combined month items use localized Gregorian month names, matching the grouping keys.
+Unused saved groupings add no year-context scan.
+This context does not rename your saved fields or change the grouping.
+
+![Date range and combined years](../assets/screenshots/date-context-light.png#only-light)
+![Date range and combined years](../assets/screenshots/date-context-dark.png#only-dark)
+
+![Date context on a phone](../assets/screenshots/date-context-phone-light.png#only-light)
+![Date context on a phone](../assets/screenshots/date-context-phone-dark.png#only-dark)
+
+Historical year context includes an era for BCE dates, including year zero. Cyclic month
+examples use Gregorian month names in your language, matching the grouping keys even
+when your locale uses another calendar for full dates. For a single-year cyclic month in another
+calendar, table, chart and export labels show the observed localized month and year; if the
+Gregorian month contains dates in two calendar months, both endpoint month-years are shown.
+
+Date field information keeps its data range even when a layout exceeds a limit.
+Combined-year context also appears in the drill-down title. Equal localized years across a
+Gregorian year boundary are shown once; year and quarter Group examples match their
+Gregorian grouping labels, including in locales with other calendars or digit systems.

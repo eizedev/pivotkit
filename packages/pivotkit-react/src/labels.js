@@ -21,6 +21,7 @@ import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
 export const en = {
     /** the language of the texts, for the report's lang attribute */
     lang: "en",
+    dateYearsCombined: "{years} combined",
     /** the name of the report's region landmark */
     report: "Pivot report",
     core: /** @type {import("pivotkit-core").Labels} */ ({
@@ -128,14 +129,14 @@ export const en = {
     headerSorted: "{field} sorted: {order}",
     units: {
         year: "Year", yearQuarter: "Quarter", yearMonth: "Month", yearWeek: "Week", day: "Day",
-        quarter: "Quarter of year", month: "Month of year", week: "Week of year", weekday: "Weekday", hour: "Hour of day",
+        quarter: "Quarter of the year", month: "Month of year", week: "Week of year", weekday: "Day of the week", hour: "Hour of day",
         bin: "Ranges"
     },
     // a date grouping's name: "Date by month"; the unit as it reads inside it (unitInName)
     derivedName: "{field} by {unit}",
     unitInName: {
         year: "year", yearQuarter: "quarter", yearMonth: "month", yearWeek: "week", day: "day",
-        quarter: "quarter of year", month: "month of year", week: "week of year", weekday: "weekday", hour: "hour of day",
+        quarter: "quarter of the year", month: "month of year", week: "week of year", weekday: "day of the week", hour: "hour of day",
         bin: "ranges"
     },
     binsName: "{field} (by {size})",
@@ -350,6 +351,7 @@ export const en = {
 
 export const de = {
     lang: "de",
+    dateYearsCombined: "{years} zusammengefasst",
     report: "Pivot-Bericht",
     core: /** @type {import("pivotkit-core").Labels} */ ({
         ...DEFAULT_LABELS,
