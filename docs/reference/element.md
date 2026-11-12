@@ -157,9 +157,12 @@ The element reads CSV and JSON files in a worker of its own, `dist/import-worker
 readers in one file, about 10 KiB gzip), started from its chunk by relative URL: serve it with `dist/`.
 It is a file of the page's origin, never a `blob:` URL, so `script-src 'self'` (or `worker-src`)
 allows it; where it cannot start, the element reads on the page (and Firefox and WebKit log the
-failed worker in the console). An app that bundles the element (Angular's build) copies the file as an
-asset to `../import-worker.js` from the bundle that holds the element's code:
-[Angular](../getting-started/web-component.md#angular). The import UI is the load group
+failed worker in the console). The element resolves `../import-worker.js` against the URL of the
+file its code is in (`import.meta.url`): in `dist/` that file is a chunk in `dist/chunks/`, so the
+worker is `dist/import-worker.js`. An app that bundles the element serves the worker where that URL
+points from the app's own file that holds the element's code; where that is depends on the bundler's
+output layout. For Angular's flat output it is the site's root, with `angular.json` copying the file
+as an asset: [Angular](../getting-started/web-component.md#angular). The import UI is the load group
 "import", loaded on first use ([Bundle size](#bundle-size)).
 
 ```html
