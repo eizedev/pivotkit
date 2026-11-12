@@ -90,6 +90,7 @@ npm test
 npm run pack:check               # what npm pack would publish (every package)
 npm run bench -w pivotkit-core
 npm run bench -w pivotkit-xlsx   # reading a generated 94,000-row workbook (-- --browser: also Chromium)
+npm run bench:browser            # the report in Chromium, Firefox and WebKit with 100,000 to 1,000,000 rows
 npm run playground               # the playground on http://localhost:5173
 npm run docs:data                # fetch the playground's real data sets again (network)
 npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host pages, shadow root, web component

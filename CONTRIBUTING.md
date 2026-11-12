@@ -74,6 +74,7 @@ npm test -w pivotkit-xlsx              # node --test on generated workbooks (tes
 npm run build -w pivotkit-xlsx         # dist/: the plugin for pages without a bundler, THIRD_PARTY_LICENSES.txt
 npm run size -w pivotkit-xlsx          # build, gzip size of the plugin and its reader, fails above SIZE_BUDGET_KIB
 npm run bench -w pivotkit-xlsx         # read time and memory of a 94,000-row workbook (-- --browser: Chromium too)
+npm run bench:browser                  # the report in three browsers, 100,000 to 1,000,000 rows (docs/concepts/limits.md)
 ```
 
 `npm run coverage -w pivotkit-react` covers its `.js` modules; the `.jsx` components are covered by
