@@ -453,12 +453,15 @@ test("a host that renders again all the time (React from an import map, no worke
     await expect.poll(() => fieldNames(page)).toEqual(["Host"]);
 });
 
-test("importLimits (issue #169): the host's 2,000 rows stay while a file over the import limits is refused with the limit named; a key it leaves out is the host's limits", async ({ page }) => {
-    // the host: importLimits { rows: 1000 } and limits { columns: 4 }, new objects on every render
+test("importLimits (issue #169): the host's 2,000 rows stay while a file over the import limits is refused with the limit named; a key it leaves out is the host's limits; the file's views have the import limits", async ({ page }) => {
+    // the host: importLimits { rows: 1000, cells: 100 } and limits { columns: 4 }, new objects on every render
     await page.goto("pages/host.html?import&importlimits");
     await expect(page.getByTestId("pivot-table")).toBeVisible();
     await expect.poll(() => page.getByTestId("host-renders").textContent().then(Number)).toBeGreaterThan(2);
-    // the host's data is above the import rows and shows: no limit note, its fields, the report's 2,000 rows behind it
+    // the host's data is above the import rows and its grid above the import cells, and both show: no
+    // limit note, its fields, the report's 2,000 rows behind it
+    await expect(page.getByTestId("pivot-table").locator("td, th")).not.toHaveCount(0);
+    expect(await page.getByTestId("pivot-table").locator("td, th").count()).toBeGreaterThan(100);
     await expect(page.getByText(/more than the limit of/)).toHaveCount(0);
     const hostFields = await fieldNames(page);
     expect(hostFields).toContain("Region");
@@ -483,6 +486,10 @@ test("importLimits (issue #169): the host's 2,000 rows stay while a file over th
     await page.getByTestId("import-apply").click();
     await expect.poll(() => fieldNames(page)).toEqual(["Team", "Hours"]);
     expect((await page.evaluate(() => window.__loads)).map((l) => [l.cause, l.rows])).toEqual([["load", 1000]]);
+    // the file's views have the import limits too: 1,000 hours in Rows make a grid over its 100 cells
+    await expect(page.getByText(/more than the limit of/)).toHaveCount(0);
+    await drag(page, page.locator('.pk-field[data-field="Hours"]'), page.locator('[data-zone="rows"]'));
+    await expect(page.getByText(/^This layout makes [\d,]+ cells, more than the limit of 100\./)).toBeVisible();
     // Back to original data: the host's 2,000 rows again, under its own limits
     await dataMenu(page);
     await page.getByTestId("back-to-original").click();

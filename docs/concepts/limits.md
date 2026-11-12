@@ -122,7 +122,9 @@ over `limits`: a key it sets is the file's, a key it leaves out is `limits`'s, a
 Without `importLimits` a file has the host's `limits`. They hold for everything about the file: the
 readers (`fileBytes`, `rows`, `columns`, `importCells`, `textLength`, `archiveEntries`,
 `unpackedBytes`; on the page or in the import worker), and its views, results and exports while its
-data is shown. The host's own `data` keeps `limits`:
+data is shown. The host's own `data` keeps `limits`. A key of `importLimits` may also be higher than
+the same key of `limits` (a file gets more than the host's data): nothing caps one by the other, so set
+only the keys a file should have differently:
 
 ```jsx
 <PivotReport data={rows} allowImport limits={{ cells: 500_000 }} importLimits={{ rows: 1_000, fileBytes: 5_000_000 }} />

@@ -131,7 +131,7 @@ test("the default limits fit a browser tab", () => {
 
 test("invalid limits are a programmer error", () => {
     const result = computePivot(square(2), { rows: ["A"] });
-    for (const limits of [{ cells: 0 }, { cells: 1.5 }, { cells: "10" }, { nope: 1 }, "x"]) {
+    for (const limits of [{ cells: 0 }, { cells: 1.5 }, { cells: "10" }, { nope: 1 }, "x", [], [5]]) {
         assert.throws(() => toGrid(result, { limits }), isError("INVALID_OPTION"), JSON.stringify(limits));
     }
 });

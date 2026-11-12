@@ -346,9 +346,10 @@ function Report(props) {
     const limitsKey = JSON.stringify(limitsProp ?? null);
     const hostLimits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
     // a loaded file's limits: the host's `importLimits` over its `limits`, key by key, so a host that
-    // keeps uploads small does not cap its own data
+    // keeps uploads small does not cap its own data; without importLimits the very object of hostLimits,
+    // so showing a file or the host's data again does not re-run what depends on the limits
     const importLimitsKey = JSON.stringify(importLimitsProp ?? null);
-    const fileLimits = useMemo(() => importLimitsOf(JSON.parse(limitsKey), JSON.parse(importLimitsKey)), [limitsKey, importLimitsKey]);
+    const fileLimits = useMemo(() => importLimitsOf(hostLimits, JSON.parse(importLimitsKey)), [hostLimits, importLimitsKey]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const themeName = useResolvedTheme(theme, root);
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));

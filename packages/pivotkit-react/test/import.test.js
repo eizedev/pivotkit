@@ -433,6 +433,11 @@ test("a loaded file's limits are the host's importLimits over its limits, key by
     assert.deepEqual(importLimitsOf({ rows: 5_000, cells: 9 }, { rows: 2, fileBytes: 1_000 }), { rows: 2, cells: 9, fileBytes: 1_000 });
     // a value that is no object reaches readFile as it is, which refuses it with its own message
     await assert.rejects(readImport(csv(TICKETS), { limits: importLimitsOf({ rows: 5 }, /** @type {any} */ ("small")) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION");
+    // an array is no limits object either: not spread into the host's limits, refused by readFile
+    for (const value of [[], [2]]) {
+        assert.deepEqual(importLimitsOf({ rows: 5 }, value), value);
+        await assert.rejects(readImport(csv(TICKETS), { limits: importLimitsOf({ rows: 5 }, /** @type {any} */ (value)) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION", JSON.stringify(value));
+    }
     // the host's data of five rows fits its own limits; a file of three rows is over the import limit of 2,
     // read on the page and in the worker alike, and the error names the limit
     const limits = { rows: 5_000 };

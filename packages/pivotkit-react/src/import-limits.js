@@ -14,9 +14,14 @@ export function importLimitsOf(limits, importLimits) {
     if (importLimits === null || importLimits === undefined) {
         return /** @type {any} */ (limits ?? undefined);
     }
-    // not an object: passed on as it is, so readFile refuses it with its own message
-    if (typeof importLimits !== "object" || limits === null || typeof limits !== "object") {
+    // not a limits object (an array included): passed on as it is, so readFile refuses it with its own message
+    if (!isRecord(importLimits) || !isRecord(limits)) {
         return /** @type {any} */ (importLimits);
     }
     return { ...limits, ...importLimits };
+}
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isRecord(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
 }

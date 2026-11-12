@@ -296,8 +296,10 @@ host can keep uploads small without capping its own data:
 Here the host's 50,000 rows show, while a file of 1,001 rows is refused with "… has more than 1,000
 rows (limits.rows) …" and the data shown stays. The import limits hold for everything about the file:
 the readers (also in the [`importWorker`](#prop-importworker)), the preview, and the views, results and
-exports while its data is shown; "Back to original data" goes back to `limits`. Compared by value, as
-`limits`.
+exports while its data is shown; "Back to original data" goes back to `limits`. A key of
+`importLimits` is not capped by `limits`: a file may get more than the host's data where the host
+says so (`importLimits={{ rows: 200_000 }}` over `limits={{ rows: 1_000 }}`), so set only the keys a
+file should have differently. Compared by value, as `limits`.
 
 ### `plugins` { #prop-plugins }
 

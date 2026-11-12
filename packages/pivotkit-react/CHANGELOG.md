@@ -30,7 +30,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
   loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data
   keeps `limits`, so a host can keep uploads small (`importLimits={{ rows: 1000 }}`) without capping
-  its own data. Without it a file has `limits`, as before. Compared by value, as `limits`.
+  its own data. Without it a file has `limits`, as before. A key of `importLimits` is not capped by
+  `limits`, so a file may also get more. Compared by value, as `limits`.
 - The Filter level edits what view version 2 can say:
   - A rule on the name offers "does not begin with" and "does not end with".
   - **Also keep items without a value (N rows)** under the rules, for a field with blank items and a
