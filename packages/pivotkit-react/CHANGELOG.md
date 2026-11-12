@@ -21,6 +21,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   removed. The quick choices and the rules offer years, months and days, as they did.
 - A comparison of dates by another precision (a loaded view's) says its unit ("Feb 2026", "from Q2
   2026") and stays as it is.
+- The view files and links the report writes are of format version 2, with the `$schema`
+  `https://pivotkit.eize.dev/schema/view-file-2.json` by default; files and links of version 1 load as
+  before. The link's place in the fragment is pivotkit-core's (`linkFragment`, `withLinkFragment`).
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters
   (pivotkit-core's `outsideLimits`), or the host's lower `limits.filters`.
 

@@ -1,6 +1,7 @@
 // Builds pivotkit-core's JSON Schemas of view version 2 from the tables the engine runs on, so a
 // schema can never describe a view the engine reads otherwise:
 //   schema/view-2.json       a view (FILTERS' keys and required keys, the enum tables, LIMITS)
+//   schema/view-file-2.json  the view file: the envelope (VIEW_FILE_LIMITS, source.params by LIMITS) with the view
 // tests/view-file-schema.test.js checks that the committed files are what this script builds (run it
 // after changing a table) and that the schema refuses every issue case VIEW_ISSUES marks `schema`.
 //
@@ -13,6 +14,7 @@ import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, RELATIVE_ANCHO
 import { LIMITS } from "../packages/pivotkit-core/src/limits.js";
 import { SHOW_AS_NAMES } from "../packages/pivotkit-core/src/show-as.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/text-match.js";
+import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
 import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, COLOR, DISPLAY_MODES, SORT_BY, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
 
 /** Where the schemas are published (the site copies schema/ there, scripts/docs-demo.js). */
@@ -74,16 +76,27 @@ function filterSchema(type) {
     return object(properties, [...def.required], rules.length ? { allOf: rules } : {});
 }
 
+const DRAFT = "https://json-schema.org/draft/2020-12/schema";
+
 /** The JSON Schema of a view of version 2. */
 export function viewSchema() {
-    const empty = emptyView();
+    const { body, $defs } = viewParts();
     return {
-        $schema: "https://json-schema.org/draft/2020-12/schema",
+        $schema: DRAFT,
         $id: `${SCHEMA_BASE}view-${VIEW_VERSION}.json`,
         title: `pivotkit view, version ${VIEW_VERSION}`,
         description:
             "A pivotkit view: the report's layout as JSON. Names are resolved against the data by pivotkit-core's normalize(), which also checks what a schema cannot (a field's name and type, an aggregator for a field). Built by scripts/schemas.js from pivotkit-core's tables. See https://pivotkit.eize.dev/concepts/views/",
-        ...object({
+        ...body,
+        $defs
+    };
+}
+
+/** A view's schema without its header: the object (`body`) and the definitions it refers to. */
+function viewParts() {
+    const empty = emptyView();
+    return {
+        body: object({
             version: { const: VIEW_VERSION, description: "A view without a version is read as version 1." },
             rows: list(ref("fieldName"), LIMITS.axisFields),
             cols: list(ref("fieldName"), LIMITS.axisFields),
@@ -145,9 +158,59 @@ export function viewSchema() {
     };
 }
 
+/**
+ * The JSON Schema of a view file of the version pivotkit-core writes: the envelope (open: a reader
+ * ignores keys it does not know) with the view of viewSchema() inside it, whole.
+ */
+export function viewFileSchema() {
+    const { body: view, $defs } = viewParts();
+    const name = (description) => ({ description, ...text(VIEW_FILE_LIMITS.name) });
+    return {
+        $schema: DRAFT,
+        $id: VIEW_FILE_SCHEMA,
+        title: `pivotkit view file, format version ${VIEW_FILE_VERSION}`,
+        description: `A pivotkit view (the report's layout as JSON) with what a person and another pivotkit need to know about it. Readers ignore keys of the envelope they do not know; a newer formatVersion or view.version is refused. Built by scripts/schemas.js. See https://pivotkit.eize.dev/reference/view-file/`,
+        type: "object",
+        required: ["format", "formatVersion", "view"],
+        properties: {
+            $schema: { description: "This schema's address.", type: "string" },
+            format: { description: "Marks a view file; a document without it is read as a bare view.", const: VIEW_FILE_FORMAT },
+            formatVersion: { description: "The version of this envelope. A reader refuses a newer one.", const: VIEW_FILE_VERSION },
+            name: name("What the view shows, for people. Plain text."),
+            description: { description: "More about the view, for people. Plain text; left out when empty.", ...text(VIEW_FILE_LIMITS.description) },
+            createdAt: { description: "When the file was written, in UTC (ISO 8601).", type: "string", format: "date-time" },
+            generator: { description: "The program that wrote the file.", type: "object", properties: { name: text(VIEW_FILE_LIMITS.name), version: text(VIEW_FILE_LIMITS.name) }, required: ["name"] },
+            source: {
+                description: "The data the view was made for.",
+                type: "object",
+                properties: {
+                    id: name("The host's stable name of the data (\"sales\"): opaque, never an address or a query."),
+                    name: name("The data's name for people."),
+                    fields: {
+                        description: "The fields of the data the view uses (rows, columns, values, filters, sort; a grouping as its source field), with their types.",
+                        type: "array",
+                        maxItems: VIEW_FILE_LIMITS.fields,
+                        items: { type: "object", required: ["name", "type"], properties: { name: { type: "string", minLength: 1, maxLength: VIEW_FILE_LIMITS.name }, type: { enum: [...FIELD_TYPES] } } }
+                    },
+                    params: {
+                        description: "What the host needs besides the id to find the data (a report's parameters): opaque names and texts. A reader takes only those its host allows by name.",
+                        type: "object",
+                        maxProperties: LIMITS.srcParams,
+                        propertyNames: { minLength: 1, maxLength: LIMITS.srcParamLength },
+                        additionalProperties: text(LIMITS.srcParamLength)
+                    }
+                }
+            },
+            extensions: { description: "Reserved for hosts: their own data under a key of their own (a domain or a package name). pivotkit ignores it.", type: "object" },
+            view: { description: "The view itself, with its own version. Every reader passes it through normalize() against its data.", ...view }
+        },
+        $defs
+    };
+}
+
 /** Every schema this script builds, by its file name in packages/pivotkit-core/schema/. */
 export function buildSchemas() {
-    return { [`view-${VIEW_VERSION}.json`]: viewSchema() };
+    return { [`view-${VIEW_VERSION}.json`]: viewSchema(), [`view-file-${VIEW_FILE_VERSION}.json`]: viewFileSchema() };
 }
 
 /** A schema file's text: JSON with a 2-space indent and a trailing newline. */

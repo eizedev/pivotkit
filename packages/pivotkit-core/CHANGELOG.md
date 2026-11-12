@@ -8,6 +8,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- `VIEW_FILE_VERSION` is 2 and `VIEW_FILE_SCHEMA` names `view-file-2.json`; files and links of format
+  version 1 are read as before.
+
 - **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
   has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
   keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.
@@ -36,6 +39,17 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - The JSON Schema of a view of version 2, `pivotkit-core/schema/view-2.json` (published at
   `https://pivotkit.eize.dev/schema/view-2.json`), built from the engine's tables; it refuses every
   case of an issue code whose `VIEW_ISSUES[code].schema` is true.
+- View file format version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)): `toViewFile`
+  writes it, with `source.params` (a report's parameters: opaque text by name, within
+  `LIMITS.srcParams` and `srcParamLength`), and its schema `pivotkit-core/schema/view-file-2.json`
+  (`VIEW_FILE_SCHEMA`), built from the engine's tables like `view-2.json`; `fromViewFile` reads
+  version 1 and 2 and says which (`formatVersion`). pivotkit 0.4 refuses a file or link of version 2
+  as newer, so a version-2 view is never read as version 1.
+- `readViewLink(hash, key, { allowParams })` in `pivotkit-core/link`: the view of a page's fragment
+  with its name and `src` (`{ id, params }`, only the parameters the host allows by name), for a page
+  that is not a pivotkit report. `linkParam`, `linkFragment` and `withLinkFragment` (the fragment
+  without fflate, in the main entry too). Every issue of `decodeViewLink` has a `code` of
+  `LINK_ISSUE_CODES`.
 - `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
   rows left after it, counted as the filters apply.
 - Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):

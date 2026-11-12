@@ -48,6 +48,7 @@
  * @typedef {import("./view-file.js").ViewFileCompatibility} ViewFileCompatibility
  * @typedef {import("./view-file.js").ViewFileSource} ViewFileSource
  * @typedef {import("./text-match.js").TextMatch} TextMatch
+ * @typedef {import("./link.js").ViewLinkRead} ViewLinkRead
  */
 
 export { encode } from "./encode.js";
@@ -69,4 +70,5 @@ export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";
 export { PivotkitError } from "./errors.js";
+export { linkFragment, linkParam, withLinkFragment } from "./link-fragment.js";
 export { toViewFile, fromViewFile, viewFileText, viewFileName, viewFileFields, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, VIEW_FILE_SCHEMA, VIEW_FILE_LIMITS } from "./view-file.js";

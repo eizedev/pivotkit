@@ -53,7 +53,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `zoneInfo` | `"on"` or `"off"` |  | The "i" next to each zone's title that says what the zone does, with an example: as `fieldInfo`. |
 | `settingInfo` | `"on"` or `"off"` |  | The "i" next to the settings that need explaining (the totals, Show as, Along, the export formats, the chart's Labels and Group labels): as `fieldInfo`. [More](#prop-settinginfo) |
 | `source` | `{ id, name? }` |  | The data the report shows: its `id` and `name` go into the [view files](view-file.md) and links it shares, and a view made for another `id` asks before it is loaded. [More](#prop-source) |
-| `schemaUrl` | `string` or `null` |  | The `$schema` of the [view files](view-file.md) the report writes: by default `https://pivotkit.eize.dev/schema/view-file-1.json`, a host's own copy of the schema (it ships as `pivotkit-core/schema/view-file-1.json`), or `null` / `""` to leave it out. [More](#prop-schemaurl) |
+| `schemaUrl` | `string` or `null` |  | The `$schema` of the [view files](view-file.md) the report writes: by default `https://pivotkit.eize.dev/schema/view-file-2.json`, a host's own copy of the schema (it ships as `pivotkit-core/schema/view-file-2.json`), or `null` / `""` to leave it out. [More](#prop-schemaurl) |
 | `sources` | `{ id, name? }[]` |  | The other data the host can show: a view made for one of them offers "Switch to “name” and load" (with `onSourceSwitch`). |
 | `onSourceSwitch` | `({ source, view, name }) => void` |  | The user chose to switch to the data a loaded view was made for: show that data and `view` (as the file has it, not normalized) as its start view. [More](#prop-onsourceswitch) |
 | `chartOptions` | `object` |  | Plain JSON merged over the ECharts option the report builds (objects key by key, a list entry by entry, an object given for a list into every entry); it wins over the view's chart settings. [More](#prop-chartoptions) |
@@ -193,7 +193,7 @@ The data the report shows: its `id` and `name` go into the [view files](view-fil
 
 Type: `string` or `null`.
 
-The `$schema` of the [view files](view-file.md) the report writes: by default `https://pivotkit.eize.dev/schema/view-file-1.json`, a host's own copy of the schema (it ships as `pivotkit-core/schema/view-file-1.json`), or `null` / `""` to leave it out. Loading a view never depends on it.
+The `$schema` of the [view files](view-file.md) the report writes: by default `https://pivotkit.eize.dev/schema/view-file-2.json`, a host's own copy of the schema (it ships as `pivotkit-core/schema/view-file-2.json`), or `null` / `""` to leave it out. Loading a view never depends on it.
 
 ### `onSourceSwitch` { #prop-onsourceswitch }
 

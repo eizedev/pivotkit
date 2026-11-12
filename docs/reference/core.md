@@ -128,7 +128,7 @@ and its JSON Schema are in [View file format](view-file.md).
 | `viewFileText(file)` | `string` | The file as JSON with a 2-space indent and a trailing newline. |
 | `viewFileName(name)` | `string` | `"<slug>.pivotkit.json"` ("Revenue by region" gives `revenue-by-region.pivotkit.json`), `view.pivotkit.json` without a letter or digit. |
 | `viewFileFields(view)` | `string[]` | The data's fields a view uses (rows, columns, values, filters, sort; a grouping as its source field), each once. |
-| `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | | `"pivotkit-view"`, `1`, the schema's address, and `{ text: 1000000, name: 256, description: 2000, fields: 1000 }`. |
+| `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | | `"pivotkit-view"`, `2` (the version written; 1 is read too), the schema's address, and `{ text: 1000000, name: 256, description: 2000, fields: 1000 }`. |
 
 ## Pivot
 
@@ -251,7 +251,9 @@ which `fromViewFile` reads (a bare view too). See [Sharing](../concepts/sharing.
 | Name | What |
 | --- | --- |
 | `encodeViewLink(view)` | The text of a link to a view. Throws `PivotkitError` `LIMIT_EXCEEDED` (`details.limit` `"link"`) when the text would be longer than `LINK_LIMITS.text`; `INVALID_ARGUMENT` for a non-object.<br><small>Returns `string`</small> |
-| `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why (empty, too long, not a pivotkit link, damaged, too large, no JSON object). Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
+| `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why, its `code` of `LINK_ISSUE_CODES`: `linkEmpty`, `linkTooLong`, `notLink`, `linkDamaged`, `linkTooLarge`, `notView`, `notJson`. Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
+| `readViewLink(hash, key?, { allowParams, limits })` | The view of a page's fragment: the entry of `key` (`#pivot=`, or `#pivot-<key>=` for a report with that key), decoded and read as a view file. `src` is the data source it names, `{ id, params }`: the host's opaque name of the data and only the parameters the host lists in `allowParams` (none by default; the others are left out with an issue), within `limits.srcParams` and `srcParamLength`; `null` without an id. `failed`: `"none"` (no entry), `"link"` (the text is no link, `issues` says why), or `fromViewFile`'s. Never throws. Normalize the view with `outsideLimits()`.<br><small>Returns `{ view, src, name, failed, issues }`</small> |
+| `linkParam(key?)`, `linkFragment(hash, key?)`, `withLinkFragment(url, key, text)` | The name of a report's entry in the fragment (`"pivot"`, `"pivot-<key>"`), its link text in a fragment (or `null`), and a URL with it added, replaced or (`text` null) removed, the rest of the fragment byte for byte. In the main entry too, without fflate. |
 | `LINK_LIMITS` | `{ text: 32000, json: 1000000 }`: the characters of a link text, and of the view inflated (enforced while inflating: 1 KiB of input at a time, it stops at the cap). |
 
 ### Templates: `pivotkit-core/templates` { #templates }

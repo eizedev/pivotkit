@@ -11,22 +11,24 @@ for **Copy view as JSON** and **Download view** in the Views menu, a shortened f
 links, and **Open view file…** reads it ([Sharing](../concepts/sharing.md)). pivotkit-core writes and reads
 it with `toViewFile` and `fromViewFile`.
 
-Its JSON Schema is published at `https://pivotkit.eize.dev/schema/view-file-1.json`
-([view-file-1.json](../schema/view-file-1.json)) and ships in pivotkit-core as
-`pivotkit-core/schema/view-file-1.json` (the same bytes), so a host or an editor can use it without
+Its JSON Schema is published at `https://pivotkit.eize.dev/schema/view-file-2.json`
+([view-file-2.json](../schema/view-file-2.json)) and ships in pivotkit-core as
+`pivotkit-core/schema/view-file-2.json` (the same bytes), so a host or an editor can use it without
 the website. A file names it in `$schema`; reading never depends on that key. The schema describes the
-envelope (its keys, types and limits) and, of the view inside it, its `version` and its `filters`
-(each filter's field and type, and the parts of the item comparisons and relative date ranges): the
-view itself is checked by `normalize()` against the data, which says what it leaves out. The repository's tests
-validate real exports against the schema with a JSON Schema 2020-12 validator.
+envelope (its keys, types and limits) and the whole view inside it (the view's own schema,
+[view-2.json](../schema/view-2.json), built from pivotkit-core's tables); what only the data can tell
+(a field's name and type) is checked by `normalize()` against the data, which says what it leaves out.
+The repository's tests validate real exports against the schema with a JSON Schema 2020-12 validator.
+Files of format version 1 (pivotkit 0.4 and before) are read too; their schema stays published as
+[view-file-1.json](../schema/view-file-1.json).
 
 ## An example
 
 ```json
 {
-  "$schema": "https://pivotkit.eize.dev/schema/view-file-1.json",
+  "$schema": "https://pivotkit.eize.dev/schema/view-file-2.json",
   "format": "pivotkit-view",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "name": "Revenue by region",
   "description": "For the monthly review",
   "createdAt": "2026-11-07T09:30:00.000Z",
@@ -40,7 +42,7 @@ validate real exports against the schema with a JSON Schema 2020-12 validator.
     ]
   },
   "extensions": {},
-  "view": { "version": 1, "rows": ["Region"], "values": [{ "field": "Revenue", "agg": "sum" }] }
+  "view": { "version": 2, "rows": ["Region"], "values": [{ "field": "Revenue", "agg": "sum" }] }
 }
 ```
 
@@ -50,14 +52,14 @@ The `view` is abbreviated here; a written file holds the whole normalized view.
 
 | Key | Required | What |
 | --- | --- | --- |
-| `$schema` | no | The schema's address: `https://pivotkit.eize.dev/schema/view-file-1.json` by default, a host's own copy (`toViewFile`'s `schemaUrl`, pivotkit-react's `schemaUrl` prop, the element's `schema-url` attribute), or left out (`null`, `""`). A reader ignores it. |
+| `$schema` | no | The schema's address: `https://pivotkit.eize.dev/schema/view-file-2.json` by default, a host's own copy (`toViewFile`'s `schemaUrl`, pivotkit-react's `schemaUrl` prop, the element's `schema-url` attribute), or left out (`null`, `""`). A reader ignores it. |
 | `format` | yes | `"pivotkit-view"`: marks a view file. |
-| `formatVersion` | yes | `1`: the version of the envelope. |
+| `formatVersion` | yes | `2`: the version of the envelope. Version 2 carries views of version 2 and `source.params`; files of version 1 are read too. |
 | `name` | no | What the view shows, for people; plain text, at most 256 characters. pivotkit-react writes the name of the saved view or file the view came from, else `""`. |
 | `description` | no | More about it; plain text, at most 2,000 characters; left out when empty. |
 | `createdAt` | no | When the file was written, in UTC (ISO 8601). pivotkit-react writes it; `toViewFile` leaves it out unless it is given. |
 | `generator` | no | `{ name, version }` of the program that wrote it: `pivotkit-react` and its version from its `package.json`. |
-| `source` | no | The data the view was made for: `id` (the host's stable name, pivotkit-react's `source.id`), `name` (for people), `fields` (`[{ name, type }]`, the fields of the data the view uses - rows, columns, values, filters, sort, a grouping as its source field - with their type: `string`, `number`, `date`, `boolean` or `null`; derived fields are not listed). |
+| `source` | no | The data the view was made for: `id` (the host's stable name, pivotkit-react's `source.id`), `name` (for people), `fields` (`[{ name, type }]`, the fields of the data the view uses - rows, columns, values, filters, sort, a grouping as its source field - with their type: `string`, `number`, `date`, `boolean` or `null`; derived fields are not listed), `params` (what the host needs besides the id to find the data, a report's parameters: text by name, at most 16 of at most 256 characters each, `LIMITS.srcParams` and `srcParamLength`; opaque, never an address or a query; written with an id only). |
 | `extensions` | no | Reserved for hosts (below); pivotkit ignores it and writes `{}`. |
 | `view` | yes | The view itself, with its own `version` ([Views](../concepts/views.md)). |
 
@@ -99,9 +101,10 @@ The functions are listed in the [pivotkit-core reference](core.md#view-files).
   `view.version`: the file is never read as an older one, since saving it again would drop what the
   newer version added. pivotkit-react says "This view comes from a newer version of pivotkit and
   cannot be read here. Update pivotkit to open it."
-- `formatVersion` is the integer 1. Any other value is refused, never read as 1: one above 1 (`2`,
-  `2.5`, `"2"`) as a newer version, any other (`0`, `"1"`, `true`) as no view file. A missing one is
-  read as 1 and reported; a `createdAt` that is no date, a
+- `formatVersion` is the integer 1 or 2. Any other value is refused, never read as one of them: one
+  above 2 (`3`, `2.5`, `"3"`) as a newer version, any other (`0`, `"2"`, `1.5`, `true`) as no view
+  file. A missing one is read as 1 and reported; a `source.params` entry that is no text or too long
+  is left out and reported; a `createdAt` that is no date, a
   `source.fields` entry without a name or with an unknown type are left out and reported
   (`fromViewFile`'s `issues`).
 - The text is capped before it is parsed (1,000,000 characters), names and ids at 256 characters,
@@ -123,23 +126,25 @@ source in `sources` and handles `onSourceSwitch` ([Sharing](../concepts/sharing.
 
 ## Extending the format
 
-- A new optional key keeps `formatVersion` 1: readers that do not know it ignore it, and the schema
+- A new optional key keeps `formatVersion` 2: readers that do not know it ignore it, and the schema
   allows keys it does not list (no `additionalProperties: false` on the envelope).
 - A host keeps its own data in `extensions`, under a key of its own (a domain or a package name,
   `"reports.example.com": { ... }`). pivotkit never writes or reads anything there.
 - A change that an older reader would get wrong (a key that changes meaning, a required key) is a new
-  `formatVersion` with a new schema file (`view-file-2.json`); readers of version 1 refuse it.
+  `formatVersion` with a new schema file (`view-file-3.json`); readers of version 2 refuse it. Version
+  2 is such a change: it carries views of version 2, which a reader of version 1 would read wrong, so
+  pivotkit 0.4 refuses a file or a link of version 2 as newer.
 - A change of the view itself goes through `view.version` and pivotkit-core's `MIGRATIONS`, not
   through the envelope: an older view is migrated when it is read.
 - A new filter type keeps both versions: a reader that does not know it reports that filter as an
-  unused part ("the filter type “compare” is unknown - this filter is left out") and shows the report
-  without it, so nothing is read wrong. pivotkit 0.2.0 reads the item comparisons (`compare`) and
-  relative date ranges (`relative`) that way.
+  unused part ("the filter type “like” is unknown - this filter is left out") and shows the report
+  without it, so nothing is read wrong. The schema of a version lists the types it knows; a view with
+  a newer type does not pass it.
 
 ## The link profile
 
 A link carries a shorter form of the file, made by `toViewFile(view, meta, { link: true })`:
-`format`, `formatVersion`, `source.id`, `name` (when there is one) and `view` - nothing that grows
+`format`, `formatVersion`, `source.id` and `source.params`, `name` (when there is one) and `view` - nothing that grows
 with the data (`source.fields`) or changes on every export (`createdAt`), and no `$schema`,
 `generator` or `description`. Its JSON is compressed into the link text by `encodeViewLink` of
 `pivotkit-core/link`, which keeps its transport prefix `1.`; the size limits and the safety of links

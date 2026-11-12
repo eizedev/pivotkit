@@ -48,7 +48,7 @@ function check(input) {
     const ok = read.issues.length === 0 && viewIssues.length === 0;
     out.append(
         el("h2", { className: ok ? "vf-ok" : "vf-bad", textContent: ok ? "Valid" : "Usable, with notes" }),
-        el("p", { textContent: read.envelope ? `A view file, format version 1${read.name ? `: “${read.name}”` : ""}${read.source?.id ? `, made for the source “${read.source.id}”` : ""}.` : "A bare view without the view file's envelope: it still loads; a view file also says its source and fields." })
+        el("p", { textContent: read.envelope ? `A view file, format version ${read.formatVersion}${read.name ? `: “${read.name}”` : ""}${read.source?.id ? `, made for the source “${read.source.id}”` : ""}.` : "A bare view without the view file's envelope: it still loads; a view file also says its source and fields." })
     );
     if (read.issues.length) {
         out.append(el("p", { textContent: "Left out of the envelope:" }), list(read.issues.map((i) => el("span", {}, el("code", { textContent: i.path }), ` ${i.message}`))));

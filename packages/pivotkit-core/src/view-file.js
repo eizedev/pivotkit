@@ -1,7 +1,8 @@
 /*
  * The view file: a view with what a person and another pivotkit need to know about it, as one JSON
- * document ("pivotkit-view", format version 1). A file, the JSON a person copies and a link all carry
- * it; the schema is published at VIEW_FILE_SCHEMA (docs/schema/view-file-1.json).
+ * document ("pivotkit-view", format version 2; version 1 is read too). A file, the JSON a person
+ * copies and a link all carry it; the schema is published at VIEW_FILE_SCHEMA
+ * (docs/schema/view-file-2.json, built by scripts/schemas.js).
  *
  *   const file = toViewFile(view, { name: "Revenue by region", source: { id: "sales" }, data });
  *   const text = viewFileText(file);                  // canonical JSON, 2-space indent, trailing newline
@@ -11,23 +12,27 @@
  * Reading follows these rules: unknown keys are ignored (a later minor version may add some); a
  * document is an envelope when its `format` is "pivotkit-view", else it is a bare view (or a template
  * { name, view }); a newer `formatVersion` or a newer `view.version` is refused, never read as an older
- * one; the text is capped before it is parsed; every key is read as an own property; names and
+ * one (format version 2 carries views of version 2, which an older pivotkit-core refuses the same way); the text is capped before it is parsed; every key is read as an own property; names and
  * descriptions are plain text. The view in the result is still user input: normalize() it against the
  * data before it is shown.
  */
 
+import { LIMITS, resolveLimits } from "./limits.js";
 import { VIEW_VERSION } from "./view.js";
 import { isPlainObject } from "./util.js";
 
 /** The value of `format` that marks an envelope. */
 export const VIEW_FILE_FORMAT = "pivotkit-view";
-/** The format version this package writes and reads; a newer one is refused. */
-export const VIEW_FILE_VERSION = 1;
+/** The format version this package writes; it reads it and every older one, and refuses a newer one. */
+export const VIEW_FILE_VERSION = 2;
+/** The format versions this package reads. */
+const READS = Object.freeze([1, 2]);
 /**
- * Where the JSON Schema of format version 1 is published; the same file ships in this package as
- * "pivotkit-core/schema/view-file-1.json". A file names it in `$schema` (toViewFile's `schemaUrl`).
+ * Where the JSON Schema of format version 2 is published; the same file ships in this package as
+ * "pivotkit-core/schema/view-file-2.json" (version 1's as view-file-1.json). A file names it in
+ * `$schema` (toViewFile's `schemaUrl`).
  */
-export const VIEW_FILE_SCHEMA = "https://pivotkit.eize.dev/schema/view-file-1.json";
+export const VIEW_FILE_SCHEMA = "https://pivotkit.eize.dev/schema/view-file-2.json";
 
 /**
  * The most a view file may hold: `text` characters before it is parsed, `name` characters of a name,
@@ -36,22 +41,25 @@ export const VIEW_FILE_SCHEMA = "https://pivotkit.eize.dev/schema/view-file-1.js
 export const VIEW_FILE_LIMITS = Object.freeze({ text: 1_000_000, name: 256, description: 2_000, fields: 1_000 });
 
 /** The types a field of source.fields can have (pivotkit-core's column types). */
-const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean", "null"]);
+export const FIELD_TYPES = Object.freeze(["string", "number", "date", "boolean", "null"]);
 
 /**
- * @typedef {{ id?: string, name?: string, fields?: Array<{ name: string, type: string }> }} ViewFileSource
+ * @typedef {{ id?: string, name?: string, fields?: Array<{ name: string, type: string }>, params?: Record<string, string> }} ViewFileSource  `params`: what the
+ *   host needs besides the id to find the data (a report's parameters), opaque names and values,
+ *   never an address or a query
  * @typedef {object} ViewFileMeta
  * @property {string} [name]  what the view shows ("Revenue by region"); default ""
  * @property {string} [description]  left out when empty
  * @property {string | Date} [createdAt]  when it was made; left out without it (a file that does not change on every export)
  * @property {{ name: string, version: string }} [generator]  the program that wrote it
- * @property {{ id?: string, name?: string }} [source]  the data the view was made for
+ * @property {{ id?: string, name?: string, params?: Record<string, string> }} [source]  the data the view was made for
  * @property {import("./encode.js").Encoded} [data]  the data: source.fields lists the fields the view uses with their types
  * @property {string | null} [schemaUrl]  the `$schema` written: VIEW_FILE_SCHEMA by default, a host's own
  *   copy of the schema, or null (or "") to leave `$schema` out. Reading never depends on it
  * @typedef {object} ViewFileRead
  * @property {Record<string, unknown> | null} view  the view as parsed, not normalized; null when nothing can be used
  * @property {boolean} envelope  the document was a view file, not a bare view
+ * @property {number | null} formatVersion  the envelope's format version (1 when it has none), null for a bare view
  * @property {string} name
  * @property {string} description
  * @property {string | null} createdAt
@@ -137,8 +145,9 @@ function fieldsOf(data) {
  * A view as a view file (an object; viewFileText() writes it). Keys in their canonical order:
  * $schema (unless `meta.schemaUrl` is null), format, formatVersion, name, description (only when not empty), createdAt (only when
  * given), generator (when given), source, extensions, view. `options.link` gives the profile a link
- * carries: format, formatVersion, source.id, name (when not empty) and view; nothing that grows with
- * the data (fields) or changes on every export (createdAt).
+ * carries: format, formatVersion, source.id and source.params, name (when not empty) and view; nothing
+ * that grows with the data (fields) or changes on every export (createdAt). source.params are written
+ * with a source id only, as text, within LIMITS.srcParams and srcParamLength (the rest left out).
  * @param {object} view  the view (normalized: it is written as it is)
  * @param {ViewFileMeta} [meta]
  * @param {{ link?: boolean }} [options]
@@ -150,11 +159,13 @@ export function toViewFile(view, meta = {}, options = {}) {
     }
     const name = plainText(meta.name, VIEW_FILE_LIMITS.name);
     const sourceId = plainText(meta.source?.id, VIEW_FILE_LIMITS.name);
+    const params = sourceId ? paramsOf(meta.source?.params, LIMITS, () => {}) : null;
+    const withParams = params && Object.keys(params).length ? { params } : {};
     if (options.link) {
         return {
             format: VIEW_FILE_FORMAT,
             formatVersion: VIEW_FILE_VERSION,
-            ...(sourceId ? { source: { id: sourceId } } : {}),
+            ...(sourceId ? { source: { id: sourceId, ...withParams } } : {}),
             ...(name ? { name } : {}),
             view
         };
@@ -180,7 +191,7 @@ export function toViewFile(view, meta = {}, options = {}) {
         ...(description ? { description } : {}),
         ...(created ? { createdAt: created } : {}),
         ...(generator ? { generator } : {}),
-        source: { ...(sourceId ? { id: sourceId } : {}), ...(sourceName ? { name: sourceName } : {}), ...(fields ? { fields } : {}) },
+        source: { ...(sourceId ? { id: sourceId } : {}), ...(sourceName ? { name: sourceName } : {}), ...(fields ? { fields } : {}), ...withParams },
         extensions: {},
         view
     };
@@ -217,12 +228,13 @@ export function viewFileName(name) {
  * Never throws. With `options.data` it also says how the view fits that data (`compatible`): the
  * same source (by `options.sourceId`), and every field it uses there with the same type.
  * @param {unknown} input  the text, or the parsed JSON
- * @param {{ data?: import("./encode.js").Encoded, sourceId?: string }} [options]
+ * @param {{ data?: import("./encode.js").Encoded, sourceId?: string, limits?: Partial<import("./limits.js").Limits> }} [options]  `limits`:
+ *   srcParams and srcParamLength for source.params
  * @returns {ViewFileRead}
  */
 export function fromViewFile(input, options = {}) {
     /** @type {ViewFileRead} */
-    const read = { view: null, envelope: false, name: "", description: "", createdAt: null, generator: null, source: null, failed: null, issues: [] };
+    const read = { view: null, envelope: false, formatVersion: null, name: "", description: "", createdAt: null, generator: null, source: null, failed: null, issues: [] };
     const fail = (failed, message) => ({ ...read, failed, issues: [...read.issues, { path: "", message }] });
     let doc = input;
     if (typeof input === "string") {
@@ -245,17 +257,18 @@ export function fromViewFile(input, options = {}) {
     let view;
     if (own(doc, "format") === VIEW_FILE_FORMAT) {
         read.envelope = true;
-        // an integer; anything else that is not missing is refused, never read as version 1: a newer
-        // or unknown version (2, 2.5, "2") could mean what version 1 does not
+        // an integer this package reads; anything else that is not missing is refused, never read as
+        // an older version: a newer or unknown version (3, 2.5, "2") could mean what this one does not
         const version = own(doc, "formatVersion");
         if (version === undefined || version === null) {
-            issue("formatVersion", `missing; read as ${VIEW_FILE_VERSION}`);
-        } else if (version !== VIEW_FILE_VERSION) {
+            issue("formatVersion", "missing; read as 1");
+        } else if (!READS.includes(/** @type {number} */ (version))) {
             const n = typeof version === "number" ? version : typeof version === "string" && version.trim() !== "" ? Number(version) : NaN;
             return n > VIEW_FILE_VERSION
                 ? fail("newerFormat", `format version ${JSON.stringify(version)} is newer than ${VIEW_FILE_VERSION}`)
-                : fail("notView", `format version ${JSON.stringify(version)} is not ${VIEW_FILE_VERSION}`);
+                : fail("notView", `format version ${JSON.stringify(version)} is not one of ${READS.join(", ")}`);
         }
+        read.formatVersion = /** @type {number} */ (version ?? 1);
         view = own(doc, "view");
         read.name = plainText(own(doc, "name"), VIEW_FILE_LIMITS.name);
         read.description = plainText(own(doc, "description"), VIEW_FILE_LIMITS.description);
@@ -268,7 +281,7 @@ export function fromViewFile(input, options = {}) {
         if (isPlainObject(generator) && typeof own(generator, "name") === "string") {
             read.generator = { name: plainText(own(generator, "name"), VIEW_FILE_LIMITS.name), version: plainText(own(generator, "version"), VIEW_FILE_LIMITS.name) };
         }
-        read.source = readSource(own(doc, "source"), issue);
+        read.source = readSource(own(doc, "source"), issue, resolveLimits(options));
     } else {
         // a bare view, or a template { name, view }
         const inner = own(doc, "view");
@@ -293,8 +306,42 @@ export function fromViewFile(input, options = {}) {
     return read;
 }
 
-/** The source of an envelope: id, name and fields as plain text, the rest left out with an issue. */
-function readSource(raw, issue) {
+/**
+ * source.params as written: a plain object of text by text name, at most `limits.srcParams` entries
+ * of at most `limits.srcParamLength` characters each, every key read as an own property; null when
+ * there are none. What does not fit is left out and reported.
+ * @param {unknown} raw
+ * @param {{ srcParams: number, srcParamLength: number }} limits
+ * @param {(path: string, message: string) => void} issue
+ * @returns {Record<string, string> | null}
+ */
+export function paramsOf(raw, limits, issue) {
+    if (raw === undefined || raw === null) {
+        return null;
+    }
+    if (!isPlainObject(raw)) {
+        issue("source.params", "not an object");
+        return null;
+    }
+    /** @type {Record<string, string>} */
+    const params = Object.create(null);
+    const keys = Object.keys(raw);
+    if (keys.length > limits.srcParams) {
+        issue("source.params", `more than ${limits.srcParams} parameters; the rest left out`);
+    }
+    for (const key of keys.slice(0, limits.srcParams)) {
+        const value = own(raw, key);
+        if (key === "" || key.length > limits.srcParamLength || typeof value !== "string" || value.length > limits.srcParamLength) {
+            issue(`source.params.${key.slice(0, 100)}`, `a parameter is a name and a text of at most ${limits.srcParamLength} characters`);
+        } else {
+            params[key] = value;
+        }
+    }
+    return { ...params };
+}
+
+/** The source of an envelope: id, name, fields and params as plain text, the rest left out with an issue. */
+function readSource(raw, issue, limits) {
     if (raw === undefined) {
         return null;
     }
@@ -311,6 +358,10 @@ function readSource(raw, issue) {
     }
     if (name) {
         source.name = name;
+    }
+    const params = paramsOf(own(raw, "params"), limits, issue);
+    if (params && Object.keys(params).length) {
+        source.params = params;
     }
     const fields = own(raw, "fields");
     if (fields !== undefined) {

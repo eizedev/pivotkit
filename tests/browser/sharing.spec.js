@@ -230,7 +230,7 @@ test.describe("sharing a view", () => {
         await page.goto("?data=sales");
         await toolbar(page, "views");
         await page.getByTestId("load-view").click();
-        await page.getByTestId("load-view-text").fill(JSON.stringify({ format: "pivotkit-view", formatVersion: 2, view: { rows: ["Region"] } }));
+        await page.getByTestId("load-view-text").fill(JSON.stringify({ format: "pivotkit-view", formatVersion: 3, view: { rows: ["Region"] } }));
         await page.getByTestId("load-view-apply").click();
         await expect(page.getByTestId("load-view-problem")).toContainText("Update pivotkit to open it.");
     });
@@ -362,7 +362,7 @@ test.describe("the view file check of the documentation site", () => {
         await expect(out).toContainText('rows[1] unknown field "Planet"');
         await expect(out).toContainText("Units (number)");
         // a newer format is refused with the advice to update
-        await page.getByTestId("vf-text").fill(JSON.stringify({ ...file, formatVersion: 2 }));
+        await page.getByTestId("vf-text").fill(JSON.stringify({ ...file, formatVersion: 3 }));
         await page.getByTestId("vf-check").click();
         await expect(out).toContainText("update pivotkit to open it");
         // a valid file

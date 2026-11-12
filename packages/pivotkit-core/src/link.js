@@ -2,9 +2,10 @@
  * pivotkit-core/link: a view as a short text for a link (the part after "#pivot=") and back. A separate
  * entry point, like pivotkit-core/export, so a UI that never shares a view does not bundle fflate.
  *
- *   import { encodeViewLink, decodeViewLink } from "pivotkit-core/link";
+ *   import { encodeViewLink, decodeViewLink, readViewLink } from "pivotkit-core/link";
  *   const text = encodeViewLink(view);              // "1.<deflated JSON, base64url>"
  *   const { view, issues } = decodeViewLink(text);  // the view as parsed JSON, or null; never throws
+ *   const link = readViewLink(location.hash, "sales"); // the view of "#pivot-sales=...", its src and name
  *
  * The text is the view's JSON compressed with raw DEFLATE (fflate) and written in base64url, which
  * needs no escaping in a URL. "1." in front names this format, so a later one can be told apart.
@@ -18,7 +19,16 @@
 import { deflateSync, strFromU8, strToU8 } from "fflate";
 import { inflateCapped } from "./inflate.js";
 import { PivotkitError, expect } from "./errors.js";
+import { linkFragment } from "./link-fragment.js";
+import { resolveLimits } from "./limits.js";
 import { isPlainObject } from "./util.js";
+import { fromViewFile, paramsOf } from "./view-file.js";
+
+/**
+ * The codes of a link's issues: an empty text, one too long, no pivotkit view link, damaged data, a
+ * view too large once inflated, no JSON object, not valid JSON. A UI says them in its own words.
+ */
+export const LINK_ISSUE_CODES = Object.freeze(["linkEmpty", "linkTooLong", "notLink", "linkDamaged", "linkTooLarge", "notView", "notJson"]);
 
 /** The format marker in front of the encoded view. */
 const PREFIX = "1.";
@@ -79,35 +89,92 @@ export function encodeViewLink(view) {
  * @returns {{ view: Record<string, unknown> | null, issues: import("./view.js").Issue[] }}
  */
 export function decodeViewLink(text) {
-    const fail = (message) => ({ view: null, issues: [{ path: "", message }] });
+    const fail = (message, code) => ({ view: null, issues: [{ path: "", message, code, severity: /** @type {"error"} */ ("error") }] });
     if (typeof text !== "string" || text.trim() === "") {
-        return fail("empty link");
+        return fail("empty link", "linkEmpty");
     }
     const t = text.trim();
     if (t.length > LINK_LIMITS.text) {
-        return fail(`link longer than ${LINK_LIMITS.text} characters`);
+        return fail(`link longer than ${LINK_LIMITS.text} characters`, "linkTooLong");
     }
     if (!t.startsWith(PREFIX) || !BASE64URL.test(t.slice(PREFIX.length))) {
-        return fail("not a pivotkit view link");
+        return fail("not a pivotkit view link", "notLink");
     }
     const payload = t.slice(PREFIX.length);
     if (payload === "") {
-        return fail("the link is damaged");
+        return fail("the link is damaged", "linkDamaged");
     }
     let json;
     try {
         const out = inflateCapped(fromBase64Url(payload), LINK_LIMITS.json);
         if (out.bytes === null) {
-            return fail(`view larger than ${LINK_LIMITS.json} characters`);
+            return fail(`view larger than ${LINK_LIMITS.json} characters`, "linkTooLarge");
         }
         json = strFromU8(out.bytes);
     } catch {
-        return fail("the link is damaged");
+        return fail("the link is damaged", "linkDamaged");
     }
     try {
         const view = JSON.parse(json);
-        return isPlainObject(view) ? { view, issues: [] } : fail("not a view object");
+        return isPlainObject(view) ? { view, issues: [] } : fail("not a view object", "notView");
     } catch {
-        return fail("not valid JSON");
+        return fail("not valid JSON", "notJson");
     }
 }
+
+/**
+ * @typedef {object} ViewLinkRead
+ * @property {Record<string, unknown> | null} view  the view as parsed, not normalized; null without one
+ * @property {{ id: string, params?: Record<string, string> } | null} src  the data source the link
+ *   names (source.id, and source.params as far as `allowParams` lets them through); null without an id
+ * @property {string} name  the view's name, "" without one
+ * @property {null | "none" | "link" | "empty" | "tooLarge" | "notJson" | "notView" | "newerFormat" | "newerView"} failed  why
+ *   nothing can be used: "none" the fragment has no entry for the key, "link" the text is no link
+ *   (`issues` says why), else as fromViewFile's
+ * @property {import("./view.js").Issue[]} issues
+ */
+
+/**
+ * A view from a page's URL fragment: the entry of `key` ("#pivot=" without one, "#pivot-<key>="),
+ * decoded (decodeViewLink) and read as a view file (fromViewFile), with the data source it names.
+ * The source reference is opaque: `src.id` is the host's name of the data (never an address), and
+ * `src.params` only the parameters the host allows by name (`options.allowParams`, none by default);
+ * the page resolves them with the viewer's own rights. Never throws. The view is user input from
+ * outside: normalize() it against the data with outsideLimits().
+ * @param {unknown} hash  location.hash, with or without "#"
+ * @param {string | null} [key]  the report's key
+ * @param {{ allowParams?: string[], limits?: Partial<import("./limits.js").Limits> }} [options]
+ * @returns {ViewLinkRead}
+ */
+export function readViewLink(hash, key, options = {}) {
+    /** @type {ViewLinkRead} */
+    const read = { view: null, src: null, name: "", failed: null, issues: [] };
+    const text = linkFragment(hash, key);
+    if (text === null) {
+        return { ...read, failed: "none" };
+    }
+    const decoded = decodeViewLink(text);
+    if (!decoded.view) {
+        return { ...read, failed: "link", issues: decoded.issues };
+    }
+    const limits = resolveLimits(options);
+    const file = fromViewFile(decoded.view, { limits });
+    if (file.failed || !file.view) {
+        return { ...read, failed: file.failed ?? "notView", issues: file.issues };
+    }
+    const allowed = new Set(Array.isArray(options.allowParams) ? options.allowParams : []);
+    const issues = [...file.issues];
+    /** @type {Record<string, string>} */
+    const params = {};
+    for (const [name, value] of Object.entries(paramsOf(file.source?.params, limits, () => {}) ?? {})) {
+        if (allowed.has(name)) {
+            params[name] = value;
+        } else {
+            issues.push({ path: `source.params.${name.slice(0, 100)}`, message: "a parameter the host does not allow; left out" });
+        }
+    }
+    const id = file.source?.id;
+    return { view: file.view, src: id ? { id, ...(Object.keys(params).length ? { params } : {}) } : null, name: file.name, failed: null, issues };
+}
+
+export { linkFragment, linkParam, withLinkFragment } from "./link-fragment.js";

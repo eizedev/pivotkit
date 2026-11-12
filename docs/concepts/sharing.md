@@ -110,7 +110,29 @@ keep the page busy. The module is loaded on first use: a report that never share
 
 A host that keeps the view in its own address, as the playground does, writes the same entry with
 `encodeViewLink(toViewFile(view, { source: { id } }, { link: true }))` on every `onViewChange`. A link
-that holds a bare view still opens.
+that holds a bare view still opens, and so does every link of view format version 1.
+
+### Opening a link on another page
+
+A page that is not a pivotkit report (a server-side route, a dashboard that picks the data first)
+reads a link with `readViewLink(location.hash, key, { allowParams })` of `pivotkit-core/link`: the
+view, its name, and `src`, the data source the link names. `src.id` is the host's opaque name of the
+data, never an address or a query; `src.params` are what the host needs besides it to find the data
+(a report's parameters, `toViewFile`'s `source.params`), and only those the host lists by name in
+`allowParams` come through (none by default). The page resolves the source itself, with the viewer's
+own rights, and answers an unknown source and one the viewer may not see the same way. The view is
+user input from outside: normalize it with `outsideLimits()`.
+
+```js
+import { readViewLink } from "pivotkit-core/link";
+import { encode, normalize, outsideLimits } from "pivotkit-core";
+
+const link = readViewLink(location.hash, "sales", { allowParams: ["year"] });
+if (link.view && link.src) {
+    const rows = await loadRowsFor(link.src.id, link.src.params);   // the host's own lookup
+    const { view } = normalize(link.view, encode(rows), { limits: outsideLimits() });
+}
+```
 
 ## Keeping the view per tab
 

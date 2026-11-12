@@ -45,3 +45,17 @@ export async function load(file: File): Promise<number> {
     const columnar: ColumnarData = { columns: again.columns, types: again.types, data: again.data };
     return encode(columnar).length + encode(table).length + table.notes.filter((n) => n.code === "TEXT_CUT").length;
 }
+
+// a link of a page's fragment, with its data source; views checked with severities and hints
+import { readViewLink } from "pivotkit-core/link";
+import { outsideLimits, validate, foldText } from "pivotkit-core";
+const link = readViewLink("#pivot-sales=1.abc", "sales", { allowParams: ["year"] });
+const srcId: string | undefined = link.src?.id;
+const year: string | undefined = link.src?.params?.year;
+const checked = validate(link.view ?? {}, encode([{ a: 1 }]), { limits: outsideLimits({ rows: 10 }) });
+const warned: boolean = checked.warnings.some((w) => w.severity === "warning" && w.params?.suggestion !== undefined);
+const folded: string = foldText(" A\u00A0b ", { case: "insensitive", whitespace: "collapse" });
+void srcId;
+void year;
+void warned;
+void folded;

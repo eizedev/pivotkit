@@ -26,7 +26,7 @@ import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
 import { importNow, loadImport } from "./lazy-import.js";
 import { LayerContext } from "./popover.jsx";
-import { linkNow, linkParam, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
+import { linkNow, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { HelpContext } from "./help.js";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
@@ -536,7 +536,6 @@ function Report(props) {
 
     // a view that comes back by itself: the tab's stored one, then a shared link (which wins); read
     // once, after the first render. A link needs pivotkit-core/link: while it loads the result waits.
-    const param = linkParam(storageKey);
     const [opening, setOpening] = useState(false);
     const appliedLink = useRef(/** @type {string | null} */ (null));
     // commit() is defined further down: the ref gets it after the render
@@ -608,7 +607,7 @@ function Report(props) {
             return;
         }
         const page = here();
-        const link = shareLink ? readLinkParam(page?.hash ?? "", param) : null;
+        const link = shareLink ? readLinkParam(page?.hash ?? "", storageKey) : null;
         if (link) {
             openLink(link);
         } else if (persistView === "session") {
@@ -632,14 +631,14 @@ function Report(props) {
             return undefined;
         }
         const onHash = () => {
-            const link = readLinkParam(here()?.hash ?? "", param);
+            const link = readLinkParam(here()?.hash ?? "", storageKey);
             if (link && link !== appliedLink.current) {
                 openLink(link, true);
             }
         };
         window.addEventListener("hashchange", onHash);
         return () => window.removeEventListener("hashchange", onHash);
-    }, [shareLink, param, openLink]);
+    }, [shareLink, storageKey, openLink]);
     // the tab keeps the view shown (persistView="session"); Reset stores the start view the same way
     useEffect(() => {
         if (persistView === "session") {
@@ -1040,7 +1039,7 @@ function Report(props) {
         schemaUrl,
         encoded,
         shareLink,
-        param,
+        linkKey: storageKey,
         root,
         fileName,
         onExport,
