@@ -31,11 +31,14 @@ builders, embeddable BI and in-browser engines), we found no free component that
 These are pivotkit's criteria, the reasons it was built; other projects choose differently. The two
 closest, re-checked on 2026-11-12:
 
-- **Perspective** lacks a built-in Excel export (its FAQ says so), and its settings panel is aimed
-  at analysts, where pivotkit aims at people who know Excel.
+- **Perspective** lacks a built-in Excel export (its FAQ says so). In our view its settings panel
+  suits analysts, where pivotkit aims at people who know Excel's PivotTable.
 - **Graphic Walker** needs React 19 (0.6.0), no Excel export was found in its docs, and it is
   chart-first: a pivot table component exists in its source and release notes but is not described
   in its README or docs site.
+
+- **WebDataRocks** is free of charge and exports to Excel, but its licence caps the data at 1 MB
+  and requires its logo, its React wrapper needs React 17, and charts come from separate libraries.
 
 Where others are better: Perspective handles far more rows in the browser through WebAssembly and
 streams live data; Graphic Walker and Perspective draw many more chart types; AG Grid is a full data
@@ -50,11 +53,11 @@ found in the pages linked, on that date; it is not proof of absence.
 | | Licence | Latest release | Where the pivot is computed | Rows its docs name | Frameworks | Excel (.xlsx) export |
 | --- | --- | --- | --- | --- | --- | --- |
 | **pivotkit** | MIT | 0.4.0 on 2026-11-11 | JavaScript on the page; the engine also in Node | [Measured up to 1,000,000](concepts/limits.md#measured-in-the-browser) | React 18 and 19, web component, Node | [Native, of the pivoted view](use/export.md) |
-| [Perspective](https://perspective-dev.github.io/) | [Apache-2.0](https://github.com/perspective-dev/perspective/blob/master/LICENSE.md) | [5.9.1 on 2026-11-12](https://github.com/perspective-dev/perspective/releases/tag/v5.9.1) | [WebAssembly in a Web Worker, or on a server; also SQL engines](https://perspective-dev.github.io/guide/use_cases/large_datasets.md) | ["Millions of rows is routine"](https://perspective-dev.github.io/guide/use_cases/large_datasets.md) | Web component, React, Python, Node, Rust | [None built in](https://perspective-dev.github.io/guide/FAQ.md); CSV, Arrow, HTML |
+| [Perspective](https://perspective-dev.github.io/) | [Apache-2.0](https://github.com/perspective-dev/perspective/blob/master/LICENSE.md) | [5.9.1 on 2026-11-12](https://github.com/perspective-dev/perspective/releases/tag/v5.9.1) | [WebAssembly in a Web Worker, or on a server; also SQL engines](https://perspective-dev.github.io/guide/use_cases/large_datasets.md) | ["Millions of rows is routine; tens of millions is practical for narrow numeric tables"](https://perspective-dev.github.io/guide/use_cases/large_datasets.md) | Web component, React, Python, Node, Rust | [None built in](https://perspective-dev.github.io/guide/FAQ.md); CSV, Arrow, HTML |
 | [Graphic Walker](https://docs.kanaries.net/graphic-walker) | [Apache-2.0](https://github.com/Kanaries/graphic-walker/blob/main/LICENSE) | [0.6.0 on 2026-11-12](https://github.com/Kanaries/graphic-walker/releases/tag/v0.6.0) | [Web workers; DuckDB WASM or your server optional](https://docs.kanaries.net/graphic-walker/guides/computation) | [100K-1M "Usable", above 1M on a server](https://docs.kanaries.net/graphic-walker/faq) | React 19, plain JS mount functions | Not found; [SVG, PNG](https://docs.kanaries.net/graphic-walker/guides/chart-export), CSV |
 | [PivotTable.js](https://pivottable.js.org/) / [react-pivottable](https://github.com/plotly/react-pivottable) | MIT | [2.23.0 on 2018-11-04](https://github.com/nicolaskruchten/pivottable/releases/tag/v2.23.0) / [0.11.1 on 2026-03-13](https://github.com/plotly/react-pivottable/releases/tag/v0.11.1) | JavaScript in the browser | ["up to around a hundred thousand records"](https://github.com/nicolaskruchten/pivottable#readme) | jQuery and jQuery UI / React | Not found; TSV renderer; [open request](https://github.com/plotly/react-pivottable/issues/168) |
 | [AG Grid Enterprise](https://www.ag-grid.com/react-data-grid/pivoting/) | [Paid licence](https://www.ag-grid.com/javascript-data-grid/community-vs-enterprise/) for pivoting; Community is MIT | [36.3.0 on 2026-11-04](https://github.com/ag-grid/ag-grid/releases/tag/release-36.3.0) | In the browser, or [on a server](https://www.ag-grid.com/react-data-grid/server-side-model-pivoting/) | [Client-side "100k+ rows"](https://www.ag-grid.com/react-data-grid/row-models/) | JavaScript, React, Angular, Vue | [Yes](https://www.ag-grid.com/react-data-grid/excel-export/) (Enterprise) |
-| [Flexmonster](https://www.flexmonster.com/doc/) | [Paid licence](https://www.flexmonster.com/pivot-table-editions-and-pricing/), 30-day trial | [2.9.142](https://www.flexmonster.com/doc/release-notes/) (npm 2026-11-02) | Mainly in the browser; server options | About 1 million rows of grouped data (vendor statement) | JavaScript, React, Angular, Vue and more | [Yes](https://www.flexmonster.com/doc/export-report/), with caveats |
+| [Flexmonster](https://www.flexmonster.com/doc/) | [Paid licence](https://www.flexmonster.com/pivot-table-editions-and-pricing/), 30-day trial | [2.9.142](https://www.flexmonster.com/doc/release-notes/) (npm 2.9.142-1 on 2026-11-03) | Mainly in the browser; server options | About 1 million rows of grouped data (vendor statement) | JavaScript, React, Angular, Vue and more | [Yes](https://www.flexmonster.com/doc/export-report/), with caveats |
 | [WebDataRocks](https://www.webdatarocks.com/doc/js/intro/) | Free, [proprietary licence](https://www.webdatarocks.com/license-agreement/): 1 MB data limit, logo required | [1.4.9 on 2023-10-19](https://www.npmjs.com/package/webdatarocks) | In the browser | 1 MB of data (licence) | JavaScript, React, Angular, Vue | [Yes](https://www.webdatarocks.com/doc/js/exporting/) |
 
 ## Where others are stronger
@@ -155,6 +158,10 @@ found in the pages linked, on that date; it is not proof of absence.
     - Free of charge but not open source: its [licence](https://www.webdatarocks.com/license-agreement/)
       forbids removing the 1 MB limit on the data loaded and hiding its logo.
     - Export to PDF, Excel and HTML, and printing.
+    - The React wrapper `react-webdatarocks` 1.4.9 (2023-10-19) declares React `^17.0.1`, a range
+      that excludes React 18 and 19.
+    - Charts: its docs describe integrations with amCharts, Highcharts, Google Charts and
+      FusionCharts; charts of its own were not found.
     - Its features beyond these were not checked for this page.
 
 ??? info "pivotkit"
@@ -170,7 +177,7 @@ found in the pages linked, on that date; it is not proof of absence.
 
 Each fact comes from the project's own documentation, its npm entry or its GitHub repository,
 linked in the table, and was checked on the date given. Prices are left out; the licence links lead
-to them. The comparison of 25 options on 2026-11-06 also covered MUI X Premium, Syncfusion,
+to them. The comparison of 25 options on 2026-11-06 also covered, among others, MUI X Premium, Syncfusion,
 DevExtreme, Handsontable, RevoGrid and Univer (pivoting only in a paid edition), TanStack Table,
 Tabulator and Glide (no pivot UI), DuckDB-WASM and Arquero (engines without a UI), and Orb and
 Voyager; these were not checked again for this page. Corrections are welcome as an

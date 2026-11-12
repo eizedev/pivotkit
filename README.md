@@ -7,6 +7,9 @@
 
 Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), views as
 JSON files, native Excel export; as a JavaScript core, a React component and a web component.
+Free under MIT, it computes in the browser on the rows the host passes and fetches no data; a saved
+view is plain JSON that cannot run code, and the Excel export is a real .xlsx with the pivot layout
+kept.
 
 [Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
 
