@@ -686,8 +686,8 @@ export const de = {
         this: { hour: "diese Stunde", day: "heute", week: "diese Woche", month: "dieser Monat", quarter: "dieses Quartal", year: "dieses Jahr" },
         rolling: "{text}, gleitend",
         withoutCurrent: "{text}, ohne den laufenden Zeitraum",
-        fromLatest: "{text}, gezählt ab dem letzten Eintrag",
-        fromFirst: "{text}, gezählt ab dem ersten Eintrag",
+        fromLatest: "{text}, gezählt ab dem letzten Datensatz",
+        fromFirst: "{text}, gezählt ab dem ersten Datensatz",
         fromDate: "{text}, gezählt ab {date}",
         until: "bis {to}"
     },

@@ -271,10 +271,13 @@ test.describe("Top items with the items tied with the last one (nobel, Country b
         await menu.getByTestId("top-count").fill(String(cut));
         await expect.poll(async () => (await bodyRows(page)).length).toBe(cut);
         const ties = menu.getByTestId("top-ties");
-        await expect(ties.locator("..")).toHaveText("Also show items tied with the last one");
+        await expect(ties.locator("..")).toHaveText("Also show items with the same value as the last one");
+        // the items the top shows, under the checkbox: N, then N and those tied with the last one
+        await expect(menu.getByTestId("top-shown")).toHaveText(`${cut} items shown`);
         await ties.click();
         await expect(ties).toBeChecked();
         await expect.poll(async () => (await bodyRows(page)).map((r) => r[0]).sort()).toEqual(counts.slice(0, tied).map((c) => c[0]).sort());
+        await expect(menu.getByTestId("top-shown")).toHaveText(`${tied} items shown`);
         // another count keeps the ties
         await menu.getByTestId("top-count").fill(String(cut - 1));
         await expect.poll(async () => (await bodyRows(page)).length).toBe(counts.filter((c) => c[1] >= counts[cut - 2][1]).length);
@@ -283,5 +286,89 @@ test.describe("Top items with the items tied with the last one (nobel, Country b
         await menu.getByTestId("top-off").click();
         await expect(ties).toHaveCount(0);
         await expect.poll(async () => (await bodyRows(page)).length).toBe(counts.length + 1);
+    });
+});
+
+test.describe("the review's findings on the quick choices (endoflife, EOL date by month; weather)", () => {
+    const EOL = "EOL date by month";
+    const view = (more = {}) => ({ derived: [{ name: EOL, field: "EOL date", by: "yearMonth" }], rows: [EOL], values: [{ agg: "count" }], ...more });
+
+    test("every select and field of the quick choices is a target's height at least, and each unit select is named after its choice", async ({ page }) => {
+        await openView(page, "endoflife", view());
+        await chipMenu(page, EOL, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await menu.getByTestId("quick-more").click();
+        await menu.getByTestId("quick-anchor").selectOption("date");
+        const controls = menu.locator('[data-testid="fsection-quick"] :is(select, input[type="date"], input[type="text"])');
+        const n = await controls.count();
+        expect(n, "the unit selects, the counts, the reference and its date").toBeGreaterThanOrEqual(8);
+        for (let i = 0; i < n; i++) {
+            const box = await controls.nth(i).boundingBox();
+            expect(box?.height, await controls.nth(i).getAttribute("data-testid")).toBeGreaterThanOrEqual(24);
+        }
+        await expect(menu.getByTestId("quick-last-unit")).toHaveAccessibleName("Unit of “Last …”");
+        await expect(menu.getByTestId("quick-next-unit")).toHaveAccessibleName("Unit of “Next …”");
+        await expect(menu.getByTestId("quick-before-unit")).toHaveAccessibleName("Unit of “Before the last …”");
+        const thisUnit = menu.getByTestId("quick-this-unit");
+        if (await thisUnit.count()) {
+            await expect(thisUnit).toHaveAccessibleName("Current period");
+        }
+    });
+
+    test("a date being typed: the range keeps the last whole date, the field says so, and leaving it gives the date back", async ({ page }) => {
+        await openView(page, "endoflife", view({ version: 2, filters: [{ field: EOL, type: "relative", unit: "month", count: 3, anchor: "2024-06-30", blanks: "exclude" }] }));
+        await expect(badge(page, "rows", EOL)).toHaveText(/^last 3 months, counted from Jun 30, 2024 \(/);
+        const before = await bodyRows(page);
+        await chipMenu(page, EOL, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        const date = menu.getByTestId("quick-anchor-date");
+        await expect(date).toHaveValue("2024-06-30");
+        await date.fill("");
+        await expect(date).toHaveAttribute("aria-invalid", "true");
+        await expect(menu.getByTestId("quick-anchor-date-hint")).toHaveText("Enter a whole date; the ranges still count from Jun 30, 2024.");
+        await expect(date).toHaveAccessibleDescription("Enter a whole date; the ranges still count from Jun 30, 2024.");
+        await expect(badge(page, "rows", EOL)).toHaveText(/^last 3 months, counted from Jun 30, 2024 \(/);
+        expect(await bodyRows(page)).toEqual(before);
+        await date.blur();
+        await expect(date).toHaveValue("2024-06-30");
+        await expect(menu.getByTestId("quick-anchor-date-hint")).toHaveCount(0);
+    });
+
+    test("a loaded reference date with a time shows its day in the date field", async ({ page }) => {
+        await openView(page, "endoflife", view({ version: 2, filters: [{ field: EOL, type: "relative", unit: "month", count: 3, anchor: "2024-06-30T18:00:00", blanks: "exclude" }] }));
+        await chipMenu(page, EOL, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await expect(menu.getByTestId("quick-anchor")).toHaveValue("date");
+        await expect(menu.getByTestId("quick-anchor-date")).toHaveValue("2024-06-30");
+    });
+
+    test("on data that end before today: one click counts Last back from the latest record; the note of the choices not offered sits under them", async ({ page }) => {
+        const weather = load("weather");
+        const last = weather.map((r) => r.Date).sort().at(-1);
+        const now = new Date();
+        expect(last.slice(0, 4) < String(now.getUTCFullYear()), "the weather snapshot ends before this year").toBe(true);
+        const MONTH = "Date by month";
+        await openView(page, "weather", { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ agg: "count" }] });
+        await chipMenu(page, MONTH, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        // This year is not offered: said right under the choices, before the reference date
+        const hidden = menu.getByTestId("quick-hidden");
+        await expect(hidden).toBeVisible();
+        expect(await hidden.evaluate((el, other) => Boolean(el.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING), await menu.getByTestId("quick-anchor").elementHandle())).toBe(true);
+        await menu.getByTestId("quick-last").click();
+        await expect(menu.getByTestId("quick-last-current").locator("..")).toContainText("has no data");
+        const fix = menu.getByTestId("quick-last-from-latest");
+        const latest = new Date(`${last}T00:00Z`).toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "UTC" });
+        await expect(fix).toHaveText(`Count back from the latest record (${latest}) instead`);
+        await fix.click();
+        await expect(menu.getByTestId("quick-anchor")).toHaveValue("latest");
+        await expect(fix).toHaveCount(0);
+        await expect(menu.getByTestId("quick-last-current").locator("..")).toHaveText("Include the current month");
+        // the last N months of the data, to the month of its latest record
+        const count = Number(await menu.getByTestId("quick-last-count").inputValue());
+        const rows = await bodyRows(page);
+        expect(rows.length).toBe(count);
+        expect(rows.at(-1)?.[0]).toBe(new Date(`${last.slice(0, 7)}-01T00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" }));
+        await expect(badge(page, "rows", MONTH)).toContainText("to ");
     });
 });

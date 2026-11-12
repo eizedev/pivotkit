@@ -25,7 +25,7 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
-import { dayText, isoDay, periodText, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
+import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
 import { RULE_OPS, dateSpan, filtersOf, hiddenNot, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
@@ -62,9 +62,12 @@ const rulesKeyOf = (rules) => JSON.stringify(rules, (_k, v) => (v && typeof v ==
 const rowKind = (f) => (!editable(f) ? "fixed" : f.type === "value" ? "total" : f.type === "text" ? "name" : "item");
 /** The units of a rule's relative range ("is in the last [5] [years]"). */
 const RANGE_UNITS = Object.freeze(["year", "month", "day"]);
-/** Whether a rule's row writes a relative range: the last N years, months or days, whole, the current one included, from today or the latest record. */
-const ruleRange = (f) =>
-    (f.direction ?? "last") === "last" && f.calendar !== false && f.includeCurrent !== false && (f.anchor === undefined || f.anchor === "today" || f.anchor === "latest") && RANGE_UNITS.includes(f.unit);
+/**
+ * Whether a rule's row writes a relative range: one the chip says by its periods (names.js
+ * `plainRange`), narrowed to what the row has fields for: the last N years, months or days, the
+ * current one included.
+ */
+const ruleRange = (f) => plainRange(f) && (f.direction ?? "last") === "last" && f.includeCurrent !== false && RANGE_UNITS.includes(f.unit);
 /**
  * Whether the rows can edit a rule: not one whose `not` they have no word for, not a relative range
  * they do not write (a loaded view's next, this, before, rolling, hours, weeks, quarters, that is not
@@ -231,9 +234,12 @@ const inMore = (quick) => MORE.includes(quick.id) || (COUNTED.includes(quick.id)
  * folded: Next [N] [unit], Before the last [N] [unit], rolling instead of whole calendar periods.
  * The units are none finer than the grouping (ruleKind's `units`). A choice applies at once, a count
  * typed a moment after the typing stops (and picks its choice), a unit chosen at once (Last keeps its
- * count while it reaches the data, else takes the smallest that does). "Counted back from": today, the
- * latest or the first record, or a date; shown below Last when the data end before the current
- * period or the reference is not today, else among More choices.
+ * count while it reaches the data, else takes the smallest that does); each unit select is named
+ * after its choice. When Last's current period has no data and it counts from today, a button under
+ * it counts back from the latest record. "Counted back from": today, the latest or the first record,
+ * or a date (one being typed keeps the last whole date for the ranges and says so); shown below the
+ * choices when the data end before the current period or the reference is not today, else among
+ * More choices. The line of the choices not offered stands right under them.
  */
 function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts, moreOpen, setMoreOpen }) {
     const { view, field, labels, locale, fk, timeZone, commit, note, back } = ctx;
@@ -353,10 +359,10 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
             {children}
         </label>
     );
-    /** A unit's select, or its name alone when the grouping leaves one unit. */
-    const unitPick = (value, options, onChange, testId) =>
+    /** A unit's select, named after its choice ("Unit of “Last …”"), or its name alone when the grouping leaves one unit. */
+    const unitPick = (value, options, onChange, testId, label) =>
         options.length > 1 ? (
-            <select name={`${formName}-${testId}`} value={value} onChange={(e) => onChange(e.target.value)} aria-label={labels.ruleUnit} data-testid={testId}>
+            <select name={`${formName}-${testId}`} value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} data-testid={testId}>
                 {options.map((o) => (
                     <option key={o.value} value={o.value}>
                         {o.text}
@@ -392,7 +398,8 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                         setThisUnit(v);
                         set({ direction: "this", unit: v });
                     },
-                    "quick-this-unit"
+                    "quick-this-unit",
+                    labels.quickThisUnit
                 )}
                 {sub(datesOf({ direction: "this", unit: u }), u, "this")}
             </div>
@@ -476,7 +483,8 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                     row.unit,
                     units.map((u) => ({ value: u, text: formOf(u).split("{n}")[1]?.trim() ?? u })),
                     pickUnit,
-                    `quick-${d}-unit`
+                    `quick-${d}-unit`,
+                    fill(labels.quickUnitOf, { choice: capital(before.trimEnd(), locale) })
                 )}
                 {sub(range, row.unit, d)}
                 {quick.id === d && !rolling ? (
@@ -487,6 +495,14 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                             {currentEmpty ? <span className="pk-quick-missing">{` (${fill(plural(labels.noData, 1, lang), { range: current?.from ? periodText({ from: current.from, to: current.to }, row.unit, locale) : "" })})`}</span> : null}
                         </span>
                     </label>
+                ) : null}
+                {/* the current period is empty because the data end before it: one click counts back from their end */}
+                {quick.id === d && d !== "next" && currentEmpty && anchor === "today" ? (
+                    <div className="pk-quick-fix">
+                        <button type="button" className="pk-action" onClick={() => setAnchorTo("latest")} data-testid={`quick-${d}-from-latest`}>
+                            {fill(labels.anchorUseLatest, { date: dayText(latestDay, locale) })}
+                        </button>
+                    </div>
                 ) : null}
             </div>
         );
@@ -500,7 +516,19 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const periodStart = fk.months ? Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) : Date.UTC(today.getUTCFullYear(), 0, 1);
     const [anchorOutside] = useState(() => span.max < periodStart || anchor !== "today");
     const anchorKind = ["today", "latest", "first"].includes(anchor) ? anchor : "date";
-    const [day, setDay] = useState(anchorKind === "date" ? anchor : latestDay);
+    // the date field shows a day ("2025-06-30" of a loaded "2025-06-30T18:00:00"); one being typed
+    // stays in the field, the range keeps the last whole date until a whole date is there
+    const [day, setDay] = useState(anchorKind === "date" ? anchor.slice(0, 10) : latestDay);
+    const dayWhole = /^\d{4}-\d{2}-\d{2}$/.test(day);
+    // a date set elsewhere (Undo) shows in the field
+    const [seenAnchor, setSeenAnchor] = useState(anchor);
+    if (anchor !== seenAnchor) {
+        setSeenAnchor(anchor);
+        if (anchorKind === "date") {
+            setDay(anchor.slice(0, 10));
+        }
+    }
+    const dayHint = `${anchorId}-hint`;
     const setAnchorTo = (a) => {
         setAnchorLocal(a);
         if (quick.filters.length) {
@@ -510,7 +538,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const anchorRow = (
         <div className="pk-quick-anchor">
             <label htmlFor={anchorId}>{labels.anchorLabel}</label>
-            <select id={anchorId} name={`${formName}-anchor`} value={anchorKind} onChange={(e) => setAnchorTo(e.target.value === "date" ? day : e.target.value)} data-testid="quick-anchor">
+            <select id={anchorId} name={`${formName}-anchor`} value={anchorKind} onChange={(e) => setAnchorTo(e.target.value === "date" ? (dayWhole ? day : latestDay) : e.target.value)} data-testid="quick-anchor">
                 <option value="today">{fill(labels.anchorToday, { date: dayText(isoDay(today.getTime()), locale) })}</option>
                 <option value="latest">{fill(labels.anchorLatest, { date: dayText(latestDay, locale) })}</option>
                 <option value="first">{fill(labels.anchorFirst, { date: dayText(isoDay(span.min), locale) })}</option>
@@ -527,9 +555,22 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                             setAnchorTo(e.target.value);
                         }
                     }}
+                    // left without a whole date: the one that applies comes back
+                    onBlur={() => {
+                        if (!dayWhole) {
+                            setDay(anchor.slice(0, 10));
+                        }
+                    }}
                     aria-label={labels.anchorDay}
+                    aria-invalid={dayWhole ? undefined : true}
+                    aria-describedby={dayWhole ? undefined : dayHint}
                     data-testid="quick-anchor-date"
                 />
+            ) : null}
+            {anchorKind === "date" && !dayWhole ? (
+                <p className="pk-hint pk-quick-missing" id={dayHint} data-testid="quick-anchor-date-hint">
+                    {fill(labels.anchorDayIncomplete, { date: dayText(anchor.slice(0, 10), locale) })}
+                </p>
             ) : null}
         </div>
     );
@@ -538,12 +579,12 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
             <div role="radiogroup" aria-label={labels.quickTitle} className="pk-radios pk-quick-choices" data-testid="quick-choices">
                 {main}
             </div>
-            {anchorOutside ? anchorRow : null}
             {hidden.length ? (
                 <p className="pk-hint pk-quick-hidden" data-testid="quick-hidden">
                     {fill(plural(labels.quickHidden, hidden.length, lang), { choices: hidden.join(", "), latest: dayText(latestDay, locale) })}
                 </p>
             ) : null}
+            {anchorOutside ? anchorRow : null}
             <button type="button" className="pk-quick-more-toggle" aria-expanded={moreOpen} aria-controls={moreId} onClick={() => setMoreOpen(!moreOpen)} data-testid="quick-more">
                 <Icon name={moreOpen ? "chevronDown" : "chevronRight"} size={14} />
                 <span>{labels.quickMore}</span>

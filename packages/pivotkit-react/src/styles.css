@@ -1856,8 +1856,32 @@
     border-left: 2px solid var(--pk-border);
 }
 
+/* the selects and the date field of the quick choices: as high as the count beside them, a target's
+   height at least (they are not in a .pk-condition form) */
+.pk-quick-row select,
+.pk-quick-anchor select,
 .pk-quick-anchor input[type="date"] {
     min-height: var(--pk-target);
+    height: 2em;
+    padding: 0 0.4em;
+    border: 1px solid var(--pk-input-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    color: var(--pk-text);
+}
+
+.pk-quick-anchor > .pk-hint {
+    flex-basis: 100%;
+}
+
+/* under a choice: the button that counts back from the data's end, in line with its words */
+.pk-quick-row > .pk-quick-fix {
+    flex-basis: 100%;
+    margin-left: 1.7em;
+}
+
+.pk-quick-fix > .pk-action {
+    text-align: start;
 }
 
 /* the years a cyclic grouping combines: a toggle per year with its rows */
@@ -3865,4 +3889,9 @@
 .pk-data-menu p {
     padding: 0 8px;
     overflow-wrap: anywhere;
+}
+
+/* under "Also show items with the same value as the last one": in line with its words */
+.pk-level-form > .pk-top-shown {
+    padding-left: calc(1.7em + 0.6em);
 }

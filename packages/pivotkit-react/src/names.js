@@ -304,8 +304,11 @@ function otherRangeText(f, labels, locale, timeZone, now, span, weekStart) {
     if (!range) {
         return text;
     }
-    const to = pointText(range.to, locale);
-    return fill(labels.withRange, { text, range: range.from === null ? fill(more.until, { to }) : range.from === range.to ? to : `${pointText(range.from, locale)} – ${to}` });
+    // bounds at midnight (a rolling range from a date of its own) are said as days, not as "12:00 AM"
+    const days = (range.from === null || range.from.endsWith("T00:00")) && range.to.endsWith("T00:00");
+    const point = (iso) => pointText(days ? iso.slice(0, 10) : iso, locale);
+    const to = point(range.to);
+    return fill(labels.withRange, { text, range: range.from === null ? fill(more.until, { to }) : range.from === range.to ? to : `${point(range.from)} – ${to}` });
 }
 
 /**

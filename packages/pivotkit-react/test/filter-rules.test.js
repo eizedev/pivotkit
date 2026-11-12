@@ -458,3 +458,46 @@ test("search: a quick choice found takes the place of the one set, keeps a range
     const ranges = filtersOf(hit.choice.change().view, YEAR, ["relative"]);
     assert.deepEqual(ranges.map((f) => [f.count, f.not, f.blanks]), [[3, false, "include"], [1, true, "include"]]);
 });
+
+test("a rolling range from a date of its own says its days, not midnight as a time; a range with a time keeps it (review)", () => {
+    const now = "2026-03-15T12:00:00Z";
+    const say = (f, L = MENU.en, locale = "en-US") => relativeText({ blanks: "exclude", not: false, includeCurrent: true, ...f }, L, locale, "UTC", now);
+    // rolling 3 months counted from Jun 30, 2024: from midnight Mar 30 to midnight Jun 30, both kept
+    assert.equal(say({ direction: "last", unit: "month", count: 3, calendar: false, anchor: "2024-06-30" }), "last 3 months, rolling, counted from Jun 30, 2024 (Mar 30, 2024 – Jun 30, 2024)");
+    assert.equal(say({ direction: "before", unit: "day", count: 30, calendar: false, anchor: "2024-06-30" }), "before the last 30 days, rolling, counted from Jun 30, 2024 (until May 30, 2024)");
+    // counted from now: the minutes stay
+    assert.equal(say({ direction: "before", unit: "day", count: 30, calendar: false }), "before the last 30 days, rolling (until Feb 13, 2026, 11:59 AM)");
+});
+
+test("the quick choice reads a rolling range as rolling, not as whole periods (review)", () => {
+    const dateKind = ruleKind(data, norm({ rows: ["Released"] }), "Released");
+    const rolling = norm(setQuickRange(norm({ rows: ["Released"] }), "Released", { direction: "last", unit: "month", count: 3, calendar: false }));
+    const read = quickChoice(rolling, "Released", dateKind);
+    assert.deepEqual([read.id, read.unit, read.count, read.calendar], ["last", "month", 3, false]);
+    const whole = quickChoice(norm(setQuickRange(norm({ rows: ["Released"] }), "Released", { direction: "last", unit: "month", count: 3 })), "Released", dateKind);
+    assert.equal(whole.calendar, true);
+});
+
+test("Counted back from: every relative range of the field takes the reference, the rules' ranges too (review)", () => {
+    const base = norm({
+        version: 2,
+        rows: ["Released"],
+        filters: [
+            { field: "Released", type: "relative", unit: "year", count: 3, blanks: "exclude" },
+            { field: "Released", type: "relative", direction: "next", unit: "hour", count: 2, blanks: "exclude" },
+            { field: "Region", type: "text", op: "contains", value: "o", blanks: "exclude" }
+        ]
+    });
+    const latest = setAnchor(base, "Released", "latest");
+    assert.deepEqual(filtersOf(latest, "Released", ["relative"]).map((f) => f.anchor), ["latest", "latest"]);
+    assert.deepEqual(filtersOf(latest, "Region"), filtersOf(base, "Region"));
+    // today is the default: not written
+    assert.deepEqual(filtersOf(setAnchor(latest, "Released", "today"), "Released", ["relative"]).map((f) => "anchor" in f), [false, false]);
+});
+
+test("search: the rule on the name is found by its operators, \"does not begin with\" among them (review)", () => {
+    for (const [L, locale, q] of [[MENU.en, "en-US", "does not begin"], [MENU.en, "en-US", "not end with"], [MENU.de, "de-DE", "beginnt nicht"]]) {
+        const topics = axisTopics({ view: norm({ rows: ["Region"] }), zone: "rows", index: 0, field: "Region", types, labels: L, locale, encoded: data });
+        assert.deepEqual(searchHits(searchEntries(topics, q), q, locale).map((e) => e.id), ["open-filter-text"], q);
+    }
+});

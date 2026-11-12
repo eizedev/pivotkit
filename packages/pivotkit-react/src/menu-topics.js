@@ -36,8 +36,8 @@ import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind
  * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
  *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
- *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice }>,
- *   searchFor?: (query: string) => Array<{ id: string, text: string, focus?: string, choice: Choice }> }} Topic
+ *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice, keywords?: string }>,
+ *   searchFor?: (query: string) => Array<{ id: string, text: string, focus?: string, choice: Choice, keywords?: string }> }} Topic
  * `keywords`: more words the search finds the topic's entries by (a choice's own `keywords` put it
  * first among the hits for them); `searchExtra`: more entries of a panel topic (a part of its level,
  * or a quick choice of it); `searchFor`: entries made from what is typed ("last 3 years", "from 2022").
@@ -240,7 +240,8 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
         // the rules are found by their names, and open the level on them
         searchExtra: [
             { id: "open-filter-rules", text: labels.rulesTitle, focus: "conditions" },
-            { id: "open-filter-text", text: labels.addRuleName, focus: "conditions" },
+            // the rule on the name by its operators too ("does not begin with")
+            { id: "open-filter-text", text: labels.addRuleName, focus: "conditions", keywords: Object.values(labels.labelOps).join(" ") },
             { id: "open-filter-value", text: labels.addRuleTotal, focus: "conditions" }
         ],
         searchFor
@@ -483,7 +484,7 @@ export const afterDelete = (list, place) => list[place + 1] ?? list[place - 1];
 /**
  * One entry of a menu's search: a choice of a topic (with the path to it), or a topic's level
  * (`focus`: the part of it to show and focus).
- * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice, focus?: string }} SearchEntry
+ * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice, focus?: string, keywords?: string }} SearchEntry
  */
 
 /**
@@ -500,7 +501,7 @@ export function searchEntries(topics, query = "") {
             return [];
         }
         const typed = query && topic.searchFor ? topic.searchFor(query) : [];
-        const extra = [...typed, ...(topic.searchExtra ?? [])].map((x) => ({ id: x.id, text: x.text, path: topic.title, topic, choice: x.choice, focus: x.focus }));
+        const extra = [...typed, ...(topic.searchExtra ?? [])].map((x) => ({ id: x.id, text: x.text, path: topic.title, topic, choice: x.choice, focus: x.focus, keywords: x.keywords }));
         return topic.kind === "panel"
             ? [{ id: `open-${topic.id}`, text: topic.title, path: "", topic }, ...extra]
             : (topic.groups ?? []).flatMap((g) => g.choices.map((choice) => ({ id: choice.id, text: choice.text, path: [topic.title, g.title].filter(Boolean).join(" › "), topic, choice })));
@@ -525,7 +526,7 @@ export function searchHits(entries, query, locale) {
         return [];
     }
     const found = entries.filter((e) => {
-        const text = lower(`${e.text} ${e.path} ${e.topic.keywords ?? ""} ${e.choice?.keywords ?? ""}`);
+        const text = lower(`${e.text} ${e.path} ${e.topic.keywords ?? ""} ${e.choice?.keywords ?? e.keywords ?? ""}`);
         return words.every((w) => text.includes(w));
     });
     // a stable sort: the entries with the first word among their own keywords ("percent": the shares

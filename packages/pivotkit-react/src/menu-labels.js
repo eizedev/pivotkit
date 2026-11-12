@@ -108,12 +108,19 @@ export const en = {
     // the rare choices, folded: Next N, Before the last N, rolling periods
     quickMore: "More choices",
     quickRolling: "Rolling instead of whole calendar periods",
+    // the names of the unit selects, after their choice: "Unit of “Last …”"; This's select picks the period
+    quickUnitOf: "Unit of “{choice} …”",
+    quickThisUnit: "Current period",
     anchorLabel: "Counted back from",
     anchorToday: "today ({date})",
     anchorLatest: "the latest record ({date})",
     anchorFirst: "the first record ({date})",
     anchorDate: "a date…",
     anchorDay: "The date counted from",
+    // the date field without a whole date: the range keeps the one before
+    anchorDayIncomplete: "Enter a whole date; the ranges still count from {date}.",
+    // under a choice whose current period has no data (the data end before it)
+    anchorUseLatest: "Count back from the latest record ({date}) instead",
     quickLine: "Quick choice: {text}",
     changeAbove: "change it above",
     // a cyclic grouping ("month of the year") combines the years: the ones ticked
@@ -283,7 +290,10 @@ export const en = {
     topCount: "Count",
     bottom: "Bottom",
     topBy: "by",
-    topTies: "Also show items tied with the last one",
+    topTies: "Also show items with the same value as the last one",
+    // under it: how many items the top shows (the field first on its axis), else that a group can show more
+    topShown: { one: "{count} item shown", other: "{count} items shown" },
+    topTiesGroups: "A group can show more than {count} items.",
     searchValues: "Search values",
     selectAll: "Select all",
     selectNone: "Select none",

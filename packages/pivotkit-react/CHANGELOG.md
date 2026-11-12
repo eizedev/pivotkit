@@ -39,12 +39,21 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
     quarters, years; a date or by day: days and weeks too). Last keeps its count when the unit
     changes while it reaches the data. **Counted back from** offers the first record and a date of
     your own as well; it stands under the choices when the data end before the current period or it
-    is not today, else among More choices. A loaded view's next, this, before, rolling, quarter or
-    week range is its quick choice, editable there.
-  - **Top items**: **Also show items tied with the last one** while a top is set (`ties: "all"`);
-    another count or measure keeps it.
+    is not today, else among More choices. A date being typed keeps the last whole date for the
+    ranges and says so; left incomplete, the field shows that date again. When Last's current period
+    has no data, **Count back from the latest record (date) instead** under it does that in one
+    click. A loaded view's next, this, before, rolling, quarter or week range is its quick choice,
+    editable there.
+  - **Top items**: **Also show items with the same value as the last one** while a top is set
+    (`ties: "all"`); another count or measure keeps it. Under it the level says how many items
+    show ("7 items shown"), or, for a field below another on its axis, that a group can show more.
+  - The menu's search finds the rule on the name by its operators ("does not begin with").
   Texts in English and German. The chip says a range of quarters, weeks or this period by its
-  periods ("this quarter (Q4 2026)", "last 3 months, current period excluded (Aug–Oct 2026)").
+  periods ("this quarter (Q4 2026)", "last 3 months, current period excluded (Aug–Oct 2026)"); a
+  rolling range counted from a date says its days, not midnight as a time. The unit selects of the
+  quick choices are named after their choice ("Unit of “Last …”") and as high as the count beside
+  them. In German, a range counted from the latest or first record says "Datensatz", as the menu
+  does.
 - The warning about a view's unused parts says when a filter's item is in the data in another case
   (“north”, but “North”), and names a key inside a part of the view by itself. It says when an item
   is longer than 10,000 characters, and how many more problems it does not list.
