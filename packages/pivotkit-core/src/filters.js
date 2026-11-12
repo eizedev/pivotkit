@@ -1,9 +1,18 @@
 /*
- * Filters, one table entry per type: how normalize() reads it from a view and how the pivot applies
- * it. A new filter type is one entry here (see CONTRIBUTING.md, "Adding a view feature").
+ * Filters, one table entry per type: the field types it works on, its keys, how normalize() reads it
+ * from a view and how the pivot applies it. A new filter type is one entry here (see CONTRIBUTING.md,
+ * "Adding a view feature").
  *
- * - Item filters (include, exclude, label, compare, relative) decide per dictionary code and run
- *   first, on the rows. `compare` compares the item itself (a number, a date by its calendar day, the
+ * Every filter has one shape: { field, type, ..., not?, blanks? }. `not` inverts which items with a
+ * value it keeps; blanks are decided by `blanks` alone: "exclude" (the default) drops them,
+ * "include" keeps them, "only" keeps them and nothing else. So "not North" drops the blanks unless
+ * `blanks: "include"` says otherwise, as Excel's and AG Grid's filters do.
+ *
+ * - Item filters (in, blank, text, compare, relative) decide per dictionary code and run
+ *   first, on the rows. `in` keeps listed items; `blank` keeps the blanks (with `not`, the others);
+ *   `text` compares an item's text (`on: "value"`, a text field's own) or its label (`on: "label"`,
+ *   the text the table shows, for any field) with `equals`, `contains`, `beginsWith` or `endsWith`,
+ *   folded as `match` says (foldText, text-match.js). `compare` compares the item itself (a number, a date by its calendar day, the
  *   key of a grouping: year 2022, month 202503); `relative` keeps the dates of a range that moves with
  *   today ("the last 5 years": this year and the four before it), on the source date of a grouping,
  *   so a year's total only counts its days in the range; with `anchor: "latest"` the range ends with
@@ -21,14 +30,28 @@
  */
 
 import { labelOf } from "./labels.js";
+import { MATCH_CASES, MATCH_DEFAULTS, MATCH_WHITESPACE, foldText } from "./text-match.js";
 import { DERIVED } from "./derive.js";
 import { PivotkitError } from "./errors.js";
 import { isDateMs, resolveTimeZone, toWallMs, wallClock } from "./time.js";
-import { MS_PER_DAY, finite, get, optionsOf, shown } from "./util.js";
+import { MS_PER_DAY, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
 
-export const LABEL_OPS = Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "endsWith"]);
-/** The comparisons of a value condition (`value`) and of an item with a value (`compare`). */
-export const VALUE_OPS = Object.freeze(["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"]);
+/** The comparisons of a text filter; `not` inverts each ("does not contain"). */
+export const TEXT_OPS = Object.freeze(["equals", "contains", "beginsWith", "endsWith"]);
+/** What a text filter compares: a text field's value, or the label the table shows (any field). */
+export const TEXT_ON = Object.freeze(["value", "label"]);
+/**
+ * The comparisons of a value condition (`value`) and of an item with a value (`compare`); `not`
+ * inverts each ("not between").
+ */
+export const COMPARE_OPS = Object.freeze(["=", ">", ">=", "<", "<=", "between"]);
+/** What a filter does with blank items: drop them (the default), keep them too, keep only them. */
+export const FILTER_BLANKS = Object.freeze(["exclude", "include", "only"]);
+/**
+ * The operators of view version 1 that version 2 writes as the positive one with `not: true`, for
+ * the hint of an issue that names one.
+ */
+const NEGATED = Object.freeze({ notEquals: "equals", notContains: "contains", "!=": "=", notBetween: "between" });
 /** The units of a relative date range: the last N years, months or days, today's included. */
 export const RELATIVE_UNITS = Object.freeze(["year", "month", "day"]);
 /** The most years, months or days a relative range reaches back: 500 years from today stay after year 1. */
@@ -41,24 +64,27 @@ export const RELATIVE_ANCHORS = Object.freeze(["today", "latest"]);
 
 const oneOf = (value, allowed) => (typeof value === "string" && allowed.includes(value) ? value : null);
 
-function matchLabel(op, label, value) {
-    const l = label.toLocaleLowerCase();
-    const v = value.toLocaleLowerCase();
+/**
+ * Whether a text matches a text filter's value, both folded alike (foldText); `value` is folded
+ * already.
+ * @param {string} op  of TEXT_OPS
+ * @param {string} text
+ * @param {string} value
+ * @param {import("./text-match.js").TextMatch} match
+ */
+export function matchText(op, text, value, match) {
+    const t = foldText(text, match);
     switch (op) {
         case "equals":
-            return l === v;
-        case "notEquals":
-            return l !== v;
+            return t === value;
         case "contains":
-            return l.includes(v);
-        case "notContains":
-            return !l.includes(v);
+            return t.includes(value);
         case "beginsWith":
-            return l.startsWith(v);
+            return t.startsWith(value);
         case "endsWith":
-            return l.endsWith(v);
+            return t.endsWith(value);
         default:
-            return true;
+            return false;
     }
 }
 
@@ -72,8 +98,6 @@ function compare(op, v, a, b) {
     switch (op) {
         case "=":
             return v === a;
-        case "!=":
-            return v !== a;
         case ">":
             return v > a;
         case ">=":
@@ -84,14 +108,10 @@ function compare(op, v, a, b) {
             return v <= a;
         case "between":
             return v >= lo && v <= hi;
-        case "notBetween":
-            return v < lo || v > hi;
         default:
-            return true;
+            return false;
     }
 }
-
-const matchValue = (filter, v) => compare(filter.op, v, filter.value, filter.value2);
 
 /** The calendar day (wall-clock ms at 00:00) of a date's wall-clock ms. */
 const dayOf = (ms) => Math.floor(ms / MS_PER_DAY) * MS_PER_DAY;
@@ -196,7 +216,29 @@ export function itemFor(type, value) {
 
 // ---- normalizers: (raw entry, spec so far, field, path, ctx, view) -> spec or undefined ----
 
-function normalizeItems(flt, spec, f, path, ctx) {
+/**
+ * `not` and `blanks` of an item filter into its spec: `not` a boolean (default false), `blanks` of
+ * FILTER_BLANKS (default "exclude"; validate() warns when a filter leaves it out). Each that is not
+ * one of them is an error and its default is used.
+ */
+function notAndBlanks(flt, spec, path, ctx) {
+    const not = get(flt, "not");
+    if (not !== undefined && typeof not !== "boolean") {
+        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
+    }
+    const blanks = get(flt, "blanks");
+    if (blanks === undefined) {
+        if (ctx.strict) {
+            ctx.warn(path, 'says nothing about blank items; "exclude" is used', "blanksUnspecified");
+        }
+    } else if (!FILTER_BLANKS.includes(/** @type {string} */ (blanks))) {
+        ctx.issue(`${path}.blanks`, `unknown blanks ${JSON.stringify(blanks)}`, "filterBlanks", { value: shown(blanks), ...ctx.suggest(blanks, FILTER_BLANKS) });
+    }
+    return Object.assign(spec, { not: not === true, blanks: FILTER_BLANKS.includes(/** @type {string} */ (blanks)) ? blanks : "exclude" });
+}
+
+/** `in`: the items to keep (with `not`, to drop); a blank is `blanks`, never an item. */
+function normalizeIn(flt, spec, f, path, ctx) {
     const items = get(flt, "items");
     if (!Array.isArray(items)) {
         return ctx.issue(path, "needs a list of items", "filterNoItems");
@@ -206,28 +248,73 @@ function normalizeItems(flt, spec, f, path, ctx) {
     }
     spec.items = [];
     for (const item of items.slice(0, ctx.limits.items)) {
-        const converted = itemFor(f.type, item);
-        if (converted === undefined) {
+        const converted = item === null ? null : itemFor(f.type, item);
+        if (converted === null) {
+            ctx.issue(`${path}.items`, 'null is no item: blank items are kept with blanks: "include" or "only"', "filterBlanks", { value: "null" });
+        } else if (converted === undefined) {
             ctx.issue(`${path}.items`, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
         } else {
             ctx.itemHint(f, converted, `${path}.items`);
             spec.items.push(converted);
         }
     }
+    notAndBlanks(flt, spec, path, ctx);
+    if (ctx.strict && spec.items.length === 0 && !spec.not && spec.blanks === "exclude") {
+        ctx.warn(path, "keeps nothing: no items, no blanks", "filterEmpty");
+    }
     return spec;
 }
 
-function normalizeLabel(flt, spec, _f, path, ctx) {
-    const op = oneOf(get(flt, "op"), LABEL_OPS);
+/** `blank`: the blank items (with `not`, every other). */
+function normalizeBlank(flt, spec, _f, path, ctx) {
+    const not = get(flt, "not");
+    if (not !== undefined && typeof not !== "boolean") {
+        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
+    }
+    return Object.assign(spec, { not: not === true });
+}
+
+/**
+ * `text`: an item's text (`on: "value"`, text fields only) or label (`on: "label"`) against a text,
+ * folded as `match` says (default MATCH_DEFAULTS).
+ */
+function normalizeText(flt, spec, f, path, ctx) {
+    const opIn = get(flt, "op");
+    const op = oneOf(opIn, TEXT_OPS);
     const value = get(flt, "value");
     if (!op) {
-        return ctx.issue(path, `unknown label operator ${JSON.stringify(get(flt, "op"))}`, "filterLabelOp", { value: shown(get(flt, "op")) });
+        const positive = typeof opIn === "string" && Object.hasOwn(NEGATED, opIn) ? NEGATED[opIn] : null;
+        const hint = positive ? { suggestion: positive } : ctx.suggest(opIn, TEXT_OPS);
+        return ctx.issue(path, `unknown text operator ${JSON.stringify(opIn)}${positive ? `; write "${positive}" with not: true` : ""}`, "filterTextOp", { value: shown(opIn), ...hint });
     }
     if (typeof value !== "string" || value.length > ctx.limits.textValue) {
         return ctx.issue(path, `needs a text value of at most ${ctx.limits.textValue} characters`, "filterText", { max: ctx.limits.textValue });
     }
-    return Object.assign(spec, { op, value });
+    const onIn = get(flt, "on");
+    const on = onIn === undefined ? "value" : oneOf(onIn, TEXT_ON);
+    if (!on) {
+        return ctx.issue(`${path}.on`, `unknown on ${JSON.stringify(onIn)}`, "unknownSetting", { value: shown(onIn) });
+    }
+    if (on === "value" && f.type !== "string") {
+        return ctx.issue(path, `compares text: on a ${f.type} field it compares the label (on: "label")`, "filterFieldType", { field: f.name, type: f.type, value: "text", allowed: "string", suggestion: "label" });
+    }
+    const matchIn = get(flt, "match");
+    const match = { ...MATCH_DEFAULTS };
+    if (matchIn !== undefined) {
+        const caseIn = get(matchIn, "case");
+        const spaceIn = get(matchIn, "whitespace");
+        if (!isPlainObject(matchIn) || (caseIn !== undefined && !MATCH_CASES.includes(caseIn)) || (spaceIn !== undefined && !MATCH_WHITESPACE.includes(spaceIn))) {
+            ctx.issue(`${path}.match`, 'match is { case: "insensitive" | "sensitive", whitespace: "collapse" | "exact" }', "filterMatch", { value: shown(caseIn ?? spaceIn ?? matchIn) });
+        }
+        ctx.keys(matchIn, MATCH_KEYS, `${path}.match`);
+        match.case = MATCH_CASES.includes(caseIn) ? caseIn : MATCH_DEFAULTS.case;
+        match.whitespace = MATCH_WHITESPACE.includes(spaceIn) ? spaceIn : MATCH_DEFAULTS.whitespace;
+    }
+    Object.assign(spec, { op, value, on, match });
+    return notAndBlanks(flt, spec, path, ctx);
 }
+
+const MATCH_KEYS = Object.freeze(["case", "whitespace"]);
 
 /** The grouping (DERIVED unit) a derived field of the view is made by; undefined for a data column. */
 const unitOfField = (f, view) => (f.derived ? view.derived.find((d) => d.name === f.name)?.by : undefined);
@@ -242,9 +329,6 @@ const byDay = (f) => typeof f.value === "string";
  * month-of-the-year grouping, the Filter level's Years combined).
  */
 function normalizeCompare(flt, spec, f, path, ctx, view) {
-    if (f.type !== "number" && f.type !== "date") {
-        return ctx.issue(path, "compares numbers and dates only", "filterCompareField", { field: f.name });
-    }
     const unit = unitOfField(f, view);
     const dated = f.type === "date" || (unit !== undefined && DERIVED[unit].source === "date" && typeof get(flt, "value") === "string" && itemFor("number", get(flt, "value")) === undefined);
     const read = (value) => {
@@ -258,22 +342,24 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
         const ms = value === undefined || (f.type !== "date" && typeof value !== "string") ? undefined : itemFor("date", value);
         return isDateMs(ms) ? isoDay(dayOf(ms)) : null;
     };
-    const op = oneOf(get(flt, "op"), VALUE_OPS);
+    const op = oneOf(get(flt, "op"), COMPARE_OPS);
     const value = read(get(flt, "value"));
-    const twin = op === "between" || op === "notBetween";
+    const twin = op === "between";
     const value2 = twin ? read(get(flt, "value2")) : null;
     if (!op || value === null || (twin && value2 === null)) {
-        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type });
+        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type, ...negatedHint(get(flt, "op")) });
     }
-    return Object.assign(spec, { op, value }, twin ? { value2 } : {});
+    Object.assign(spec, { op, value }, twin ? { value2 } : {});
+    return notAndBlanks(flt, spec, path, ctx);
+}
+
+/** The hint for a version-1 operator ("!=", "notBetween") that version 2 writes with `not`. */
+function negatedHint(op) {
+    return typeof op === "string" && Object.hasOwn(NEGATED, op) ? { suggestion: NEGATED[op] } : {};
 }
 
 /** A relative date range on a date field or a grouping of one: the last `count` years, months or days. */
-function normalizeRelative(flt, spec, f, path, ctx, view) {
-    const unit = unitOfField(f, view);
-    if (unit === undefined ? f.type !== "date" : DERIVED[unit].source !== "date") {
-        return ctx.issue(path, "needs a date field or a grouping of one", "filterRelativeField", { field: f.name });
-    }
+function normalizeRelative(flt, spec, _f, path, ctx) {
     const by = oneOf(get(flt, "unit"), RELATIVE_UNITS);
     if (!by) {
         return ctx.issue(path, `unknown unit ${JSON.stringify(get(flt, "unit"))}`, "filterRelativeUnit", { value: shown(get(flt, "unit")) });
@@ -288,7 +374,8 @@ function normalizeRelative(flt, spec, f, path, ctx, view) {
     if (!anchor) {
         return ctx.issue(path, `unknown anchor ${JSON.stringify(anchorIn)}`, "filterRelativeAnchor", { value: shown(anchorIn) });
     }
-    return Object.assign(spec, { unit: by, count }, anchor === "latest" ? { anchor } : {});
+    Object.assign(spec, { unit: by, count }, anchor === "latest" ? { anchor } : {});
+    return notAndBlanks(flt, spec, path, ctx);
 }
 
 /** The measure a value filter ranks or compares: `by`, default the view's first value. */
@@ -320,13 +407,17 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
     if (!by) {
         return undefined;
     }
-    const op = oneOf(get(flt, "op"), VALUE_OPS);
+    const op = oneOf(get(flt, "op"), COMPARE_OPS);
     const value = finite(get(flt, "value"));
     if (!op || value === null) {
-        return ctx.issue(path, "needs an operator and a number", "filterValue");
+        return ctx.issue(path, "needs an operator and a number", "filterValue", negatedHint(get(flt, "op")));
     }
-    Object.assign(spec, { by, op, value });
-    if (op === "between" || op === "notBetween") {
+    const not = get(flt, "not");
+    if (not !== undefined && typeof not !== "boolean") {
+        ctx.issue(`${path}.not`, "not must be true or false", "filterNot", { value: shown(not) });
+    }
+    Object.assign(spec, { by, op, value, not: not === true });
+    if (op === "between") {
         const value2 = finite(get(flt, "value2"));
         if (value2 === null) {
             return ctx.issue(path, `${op} needs value2`, "filterValue2", { value: op });
@@ -338,28 +429,59 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
 
 // ---- appliers ----
 
-/** Item filters: allowed[code + 1] per dictionary code (index 0 is blank). */
-function allowedItems(include) {
-    return (column, f) => {
-        const index = new Map(column.dict.map((v, code) => [v, code]));
-        const listed = new Uint8Array(column.dict.length + 1);
-        for (const item of f.items) {
-            const code = item === null ? -1 : index.get(item);
-            if (code !== undefined) {
-                listed[code + 1] = 1;
+/*
+ * An item filter's `allowed(column, f, locale, today)` gives match[code + 1] for each dictionary code
+ * (index 0 is blank and not looked at); withNotBlanks() turns it into what the filter keeps: `not`
+ * inverts the items with a value, `blanks` alone decides the blank.
+ */
+
+/**
+ * The applier of an item filter from its match: `not` and `blanks` applied.
+ * @param {(column: any, f: any, locale: string, today: number) => Uint8Array} match
+ */
+function withNotBlanks(match) {
+    return (column, f, locale, today) => {
+        const matched = match(column, f, locale, today);
+        const keep = new Uint8Array(matched.length);
+        keep[0] = f.blanks === "exclude" ? 0 : 1;
+        if (f.blanks !== "only") {
+            const flip = f.not ? 1 : 0;
+            for (let i = 1; i < matched.length; i++) {
+                keep[i] = matched[i] ^ flip;
             }
         }
-        return include ? listed : listed.map((x) => 1 - x);
+        return keep;
     };
 }
 
-function allowedLabels(column, f, locale) {
-    const allowed = new Uint8Array(column.dict.length + 1);
-    for (let code = -1; code < column.dict.length; code++) {
-        const label = labelOf(column, code === -1 ? null : column.dict[code], locale);
-        allowed[code + 1] = matchLabel(f.op, label, f.value) ? 1 : 0;
+/** `in`: the listed items. */
+function matchItems(column, f) {
+    const index = new Map(column.dict.map((v, code) => [v, code]));
+    const listed = new Uint8Array(column.dict.length + 1);
+    for (const item of f.items) {
+        const code = index.get(item);
+        if (code !== undefined) {
+            listed[code + 1] = 1;
+        }
     }
-    return allowed;
+    return listed;
+}
+
+/** `blank`: the blank item (with `not`, every other). */
+function keepBlank(column, f) {
+    const keep = new Uint8Array(column.dict.length + 1).fill(f.not ? 1 : 0);
+    keep[0] = f.not ? 0 : 1;
+    return keep;
+}
+
+/** `text`: each item's text (its value, or its label in the report's locale) against the filter's. */
+function matchTexts(column, f, locale) {
+    const value = foldText(f.value, f.match);
+    const matched = new Uint8Array(column.dict.length + 1);
+    column.dict.forEach((v, code) => {
+        matched[code + 1] = matchText(f.op, f.on === "label" ? labelOf(column, v, locale) : String(v), value, f.match) ? 1 : 0;
+    });
+    return matched;
 }
 
 /** Compare: a date item by its calendar day; a number as it is. */
@@ -367,11 +489,11 @@ function allowedCompared(column, f) {
     const date = column.type === "date";
     const read = (v) => (date ? Date.parse(`${v}T00:00Z`) : v);
     const [a, b] = [read(f.value), f.value2 === undefined ? undefined : read(f.value2)];
-    const allowed = new Uint8Array(column.dict.length + 1);
+    const matched = new Uint8Array(column.dict.length + 1);
     column.dict.forEach((v, code) => {
-        allowed[code + 1] = compare(f.op, date && typeof v === "number" ? dayOf(v) : v, a, b) ? 1 : 0;
+        matched[code + 1] = compare(f.op, date && typeof v === "number" ? dayOf(v) : v, a, b) ? 1 : 0;
     });
-    return allowed;
+    return matched;
 }
 
 /** The latest date of a date column (wall-clock ms), or null without one. */
@@ -395,9 +517,12 @@ function allowedRelative(column, f, _locale, today) {
     return Uint8Array.from([0, ...column.dict], (v, i) => (i > 0 && typeof v === "number" && v >= from && v < to ? 1 : 0));
 }
 
-/** Value filters: keep[group] from the aggregated values and the group paths. */
+/**
+ * Value filters: keep[group] from the aggregated values and the group paths. A group without a number
+ * (no rows with a value) never matches, `not` or not.
+ */
 function keepMatching(f, values) {
-    return Uint8Array.from(values, (v) => (matchValue(f, v) ? 1 : 0));
+    return Uint8Array.from(values, (v) => (typeof v === "number" && !Number.isNaN(v) && compare(f.op, v, f.value, f.value2) !== f.not ? 1 : 0));
 }
 
 function keepTop(f, values, paths) {
@@ -426,6 +551,8 @@ function keepTop(f, values, paths) {
 /**
  * @typedef {object} FilterDef
  * @property {"items" | "values"} stage
+ * @property {readonly string[]} fields  the field types it works on ("dateGrouping": a grouping of a
+ *   date, whatever its own type); any other is the error filterFieldType
  * @property {readonly string[]} keys  the keys a filter of the type has (an other key is reported)
  * @property {Function} normalize
  * @property {Function} [allowed]  item filters
@@ -440,24 +567,44 @@ const keysOf = (...own) => Object.freeze(["field", "type", ...own]);
 /** Whether an item filter reads the source date of a grouping instead of the grouping's own column. */
 export const readsSource = (def, f) => (typeof def.source === "function" ? def.source(f) : Boolean(def.source));
 
+const ALL_TYPES = Object.freeze(["string", "number", "date", "boolean"]);
+const NOT_BLANKS = Object.freeze(["not", "blanks"]);
+
 /** @type {Readonly<Record<string, FilterDef>>} */
 export const FILTERS = Object.freeze({
-    include: { stage: "items", keys: keysOf("items"), normalize: normalizeItems, allowed: allowedItems(true) },
-    exclude: { stage: "items", keys: keysOf("items"), normalize: normalizeItems, allowed: allowedItems(false) },
-    label: { stage: "items", keys: keysOf("op", "value"), normalize: normalizeLabel, allowed: allowedLabels },
-    compare: { stage: "items", keys: keysOf("op", "value", "value2"), normalize: normalizeCompare, allowed: allowedCompared, source: byDay },
-    relative: { stage: "items", keys: keysOf("unit", "count", "anchor"), normalize: normalizeRelative, allowed: allowedRelative, source: true },
-    top: { stage: "values", keys: keysOf("by", "count", "bottom"), normalize: normalizeTop, keep: keepTop },
-    value: { stage: "values", keys: keysOf("by", "op", "value", "value2"), normalize: normalizeValue, keep: keepMatching }
+    in: { stage: "items", fields: ALL_TYPES, keys: keysOf("items", ...NOT_BLANKS), normalize: normalizeIn, allowed: withNotBlanks(matchItems) },
+    blank: { stage: "items", fields: ALL_TYPES, keys: keysOf("not"), normalize: normalizeBlank, allowed: keepBlank },
+    text: { stage: "items", fields: ALL_TYPES, keys: keysOf("op", "value", "on", "match", ...NOT_BLANKS), normalize: normalizeText, allowed: withNotBlanks(matchTexts) },
+    compare: { stage: "items", fields: Object.freeze(["number", "date"]), keys: keysOf("op", "value", "value2", ...NOT_BLANKS), normalize: normalizeCompare, allowed: withNotBlanks(allowedCompared), source: byDay },
+    relative: { stage: "items", fields: Object.freeze(["date", "dateGrouping"]), keys: keysOf("unit", "count", "anchor", ...NOT_BLANKS), normalize: normalizeRelative, allowed: withNotBlanks(allowedRelative), source: true },
+    top: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "count", "bottom"), normalize: normalizeTop, keep: keepTop },
+    value: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "op", "value", "value2", "not"), normalize: normalizeValue, keep: keepMatching }
 });
 
 export const FILTER_TYPES = Object.freeze(Object.keys(FILTERS));
 
-/** The item filters a field's own rules are made of (its picks, include and exclude, are not rules). */
-const ITEM_RULES = Object.freeze(["label", "compare", "relative"]);
+/** The filter types of view version 1 and what version 2 calls them, for the hint of an unknown type. */
+export const FILTER_TYPES_V1 = Object.freeze({ include: "in", exclude: "in", label: "text" });
 
 /**
- * Which items of a field its own rules on items (label, compare, relative) keep: keep[code + 1] is 1
+ * What a field is for the field-type matrix (FILTERS[type].fields): its type, and "dateGrouping" for
+ * a grouping of a date.
+ * @param {{ name: string, type: string, derived?: boolean }} f
+ * @param {{ derived: Array<{ name: string, by: string }> }} view  normalized so far
+ */
+export function fieldKinds(f, view) {
+    const unit = unitOfField(f, view);
+    return unit !== undefined && DERIVED[unit].source === "date" ? [f.type, "dateGrouping"] : [f.type];
+}
+
+/** The filter type that works on a field of a type, for the hint of filterFieldType. */
+export const fieldTypeHint = (type) => (type === "string" ? "text" : type === "number" || type === "date" ? "compare" : "in");
+
+/** The item filters a field's own rules are made of (its picks, `in`, are not rules). */
+const ITEM_RULES = Object.freeze(["blank", "text", "compare", "relative"]);
+
+/**
+ * Which items of a field its own rules on items (blank, text, compare, relative) keep: keep[code + 1] is 1
  * when at least one row of the item passes all of them (a relative range goes by the rows' source
  * dates, so a year partly in range is kept); null when the field has no such rule. The rows of
  * `column` and `source` line up (a grouping and the date it is made of).

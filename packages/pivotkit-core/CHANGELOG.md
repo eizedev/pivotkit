@@ -8,6 +8,23 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
+  has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
+  keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.
+  The types are `in` (was `include` and `exclude`), `blank` (new), `text` (was `label`: `on` the
+  value or the label, `match` with case and whitespace, default insensitive and collapsed),
+  `compare`, `relative`, `top` and `value`; `!=`, `notBetween`, `notEquals` and `notContains` are
+  written as the positive operator with `not: true`. `migrate()` brings every version-1 view to
+  version 2 with the same result; a view without a version is read as version 1. One exception: in
+  a runtime whose default locale is Turkish, Azeri or Lithuanian, a version-1 label filter with an
+  "I" may keep other items, since version 2 folds case without the runtime's locale. A host that
+  reads normalized `include`, `exclude` or `label` filters, or `CATALOG.labelOps` and
+  `CATALOG.valueOps` (now `textOps` and `compareOps`), must read the new shape; a host that
+  overrides the texts of the issue codes `filterLabelOp`, `filterCompareField` and
+  `filterRelativeField` uses `filterTextOp` and `filterFieldType`.
+- Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
+  another is the issue `filterFieldType` with the type that fits.
+
 - `validate()` returns `{ valid, errors, warnings }`; `valid` is true without errors.
 
 ### Added
@@ -25,6 +42,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   only in case or whitespace, names the data's item.
 - A key inside a part of a view (a value, a filter, a sort, the chart, totals, formatting, a grouping)
   that this version does not know is reported as a warning `unknownKey`; it was dropped without a word.
+- New issue codes `filterFieldType`, `filterTextOp`, `filterMatch`, `filterNot`, `filterBlanks`, and
+  the warnings `blanksUnspecified` and `filterEmpty`, which `validate()` gives.
 - `foldText(text, match?)` and `MATCH_DEFAULTS`: the one way text is compared, case-insensitive
   without the runtime's locale and with every run of whitespace (a no-break space U+00A0 among them)
   as one space ([#159](https://github.com/eizedev/pivotkit/issues/159)).

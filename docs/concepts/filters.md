@@ -8,38 +8,73 @@ description: Item filters, text conditions, value conditions and top N in a pivo
 ## Filters
 
 A view's `filters` are a list; every filter names a field and a `type`, and all of them apply
-together (and). Item, text, comparison and date range filters drop source rows before anything is
-computed; value filters and top N drop whole groups after the values are aggregated.
+together (and). Item, blank, text, comparison and date range filters drop source rows before anything
+is computed; value filters and top N drop whole groups after the values are aggregated.
 
 ```json
 "filters": [
-    { "field": "Region", "type": "include", "items": ["North", null] },
-    { "field": "Status", "type": "exclude", "items": ["Retired"] },
-    { "field": "Rep", "type": "label", "op": "contains", "value": "an" },
-    { "field": "Released by year", "type": "compare", "op": ">=", "value": 2022 },
-    { "field": "Released", "type": "relative", "unit": "year", "count": 5 },
+    { "field": "Region", "type": "in", "items": ["North"], "blanks": "include" },
+    { "field": "Status", "type": "in", "items": ["Retired"], "not": true, "blanks": "include" },
+    { "field": "Owner", "type": "blank", "not": true },
+    { "field": "Host", "type": "text", "op": "beginsWith", "value": "web", "blanks": "exclude" },
+    { "field": "Released by year", "type": "compare", "op": ">=", "value": 2022, "blanks": "exclude" },
+    { "field": "Released", "type": "relative", "unit": "year", "count": 5, "blanks": "exclude" },
     { "field": "Region", "type": "value", "op": ">", "value": 1000 },
     { "field": "Country", "type": "top", "count": 5, "bottom": false }
 ]
 ```
 
-| `type` | What |
-| --- | --- |
-| `include` | Keep only the listed `items`; `null` is (blank). |
-| `exclude` | Drop the listed `items`. |
-| `label` | A text condition on the label. `op`: `equals`, `notEquals`, `contains`, `notContains`, `beginsWith`, `endsWith`. |
-| `compare` | The item itself compared with `value`: a number, a date or a grouping's key. `op` as `value`'s, `value2` with `between` and `notBetween`. |
-| `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included; with `anchor: "latest"` counted back from the latest date of the field's data instead of today. |
-| `value` | A condition on an aggregated value. `op`: `=`, `!=`, `>`, `>=`, `<`, `<=`, `between`, `notBetween` (with `value2`). |
-| `top` | Keep the `count` largest items, or with `bottom: true` the smallest. |
+| `type` | What | Fields |
+| --- | --- | --- |
+| `in` | Keep the listed `items` (with `not: true`, drop them). A blank is no item: `blanks` decides it. | any |
+| `blank` | Keep the blank items (with `not: true`, every other). | any |
+| `text` | Compare an item's text: `op` `equals`, `contains`, `beginsWith`, `endsWith`; `value` the text; `on` `"value"` (a text field's own value, the default) or `"label"` (the label the table shows, for any field); `match` how text is folded ([Text matching](#text-matching)). | text; any with `on: "label"` |
+| `compare` | The item itself compared with `value`: a number, a date or a grouping's key. `op` `=`, `>`, `>=`, `<`, `<=`, `between` (with `value2`). | number, date |
+| `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included; with `anchor: "latest"` counted back from the latest date of the field's data instead of today. | date, a grouping of a date |
+| `value` | A condition on an aggregated value. `op` as `compare`'s. | any |
+| `top` | Keep the `count` largest items, or with `bottom: true` the smallest. | any |
 
 `value` and `top` rank by `by`, a value reference such as `{ "field": "Sales", "agg": "sum" }`; without
-it they use the view's first value.
+it they use the view's first value. A filter type on a field it does not fit is the issue
+`filterFieldType`, with the type that fits in `params.suggestion`; `CATALOG.filterFields` lists the
+field types of each filter type.
+
+### Not and blanks
+
+Every filter has one shape: `{ field, type, ..., not, blanks }`.
+
+- `not: true` inverts which items **with a value** a filter keeps: `{ "type": "text", "op":
+  "contains", "value": "test", "not": true }` keeps every item that does not contain "test".
+  `compare` and `value` write "not equal" and "not between" so: `"op": "between", "not": true`.
+- `blanks` alone decides the blank items (no value): `"exclude"` (the default) drops them,
+  `"include"` keeps them too, `"only"` keeps them and nothing else. So `not` never brings the blanks
+  back on its own, as Excel's and AG Grid's filters behave. `blank` has `not` only; `value` has `not`
+  (a group without a number never matches); `top` has neither.
+
+`normalize` writes both keys on every filter that has them. `validate` warns when a filter leaves
+`blanks` out (`blanksUnspecified`), so a generated view says what it means, and when an `in` filter
+keeps nothing (`filterEmpty`: no items, no `not`, no blanks).
+
+### Text matching
+
+`text` folds the item's text and its `value` alike before it compares them, as `match` says:
+
+- `case`: `"insensitive"` (the default) lower-cases both with JavaScript's `toLowerCase()`, which
+  does not depend on the runtime's locale, so a server and every browser agree; `"sensitive"` keeps
+  the case.
+- `whitespace`: `"collapse"` (the default) turns every run of whitespace into one space and trims
+  the ends, a no-break space (U+00A0), a narrow no-break space and tabs among it, so "ACTIVE
+  DIRECTORY" typed matches an item copied from a web page; `"exact"` compares the spaces as they are.
+
+The search of a field's items in the UI and the "did you mean" hints fold text the same way
+(`foldText` in pivotkit-core). A text filter migrated from view version 1 (`label`) keeps
+`whitespace: "exact"`, so it keeps what it kept.
 
 ### Compare an item
 
-`compare` keeps the items of a number or date field that pass a comparison: `=`, `!=`, `>`, `>=`,
-`<`, `<=`, `between` and `notBetween` (both bounds included, in either order, as a value condition).
+`compare` keeps the items of a number or date field that pass a comparison: `=`, `>`, `>=`, `<`,
+`<=` and `between` (both bounds included, in either order, as a value condition), each inverted with
+`not: true`.
 What is compared:
 
 - A number field: the number (a text of one, `"2022"`, is read as the number). A grouping of numbers (ranges) compares each range by its lower bound.
@@ -53,9 +88,8 @@ What is compared:
   month-of-the-year grouping keeps the rows of 2025, so January is January 2025 alone (the Filter
   level's Years combined writes these). A day and a key in one comparison is no comparison.
 
-A blank item (no value) is never kept by a comparison, not even by `!=` or `notBetween`, as a value
-condition never keeps a group without a value. Only number and date fields can be compared; a text
-field has the `label` conditions.
+A blank item (no value) is kept only with `blanks: "include"` or `"only"`, `not` or not. Only number
+and date fields can be compared; a text field has the `text` conditions.
 
 ### Relative date ranges
 

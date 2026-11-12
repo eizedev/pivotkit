@@ -5,7 +5,7 @@ import { HINT_LIMITS, closest } from "../src/hints.js";
 test("closest: the name that folds to the same text, else the nearest within a third of its length", () => {
     assert.equal(closest("region", ["Product", "Region"]), "Region");
     assert.equal(closest("Regoin", ["Product", "Region"]), "Region");
-    assert.equal(closest("ACTIVE DIRECTORY", ["Active Directory"]), "Active Directory");
+    assert.equal(closest("ACTIVE DIRECTORY", ["Active\u00A0Directory"]), "Active\u00A0Directory");
     assert.equal(closest("Planet", ["Product", "Region"]), null);
     // a short name allows one edit only
     assert.equal(closest("ab", ["xy"]), null);

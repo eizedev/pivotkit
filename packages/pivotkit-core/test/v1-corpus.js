@@ -7,7 +7,7 @@ import { SALES } from "./fixtures.js";
 /** Dates with blanks in every column, names with a no-break space (U+00A0) and odd case. */
 export const DATED = Object.freeze([
     { Name: "Alpha Server", Created: "2024-11-30", Score: 3, Active: true, Note: "ok" },
-    { Name: "alpha server", Created: "2025-01-15", Score: 10, Active: false, Note: null },
+    { Name: "alpha\u00A0server", Created: "2025-01-15", Score: 10, Active: false, Note: null },
     { Name: "Beta", Created: "2025-06-30", Score: null, Active: null, Note: "late" },
     { Name: "beta two", Created: "2025-12-31", Score: 7, Active: true, Note: "ok" },
     { Name: null, Created: null, Score: 1, Active: true, Note: "ok" },

@@ -11,16 +11,17 @@
 
 import { AGGREGATOR_NAMES, aggregatorFits, aggregatorOf } from "./aggregators.js";
 import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
-import { FILTERS, itemFor } from "./filters.js";
+import { FILTERS, FILTER_TYPES_V1, fieldKinds, fieldTypeHint, itemFor } from "./filters.js";
 import { closest } from "./hints.js";
 import { isFormat } from "./format.js";
 import { resolveLimits } from "./limits.js";
+import { migrate1 } from "./migrate-1.js";
 import { SHOW_AS } from "./show-as.js";
 import { foldText } from "./text-match.js";
 import { canonicalTimeZone } from "./time.js";
 import { canonicalLocale, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
 
-export const VIEW_VERSION = 1;
+export const VIEW_VERSION = 2;
 
 /**
  * Every kind of issue normalize() (and migrate(), validate() and computePivot(), which report the
@@ -35,7 +36,7 @@ export const VIEW_VERSION = 1;
  * computePivot adds "timeZoneMismatch" (the view's time zone is not the data's). `params` holds what
  * a text needs: `field` (a field name), `value` (the setting or item as given, as text, at most 100
  * characters), `agg`, `type` (a field type), `max`, `zone`, `suggestion` (the name meant, "did you
- * mean").
+ * mean"), `allowed` (the field types a filter type works on).
  * @type {Readonly<Record<string, Readonly<{ severity: "error" | "warning", schema: boolean }>>>}
  */
 export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
@@ -48,9 +49,10 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     notValueRef: "error schema", unknownAggregator: "error schema", aggregatorNeedsField: "error schema", aggregatorType: "error",
     unknownFormat: "error", badLabel: "error schema", unknownShowAs: "error schema", showAsNotAdditive: "error", showAsNotNumber: "error",
     unknownConditional: "error schema", conditionalNotNumber: "error", colorScaleColors: "error schema", dataBarColor: "error schema",
-    unknownFilterType: "error schema", filterNoItems: "error schema", filterLabelOp: "error schema", filterText: "error schema",
+    unknownFilterType: "error schema", filterFieldType: "error", filterNoItems: "error schema", filterTextOp: "error schema", filterText: "error schema",
+    filterMatch: "error schema", filterNot: "error schema", filterBlanks: "error schema", blanksUnspecified: "warning", filterEmpty: "warning",
     filterNotNumber: "error", filterCount: "error schema", filterValue: "error schema", filterValue2: "error schema",
-    filterCompareField: "error", filterCompareValue: "error", filterRelativeField: "error",
+    filterCompareValue: "error",
     filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error",
     badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
@@ -123,7 +125,7 @@ export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
 const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 /**
- * @typedef {{ field?: string, value?: string | number, agg?: string, type?: string, max?: number, zone?: string, suggestion?: string }} IssueParams
+ * @typedef {{ field?: string, value?: string | number, agg?: string, type?: string, max?: number, zone?: string, suggestion?: string, allowed?: string }} IssueParams
  * @typedef {{ path: string, message: string, code?: string, severity?: "error" | "warning", params?: IssueParams }} Issue  what was
  *   dropped or changed: where (`path`), an English message for developers, and with normalize() a
  *   `code` of VIEW_ISSUE_CODES, its `severity` and the `params` its text needs
@@ -133,9 +135,14 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @typedef {{ field: string | null, agg: string, format: string | null, label: string | null,
  *   showAs: ShowAs | null, conditional: Conditional | null }} ValueSpec
  * @typedef {{ field: string, type: string, items?: any[], op?: string, value?: any, value2?: any,
- *   count?: number, bottom?: boolean, by?: ValueRef, unit?: string, anchor?: string }} FilterSpec  `compare`: value and
- *   value2 a number or a calendar day "2022-03-01"; `relative`: unit and count, `anchor` "latest" when
- *   the range ends with the data's latest date instead of today
+ *   count?: number, bottom?: boolean, by?: ValueRef, unit?: string, anchor?: string, not?: boolean,
+ *   blanks?: "exclude" | "include" | "only", on?: "value" | "label",
+ *   match?: { case: "insensitive" | "sensitive", whitespace: "collapse" | "exact" } }} FilterSpec  one
+ *   condition (filters.js FILTERS): `in` items; `blank`; `text` op, value, on, match; `compare` op,
+ *   value and value2 (a number or a calendar day "2022-03-01"); `relative` unit and count, `anchor`
+ *   "latest" when the range ends with the data's latest date instead of today; `top` by, count,
+ *   bottom; `value` by, op, value, value2. Item filters have `not` (inverts the items with a value)
+ *   and `blanks` (what happens to the blank items), a value condition has `not`
  * @typedef {{ name: string, field: string, by: string, size?: number, origin?: number }} DerivedSpec
  * @typedef {{ field: string, by: "label" | "value" | "custom", order: "asc" | "desc", value?: ValueRef, items?: any[] }} SortSpec
  * @typedef {{ type: string, stacked: boolean, horizontal: boolean, valueLabels: string, legend: string,
@@ -186,17 +193,18 @@ export function emptyView() {
 // ---- migration ----
 
 /**
- * One step per version: MIGRATIONS[n] turns a version-n view into a version-(n + 1) view. Version 1
- * is the first, so there is no step yet; when the view changes incompatibly, VIEW_VERSION goes up and
- * the step that converts old views is added here.
+ * One step per version: MIGRATIONS[n] turns a version-n view into a version-(n + 1) view. When the
+ * view changes incompatibly, VIEW_VERSION goes up and the step that converts old views is added here,
+ * in a module of its own (migrate-1.js: version 1's filters in version 2's condition shape).
  * @type {Readonly<Record<number, (raw: Record<string, unknown>) => Record<string, unknown>>>}
  */
-export const MIGRATIONS = Object.freeze({});
+export const MIGRATIONS = Object.freeze({ 1: migrate1 });
 
 /**
- * Brings a parsed view to the current version. A view without a version is taken as the current
- * one. A view of a newer version than this package knows is refused (view null), never read as an
- * older one: saving it again would silently drop what the newer version added.
+ * Brings a parsed view to the current version. A view without a version is read as version 1, the
+ * first (hand-written JSON of version 1 keeps working; the step to version 2 leaves version 2's shapes
+ * as they are). A view of a newer version than this package knows is refused (view null), never read
+ * as an older one: saving it again would silently drop what the newer version added.
  * @param {unknown} raw  a parsed view object
  * @returns {{ view: Record<string, unknown> | null, issues: Issue[] }}
  */
@@ -216,7 +224,7 @@ export function runMigrations(raw, steps, target) {
     if (!isPlainObject(raw)) {
         return { view: null, issues: [issueOf("", "not a view object", "notView")] };
     }
-    const version = get(raw, "version") ?? target;
+    const version = get(raw, "version") ?? 1;
     if (!Number.isInteger(version) || version < 1) {
         return { view: null, issues: [issueOf("version", `unknown version ${JSON.stringify(version)}`, "badVersion", { value: shown(version) })] };
     }
@@ -446,9 +454,13 @@ function filtersSection(raw, view, ctx) {
             return ctx.unknownField(path, get(flt, "field"));
         }
         if (!def) {
-            return ctx.issue(path, `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...suggest(type, Object.keys(FILTERS)) });
+            const renamed = typeof type === "string" && Object.hasOwn(FILTER_TYPES_V1, type) ? { suggestion: FILTER_TYPES_V1[type] } : suggest(type, Object.keys(FILTERS));
+            return ctx.issue(path, `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...renamed });
         }
         ctx.keys(flt, def.keys, path);
+        if (!fieldKinds(f, view).some((kind) => def.fields.includes(kind))) {
+            return ctx.issue(path, `a ${type} filter does not work on the ${f.type} field "${f.name}"`, "filterFieldType", { field: f.name, type: f.type, value: type, allowed: def.fields.join(", "), suggestion: fieldTypeHint(f.type) });
+        }
         const spec = def.normalize(flt, { field: f.name, type }, f, path, ctx, view);
         if (spec) {
             view.filters.push(spec);
@@ -647,6 +659,7 @@ function context(schema, limits, issues, strict) {
             issues.push(issueOf(path, message, code, params, "warning"));
         },
         /** An unknown field, with the closest field's name when one is close. */
+        suggest,
         unknownField: (path, name) => ctx.issue(path, `unknown field ${JSON.stringify(name)}`, "unknownField", { field: shown(name), ...suggest(name, [...fields.values()].map((f) => f.name)) }),
         /** Warns about each key of `obj` (a part of the view) that is not of `allowed`. */
         keys: (obj, allowed, path) => {

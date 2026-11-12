@@ -102,10 +102,10 @@ A view is the report as JSON; [Views and saved views](../concepts/views.md) desc
 | --- | --- | --- |
 | `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported as an issue `{ path, message, code, severity, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
 | `validate(view, schema, { limits })` | `{ valid, errors, warnings }` | Everything `normalize` would drop or change (`errors`) and what it uses but may not be what was meant (`warnings`), against the same `limits`; with the warnings only a strict check gives. `valid` without errors. |
-| `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
+| `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION` (a view without `version` is read as version 1; [Versions](../concepts/views.md#versions)); a newer version is refused (`view: null`). `normalize` runs it first. |
 | `emptyView()` | `View` | A new, empty report. |
 | `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`; `type` is `"date"` for a grouping by day, `"number"` for every other unit and for number ranges). |
-| `VIEW_VERSION` | `number` | The view version this release writes. |
+| `VIEW_VERSION` | `number` | The view version this release writes: 2. |
 | `VIEW_ISSUE_CODES` | `string[]` | Every `code` an issue of `normalize`, `migrate`, `validate` or `computePivot` can have ([Issues](../concepts/views.md#issues-for-developers)). |
 | `VIEW_ISSUES` | object | Per code: `severity` (`"error"` or `"warning"`) and `schema` (whether the view's JSON Schema refuses the case too). |
 
@@ -290,7 +290,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `relativeUnits`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `relativeUnits`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `foldText(text, match?)` | A text folded as text filters compare it: `match` `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale; `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |
 | `MATCH_DEFAULTS` | `{ case: "insensitive", whitespace: "collapse" }`. |

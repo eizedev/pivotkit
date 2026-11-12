@@ -4,10 +4,10 @@ import { MATCH_DEFAULTS, foldText } from "../src/index.js";
 
 test("foldText folds case and collapses whitespace by default, a no-break space too (#159)", () => {
     assert.deepEqual(MATCH_DEFAULTS, { case: "insensitive", whitespace: "collapse" });
-    assert.equal(foldText("  ACTIVE DIRECTORY\t Sync "), "active directory sync");
-    assert.equal(foldText("a b　c\r\nd"), "a b c d");
+    assert.equal(foldText("  ACTIVE\u00A0DIRECTORY\t Sync "), "active directory sync");
+    assert.equal(foldText("a\u202Fb\u3000c\r\nd"), "a b c d");
     // a zero-width space is no whitespace
-    assert.equal(foldText("a​b"), "a​b");
+    assert.equal(foldText("a\u200Bb"), "a\u200Bb");
 });
 
 test("foldText keeps what the match says: case, whitespace", () => {

@@ -19,7 +19,7 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
 
 ```js
 {
-    version: 1,
+    version: 2,
     rows: ["Region", "Country"],              // field names, outer first
     cols: ["Year"],
     values: [{
@@ -30,8 +30,9 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
         conditional: { type: "colorScale", colors: ["#f8696b", "#63be7b"] }   // or { type: "dataBar" }
     }],
     filters: [
-        { field: "Region", type: "include", items: ["North", null] },        // null is (blank)
-        { field: "Rep", type: "label", op: "contains", value: "an" },
+        { field: "Region", type: "in", items: ["North"], not: false, blanks: "include" },   // blanks: the (blank) item
+        { field: "Rep", type: "text", op: "contains", value: "an", on: "value",
+          match: { case: "insensitive", whitespace: "collapse" }, not: false, blanks: "exclude" },
         { field: "Country", type: "top", count: 5, bottom: false, by: { field: "Sales", agg: "sum" } },
         { field: "Region", type: "value", op: ">", value: 1000 }
     ],
@@ -66,7 +67,7 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 | --- | --- | --- |
 | `rows`, `cols` | Field names on each axis, outer first. A derived field is used by its `name`. | |
 | `values` | What is computed in the cells: field, aggregator, format, label, "show as", highlighting. | [Values](values.md) |
-| `filters` | Item lists, text conditions, comparisons of an item, relative date ranges, top N, value conditions. | [Filters](filters.md) |
+| `filters` | Item lists, blanks, text conditions, comparisons of an item, relative date ranges, top N, value conditions; each with `not` and `blanks`. | [Filters](filters.md) |
 | `derived` | New fields from a date (year, month, ...) or a number (ranges). | [Dates and number ranges](dates.md) |
 | `sort` | Per field: by label, by a value or in a custom order, ascending or descending. | [Sorting](filters.md#sorting) |
 | `totals` | Grand total row and column, row and column subtotals; all on by default. | |
@@ -115,7 +116,8 @@ An issue is `{ path, message, code, severity, params }`:
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
 | `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |
 | `unknownFormat`, `badLabel`, `unknownShowAs`, `showAsNotAdditive`, `showAsNotNumber`, `unknownConditional`, `conditionalNotNumber`, `colorScaleColors`, `dataBarColor` | A value's format, name, "show as" and colours. |
-| `unknownFilterType`, `filterNoItems`, `filterLabelOp`, `filterText`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareField`, `filterCompareValue`, `filterRelativeField`, `filterRelativeUnit`, `filterRelativeCount`, `filterRelativeAnchor` | A filter. |
+| `unknownFilterType`, `filterFieldType`, `filterNoItems`, `filterTextOp`, `filterText`, `filterMatch`, `filterNot`, `filterBlanks`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareValue`, `filterRelativeUnit`, `filterRelativeCount`, `filterRelativeAnchor` | A filter. `filterFieldType`: the filter type does not work on the field's type (`params.allowed`, and the type that does in `params.suggestion`). A version-1 type or operator in a version-2 view names version 2's in `params.suggestion`. |
+| `blanksUnspecified`, `filterEmpty` | Warnings of `validate` only: a filter that does not say what happens to blank items; an `in` filter that keeps nothing. |
 | `sortNoItems` | A custom sort order without items. |
 | `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |
 | `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
@@ -136,6 +138,27 @@ how to provide them. The menu's last group, **Share this view**, copies or downl
 
 ## Versions
 
-A view carries `version`. pivotkit migrates an older view to the current `VIEW_VERSION` when it reads
-it. A view of a newer version than it knows is refused: `normalize` returns an empty view with the
-issue `version 99 is newer than this pivotkit-core reads (1); update pivotkit-core`. Store views as they come from `onViewChange`; they always carry the current version.
+A view carries `version`; this release writes version 2. pivotkit migrates an older view to the
+current `VIEW_VERSION` when it reads it (`migrate`, which `normalize` runs first). A view without a
+`version` is read as version 1, so hand-written JSON of version 1 keeps working; the step to version
+2 leaves version 2's shapes as they are, so hand-written JSON of version 2 works without a version
+too. A view of a newer version than it knows is refused: `normalize` returns an empty view with the
+issue `version 99 is newer than this pivotkit-core reads (2); update pivotkit-core`. Store views as
+they come from `onViewChange`; they always carry the current version.
+
+From version 1 to 2 only the filters change ([Filters](filters.md)): every version-1 view keeps what
+it keeps.
+
+| Version 1 | Version 2 |
+| --- | --- |
+| `include` items | `in`, the items without `null`; `blanks: "include"` when `null` was listed, else `"exclude"` |
+| `exclude` items | `in` with `not: true`, the items without `null`; `blanks: "exclude"` when `null` was listed, else `"include"` |
+| `label` | `text` with `on: "label"` and `match: { case: "insensitive", whitespace: "exact" }`; `notEquals` and `notContains` as `equals` and `contains` with `not: true`; `blanks` as version 1 matched the blank item (its label "(blank)") |
+| `compare`, `value` with `!=` or `notBetween` | `=` or `between` with `not: true` |
+| `compare`, `relative` | `blanks: "exclude"`: version 1 never kept a blank |
+| `top` | as it was |
+
+One exception: version 1 lower-cased label filters in the runtime's default locale
+(`toLocaleLowerCase()`), version 2 without it (`toLowerCase()`). Where the runtime's default locale is
+Turkish, Azeri or Lithuanian, a label filter with an "I" or "i" in its text may keep other items after
+the migration (the dotted and dotless i fold differently there).

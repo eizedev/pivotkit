@@ -6,7 +6,8 @@
 import { AGGREGATOR_NAMES } from "./aggregators.js";
 import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
-import { FILTER_TYPES, LABEL_OPS, RELATIVE_ANCHORS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, VALUE_OPS } from "./filters.js";
+import { COMPARE_OPS, FILTERS, FILTER_BLANKS, FILTER_TYPES, RELATIVE_ANCHORS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS } from "./filters.js";
+import { MATCH_CASES, MATCH_WHITESPACE } from "./text-match.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
 import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, CONDITIONAL_TYPES, DISPLAY_MODES } from "./view.js";
@@ -22,8 +23,17 @@ export const CATALOG = Object.freeze({
     /** date units that repeat every year or day ("Jan" of every year), for comparing periods */
     cyclicUnits: CYCLIC_UNITS,
     filterTypes: FILTER_TYPES,
-    labelOps: LABEL_OPS,
-    valueOps: VALUE_OPS,
+    /** per filter type, the field types it works on ("dateGrouping": a grouping of a date) */
+    filterFields: Object.freeze(Object.fromEntries(FILTER_TYPES.map((type) => [type, FILTERS[type].fields]))),
+    /** what a filter does with blank items */
+    filterBlanks: FILTER_BLANKS,
+    /** the comparisons of a text filter, what it compares, and how it folds text */
+    textOps: TEXT_OPS,
+    textOn: TEXT_ON,
+    matchCases: MATCH_CASES,
+    matchWhitespace: MATCH_WHITESPACE,
+    /** the comparisons of an item with a value and of a value condition */
+    compareOps: COMPARE_OPS,
     /** the units of a relative date range ("the last 5 years"), and the most it reaches back */
     relativeUnits: RELATIVE_UNITS,
     relativeMaxCount: RELATIVE_MAX_COUNT,
