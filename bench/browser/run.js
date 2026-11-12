@@ -1,11 +1,12 @@
-// Browser benchmark of the report above the designed 100,000 rows: <PivotReport> (pivotkit-react's
+// Browser benchmark of the report from 100,000 to 1,000,000 rows: <PivotReport> (pivotkit-react's
 // dist/, bundled as the playground bundles it) with the playground's generated data sets (fixed seed),
 // in Chromium, Firefox and WebKit from the pinned Playwright, headless. For each size and view it
 // measures, in the page (page.jsx), the time from the data handed to the report to the first table,
 // the interactions of a person (open a filter's values, take a value out, add a field, export XLSX,
 // switch to the chart), the longest time the page could not paint, long tasks (Chromium) and the
 // memory of the page's JavaScript (Chromium, through the DevTools protocol after a garbage collection). Every run is a
-// new page; the median of the runs is printed. A size that fails (a limit, a crash, a timeout) is
+// new page of the same browser process; the median of the runs is printed. Building writes
+// pivotkit-react's own dist/ (as `npm run build` does) and bench/browser/dist/. A size that fails (a limit, a crash, a timeout) is
 // recorded, and the larger sizes of that view in that engine are not run.
 //
 //   npm run bench:browser                                        all engines, sizes and views, 5 runs
@@ -98,6 +99,10 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 async function serve() {
     const server = createServer(async (req, res) => {
         const path = normalize(decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname)).replace(/^\/+/, "") || "index.html";
+        if (path.startsWith("..")) {
+            res.writeHead(404).end();
+            return;
+        }
         try {
             const body = await readFile(join(out, path));
             res.writeHead(200, { "content-type": TYPES[extname(path)] ?? "application/octet-stream" });

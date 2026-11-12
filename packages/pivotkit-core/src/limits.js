@@ -5,7 +5,7 @@
  * computed exactly before the aggregation starts; `cells` in toGrid() and
  * toSeries(), which are dense (rows x columns) and would otherwise allocate gigabytes for two
  * high-cardinality fields; `cacheEntries` per encoded data set. The defaults are sized for a browser
- * tab and the about 100,000 rows the engine is designed for (docs/concepts/limits.md, "Why the
+ * tab and the up to 1,000,000 rows measured in three browsers (docs/concepts/limits.md, "Why the
  * defaults are what they are", has the numbers behind them). Every function that takes `options.limits` merges it over these defaults.
  */
 

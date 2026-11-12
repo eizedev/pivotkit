@@ -188,7 +188,7 @@ The time and memory grow with the rows; how much, from 100,000 to the default 1,
 `npm run bench:browser` hands the playground's generated data (fixed seed: sales with 9 columns,
 IT tickets with 10) to `<PivotReport>` in Chromium, Firefox and WebKit and measures, in the page,
 the time from the data handed over to the first table on screen: `encode`, `computePivot`,
-`toGrid` and React's render together. Median of 5 runs, each in a new page. Measured on one Mac
+`toGrid` and React's render together. Median of 5 runs, each in a new page of the same browser process. Measured on one Mac
 (Apple M4, 10 cores, 16 GB, macOS 27) with the browsers of Playwright 1.64.1 (Chromium 156,
 Firefox 157, WebKit 27.2), headless, while the machine was otherwise lightly loaded (load average
 about 3 to 4). These are numbers of one machine; a slower laptop or a busy machine takes longer
@@ -211,15 +211,16 @@ about 3 to 4). These are numbers of one machine; a slower laptop or a busy machi
 
 `encode` is most of it: about 1 to 1.5 s per million rows in each browser. The unique count of a column
 whose every value is distinct is the most expensive aggregation (`computePivot` 0.5 s per million
-rows in Chromium and WebKit, 1 s in Firefox). No size hit a limit, crashed or showed a wrong row
-count; a million rows is exactly the default `rows` limit.
+rows in Chromium and WebKit, 1 s in Firefox). No size hit a limit or crashed, and the sales view's row
+count matched at every size (the other views have no such check); a million rows is exactly the default `rows` limit.
 
 The page cannot paint while the first table is built: the report shows its skeleton first, then
-the whole build runs as one task (Chromium reports one long task as long as the time in the table),
+the whole build runs as one task (Chromium reports one long task almost as long as the time in the table),
 so the page does not react to clicks or scrolling for that time.
 
 After the first table, the steps of a person on the sales view, by real clicks, from the click to
-the first frame that shows the result (the range across the three browsers):
+the start of the first frame with the result in the page; that frame's last layout and paint are
+not included, so these are lower bounds (the range across the three browsers):
 
 | Step | 100,000 | 250,000 | 500,000 | 1,000,000 |
 | --- | ---: | ---: | ---: | ---: |
@@ -251,7 +252,7 @@ Not measured:
 
 What this means for a host:
 
-- **Up to about 250,000 rows** the first table takes well under half a second, a filter or a field
+- **Up to about 250,000 rows** the first table takes about 0.15 to 0.5 s, a filter or a field
   under 40 ms, the chart under 100 ms: comfortable.
 - **500,000 rows**: the first table takes about 0.5 to 1 s, a filter or a field up to about 70 ms;
   usable.
