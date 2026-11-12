@@ -22,6 +22,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `CATALOG.valueOps` (now `textOps` and `compareOps`), must read the new shape; a host that
   overrides the texts of the issue codes `filterLabelOp`, `filterCompareField` and
   `filterRelativeField` uses `filterTextOp` and `filterFieldType`.
+- Relative date ranges ([#165](https://github.com/eizedev/pivotkit/issues/165)): `direction` (`last`,
+  `next`, `this`, `before`), `calendar` (whole units, or rolling from now), `includeCurrent`, the
+  units `hour`, `week` and `quarter` besides `day`, `month` and `year`, and `anchor` `"first"` or a
+  date of its own besides `"today"` and `"latest"`. A view's `formatting.weekStart` (1 Monday, the
+  default, to 7 Sunday) starts its weeks. `relativeDateRange` takes the same options; a bound that is
+  not at midnight is written to the minute, `"before"` has `from: null` (its type is `string | null`). Normalized relative filters
+  write every key. New issue code `filterRelativeDirection`; `CATALOG.relativeDirections`.
 - Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
   another is the issue `filterFieldType` with the type that fits.
 

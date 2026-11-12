@@ -32,6 +32,7 @@
 import { labelOf } from "./labels.js";
 import { MATCH_CASES, MATCH_DEFAULTS, MATCH_WHITESPACE, foldText } from "./text-match.js";
 import { DERIVED } from "./derive.js";
+import { RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, WEEK_START, rangeOf } from "./relative.js";
 import { PivotkitError } from "./errors.js";
 import { isDateMs, resolveTimeZone, toWallMs, wallClock } from "./time.js";
 import { MS_PER_DAY, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
@@ -52,15 +53,7 @@ export const FILTER_BLANKS = Object.freeze(["exclude", "include", "only"]);
  * the hint of an issue that names one.
  */
 const NEGATED = Object.freeze({ notEquals: "equals", notContains: "contains", "!=": "=", notBetween: "between" });
-/** The units of a relative date range: the last N years, months or days, today's included. */
-export const RELATIVE_UNITS = Object.freeze(["year", "month", "day"]);
-/** The most years, months or days a relative range reaches back: 500 years from today stay after year 1. */
-export const RELATIVE_MAX_COUNT = 500;
-/**
- * What a relative range counts back from: today (the default, `options.now` of computePivot()), or
- * the latest date of the field's data, for data that end before today (an archive, a closed year).
- */
-export const RELATIVE_ANCHORS = Object.freeze(["today", "latest"]);
+export { RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, WEEK_START } from "./relative.js";
 
 const oneOf = (value, allowed) => (typeof value === "string" && allowed.includes(value) ? value : null);
 
@@ -120,57 +113,76 @@ const dayOf = (ms) => Math.floor(ms / MS_PER_DAY) * MS_PER_DAY;
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, -"T00:00:00.000Z".length);
 
 /**
- * The days of a relative range, [from, to) in wall-clock ms: the `count` years, months or days that
- * end with the one of `reference` (wall-clock ms, one a Date holds: today, or the data's latest
- * date). An end beyond what a Date holds is infinite (-Infinity, Infinity): every date of the data
- * is on its side of the reference.
+ * The dates a relative date range keeps, both included, today being `options.now` (a Date, epoch ms
+ * or an ISO string; default the current time) read in `options.timeZone` ("UTC" by default, never the
+ * machine's zone), as computePivot() reads them: { from: "2022-01-01", to: "2026-12-31" } for whole
+ * days, the minute "2026-03-15T12:00" where a bound is not at midnight (hours, a rolling range), and
+ * `from` null for "before". `options` as a filter has them: `direction` (default "last"),
+ * `calendar` and `includeCurrent` (default true), `weekStart` (1 Monday to 7 Sunday, default 1), and
+ * `anchor`: "today" (the default), "latest" or "first" with `options.latest` or `options.first`, the
+ * data's latest or first date (read like `now`; wall-clock ms as a column holds them), or a date of
+ * its own ("2025-06-30"). `count` is not read for "this". Null for anything a filter could not have,
+ * "latest" or "first" without its date, or a range that leaves what a Date holds (±8.64e15 ms, the
+ * years -271821 to 275760); `now` or the anchor's date beyond that throws INVALID_OPTION, as
+ * computePivot() does.
  * @param {string} unit  of RELATIVE_UNITS
- * @param {number} count
- * @param {number} reference
- */
-function rangeOf(unit, count, reference) {
-    const d = new Date(reference);
-    const y = d.getUTCFullYear();
-    const m = unit === "year" ? 0 : d.getUTCMonth();
-    const day = unit === "day" ? d.getUTCDate() : 1;
-    // setUTCFullYear takes every year (Date.UTC reads 0 to 99 as 1900 to 1999) and rolls months over;
-    // it is NaN only for a day beyond the Date range
-    const at = (yy, mm, dd) => new Date(0).setUTCFullYear(yy, mm, dd);
-    const step = (n) => (unit === "year" ? at(y + n, m, day) : unit === "month" ? at(y, m + n, day) : at(y, m, day + n));
-    const from = step(1 - count);
-    const to = step(1);
-    return { from: Number.isNaN(from) ? -Infinity : from, to: Number.isNaN(to) ? Infinity : to };
-}
-
-/**
- * The days a relative date range keeps, today being `options.now` (a Date, epoch ms or an ISO string;
- * default the current time) read in `options.timeZone` ("UTC" by default, never the machine's zone),
- * as computePivot() reads them: { from: "2022-01-01", to: "2026-12-31" }, both included. With
- * `anchor: "latest"` the range ends with `options.latest`, the data's latest date (read like `now`;
- * wall-clock ms as a column holds them), not with today. Null for a unit not of RELATIVE_UNITS, a
- * count that is not a whole number from 1 to RELATIVE_MAX_COUNT, an anchor not of RELATIVE_ANCHORS,
- * "latest" without a latest date, or a range that leaves what a Date holds (±8.64e15 ms, the years
- * -271821 to 275760); `now` or `latest` beyond that throws INVALID_OPTION, as computePivot() does.
- * @param {string} unit  "year", "month" or "day"
- * @param {number} count  1 is this year (month, day) alone
- * @param {{ now?: Date | number | string, timeZone?: string, anchor?: string, latest?: Date | number | string }} [options]
- * @returns {{ from: string, to: string } | null}
+ * @param {number} count  1 is the current unit alone (with direction "last" and the current unit included)
+ * @param {{ now?: Date | number | string, timeZone?: string, anchor?: string, latest?: Date | number | string, first?: Date | number | string,
+ *   direction?: string, calendar?: boolean, includeCurrent?: boolean, weekStart?: number }} [options]
+ * @returns {{ from: string | null, to: string } | null}
  */
 export function relativeDateRange(unit, count, options) {
     options = optionsOf(options, "relativeDateRange");
+    const direction = options.direction ?? "last";
     const anchor = options.anchor ?? "today";
-    if (!RELATIVE_UNITS.includes(unit) || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT || !RELATIVE_ANCHORS.includes(anchor)) {
+    const weekStart = options.weekStart ?? WEEK_START;
+    const counted = direction === "this" || (Number.isInteger(count) && count >= 1 && count <= RELATIVE_MAX_COUNT);
+    if (!RELATIVE_UNITS.includes(unit) || !RELATIVE_DIRECTIONS.includes(direction) || !counted || !Number.isInteger(weekStart) || weekStart < 1 || weekStart > 7 || anchorText(anchor) === null) {
         return null;
     }
-    if (anchor === "latest" && options.latest === undefined) {
+    if ((anchor === "latest" && options.latest === undefined) || (anchor === "first" && options.first === undefined)) {
         return null;
     }
     const timeZone = resolveTimeZone(options.timeZone);
-    const { from, to } = rangeOf(unit, count, anchor === "latest" ? todayOf(options.latest, timeZone) : todayOf(options.now, timeZone));
-    if (!Number.isFinite(from) || !Number.isFinite(to)) {
+    const reference = anchor === "latest" ? todayOf(options.latest, timeZone) : anchor === "first" ? todayOf(options.first, timeZone) : anchor === "today" ? todayOf(options.now, timeZone) : anchorMs(anchor);
+    const spec = { direction, unit, count, calendar: options.calendar ?? true, includeCurrent: options.includeCurrent ?? true };
+    const { from, to } = rangeOf(spec, reference, weekStart);
+    if (!Number.isFinite(to) || (direction !== "before" && !Number.isFinite(from))) {
         return null;
     }
-    return { from: isoDay(from), to: isoDay(to - MS_PER_DAY) };
+    const whole = (ms) => !Number.isFinite(ms) || ms % MS_PER_DAY === 0;
+    if (whole(from) && whole(to)) {
+        return { from: Number.isFinite(from) ? isoDay(from) : null, to: isoDay(to - MS_PER_DAY) };
+    }
+    const minute = (ms) => new Date(ms).toISOString().slice(0, 16);
+    return { from: Number.isFinite(from) ? minute(from) : null, to: minute(to - 1) };
+}
+
+/**
+ * The wall-clock ms of a relative range's own anchor date ("2025-06-30", "2025-06-30T18:00"; an
+ * offset is read as UTC, as filter items are), NaN for anything else.
+ * @param {unknown} anchor
+ */
+const anchorMs = (anchor) => {
+    const ms = typeof anchor === "string" && !RELATIVE_ANCHORS.includes(anchor) ? itemFor("date", anchor) : undefined;
+    return typeof ms === "number" ? ms : NaN;
+};
+
+/**
+ * A relative range's anchor as normalize() writes it: "today", "latest", "first", or its own date as
+ * "2025-06-30" (at midnight) or "2025-06-30T18:00:00"; null for anything else.
+ * @param {unknown} anchor
+ * @returns {string | null}
+ */
+function anchorText(anchor) {
+    if (typeof anchor === "string" && RELATIVE_ANCHORS.includes(anchor)) {
+        return anchor;
+    }
+    const ms = anchorMs(anchor);
+    if (!isDateMs(ms)) {
+        return null;
+    }
+    return ms % MS_PER_DAY === 0 ? isoDay(ms) : new Date(ms).toISOString().slice(0, 19);
 }
 
 /**
@@ -358,23 +370,40 @@ function negatedHint(op) {
     return typeof op === "string" && Object.hasOwn(NEGATED, op) ? { suggestion: NEGATED[op] } : {};
 }
 
-/** A relative date range on a date field or a grouping of one: the last `count` years, months or days. */
+/**
+ * A relative date range on a date field or a grouping of one (relative.js): its direction, unit and
+ * count (none for "this"), whether it goes by whole units (`calendar`) and takes the current one
+ * (`includeCurrent`), and what it counts from (`anchor`).
+ */
 function normalizeRelative(flt, spec, _f, path, ctx) {
+    const directionIn = get(flt, "direction");
+    const direction = directionIn === undefined ? "last" : oneOf(directionIn, RELATIVE_DIRECTIONS);
+    if (!direction) {
+        return ctx.issue(path, `unknown direction ${JSON.stringify(directionIn)}`, "filterRelativeDirection", { value: shown(directionIn), ...ctx.suggest(directionIn, RELATIVE_DIRECTIONS) });
+    }
     const by = oneOf(get(flt, "unit"), RELATIVE_UNITS);
     if (!by) {
-        return ctx.issue(path, `unknown unit ${JSON.stringify(get(flt, "unit"))}`, "filterRelativeUnit", { value: shown(get(flt, "unit")) });
+        return ctx.issue(path, `unknown unit ${JSON.stringify(get(flt, "unit"))}`, "filterRelativeUnit", { value: shown(get(flt, "unit")), ...ctx.suggest(get(flt, "unit"), RELATIVE_UNITS) });
     }
-    const count = finite(get(flt, "count"));
-    if (count === null || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
-        return ctx.issue(path, `needs a whole count from 1 to ${RELATIVE_MAX_COUNT}`, "filterRelativeCount", { max: RELATIVE_MAX_COUNT });
+    const countIn = get(flt, "count");
+    const count = finite(countIn);
+    if (direction === "this" ? countIn !== undefined : count === null || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
+        const message = direction === "this" ? '"this" is the current unit alone and has no count' : `needs a whole count from 1 to ${RELATIVE_MAX_COUNT}`;
+        return ctx.issue(path, message, "filterRelativeCount", { max: RELATIVE_MAX_COUNT, value: direction });
     }
-    // today is the default and is not written; "latest" counts back from the data's latest date
+    const flag = (key) => {
+        const value = get(flt, key);
+        if (value !== undefined && typeof value !== "boolean") {
+            ctx.issue(`${path}.${key}`, `${key} must be true or false`, "unknownSetting", { value: shown(value) });
+        }
+        return typeof value === "boolean" ? value : true;
+    };
     const anchorIn = get(flt, "anchor");
-    const anchor = anchorIn === undefined ? "today" : oneOf(anchorIn, RELATIVE_ANCHORS);
+    const anchor = anchorIn === undefined ? "today" : anchorText(anchorIn);
     if (!anchor) {
-        return ctx.issue(path, `unknown anchor ${JSON.stringify(anchorIn)}`, "filterRelativeAnchor", { value: shown(anchorIn) });
+        return ctx.issue(path, `unknown anchor ${JSON.stringify(anchorIn)}`, "filterRelativeAnchor", { value: shown(anchorIn), ...ctx.suggest(anchorIn, RELATIVE_ANCHORS) });
     }
-    Object.assign(spec, { unit: by, count }, anchor === "latest" ? { anchor } : {});
+    Object.assign(spec, { direction, unit: by }, direction === "this" ? {} : { count }, { calendar: flag("calendar"), includeCurrent: flag("includeCurrent"), anchor });
     return notAndBlanks(flt, spec, path, ctx);
 }
 
@@ -437,11 +466,11 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
 
 /**
  * The applier of an item filter from its match: `not` and `blanks` applied.
- * @param {(column: any, f: any, locale: string, today: number) => Uint8Array} match
+ * @param {(column: any, f: any, locale: string, today: number, weekStart: number) => Uint8Array} match
  */
 function withNotBlanks(match) {
-    return (column, f, locale, today) => {
-        const matched = match(column, f, locale, today);
+    return (column, f, locale, today, weekStart) => {
+        const matched = match(column, f, locale, today, weekStart);
         const keep = new Uint8Array(matched.length);
         keep[0] = f.blanks === "exclude" ? 0 : 1;
         if (f.blanks !== "only") {
@@ -507,13 +536,25 @@ export function latestOf(column) {
     return Number.isFinite(latest) ? latest : null;
 }
 
+/** The first date of a date column (wall-clock ms), or null without one. */
+export function firstOf(column) {
+    let first = Infinity;
+    for (const v of column.dict) {
+        if (typeof v === "number" && v < first) {
+            first = v;
+        }
+    }
+    return Number.isFinite(first) ? first : null;
+}
+
 /**
- * Relative: the dates of the range (the column is the source date of a grouping, see applyFilters),
- * counted back from today, or from the column's latest date (`anchor: "latest"`; a column without
- * dates counts from today).
+ * Relative: the dates of the range (the column is the source date of a grouping, see applyFilters)
+ * around today, the column's latest or first date (a column without dates counts from today), or
+ * the filter's own date; weeks start on the view's `formatting.weekStart`.
  */
-function allowedRelative(column, f, _locale, today) {
-    const { from, to } = rangeOf(f.unit, f.count, (f.anchor === "latest" ? latestOf(column) : null) ?? today);
+function allowedRelative(column, f, _locale, today, weekStart) {
+    const reference = f.anchor === "today" ? today : f.anchor === "latest" ? latestOf(column) ?? today : f.anchor === "first" ? firstOf(column) ?? today : anchorMs(f.anchor);
+    const { from, to } = rangeOf(f, reference, weekStart);
     return Uint8Array.from([0, ...column.dict], (v, i) => (i > 0 && typeof v === "number" && v >= from && v < to ? 1 : 0));
 }
 
@@ -576,7 +617,7 @@ export const FILTERS = Object.freeze({
     blank: { stage: "items", fields: ALL_TYPES, keys: keysOf("not"), normalize: normalizeBlank, allowed: keepBlank },
     text: { stage: "items", fields: ALL_TYPES, keys: keysOf("op", "value", "on", "match", ...NOT_BLANKS), normalize: normalizeText, allowed: withNotBlanks(matchTexts) },
     compare: { stage: "items", fields: Object.freeze(["number", "date"]), keys: keysOf("op", "value", "value2", ...NOT_BLANKS), normalize: normalizeCompare, allowed: withNotBlanks(allowedCompared), source: byDay },
-    relative: { stage: "items", fields: Object.freeze(["date", "dateGrouping"]), keys: keysOf("unit", "count", "anchor", ...NOT_BLANKS), normalize: normalizeRelative, allowed: withNotBlanks(allowedRelative), source: true },
+    relative: { stage: "items", fields: Object.freeze(["date", "dateGrouping"]), keys: keysOf("direction", "unit", "count", "calendar", "includeCurrent", "anchor", ...NOT_BLANKS), normalize: normalizeRelative, allowed: withNotBlanks(allowedRelative), source: true },
     top: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "count", "bottom"), normalize: normalizeTop, keep: keepTop },
     value: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "op", "value", "value2", "not"), normalize: normalizeValue, keep: keepMatching }
 });
@@ -622,7 +663,7 @@ export function keptByRules(view, field, column, source, locale, today) {
         return null;
     }
     const now = rules.some((f) => f.type === "relative") ? today() : 0;
-    const allowed = (f) => FILTERS[f.type].allowed(readsSource(FILTERS[f.type], f) ? source : column, f, locale, now);
+    const allowed = (f) => FILTERS[f.type].allowed(readsSource(FILTERS[f.type], f) ? source : column, f, locale, now, view.formatting.weekStart);
     const own = rules.filter((f) => !readsSource(FILTERS[f.type], f)).map(allowed);
     const bySource = rules.filter((f) => readsSource(FILTERS[f.type], f)).map(allowed);
     const kept = new Uint8Array(column.dict.length + 1);
@@ -662,7 +703,7 @@ export function applyFilters(ctx, rows) {
         if (def.stage !== "items" || !column) {
             continue;
         }
-        const allowed = def.allowed(column, f, locale, today);
+        const allowed = def.allowed(column, f, locale, today, view.formatting.weekStart);
         const codes = column.codes;
         rows = filterRows(rows, (r) => allowed[codes[r] + 1] === 1);
     }

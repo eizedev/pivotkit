@@ -153,16 +153,18 @@ The `PivotResult` has, among others:
 
 ### `relativeDateRange(unit, count, options?)`
 
-The days a relative date range keeps, both included: `relativeDateRange("year", 5, { now:
-"2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. `unit` is `"year"`, `"month"` or
-`"day"`, `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500); anything else returns
-`null`, as does a range that leaves what a `Date` holds (the years -271821 to 275760). Options: `now`
-(as `computePivot`'s, default the current time; beyond what a `Date` holds, `INVALID_OPTION`),
-`timeZone` (the data's, default `"UTC"`, never the machine's), and `anchor` with `latest`: with
-`anchor: "latest"` the range ends with `latest`, the data's latest date (read like `now`; the
-wall-clock milliseconds a date column holds too), not with today; `"latest"` without a `latest` date,
-or an anchor not of `CATALOG.relativeAnchors`, is `null`. A UI shows the range with it ("last 5
-years (2022–2026)", "last 12 months to Dec 2025").
+The dates a relative date range keeps, both included: `relativeDateRange("year", 5, { now:
+"2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. Whole days are ISO days; where a bound
+is not at midnight (hours, a rolling range) it is the minute, `"2026-03-15T12:00"`; `"before"` has
+`from: null`. `unit` is one of `CATALOG.relativeUnits` (`hour`, `day`, `week`, `month`, `quarter`,
+`year`), `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500; not read for `"this"`).
+Options as a filter has them ([Relative date ranges](../concepts/filters.md#relative-date-ranges)):
+`direction`, `calendar`, `includeCurrent`, `anchor` (`"today"`, `"latest"` with `latest`, `"first"`
+with `first`, or a date), `weekStart` (1 to 7, default 1), and `now` (as `computePivot`'s, default
+the current time; beyond what a `Date` holds, `INVALID_OPTION`) and `timeZone` (the data's, default
+`"UTC"`, never the machine's). Anything a filter could not have, an anchor without its date, or a
+range that leaves what a `Date` holds (the years -271821 to 275760) is `null`. A UI shows the range
+with it ("last 5 years (2022–2026)", "last 12 months to Dec 2025").
 
 ### Drill-down
 
@@ -290,7 +292,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `relativeUnits`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `foldText(text, match?)` | A text folded as text filters compare it: `match` `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale; `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |
 | `MATCH_DEFAULTS` | `{ case: "insensitive", whitespace: "collapse" }`. |

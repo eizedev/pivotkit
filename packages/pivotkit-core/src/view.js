@@ -11,7 +11,7 @@
 
 import { AGGREGATOR_NAMES, aggregatorFits, aggregatorOf } from "./aggregators.js";
 import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
-import { FILTERS, FILTER_TYPES_V1, fieldKinds, fieldTypeHint, itemFor } from "./filters.js";
+import { FILTERS, FILTER_TYPES_V1, WEEK_START, fieldKinds, fieldTypeHint, itemFor } from "./filters.js";
 import { closest } from "./hints.js";
 import { isFormat } from "./format.js";
 import { resolveLimits } from "./limits.js";
@@ -53,7 +53,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterMatch: "error schema", filterNot: "error schema", filterBlanks: "error schema", blanksUnspecified: "warning", filterEmpty: "warning",
     filterNotNumber: "error", filterCount: "error schema", filterValue: "error schema", filterValue2: "error schema",
     filterCompareValue: "error",
-    filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
+    filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error",
     badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
     unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error"
@@ -165,8 +165,9 @@ const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @property {{ rows: any[][], cols: any[][] }} collapsed
  * @property {"table" | "chart"} display
  * @property {ChartSpec} chart
- * @property {{ locale: string | null, timeZone: string | null }} formatting  timeZone: the zone the
- *   report was made for; the host passes it to encode(), computePivot() reports a mismatch
+ * @property {{ locale: string | null, timeZone: string | null, weekStart: number }} formatting  timeZone: the zone the
+ *   report was made for; the host passes it to encode(), computePivot() reports a mismatch; weekStart:
+ *   the first day of a week for relative ranges in weeks, 1 (Monday, the default) to 7 (Sunday)
  */
 
 /**
@@ -186,7 +187,7 @@ export function emptyView() {
         collapsed: { rows: [], cols: [] },
         display: "table",
         chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" },
-        formatting: { locale: null, timeZone: null }
+        formatting: { locale: null, timeZone: null, weekStart: WEEK_START }
     };
 }
 
@@ -605,6 +606,14 @@ function formattingSection(raw, view, ctx) {
         view.formatting.locale = canonicalLocale(locale);
         if (view.formatting.locale === null) {
             ctx.issue("formatting.locale", `unknown locale ${JSON.stringify(locale)}`, "unknownLocale", { value: shown(locale) });
+        }
+    }
+    const weekStart = get(formatting, "weekStart");
+    if (weekStart !== undefined && weekStart !== null) {
+        if (Number.isInteger(weekStart) && weekStart >= 1 && weekStart <= 7) {
+            view.formatting.weekStart = weekStart;
+        } else {
+            ctx.issue("formatting.weekStart", "the first day of a week is 1 (Monday) to 7 (Sunday)", "unknownSetting", { value: shown(weekStart) });
         }
     }
     const timeZone = get(formatting, "timeZone");

@@ -163,6 +163,7 @@ export const en = {
     ruleUnits: { year: { one: "year", other: "years" }, month: { one: "month", other: "months" }, day: { one: "day", other: "days" } },
     // a rule on the total, as a sentence: "Product items whose / Count of Cycle / is greater than / 3"
     ruleWhose: "{field} items whose total",
+    ruleFixed: "Kept as the view has it; the rules here cannot change it yet.",
     blanksOut: "Blank items are not kept.",
     ruleUnit: "Unit",
     moveLeft: "Move left",

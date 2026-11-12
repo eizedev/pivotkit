@@ -53,7 +53,7 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
         smooth: false, axisLabels: "auto", groupLabels: "auto",
         labelPosition: "outside"                               // pie and donut: "outside" or "inside"
     },
-    formatting: { locale: "de-DE", timeZone: null }
+    formatting: { locale: "de-DE", timeZone: null, weekStart: 1 }   // weekStart: 1 Monday to 7 Sunday
 }
 ```
 
@@ -73,7 +73,7 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 | `totals` | Grand total row and column, row and column subtotals; all on by default. | |
 | `collapsed` | Key paths of collapsed groups per axis. | |
 | `display`, `chart` | Table or chart, the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels ([Charts](charts.md)). | |
-| `formatting` | The view's own locale and time zone. | [Locale and time zones](limits.md) |
+| `formatting` | The view's own locale and time zone, and the first day of a week for relative ranges in weeks (`weekStart`, 1 Monday to 7 Sunday). | [Locale and time zones](limits.md), [Relative date ranges](filters.md#relative-date-ranges) |
 | `version` | The view format's version; older views are migrated. | |
 
 ## A view is user input
@@ -116,7 +116,7 @@ An issue is `{ path, message, code, severity, params }`:
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
 | `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |
 | `unknownFormat`, `badLabel`, `unknownShowAs`, `showAsNotAdditive`, `showAsNotNumber`, `unknownConditional`, `conditionalNotNumber`, `colorScaleColors`, `dataBarColor` | A value's format, name, "show as" and colours. |
-| `unknownFilterType`, `filterFieldType`, `filterNoItems`, `filterTextOp`, `filterText`, `filterMatch`, `filterNot`, `filterBlanks`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareValue`, `filterRelativeUnit`, `filterRelativeCount`, `filterRelativeAnchor` | A filter. `filterFieldType`: the filter type does not work on the field's type (`params.allowed`, and the type that does in `params.suggestion`). A version-1 type or operator in a version-2 view names version 2's in `params.suggestion`. |
+| `unknownFilterType`, `filterFieldType`, `filterNoItems`, `filterTextOp`, `filterText`, `filterMatch`, `filterNot`, `filterBlanks`, `filterNotNumber`, `filterCount`, `filterValue`, `filterValue2`, `filterCompareValue`, `filterRelativeDirection`, `filterRelativeUnit`, `filterRelativeCount`, `filterRelativeAnchor` | A filter. `filterFieldType`: the filter type does not work on the field's type (`params.allowed`, and the type that does in `params.suggestion`). A version-1 type or operator in a version-2 view names version 2's in `params.suggestion`. |
 | `blanksUnspecified`, `filterEmpty` | Warnings of `validate` only: a filter that does not say what happens to blank items; an `in` filter that keeps nothing. |
 | `sortNoItems` | A custom sort order without items. |
 | `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |

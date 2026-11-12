@@ -142,6 +142,7 @@ export const de = {
     lastOp: { one: "im letzten", other: "in den letzten" },
     ruleUnits: { year: { one: "Jahr", other: "Jahren" }, month: { one: "Monat", other: "Monaten" }, day: { one: "Tag", other: "Tagen" } },
     ruleWhose: "Einträge von {field} mit Gesamtwert",
+    ruleFixed: "So behalten, wie die Ansicht ihn hat; die Regeln hier können ihn noch nicht ändern.",
     blanksOut: "Leere Einträge werden nicht behalten.",
     ruleUnit: "Einheit",
     moveLeft: "Nach links",

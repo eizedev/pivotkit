@@ -203,7 +203,7 @@ test("relative: normalize checks the field, the unit and the count", () => {
     const issues = (filters) => validate({ filters, derived: [...byYear.derived, { name: "Band", field: "Units", by: "bin", size: 5 }] }, data).errors.map((i) => i.code);
     assert.deepEqual(issues([{ field: "Region", type: "relative", unit: "year", count: 1 }]), ["filterFieldType"]);
     assert.deepEqual(issues([{ field: "Band", type: "relative", unit: "year", count: 1 }]), ["filterFieldType"]);
-    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "week", count: 1 }]), ["filterRelativeUnit"]);
+    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "decade", count: 1 }]), ["filterRelativeUnit"]);
     assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "year", count: 0 }]), ["filterRelativeCount"]);
     assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "year", count: CATALOG.relativeMaxCount + 1 }]), ["filterRelativeCount"]);
     assert.deepEqual(issues([{ field: "Month", type: "relative", unit: "year", count: CATALOG.relativeMaxCount }]), []);
@@ -222,7 +222,7 @@ test("relativeDateRange says the days a range keeps", () => {
     // epoch ms beyond a Date's range are no time
     assert.throws(() => relativeDateRange("year", 1, { now: 9e15 }), { code: "INVALID_OPTION" });
     assert.throws(() => computePivot(data, { values: [sumUnits] }, { now: -9e15 }), { code: "INVALID_OPTION" });
-    assert.equal(relativeDateRange("week", 1), null);
+    assert.equal(relativeDateRange("decade", 1), null);
     assert.equal(relativeDateRange("year", 0), null);
     assert.equal(relativeDateRange("year", 1.5), null);
 });
@@ -265,11 +265,11 @@ test("relative: anchor latest counts back from the data's latest date, whatever 
     assert.equal(latest("month", 4), 22);
     // the latest record's day alone
     assert.equal(latest("day", 1), 4);
-    // "today" written out is the default, and normalize drops it; "latest" is kept
+    // normalize writes every key: the anchor "today" when none is given
     const anchored = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "latest" }] }).view.filters[0];
-    assert.deepEqual(anchored, { field: "Date", type: "relative", unit: "year", count: 1, anchor: "latest", not: false, blanks: "exclude" });
-    const plain = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "today" }] }).view.filters[0];
-    assert.deepEqual(plain, { field: "Date", type: "relative", unit: "year", count: 1, not: false, blanks: "exclude" });
+    assert.deepEqual(anchored, { field: "Date", type: "relative", direction: "last", unit: "year", count: 1, calendar: true, includeCurrent: true, anchor: "latest", not: false, blanks: "exclude" });
+    const plain = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1 }] }).view.filters[0];
+    assert.deepEqual(plain, { field: "Date", type: "relative", direction: "last", unit: "year", count: 1, calendar: true, includeCurrent: true, anchor: "today", not: false, blanks: "exclude" });
     // an unknown anchor: the filter is left out, with its code
     const bad = normalize({ filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "yesterday" }] }, data);
     assert.deepEqual(bad.issues.map((i) => i.code), ["filterRelativeAnchor"]);

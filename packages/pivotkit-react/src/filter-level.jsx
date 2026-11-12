@@ -25,10 +25,10 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
-import { dayText, isoDay, periodText, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
+import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
-import { RULE_OPS, dateSpan, filtersOf, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
+import { RULE_OPS, dateSpan, filtersOf, hiddenNot, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
 import { RULES_MAX, RULE_TYPES, conditionKind, itemTotals, quickChoice, relativeRule, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, textOn, textRule } from "./menu-ops.js";
 
 const twin = (op) => op === "between" || op === "notBetween";
@@ -37,7 +37,14 @@ const capital = (text, locale) => text.charAt(0).toLocaleUpperCase(locale) + tex
 /** Rules as a text that does not depend on the order of their keys (normalize() writes its own order). */
 const rulesKeyOf = (rules) => JSON.stringify(rules, (_k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 /** The kind of row a rule is: the item itself (a comparison or a relative range), its total, its name. */
-const rowKind = (f) => (f.type === "value" ? "total" : f.type === "text" ? "name" : "item");
+const rowKind = (f) => (!editable(f) ? "fixed" : f.type === "value" ? "total" : f.type === "text" ? "name" : "item");
+/**
+ * Whether the rows can edit a rule: not one whose `not` they have no word for, not a relative range
+ * they do not write (next, this, before, rolling, hours, weeks, quarters; a loaded view's).
+ */
+const editable = (f) => !hiddenNot(f) && (f.type !== "relative" || plainRange(f));
+/** The units of the quick choices and of a rule's relative range. */
+const RANGE_UNITS = Object.freeze(["year", "month", "day"]);
 /** The most years, months and days a quick choice reaches back by itself to the data's latest record. */
 const REACH = Object.freeze({ year: 10, month: 24, day: 90 });
 /** A grouping's items above this many are picked from a searchable list, not a native select. */
@@ -234,7 +241,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     if (quickKey !== seen) {
         setSeen(quickKey);
         const synced = { ...texts };
-        for (const unit of CATALOG.relativeUnits) {
+        for (const unit of RANGE_UNITS) {
             if (unit !== editing) {
                 synced[unit] = numberText(counted[unit], locale);
             }
@@ -647,7 +654,7 @@ function ItemRule({ rule, ctx, apply, first }) {
                         className="pk-field-label pk-count-input"
                     />
                     <select name={`${formName}-unit`} value={s.unit} onChange={(e) => change({ unit: e.target.value })} aria-label={labels.ruleUnit} data-testid="rule-last-unit">
-                        {CATALOG.relativeUnits.map((u) => (
+                        {RANGE_UNITS.map((u) => (
                             <option key={u} value={u}>
                                 {plural(labels.ruleUnits[u], many, lang)}
                             </option>
@@ -738,7 +745,7 @@ function NameRule({ rule, ctx, apply, first }) {
     const [op, setOp] = useState(rule ? ruleOp(rule) : "contains");
     const send = (o, value) => {
         if (value !== "") {
-            apply(textRule(field, { op: o, value, on: ctx.textOn }));
+            apply({ ...textRule(field, { op: o, value, on: ctx.textOn }), ...(rule ? { blanks: rule.blanks } : {}) });
         }
     };
     const text = useAppliedText(rule?.value ?? "", (value) => send(op, value));
@@ -781,7 +788,19 @@ function NameRule({ rule, ctx, apply, first }) {
     );
 }
 
-const ROWS = { item: ItemRule, total: TotalRule, name: NameRule };
+/** A rule the rows cannot edit (a loaded view's): its words, and that it is kept as it is; its × removes it. */
+function FixedRule({ rule, ctx }) {
+    return (
+        <>
+            <span className="pk-rule-subject">{ctx.say(rule)}</span>
+            <span className="pk-hint pk-rule-note" data-testid="rule-fixed">
+                {ctx.labels.ruleFixed}
+            </span>
+        </>
+    );
+}
+
+const ROWS = { item: ItemRule, total: TotalRule, name: NameRule, fixed: FixedRule };
 
 /**
  * The rules of a field, all together ("and"): one row each with its "i" (what it compares, with an
@@ -1151,7 +1170,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
             }
         });
     };
-    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act };
+    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act };
     const picksOpen = openPicks ?? !anyRule;
     const rulesOpen = openRules ?? anyRule;
     // on a phone one section at a time

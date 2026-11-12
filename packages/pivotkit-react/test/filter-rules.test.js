@@ -266,3 +266,19 @@ test("a rule on the names keeps every item that begins with the text, whatever i
     assert.equal(textOn(data, "Units"), "label");
     assert.equal(textOn(names, "Name"), "value");
 });
+
+test("a relative range the menus do not write says what it keeps in words, and is no quick choice", () => {
+    const now = "2026-03-15T12:00:00Z";
+    const say = (f, L = MENU.en, locale = "en-US") => relativeText({ blanks: "exclude", not: false, calendar: true, includeCurrent: true, anchor: "today", ...f }, L, locale, "UTC", now);
+    assert.equal(say({ direction: "next", unit: "week", count: 2 }), "next 2 weeks (Mar 9, 2026 – Mar 22, 2026)");
+    assert.equal(say({ direction: "this", unit: "quarter" }), "this quarter (Jan 1, 2026 – Mar 31, 2026)");
+    assert.equal(say({ direction: "before", unit: "day", count: 30, calendar: false }), "before the last 30 days, rolling (until Feb 13, 2026, 11:59 AM)");
+    assert.equal(say({ direction: "last", unit: "month", count: 1, includeCurrent: false }), "last 1 month, current period excluded (Feb 1, 2026 – Feb 28, 2026)");
+    assert.equal(say({ direction: "last", unit: "year", count: 1, anchor: "2025-06-30" }), "last 1 year, counted from Jun 30, 2025 (Jan 1, 2025 – Dec 31, 2025)");
+    assert.equal(say({ direction: "next", unit: "week", count: 2 }, MENU.de, "de-DE"), "nächste 2 Wochen (09.03.2026 – 22.03.2026)");
+    assert.equal(say({ direction: "before", unit: "year", count: 1 }, MENU.de, "de-DE"), "vor dem letzten 1 Jahr (bis 31.12.2025)");
+    // the menus' own ranges keep their words
+    assert.equal(say({ direction: "last", unit: "year", count: 2 }), "last 2 years (2025–2026)");
+    const loaded = norm({ version: 2, rows: ["Released"], filters: [{ field: "Released", type: "relative", direction: "next", unit: "year", count: 1, blanks: "exclude" }] });
+    assert.deepEqual(quickChoice(loaded, "Released", ruleKind(data, loaded, "Released")), { id: "all", filters: [] });
+});

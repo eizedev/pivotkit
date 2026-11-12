@@ -10,7 +10,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - The element bundles pivotkit-core with view version 2 and pivotkit-react's filters for it
   ([#165](https://github.com/eizedev/pivotkit/issues/165)): views of version 1 load with the same
-  result. The first load grows by about 4 KiB (gzip); its budget is 165.5.
+  result. The first load grows by about 6 KiB (gzip), its budget to 167.5; the plain words of a
+  view's unused parts to 5.5.
 
 ## [0.4.0] - 2026-11-11
 

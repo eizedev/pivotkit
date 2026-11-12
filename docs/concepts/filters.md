@@ -94,9 +94,28 @@ and date fields can be compared; a text field has the `text` conditions.
 ### Relative date ranges
 
 `relative` keeps the dates of a range that moves with today, so a saved report stays right next
-year: `{ "unit": "year", "count": 5 }` is this year and the four before it, `{ "unit": "month",
-"count": 1 }` this month, `{ "unit": "day", "count": 7 }` today and the six days before it. A range
-ends with the end of the current year, month or day, so later dates of this year are in "this year".
+year:
+
+| Key | What | Default |
+| --- | --- | --- |
+| `direction` | `"last"`: the range up to now; `"next"`: from now on; `"this"`: the current unit alone (no `count`); `"before"`: every date before the `"last"` range. | `"last"` |
+| `unit` | `"hour"`, `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"`. | |
+| `count` | How many units, a whole number from 1 to `CATALOG.relativeMaxCount` (500); none with `"this"`. | |
+| `calendar` | `true`: whole units ("the last 2 months" is last month and this one); `false`: rolling, from the moment `count` units ago to now ("the last 30 days" from this time 30 days ago). | `true` |
+| `includeCurrent` | With `calendar`: whether the current unit is one of the `count` (`false`: "the last 2 months" are the two before this one). | `true` |
+| `anchor` | What "now" is: `"today"`, `"latest"` (the latest date of the field's data), `"first"` (its first date) or a date of its own (`"2025-06-30"`, `"2025-06-30T18:00"`). | `"today"` |
+
+```json
+{ "field": "Created", "type": "relative", "unit": "year", "count": 5, "blanks": "exclude" }
+{ "field": "Created", "type": "relative", "direction": "before", "unit": "day", "count": 30, "calendar": false, "blanks": "include" }
+{ "field": "Due", "type": "relative", "direction": "this", "unit": "week", "blanks": "exclude" }
+```
+
+The first is this year and the four before it; the second every item created more than 30 days ago,
+the items without a date too; the third this week. A range ends with the end of the current year,
+month or day, so later dates of this year are in "this year". A week starts on the view's
+`formatting.weekStart`: 1 (Monday, the default, as ISO 8601) to 7 (Sunday). A month or a year
+counted back from the 31st ends on the last day of a shorter month.
 
 On a date grouping ("Released by year") the range filters the grouping's **source dates**: with
 "the last 18 months" on a year grouping, the oldest year keeps only its months in the range, and its
@@ -104,17 +123,19 @@ total counts only those.
 
 Today is the wall clock of `computePivot`'s `options.now` in the data's time zone (the `timeZone` of
 `encode()`, default UTC), never the machine's zone: the same data and `now` give the same result
-everywhere. Without `now` it is the current time. `relativeDateRange(unit, count, { now, timeZone })`
-says which days a range keeps, for a UI's "last 5 years (2022–2026)".
+everywhere. Without `now` it is the current time. `relativeDateRange(unit, count, { now, timeZone,
+direction, calendar, includeCurrent, anchor, weekStart })` says which dates a range keeps, for a UI's
+"last 5 years (2022–2026)".
 
-A range counts back from today by default (`anchor: "today"`, not written): a saved report refreshes
-with the calendar. For data that end - an archive, a closed year - `anchor: "latest"` counts back
-from the latest date of the field's data instead: `{ "unit": "month", "count": 12, "anchor":
-"latest" }` on data that end on 2025-12-31 is January to December 2025, whatever the day. On a
-grouping, the latest date is the source dates' latest. An anchor that is neither is the issue
-`filterRelativeAnchor`, and the filter is left out. `relativeDateRange` takes the same `anchor`
-with `latest`, the data's latest date (a `Date`, epoch milliseconds, an ISO string or the wall-clock
-milliseconds a date column holds).
+A range counts from today by default: a saved report refreshes with the calendar. For data that end -
+an archive, a closed year - `anchor: "latest"` counts from the latest date of the field's data:
+`{ "unit": "month", "count": 12, "anchor": "latest" }` on data that end on 2025-12-31 is January to
+December 2025, whatever the day. `"first"` counts from the field's first date, a date of its own
+makes a report give the same result on every run. On a grouping, the latest and first dates are the
+source dates'. An anchor that is none of these is the issue `filterRelativeAnchor`, and the filter is
+left out. `relativeDateRange` takes the same `anchor`, with `latest` and `first`, the data's latest
+and first date (a `Date`, epoch milliseconds, an ISO string or the wall-clock milliseconds a date
+column holds).
 
 A filter on a field that is on rows or columns filters that axis. A filter on any other field - in
 the UI, a field in the **Filters** zone - filters the whole report.

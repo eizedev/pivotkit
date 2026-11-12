@@ -44,7 +44,7 @@ function fieldState(view, field, encoded, locale, labels, sourceType) {
     const date = sourceType === "date";
     // the data's first and last date: a relative range says the data's share of it
     const span = date ? dateSpan(encoded, sourceOf(view, field)) : null;
-    const rules = filtersOf(view, field, ["relative", "compare", "text"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf, span }));
+    const rules = filtersOf(view, field, ["relative", "compare", "text"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf, span, weekStart: view.formatting?.weekStart }));
     const top = filtersOf(view, field, ["top"])[0] ?? null;
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
     return { summary, rules, top, condition, sort: sortOf(view, field) };

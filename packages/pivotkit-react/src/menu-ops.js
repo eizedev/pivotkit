@@ -7,7 +7,7 @@
 
 import { CATALOG, MATCH_DEFAULTS, computePivot, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { itemRuleText, valueConditionText, wholeYears } from "./names.js";
+import { itemRuleText, plainRange, valueConditionText, wholeYears } from "./names.js";
 import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
@@ -252,7 +252,7 @@ export function ruleKind(encoded, view, field) {
  * @param {{ labels: any, locale: string, timeZone: string, date: boolean, labelOf?: (v: number) => string | undefined, span?: { min: number, max: number } | null }} options
  */
 export function ruleText(view, f, { labels, locale, timeZone, date, labelOf, span }) {
-    return f.type === "value" ? valueConditionText(view, f, labels, locale) : itemRuleText(f, labels, locale, { timeZone, date, labelOf, span });
+    return f.type === "value" ? valueConditionText(view, f, labels, locale) : itemRuleText(f, labels, locale, { timeZone, date, labelOf, span, weekStart: view.formatting?.weekStart });
 }
 
 /**
@@ -279,7 +279,7 @@ export function quickChoice(view, field, fk, all = []) {
     }
     const offered = { year: true, month: fk.months, day: fk.days };
     // a range the quick choices write: not inverted, the blanks left out
-    const r = ranges.find((f) => offered[f.unit] && !f.not && f.blanks === "exclude");
+    const r = ranges.find((f) => offered[f.unit] && plainRange(f) && !f.not && f.blanks === "exclude");
     if (!r) {
         return { id: "all", filters: [] };
     }

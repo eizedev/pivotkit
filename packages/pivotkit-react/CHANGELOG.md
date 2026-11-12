@@ -15,6 +15,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   (stored, shared, the host's) load with the same result. A rule the menus have no word for (a
   loaded view's "does not begin with") is said as "not (…)"; the menus offer no rule for blanks and
   the new operators yet.
+- A relative range the menus do not write (a loaded view's: next, this, before, rolling, without the
+  current period, hours, weeks, quarters, counted from the first record or a date) says what it keeps
+  in words, in English and German, and stays as it is: its row in the Filter level can only be
+  removed. The quick choices and the rules offer years, months and days, as they did.
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters
   (pivotkit-core's `outsideLimits`), or the host's lower `limits.filters`.
 

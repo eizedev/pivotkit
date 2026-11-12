@@ -22,11 +22,13 @@ const rowsBytes: Uint8Array = rowsToXlsx(data, new Int32Array([0]), { sheetName:
 const pasted: string = toTsv(grid) + toTsv([["a", "b"]]) + toJson(grid, { space: 0 });
 export const all = [firstName, read.issues.length, fromSchema.templates.length, TEMPLATE_LIMITS.count, issues.length, bytes.length, csv.length, rowsCsv.length, rowsBytes.length, pasted.length, option, code, grid.locale, shown, schemaIssues.length];
 
-// relative date ranges: today from options.now, the range as ISO days or null
-const range: { from: string; to: string } | null = relativeDateRange("year", 5, { now: new Date(), timeZone: "UTC" });
+// relative date ranges: today from options.now, the range as ISO days or null; "before" has no start
+const range: { from: string | null; to: string } | null = relativeDateRange("year", 5, { now: new Date(), timeZone: "UTC" });
+const before: { from: string | null; to: string } | null = relativeDateRange("week", 2, { direction: "before", calendar: false, weekStart: 7, anchor: "2025-06-30" });
+void before;
 const today: PivotResult = computePivot(encode([{ d: "2026-01-01" }]), { filters: [{ field: "d", type: "relative", unit: "year", count: 1 }] }, { now: "2026-11-09" });
 // anchored at the data's latest date instead of today
-const anchored: { from: string; to: string } | null = relativeDateRange("month", 12, { anchor: "latest", latest: "2025-12-31", timeZone: "UTC" });
+const anchored: { from: string | null; to: string } | null = relativeDateRange("month", 12, { anchor: "latest", latest: "2025-12-31", timeZone: "UTC" });
 const latest: PivotResult = computePivot(encode([{ d: "2026-01-01" }]), { filters: [{ field: "d", type: "relative", unit: "year", count: 1, anchor: "latest" }] });
 void range;
 void today;
