@@ -1794,6 +1794,96 @@
     margin: 0;
 }
 
+/* a checkbox with its words: "Include the current month", "Also keep items without a value" */
+.pk-check {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    min-height: var(--pk-target);
+    padding: 0 0.6em;
+    border-radius: var(--pk-radius-sm);
+    cursor: pointer;
+}
+
+.pk-check:hover {
+    background: var(--pk-surface-3);
+}
+
+/* not a text field's look inside a form (.pk-condition input) */
+.pk-check > input[type="checkbox"] {
+    flex: none;
+    width: 1.1em;
+    min-width: 0;
+    height: 1.1em;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--pk-accent);
+}
+
+/* a choice's own setting, under it: in line with its words, not with its radio */
+.pk-quick-row > .pk-check {
+    flex-basis: 100%;
+    margin-left: 1.7em;
+}
+
+/* More choices of the quick choices: a disclosure, its choices indented under it */
+.pk-quick-more-toggle {
+    display: flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 0.35em;
+    min-height: var(--pk-target);
+    padding: 2px 6px;
+    border: 0;
+    border-radius: var(--pk-radius-sm);
+    background: transparent;
+    color: var(--pk-muted);
+    font-size: var(--pk-small);
+    cursor: pointer;
+}
+
+.pk-quick-more-toggle:hover {
+    background: var(--pk-surface-3);
+    color: var(--pk-text);
+}
+
+.pk-quick-more {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-left: 0.6em;
+    padding-left: 0.6em;
+    border-left: 2px solid var(--pk-border);
+}
+
+/* the selects and the date field of the quick choices: as high as the count beside them, a target's
+   height at least (they are not in a .pk-condition form) */
+.pk-quick-row select,
+.pk-quick-anchor select,
+.pk-quick-anchor input[type="date"] {
+    min-height: var(--pk-target);
+    height: 2em;
+    padding: 0 0.4em;
+    border: 1px solid var(--pk-input-border);
+    border-radius: var(--pk-radius-sm);
+    background: var(--pk-surface);
+    color: var(--pk-text);
+}
+
+.pk-quick-anchor > .pk-hint {
+    flex-basis: 100%;
+}
+
+/* under a choice: the button that counts back from the data's end, in line with its words */
+.pk-quick-row > .pk-quick-fix {
+    flex-basis: 100%;
+    margin-left: 1.7em;
+}
+
+.pk-quick-fix > .pk-action {
+    text-align: start;
+}
+
 /* the years a cyclic grouping combines: a toggle per year with its rows */
 .pk-years-hint {
     margin: 0;
@@ -3799,4 +3889,9 @@
 .pk-data-menu p {
     padding: 0 8px;
     overflow-wrap: anywhere;
+}
+
+/* under "Also show items with the same value as the last one": in line with its words */
+.pk-level-form > .pk-top-shown {
+    padding-left: calc(1.7em + 0.6em);
 }

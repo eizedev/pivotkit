@@ -502,10 +502,10 @@ typed: the quick choices with that count ("last 3 years") and a year compared ("
 runs a hit the arrow keys reached, not the text typed.
 
 The Filter level of a date field shows its quick choices and the days each keeps relative to today
-(the current time read in `encode`'s `timeZone`, through pivotkit-core's `relativeDateRange`) or,
-when the data end before the current period and the person switches "Counted back from", to the
-data's latest date (the filter's `anchor: "latest"`); it offers only the choices with data behind
-them and says the data's share of a range ("2025; 2026 has no data"). The rules write pivotkit-core's
+(the current time read in `encode`'s `timeZone`, through pivotkit-core's `relativeDateRange`) or to
+what the person picks under "Counted back from": the data's latest or first date or a day of their
+own (the filter's `anchor`); it offers This only for the units whose current period has data and says
+the data's share of a range ("2025; 2026 has no data"). The rules write pivotkit-core's
 `relative`, `compare`, `value` and `text` filters ([Filters](../concepts/filters.md#filters-in-the-ui));
 a rule's result line and the summary compute the field's totals with pivotkit-core's `computePivot`
 on the field alone (its Grand Total scope). What is typed in a level applies when the level or the menu closes too (a click outside).

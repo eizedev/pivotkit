@@ -51,7 +51,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         const menu = page.locator(".pk-chip-menu");
         // no "This year", no "Last N months": they do not fit a grouping that puts every year's January together
         await expect(menu.getByTestId("quick-choices")).toHaveCount(0);
-        await expect(menu.getByTestId("quick-thisYear")).toHaveCount(0);
+        await expect(menu.getByTestId("quick-this")).toHaveCount(0);
         const years = menu.getByTestId("years-combined").locator("button");
         await expect(years).toHaveText([/^2023/, /^2024/, /^2025/]);
         await expect(menu.getByTestId("year-2023")).toHaveAttribute("aria-pressed", "true");
@@ -92,24 +92,31 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
         const menu = page.locator(".pk-chip-menu");
-        // "This year" would show nothing: not offered, said why; the counted choices start where the data end
-        await expect(menu.getByTestId("quick-thisYear")).toHaveCount(0);
+        // "This year" (or this quarter, this month) would show nothing: not offered, said why; the counted choices start where the data end
+        await expect(menu.getByTestId("quick-this")).toHaveCount(0);
         await expect(menu.getByTestId("quick-hidden")).toHaveText(`This year (${thisYear}) is not offered: the data end ${day(lastDay)}.`);
         const yearsN = thisYear - lastYear + 1;
-        await expect(menu.getByTestId("quick-years")).toHaveAccessibleName(`Last ${yearsN} years`);
-        const rows2025 = weather.filter((r) => r.Date.startsWith("2025")).length;
-        const yearsRow = menu.locator(".pk-quick-row", { has: page.getByTestId("quick-years") });
-        await expect(yearsRow).toContainText(`2025 (${yearsN === 2 ? "2026" : `2026–${thisYear}`} ${yearsN === 2 ? "has" : "have"} no data)`);
-        await expect(yearsRow).toContainText(`${n(rows2025)} rows`);
-        const monthsRow = menu.locator(".pk-quick-row", { has: page.getByTestId("quick-months") });
-        await expect(monthsRow).toContainText("Dec 2025 (");
-        await expect(monthsRow).toContainText(`${n(weather.filter((r) => r.Date.startsWith("2025-12")).length)} rows`);
+        // the months from December of the data's last year to this one
+        const monthsN = Math.max(2, (thisYear - lastYear) * 12 + new Date().getUTCMonth() - 10);
+        // by month: months first (no unit finer than the grouping), the count the smallest that reaches December 2025
+        const unit = menu.getByTestId("quick-last-unit");
+        await expect(unit.locator("option")).toHaveText(["months", "quarters", "years"]);
+        await expect(menu.getByTestId("quick-last")).toHaveAccessibleName(`Last ${monthsN} months`);
+        const lastRow = menu.locator(".pk-quick-row", { has: page.getByTestId("quick-last") });
+        await expect(lastRow).toContainText("Dec 2025 (");
+        await expect(lastRow).toContainText(`${n(weather.filter((r) => r.Date.startsWith("2025-12")).length)} rows`);
         // the reference date shows, since the latest record lies before this month
         const anchor = menu.getByTestId("quick-anchor");
-        await expect(anchor.locator("option")).toHaveText([/^today \(/, `the latest record (${day(lastDay)})`]);
+        await expect(anchor.locator("option")).toHaveText([/^today \(/, `the latest record (${day(lastDay)})`, `the first record (${day(firstDay)})`, "a date…"]);
         await expect(anchor).toHaveValue("today");
-        // Last N years from today: the months of 2025 only, said with the data's share on the chip and in the summary
-        await menu.getByTestId("quick-years").check();
+        // years, then the count: Last N years from today, the months of 2025 only, said with the data's share on the row, the chip and in the summary
+        await unit.selectOption("year");
+        await menu.getByTestId("quick-last-count").fill(String(yearsN));
+        const rows2025 = weather.filter((r) => r.Date.startsWith("2025")).length;
+        await expect(menu.getByTestId("quick-last")).toHaveAccessibleName(`Last ${yearsN} years`);
+        await expect(lastRow).toContainText(`2025 (${yearsN === 2 ? "2026" : `2026–${thisYear}`} ${yearsN === 2 ? "has" : "have"} no data)`);
+        await expect(lastRow).toContainText(`${n(rows2025)} rows`);
+        await expect(menu.getByTestId("quick-last")).toBeChecked();
         const share = `last ${yearsN} years (2025; ${yearsN === 2 ? "2026 has" : `2026–${thisYear} have`} no data)`;
         await expect(badge(page, MONTH)).toHaveText(share);
         await expect.poll(async () => (await bodyRows(page)).map((r) => r[0])).toEqual(MONTHS.map((m) => `${m} 2025`));
@@ -133,11 +140,12 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await anchor.selectOption("latest");
         await expect(badge(page, MONTH)).toHaveText(`last ${yearsN} years to 2025`);
         await expect.poll(async () => (await bodyRows(page)).length).toBe(yearsN === 2 ? 24 : 36);
-        await expect(menu.getByTestId("quick-thisYear")).toBeVisible();
+        await expect(menu.getByTestId("quick-this")).toBeVisible();
         await expect(menu.getByTestId("quick-hidden")).toHaveCount(0);
-        await menu.getByTestId("quick-months").check();
-        await expect(menu.getByTestId("quick-months")).toHaveAccessibleName("Last 1 month");
-        await menu.getByTestId("quick-months-count").fill("12");
+        // back to months: the count reaches the data, so it stays
+        await unit.selectOption("month");
+        await expect(menu.getByTestId("quick-last")).toHaveAccessibleName(`Last ${yearsN} months`);
+        await menu.getByTestId("quick-last-count").fill("12");
         await expect(badge(page, MONTH)).toHaveText("last 12 months to Dec 2025");
         await expect.poll(async () => (await bodyRows(page)).map((r) => r[0])).toEqual(MONTHS.map((m) => `${m} 2025`));
         // the first level says the same words
@@ -221,7 +229,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await chipMenu(page, QUARTER, "filter");
         await expect(picks).toHaveAttribute("aria-expanded", "true");
         for (let i = 0; i < 2; i++) {
-            await menu.getByTestId("quick-years").check();
+            await menu.getByTestId("quick-last").check();
             await expect(picks).toHaveAttribute("aria-expanded", "false");
             await expect(rules).toHaveAttribute("aria-expanded", "true");
             await menu.getByTestId("quick-all").check();
@@ -261,7 +269,7 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         // a quick choice is no rule: Remove stays disabled, Reset can act
         await reset.click();
         await expect(reset).toBeDisabled();
-        await menu.getByTestId("quick-years").check();
+        await menu.getByTestId("quick-last").check();
         await expect(remove).toBeDisabled();
         await expect(reset).toBeEnabled();
         await expect(clear).toBeDisabled();
@@ -272,13 +280,13 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await remove.click();
         await expect(remove).toBeDisabled();
         await expect(reset).toBeEnabled();
-        await expect(menu.getByTestId("quick-years")).toBeChecked();
+        await expect(menu.getByTestId("quick-last")).toBeChecked();
         // "change it above" with the choices folded: unfolds them, the checked choice takes the focus and is in view
         await menu.getByTestId("section-quick").click();
         await expect(menu.getByTestId("quick-choices")).toHaveCount(0);
         await menu.getByTestId("rule-quick-change").click();
-        await expect(menu.getByTestId("quick-years")).toBeFocused();
-        await expect(menu.getByTestId("quick-years")).toBeInViewport();
+        await expect(menu.getByTestId("quick-last")).toBeFocused();
+        await expect(menu.getByTestId("quick-last")).toBeInViewport();
         // the same for Years combined: the first year ticked
         await page.keyboard.press("Escape");
         await page.keyboard.press("Escape");
@@ -298,8 +306,10 @@ test.describe("the Filter level on data that end before today (weather, to Dec 3
         await expect(menu.getByTestId("filter-summary-head")).toHaveText("Alle 36 Monate gezeigt");
         await expect(menu.getByTestId("quick-hidden")).toHaveText(`Dieses Jahr (${thisYear}) wird nicht angeboten: die Daten enden am ${new Date(`${lastDay}T00:00Z`).toLocaleDateString("de-DE", { dateStyle: "medium", timeZone: "UTC" })}.`);
         await expect(menu.getByTestId("fsection-quick")).toContainText("Gezählt ab");
-        await menu.getByTestId("quick-years").check();
         const yearsN = thisYear - lastYear + 1;
+        await menu.getByTestId("quick-last-unit").selectOption("year");
+        await expect(menu.getByTestId("quick-last-unit").locator("option")).toHaveText(["Monate", "Quartale", "Jahre"]);
+        await menu.getByTestId("quick-last-count").fill(String(yearsN));
         const share = `letzte ${yearsN} Jahre (2025; ${yearsN === 2 ? "2026 hat" : `2026–${thisYear} haben`} keine Daten)`;
         await expect(badge(page, MONTH)).toHaveText(share);
         await expect(menu.getByTestId("filter-summary-head")).toHaveText("12 der 36 Monate gezeigt");
@@ -319,17 +329,20 @@ test.describe("the Filter level on data that reach today (endoflife)", () => {
         expect(Number(released[released.length - 1].slice(0, 4)), "the endoflife snapshot reaches this year").toBe(thisYear);
     });
 
-    test("This year is offered, nothing is hidden and no reference date is asked for", async ({ page }) => {
+    test("This year is offered, nothing is hidden and the reference date waits under More choices", async ({ page }) => {
         await openView(page, "endoflife", { derived: [{ name: YEAR, field: "Released", by: "year" }], rows: [YEAR], values: [{ agg: "count" }] });
         await chipMenu(page, YEAR, "filter");
         const menu = page.locator(".pk-chip-menu");
-        await expect(menu.getByTestId("quick-thisYear")).toBeVisible();
+        await expect(menu.getByTestId("quick-this")).toBeVisible();
         await expect(menu.getByTestId("quick-hidden")).toHaveCount(0);
         await expect(menu.getByTestId("quick-anchor")).toHaveCount(0);
+        await menu.getByTestId("quick-more").click();
+        await expect(menu.getByTestId("quick-more-body").getByTestId("quick-anchor")).toHaveValue("today");
+        await menu.getByTestId("quick-more").click();
         // the smallest count that reaches the latest record would be one year, which This year is already: two
-        await expect(menu.getByTestId("quick-years")).toHaveAccessibleName("Last 2 years");
+        await expect(menu.getByTestId("quick-last")).toHaveAccessibleName("Last 2 years");
         await expect(menu.getByTestId("filter-summary-meta")).toContainText(`data ${day(released[0])} – ${day(released[released.length - 1])}`);
-        await menu.getByTestId("quick-thisYear").check();
+        await menu.getByTestId("quick-this").check();
         await expect(badge(page, YEAR)).toHaveText(`this year (${thisYear})`);
         const years = new Set(released.map((d) => d.slice(0, 4))).size;
         await expect(menu.getByTestId("filter-summary-head")).toHaveText(`1 of ${years} years shown`);
@@ -448,7 +461,7 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await menu.getByTestId("select-all").hover();
         await expect.poll(async () => (await style(menu.getByTestId("select-all"))).background, "hover background").not.toBe(none);
         // the quick-choice line's "change it above" is the same kind of button
-        await menu.getByTestId("quick-years").check();
+        await menu.getByTestId("quick-last").check();
         const change = menu.getByTestId("rule-quick-change");
         expect((await style(change)).underline).toBe("none");
         await change.hover();
@@ -459,9 +472,9 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
         const menu = menuOf(page);
-        await menu.getByTestId("quick-months-count").fill("1");
-        await expect(menu.getByTestId("quick-months")).toBeChecked();
-        await expect(menu.getByTestId("quick-months")).toHaveAccessibleName("Last 1 month");
+        await menu.getByTestId("quick-last-count").fill("1");
+        await expect(menu.getByTestId("quick-last")).toBeChecked();
+        await expect(menu.getByTestId("quick-last")).toHaveAccessibleName("Last 1 month");
         await expect(badge(page, MONTH)).toHaveText(/^last 1 month /);
         await page.keyboard.press("Escape");
         // the search: a hit for "Last 3 years" says what the chip will say after it
@@ -481,7 +494,8 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
         const menu = menuOf(page);
-        for (const id of ["quick-all", "quick-thisYear", "quick-years", "quick-months"]) {
+        await menu.getByTestId("quick-more").click();
+        for (const id of ["quick-all", "quick-this", "quick-last", "quick-next", "quick-before"]) {
             const radio = menu.getByTestId(id);
             if (!(await radio.count())) continue;
             const text = await radio.evaluate((el) => {
@@ -490,15 +504,15 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
             });
             expect(text, id).toMatch(/rows/);
         }
-        await expect(menu.getByTestId("quick-months")).toHaveAttribute("aria-describedby", /.+/);
-        await expect(menu.getByTestId("quick-years")).toHaveAttribute("aria-describedby", /.+/);
+        await expect(menu.getByTestId("quick-last")).toHaveAttribute("aria-describedby", /.+/);
+        await expect(menu.getByTestId("quick-before")).toHaveAttribute("aria-describedby", /.+/);
     });
 
     test("the left-out group, expanded, shows its first item", async ({ page }) => {
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
         const menu = menuOf(page);
-        await menu.getByTestId("quick-years").check();
+        await menu.getByTestId("quick-last").check();
         await menu.getByTestId("section-picks").click();
         const toggle = menu.getByTestId("tail-toggle");
         await toggle.scrollIntoViewIfNeeded();
@@ -580,11 +594,11 @@ test.describe("the Filter level: findings of the hands-on test (weather)", () =>
         // Quick choices: the checked radio
         await openView(page, "weather", monthly());
         await chipMenu(page, MONTH, "filter");
-        await menu.getByTestId("quick-years").check();
+        await menu.getByTestId("quick-last").check();
         await menu.getByTestId("section-quick").click();
         await expect(menu.getByTestId("quick-choices")).toHaveCount(0);
         await menu.getByTestId("rule-quick-change").click();
-        await expect.poll(active).toBe("quick-years");
+        await expect.poll(active).toBe("quick-last");
     });
 
     /**

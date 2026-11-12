@@ -229,9 +229,14 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * plain words of a view's unused parts grow with the new issue codes: 5.1, budget 5.5. With the
  * describe, precision and ties steps, the cap on a view's issues and the check of long items the first
  * load is 167.7 measured on a Mac (CI about 0.3 more), budget 169; the unused words 5.4.
+ * The Filter level edits what view version 2 can say: "does not begin with" and "does not end with",
+ * "Also keep items without a value", a date's quick choices with a unit (This, Last, Next, Before the
+ * last, the current period, rolling, counted from the first record or a date) under More choices,
+ * Top items with the items tied with the last one: the menus from 40.0 to 41.8 measured on a Mac (CI
+ * about 0.3 more), budget 43; the first load 168.0 (the chips' words for quarters, weeks and "this").
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 169, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5.5, import: 21 };
+export const SIZE_BUDGET_KIB = { initial: 169, chart: 211, export: 11.5, link: 7.3, menus: 43, texts: 6.8, unused: 5.5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

@@ -57,6 +57,11 @@ const DATES = encodeViewLink({ ...MONTHLY, filters: [{ field: "Date by month", t
 const CYCLIC = { derived: [{ name: "Date by month of year", field: "Date", by: "month" }], rows: ["Date by month of year"], cols: ["City"], values: [{ field: "Mean °C", agg: "average" }] };
 const YEARS = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "compare", op: "between", value: "2024-01-01", value2: "2025-12-31" }] });
 const RULES = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "value", op: ">", value: 25, by: { field: "Mean °C", agg: "average" } }] });
+/** End-of-life dates by month, the next 2 years: the quick choices with More choices open (Next is one of them). */
+const EOL_MONTHLY = { derived: [{ name: "EOL date by month", field: "EOL date", by: "yearMonth" }], rows: ["EOL date by month"], values: [{ agg: "count" }] };
+const MORE = encodeViewLink({ version: 2, ...EOL_MONTHLY, filters: [{ field: "EOL date by month", type: "relative", direction: "next", unit: "year", count: 2, blanks: "exclude" }] });
+/** The Nobel laureates by country: a rule on the name that keeps the laureates without a country. */
+const BLANKS = encodeViewLink({ version: 2, rows: ["Country"], values: [{ agg: "count" }], filters: [{ field: "Country", type: "text", op: "beginsWith", value: "united", not: true, blanks: "include" }] });
 /** A date in Filters: the whole report counts the release cycles of the last 12 months. */
 const ZONE = encodeViewLink({ rows: ["Category"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }], filters: [{ field: "Released", type: "relative", unit: "month", count: 12 }] });
 
@@ -366,6 +371,31 @@ const SHOTS = [
             await page.getByTestId("topic-filter").click();
         }
     },
+    // a date's More choices, open since the choice set is one of them: Next and Before the last with
+    // their counts and units, Rolling, and Counted back from (the data reach past today)
+    {
+        name: "filter-more",
+        query: "data=endoflife&empty",
+        hash: MORE,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-EOL date by month").click();
+            await page.getByTestId("topic-filter").click();
+            await page.getByTestId("quick-more-body").scrollIntoViewIfNeeded();
+        }
+    },
+    // a rule on the name with the blank items kept: "does not begin with", the checkbox with its rows
+    {
+        name: "filter-blanks",
+        query: "data=nobel&empty",
+        hash: BLANKS,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Country").click();
+            await page.getByTestId("topic-filter").click();
+            await page.getByTestId("rules-blanks").scrollIntoViewIfNeeded();
+        }
+    },
     // a grouping that combines the years: Years combined with 2023 off, the summary saying so
     {
         name: "filter-cyclic",
@@ -399,7 +429,7 @@ const SHOTS = [
         open: (page) => page.getByTestId("chip-menu-Released").click()
     },
     {
-        // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…
+        // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…, the ties
         name: "top-items",
         query: "data=countries&preset=0",
         size: WIDE,

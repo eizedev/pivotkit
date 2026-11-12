@@ -9,14 +9,14 @@
  * and Escape in a field gives back what applies. Remove field is the menu's last item.
  */
 
-import React, { useId, useState } from "react";
-import { fieldLabel } from "pivotkit-core";
+import React, { useId, useMemo, useState } from "react";
+import { computePivot, fieldLabel } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
 import { FilterLevel } from "./filter-level.jsx";
 import { HelpContext } from "./help.js";
 import { InfoButton } from "./info.jsx";
-import { fill } from "./labels.js";
+import { fill, plural } from "./labels.js";
 import { LevelMenu, MenuItem, useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
 import { numberText } from "./numbers.js";
@@ -27,11 +27,16 @@ import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
 
 /**
  * The Top items level: Off, Top 3, Top 5, Top 10, or a count of one's own, largest or smallest
- * first ("Top N…"), by a value when the view has several. A choice applies at once, the count a
+ * first ("Top N…"), by a value when the view has several, and, while one is set, "Also show items
+ * with the same value as the last one" (ties "all") with the items shown under it (the field first on
+ * its axis; else, with the ties, that a group can show more). A choice applies at once, the count a
  * moment after the typing stops.
  */
-function TopLevel({ view, field, types, labels, locale, commit, back }) {
+function TopLevel({ view, field, types, labels, locale, commit, back, encoded }) {
     const top = filtersOf(view, field, ["top"])[0];
+    // the items the top shows: the field's items of the result, when it is the first on its axis (not one per group above it)
+    const axis = view.rows[0]?.toLowerCase() === field.toLowerCase() ? "rowRoot" : view.cols[0]?.toLowerCase() === field.toLowerCase() ? "colRoot" : null;
+    const shown = useMemo(() => (top && axis && encoded ? computePivot(encoded, view)[axis].children.length : null), [top, axis, encoded, view]);
     const { choices, names } = measuresOf(view, types, labels, top?.by);
     const [by, setBy] = useState(() => choiceIndex(choices, top?.by));
     const quick = top && !top.bottom && TOP_COUNTS.includes(top.count) ? top.count : null;
@@ -50,6 +55,7 @@ function TopLevel({ view, field, types, labels, locale, commit, back }) {
         }
     };
     const groupName = useFormName();
+    const tiesName = useFormName();
     const radio = (id, text, checked, onPick) => (
         <label className="pk-radio">
             <input type="radio" name={groupName} checked={checked} onChange={onPick} data-autofocus={checked ? "" : undefined} data-testid={`top-${id}`} />
@@ -129,6 +135,25 @@ function TopLevel({ view, field, types, labels, locale, commit, back }) {
                         }
                     }} label={labels.topBy} prefix={labels.topBy} testId="top-by" />
             </div>
+            {top ? (
+                <label className="pk-check">
+                    <input
+                        type="checkbox"
+                        name={tiesName}
+                        checked={top.ties === "all"}
+                        onChange={(e) => set({ count: top.count, bottom: Boolean(top.bottom), by: top.by ?? choices[by], ties: e.target.checked ? "all" : "first" })}
+                        data-testid="top-ties"
+                    />
+                    <span>{labels.topTies}</span>
+                </label>
+            ) : null}
+            {top && (shown !== null || top.ties === "all") ? (
+                <p className="pk-hint pk-top-shown" data-testid="top-shown">
+                    {shown !== null
+                        ? fill(plural(labels.topShown, shown, { lang: labels.lang, locale }), { count: shown.toLocaleString(locale) })
+                        : fill(labels.topTiesGroups, { count: top.count.toLocaleString(locale) })}
+                </p>
+            ) : null}
         </div>
     );
 }
@@ -314,7 +339,7 @@ export function AxisMenu({ view, zone, index, field, types, labels, commit, clos
         id === "filter" ? (
             <FilterLevel view={view} field={field} encoded={encoded} types={types} labels={labels} locale={locale} commit={commit} back={back} hint={hint} />
         ) : id === "top" ? (
-            <TopLevel view={view} field={field} types={types} labels={labels} locale={locale} commit={commit} back={back} />
+            <TopLevel view={view} field={field} types={types} labels={labels} locale={locale} commit={commit} back={back} encoded={encoded} />
         ) : id === "bins" ? (
             <BinsLevel view={view} field={field} labels={labels} locale={locale} range={rangeOf?.(source) ?? null} regroup={regroup} back={back} />
         ) : null;
