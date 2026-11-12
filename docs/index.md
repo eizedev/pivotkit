@@ -96,7 +96,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
 - Every file and every copy passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
 - Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)); every text replaceable, English and German built in ([localisation](reference/localisation.md)).
-- Designed for about 100,000 rows; heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
+- Measured up to 1,000,000 rows in three browsers ([measured in the browser](concepts/limits.md#measured-in-the-browser)); heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
 
 </div>
 
@@ -106,8 +106,10 @@ Every behaviour, also the small ones, is in the [feature list](features.md), wit
 
 ## Designed for
 
-- **Up to about 100,000 rows** in the browser: typed columns, no object per row in the hot loops. A
-  change stays within a frame or two (see [Performance](reference/react.md#performance)).
+- **Measured up to 1,000,000 rows** in Chromium, Firefox and WebKit: typed columns, no object per row
+  in the hot loops. The first table took about 0.15 s at 100,000 rows and 1 to 2.5 s at a million
+  (the page is frozen while it is built), a change after it under about 150 ms, on one Mac
+  ([measured in the browser](concepts/limits.md#measured-in-the-browser)).
 - **Safe input**: a view is user input. It holds names only (and the values chosen in its filters), cannot run code and is checked against
   limits before anything big is allocated. Exports are safe to open. Not access control: send only
   the rows a viewer may see. See [Security](security.md).

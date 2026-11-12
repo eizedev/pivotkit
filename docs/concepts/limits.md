@@ -95,7 +95,8 @@ The issues of one view are capped too, whatever its limits: at most 100 of one c
 make a list of issues larger than itself. The generated JSON Schemas carry the default `LIMITS`; a
 host with other limits checks those with `normalize`.
 
-The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for;
+The defaults are sized for a browser tab: up to the default of 1,000,000 rows the report was
+[measured in the browser](#measured-in-the-browser) below;
 [why the defaults are what they are](#why-the-defaults-are-what-they-are) is below. `groups` can be raised to 2^27 at most. A host
 that takes data or views from untrusted users can lower them, for example
 `{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
@@ -117,7 +118,7 @@ grow with the cells, which `pivotCells` bounds), and the time a pivot within the
 Measured in Node 26 on arm64; other engines and machines differ.
 
 - `rows`: the encoded columns take about 4 to 12 bytes per row and column, the host's row objects
-  more; a million rows is ten times the design size.
+  more; a million rows is the largest size [measured in the browser](#measured-in-the-browser).
 - `axisFields`: each row updates (row fields + 1) x (column fields + 1) cells per value, 81 at 8 x 8
   and 1,089 at 32 x 32; a report nested deeper than eight levels per axis is hard to read anyway.
 - `groups`: a key tree keeps about 400 bytes per node, so the trees stay at about 200 MB. A table
@@ -155,8 +156,8 @@ most 8 fields. Remove one first."; a saved view with more loads the fields that 
 texts are `tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`, `zoneFull` and
 `viewTrimmed` in the [labels](../reference/localisation.md).
 
-The engine is designed for up to about 100,000 rows in the browser. More rows work within `rows`, at
-the cost of time and memory: [measured in the browser](#measured-in-the-browser) below.
+The time and memory grow with the rows; how much, from 100,000 to the default 1,000,000 rows, is
+[measured in the browser](#measured-in-the-browser) below.
 
 ### Measured in the browser
 

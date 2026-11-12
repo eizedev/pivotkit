@@ -214,7 +214,8 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace and control
   characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
   inline strings, never as formulas.
-- Designed for up to about 100,000 rows: typed arrays, no per-row objects in hot loops. Run the
+- Measured up to 1,000,000 rows in three browsers (`npm run bench:browser`, `docs/concepts/limits.md`
+  "Measured in the browser"): typed arrays, no per-row objects in hot loops. Run the
   benchmark before and after engine changes and compare with the baseline in `docs/reference/core.md`
   (Performance).
 - The engine sources use only globals browsers and Node share (ESLint enforces it for `src/`).
