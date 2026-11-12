@@ -18,6 +18,7 @@ export const ISSUE_CASES = Object.freeze({
     tooMany: { values: Array.from({ length: 30 }, () => ({ agg: "count" })) },
     tooManyItems: { filters: [{ field: "Region", type: "include", items: Array.from({ length: 100_001 }, (_, i) => `R${i}`) }] },
     itemType: { filters: [{ field: "Units", type: "include", items: ["many"] }] },
+    itemTooLong: { filters: [{ field: "Region", type: "include", items: ["x".repeat(10_001)] }] },
     itemCase: { filters: [{ field: "Region", type: "include", items: ["north"] }] },
     unknownField: { rows: ["Planet"] },
     placedTwice: { rows: ["Region"], cols: ["region"] },
@@ -70,7 +71,8 @@ export const ISSUE_CASES = Object.freeze({
     badTitle: { chart: { title: 7 } },
     unknownLocale: { formatting: { locale: "not a locale" } },
     unknownTimeZone: { formatting: { timeZone: "Mars/Olympus" } },
-    timeZoneMismatch: { formatting: { timeZone: "Europe/Berlin" } }
+    timeZoneMismatch: { formatting: { timeZone: "Europe/Berlin" } },
+    tooManyIssues: Object.fromEntries(Array.from({ length: 101 }, (_, i) => [`extra${i}`, true]))
 });
 
 /** The codes only validate() reports (a strict check). */

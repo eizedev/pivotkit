@@ -77,8 +77,11 @@ function filterOf(raw) {
             if (!Array.isArray(items)) {
                 return { ...f, type: "in", ...not };
             }
-            const blank = items.includes(null);
-            return { ...f, type: "in", items: items.filter((i) => i !== null), ...not, ...blanksOf(f, (type === "include") === blank ? "include" : "exclude") };
+            // version 1 listed the blank as the item null: an include kept it when listed, an
+            // exclude kept it when not listed
+            const listed = items.includes(null);
+            const keptBlank = type === "include" ? listed : !listed;
+            return { ...f, type: "in", items: items.filter((i) => i !== null), ...not, ...blanksOf(f, keptBlank ? "include" : "exclude") };
         }
         case "label": {
             const value = get(f, "value");

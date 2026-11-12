@@ -226,10 +226,12 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * inside each part with did-you-mean hints, folds text for the filters, and the report reads and
  * writes the new filter shape: first load 163.8 measured on a Mac; with the words of the new relative
  * ranges a chip shows for a loaded view (English and German, labels.js) 165.8, budget 167.5. The
- * plain words of a view's unused parts grow with the new issue codes: 5.1, budget 5.5.
+ * plain words of a view's unused parts grow with the new issue codes: 5.1, budget 5.5. With the
+ * describe, precision and ties steps, the cap on a view's issues and the check of long items the first
+ * load is 167.7 measured on a Mac (CI about 0.3 more), budget 169; the unused words 5.4.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 167.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5.5, import: 21 };
+export const SIZE_BUDGET_KIB = { initial: 169, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5.5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

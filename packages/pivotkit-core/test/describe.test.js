@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DESCRIBE_LIMITS, describeSource, describeView, encode } from "../src/index.js";
+import { DESCRIBE_LIMITS, PivotkitError, describeSource, describeView, encode } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -26,6 +26,20 @@ test("describeSource: each field's type, items, blanks, range, and what works on
     assert.equal(typesOnly.items, undefined);
     assert.equal(describeSource([{ name: "A", type: "number" }]).rows, null);
     assert.equal(DESCRIBE_LIMITS.items, 20);
+    // rows that are not encoded are no fields: an error that says so, not "0 fields"
+    assert.throws(() => describeSource([{ Region: "North" }]), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT" && /encode\(\)/.test(e.message));
+    assert.equal(describeSource([]).fields.length, 0);
+    // a field name from the data is capped in the words, as its items are
+    const long = describeSource(encode([{ ["N".repeat(500)]: 1 }]));
+    assert.equal(long.fields[0].name.length, 500);
+    assert.ok(long.text.length < 200 && long.fields[0].text.length < 200, long.text);
+});
+
+test("describeView: an invalid view says so in its words, and an empty list of items is named", () => {
+    const d = describeView({ version: 2, rows: ["Nope"], filters: [{ field: "Region", type: "compare", op: "!=", value: 3, blanks: "exclude" }] }, data);
+    assert.equal(d.valid, false);
+    assert.equal(d.text, "(invalid: 2 errors, the parts they name are left out) count of rows");
+    assert.equal(describeView({ version: 2, filters: [{ field: "Region", type: "in", items: [], blanks: "include" }] }, data).filters[0].text, "Region is one of (no items) (blanks kept)");
 });
 
 test("describeView: the view in parts, each with its words, and what is wrong with it", () => {
@@ -62,5 +76,5 @@ test("describeView: the view in parts, each with its words, and what is wrong wi
     assert.equal(bad.valid, false);
     assert.deepEqual(bad.errors.map((e) => [e.code, e.params?.suggestion]), [["unknownField", "Region"]]);
     assert.deepEqual(bad.warnings.map((w) => [w.code, w.params?.suggestion]), [["itemCase", "North"], ["blanksUnspecified", undefined]]);
-    assert.equal(bad.text, 'count of rows where Region is one of "north" (blanks dropped)');
+    assert.equal(bad.text, '(invalid: 1 error, the parts they name are left out) count of rows where Region is one of "north" (blanks dropped)');
 });

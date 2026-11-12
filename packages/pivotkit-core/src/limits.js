@@ -64,9 +64,25 @@ export const KEEPS_VALUES_WEIGHT = 10;
 /**
  * Tighter view limits for a view that comes from outside the host's own UI and code: a link, pasted
  * or loaded JSON, a request to an API, an LLM. A person builds a view of a few filters; a view with
- * more was most likely generated, and each filter is a pass over the rows.
+ * more was most likely generated, and each filter is a pass over the rows. `json` is the size a link
+ * (LINK_LIMITS.json) and a view file (VIEW_FILE_LIMITS.text) may have; `items` and `collapsed` stay
+ * the host's, as a person's picks of a large field are that many.
  */
-export const OUTSIDE_LIMITS = Object.freeze({ filters: 50 });
+export const OUTSIDE_LIMITS = Object.freeze({ filters: 50, json: 1_000_000 });
+
+/**
+ * Characters of a text item a view names (a filter's items, a custom sort's, a collapsed path's): a
+ * longer one is an issue ("itemTooLong"), not cut to an item that matches nothing.
+ */
+export const ITEM_LENGTH = 10_000;
+
+/**
+ * The issues normalize() and validate() report for one view: at most `perCode` of one code and
+ * `total` in all; the rest are counted in one last issue "tooManyIssues". A view a few kilobytes long
+ * could otherwise give an issue per key or item, megabytes of them, and the list goes back to the
+ * person, the API client or the LLM that wrote the view.
+ */
+export const ISSUE_CAP = Object.freeze({ perCode: 100, total: 1_000 });
 
 /**
  * The limits for a view from outside: the host's limits (`custom`, merged over LIMITS) with each key

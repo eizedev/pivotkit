@@ -63,6 +63,7 @@ export const en = {
         tooMany: "more than {max} entries - only the first {max} are used",
         tooManyItems: "more than {max} items - only the first {max} are used",
         itemType: "the item “{value}” does not fit a {type} field - it is left out",
+        itemTooLong: "an item is longer than {max} characters - it is left out",
         itemCase: "the data has no item “{value}”, but “{suggestion}” - the filter keeps the item as written",
         unknownField: "the data has no field “{field}” - {dropped}",
         // the same, when the line is about that field itself (Rows, Columns, a filter or a sort)
@@ -117,7 +118,8 @@ export const en = {
         badTitle: "the title is empty or longer than {max} characters - the chart has no title",
         unknownLocale: "the language “{value}” is unknown - the report's language is used",
         unknownTimeZone: "the time zone “{value}” is unknown - the data's time zone is used",
-        timeZoneMismatch: "the view was made for the time zone {value}, the data is in {zone} - times are read in {zone}"
+        timeZoneMismatch: "the view was made for the time zone {value}, the data is in {zone} - times are read in {zone}",
+        tooManyIssues: "{value} more problems are not listed - fix the ones above and load the view again to see them"
     },
     // a problem this version has no text for (a newer pivotkit-core)
     other: "this part could not be used - it is left out"

@@ -65,6 +65,11 @@ test("normalize: directions, units, a count only where it counts, flags and anch
     assert.equal(filter({ unit: "day", count: 3, anchor: "2025-06-30T18:30:00Z" }).view.filters[0].anchor, "2025-06-30T18:30:00");
     const codes = (f) => filter(f).issues.map((i) => [i.code, i.params?.suggestion]);
     assert.deepEqual(codes({ direction: "this", unit: "week", count: 2 }), [["filterRelativeCount", undefined]]);
+    // the count as written, and a missing count named as missing
+    const count = (f) => filter(f).issues.map((i) => [i.message, i.params?.value]);
+    assert.deepEqual(count({ unit: "month", count: "3" }), [["needs a whole count from 1 to 500", "3"]]);
+    assert.deepEqual(count({ direction: "this", unit: "week", count: 2 }), [['"this" is the current unit alone and has no count', "2"]]);
+    assert.deepEqual(count({ direction: "next", unit: "month" }), [["count is missing: a whole count from 1 to 500", undefined]]);
     assert.deepEqual(codes({ direction: "lats", unit: "week", count: 2 }), [["filterRelativeDirection", "last"]]);
     assert.deepEqual(codes({ unit: "weeks", count: 2 }), [["filterRelativeUnit", "week"]]);
     assert.deepEqual(codes({ unit: "week", count: 2, anchor: "lastest" }), [["filterRelativeAnchor", "latest"]]);

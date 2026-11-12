@@ -8,7 +8,8 @@
 import { aggregatorsFor } from "./aggregators.js";
 import { FILTERS } from "./filters.js";
 import { isEncoded } from "./encode.js";
-import { optionsOf } from "./util.js";
+import { PivotkitError } from "./errors.js";
+import { isPlainObject, optionsOf } from "./util.js";
 import { normalize, validate, viewFields } from "./view.js";
 
 /** The most items a field's summary lists, and the characters of each. */
@@ -27,8 +28,11 @@ function valueText(value, type) {
     return text.length > DESCRIBE_LIMITS.text ? `${text.slice(0, DESCRIBE_LIMITS.text - 1)}…` : text;
 }
 
-/** The filter types that work on a field of a type (FILTERS' field-type matrix). */
-const filtersFor = (type, dateGrouping = false) => Object.keys(FILTERS).filter((t) => FILTERS[t].fields.includes(type) || (dateGrouping && FILTERS[t].fields.includes("dateGrouping")));
+/** The filter types that work on a field of a type (FILTERS' field-type matrix); a data set has no groupings. */
+const filtersFor = (type) => Object.keys(FILTERS).filter((t) => FILTERS[t].fields.includes(type));
+
+/** A field's name in a summary's words: capped as a value is (a data set's names are data too). */
+const nameText = (name) => /** @type {string} */ (valueText(name, "string"));
 
 /**
  * @typedef {object} FieldSummary
@@ -48,12 +52,16 @@ const filtersFor = (type, dateGrouping = false) => Object.keys(FILTERS).filter((
  * The fields of a data set: type, and with encoded data the number of rows, distinct items, blanks,
  * the first items and the smallest and largest value; the aggregators and filter types each works
  * with. `options.items` caps the items listed per field (default DESCRIBE_LIMITS.items).
+ * Rows that are not encoded (objects without a `name`) throw INVALID_ARGUMENT: encode() them first.
  * @param {unknown} data  encoded data, a schema { fields } or an array of { name, type }
  * @param {{ items?: number }} [options]
  * @returns {{ rows: number | null, fields: FieldSummary[], text: string }}
  */
 export function describeSource(data, options) {
     options = optionsOf(options, "describeSource");
+    if (Array.isArray(data) && data.length > 0 && !data.some((f) => isPlainObject(f) && typeof f.name === "string")) {
+        throw new PivotkitError("INVALID_ARGUMENT", "describeSource takes encoded data, a schema or an array of { name, type }; encode() the rows first");
+    }
     const cap = Number.isInteger(options.items) && /** @type {number} */ (options.items) >= 0 ? /** @type {number} */ (options.items) : DESCRIBE_LIMITS.items;
     const encoded = isEncoded(data) ? data : null;
     const fields = encoded ? encoded.schema.fields : viewFields(/** @type {any} */ ({ derived: [] }), data);
@@ -81,7 +89,7 @@ export function describeSource(data, options) {
                 }
             }
         }
-        const parts = [`${f.name}: ${type}`];
+        const parts = [`${nameText(f.name)}: ${type}`];
         if (out.distinct !== undefined) {
             parts.push(`${out.distinct} distinct`, `${out.blanks} blank`);
         }
@@ -92,7 +100,7 @@ export function describeSource(data, options) {
         return out;
     });
     const rows = encoded ? encoded.length : null;
-    return { rows, fields: summaries, text: `${rows === null ? "" : `${rows} rows, `}${summaries.length} fields: ${summaries.map((f) => `${f.name} (${f.type})`).join(", ")}` };
+    return { rows, fields: summaries, text: `${rows === null ? "" : `${rows} rows, `}${summaries.length} fields: ${summaries.map((f) => `${nameText(f.name)} (${f.type})`).join(", ")}` };
 }
 
 /** A value reference in words: "sum of Sales", "count of rows". */
@@ -117,7 +125,7 @@ export function filterText(f) {
     const between = (a, b) => `${JSON.stringify(a)} and ${JSON.stringify(b)}`;
     switch (f.type) {
         case "in":
-            return `${f.field} is ${not}one of ${itemsText(f.items ?? []) || "nothing"}${blanks}`;
+            return `${f.field} is ${not}one of ${itemsText(f.items ?? []) || "(no items)"}${blanks}`;
         case "blank":
             return `${f.field} is ${not}blank`;
         case "text":
@@ -142,7 +150,8 @@ export function filterText(f) {
  * A view in plain parts: what it shows (rows, columns, values with their names), what it filters (each
  * filter structured, with its words), its groupings, sort and display, whether it is valid against the
  * data and what is wrong (validate()'s errors and warnings), and one short English `text` of it all.
- * The view is normalized first; the parts are the normalized view's.
+ * The view is normalized first; the parts are the normalized view's, so a part with an error is left
+ * out of them, and `text` of an invalid view starts with "(invalid: n errors, ...)".
  * @param {unknown} input  a view (any input normalize() takes)
  * @param {unknown} schema  encoded data, { fields } or the fields array
  * @param {{ limits?: Partial<import("./limits.js").Limits> }} [options]
@@ -173,6 +182,6 @@ export function describeView(input, schema, options) {
         derived,
         sort,
         display: { mode: view.display, chart: view.display === "chart" ? view.chart.type : null },
-        text: parts.filter(Boolean).join(" ")
+        text: `${valid ? "" : `(invalid: ${errors.length} error${errors.length === 1 ? "" : "s"}, the parts they name are left out) `}${parts.filter(Boolean).join(" ")}`
     };
 }

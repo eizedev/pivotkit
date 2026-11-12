@@ -49,6 +49,7 @@ export const de = {
         tooMany: "mehr als {max} Einträge - nur die ersten {max} werden verwendet",
         tooManyItems: "mehr als {max} Einträge - nur die ersten {max} werden verwendet",
         itemType: "der Eintrag „{value}“ passt nicht zu einem Feld vom Typ {type} - er wird weggelassen",
+        itemTooLong: "ein Eintrag ist länger als {max} Zeichen - er wird weggelassen",
         itemCase: "die Daten haben keinen Eintrag „{value}“, aber „{suggestion}“ - der Filter behält den Eintrag, wie er geschrieben ist",
         unknownField: "die Daten haben kein Feld „{field}“ - {dropped}",
         unknownFieldHere: "die Daten haben kein Feld mit diesem Namen - {dropped}",
@@ -102,7 +103,8 @@ export const de = {
         badTitle: "der Titel ist leer oder länger als {max} Zeichen - das Diagramm hat keinen Titel",
         unknownLocale: "die Sprache „{value}“ ist unbekannt - die Sprache des Berichts gilt",
         unknownTimeZone: "die Zeitzone „{value}“ ist unbekannt - die Zeitzone der Daten gilt",
-        timeZoneMismatch: "die Ansicht wurde für die Zeitzone {value} gemacht, die Daten sind in {zone} - Zeiten gelten in {zone}"
+        timeZoneMismatch: "die Ansicht wurde für die Zeitzone {value} gemacht, die Daten sind in {zone} - Zeiten gelten in {zone}",
+        tooManyIssues: "{value} weitere Probleme sind nicht aufgeführt - beheben Sie die obigen und laden Sie die Ansicht erneut, um sie zu sehen"
     },
     other: "dieser Teil konnte nicht verwendet werden - er wird weggelassen"
 };

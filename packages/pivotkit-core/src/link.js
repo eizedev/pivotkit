@@ -139,7 +139,8 @@ export function decodeViewLink(text) {
  * decoded (decodeViewLink) and read as a view file (fromViewFile), with the data source it names.
  * The source reference is opaque: `src.id` is the host's name of the data (never an address), and
  * `src.params` only the parameters the host allows by name (`options.allowParams`, none by default);
- * the page resolves them with the viewer's own rights. Never throws. The view is user input from
+ * the page resolves them with the viewer's own rights. A bad link never throws (`failed` and `issues`
+ * say why); a bad `options.limits` throws INVALID_OPTION, link or not. The view is user input from
  * outside: normalize() it against the data with outsideLimits().
  * @param {unknown} hash  location.hash, with or without "#"
  * @param {string | null} [key]  the report's key
@@ -149,6 +150,8 @@ export function decodeViewLink(text) {
 export function readViewLink(hash, key, options = {}) {
     /** @type {ViewLinkRead} */
     const read = { view: null, src: null, name: "", failed: null, issues: [] };
+    // a bad options.limits is the host's error: thrown whether or not the page has a link
+    const limits = resolveLimits(options);
     const text = linkFragment(hash, key);
     if (text === null) {
         return { ...read, failed: "none" };
@@ -157,7 +160,6 @@ export function readViewLink(hash, key, options = {}) {
     if (!decoded.view) {
         return { ...read, failed: "link", issues: decoded.issues };
     }
-    const limits = resolveLimits(options);
     const file = fromViewFile(decoded.view, { limits });
     if (file.failed || !file.view) {
         return { ...read, failed: file.failed ?? "notView", issues: file.issues };
@@ -168,7 +170,8 @@ export function readViewLink(hash, key, options = {}) {
     const params = {};
     for (const [name, value] of Object.entries(paramsOf(file.source?.params, limits, () => {}) ?? {})) {
         if (allowed.has(name)) {
-            params[name] = value;
+            // defined, not assigned: a name such as "__proto__" is a parameter like any other
+            Object.defineProperty(params, name, { value, enumerable: true, writable: true, configurable: true });
         } else {
             issues.push({ path: `source.params.${name.slice(0, 100)}`, message: "a parameter the host does not allow; left out" });
         }

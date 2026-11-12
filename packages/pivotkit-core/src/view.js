@@ -11,10 +11,10 @@
 
 import { AGGREGATOR_NAMES, aggregatorFits, aggregatorOf } from "./aggregators.js";
 import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
-import { FILTERS, FILTER_TYPES_V1, WEEK_START, fieldKinds, fieldTypeHint, itemFor } from "./filters.js";
+import { FILTERS, FILTER_TYPES_V1, WEEK_START, fieldKinds, fieldTypeHint, itemFor, readItem } from "./filters.js";
 import { closest } from "./hints.js";
 import { isFormat } from "./format.js";
-import { resolveLimits } from "./limits.js";
+import { ISSUE_CAP, resolveLimits } from "./limits.js";
 import { migrate1 } from "./migrate-1.js";
 import { SHOW_AS } from "./show-as.js";
 import { foldText } from "./text-match.js";
@@ -42,7 +42,7 @@ export const VIEW_VERSION = 2;
 export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     notView: "error schema", notJson: "error", tooLarge: "error", badVersion: "error schema", newerVersion: "error schema",
     noMigration: "error", unknownKey: "error schema",
-    notList: "error schema", tooMany: "error schema", tooManyItems: "error schema", itemType: "error", itemCase: "warning",
+    notList: "error schema", tooMany: "error schema", tooManyItems: "error schema", itemType: "error", itemTooLong: "error schema", itemCase: "warning",
     unknownField: "error", placedTwice: "error",
     groupingNoName: "error schema", groupingNameTaken: "error", groupingNoSource: "error", groupingUnknown: "error schema",
     binsNeedNumber: "error", groupingNeedsDate: "error", binSize: "error schema",
@@ -56,7 +56,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error",
     badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
-    unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error"
+    unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error", tooManyIssues: "warning"
 });
 
 /** Every code of VIEW_ISSUES. */
@@ -486,10 +486,8 @@ function customItems(items, f, path, ctx) {
     const seen = new Set();
     const out = [];
     for (const item of items.slice(0, ctx.limits.items)) {
-        const converted = itemFor(f.type, item);
-        if (converted === undefined) {
-            ctx.issue(path, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
-        } else if (!seen.has(converted)) {
+        const converted = readItem(f, item, path, ctx);
+        if (converted !== undefined && !seen.has(converted)) {
             seen.add(converted);
             out.push(converted);
         }
@@ -644,10 +642,10 @@ const HINT_ITEMS = 100_000;
  * What the sections share: the limits, the fields by lower-case name, and the ways to report.
  * @param {unknown} schema
  * @param {import("./limits.js").Limits} limits
- * @param {Issue[]} issues
+ * @param {(issue: Issue) => void} add  issueList().add
  * @param {boolean} strict  validate(): also the warnings that only a strict check gives
  */
-function context(schema, limits, issues, strict) {
+function context(schema, limits, add, strict) {
     const fields = new Map(schemaFields(schema).map((f) => [f.name.toLowerCase(), f]));
     // the text items of a field, as they are and by their folded text, built on first use: only
     // encoded data has items
@@ -665,10 +663,10 @@ function context(schema, limits, issues, strict) {
         fields,
         strict,
         issue: (path, message, code, params) => {
-            issues.push(issueOf(path, message, code, params));
+            add(issueOf(path, message, code, params));
         },
         warn: (path, message, code, params) => {
-            issues.push(issueOf(path, message, code, params, "warning"));
+            add(issueOf(path, message, code, params, "warning"));
         },
         /** An unknown field, with the closest field's name when one is close. */
         suggest,
@@ -757,10 +755,8 @@ export function normalize(input, schema, options) {
 /** normalize() and validate(): `strict` adds the warnings only a strict check gives. */
 function check(input, schema, options, strict) {
     const limits = resolveLimits(options);
-    /** @type {Issue[]} */
-    const issues = [];
     const view = emptyView();
-    const refuse = (path, message, code, params) => ({ view, issues: [...issues, issueOf(path, message, code, params)] });
+    const refuse = (path, message, code, params) => ({ view, issues: [issueOf(path, message, code, params)] });
 
     // A JSON round trip with a size limit: no functions, getters, cycles or prototypes survive.
     let parsed;
@@ -776,22 +772,48 @@ function check(input, schema, options, strict) {
     } catch {
         return refuse("", "not valid JSON", "notJson");
     }
+    const issues = issueList();
     const migrated = migrate(parsed);
-    issues.push(...migrated.issues);
+    migrated.issues.forEach(issues.add);
     if (migrated.view === null) {
-        return { view, issues };
+        return { view, issues: issues.done() };
     }
     const raw = migrated.view;
     for (const key of Object.keys(raw)) {
         if (!Object.hasOwn(view, key)) {
-            issues.push(issueOf(key.slice(0, 100), "unknown key", "unknownKey", { value: shown(key), ...suggest(key, VIEW_KEYS.view) }));
+            issues.add(issueOf(key.slice(0, 100), "unknown key", "unknownKey", { value: shown(key), ...suggest(key, VIEW_KEYS.view) }));
         }
     }
-    const ctx = context(schema, limits, issues, strict);
+    const ctx = context(schema, limits, issues.add, strict);
     for (const section of SECTIONS) {
         section(raw, view, ctx);
     }
-    return { view, issues };
+    return { view, issues: issues.done() };
+}
+
+/**
+ * The issues of one check, capped by ISSUE_CAP (limits.js): `add` keeps an issue while its code and
+ * the list have room and counts it otherwise; `done` gives the list, with "tooManyIssues" last when
+ * any was left out.
+ */
+function issueList() {
+    /** @type {Issue[]} */
+    const issues = [];
+    const perCode = new Map();
+    let left = 0;
+    return {
+        /** @param {Issue} issue */
+        add: (issue) => {
+            const n = perCode.get(issue.code) ?? 0;
+            if (n >= ISSUE_CAP.perCode || issues.length >= ISSUE_CAP.total) {
+                left++;
+                return;
+            }
+            perCode.set(issue.code, n + 1);
+            issues.push(issue);
+        },
+        done: () => (left === 0 ? issues : [...issues, issueOf("", `${left} more issues left out`, "tooManyIssues", { value: String(left), max: ISSUE_CAP.perCode })])
+    };
 }
 
 /**

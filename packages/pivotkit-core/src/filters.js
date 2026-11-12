@@ -34,6 +34,7 @@ import { MATCH_CASES, MATCH_DEFAULTS, MATCH_WHITESPACE, foldText } from "./text-
 import { DERIVED } from "./derive.js";
 import { RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, WEEK_START, rangeOf, startOf } from "./relative.js";
 import { PivotkitError } from "./errors.js";
+import { ITEM_LENGTH } from "./limits.js";
 import { isDateMs, resolveTimeZone, toWallMs, wallClock } from "./time.js";
 import { MS_PER_DAY, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
 
@@ -210,7 +211,10 @@ export function todayOf(now, timeZone) {
     return ms;
 }
 
-/** A dimension value from a view (filter item, collapsed path), converted to the column's type. */
+/**
+ * A dimension value from a view (filter item, collapsed path), converted to the column's type;
+ * undefined when it does not fit, a text longer than ITEM_LENGTH included.
+ */
 export function itemFor(type, value) {
     if (value === null) {
         return null;
@@ -228,10 +232,26 @@ export function itemFor(type, value) {
         case "boolean":
             return typeof value === "boolean" ? value : value === "true" ? true : value === "false" ? false : undefined;
         default:
-            return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-                ? String(value).slice(0, 10_000)
+            return (typeof value === "string" && value.length <= ITEM_LENGTH) || typeof value === "number" || typeof value === "boolean"
+                ? String(value)
                 : undefined;
     }
+}
+
+/**
+ * An item of a view's list of items (a filter's, a custom sort's) for a field, converted by itemFor();
+ * undefined, with its issue, when it does not fit.
+ */
+export function readItem(f, item, path, ctx) {
+    const converted = itemFor(f.type, item);
+    if (converted === undefined) {
+        if (typeof item === "string" && item.length > ITEM_LENGTH) {
+            ctx.issue(path, `an item longer than ${ITEM_LENGTH} characters`, "itemTooLong", { max: ITEM_LENGTH });
+        } else {
+            ctx.issue(path, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
+        }
+    }
+    return converted;
 }
 
 // ---- normalizers: (raw entry, spec so far, field, path, ctx, view) -> spec or undefined ----
@@ -268,12 +288,10 @@ function normalizeIn(flt, spec, f, path, ctx) {
     }
     spec.items = [];
     for (const item of items.slice(0, ctx.limits.items)) {
-        const converted = item === null ? null : itemFor(f.type, item);
+        const converted = item === null ? null : readItem(f, item, `${path}.items`, ctx);
         if (converted === null) {
             ctx.issue(`${path}.items`, 'null is no item: blank items are kept with blanks: "include" or "only"', "filterBlanks", { value: "null" });
-        } else if (converted === undefined) {
-            ctx.issue(`${path}.items`, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
-        } else {
+        } else if (converted !== undefined) {
             ctx.itemHint(f, converted, `${path}.items`);
             spec.items.push(converted);
         }
@@ -303,9 +321,9 @@ function normalizeText(flt, spec, f, path, ctx) {
     const op = oneOf(opIn, TEXT_OPS);
     const value = get(flt, "value");
     if (!op) {
-        const positive = typeof opIn === "string" && Object.hasOwn(NEGATED, opIn) ? NEGATED[opIn] : null;
+        const positive = positiveOf(opIn);
         const hint = positive ? { suggestion: positive } : ctx.suggest(opIn, TEXT_OPS);
-        return ctx.issue(path, `unknown text operator ${JSON.stringify(opIn)}${positive ? `; write "${positive}" with not: true` : ""}`, "filterTextOp", { value: shown(opIn), ...hint });
+        return ctx.issue(path, `unknown text operator ${JSON.stringify(opIn)}${withNot(positive)}`, "filterTextOp", { value: shown(opIn), ...hint });
     }
     if (typeof value !== "string" || value.length > ctx.limits.textValue) {
         return ctx.issue(path, `needs a text value of at most ${ctx.limits.textValue} characters`, "filterText", { max: ctx.limits.textValue });
@@ -369,12 +387,17 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
         const ms = value === undefined || (f.type !== "date" && typeof value !== "string") ? undefined : itemFor("date", value);
         return typeof ms === "number" && isDateMs(ms) ? precisionText(ms, /** @type {string} */ (precision)) : null;
     };
-    const op = oneOf(get(flt, "op"), COMPARE_OPS);
+    const opIn = get(flt, "op");
+    const op = oneOf(opIn, COMPARE_OPS);
+    if (positiveOf(opIn)) {
+        return negatedIssue(opIn, path, "filterCompareValue", ctx, { type: f.type });
+    }
     const value = read(get(flt, "value"));
     const twin = op === "between";
     const value2 = twin ? read(get(flt, "value2")) : null;
     if (!op || value === null || (twin && value2 === null)) {
-        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type, ...negatedHint(get(flt, "op")) });
+        const hint = op || opIn === undefined ? {} : { value: shown(opIn), ...ctx.suggest(opIn, COMPARE_OPS) };
+        return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type, ...hint });
     }
     Object.assign(spec, { op, value }, twin ? { value2 } : {}, dated ? { precision } : {});
     return notAndBlanks(flt, spec, path, ctx);
@@ -392,9 +415,18 @@ function precisionText(ms, precision) {
     return precision === "hour" ? new Date(start).toISOString().slice(0, -":00.000Z".length) : isoDay(Number.isNaN(start) ? dayOf(ms) : start);
 }
 
-/** The hint for a version-1 operator ("!=", "notBetween") that version 2 writes with `not`. */
-function negatedHint(op) {
-    return typeof op === "string" && Object.hasOwn(NEGATED, op) ? { suggestion: NEGATED[op] } : {};
+/** The positive operator of a version-1 negated one ("!=" -> "="), which version 2 writes with `not`; else null. */
+function positiveOf(op) {
+    return typeof op === "string" && Object.hasOwn(NEGATED, op) ? NEGATED[op] : null;
+}
+
+/** The end of the message for a version-1 negated operator: how version 2 writes it. */
+const withNot = (positive) => (positive ? `; write "${positive}" with not: true` : "");
+
+/** The issue of a version-1 negated operator in a compare or value filter, naming version 2's. */
+function negatedIssue(opIn, path, code, ctx, params = {}) {
+    const positive = /** @type {string} */ (positiveOf(opIn));
+    return ctx.issue(path, `unknown operator ${JSON.stringify(opIn)}${withNot(positive)}`, code, { ...params, value: shown(opIn), suggestion: positive });
 }
 
 /**
@@ -415,8 +447,10 @@ function normalizeRelative(flt, spec, _f, path, ctx) {
     const countIn = get(flt, "count");
     const count = finite(countIn);
     if (direction === "this" ? countIn !== undefined : count === null || !Number.isInteger(count) || count < 1 || count > RELATIVE_MAX_COUNT) {
-        const message = direction === "this" ? '"this" is the current unit alone and has no count' : `needs a whole count from 1 to ${RELATIVE_MAX_COUNT}`;
-        return ctx.issue(path, message, "filterRelativeCount", { max: RELATIVE_MAX_COUNT, value: direction });
+        const message = direction === "this"
+            ? '"this" is the current unit alone and has no count'
+            : `${countIn === undefined ? "count is missing: a" : "needs a"} whole count from 1 to ${RELATIVE_MAX_COUNT}`;
+        return ctx.issue(path, message, "filterRelativeCount", { max: RELATIVE_MAX_COUNT, ...(countIn === undefined ? {} : { value: shown(countIn) }) });
     }
     const flag = (key) => {
         const value = get(flt, key);
@@ -468,10 +502,15 @@ function normalizeValue(flt, spec, _f, path, ctx, view) {
     if (!by) {
         return undefined;
     }
-    const op = oneOf(get(flt, "op"), COMPARE_OPS);
+    const opIn = get(flt, "op");
+    if (positiveOf(opIn)) {
+        return negatedIssue(opIn, path, "filterValue", ctx);
+    }
+    const op = oneOf(opIn, COMPARE_OPS);
     const value = finite(get(flt, "value"));
     if (!op || value === null) {
-        return ctx.issue(path, "needs an operator and a number", "filterValue", negatedHint(get(flt, "op")));
+        const hint = op || opIn === undefined ? {} : { value: shown(opIn), ...ctx.suggest(opIn, COMPARE_OPS) };
+        return ctx.issue(path, "needs an operator and a number", "filterValue", hint);
     }
     const not = get(flt, "not");
     if (not !== undefined && typeof not !== "boolean") {

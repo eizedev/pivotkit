@@ -104,6 +104,19 @@ test("readViewLink: the view of a report's entry in the fragment, with its name 
     assert.equal(linkParam("sales"), "pivot-sales");
 });
 
+test("readViewLink: a parameter the host allows is kept whatever its name; bad host options throw at once", () => {
+    const params = JSON.parse('{"__proto__": "p", "constructor": "c", "a": "1"}');
+    const file = toViewFile(view, { source: { id: "s", params } }, { link: true });
+    const read = readViewLink(`#pivot=${encodeViewLink(file)}`, null, { allowParams: ["__proto__", "constructor", "a"] });
+    assert.deepEqual(Object.keys(read.src?.params ?? {}), ["__proto__", "constructor", "a"]);
+    assert.equal(Object.getPrototypeOf(read.src?.params), Object.prototype);
+    assert.equal(/** @type {any} */ ({}).p, undefined);
+    // a programmer error, whether or not the page has a link
+    for (const hash of ["", "#pivot=x", `#pivot=${encodeViewLink(file)}`]) {
+        assert.throws(() => readViewLink(hash, null, { limits: /** @type {any} */ ({ nope: 1 }) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION");
+    }
+});
+
 test("source params are text within the limits; what does not fit is left out", () => {
     const many = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`p${i}`, "x"]));
     const written = toViewFile(view, { source: { id: "s", params: { ...many, long: "x".repeat(300), n: /** @type {any} */ (5) } } });

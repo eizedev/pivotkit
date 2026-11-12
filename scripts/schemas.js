@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { AGGREGATOR_NAMES } from "../packages/pivotkit-core/src/aggregators.js";
 import { DERIVE_UNITS, MIN_BIN_SIZE } from "../packages/pivotkit-core/src/derive.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "../packages/pivotkit-core/src/filters.js";
-import { LIMITS } from "../packages/pivotkit-core/src/limits.js";
+import { ITEM_LENGTH, LIMITS } from "../packages/pivotkit-core/src/limits.js";
 import { SHOW_AS_NAMES } from "../packages/pivotkit-core/src/show-as.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/text-match.js";
 import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
@@ -76,6 +76,20 @@ function filterSchema(type) {
     return object(properties, [...def.required], rules.length ? { allOf: rules } : {});
 }
 
+/**
+ * A filter: its `type` picks the schema of that type (if/then per type, not oneOf), so a wrong filter
+ * is checked against its own type alone and its errors are about it.
+ */
+function filterByType() {
+    const types = Object.keys(FILTERS);
+    return {
+        type: "object",
+        required: ["type"],
+        properties: { type: { enum: types } },
+        allOf: types.map((type) => ({ if: { properties: { type: { const: type } }, required: ["type"] }, then: filterSchema(type) }))
+    };
+}
+
 const DRAFT = "https://json-schema.org/draft/2020-12/schema";
 
 /** The JSON Schema of a view of version 2. */
@@ -101,7 +115,7 @@ function viewParts() {
             rows: list(ref("fieldName"), LIMITS.axisFields),
             cols: list(ref("fieldName"), LIMITS.axisFields),
             values: list(ref("value"), LIMITS.values),
-            filters: list({ oneOf: Object.keys(FILTERS).map(filterSchema) }, LIMITS.filters, { description: "The filters, applied together (and)." }),
+            filters: list(filterByType(), LIMITS.filters, { description: "The filters, applied together (and)." }),
             derived: list(ref("derived"), LIMITS.derived),
             sort: list(ref("sort"), LIMITS.sort),
             totals: object(Object.fromEntries(Object.keys(empty.totals).map((k) => [k, { type: "boolean" }]))),
@@ -122,8 +136,8 @@ function viewParts() {
             formatting: object({ locale: nullable({ type: "string" }), timeZone: nullable({ type: "string" }), weekStart: { type: "integer", minimum: 1, maximum: 7 } })
         }),
         $defs: {
-            fieldName: { type: "string", minLength: 1, maxLength: LIMITS.name },
-            item: { type: ["string", "number", "boolean"] },
+            fieldName: { type: "string", minLength: 1, maxLength: LIMITS.name, pattern: "\\S" },
+            item: { type: ["string", "number", "boolean"], maxLength: ITEM_LENGTH },
             valueRef: object({ field: nullable(ref("fieldName")), agg: { enum: [...AGGREGATOR_NAMES] } }, ["agg"], {
                 // every aggregator but a row count needs a field
                 if: { properties: { agg: { not: { const: "count" } } } },

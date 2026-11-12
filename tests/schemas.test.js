@@ -76,3 +76,27 @@ test("views pivotkit-core writes pass the schema and validate()", () => {
     }
     assert.equal(views[2].filters.length, 9);
 });
+
+test("a filter is checked against the schema of its own type, so the errors are about it", () => {
+    const validator = new Validator(viewSchema, "2020-12", false);
+    // the errors about the filter itself, without those of the schemas around them that only pass them up
+    const passUp = ["properties", "allOf", "if", "false"];
+    const errors = (filter) => validator.validate({ version: 2, filters: [filter] }).errors.filter((e) => e.instanceLocation.startsWith("#/filters/0") && !passUp.includes(e.keyword));
+    // a text filter without its value: one error, the missing value (not the items of an in filter)
+    const text = errors({ field: "Region", type: "text", op: "contains" });
+    assert.equal(text.length, 1, JSON.stringify(text));
+    assert.match(text[0].error, /"value"/);
+    // a version-1 type: the type is not one of version 2's
+    const v1 = errors({ field: "Region", type: "include", items: ["North"] });
+    assert.equal(v1.length, 1, JSON.stringify(v1));
+    assert.equal(v1[0].instanceLocation, "#/filters/0/type");
+    // a key another type has: refused as a key this type does not know
+    const extra = errors({ field: "Region", type: "in", items: [], op: "contains" });
+    assert.equal(extra.length, 1, JSON.stringify(extra));
+});
+
+test("a field name of only spaces is refused by the schema as by validate()", () => {
+    const validator = new Validator(viewSchema, "2020-12", false);
+    assert.equal(validator.validate({ version: 2, rows: ["  "] }).valid, false);
+    assert.deepEqual(validate({ version: 2, rows: ["  "] }, data).errors.map((e) => e.code), ["unknownField"]);
+});

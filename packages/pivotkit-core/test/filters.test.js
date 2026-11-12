@@ -386,6 +386,14 @@ test("version 1's operators and types in a version-2 view are errors that name v
     assert.deepEqual(errors({ field: "Region", type: "text", op: "notEquals", value: "N" }), [["filterTextOp", "equals"]]);
     assert.deepEqual(errors({ field: "Price", type: "compare", op: "!=", value: 1, blanks: "exclude" }), [["filterCompareValue", "="]]);
     assert.deepEqual(errors({ field: "Region", type: "value", op: "notBetween", value: 1, value2: 2 }), [["filterValue", "between"]]);
+    // the message says how version 2 writes it, for compare as for text
+    const messages = (filter) => validate({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => [e.message, e.params?.value]);
+    assert.deepEqual(messages({ field: "Region", type: "text", op: "notContains", value: "N" }), [['unknown text operator "notContains"; write "contains" with not: true', "notContains"]]);
+    assert.deepEqual(messages({ field: "Price", type: "compare", op: "!=", value: 1 }), [['unknown operator "!="; write "=" with not: true', "!="]]);
+    assert.deepEqual(messages({ field: "Price", type: "compare", op: "notBetween", value: 1, value2: 2 }), [['unknown operator "notBetween"; write "between" with not: true', "notBetween"]]);
+    assert.deepEqual(messages({ field: "Region", type: "value", op: "!=", value: 1 }), [['unknown operator "!="; write "=" with not: true', "!="]]);
+    // an operator that is no version-1 one gets the closest
+    assert.deepEqual(errors({ field: "Price", type: "compare", op: "betwen", value: 1, value2: 2, blanks: "exclude" }), [["filterCompareValue", "between"]]);
 });
 
 test("strict warnings: a filter that says nothing about blanks, an in filter that keeps nothing", () => {

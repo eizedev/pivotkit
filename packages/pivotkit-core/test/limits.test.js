@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIMITS, OUTSIDE_LIMITS, PivotkitError, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
+import { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, PivotkitError, validate, computePivot, encode, normalize, outsideLimits, toEChartsOption, toGrid, toSeries } from "../src/index.js";
 import { toCsv, toXlsx } from "../src/export.js";
 import { derivedColumn } from "../src/derive.js";
+import { ITEM_LENGTH } from "../src/limits.js";
 
 const isError = (code, limit) => (e) => e instanceof PivotkitError && e.code === code && (limit === undefined || e.details.limit === limit);
 
@@ -196,10 +197,14 @@ test("the cache of derived columns and sort orders is bounded", () => {
 });
 
 test("a view from outside gets the tighter preset: the host's lower value stays lower, its other limits stay", () => {
-    assert.deepEqual(OUTSIDE_LIMITS, { filters: 50 });
-    assert.deepEqual(outsideLimits(), { filters: 50 });
-    assert.deepEqual(outsideLimits({ filters: 10, rows: 5 }), { filters: 10, rows: 5 });
-    assert.deepEqual(outsideLimits({ filters: 500 }), { filters: 50 });
+    assert.deepEqual(OUTSIDE_LIMITS, { filters: 50, json: 1_000_000 });
+    assert.deepEqual(outsideLimits(), { filters: 50, json: 1_000_000 });
+    assert.deepEqual(outsideLimits({ filters: 10, rows: 5 }), { filters: 10, json: 1_000_000, rows: 5 });
+    assert.deepEqual(outsideLimits({ filters: 500, json: 2_000 }), { filters: 50, json: 2_000 });
+    // a view as large as a link or a view file may be is the most a view from outside is
+    const long = { chart: { title: "x".repeat(1_000_001) } };
+    assert.deepEqual(normalize(long, null, { limits: outsideLimits() }).issues.map((i) => i.code), ["tooLarge"]);
+    assert.equal(normalize(long, null).issues.some((i) => i.code === "tooLarge"), false);
     const sales = encode([{ Region: "North" }]);
     const view = { filters: Array.from({ length: 60 }, () => ({ field: "Region", type: "include", items: ["North"] })) };
     const { view: kept, issues } = normalize(view, sales, { limits: outsideLimits() });
@@ -214,4 +219,42 @@ test("the text a text filter compares with is capped by limits.textValue", () =>
     assert.equal(normalize(filter("x".repeat(LIMITS.textValue)), sales).issues.length, 0);
     assert.deepEqual(normalize(filter("x".repeat(LIMITS.textValue + 1)), sales).issues.map((i) => [i.code, i.params]), [["filterText", { max: LIMITS.textValue }]]);
     assert.equal(normalize(filter("xx"), sales, { limits: { textValue: 1 } }).issues[0].code, "filterText");
+});
+
+test("the issues of one view are capped per code and in all, the rest counted in one last issue", () => {
+    const sales = encode([{ Region: "North" }]);
+    // one unknown key per entry: a small view that would give an issue per key
+    const keys = Object.fromEntries(Array.from({ length: 5_000 }, (_, i) => [`k${i}`, 1]));
+    const { issues } = normalize(keys, sales);
+    assert.equal(issues.length, ISSUE_CAP.perCode + 1);
+    assert.deepEqual(issues.at(-1), {
+        path: "", message: `${5_000 - ISSUE_CAP.perCode} more issues left out`, code: "tooManyIssues", severity: "warning",
+        params: { value: String(5_000 - ISSUE_CAP.perCode), max: ISSUE_CAP.perCode }
+    });
+    // many codes: at most ISSUE_CAP.total in all, the errors still make the view invalid
+    const bad = [
+        { field: "Nope", type: "in", items: [] }, { field: "Region", type: "include" }, { field: "Region", type: "in" },
+        { field: "Region", type: "text", op: "has", value: "N" }, { field: "Region", type: "text", op: "contains" },
+        { field: "Region", type: "in", items: [], not: 1 }, { field: "Region", type: "in", items: [], blanks: "some" },
+        { field: "Region", type: "top", count: -1 }, { field: "Region", type: "value", op: "=" },
+        { field: "Region", type: "compare", op: ">", value: 1 }, { field: "Region", type: "in", items: [], extra: 1 }
+    ];
+    const many = { version: 2, filters: Array.from({ length: 1_200 }, (_, i) => bad[i % bad.length]) };
+    const result = validate(many, sales, { limits: { filters: 2_000 } });
+    assert.equal(result.errors.length + result.warnings.length, ISSUE_CAP.total + 1);
+    assert.equal(result.valid, false);
+    assert.equal(result.warnings.at(-1).code, "tooManyIssues");
+});
+
+test("an item longer than ITEM_LENGTH is an issue, never cut to a shorter item", () => {
+    const sales = encode([{ Region: "North" }]);
+    const long = "x".repeat(ITEM_LENGTH + 1);
+    const { view, issues } = normalize({ version: 2, filters: [{ field: "Region", type: "in", items: ["North", long], blanks: "exclude" }], sort: [{ field: "Region", by: "custom", items: [long] }] }, sales);
+    assert.deepEqual(view.filters[0].items, ["North"]);
+    assert.deepEqual(view.sort, [{ field: "Region", by: "custom", order: "asc", items: [] }]);
+    assert.deepEqual(issues.map((i) => [i.path, i.code, i.params]), [
+        ["filters[0].items", "itemTooLong", { max: ITEM_LENGTH }],
+        ["sort[0].items", "itemTooLong", { max: ITEM_LENGTH }]
+    ]);
+    assert.equal(normalize({ filters: [{ field: "Region", type: "include", items: ["x".repeat(ITEM_LENGTH)] }] }, sales).issues.length, 0);
 });
