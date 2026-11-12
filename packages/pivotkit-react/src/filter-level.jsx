@@ -28,7 +28,7 @@ import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumbe
 import { dayText, isoDay, periodText, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
-import { dateSpan, filtersOf, sameRef, selectedItems, sourceOf } from "./view-ops.js";
+import { dateSpan, filtersOf, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
 import { RULES_MAX, RULE_TYPES, conditionKind, itemTotals, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined } from "./menu-ops.js";
 
 const twin = (op) => op === "between" || op === "notBetween";
@@ -435,8 +435,7 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
     const anchor = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const listId = useId();
     const searchName = useFormName();
-    const q = query.trim().toLocaleLowerCase();
-    const found = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
+    const found = searchItems(items, query);
     const matching = found.slice(0, FILTER_LIST_MAX);
     const current = items.find((i) => String(i.value) === value);
     const show = () => {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, normalize, toGrid } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
-    selectedItems, setChart, setSort, swapAxes, toggleCollapsed, numberRange, withHostOrders, zoneOverLimit,
+    searchItems, selectedItems, setChart, setSort, swapAxes, toggleCollapsed, numberRange, withHostOrders, zoneOverLimit,
     setChartDisplay, rowFolding, numericResult, sameRef, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
 } from "../src/view-ops.js";
 import {
@@ -511,4 +511,12 @@ test("sortText names a sort as the chip menu does", () => {
     assert.equal(sortText(v, { by: "label", order: "desc" }, en), "Z to A");
     assert.equal(sortText(v, { by: "custom", order: "asc" }, en), "Custom order");
     assert.equal(fill(LABELS.de.headerSorted, { field: "Region", order: sortText(v, { by: "label", order: "asc" }, LABELS.de) }), "Region sortiert: A bis Z");
+});
+
+test("the picker's search finds an item whatever its case and whitespace (#159)", () => {
+    // data copied from a web page holds a no-break space; what is typed holds a plain one
+    const items = [{ label: "ACTIVE\u00A0DIRECTORY" }, { label: "Active  Directory admins" }, { label: "Other" }];
+    assert.deepEqual(searchItems(items, "ACTIVE DIRECTORY").map((i) => i.label), ["ACTIVE\u00A0DIRECTORY", "Active  Directory admins"]);
+    assert.deepEqual(searchItems(items, " active directory ").length, 2);
+    assert.equal(searchItems(items, "  ").length, 3);
 });

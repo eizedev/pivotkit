@@ -6,6 +6,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- The search of a field's item list and of a grouping's item picker finds an item whose label holds
+  a no-break space or another run of whitespace when a plain space is typed, and ignores spaces
+  typed at the ends ([#159](https://github.com/eizedev/pivotkit/issues/159)). Both searches fold
+  text with pivotkit-core's `foldText`.
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

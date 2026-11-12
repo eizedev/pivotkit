@@ -10,7 +10,7 @@
  * nothing yet is { type: "exclude", items: [] }.
  */
 
-import { LIMITS, aggregatorsFor, isFormat } from "pivotkit-core";
+import { LIMITS, aggregatorsFor, foldText, isFormat } from "pivotkit-core";
 import { CHART_TYPES } from "./chart-types.js";
 
 /** @typedef {"rows" | "cols" | "values" | "filters"} Zone */
@@ -18,6 +18,18 @@ export const ZONES = Object.freeze(/** @type {Zone[]} */ (["filters", "cols", "r
 
 export const clone = (view) => JSON.parse(JSON.stringify(view));
 export const same = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
+
+/**
+ * The items of a picker whose label holds what was typed: as text filters compare (pivotkit-core's
+ * foldText), so case and runs of whitespace, a no-break space among them, do not matter.
+ * @param {Array<{ label: string } & Record<string, any>>} items
+ * @param {string} query
+ */
+export function searchItems(items, query) {
+    const q = foldText(query);
+    return q ? items.filter((i) => foldText(i.label).includes(q)) : items;
+}
+
 const clamp = (i, n) => (Number.isInteger(i) ? Math.max(0, Math.min(i, n)) : n);
 
 /** The fields shown in the Filters zone: filtered fields that are on no axis, once each. */

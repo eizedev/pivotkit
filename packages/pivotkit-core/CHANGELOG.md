@@ -6,6 +6,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `foldText(text, match?)` and `MATCH_DEFAULTS`: the one way text is compared, case-insensitive
+  without the runtime's locale and with every run of whitespace (a no-break space U+00A0 among them)
+  as one space ([#159](https://github.com/eizedev/pivotkit/issues/159)).
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

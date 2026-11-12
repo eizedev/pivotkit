@@ -14,7 +14,7 @@ import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
-import { filtersOf, selectedItems } from "./view-ops.js";
+import { filtersOf, searchItems, selectedItems } from "./view-ops.js";
 import { conditionKind, setItemFilter, setLabelFilter } from "./menu-ops.js";
 
 /** Values listed at once; the search finds the others. */
@@ -38,8 +38,7 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
     const [query, setQuery] = useState("");
     // one name for the list's checkboxes, as a form's list of choices has
     const name = useFormName();
-    const q = query.trim().toLocaleLowerCase();
-    const matching = q ? items.filter((i) => i.label.toLocaleLowerCase().includes(q)) : items;
+    const matching = searchItems(items, query);
     const inList = tail ? matching.filter((i) => !tail.isOut(i)) : matching;
     const out = tail ? matching.filter((i) => tail.isOut(i)) : [];
     const shown = inList.slice(0, FILTER_LIST_MAX);
@@ -101,7 +100,7 @@ export function ValueList({ items, selected, onChange, labels, locale, autoFocus
                     {inList.length > shown.length ? (
                         <li className="pk-hint pk-values-more">{fill(labels.valuesShown, { shown: shown.length, total: inList.length.toLocaleString(locale) })}</li>
                     ) : null}
-                    {out.length && tail ? tail.render(out, (i) => row(i, true), q !== "") : null}
+                    {out.length && tail ? tail.render(out, (i) => row(i, true), matching !== items /* searchItems gives the list itself without a search */) : null}
                 </ul>
                 {children}
             </div>
