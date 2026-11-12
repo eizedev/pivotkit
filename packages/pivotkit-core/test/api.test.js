@@ -14,8 +14,8 @@ const src = fileURLToPath(new URL("../src/", import.meta.url));
 
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
-        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
-        "cellRows", "computePivot", "createHistory", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
+        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
+        "cellRows", "computePivot", "createHistory", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
         "migrate", "normalize", "outsideLimits", "relativeDateRange", "suggestDateUnit", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "withLinkFragment"
     ]);
     assert.deepEqual(Object.keys(exporters).sort(), ["rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);

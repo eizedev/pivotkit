@@ -50,6 +50,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   that is not a pivotkit report. `linkParam`, `linkFragment` and `withLinkFragment` (the fragment
   without fflate, in the main entry too). Every issue of `decodeViewLink` has a `code` of
   `LINK_ISSUE_CODES`.
+- `describeSource(data)` and `describeView(view, schema)`: plain, structured summaries of a data set
+  (each field's type, items, blanks, range, the aggregators and filter types that work on it) and of
+  a view (its parts with one short English text each, and `validate()`'s errors and warnings), for a
+  log, an approver or an LLM.
 - `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
   rows left after it, counted as the filters apply.
 - Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):

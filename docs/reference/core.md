@@ -115,6 +115,17 @@ views. It is built from the engine's own tables by `scripts/schemas.js` of the r
 everything `normalize` would refuse without looking at the data (`VIEW_ISSUES[code].schema`); what
 only the data can tell (a field's name and type, an aggregator for a field) is `normalize`'s.
 
+### Describing data and views
+
+Plain, structured summaries for a log, an approver or an LLM that writes or explains views: JSON with
+one short English `text` per part, no locale, nothing rendered. Values from the data are data: a prompt
+should mark them as such.
+
+| Function | Returns | What |
+| --- | --- | --- |
+| `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, the `aggregators` and filter types (`filters`) that work on it, and with encoded data `distinct`, `blanks`, the first `items` (at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters) and `min`/`max` of numbers and dates (dates as ISO days). A schema `{ fields }` or a fields array gives the types only (`rows: null`). |
+| `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` (with their names), `filters` (each normalized filter with its `text`: `Region is one of "North", "South" (blanks dropped)`), `derived`, `sort`, `display`; `valid`, `errors` and `warnings` of `validate`; and `text`, the whole view in one sentence. |
+
 ### View files
 
 A view with its name, the data it was made for and the fields it uses, as one JSON document: what

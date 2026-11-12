@@ -137,7 +137,8 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  *   showAs: ShowAs | null, conditional: Conditional | null }} ValueSpec
  * @typedef {{ field: string, type: string, items?: any[], op?: string, value?: any, value2?: any,
  *   count?: number, bottom?: boolean, by?: ValueRef, unit?: string, anchor?: string, not?: boolean,
- *   blanks?: "exclude" | "include" | "only", on?: "value" | "label",
+ *   blanks?: "exclude" | "include" | "only", on?: "value" | "label", precision?: string, ties?: "first" | "all",
+ *   direction?: string, calendar?: boolean, includeCurrent?: boolean,
  *   match?: { case: "insensitive" | "sensitive", whitespace: "collapse" | "exact" } }} FilterSpec  one
  *   condition (filters.js FILTERS): `in` items; `blank`; `text` op, value, on, match; `compare` op,
  *   value and value2 (a number or a calendar day "2022-03-01"); `relative` unit and count, `anchor`
