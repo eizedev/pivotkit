@@ -60,6 +60,47 @@ jobs:
         if: matrix.node == '24'
         run: npm run size -w pivotkit-xlsx
 
+  angular:
+    # The Angular example (examples/angular): a standalone component with <pivot-report>, built by
+    # Angular's CLI from its own lock file against this repository's pivotkit-element (linked from
+    # packages/), then one Playwright test in Chromium, Firefox and WebKit. The same Playwright image
+    # as the browser jobs (tests/ci.test.js checks every image in this file).
+    name: angular
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install
+        run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Build pivotkit-element
+        # its dist/ and its types/ (the example imports the PivotView type)
+        run: npm run types && node packages/pivotkit-element/build.js
+      - name: Install the Angular example
+        run: npm ci --prefix examples/angular --no-audit --no-fund --ignore-scripts
+      - name: Build the Angular example
+        # a warning fails the step: an Angular app should build pivotkit-element without one
+        shell: bash
+        working-directory: examples/angular
+        env:
+          NG_CLI_ANALYTICS: "false"
+        run: npm run build 2>&1 | tee build.log && ! grep -q "WARNING" build.log
+      - name: Browser test
+        run: npx playwright test -c examples/angular/playwright.config.js
+      - name: Test report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-angular
+          path: |
+            examples/angular/playwright-report/
+            examples/angular/test-results/
+          retention-days: 14
+
   browser:
     # The playground (examples/playground), the host pages and the web component's pages
     # (tests/browser/pages) in Chromium, Firefox and WebKit, on React 18 (the workspace's, as

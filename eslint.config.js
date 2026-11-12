@@ -56,7 +56,7 @@ export default [
     },
     {
         // browser tests: Node code that also hands functions to the page
-        files: ["tests/browser/**"],
+        files: ["tests/browser/**", "examples/angular/test/**"],
         languageOptions: { globals: { ...globals.node, ...globals.browser } }
     }
 ];

@@ -345,7 +345,8 @@ declares `<pivot-report>` with its properties and `on<event>` props in React's J
 
 ## Angular and zone.js
 
-The Angular example is in [Getting started](../getting-started/web-component.md#angular). Not built or tested in this repository.
+The Angular example is in [Getting started](../getting-started/web-component.md#angular): a zoneless
+Angular 22 app in `examples/angular/`, built and tested in CI.
 
 `[data]="rows"` sets the property (Angular binds properties of an element with the schema); a new
 array is a new data set. For the controlled form bind `[view]="view"` and set `this.view` in the
@@ -353,8 +354,10 @@ handler. Binding the stored view back as `[defaultView]` is fine: the element ig
 reported itself.
 
 Change detection: the element runs React's scheduler, ECharts' pointer listeners and animation
-frames in whatever zone created it. Inside Angular's zone (zone.js) each of them may trigger change
-detection of the app. Not measured here; if it shows, create and feed the element outside the zone
+frames in whatever zone created it. A zoneless app, as the example,
+runs change detection only for its own bindings, signals and event handlers. Inside Angular's zone
+(zone.js) each of them may trigger change detection of the app. Not measured here, since the example
+is zoneless; if it shows, create and feed the element outside the zone
 and come back in for the app's own state:
 
 ```ts

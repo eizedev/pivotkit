@@ -13,6 +13,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   result. The first load grows by about 7.5 KiB (gzip), its budget to 169; the plain words of a
   view's unused parts to 5.5.
 
+### Fixed
+
+- An app whose bundler reads `sideEffects` (Angular's build) no longer warns about, or may drop,
+  the chunks `dist/index.js` imports for their effects: `sideEffects` lists `dist/chunks/*.js` too
+  ([#174](https://github.com/eizedev/pivotkit/issues/174)).
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

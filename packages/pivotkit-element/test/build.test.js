@@ -232,3 +232,17 @@ test("the built package imports in Node without a DOM and defines nothing there"
     assert.deepEqual(Object.keys(bare).sort(), Object.keys(mod).sort());
     assert.equal(bare.EVENTS, mod.EVENTS);
 });
+
+// A bundler (Angular's esbuild, Vite, webpack) drops an import of a file that package.json's
+// "sideEffects" leaves out. dist/index.js imports some chunks only for their effects ("import './x.js'"):
+// each of them must be listed, else the host's build warns and may leave the chunk out.
+test("every file dist/index.js imports for its effects is listed in sideEffects", async () => {
+    const pkg = JSON.parse(await readFile(new URL("package.json", pkgDir), "utf8"));
+    const listed = pkg.sideEffects.map((pattern) => new RegExp(`^${pattern.replace(/[.]/g, "\\.").replace(/\*/g, "[^/]*")}$`));
+    const index = await readFile(new URL("dist/index.js", pkgDir), "utf8");
+    const bare = [...index.matchAll(/import\s*"(\.\/[^"]+)"/g)].map((m) => `./dist/${m[1].slice(2)}`);
+    assert.ok(bare.length > 0, "dist/index.js imports no file for its effects: the check would prove nothing");
+    for (const file of bare) {
+        assert.ok(listed.some((re) => re.test(file)), `${file} is imported by dist/index.js for its effects but not listed in sideEffects`);
+    }
+});

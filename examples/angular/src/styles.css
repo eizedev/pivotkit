@@ -1,0 +1,16 @@
+/* The page's own styles. They style the page's table and do not reach into the report's shadow root;
+   test/angular.spec.js checks that. */
+body {
+    margin: 16px;
+    font-family: system-ui, sans-serif;
+}
+
+td {
+    color: rgb(200, 0, 0);
+    font-family: "Courier New", monospace;
+}
+
+pivot-report {
+    display: block;
+    height: 520px;
+}
