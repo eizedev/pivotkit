@@ -40,7 +40,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `height` | `number` or `string` | `640` | The report's height: a number of pixels or a CSS length (`"100%"`, `"calc(100svh - 24px)"`); the table and the field list scroll inside it. [More](#prop-height) |
 | `grow` | `"on"` or `"off"` |  | Whether the report grows past its height to keep the result's least height: `"on"` by default without `height`, `"off"` with one (the report stays in its box, the result scrolls). See [Layout](#layout). |
 | `fieldList` | `"open"` or `"collapsed"` |  | The field list of a wide or medium report: `"open"` or `"collapsed"` to a rail of about 40 px (`--pk-rail-w`). [More](#prop-fieldlist) |
-| `limits` | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits). [More](#prop-limits) |
+| `limits` | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits) for the host's data. [More](#prop-limits) |
 | `label` | `string` | `labels.report` | The name of the report's region landmark ("Pivot report"). Several reports on one page need one name each (`label="Tickets per team"`), so a screen reader can tell them apart. |
 | `className` | `string` |  | Added to the root element `.pk-root`. |
 | `fileName` | `string` | `"pivot"` | Name of exported files, without the extension; path separators and characters a file system refuses are replaced. |
@@ -61,6 +61,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `persistView` | `"session"` |  | `"session"`: the view is kept in `sessionStorage` (`pivotkit:view:<storageKey>`) for this tab and shown again after a reload; read after the first render; a link wins. [More](#prop-persistview) |
 | `loading` | `boolean` | `false` | The host is loading the data: before the report has had data it shows its skeleton (toolbar, zones and table rows in the theme, `role="status"` with "Loading the report…", announced once). [More](#prop-loading) |
 | `allowImport` | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview before it replaces the data; nothing is uploaded. [More](#prop-allowimport) |
+| `importLimits` | `Partial<Limits>` | `limits` | The limits of a file people load, merged key by key over `limits`. [More](#prop-importlimits) |
 | `plugins` | `ReaderPlugin[]` |  | Reader plugins for more formats ([pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel); CSV, TSV, text and JSON are built in. [More](#prop-plugins) |
 | `onDataLoad` | `({ cause, source, file, sheet, rows, columns, notes }) => unknown` |  | The data shown changed: a file loaded (returning `false` refuses it), the host's data shown again, one of those undone or redone, or the file shown again after a new mount. [More](#prop-ondataload) |
 | `importWorker` | `() => Worker` |  | Starts a module worker that runs `pivotkit-react/import-worker`, so CSV and JSON files are read off the page. [More](#prop-importworker) |
@@ -145,7 +146,8 @@ The field list of a wide or medium report: `"open"` or `"collapsed"` to a rail o
 
 Type: `Partial<Limits>`.
 
-pivotkit-core's [limits](../concepts/limits.md#limits). Data over `limits.rows`, or a layout over `limits.work`, `groups`, `pivotCells` or `cells`, shows a message in place of the result that says what to change; a field beyond `limits.axisFields` or `limits.values` is refused with a note, and a saved view with more loads the fields that fit and says so above the result.
+pivotkit-core's [limits](../concepts/limits.md#limits). Data over `limits.rows`, or a layout over `limits.work`, `groups`, `pivotCells` or `cells`, shows a message in place of the result that says what to change; a field beyond `limits.axisFields` or `limits.values` is refused with a note, and a saved view with more loads the fields that fit and says so above the result. A file people load
+([`allowImport`](#prop-allowimport)) has [`importLimits`](#prop-importlimits) over these.
 
 ### `onExport` { #prop-onexport }
 
@@ -268,14 +270,36 @@ on [Load your own data](../use/load-data.md); what the readers do on [Loading fi
 - The import UI is a chunk of its own (`dist/import-ui.js`, with `pivotkit-core/import`), loaded when
   the Data menu opens, a file is dragged over the report or the empty report's **Load data…** is
   clicked. Without `allowImport` nothing of it loads.
-- The limits of the readers are the report's [`limits`](#prop-limits) (`fileBytes`, `rows`,
-  `columns`, `importCells`, ...); a file over one is refused with what to do, and the data stays.
+- A file is read and shown with [`importLimits`](#prop-importlimits) over the report's
+  [`limits`](#prop-limits) (`fileBytes`, `rows`, `columns`, `importCells`, ...); a file over one is
+  refused with what to do, and the data stays.
 - Memory: while the preview is open the page holds the table as read (values and their text) and,
   after a change of a type, a second one; after **Load data** only the encoded columns stay, for the
   file shown and for each data step Undo keeps. A rough, unverified guide from one measurement in
   Node (not a browser): a CSV of 1,000,000 rows and 5 columns (46 MB) took about 650 MB more memory
-  while it was read and loaded. Lower `limits.rows` or `limits.fileBytes` where people's machines are
-  small.
+  while it was read and loaded. Lower `importLimits.rows` or `importLimits.fileBytes` where people's
+  machines are small.
+
+### `importLimits` { #prop-importlimits }
+
+Type: `Partial<Limits>`; default: [`limits`](#prop-limits).
+
+The [limits](../concepts/limits.md#limits) a file loaded with [`allowImport`](#prop-allowimport) is
+read and shown with, merged key by key over `limits`: a key it sets is the file's, a key it leaves out
+is `limits`'s, and both over pivotkit-core's defaults. The host's own `data` keeps `limits`, so a
+host can keep uploads small without capping its own data:
+
+```jsx
+<PivotReport data={rows} allowImport importLimits={{ rows: 1_000, fileBytes: 5_000_000 }} />
+```
+
+Here the host's 50,000 rows show, while a file of 1,001 rows is refused with "… has more than 1,000
+rows (limits.rows) …" and the data shown stays. The import limits hold for everything about the file:
+the readers (also in the [`importWorker`](#prop-importworker)), the preview, and the views, results and
+exports while its data is shown; "Back to original data" goes back to `limits`. A key of
+`importLimits` is not capped by `limits`: a file may get more than the host's data where the host
+says so (`importLimits={{ rows: 200_000 }}` over `limits={{ rows: 1_000 }}`), so set only the keys a
+file should have differently. Compared by value, as `limits`.
 
 ### `plugins` { #prop-plugins }
 
@@ -375,8 +399,8 @@ tip dismissed earlier goes right after hydration.
 - **Controlled**: pass `view` and set it from `onViewChange`. The undo history stays in the report
   however often the host renders; a view the host changes on its own becomes one undo step.
 
-A host may render the report on every change of its own state: `labels` and `limits` are compared by
-value, `data` by identity or by `dataKey`.
+A host may render the report on every change of its own state: `labels`, `limits` and `importLimits`
+are compared by value, `data` by identity or by `dataKey`.
 
 What of the host's view (`view`, else the first `defaultView`) the data cannot use (a field it lacks,
 an unknown format) shows above the result as a warning, as for a loaded view

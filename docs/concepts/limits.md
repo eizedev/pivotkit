@@ -45,7 +45,8 @@ the size of everything dense (rows x columns) **before** it allocates it and sto
 instead.
 
 `LIMITS` holds the defaults; every function that takes `options.limits` (and the `limits` prop or
-property of the UI) merges your values over them. A resource limit is counted before the memory it
+property of the UI) merges your values over them. A file people load in the UI has limits of its own,
+`importLimits`, merged key by key over `limits` ([below](#limits-of-a-loaded-file)). A resource limit is counted before the memory it
 guards is allocated, or while it grows, and stops with `LIMIT_EXCEEDED`; a view limit drops what is
 over it and reports it as an issue.
 
@@ -112,6 +113,29 @@ value is `INVALID_OPTION`.
 Not counted: the data itself (the host's rows and the encoded columns, rows x columns; `rows` caps the
 rows, the number of columns of the host's data is not limited; a loaded file's are), "show values as" and sorting after the aggregation (they
 grow with the cells, which `pivotCells` bounds), and the time a pivot within the limits takes.
+
+### Limits of a loaded file
+
+A file people load into the report ([`allowImport`](../reference/react.md#prop-allowimport)) comes
+from someone other than the host, so the host may want it smaller than its own data. `importLimits`
+(a prop of pivotkit-react, a property of pivotkit-element) holds the limits for it, merged key by key
+over `limits`: a key it sets is the file's, a key it leaves out is `limits`'s, and both over `LIMITS`.
+Without `importLimits` a file has the host's `limits`. They hold for everything about the file: the
+readers (`fileBytes`, `rows`, `columns`, `importCells`, `textLength`, `archiveEntries`,
+`unpackedBytes`; on the page or in the import worker), and its views, results and exports while its
+data is shown. The host's own `data` keeps `limits`. A key of `importLimits` may also be higher than
+the same key of `limits` (a file gets more than the host's data): nothing caps one by the other, so set
+only the keys a file should have differently:
+
+```jsx
+<PivotReport data={rows} allowImport limits={{ cells: 500_000 }} importLimits={{ rows: 1_000, fileBytes: 5_000_000 }} />
+```
+
+The host's rows are capped only by the default `rows` (1,000,000); a file has at most 1,000 rows and
+5,000,000 bytes, and both have at most 500,000 cells in a grid. A file over a limit is refused with the
+limit named (`… has more than 1,000 rows (limits.rows) …`) and the data shown stays. pivotkit-core's
+[`readFile`](../reference/import.md#limits) has one `limits` option: a caller with its own data and
+files merges the import limits over its limits itself (`{ ...limits, ...importLimits }`).
 
 ### Why the defaults are what they are
 

@@ -2,7 +2,8 @@
 // worker (dist/import-worker.js) for CSV and JSON, pivotkit-xlsx's dist/ as a plugin (the property
 // `plugins`), every pivot-data-load in window.__loads, every violation of the policy in
 // window.__violations. ?refuse prevents the loads, ?columnar sets the data as columns, ?empty sets
-// none, ?limits sets limits.importCells to 10 (a workbook's larger sheet fails). ?key sets storageKey. ?controlled
+// none, ?limits sets limits.importCells to 10 (a workbook's larger sheet fails), ?importlimits sets
+// importLimits.rows to 3 (the page's 1,000 rows show, a file of 4 rows is refused). ?key sets storageKey. ?controlled
 // controls the view (set again from every pivot-view-change) and starts it again at the start view
 // whenever the element is put back, as a host that renders it anew. window.__putBackTwice() takes the
 // element out of the page and puts it back twice in a row: the second time as soon as the report
@@ -65,6 +66,10 @@ window.__putBackTwice = () =>
     });
 if (query.has("limits")) {
     el.limits = { importCells: 10 };
+}
+if (query.has("importlimits")) {
+    // uploads of at most 3 rows; the page's own 1,000 rows are not capped by it
+    el.importLimits = { rows: 3 };
 }
 if (query.has("columnar")) {
     el.data = { columns: ["Team", "Hours"], types: ["string", "number"], data: [["Network", "Server", "Network"], [1.5, 2, 4]] };

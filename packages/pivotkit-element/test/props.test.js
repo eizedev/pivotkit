@@ -128,4 +128,6 @@ test("allow-import is a boolean attribute; the plugins are a property", () => {
     assert.equal(toAttribute(def("allow-import"), false), null);
     assert.equal(def("allow-import").prop, "allowImport");
     assert.ok(OBJECT_PROPS.includes("plugins"), "plugins hold functions: a property only");
+    assert.ok(OBJECT_PROPS.includes("importLimits"), "the limits of a loaded file are an object: a property only, as limits");
+    assert.ok(OBJECT_PROPS.includes("limits"));
 });

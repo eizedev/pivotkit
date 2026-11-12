@@ -9,7 +9,7 @@ const templates: Template[] = [{ name: "By region", view: { rows: ["Region"] } }
 const publish = (name: string, view: ViewInput): Promise<string> => Promise.resolve(`${name}:${view.rows?.length ?? 0}`);
 const store: PivotReportProps = { templates, templateStore: "browser", storageKey: "sales", canPublish: true, onPublishTemplate: publish, onSaveTemplate: (name, view, where) => [name, view.rows, where.scope], onDeleteTemplate: (name, where) => where.scope === "shared" && name };
 const onCell = (c: CellClick): number => c.count + c.rows.length + c.row.length;
-const props: PivotReportProps = { data: [{ Region: "North", Units: 3 }], templates, theme: "dark", locale: "de-DE", height: 480, limits: { cells: 10_000 } };
+const props: PivotReportProps = { data: [{ Region: "North", Units: 3 }], templates, theme: "dark", locale: "de-DE", height: 480, limits: { cells: 10_000 }, importLimits: { rows: 1_000 } };
 const de: string = LABELS.de.zones.rows;
 const menuText: string = LABELS.en.cancel;
 const start: ViewInput = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };

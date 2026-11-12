@@ -110,7 +110,8 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   in and before it is parsed: a file of a few hundred bytes with a value in row 300,000 and column
   XFD would otherwise become a dense array of billions of cells in the parser. Leaving out rows
   without a value (a used range of formatted empty cells) saves time and memory; the limits do not
-  depend on it.
+  depend on it. A host can give loaded files lower limits than its own data
+  ([`importLimits`](concepts/limits.md#limits-of-a-loaded-file)).
 - **Nothing in a file runs**: no formula is evaluated (a workbook's saved values are read), a workbook
   with macros (`.xlsm`, `vbaProject.bin`) is refused, and an XML part that declares a document type or
   entities (`<!DOCTYPE`, `<!ENTITY`) is refused before it is parsed, which rules out entity expansion

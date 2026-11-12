@@ -122,7 +122,11 @@
  *   (the page scrolls); with it the report stays inside that height and its result scrolls
  * @property {"on" | "off"} [grow]  whether the report grows past its height to keep the result's
  *   least height: "on" by default without `height`, "off" with it
- * @property {Partial<import("pivotkit-core").Limits>} [limits]
+ * @property {Partial<import("pivotkit-core").Limits>} [limits]  pivotkit-core's limits for the host's data
+ *   (and for a loaded file, where `importLimits` leaves a key out)
+ * @property {Partial<import("pivotkit-core").Limits>} [importLimits]  the limits a file loaded with
+ *   `allowImport` is read and shown with, merged key by key over `limits` (default: `limits`), so a
+ *   host can keep uploads small without capping its own data
  * @property {string} [label]  the name of the report's region landmark (default the labels' `report`);
  *   several reports on one page each need their own
  * @property {string} [className]

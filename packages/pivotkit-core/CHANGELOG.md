@@ -89,6 +89,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
   rows left after it, counted as the filters apply.
 
+### Fixed
+
+- `options.limits` given as an array (`[]` was taken as no limits) is refused with `INVALID_OPTION`
+  ("options.limits must be an object"), as any other value that is not an object.
+
 ## [0.4.0] - 2026-11-11
 
 ### Added

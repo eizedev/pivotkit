@@ -13,6 +13,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   result. The first load grows by about 7.5 KiB (gzip), its budget to 169; the plain words of a
   view's unused parts to 5.5.
 
+### Added
+
+- The property `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)), as
+  pivotkit-react's prop: the limits of a file loaded with `allow-import`, merged key by key over
+  `limits`; the page's data keeps `limits`. A property only, as `limits`.
+
 ### Fixed
 
 - An app whose bundler reads `sideEffects` (Angular's build) no longer warns about, or may drop,

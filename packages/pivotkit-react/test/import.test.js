@@ -1,6 +1,6 @@
 // Loading data in the browser, the parts without a DOM: the source id of a file (import-source.js),
 // the data steps of the undo history (data-history.js, import-steps.js), the file kept over a new
-// mount (data-keep.js), the texts of the import UI
+// mount (data-keep.js), the limits a file is read with (import-limits.js), the texts of the import UI
 // and of the readers' notes (import-labels.js), and how a file is read: in the host's worker for the
 // built-in readers, on the page for a plugin or when the worker does not start (import-run.js).
 import { test } from "node:test";
@@ -14,6 +14,7 @@ import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src
 import { SHOWN_MAX, sha256Bytes, sha256Hex, shownName, sourceIdOf } from "../src/import-source.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
+import { importLimitsOf } from "../src/import-limits.js";
 import { resolveLabels } from "../src/labels.js";
 import { createState } from "../src/view-history.js";
 
@@ -421,4 +422,28 @@ test("a file's data shown again by a report mounted again tells the host (onData
     assert.deepEqual(told, [{ cause: "restore", source: imported.source, file: imported.file, sheet: null, rows: 2, columns: [{ name: "Id", type: "number" }, { name: "Team", type: "string" }], notes: [] }]);
     restoreData(/** @type {any} */ ({ ...ctx, imported: null }));
     assert.equal(told.length, 1);
+});
+
+test("a loaded file's limits are the host's importLimits over its limits, key by key", async () => {
+    assert.equal(importLimitsOf(undefined, undefined), undefined);
+    assert.equal(importLimitsOf(null, null), undefined);
+    assert.deepEqual(importLimitsOf({ rows: 50, cells: 9 }, undefined), { rows: 50, cells: 9 }, "without importLimits: the host's limits");
+    assert.deepEqual(importLimitsOf(undefined, { rows: 2 }), { rows: 2 });
+    // the import key wins, the host's other keys stay
+    assert.deepEqual(importLimitsOf({ rows: 5_000, cells: 9 }, { rows: 2, fileBytes: 1_000 }), { rows: 2, cells: 9, fileBytes: 1_000 });
+    // a value that is no object reaches readFile as it is, which refuses it with its own message
+    await assert.rejects(readImport(csv(TICKETS), { limits: importLimitsOf({ rows: 5 }, /** @type {any} */ ("small")) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION");
+    // an array is no limits object either: not spread into the host's limits, refused by readFile
+    for (const value of [[], [2]]) {
+        assert.deepEqual(importLimitsOf({ rows: 5 }, value), value);
+        await assert.rejects(readImport(csv(TICKETS), { limits: importLimitsOf({ rows: 5 }, /** @type {any} */ (value)) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION", JSON.stringify(value));
+    }
+    // the host's data of five rows fits its own limits; a file of three rows is over the import limit of 2,
+    // read on the page and in the worker alike, and the error names the limit
+    const limits = { rows: 5_000 };
+    const fileLimits = importLimitsOf(limits, { rows: 2 });
+    assert.equal(encode([{}, {}, {}, {}, {}], { limits }).length, 5);
+    for (const worker of [undefined, fakeWorker()]) {
+        await assert.rejects(readImport(csv(TICKETS), { worker, limits: fileLimits }), (e) => e instanceof PivotkitError && e.code === "LIMIT_EXCEEDED" && e.details.limit === "rows" && e.details.max === 2);
+    }
 });

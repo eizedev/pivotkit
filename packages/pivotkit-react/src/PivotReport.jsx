@@ -25,6 +25,7 @@ import { errorText, fill, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
 import { importNow, loadImport } from "./lazy-import.js";
+import { importLimitsOf } from "./import-limits.js";
 import { LayerContext } from "./popover.jsx";
 import { linkNow, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { HelpContext } from "./help.js";
@@ -291,6 +292,7 @@ function Report(props) {
         theme = "auto",
         height = 640,
         limits: limitsProp,
+        importLimits: importLimitsProp,
         className,
         fileName = "pivot",
         fieldDefaults,
@@ -342,7 +344,12 @@ function Report(props) {
     const baseLabels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
     const typesKey = JSON.stringify(typesOf(fieldDefaults));
     const limitsKey = JSON.stringify(limitsProp ?? null);
-    const limits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
+    const hostLimits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
+    // a loaded file's limits: the host's `importLimits` over its `limits`, key by key, so a host that
+    // keeps uploads small does not cap its own data; without importLimits the very object of hostLimits,
+    // so showing a file or the host's data again does not re-run what depends on the limits
+    const importLimitsKey = JSON.stringify(importLimitsProp ?? null);
+    const fileLimits = useMemo(() => importLimitsOf(hostLimits, JSON.parse(importLimitsKey)), [hostLimits, importLimitsKey]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const themeName = useResolvedTheme(theme, root);
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));
@@ -413,14 +420,14 @@ function Report(props) {
     const source = useMemo(() => {
         try {
             const types = JSON.parse(typesKey);
-            const enc = encodedProp ?? measured("encode", () => encode(dataOf(data), { timeZone: timeZone ?? "UTC", limits, ...(types ? { types } : {}) }));
+            const enc = encodedProp ?? measured("encode", () => encode(dataOf(data), { timeZone: timeZone ?? "UTC", limits: hostLimits, ...(types ? { types } : {}) }));
             return { encoded: enc, error: null };
         } catch (error) {
             return { encoded: encode([]), error };
         }
         // data is read through dataIdentity: with a dataKey a new array with the same key is the same data
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [encodedProp, dataIdentity, timeZone, limits, typesKey]);
+    }, [encodedProp, dataIdentity, timeZone, hostLimits, typesKey]);
     // the file's data shown (null: the host's) and the data steps of the undo history (data-history.js);
     // a report mounted again with its storageKey over the same host data starts where it was
     // (data-keep.js: memory only, restored by the layout effect below)
@@ -437,6 +444,9 @@ function Report(props) {
     const sourceId = imported ? imported.source.id : hostSourceId;
     const sourceName = imported ? imported.source.name : hostSourceName;
     const encoded = imported ? imported.encoded : source.encoded;
+    // the limits of the data shown: a file's are the import limits, so its views, results and exports
+    // are bounded the way it was read
+    const limits = imported ? fileLimits : hostLimits;
     // the display names (labels.fields), told apart where two fields would look the same
     const fieldNamesKey = encoded.schema.fields.map((f) => f.name).join("\u0000");
     const labels = useMemo(() => {
@@ -957,7 +967,7 @@ function Report(props) {
     const requestImport = () => loadImport().then((m) => (flushSync(() => setImportMod(() => m)), m));
     /** What the import UI works on: this render's state, its setters and the props it needs. */
     const api = {
-        imported, setImported, steps: dataSteps, setSteps: setDataSteps, job, setJob, dragging, history, encoded, hostEncoded: source.encoded, hostSource: sourceProp, sourceName, labels, locale, plugins, worker: importWorker, limits, timeZone, onDataLoad, announce, dismiss,
+        imported, setImported, steps: dataSteps, setSteps: setDataSteps, job, setJob, dragging, history, encoded, hostEncoded: source.encoded, hostSource: sourceProp, sourceName, labels, locale, plugins, worker: importWorker, limits: fileLimits, timeZone, onDataLoad, announce, dismiss,
         undo: () => undoLater.current(),
         box: () => root.current?.getBoundingClientRect(),
         pick: () => importMod?.pickFile(fileInput.current),

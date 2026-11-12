@@ -49,7 +49,7 @@ export const ATTRIBUTES = Object.freeze([
 ]);
 
 /** Properties without an attribute: objects and arrays a host sets from script. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips", "chartOptions", "sources", "plugins"]);
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "sources", "plugins"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 

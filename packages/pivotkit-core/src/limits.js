@@ -110,7 +110,7 @@ export function resolveLimits(options) {
     if (custom === undefined || custom === null) {
         return LIMITS;
     }
-    if (typeof custom !== "object") {
+    if (typeof custom !== "object" || Array.isArray(custom)) {
         throw new PivotkitError("INVALID_OPTION", "options.limits must be an object");
     }
     /** @type {Limits} */

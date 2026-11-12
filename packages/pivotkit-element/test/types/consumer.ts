@@ -63,8 +63,10 @@ el.addEventListener("pivot-source-switch", (e) => {
     return id;
 });
 
-// loading data: the attribute's property, reader plugins, columnar data, the event of the data shown
+// loading data: the attribute's property, the limits of a loaded file, reader plugins, columnar data, the event of the data shown
 el.allowImport = true;
+el.importLimits = { rows: 1_000 };
+const importRows: number | undefined = el.importLimits?.rows;
 el.plugins = [{ apiVersion: 1, kind: "reader", name: "jsonl", label: "JSON Lines", accept: [".jsonl"], load: () => import("./consumer.js") }];
 el.data = { columns: ["Team", "Hours"], types: ["string", "number"], data: [["A"], [1]] };
 el.addEventListener("pivot-data-load", (e) => {
