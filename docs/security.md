@@ -15,13 +15,15 @@ channel described in the repository's
 pivotkit shows every row and column it is given: in the table and the chart, in the drill-down, in
 the exports of the source rows, and in what `onCellClick` and the events pass on. Filters, the start
 view and templates are not permissions: a person can remove a filter, load another view or open a
-link, and sees the rest of the data.
+link, and sees the rest of the data. `drillDownLimit` caps how many rows a drill-down holds for
+memory, not who sees them.
 
 - Send only the rows and columns this viewer may see, filtered on your server for this user, before
-  they reach the browser.
+  they reach the browser: whatever the browser holds, the person can read with its developer tools.
 - A link or a view file names its data by a source id ([Sharing](concepts/sharing.md#opening-a-link-on-another-page)).
   Load the data behind that id with the rights of the person who opens it, not of the person who
-  shared it, and answer a source they may not see as you answer an unknown one.
+  shared it, and answer a source they may not see as you answer an unknown one. Check the link's
+  allowed `params` the same way: they come from the link, not from you.
 - A shared view holds the values chosen in its filters, so a view can show a value to someone who
   could not see the rows ([Privacy](reference/view-file.md#privacy)).
 
