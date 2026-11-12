@@ -128,10 +128,17 @@ root `package.json`: `npm run types` and the builds depend on it.
 - `docs/` - the documentation site (pivotkit.eize.dev): Zensical (`zensical.toml`) with the shared design
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
-  `scripts/docs-screenshots.js` from the playground. `docs/playground/` (the live demo, copied by
+  `scripts/docs-screenshots.js` from the playground. `docs/playground/` (the live demo),
+  `docs/schema/`, `docs/assets/social-preview.png` and `docs/robots.txt` (all written by
   `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The theme's
   repository link in the header asks api.github.com for the repository's stars, forks and latest
   release (cached by the theme in the reader's browser), as on the other eizedev sites.
+  `overrides/main.html` (the theme's `custom_dir`) adds the Open Graph and Twitter card tags of every
+  page; Zensical's `llmstxt` plugin writes `llms.txt`, `llms-full.txt` and a Markdown file per page
+  from the pages in its sections (every page in exactly one, `tests/llms-sections.test.js`).
+  `docs/compare.md` compares pivotkit with other pivot components: each fact from the project's own
+  docs, npm or GitHub, linked and dated; a fact changed there is checked again and the date updated.
+  `scripts/site-url.js` reads the site's address from `zensical.toml` for the scripts.
 - `packages/*/README.md` - the npm package pages: short landing pages (what the package is, one
   screenshot, install with its peers, one example, a table of links into the site, the license).
   The install facts (command, peer ranges, the 0.x caret-range note, supported browsers and Node,
@@ -165,7 +172,7 @@ PLAYGROUND_PORT=4195 npm run test:browser   # on another port, when 4173 is take
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix tests/react19 first)
 npx playwright test -c examples/angular/playwright.config.js   # the Angular example (build it first: npm run build --prefix examples/angular)
 npm run docs:data                   # fetch the real data sets once more into examples/playground/data/ (network)
-npm run docs:demo                   # build the playground and copy it into docs/playground/ (the live demo)
+npm run docs:demo                   # build the playground into docs/playground/ (the live demo), and the schema, social preview and robots.txt
 npm run docs:screenshots            # build the playground and take docs/assets/screenshots/ again
 curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css
 uvx zensical@<version from eizedev/brand docs-site/requirements.txt> serve   # the site on http://localhost:8000 (build --strict as CI)

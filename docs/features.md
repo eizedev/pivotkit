@@ -6,7 +6,8 @@ description: Every feature of pivotkit at a glance, grouped by area, each with a
 # Feature list
 
 Every feature of pivotkit at a glance. Each row links to the page that describes it with all its
-small behaviours; the [start page](index.md) has the short version.
+small behaviours; the [start page](index.md) has the short version, and the
+[comparison](compare.md) sets it beside other pivot components.
 
 ## For the people who build reports
 

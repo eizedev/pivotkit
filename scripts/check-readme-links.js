@@ -5,6 +5,7 @@
 //   node scripts/check-readme-links.js site      # the directory `zensical build` wrote
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { siteUrl as readSiteUrl } from "./site-url.js";
 
 const siteDir = process.argv[2];
 if (!siteDir) {
@@ -12,8 +13,7 @@ if (!siteDir) {
     process.exit(2);
 }
 const repo = new URL("..", import.meta.url);
-// the site's address, read from its config so it is defined once
-const siteUrl = readFileSync(new URL("zensical.toml", repo), "utf8").match(/^site_url\s*=\s*"([^"]+)"/m)[1].replace(/\/$/, "");
+const siteUrl = readSiteUrl();
 const readmes = ["README.md", "packages/pivotkit-core/README.md", "packages/pivotkit-react/README.md", "packages/pivotkit-element/README.md"];
 const escaped = siteUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const linkPattern = new RegExp(`\\]\\((${escaped}[^)\\s]*)\\)`, "g");

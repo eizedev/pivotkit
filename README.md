@@ -8,6 +8,8 @@
 Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), views as
 JSON files, native Excel export; as a JavaScript core, a React component and a web component.
 
+[Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
+
 ![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
 <sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
