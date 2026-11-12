@@ -1,6 +1,7 @@
 // One view per issue code of VIEW_ISSUE_CODES, against encode(SALES): issuesOf() gives what
 // normalize() reports for it (computePivot() for "timeZoneMismatch"; "noMigration", which no view of
-// this version can reach yet, from the migration pipeline with a step missing). view.test.js checks
+// this version can reach yet, from the migration pipeline with a step missing). Strict-only warnings
+// come from validate(). view.test.js checks
 // the codes; pivotkit-react's tests use the same cases for the texts that say them in plain words.
 import { computePivot, normalize } from "../src/index.js";
 import { runMigrations } from "../src/view.js";
@@ -17,6 +18,7 @@ export const ISSUE_CASES = Object.freeze({
     tooMany: { values: Array.from({ length: 30 }, () => ({ agg: "count" })) },
     tooManyItems: { filters: [{ field: "Region", type: "include", items: Array.from({ length: 100_001 }, (_, i) => `R${i}`) }] },
     itemType: { filters: [{ field: "Units", type: "include", items: ["many"] }] },
+    itemCase: { filters: [{ field: "Region", type: "include", items: ["north"] }] },
     unknownField: { rows: ["Planet"] },
     placedTwice: { rows: ["Region"], cols: ["region"] },
     groupingNoName: { derived: [{ field: "Date", by: "year" }] },

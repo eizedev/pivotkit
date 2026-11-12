@@ -49,6 +49,7 @@ export const de = {
         tooMany: "mehr als {max} Einträge - nur die ersten {max} werden verwendet",
         tooManyItems: "mehr als {max} Einträge - nur die ersten {max} werden verwendet",
         itemType: "der Eintrag „{value}“ passt nicht zu einem Feld vom Typ {type} - er wird weggelassen",
+        itemCase: "die Daten haben keinen Eintrag „{value}“, aber „{suggestion}“ - der Filter behält den Eintrag, wie er geschrieben ist",
         unknownField: "die Daten haben kein Feld „{field}“ - {dropped}",
         unknownFieldHere: "die Daten haben kein Feld mit diesem Namen - {dropped}",
         placedTwice: "das Feld steht zweimal in Zeilen oder Spalten - nur sein erster Platz gilt",

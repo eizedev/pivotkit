@@ -51,7 +51,7 @@
  */
 
 export { encode } from "./encode.js";
-export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION, VIEW_ISSUE_CODES } from "./view.js";
+export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION, VIEW_ISSUE_CODES, VIEW_ISSUES } from "./view.js";
 export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";

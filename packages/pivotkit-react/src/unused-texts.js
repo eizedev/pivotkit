@@ -63,6 +63,7 @@ export const en = {
         tooMany: "more than {max} entries - only the first {max} are used",
         tooManyItems: "more than {max} items - only the first {max} are used",
         itemType: "the item “{value}” does not fit a {type} field - it is left out",
+        itemCase: "the data has no item “{value}”, but “{suggestion}” - the filter keeps the item as written",
         unknownField: "the data has no field “{field}” - {dropped}",
         // the same, when the line is about that field itself (Rows, Columns, a filter or a sort)
         unknownFieldHere: "the data has no field of this name - {dropped}",
@@ -149,7 +150,8 @@ function valueName(entry, ctx) {
  */
 function subjectOf(issue, raw, texts, ctx) {
     if (issue.code === "unknownKey") {
-        return ctx.fill(texts.quote, { key: issue.path });
+        // the key itself, also inside a section ("values[0].lable": "lable")
+        return ctx.fill(texts.quote, { key: issue.path.split(".").pop() ?? issue.path });
     }
     const m = ENTRY.exec(issue.path);
     if (m) {
@@ -191,6 +193,7 @@ export function unusedItem(issue, raw, texts, ctx) {
         type: typeof params.type === "string" ? (own(labels.types, params.type) ?? params.type) : "",
         max: typeof params.max === "number" ? params.max.toLocaleString(labels.lang) : "",
         zone: params.zone ?? "",
+        suggestion: params.suggestion ?? "",
         message: issue.message
     };
     // the subject is shown in bold: the item's text around it ("{subject}: {text}"), split before the

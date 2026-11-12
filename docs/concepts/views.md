@@ -90,25 +90,27 @@ pivotkit treats every view as untrusted, wherever it comes from:
   against [limits](limits.md#limits) before anything is allocated.
 
 `normalize(view, data)` in pivotkit-core returns the checked view and the issues; `validate` only
-reports. The UI normalizes every view it gets and shows what it dropped as a warning above the result,
+reports, split into `errors` and `warnings`. The UI normalizes every view it gets and shows what it dropped as a warning above the result,
 in plain words ([what people see](../use/behaviour.md#parts-of-a-view-that-were-not-used)).
 
 ### Issues (for developers)
 
-An issue is `{ path, message, code, params }`:
+An issue is `{ path, message, code, severity, params }`:
 
 | Member | What |
 | --- | --- |
 | `path` | Where in the view: `rows[1]`, `values[0].conditional.colors`, `chart.legend`, `""` for the whole view. |
 | `message` | An English sentence for developers and logs, such as `unknown field "Planet"`; its wording may change. |
 | `code` | What kind of problem, one of `VIEW_ISSUE_CODES`: a stable name to say it in your own words. |
-| `params` | What such a text needs, when there is something: `field` (a field name), `value` (the setting or item as given, as text, at most 100 characters), `agg` (an aggregator), `type` (a field type), `max` (a limit), `zone` (the data's time zone). |
+| `severity` | `"error"`: the part is left out or replaced by its default. `"warning"`: the part is used as written but may not do what was meant. `VIEW_ISSUES[code].severity` gives a code's; `unknownKey` is an error at the top of a view and a warning inside a part. |
+| `params` | What such a text needs, when there is something: `field` (a field name), `value` (the setting or item as given, as text, at most 100 characters), `agg` (an aggregator), `type` (a field type), `max` (a limit), `zone` (the data's time zone), `suggestion` (the name that was probably meant: the closest field, aggregator, filter type or key, or the data's item). |
 
 | Codes | When |
 | --- | --- |
 | `notView`, `notJson`, `tooLarge`, `badVersion`, `newerVersion`, `noMigration` | Nothing of the view can be used: the empty view instead. |
-| `unknownKey` | A key a view does not have (a template's `name` among them). |
+| `unknownKey` | A key a view does not have (a template's `name` among them); inside a part (a value, a filter, the chart), a warning. |
 | `notList`, `tooMany`, `tooManyItems`, `itemType` | A list that is none, longer than the [limits](limits.md#limits), or an item that does not fit the field's type. |
+| `itemCase` | A warning: a text item of a filter is no item of the data, but one differs from it only in case or whitespace (`params.suggestion`); the filter keeps the item as written. Needs the encoded data. |
 | `unknownField`, `placedTwice`, `sortedTwice` | A field the data does not have; a field twice on the axes or in the sort. |
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
 | `notValueRef`, `unknownAggregator`, `aggregatorNeedsField`, `aggregatorType` | A value or a value a filter or sort goes by. |

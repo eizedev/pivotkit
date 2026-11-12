@@ -100,13 +100,14 @@ A view is the report as JSON; [Views and saved views](../concepts/views.md) desc
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported as an issue `{ path, message, code, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
-| `validate(view, schema, { limits })` | `{ valid, errors }` | Everything `normalize` would drop or change, against the same `limits` (`errors` are `normalize`'s issues). |
+| `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported as an issue `{ path, message, code, severity, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
+| `validate(view, schema, { limits })` | `{ valid, errors, warnings }` | Everything `normalize` would drop or change (`errors`) and what it uses but may not be what was meant (`warnings`), against the same `limits`; with the warnings only a strict check gives. `valid` without errors. |
 | `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
 | `emptyView()` | `View` | A new, empty report. |
 | `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`; `type` is `"date"` for a grouping by day, `"number"` for every other unit and for number ranges). |
 | `VIEW_VERSION` | `number` | The view version this release writes. |
 | `VIEW_ISSUE_CODES` | `string[]` | Every `code` an issue of `normalize`, `migrate`, `validate` or `computePivot` can have ([Issues](../concepts/views.md#issues-for-developers)). |
+| `VIEW_ISSUES` | object | Per code: `severity` (`"error"` or `"warning"`) and `schema` (whether the view's JSON Schema refuses the case too). |
 
 ### View files
 

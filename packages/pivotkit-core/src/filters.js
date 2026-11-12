@@ -210,6 +210,7 @@ function normalizeItems(flt, spec, f, path, ctx) {
         if (converted === undefined) {
             ctx.issue(`${path}.items`, `item ${JSON.stringify(item)} does not fit the ${f.type} field`, "itemType", { value: shown(item), type: f.type });
         } else {
+            ctx.itemHint(f, converted, `${path}.items`);
             spec.items.push(converted);
         }
     }
@@ -425,6 +426,7 @@ function keepTop(f, values, paths) {
 /**
  * @typedef {object} FilterDef
  * @property {"items" | "values"} stage
+ * @property {readonly string[]} keys  the keys a filter of the type has (an other key is reported)
  * @property {Function} normalize
  * @property {Function} [allowed]  item filters
  * @property {Function} [keep]     value filters
@@ -432,18 +434,21 @@ function keepTop(f, values, paths) {
  *   grouping: always, or for a filter that says so (a comparison with a calendar day)
  */
 
+/** The keys of a filter of a type: its field and type, and its own. */
+const keysOf = (...own) => Object.freeze(["field", "type", ...own]);
+
 /** Whether an item filter reads the source date of a grouping instead of the grouping's own column. */
 export const readsSource = (def, f) => (typeof def.source === "function" ? def.source(f) : Boolean(def.source));
 
 /** @type {Readonly<Record<string, FilterDef>>} */
 export const FILTERS = Object.freeze({
-    include: { stage: "items", normalize: normalizeItems, allowed: allowedItems(true) },
-    exclude: { stage: "items", normalize: normalizeItems, allowed: allowedItems(false) },
-    label: { stage: "items", normalize: normalizeLabel, allowed: allowedLabels },
-    compare: { stage: "items", normalize: normalizeCompare, allowed: allowedCompared, source: byDay },
-    relative: { stage: "items", normalize: normalizeRelative, allowed: allowedRelative, source: true },
-    top: { stage: "values", normalize: normalizeTop, keep: keepTop },
-    value: { stage: "values", normalize: normalizeValue, keep: keepMatching }
+    include: { stage: "items", keys: keysOf("items"), normalize: normalizeItems, allowed: allowedItems(true) },
+    exclude: { stage: "items", keys: keysOf("items"), normalize: normalizeItems, allowed: allowedItems(false) },
+    label: { stage: "items", keys: keysOf("op", "value"), normalize: normalizeLabel, allowed: allowedLabels },
+    compare: { stage: "items", keys: keysOf("op", "value", "value2"), normalize: normalizeCompare, allowed: allowedCompared, source: byDay },
+    relative: { stage: "items", keys: keysOf("unit", "count", "anchor"), normalize: normalizeRelative, allowed: allowedRelative, source: true },
+    top: { stage: "values", keys: keysOf("by", "count", "bottom"), normalize: normalizeTop, keep: keepTop },
+    value: { stage: "values", keys: keysOf("by", "op", "value", "value2"), normalize: normalizeValue, keep: keepMatching }
 });
 
 export const FILTER_TYPES = Object.freeze(Object.keys(FILTERS));

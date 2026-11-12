@@ -6,6 +6,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- The warning about a view's unused parts says when a filter's item is in the data in another case
+  (“north”, but “North”), and names a key inside a part of the view by itself.
+
 ### Fixed
 
 - The search of a field's item list and of a grouping's item picker finds an item whose label holds

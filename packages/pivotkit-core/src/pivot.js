@@ -23,7 +23,7 @@ import { KEEPS_VALUES_WEIGHT, resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
 import { buildTree, groupBy } from "./tree.js";
 import { resolveLocale, optionsOf } from "./util.js";
-import { normalize } from "./view.js";
+import { issueOf, normalize } from "./view.js";
 
 /** @typedef {import("./tree.js").PivotNode} PivotNode */
 
@@ -263,12 +263,7 @@ export function computePivot(data, viewInput, options) {
     const { view, issues } = normalize(viewInput, data, options);
     const locale = resolveLocale(view.formatting.locale, options.locale);
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
-        issues.push({
-            path: "formatting.timeZone",
-            message: `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`,
-            code: "timeZoneMismatch",
-            params: { value: view.formatting.timeZone, zone: data.timeZone }
-        });
+        issues.push(issueOf("formatting.timeZone", `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`, "timeZoneMismatch", { value: view.formatting.timeZone, zone: data.timeZone }));
     }
     const columnOf = columnResolver(data, view);
     const ranks = (column) => ranksOf(column, locale, data.cache);

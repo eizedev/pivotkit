@@ -9,37 +9,83 @@
  * per section. Each section reports what it drops as an issue { path, message }.
  */
 
-import { aggregatorFits, aggregatorOf } from "./aggregators.js";
+import { AGGREGATOR_NAMES, aggregatorFits, aggregatorOf } from "./aggregators.js";
 import { DERIVED, MIN_BIN_SIZE } from "./derive.js";
 import { FILTERS, itemFor } from "./filters.js";
+import { closest } from "./hints.js";
 import { isFormat } from "./format.js";
 import { resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
+import { foldText } from "./text-match.js";
 import { canonicalTimeZone } from "./time.js";
 import { canonicalLocale, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
 
 export const VIEW_VERSION = 1;
 
 /**
- * Every code an issue of normalize() (and of migrate(), validate() and computePivot(), which report
- * the same) can carry: one stable name per kind of problem, so a UI can say it in its own words. The
- * message stays English for developers. computePivot adds "timeZoneMismatch" (the view's time zone
- * is not the data's). `params` holds what a text needs: `field` (a field name), `value` (the setting
- * or item as given, as text, at most 100 characters), `agg`, `type` (a field type), `max`, `zone`.
+ * Every kind of issue normalize() (and migrate(), validate() and computePivot(), which report the
+ * same) can give: one stable `code` per kind of problem, so a UI can say it in its own words. The
+ * message stays English for developers. Per code:
+ * - `severity`: "error", the part is left out or replaced by its default; "warning", the view is used
+ *   as it is but may not do what was meant (an item that matches no item of the data only by case,
+ *   a key inside a section that this version does not know). An issue carries its code's severity;
+ *   `unknownKey` is an error at the top of a view and a warning inside a section.
+ * - `schema`: whether the view's JSON Schema (schema/view-2.json) refuses the case of the code too;
+ *   false for what only the data can tell (a field's name or type) and what JSON Schema cannot say.
+ * computePivot adds "timeZoneMismatch" (the view's time zone is not the data's). `params` holds what
+ * a text needs: `field` (a field name), `value` (the setting or item as given, as text, at most 100
+ * characters), `agg`, `type` (a field type), `max`, `zone`, `suggestion` (the name meant, "did you
+ * mean").
+ * @type {Readonly<Record<string, Readonly<{ severity: "error" | "warning", schema: boolean }>>>}
  */
-export const VIEW_ISSUE_CODES = /* @__PURE__ */ Object.freeze([
-    "notView", "notJson", "tooLarge", "badVersion", "newerVersion", "noMigration", "unknownKey",
-    "notList", "tooMany", "tooManyItems", "itemType",
-    "unknownField", "placedTwice",
-    "groupingNoName", "groupingNameTaken", "groupingNoSource", "groupingUnknown", "binsNeedNumber", "groupingNeedsDate", "binSize",
-    "notValueRef", "unknownAggregator", "aggregatorNeedsField", "aggregatorType",
-    "unknownFormat", "badLabel", "unknownShowAs", "showAsNotAdditive", "showAsNotNumber",
-    "unknownConditional", "conditionalNotNumber", "colorScaleColors", "dataBarColor",
-    "unknownFilterType", "filterNoItems", "filterLabelOp", "filterText", "filterNotNumber", "filterCount", "filterValue", "filterValue2",
-    "filterCompareField", "filterCompareValue", "filterRelativeField", "filterRelativeUnit", "filterRelativeCount", "filterRelativeAnchor",
-    "sortNoItems", "sortedTwice",
-    "badTotals", "collapsedPath", "unknownSetting", "badTitle", "unknownLocale", "unknownTimeZone", "timeZoneMismatch"
-]);
+export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
+    notView: "error schema", notJson: "error", tooLarge: "error", badVersion: "error schema", newerVersion: "error schema",
+    noMigration: "error", unknownKey: "error schema",
+    notList: "error schema", tooMany: "error schema", tooManyItems: "error schema", itemType: "error", itemCase: "warning",
+    unknownField: "error", placedTwice: "error",
+    groupingNoName: "error schema", groupingNameTaken: "error", groupingNoSource: "error", groupingUnknown: "error schema",
+    binsNeedNumber: "error", groupingNeedsDate: "error", binSize: "error schema",
+    notValueRef: "error schema", unknownAggregator: "error schema", aggregatorNeedsField: "error schema", aggregatorType: "error",
+    unknownFormat: "error", badLabel: "error schema", unknownShowAs: "error schema", showAsNotAdditive: "error", showAsNotNumber: "error",
+    unknownConditional: "error schema", conditionalNotNumber: "error", colorScaleColors: "error schema", dataBarColor: "error schema",
+    unknownFilterType: "error schema", filterNoItems: "error schema", filterLabelOp: "error schema", filterText: "error schema",
+    filterNotNumber: "error", filterCount: "error schema", filterValue: "error schema", filterValue2: "error schema",
+    filterCompareField: "error", filterCompareValue: "error", filterRelativeField: "error",
+    filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
+    sortNoItems: "error schema", sortedTwice: "error",
+    badTotals: "error schema", collapsedPath: "error", unknownSetting: "error schema", badTitle: "error schema",
+    unknownLocale: "error", unknownTimeZone: "error", timeZoneMismatch: "error"
+});
+
+/** Every code of VIEW_ISSUES. */
+export const VIEW_ISSUE_CODES = /* @__PURE__ */ Object.freeze(Object.keys(VIEW_ISSUES));
+
+/**
+ * VIEW_ISSUES from a short form per code: its severity, and "schema" when the JSON Schema refuses it.
+ * @param {Record<string, string>} short
+ */
+function issueTable(short) {
+    /** @type {Record<string, Readonly<{ severity: "error" | "warning", schema: boolean }>>} */
+    const table = {};
+    for (const [code, text] of Object.entries(short)) {
+        const [severity, schema] = text.split(" ");
+        table[code] = Object.freeze({ severity: severity === "warning" ? "warning" : "error", schema: schema === "schema" });
+    }
+    return Object.freeze(table);
+}
+
+/**
+ * An issue of a code of VIEW_ISSUES, with the code's severity unless `severity` says otherwise.
+ * @param {string} path
+ * @param {string} message
+ * @param {string} code
+ * @param {IssueParams} [params]
+ * @param {"error" | "warning"} [severity]
+ * @returns {Issue}
+ */
+export function issueOf(path, message, code, params, severity = VIEW_ISSUES[code].severity) {
+    return params ? { path, message, code, severity, params } : { path, message, code, severity };
+}
 
 /**
  * The chart types. "auto" (the default, also when a view has no `chart.type`) leaves the choice to
@@ -77,10 +123,10 @@ export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
 const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 /**
- * @typedef {{ field?: string, value?: string | number, agg?: string, type?: string, max?: number, zone?: string }} IssueParams
- * @typedef {{ path: string, message: string, code?: string, params?: IssueParams }} Issue  what was
+ * @typedef {{ field?: string, value?: string | number, agg?: string, type?: string, max?: number, zone?: string, suggestion?: string }} IssueParams
+ * @typedef {{ path: string, message: string, code?: string, severity?: "error" | "warning", params?: IssueParams }} Issue  what was
  *   dropped or changed: where (`path`), an English message for developers, and with normalize() a
- *   `code` of VIEW_ISSUE_CODES and the `params` its text needs
+ *   `code` of VIEW_ISSUE_CODES, its `severity` and the `params` its text needs
  * @typedef {{ field: string | null, agg: string }} ValueRef  a measure by field and aggregator
  * @typedef {{ type: string, axis: "rows" | "cols" }} ShowAs
  * @typedef {{ type: "colorScale", colors: string[] } | { type: "dataBar", color: string | null }} Conditional
@@ -168,23 +214,23 @@ export function migrate(raw) {
 export function runMigrations(raw, steps, target) {
     const issues = [];
     if (!isPlainObject(raw)) {
-        return { view: null, issues: [{ path: "", message: "not a view object", code: "notView" }] };
+        return { view: null, issues: [issueOf("", "not a view object", "notView")] };
     }
     const version = get(raw, "version") ?? target;
     if (!Number.isInteger(version) || version < 1) {
-        return { view: null, issues: [{ path: "version", message: `unknown version ${JSON.stringify(version)}`, code: "badVersion", params: { value: shown(version) } }] };
+        return { view: null, issues: [issueOf("version", `unknown version ${JSON.stringify(version)}`, "badVersion", { value: shown(version) })] };
     }
     if (version > target) {
         return {
             view: null,
-            issues: [{ path: "version", message: `version ${version} is newer than this pivotkit-core reads (${target}); update pivotkit-core`, code: "newerVersion", params: { value: version, max: target } }]
+            issues: [issueOf("version", `version ${version} is newer than this pivotkit-core reads (${target}); update pivotkit-core`, "newerVersion", { value: version, max: target })]
         };
     }
     let view = /** @type {Record<string, unknown>} */ (raw);
     for (let v = version; v < target; v++) {
         const step = steps[v];
         if (typeof step !== "function") {
-            return { view: null, issues: [{ path: "version", message: `no migration from version ${v}`, code: "noMigration", params: { value: v } }] };
+            return { view: null, issues: [issueOf("version", `no migration from version ${v}`, "noMigration", { value: v })] };
         }
         view = step(view);
     }
@@ -230,9 +276,28 @@ function listOf(raw, key, max, ctx, each) {
 
 // ---- sections ----
 
+/**
+ * The keys each part of a view knows; normalize() reports any other key inside a part as a warning
+ * (`unknownKey`), the keys of a filter come from its type's entry in FILTERS.
+ */
+export const VIEW_KEYS = Object.freeze({
+    view: Object.freeze(Object.keys(emptyView())),
+    derived: Object.freeze(["name", "field", "by", "size", "origin"]),
+    value: Object.freeze(["field", "agg", "format", "label", "showAs", "conditional"]),
+    valueRef: Object.freeze(["field", "agg"]),
+    showAs: Object.freeze(["type", "axis"]),
+    conditional: Object.freeze({ colorScale: Object.freeze(["type", "colors"]), dataBar: Object.freeze(["type", "color"]) }),
+    sort: Object.freeze(["field", "by", "order", "items", "value"]),
+    totals: Object.freeze(Object.keys(emptyView().totals)),
+    collapsed: Object.freeze(["rows", "cols"]),
+    chart: Object.freeze(Object.keys(emptyView().chart)),
+    formatting: Object.freeze(Object.keys(emptyView().formatting))
+});
+
 /** Derived fields go first: the other sections may name them. */
 function derivedSection(raw, view, ctx) {
     listOf(raw, "derived", ctx.limits.derived, ctx, (d, path) => {
+        ctx.keys(d, VIEW_KEYS.derived, path);
         const name = ctx.text(get(d, "name"));
         const source = ctx.fields.get(String(get(d, "field") ?? "").toLowerCase());
         const by = get(d, "by");
@@ -273,7 +338,7 @@ function axesSection(raw, view, ctx) {
         listOf(raw, axis, ctx.limits.axisFields, ctx, (name, path) => {
             const f = ctx.resolve(name);
             if (!f) {
-                return ctx.issue(path, `unknown field ${JSON.stringify(name)}`, "unknownField", { field: shown(name) });
+                return ctx.unknownField(path, name);
             }
             if (placed.has(f.name)) {
                 return ctx.issue(path, `"${f.name}" is already placed`, "placedTwice", { field: f.name });
@@ -286,6 +351,9 @@ function axesSection(raw, view, ctx) {
 
 function conditionalOf(cond, path, ctx) {
     const type = get(cond, "type");
+    if (type === "colorScale" || type === "dataBar") {
+        ctx.keys(cond, VIEW_KEYS.conditional[type], path);
+    }
     if (type === "colorScale") {
         const colors = get(cond, "colors");
         const list = Array.isArray(colors) ? colors.filter((c) => typeof c === "string" && COLOR.test(c)).slice(0, 3) : [];
@@ -310,6 +378,7 @@ function conditionalOf(cond, path, ctx) {
 
 function showAsOf(showAs, ref, path, ctx) {
     const s = typeof showAs === "string" ? { type: showAs } : showAs;
+    ctx.keys(s, VIEW_KEYS.showAs, path);
     const type = get(s, "type");
     const def = typeof type === "string" && Object.hasOwn(SHOW_AS, type) ? SHOW_AS[type] : null;
     if (!def) {
@@ -326,7 +395,7 @@ function showAsOf(showAs, ref, path, ctx) {
 
 function valuesSection(raw, view, ctx) {
     listOf(raw, "values", ctx.limits.values, ctx, (v, path) => {
-        const ref = ctx.valueRef(v, path);
+        const ref = ctx.valueRef(v, path, VIEW_KEYS.value);
         if (!ref) {
             return;
         }
@@ -374,11 +443,12 @@ function filtersSection(raw, view, ctx) {
         const type = get(flt, "type");
         const def = typeof type === "string" && Object.hasOwn(FILTERS, type) ? FILTERS[type] : null;
         if (!f) {
-            return ctx.issue(path, `unknown field ${JSON.stringify(get(flt, "field"))}`, "unknownField", { field: shown(get(flt, "field")) });
+            return ctx.unknownField(path, get(flt, "field"));
         }
         if (!def) {
-            return ctx.issue(path, `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type) });
+            return ctx.issue(path, `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...suggest(type, Object.keys(FILTERS)) });
         }
+        ctx.keys(flt, def.keys, path);
         const spec = def.normalize(flt, { field: f.name, type }, f, path, ctx, view);
         if (spec) {
             view.filters.push(spec);
@@ -415,9 +485,10 @@ function customItems(items, f, path, ctx) {
 function sortSection(raw, view, ctx) {
     const seen = new Set();
     listOf(raw, "sort", ctx.limits.sort, ctx, (s, path) => {
+        ctx.keys(s, VIEW_KEYS.sort, path);
         const f = ctx.resolve(get(s, "field"));
         if (!f || seen.has(f.name)) {
-            return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.issue(path, `unknown field ${JSON.stringify(get(s, "field"))}`, "unknownField", { field: shown(get(s, "field")) });
+            return f ? ctx.issue(path, `"${f.name}" is sorted twice`, "sortedTwice", { field: f.name }) : ctx.unknownField(path, get(s, "field"));
         }
         const by = oneOf(get(s, "by"), SORT_BY, "label");
         const spec = { field: f.name, by, order: oneOf(get(s, "order"), ["asc", "desc"], "asc") };
@@ -448,6 +519,7 @@ function totalsSection(raw, view, ctx) {
     if (!isPlainObject(totals)) {
         return ctx.issue("totals", "not an object", "badTotals");
     }
+    ctx.keys(totals, VIEW_KEYS.totals, "totals");
     for (const key of Object.keys(view.totals)) {
         view.totals[key] = bool(get(totals, key), view.totals[key]);
     }
@@ -455,6 +527,7 @@ function totalsSection(raw, view, ctx) {
 
 /** Collapsed groups: key paths of fields on the axis. */
 function collapsedSection(raw, view, ctx) {
+    ctx.keys(get(raw, "collapsed"), VIEW_KEYS.collapsed, "collapsed");
     for (const axis of ["rows", "cols"]) {
         const types = view[axis].map((name) => ctx.fields.get(name.toLowerCase()).type);
         const seen = new Set();
@@ -483,6 +556,7 @@ function displaySection(raw, view, ctx) {
         ctx.issue("display", `unknown display ${JSON.stringify(display)}`, "unknownSetting", { value: shown(display) });
     }
     const chart = get(raw, "chart");
+    ctx.keys(chart, VIEW_KEYS.chart, "chart");
     if (chart !== undefined) {
         const own = (key, allowed, fallback) => {
             const value = get(chart, key);
@@ -513,6 +587,7 @@ function displaySection(raw, view, ctx) {
 
 function formattingSection(raw, view, ctx) {
     const formatting = get(raw, "formatting");
+    ctx.keys(formatting, VIEW_KEYS.formatting, "formatting");
     const locale = get(formatting, "locale");
     if (locale !== undefined && locale !== null) {
         view.formatting.locale = canonicalLocale(locale);
@@ -532,13 +607,71 @@ function formattingSection(raw, view, ctx) {
 /** In order: derived fields first, values before filters and sort (their default measure). */
 const SECTIONS = [derivedSection, axesSection, valuesSection, filtersSection, sortSection, totalsSection, collapsedSection, displaySection, formattingSection];
 
-function context(schema, limits, issues) {
+/** `{ suggestion }` with the name of `candidates` closest to `name`, else nothing ("did you mean"). */
+function suggest(name, candidates) {
+    const suggestion = closest(name, candidates);
+    return suggestion === null ? {} : { suggestion };
+}
+
+/** The most distinct items of a text field the item hints (itemCase) look through. */
+const HINT_ITEMS = 100_000;
+
+/**
+ * What the sections share: the limits, the fields by lower-case name, and the ways to report.
+ * @param {unknown} schema
+ * @param {import("./limits.js").Limits} limits
+ * @param {Issue[]} issues
+ * @param {boolean} strict  validate(): also the warnings that only a strict check gives
+ */
+function context(schema, limits, issues, strict) {
     const fields = new Map(schemaFields(schema).map((f) => [f.name.toLowerCase(), f]));
+    // the text items of a field, as they are and by their folded text, built on first use: only
+    // encoded data has items
+    const textItems = new Map();
+    const itemsOf = (name) => {
+        if (!textItems.has(name)) {
+            const data = /** @type {any} */ (schema);
+            const column = data && !Array.isArray(data) && typeof data.column === "function" ? data.column(name) : undefined;
+            textItems.set(name, column && column.type === "string" && column.dict.length <= HINT_ITEMS ? { exact: new Set(column.dict), byFold: new Map(column.dict.map((v) => [foldText(v), v])) } : null);
+        }
+        return textItems.get(name);
+    };
     const ctx = {
         limits,
         fields,
+        strict,
         issue: (path, message, code, params) => {
-            issues.push(params ? { path, message, code, params } : { path, message, code });
+            issues.push(issueOf(path, message, code, params));
+        },
+        warn: (path, message, code, params) => {
+            issues.push(issueOf(path, message, code, params, "warning"));
+        },
+        /** An unknown field, with the closest field's name when one is close. */
+        unknownField: (path, name) => ctx.issue(path, `unknown field ${JSON.stringify(name)}`, "unknownField", { field: shown(name), ...suggest(name, [...fields.values()].map((f) => f.name)) }),
+        /** Warns about each key of `obj` (a part of the view) that is not of `allowed`. */
+        keys: (obj, allowed, path) => {
+            if (!isPlainObject(obj)) {
+                return;
+            }
+            for (const key of Object.keys(obj)) {
+                if (!allowed.includes(key)) {
+                    ctx.warn(`${path}.${key.slice(0, 100)}`, "unknown key", "unknownKey", { value: shown(key), ...suggest(key, allowed) });
+                }
+            }
+        },
+        /**
+         * Warns when a text item of a field is no item of the data but folds to one (another case, a
+         * no-break space): the data's item is the suggestion.
+         */
+        itemHint: (field, item, path) => {
+            if (typeof item !== "string") {
+                return;
+            }
+            const items = itemsOf(field.name);
+            const match = items && !items.exact.has(item) ? items.byFold.get(foldText(item)) : undefined;
+            if (match !== undefined) {
+                ctx.warn(path, `item ${JSON.stringify(item)} is no item of "${field.name}"; did you mean ${JSON.stringify(match)}?`, "itemCase", { field: field.name, value: shown(item), suggestion: match });
+            }
         },
         text: (value) => {
             if (typeof value !== "string") {
@@ -550,20 +683,21 @@ function context(schema, limits, issues) {
         resolve: (name) => (typeof name === "string" && name.length <= limits.name ? fields.get(name.trim().toLowerCase()) : undefined),
         resultType: (ref) => aggregatorOf(ref.agg).resultType(ref.field ? fields.get(ref.field.toLowerCase()).type : "number"),
         defaultRef: (view) => (view.values.length ? { field: view.values[0].field, agg: view.values[0].agg } : { field: null, agg: "count" }),
-        valueRef: (ref, path) => {
+        valueRef: (ref, path, keys = VIEW_KEYS.valueRef) => {
             if (!isPlainObject(ref)) {
                 ctx.issue(path, "not a value reference", "notValueRef");
                 return null;
             }
+            ctx.keys(ref, keys, path);
             const agg = get(ref, "agg");
             const fieldName = get(ref, "field");
             const f = fieldName === null || fieldName === undefined ? null : ctx.resolve(fieldName);
             if (!aggregatorOf(agg)) {
-                ctx.issue(path, `unknown aggregator ${JSON.stringify(agg)}`, "unknownAggregator", { value: shown(agg) });
+                ctx.issue(path, `unknown aggregator ${JSON.stringify(agg)}`, "unknownAggregator", { value: shown(agg), ...suggest(agg, AGGREGATOR_NAMES) });
                 return null;
             }
             if (f === undefined) {
-                ctx.issue(path, `unknown field ${JSON.stringify(fieldName)}`, "unknownField", { field: shown(fieldName) });
+                ctx.unknownField(path, fieldName);
                 return null;
             }
             if (f === null && agg !== "count") {
@@ -592,11 +726,16 @@ function context(schema, limits, issues) {
  */
 export function normalize(input, schema, options) {
     options = optionsOf(options, "normalize");
+    return check(input, schema, options, false);
+}
+
+/** normalize() and validate(): `strict` adds the warnings only a strict check gives. */
+function check(input, schema, options, strict) {
     const limits = resolveLimits(options);
     /** @type {Issue[]} */
     const issues = [];
     const view = emptyView();
-    const refuse = (path, message, code, params) => ({ view, issues: [...issues, params ? { path, message, code, params } : { path, message, code }] });
+    const refuse = (path, message, code, params) => ({ view, issues: [...issues, issueOf(path, message, code, params)] });
 
     // A JSON round trip with a size limit: no functions, getters, cycles or prototypes survive.
     let parsed;
@@ -620,10 +759,10 @@ export function normalize(input, schema, options) {
     const raw = migrated.view;
     for (const key of Object.keys(raw)) {
         if (!Object.hasOwn(view, key)) {
-            issues.push({ path: key.slice(0, 100), message: "unknown key", code: "unknownKey" });
+            issues.push(issueOf(key.slice(0, 100), "unknown key", "unknownKey", { value: shown(key), ...suggest(key, VIEW_KEYS.view) }));
         }
     }
-    const ctx = context(schema, limits, issues);
+    const ctx = context(schema, limits, issues, strict);
     for (const section of SECTIONS) {
         section(raw, view, ctx);
     }
@@ -631,16 +770,18 @@ export function normalize(input, schema, options) {
 }
 
 /**
- * Checks a view strictly: everything normalize() would drop or change is an error.
+ * Checks a view strictly: what normalize() would drop or change is an error, what it uses but may not
+ * be what was meant is a warning (with the warnings only a strict check gives). Valid without errors.
  * @param {unknown} input
  * @param {unknown} schema
  * @param {{ limits?: Partial<import("./limits.js").Limits> }} [options]
- * @returns {{ valid: boolean, errors: Issue[] }}
+ * @returns {{ valid: boolean, errors: Issue[], warnings: Issue[] }}
  */
 export function validate(input, schema, options) {
     options = optionsOf(options, "validate");
-    const { issues } = normalize(input, schema, options);
-    return { valid: issues.length === 0, errors: issues };
+    const { issues } = check(input, schema, options, true);
+    const errors = issues.filter((i) => i.severity !== "warning");
+    return { valid: errors.length === 0, errors, warnings: issues.filter((i) => i.severity === "warning") };
 }
 
 /**

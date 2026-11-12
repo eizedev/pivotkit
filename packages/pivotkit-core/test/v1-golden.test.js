@@ -17,7 +17,8 @@ test("the golden file covers every case of the corpus", () => {
 for (const c of V1_CASES) {
     test(`v1 view keeps its rows: ${c.name}`, () => {
         const result = computePivot(encoded[c.data], c.view, { now: NOW });
-        assert.deepEqual(result.issues, []);
+        // warnings (an item in another case than the data's) leave the view as it is
+        assert.deepEqual(result.issues.filter((i) => i.severity !== "warning"), []);
         assert.deepEqual(Array.from(result.rows).sort((a, b) => a - b), golden.rows[c.name]);
     });
 }
