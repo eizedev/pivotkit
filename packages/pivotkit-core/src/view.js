@@ -122,7 +122,8 @@ export const CHART_AXIS_LABELS = Object.freeze(["auto", "all", "nth"]);
  */
 export const CHART_GROUP_LABELS = Object.freeze(["auto", "on", "off"]);
 
-const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+/** A colour of a conditional format: #rgb or #rrggbb. */
+export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 /**
  * @typedef {{ field?: string, value?: string | number, agg?: string, type?: string, max?: number, zone?: string, suggestion?: string, allowed?: string }} IssueParams
@@ -469,7 +470,8 @@ function filtersSection(raw, view, ctx) {
     });
 }
 
-const SORT_BY = Object.freeze(["label", "value", "custom"]);
+/** What a sort goes by: the items' labels, a value, an order of its own. */
+export const SORT_BY = Object.freeze(["label", "value", "custom"]);
 
 /** The items of a custom sort order: converted to the field's type, each once, at most `limits.items`. */
 function customItems(items, f, path, ctx) {

@@ -109,6 +109,12 @@ A view is the report as JSON; [Views and saved views](../concepts/views.md) desc
 | `VIEW_ISSUE_CODES` | `string[]` | Every `code` an issue of `normalize`, `migrate`, `validate` or `computePivot` can have ([Issues](../concepts/views.md#issues-for-developers)). |
 | `VIEW_ISSUES` | object | Per code: `severity` (`"error"` or `"warning"`) and `schema` (whether the view's JSON Schema refuses the case too). |
 
+The JSON Schema of a view of version 2 ships as `pivotkit-core/schema/view-2.json` and is published at
+`https://pivotkit.eize.dev/schema/view-2.json`, for an editor, a generator or an LLM that writes
+views. It is built from the engine's own tables by `scripts/schemas.js` of the repository and refuses
+everything `normalize` would refuse without looking at the data (`VIEW_ISSUES[code].schema`); what
+only the data can tell (a field's name and type, an aggregator for a field) is `normalize`'s.
+
 ### View files
 
 A view with its name, the data it was made for and the fields it uses, as one JSON document: what

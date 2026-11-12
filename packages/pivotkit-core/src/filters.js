@@ -629,7 +629,10 @@ function keepTop(f, values, paths) {
  * @property {"items" | "values"} stage
  * @property {readonly string[]} fields  the field types it works on ("dateGrouping": a grouping of a
  *   date, whatever its own type); any other is the error filterFieldType
- * @property {readonly string[]} keys  the keys a filter of the type has (an other key is reported)
+ * @property {readonly string[]} keys  the keys a filter of the type has (an other key is reported);
+ *   with `required`, what the JSON Schema of a view (scripts/schemas.js) is made of
+ * @property {readonly string[]} required  the keys a filter of the type cannot do without (a
+ *   relative range's count too, unless its direction is "this"; value2 with between)
  * @property {Function} normalize
  * @property {Function} [allowed]  item filters
  * @property {Function} [keep]     value filters
@@ -648,13 +651,21 @@ const NOT_BLANKS = Object.freeze(["not", "blanks"]);
 
 /** @type {Readonly<Record<string, FilterDef>>} */
 export const FILTERS = Object.freeze({
-    in: { stage: "items", fields: ALL_TYPES, keys: keysOf("items", ...NOT_BLANKS), normalize: normalizeIn, allowed: withNotBlanks(matchItems) },
-    blank: { stage: "items", fields: ALL_TYPES, keys: keysOf("not"), normalize: normalizeBlank, allowed: keepBlank },
-    text: { stage: "items", fields: ALL_TYPES, keys: keysOf("op", "value", "on", "match", ...NOT_BLANKS), normalize: normalizeText, allowed: withNotBlanks(matchTexts) },
-    compare: { stage: "items", fields: Object.freeze(["number", "date"]), keys: keysOf("op", "value", "value2", "precision", ...NOT_BLANKS), normalize: normalizeCompare, allowed: withNotBlanks(allowedCompared), source: byDay },
-    relative: { stage: "items", fields: Object.freeze(["date", "dateGrouping"]), keys: keysOf("direction", "unit", "count", "calendar", "includeCurrent", "anchor", ...NOT_BLANKS), normalize: normalizeRelative, allowed: withNotBlanks(allowedRelative), source: true },
-    top: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "count", "bottom", "ties"), normalize: normalizeTop, keep: keepTop },
-    value: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "op", "value", "value2", "not"), normalize: normalizeValue, keep: keepMatching }
+    in: { stage: "items", fields: ALL_TYPES, keys: keysOf("items", ...NOT_BLANKS), required: keysOf("items"), normalize: normalizeIn, allowed: withNotBlanks(matchItems) },
+    blank: { stage: "items", fields: ALL_TYPES, keys: keysOf("not"), required: keysOf(), normalize: normalizeBlank, allowed: keepBlank },
+    text: { stage: "items", fields: ALL_TYPES, keys: keysOf("op", "value", "on", "match", ...NOT_BLANKS), required: keysOf("op", "value"), normalize: normalizeText, allowed: withNotBlanks(matchTexts) },
+    compare: { stage: "items", fields: Object.freeze(["number", "date"]), keys: keysOf("op", "value", "value2", "precision", ...NOT_BLANKS), required: keysOf("op", "value"), normalize: normalizeCompare, allowed: withNotBlanks(allowedCompared), source: byDay },
+    relative: {
+        stage: "items",
+        fields: Object.freeze(["date", "dateGrouping"]),
+        keys: keysOf("direction", "unit", "count", "calendar", "includeCurrent", "anchor", ...NOT_BLANKS),
+        required: keysOf("unit"),
+        normalize: normalizeRelative,
+        allowed: withNotBlanks(allowedRelative),
+        source: true
+    },
+    top: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "count", "bottom", "ties"), required: keysOf("count"), normalize: normalizeTop, keep: keepTop },
+    value: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "op", "value", "value2", "not"), required: keysOf("op", "value"), normalize: normalizeValue, keep: keepMatching }
 });
 
 export const FILTER_TYPES = Object.freeze(Object.keys(FILTERS));

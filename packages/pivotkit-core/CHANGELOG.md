@@ -33,6 +33,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   both sides are taken as the start of their unit. A top N has `ties`: `first` (the default, as it
   was) or `all` (every item tied at the cut stays). New issue codes `filterPrecision` and
   `filterTies`; `CATALOG.comparePrecisions` and `CATALOG.topTies`.
+- The JSON Schema of a view of version 2, `pivotkit-core/schema/view-2.json` (published at
+  `https://pivotkit.eize.dev/schema/view-2.json`), built from the engine's tables; it refuses every
+  case of an issue code whose `VIEW_ISSUES[code].schema` is true.
 - `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
   rows left after it, counted as the filters apply.
 - Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):

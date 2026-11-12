@@ -43,6 +43,7 @@
       "default": "./src/templates.js"
     },
     "./schema/view-file-1.json": "./schema/view-file-1.json",
+    "./schema/view-2.json": "./schema/view-2.json",
     "./package.json": "./package.json"
   },
   "files": [

@@ -26,7 +26,7 @@ test("the package exports its documented entry points and nothing else", () => {
         "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "validatePlugin"
     ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./import", "./link", "./templates", "./schema/view-file-1.json", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./import", "./link", "./templates", "./schema/view-file-1.json", "./schema/view-2.json", "./package.json"]);
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */
