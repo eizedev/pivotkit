@@ -19,7 +19,8 @@ after that a filter, a field or the chart took about 0.15 s at most
 ([measured in the browser](concepts/limits.md#measured-in-the-browser), which also says what was not
 measured, such as loading a file). A million rows is the default `rows` limit. Beyond the rows, the [limits](concepts/limits.md#limits)
 guard the work of a layout (`work`), its groups (`groups`), its aggregated cells (`pivotCells`) and
-the size of the table (`cells`).
+the size of the table (`cells`). For more rows, see
+[more than a million rows](concepts/limits.md#more-than-a-million-rows).
 
 ## My data is on a server. Does pivotkit fetch it?
 
