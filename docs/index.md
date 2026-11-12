@@ -88,7 +88,8 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - A view is user input: names only (and the values chosen in its filters), checked against fixed lists and limits, never run ([security](security.md)).
 - Field labels, descriptions and links, also from a JSON Schema or OpenAPI document ([fields](concepts/fields.md)).
 - `chartOptions` merges plain JSON over the ECharts option, for what the menus do not offer ([charts](concepts/charts.md#chartoptions-for-developers)).
-- `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it ([sharing](concepts/sharing.md)).
+- `shareLink` and `persistView` share and keep views; a view travels as a [view file](reference/view-file.md) with a JSON Schema, `toViewFile` and `fromViewFile` read and write it, `readViewLink` reads a link with the data source it names ([sharing](concepts/sharing.md)).
+- `validate` says what is wrong with a view, with "did you mean" hints; `describeSource` and `describeView` summarize data and views as plain JSON, for a log or an LLM ([views](concepts/views.md)).
 - Templates in two groups, shared views and my views, kept by the host's callbacks or by the browser (`templateStore`), also from an OpenAPI document's `x-pivotkit-views` ([templates](concepts/templates.md)).
 - `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).

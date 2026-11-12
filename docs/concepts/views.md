@@ -91,7 +91,11 @@ pivotkit treats every view as untrusted, wherever it comes from:
   against [limits](limits.md#limits) before anything is allocated.
 
 `normalize(view, data)` in pivotkit-core returns the checked view and the issues; `validate` only
-reports, split into `errors` and `warnings`. The UI normalizes every view it gets and shows what it dropped as a warning above the result,
+reports, split into `errors` and `warnings`, with the name that was probably meant
+(`params.suggestion`). A view written by a program or an LLM can be checked before it reaches the
+data with the JSON Schema `pivotkit-core/schema/view-2.json` (built from the engine's tables), and
+explained with `describeView(view, data)`: its parts with one short English text each
+([reference](../reference/core.md#describing-data-and-views)). The UI normalizes every view it gets and shows what it dropped as a warning above the result,
 in plain words ([what people see](../use/behaviour.md#parts-of-a-view-that-were-not-used)).
 
 ### Issues (for developers)

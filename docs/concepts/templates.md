@@ -151,7 +151,7 @@ components:
             cols: [lts]
             values: [{ field: cycle, agg: count }]
         - format: pivotkit-view
-          formatVersion: 1
+          formatVersion: 2
           name: Cycles per product (chart)
           view: { rows: [product], values: [{ field: cycle, agg: count }], display: chart }
 ```
