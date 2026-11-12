@@ -66,8 +66,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 ### Fixed
 
 - The Filter level's **Count back from the latest record (…) instead** looked like a note, not like
-  something to click: it is a small button as the level's **Compare** buttons (a border, at least
-  24 px high, its text wrapping inside it at a narrow width)
+  something to click: it is a small button as the level's **Compare** buttons (a border, an icon
+  before its words, at least 24 px high, its text wrapping inside it at a narrow width)
   ([#179](https://github.com/eizedev/pivotkit/issues/179)).
 - The note of a file over a limit named the file twice (`big.csv could not be loaded: "big.csv" has
   more than …`) and only `limits.*` as what a host raises, although `importLimits` may set the limit.
