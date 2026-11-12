@@ -8,6 +8,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
+  the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`
+  filter (case and runs of whitespace ignored, `on: "label"` for a field that is not text), "is not",
+  "does not contain" and "is not between" the positive operator with `not: true`. Views of version 1
+  (stored, shared, the host's) load with the same result. A rule the menus have no word for (a
+  loaded view's "does not begin with") is said as "not (…)"; the menus offer no rule for blanks and
+  the new operators yet.
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters
   (pivotkit-core's `outsideLimits`), or the host's lower `limits.filters`.
 
@@ -18,6 +25,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A rule on the names ("begins with “ACTIVE DIRECTORY”") keeps the items whose names hold a no-break
+  space or other whitespace, and a space typed at the end does not matter
+  ([#159](https://github.com/eizedev/pivotkit/issues/159)).
 - The search of a field's item list and of a grouping's item picker finds an item whose label holds
   a no-break space or another run of whitespace when a plain space is typed, and ignores spaces
   typed at the ends ([#159](https://github.com/eizedev/pivotkit/issues/159)). Both searches fold

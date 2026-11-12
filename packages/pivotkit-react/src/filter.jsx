@@ -8,14 +8,14 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { CATALOG, fieldItems, fieldLabel } from "pivotkit-core";
+import { LIMITS, fieldItems, fieldLabel } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { useFormName } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
 import { Popover } from "./popover.jsx";
-import { filtersOf, searchItems, selectedItems } from "./view-ops.js";
-import { conditionKind, setItemFilter, setLabelFilter } from "./menu-ops.js";
+import { RULE_OPS, filtersOf, ruleOp, searchItems, selectedItems } from "./view-ops.js";
+import { conditionKind, setItemFilter, setLabelFilter, textOn } from "./menu-ops.js";
 
 /** Values listed at once; the search finds the others. */
 export const FILTER_LIST_MAX = 300;
@@ -115,8 +115,8 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
     const info = useMemo(() => fieldItems(encoded, field, { view, locale, labels: labels.core }), [encoded, field, view, locale, labels]);
     const all = useMemo(() => (info ? info.items.map((i) => i.value) : []), [info]);
     const [selected, setSelected] = useState(() => new Set(selectedItems(view, field, all).map(keyOf)));
-    const label = filtersOf(view, field, ["label"])[0];
-    const [op, setOp] = useState(label?.op ?? "");
+    const label = filtersOf(view, field, ["text"])[0];
+    const [op, setOp] = useState(label ? ruleOp(label) : "");
     const [text, setText] = useState(label?.value ?? "");
     if (!info) {
         return null;
@@ -124,7 +124,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
     const name = fieldLabel(field, labels.core);
     const apply = () => {
         let next = setItemFilter(view, field, all.filter((v) => selected.has(keyOf(v))), all);
-        next = setLabelFilter(next, field, op ? { op, value: text } : null);
+        next = setLabelFilter(next, field, op ? { op, value: text, on: textOn(encoded, field) } : null);
         close();
         commit(next, { step: "filter", field: name });
     };
@@ -148,7 +148,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                 <legend>{kind === "number" ? labels.conditionNumber : labels.condition}</legend>
                 <select name={`${formName}-op`} value={op} onChange={(e) => setOp(e.target.value)} aria-label={kind === "number" ? labels.conditionNumber : labels.condition}>
                     <option value="">{labels.conditionNone}</option>
-                    {CATALOG.labelOps.map((o) => (
+                    {RULE_OPS.text.map((o) => (
                         <option key={o} value={o}>
                             {labels.labelOps[o] ?? o}
                         </option>
@@ -161,14 +161,14 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
                         onChange={setText}
                         // the condition goes at once (one undo step); the values chosen stay a draft
                         onClear={() => {
-                            if (!base && filtersOf(view, field, ["label"]).length) {
+                            if (!base && filtersOf(view, field, ["text"]).length) {
                                 commit(setLabelFilter(view, field, null), { step: "filter", field: name });
                             }
                         }}
                         clearLabel={labels.clearText}
                         aria-label={labels.conditionValue}
                         placeholder={labels.conditionValue}
-                        maxLength={1000}
+                        maxLength={LIMITS.textValue}
                         data-testid="filter-condition-text"
                     />
                 ) : null}

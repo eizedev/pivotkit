@@ -78,7 +78,7 @@ test("tips: top N, a filter that leaves nothing, a percentage, a text in Values"
     const view = withoutFilters(none.view);
     assert.deepEqual(view.filters, [], "the filter of a field on an axis goes");
     const zone = withoutFilters({ rows: [], cols: [], filters: [{ field: "Region", type: "exclude", items: ["North"] }] });
-    assert.deepEqual(zone.filters, [{ field: "Region", type: "exclude", items: [] }], "a field in the Filters zone stays there");
+    assert.deepEqual(zone.filters, [{ field: "Region", type: "in", items: [], not: true, blanks: "include" }], "a field in the Filters zone stays there");
     assert.ok(!holding(contextOf([], { rows: ["Rep"] })).includes("filterEmpty"), "no data is no filter problem");
     const pct = contextOf(SALES, { rows: ["Rep"], values: [{ field: "Units", agg: "sum", showAs: { type: "percentOfColumnTotal" } }] });
     assert.deepEqual(activeTips(pct, { allowed: "on", dismissed: [] })[0].params, { type: "percentOfColumnTotal" });

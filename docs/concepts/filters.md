@@ -171,14 +171,19 @@ report. What they write into the view:
 
 | In the UI | In the view |
 | --- | --- |
-| Values ticked in the filter | An `exclude` filter of the values **not** ticked, as Excel does: a value that appears in later data is shown. With every value ticked, the field has no item filter at all. |
+| Values ticked in the filter | An `in` filter with `not: true` of the values **not** ticked, as Excel does: a value that appears in later data is shown. "(blank)" ticked off is `blanks: "exclude"`, else `"include"`. With every value ticked, the field has no item filter at all; a field in the Filters zone without a filter holds `{ "type": "in", "items": [], "not": true, "blanks": "include" }`. |
 | Quick choices of a date field: This year, Last N years, Last N months, Last N days | One `relative` filter (`year` 1, `year` N, `month` N, `day` N) in place of the field's `relative` filters; All removes them. "Counted back from the latest record" is its `anchor: "latest"` (today is no `anchor`). The field's first `relative` filter of a unit the choices offer is the quick choice; the `compare` filters and any other range are rules. |
-| Years combined of a grouping that repeats every year (month of the year) | `compare` filters with calendar days on the grouping: `between` the first and the last year ticked (Jan 1 to Dec 31), a `notBetween` for each gap; every year ticked writes none. |
+| Years combined of a grouping that repeats every year (month of the year) | `compare` filters with calendar days on the grouping: `between` the first and the last year ticked (Jan 1 to Dec 31), a `between` with `not: true` for each gap; every year ticked writes none. |
 | Rule "Released by year is from 2022" (compare the item itself) | A `compare` filter; "is in the last N years" a `relative` filter. |
 | Rule "Count of Released is greater than 3" (compare its total) | A `value` filter, `by` the value chosen; between writes the smaller number into `value`. The number is compared with the aggregated result as the engine computes it, not with a "show values as" percentage. |
-| Rule "The name contains …" (a rule on the name) | A `label` filter. |
+| Rule "The name contains …" (a rule on the name) | A `text` filter: `on: "value"` for a text field, `on: "label"` for any other (a number as the table shows it), with case and whitespace ignored (`match: { case: "insensitive", whitespace: "collapse" }`). "is not" and "does not contain" are `equals` and `contains` with `not: true`; "is not" and "is not between" of the other rules are `=` and `between` with `not: true`. |
 | Top items (Top 3, Top 5, Top 10, Top N…) | A `top` filter, `by` the value chosen; Off removes it. |
-| Remove (beside Rules in the Filter level) | Removes the field's `label`, `compare`, `relative` and `value` filters except the quick choice's `relative` filter (or Years combined's `compare` filters); Clear (beside Pick items) its `include` and `exclude` filters; Reset filter (in the summary) all of them; `top` stays. |
+| Remove (beside Rules in the Filter level) | Removes the field's `text`, `compare`, `relative` and `value` filters except the quick choice's `relative` filter (or Years combined's `compare` filters); Clear (beside Pick items) its `in` filters; Reset filter (in the summary) all of them and a `blank` filter; `top` stays. |
+
+The rules write `blanks: "exclude"`; a rule loaded with other `blanks` keeps them when it is edited.
+The menus offer no rule for `blank`, `beginsWith` or `endsWith` with `not`, `blanks: "only"` or a
+text rule that is case-sensitive yet: a view that has one shows it among the rules (a `not` the menus
+have no word for as "not (…)"), and it can be removed there.
 
 A field keeps its filters when it moves between Rows, Columns and Filters. A field that leaves the
 report takes its filters and its sort with it; moved to Values, it leaves its filters behind.

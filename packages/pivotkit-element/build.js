@@ -222,9 +222,12 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * because esbuild splits the modules the import UI shares with the first load into two more files,
  * each compressed on its own. First load 160.0 measured on a Mac (CI about 160.3), budget 161.5;
  * the menus 39.7 with the Data menu's panel, within 41.
+ * View version 2 (#165): normalize() reads every view through migrate() from version 1, checks keys
+ * inside each part with did-you-mean hints, folds text for the filters, and the report reads and
+ * writes the new filter shape: first load 163.8 measured on a Mac, budget 165.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 161.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5, import: 21 };
+export const SIZE_BUDGET_KIB = { initial: 165.5, chart: 211, export: 11.5, link: 7.3, menus: 41, texts: 6.8, unused: 5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

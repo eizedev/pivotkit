@@ -218,7 +218,7 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
                   return ranges;
               }
               const compares = [">=", "<=", "<", ">"].map((op) => {
-                  const entry = { field, type: "compare", op, value: n };
+                  const entry = { field, type: "compare", op, value: n, not: false, blanks: "exclude" };
                   // the words of the chip, with the year as typed ("from 2022", not a date)
                   const text = capital(fill(labels.compareShort[op], { value: String(n) }));
                   return { id: `compare-${op}-${n}`, text, choice: { id: `compare-${op}-${n}`, text, change: () => ({ view: setRule(view, field, null, entry), note }) } };

@@ -506,7 +506,7 @@ The Filter level of a date field shows its quick choices and the days each keeps
 when the data end before the current period and the person switches "Counted back from", to the
 data's latest date (the filter's `anchor: "latest"`); it offers only the choices with data behind
 them and says the data's share of a range ("2025; 2026 has no data"). The rules write pivotkit-core's
-`relative`, `compare`, `value` and `label` filters ([Filters](../concepts/filters.md#filters-in-the-ui));
+`relative`, `compare`, `value` and `text` filters ([Filters](../concepts/filters.md#filters-in-the-ui));
 a rule's result line and the summary compute the field's totals with pivotkit-core's `computePivot`
 on the field alone (its Grand Total scope). What is typed in a level applies when the level or the menu closes too (a click outside).
 A popover keeps its side of the anchor while its content changes (a level opening), as long as that

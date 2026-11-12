@@ -6,6 +6,10 @@
 
 import { fieldLabel, relativeDateRange } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
+import { hiddenNot, ruleOp } from "./view-ops.js";
+
+/** A rule's short text, inverted in words when its `not` has no word of its own (hiddenNot). */
+const withNot = (f, text, labels) => (hiddenNot(f) ? fill(labels.notRule, { rule: text }) : text);
 
 /** "Sum of Revenue", "% of grand total of Revenue", or the value's own name. */
 export function valueLabel(spec, labels) {
@@ -76,12 +80,13 @@ const OP_SIGNS = Object.freeze({ "=": "=", "!=": "≠", ">": ">", ">=": "≥", "
 export function valueConditionText(view, f, labels, locale) {
     const number = (x) => (typeof x === "number" ? x.toLocaleString(locale, { maximumFractionDigits: 6 }) : "");
     const value = refLabel(view, f.by ?? (view.values?.[0] ? { field: view.values[0].field ?? null, agg: view.values[0].agg } : null), labels);
-    if (f.op === "between" || f.op === "notBetween") {
+    const op = ruleOp(f);
+    if (op === "between" || op === "notBetween") {
         // the engine compares with the smaller number first; so does the text
         const [from, to] = typeof f.value2 === "number" && f.value2 < f.value ? [f.value2, f.value] : [f.value, f.value2];
-        return fill(labels.valueConditions[f.op], { value, from: number(from), to: number(to) });
+        return fill(labels.valueConditions[op], { value, from: number(from), to: number(to) });
     }
-    return fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op, number: number(f.value) });
+    return withNot(f, fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, op) ? OP_SIGNS[op] : op, number: number(f.value) }), labels);
 }
 
 /** A calendar day ("2022-03-01") as the locale writes a date. */
@@ -258,23 +263,24 @@ export function compareText(f, labels, locale, { date, labelOf }) {
     // a date grouping's key without its label is written as it is (2022, not 2,022)
     const shown = (v) => (typeof v === "string" ? dayText(v, locale) : labelOf?.(v) ?? (date ? String(v) : v.toLocaleString(locale, { maximumFractionDigits: 6 })));
     const forms = labels.compareShort;
-    if (f.op === "between" || f.op === "notBetween") {
+    const op = ruleOp(f);
+    if (op === "between" || op === "notBetween") {
         // the smaller first, as the engine reads them (ISO days sort as text)
         const [from, to] = f.value2 !== undefined && f.value2 < f.value ? [f.value2, f.value] : [f.value, f.value2];
         // whole years of days (Years combined): "2024 to 2025", "2025", "not 2025"
         const years = wholeYears(from, to);
         if (years) {
-            return years[0] === years[1] ? fill(forms[f.op === "between" ? "=" : "!="], { value: years[0] }) : fill(forms[f.op], { from: years[0], to: years[1] });
+            return years[0] === years[1] ? fill(forms[op === "between" ? "=" : "!="], { value: years[0] }) : fill(forms[op], { from: years[0], to: years[1] });
         }
-        return fill(forms[f.op], { from: shown(from), to: shown(to) });
+        return fill(forms[op], { from: shown(from), to: shown(to) });
     }
-    return date && Object.hasOwn(forms, f.op) ? fill(forms[f.op], { value: shown(f.value) }) : `${Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op} ${shown(f.value)}`;
+    return withNot(f, date && Object.hasOwn(forms, op) ? fill(forms[op], { value: shown(f.value) }) : `${Object.hasOwn(OP_SIGNS, op) ? OP_SIGNS[op] : op} ${shown(f.value)}`, labels);
 }
 
 /**
  * A rule on a field's items in short, as its chip and its menu say it: "last 5 years (2022–2026)",
  * "from 2022", "contains “an”".
- * @param {{ type: string, op?: string, value?: any, value2?: any, unit?: string, count?: number }} f  a `relative`, `compare` or `label` filter
+ * @param {{ type: string, op?: string, value?: any, value2?: any, unit?: string, count?: number, not?: boolean }} f  a `relative`, `compare` or `text` filter
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  * @param {{ timeZone: string, date: boolean, labelOf?: (value: number) => string | undefined, span?: { min: number, max: number } | null }} kind
@@ -282,13 +288,13 @@ export function compareText(f, labels, locale, { date, labelOf }) {
  */
 export function itemRuleText(f, labels, locale, { timeZone, date, labelOf, span }) {
     if (f.type === "relative") {
-        return relativeText(/** @type {any} */ (f), labels, locale, timeZone, undefined, span);
+        return withNot(f, relativeText(/** @type {any} */ (f), labels, locale, timeZone, undefined, span), labels);
     }
     if (f.type === "compare") {
         return compareText(/** @type {any} */ (f), labels, locale, { date, labelOf });
     }
-    const op = String(f.op);
-    return `${Object.hasOwn(labels.labelOps, op) ? labels.labelOps[op] : op} ${fill(labels.quote, { text: f.value })}`;
+    const op = ruleOp(f);
+    return withNot(f, `${Object.hasOwn(labels.labelOps, op) ? labels.labelOps[op] : op} ${fill(labels.quote, { text: f.value })}`, labels);
 }
 
 /** The name of a derived field for a grouping, in the labels' language: "Date by month", "Amount (by 100)". */

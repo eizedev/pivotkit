@@ -83,21 +83,29 @@ test("real exports validate against the schema (JSON Schema 2020-12), broken env
     assert.equal(validator.validate({ ...good, later: 1 }).valid, true);
 });
 
-// the view's filters: their types and the parts of the comparisons and relative ranges, from the
-// same tables normalize() reads; a view of 0.2.0's filter types stays valid (formatVersion 1)
-test("the schema's filters match the core's: types, operators, units, the count's range", () => {
+// the view's filters of view version 1 (schema/view-file-1.json describes files of format version 1,
+// which hold version-1 views): their types and the parts of the comparisons and relative ranges; a
+// view of 0.2.0's filter types stays valid
+const V1_FILTERS = Object.freeze({
+    types: ["compare", "exclude", "include", "label", "relative", "top", "value"],
+    valueOps: ["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"],
+    relativeUnits: ["year", "month", "day"]
+});
+test("the schema's filters are version 1's: types, operators, units, the count's range", () => {
     const filters = schema.properties.view.properties.filters;
     assert.equal(filters.maxItems, LIMITS.filters);
     // the known types are listed; any other text is valid too (a newer pivotkit's, reported as unused)
-    assert.deepEqual([...filters.items.properties.type.anyOf[0].enum].sort(), [...CATALOG.filterTypes].sort());
+    assert.deepEqual([...filters.items.properties.type.anyOf[0].enum].sort(), V1_FILTERS.types);
     const [compare, relative] = filters.items.allOf.map((a) => a.then.properties);
-    assert.deepEqual(compare.op.enum, [...CATALOG.valueOps]);
-    assert.deepEqual(relative.unit.enum, [...CATALOG.relativeUnits]);
+    assert.deepEqual(compare.op.enum, V1_FILTERS.valueOps);
+    assert.deepEqual(relative.unit.enum, V1_FILTERS.relativeUnits);
     assert.equal(relative.count.maximum, CATALOG.relativeMaxCount);
     const validator = new Validator(schema, "2020-12", false);
     const data = encode([{ Region: "North", Units: 3, Date: "2026-01-01" }]);
-    const view = normalize(
+    // a version-1 view as 0.4.0 wrote it
+    const view = /** @type {any} */ (
         {
+            version: 1,
             derived: [{ name: "Year", field: "Date", by: "year" }],
             rows: ["Year"],
             values: [{ field: "Units", agg: "sum" }],
@@ -108,10 +116,10 @@ test("the schema's filters match the core's: types, operators, units, the count'
                 { field: "Year", type: "relative", unit: "year", count: 5 },
                 { field: "Year", type: "value", op: ">", value: 3 }
             ]
-        },
-        data
-    ).view;
-    assert.equal(view.filters.length, 5);
+        }
+    );
+    // and pivotkit-core reads it without an issue
+    assert.deepEqual(normalize(view, data).issues, []);
     const good = JSON.parse(JSON.stringify(toViewFile(view)));
     assert.equal(validator.validate(good).valid, true);
     const withFilter = (f) => ({ ...good, view: { ...good.view, filters: [f] } });

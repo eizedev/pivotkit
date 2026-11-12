@@ -7,7 +7,13 @@
  *
  * Zones: "rows" and "cols" are the axes, "values" the value list, "filters" the fields that filter the
  * report without being on an axis. A field in the Filters zone is a filter entry; one that filters
- * nothing yet is { type: "exclude", items: [] }.
+ * nothing yet is emptyPick(): { type: "in", items: [], not: true, blanks: "include" }.
+ *
+ * Filters are pivotkit-core's view version 2: { field, type, ..., not, blanks }. The menus keep their
+ * own words for a negated rule ("is not", "does not contain", "is not between"): ruleOp() reads a
+ * filter's operator in those words, opOf() writes one back as version 2's operator with `not`; the
+ * picks of a field (its `in` filter) are the values not ticked, read by selectedItems() and written by
+ * pickFilter().
  */
 
 import { LIMITS, aggregatorsFor, foldText, isFormat } from "pivotkit-core";
@@ -17,6 +23,51 @@ import { CHART_TYPES } from "./chart-types.js";
 export const ZONES = Object.freeze(/** @type {Zone[]} */ (["filters", "cols", "rows", "values"]));
 
 export const clone = (view) => JSON.parse(JSON.stringify(view));
+
+/** The negated operators the menus offer, by the version-2 operator they negate. */
+const NEGATED = Object.freeze({ "=": "!=", between: "notBetween", equals: "notEquals", contains: "notContains" });
+/** The operators of the menus' rules: on an item's name, on an item or its total. */
+export const RULE_OPS = Object.freeze({
+    text: Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "endsWith"]),
+    compare: Object.freeze(["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"])
+});
+
+/**
+ * A filter's operator as the menus name it: its own, or with `not` its negation ("!=", "notBetween",
+ * "notContains"). A `not` the menus have no word for (a loaded view's "does not begin with") is
+ * hiddenNot().
+ * @param {{ op?: string, not?: boolean }} f
+ */
+export const ruleOp = (f) => (f.not && typeof f.op === "string" && Object.hasOwn(NEGATED, f.op) ? NEGATED[f.op] : String(f.op));
+
+/** Whether a filter's `not` has no word in the menus (ruleOp gives the operator without it). */
+export const hiddenNot = (f) => Boolean(f.not) && !(typeof f.op === "string" && Object.hasOwn(NEGATED, f.op));
+
+/**
+ * A menu's operator as version 2 writes it: `{ op, not }` ("notBetween" is between with not).
+ * @param {string} menuOp
+ */
+export function opOf(menuOp) {
+    const positive = Object.keys(NEGATED).find((op) => NEGATED[op] === menuOp);
+    return positive ? { op: positive, not: true } : { op: menuOp, not: false };
+}
+
+/**
+ * The pick of a field: the values not ticked dropped (null is the blank), so values that appear in
+ * newer data are shown, as in Excel.
+ * @param {string} field
+ * @param {unknown[]} excluded
+ */
+export const pickFilter = (field, excluded) => ({ field, type: "in", items: excluded.filter((v) => v !== null), not: true, blanks: excluded.includes(null) ? "exclude" : "include" });
+
+/** The pick of a field that drops nothing: a field in the Filters zone without a filter holds it. */
+export const emptyPick = (field) => pickFilter(field, []);
+
+/** Whether a filter is a field's pick (an item list, ticked in the menus). */
+export const isPick = (f) => f.type === "in";
+
+/** Whether a pick drops nothing (emptyPick). */
+export const isEmptyPick = (f) => isPick(f) && f.not === true && f.items.length === 0 && f.blanks === "include";
 export const same = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
 
 /**
@@ -156,7 +207,7 @@ export function addField(view, field, zone, options = {}) {
     } else if (zone === "filters") {
         dropFromAxes(next, field);
         if (!next.filters.some((f) => same(f.field, field))) {
-            next.filters.push({ field, type: "exclude", items: [] });
+            next.filters.push(emptyPick(field));
         }
     }
     resetCollapsed(next, view);
@@ -341,7 +392,7 @@ export function groupField(view, field, unit, options = {}) {
         const inFilterZone = !axis && filterZoneFields(view).some((f) => same(f, field));
         next.filters = next.filters.filter((f) => !same(f.field, field));
         if (inFilterZone) {
-            next.filters.push({ field: name, type: "exclude", items: [] });
+            next.filters.push(emptyPick(name));
         }
     }
     next.sort = next.sort.map((s) => (same(s.field, field) ? { ...s, field: name } : s));
@@ -475,12 +526,13 @@ export function filtersOf(view, field, types) {
     return view.filters.filter((f) => same(f.field, field) && (!types || types.includes(f.type)));
 }
 
-/** The values an item filter lets through, from the field's values; all of them without a filter. */
+/** The values a field's picks let through, from the field's values (null is the blank); all of them without a pick. */
 export function selectedItems(view, field, all) {
     let selected = all;
-    for (const f of filtersOf(view, field, ["include", "exclude"])) {
+    for (const f of filtersOf(view, field, ["in"])) {
         const listed = new Set(f.items.map((v) => JSON.stringify(v)));
-        selected = selected.filter((v) => listed.has(JSON.stringify(v)) === (f.type === "include"));
+        const blank = f.blanks !== "exclude";
+        selected = selected.filter((v) => (v === null ? blank : f.blanks !== "only" && listed.has(JSON.stringify(v)) !== f.not));
     }
     return selected;
 }
@@ -503,7 +555,7 @@ export function sameRef(a, b) {
 
 /** True when a field has a filter that removes something. */
 export function isFiltered(view, field) {
-    return filtersOf(view, field).some((f) => f.type !== "exclude" || f.items.length > 0);
+    return filtersOf(view, field).some((f) => !isEmptyPick(f));
 }
 
 /** Collapses or expands one group of an axis. */

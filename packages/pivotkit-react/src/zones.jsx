@@ -16,7 +16,7 @@ import { Icon, TYPE_ICON, ZONE_ICON } from "./icons.jsx";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
 import { MenuButton } from "./popover.jsx";
-import { ZONES, dateSpan, filterZoneFields, filtersOf, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
+import { ZONES, dateSpan, filterZoneFields, filtersOf, isEmptyPick, numberRange, removeAt, selectedItems, sortOf, sourceOf } from "./view-ops.js";
 
 /**
  * What is set on a field: its item filter as "shown of total" (null without one), its rules on the
@@ -30,7 +30,7 @@ import { ZONES, dateSpan, filterZoneFields, filtersOf, numberRange, removeAt, se
  * @param {string} sourceType  the type of the field's source (a grouped date is a date)
  */
 function fieldState(view, field, encoded, locale, labels, sourceType) {
-    const items = filtersOf(view, field, ["include", "exclude"]).filter((f) => f.type === "include" || f.items.length > 0);
+    const items = filtersOf(view, field, ["in"]).filter((f) => !isEmptyPick(f));
     const compared = filtersOf(view, field, ["compare"]);
     // the items' labels: for "3 of 12", and a grouping's key in words ("from Mar 2025")
     const info = items.length || compared.length ? fieldItems(encoded, field, { view, locale }) : null;
@@ -44,7 +44,7 @@ function fieldState(view, field, encoded, locale, labels, sourceType) {
     const date = sourceType === "date";
     // the data's first and last date: a relative range says the data's share of it
     const span = date ? dateSpan(encoded, sourceOf(view, field)) : null;
-    const rules = filtersOf(view, field, ["relative", "compare", "label"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf, span }));
+    const rules = filtersOf(view, field, ["relative", "compare", "text"]).map((f) => itemRuleText(f, labels, locale, { timeZone: encoded.timeZone, date, labelOf, span }));
     const top = filtersOf(view, field, ["top"])[0] ?? null;
     const condition = filtersOf(view, field, ["value"])[0] ?? null;
     return { summary, rules, top, condition, sort: sortOf(view, field) };

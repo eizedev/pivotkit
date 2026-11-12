@@ -5,10 +5,10 @@
  * what the first render and its clicks need (placing, moving, sorting by a header, the tips' actions).
  */
 
-import { CATALOG, computePivot, isFormat } from "pivotkit-core";
+import { CATALOG, MATCH_DEFAULTS, computePivot, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
 import { itemRuleText, valueConditionText, wholeYears } from "./names.js";
-import { axisOf, clone, filterZoneFields, filtersOf, groupingOf, numericResult, same, sameRef, sourceOf } from "./view-ops.js";
+import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
 const COUNTING = new Set(["count", "countUnique", "listUnique"]);
@@ -85,7 +85,7 @@ function replaceFilters(view, field, types, entries) {
     next.filters = kept;
     // a field in the Filters zone stays there with an empty filter when its last filter goes
     if (!axisOf(next, field) && filterZoneFields(view).some((f) => same(f, field)) && !kept.some((f) => same(f.field, field))) {
-        next.filters.splice(at, 0, { field, type: "exclude", items: [] });
+        next.filters.splice(at, 0, emptyPick(field));
     }
     return next;
 }
@@ -113,15 +113,15 @@ function replaceFilter(view, field, previous, entry) {
         next.filters.splice(at, 1);
         // a field in the Filters zone stays there with an empty filter when its last filter goes
         if (!axisOf(next, field) && filterZoneFields(view).some((f) => same(f, field)) && !next.filters.some((f) => same(f.field, field))) {
-            next.filters.splice(at, 0, { field, type: "exclude", items: [] });
+            next.filters.splice(at, 0, emptyPick(field));
         }
     }
     return next;
 }
 
 /**
- * The item filter of a field from the selected values: everything selected removes it; otherwise the
- * values not selected are excluded, so values that appear in newer data are shown, as in Excel.
+ * The pick of a field from the selected values: everything selected removes it; otherwise the
+ * values not selected are dropped (pickFilter), so values that appear in newer data are shown, as in Excel.
  * @param {any} view
  * @param {string} field
  * @param {Array<unknown>} selected  values (null is blank)
@@ -130,13 +130,38 @@ function replaceFilter(view, field, previous, entry) {
 export function setItemFilter(view, field, selected, all) {
     const keep = new Set(selected.map((v) => JSON.stringify(v)));
     const excluded = all.filter((v) => !keep.has(JSON.stringify(v)));
-    return replaceFilters(view, field, ["include", "exclude"], excluded.length ? [{ field, type: "exclude", items: excluded }] : []);
+    return replaceFilters(view, field, ["in"], excluded.length ? [pickFilter(field, excluded)] : []);
 }
 
-/** The label condition of a field ({ op, value }) or null to remove it. */
+/**
+ * A rule on the name of a field's items: a text filter ({ op, value, on }, `op` a menu's operator of
+ * RULE_OPS.text, `on` textOn()), case and runs of whitespace ignored, or null to remove the field's
+ * text filters.
+ * @param {any} view
+ * @param {string} field
+ * @param {{ op: string, value: string, on: "value" | "label" } | null} condition
+ */
 export function setLabelFilter(view, field, condition) {
-    return replaceFilters(view, field, ["label"], condition && condition.value !== "" ? [{ field, type: "label", op: condition.op, value: condition.value }] : []);
+    return replaceFilters(view, field, ["text"], condition && condition.value !== "" ? [textRule(field, condition)] : []);
 }
+
+/**
+ * A text filter of a menu's rule on the name: `op` a menu's operator, the text matched as people type
+ * it (MATCH_DEFAULTS: case and runs of whitespace, a no-break space among them, do not matter), the
+ * blanks dropped.
+ * @param {string} field
+ * @param {{ op: string, value: string, on: "value" | "label" }} condition
+ */
+export const textRule = (field, { op, value, on }) => ({ field, type: "text", ...opOf(op), value, on, match: { ...MATCH_DEFAULTS }, blanks: "exclude" });
+
+/**
+ * What a rule on the name compares: a text field's value, else the label the table shows (a number,
+ * a grouping's "Mar 2025").
+ * @param {import("pivotkit-core").Encoded} encoded
+ * @param {string} field
+ * @returns {"value" | "label"}
+ */
+export const textOn = (encoded, field) => (encoded.column(field)?.type === "string" ? "value" : "label");
 
 /**
  * Top or bottom N items of a field by a value ({ count, bottom, by }), or null to remove it. `previous`
@@ -166,8 +191,8 @@ export function setValueFilter(view, field, condition, previous) {
     let entry = null;
     if (condition) {
         const { by, op, value, value2 } = condition;
-        const between = op === "between" || op === "notBetween";
-        entry = { field, type: "value", by: { field: by.field, agg: by.agg }, op, value, ...(between ? { value2 } : {}) };
+        const v2 = opOf(op);
+        entry = { field, type: "value", by: { field: by.field, agg: by.agg }, op: v2.op, value, ...(v2.op === "between" ? { value2 } : {}), not: v2.not };
     }
     if (previous) {
         return replaceFilter(view, field, previous, entry);
@@ -176,7 +201,7 @@ export function setValueFilter(view, field, condition, previous) {
 }
 
 /** The filter types the rule editor of the Filter level holds: on the item, its total, its name. */
-export const RULE_TYPES = Object.freeze(["relative", "compare", "value", "label"]);
+export const RULE_TYPES = Object.freeze(["relative", "compare", "value", "text"]);
 
 /** The most rules one field takes in the Filter level (the view's `limits.filters` counts all fields). */
 export const RULES_MAX = 10;
@@ -253,7 +278,8 @@ export function quickChoice(view, field, fk, all = []) {
         return years ? { id: "yearsCombined", years, filters: whole } : { id: "all", filters: [] };
     }
     const offered = { year: true, month: fk.months, day: fk.days };
-    const r = ranges.find((f) => offered[f.unit]);
+    // a range the quick choices write: not inverted, the blanks left out
+    const r = ranges.find((f) => offered[f.unit] && !f.not && f.blanks === "exclude");
     if (!r) {
         return { id: "all", filters: [] };
     }
@@ -272,13 +298,13 @@ function yearsCombined(compared, all) {
     let kept = new Set(all);
     for (const f of compared) {
         const [a, b] = /** @type {[string, string]} */ (wholeYears(f.value, f.value2)).map(Number);
-        kept = new Set([...kept].filter((y) => (a <= y && y <= b) === (f.op === "between")));
+        kept = new Set([...kept].filter((y) => (a <= y && y <= b) !== f.not));
     }
     return kept.size ? [...kept].sort((x, y) => x - y) : null;
 }
 
 /** A comparison of whole years of days (Jan 1 to Dec 31), as Years combined writes them. */
-export const isWholeYear = (f) => f.type === "compare" && (f.op === "between" || f.op === "notBetween") && wholeYears(f.value, f.value2) !== null;
+export const isWholeYear = (f) => f.type === "compare" && f.op === "between" && f.blanks === "exclude" && wholeYears(f.value, f.value2) !== null;
 
 /** The whole-year comparisons that keep `years` of `all` (ascending): the span they cover, less each gap in it. */
 export function yearRules(field, years, all) {
@@ -286,12 +312,12 @@ export function yearRules(field, years, all) {
         return [];
     }
     const day = (y, last) => `${String(y).padStart(4, "0")}-${last ? "12-31" : "01-01"}`;
-    const rule = (op, from, to) => ({ field, type: "compare", op, value: day(from, false), value2: day(to, true) });
-    const rules = [rule("between", years[0], years[years.length - 1])];
+    const rule = (not, from, to) => ({ field, type: "compare", op: "between", value: day(from, false), value2: day(to, true), not, blanks: "exclude" });
+    const rules = [rule(false, years[0], years[years.length - 1])];
     for (let i = 1; i < years.length; i++) {
         // a gap: a year of the data between two years kept
         if (all.some((y) => years[i - 1] < y && y < years[i])) {
-            rules.push(rule("notBetween", years[i - 1] + 1, years[i] - 1));
+            rules.push(rule(true, years[i - 1] + 1, years[i] - 1));
         }
     }
     return rules;
@@ -320,8 +346,16 @@ export function setYearsCombined(view, field, years, all) {
  * @param {{ unit: string, count: number, anchor?: string } | null} range
  */
 export function setQuickRange(view, field, range) {
-    return replaceFilters(view, field, ["relative"], range ? [{ field, type: "relative", unit: range.unit, count: range.count, ...(range.anchor === "latest" ? { anchor: "latest" } : {}) }] : []);
+    return replaceFilters(view, field, ["relative"], range ? [relativeRule(field, range)] : []);
 }
+
+/**
+ * A relative range as the quick choices and the rules write it ({ unit, count, anchor }, the anchor
+ * "today" not written): the last `count` units, the blanks left out.
+ * @param {string} field
+ * @param {{ unit: string, count: number, anchor?: string }} range
+ */
+export const relativeRule = (field, { unit, count, anchor }) => ({ field, type: "relative", unit, count, ...(anchor === "latest" ? { anchor: "latest" } : {}), not: false, blanks: "exclude" });
 
 /**
  * What the field's relative ranges count back from: "today" (not written) or "latest", the data's
@@ -343,8 +377,8 @@ export function setAnchor(view, field, anchor) {
     return next;
 }
 
-/** Takes the whole filter of a field off: its picks, its quick choice and its rules; Top N stays. */
-export const resetFilter = (view, field) => replaceFilters(view, field, ["include", "exclude", ...RULE_TYPES], []);
+/** Takes the whole filter of a field off: its picks, its quick choice and its rules (a loaded view's blank filter too); Top N stays. */
+export const resetFilter = (view, field) => replaceFilters(view, field, ["in", "blank", ...RULE_TYPES], []);
 
 /**
  * The totals a rule on the total compares, as the table's Grand Total shows them: one per item of
@@ -468,7 +502,7 @@ export function filterState(view, field, state, labels, locale) {
     // the chip's rules on the items (with a text rule), else the text rules said here
     parts.push(...(state?.rules ?? []));
     for (const f of view.filters.filter(same)) {
-        if (f.type === "value" || (f.type === "label" && !state?.rules)) {
+        if (f.type === "value" || (f.type === "text" && !state?.rules)) {
             parts.push(ruleText(view, f, { labels, locale, timeZone: "UTC", date: false }));
         }
     }

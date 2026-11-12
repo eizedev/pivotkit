@@ -288,6 +288,6 @@ The first level of a row or column field's menu:
   A to Z to sort it by label instead, and the report keeps that choice.
 
 !!! note "For developers"
-    The view's `filters` (`include`, `exclude`, `label`, `compare`, `relative`, `value`, `top`) and `sort` (`label`,
+    The view's `filters` (`in`, `blank`, `text`, `compare`, `relative`, `value`, `top`) and `sort` (`label`,
     `value`, `custom`), and how a field gets its order (`fieldDefaults.order`), are in
     [Filters, top N and sorting](../concepts/filters.md).

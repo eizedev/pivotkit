@@ -6,7 +6,7 @@ import { computePivot, encode, normalize, relativeDateRange } from "pivotkit-cor
 import { LABELS, plural } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
-import { RULES_MAX, RULE_TYPES, filterState, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
+import { RULES_MAX, RULE_TYPES, filterState, setLabelFilter, textOn, quickChoice, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, yearRules } from "../src/menu-ops.js";
 import { axisTopics, filterZoneTopics, searchEntries, searchHits } from "../src/menu-topics.js";
 import { compareText, itemRuleText, rangeText, relativeText } from "../src/names.js";
 import { addField, dateSpan, filtersOf, groupField } from "../src/view-ops.js";
@@ -43,10 +43,10 @@ test("quick choices: each writes one relative range and replaces the comparisons
     let v = setItemFilter(byYear, YEAR, [2019, 2022], [2019, 2022, 2025]);
     assert.deepEqual(quickChoice(v, YEAR, fk), { id: "all", filters: [] });
     v = setQuickRange(v, YEAR, { unit: "year", count: 5 });
-    const range = { field: YEAR, type: "relative", unit: "year", count: 5 };
+    const range = { field: YEAR, type: "relative", unit: "year", count: 5, not: false, blanks: "exclude" };
     assert.deepEqual(quickChoice(v, YEAR, fk), { id: "years", count: 5, anchor: "today", filters: [range] });
     // the picks stay: the filters apply together
-    assert.deepEqual(filtersOf(v, YEAR).map((f) => f.type).sort(), ["exclude", "relative"]);
+    assert.deepEqual(filtersOf(v, YEAR).map((f) => f.type).sort(), ["in", "relative"]);
     assert.deepEqual(quickChoice(setQuickRange(v, YEAR, { unit: "year", count: 1 }), YEAR, fk).id, "thisYear");
     // months where they are not offered, two ranges, a comparison: custom rules
     assert.deepEqual(quickChoice(setQuickRange(v, YEAR, { unit: "month", count: 6 }), YEAR, fk).id, "all");
@@ -55,8 +55,8 @@ test("quick choices: each writes one relative range and replaces the comparisons
     // a comparison is a rule beside the quick choice: both stay, each is changed on its own
     const custom = setRule(v, YEAR, null, { field: YEAR, type: "compare", op: ">=", value: 2022 });
     assert.deepEqual(quickChoice(custom, YEAR, fk), { id: "years", count: 5, anchor: "today", filters: [range] });
-    assert.deepEqual(filtersOf(setQuickRange(custom, YEAR, { unit: "year", count: 2 }), YEAR).map((f) => f.type).sort(), ["compare", "exclude", "relative"]);
-    assert.deepEqual(filtersOf(setQuickRange(custom, YEAR, null), YEAR).map((f) => f.type).sort(), ["compare", "exclude"]);
+    assert.deepEqual(filtersOf(setQuickRange(custom, YEAR, { unit: "year", count: 2 }), YEAR).map((f) => f.type).sort(), ["compare", "in", "relative"]);
+    assert.deepEqual(filtersOf(setQuickRange(custom, YEAR, null), YEAR).map((f) => f.type).sort(), ["compare", "in"]);
     assert.deepEqual(quickChoice(setQuickRange(custom, YEAR, null), YEAR, fk), { id: "all", filters: [] });
     // a second range is a rule too: the first one that is offered is the quick choice
     const two = setRule(v, YEAR, null, { field: YEAR, type: "relative", unit: "month", count: 3 });
@@ -64,9 +64,9 @@ test("quick choices: each writes one relative range and replaces the comparisons
     assert.deepEqual(quickChoice(two, YEAR, { ...fk, months: true }).filters, [range]);
     // the anchor: counted back from the latest record is written, today is not; a switch rewrites the field's ranges
     const latest = setQuickRange(v, YEAR, { unit: "year", count: 2, anchor: "latest" });
-    assert.deepEqual(filtersOf(latest, YEAR, ["relative"]), [{ field: YEAR, type: "relative", unit: "year", count: 2, anchor: "latest" }]);
+    assert.deepEqual(filtersOf(latest, YEAR, ["relative"]), [{ field: YEAR, type: "relative", unit: "year", count: 2, anchor: "latest", not: false, blanks: "exclude" }]);
     assert.deepEqual(quickChoice(latest, YEAR, fk).anchor, "latest");
-    assert.deepEqual(filtersOf(setAnchor(latest, YEAR, "today"), YEAR, ["relative"]), [{ field: YEAR, type: "relative", unit: "year", count: 2 }]);
+    assert.deepEqual(filtersOf(setAnchor(latest, YEAR, "today"), YEAR, ["relative"]), [{ field: YEAR, type: "relative", unit: "year", count: 2, not: false, blanks: "exclude" }]);
     assert.deepEqual(filtersOf(setAnchor(v, YEAR, "latest"), YEAR, ["relative"]), [{ ...range, anchor: "latest" }]);
     assert.deepEqual(filtersOf(setQuickRange(v, YEAR, { unit: "year", count: 2, anchor: "today" }), YEAR, ["relative"]), [{ ...range, count: 2 }]);
     // every quick choice is a view the core reads without an issue
@@ -76,18 +76,18 @@ test("quick choices: each writes one relative range and replaces the comparisons
     assert.deepEqual(filtersOf(resetFilter(topped, YEAR), YEAR).map((f) => f.type), ["top"]);
     // Remove the rules keeps the quick choice when asked to
     const both = setRule(v, YEAR, null, { field: YEAR, type: "value", by: { field: null, agg: "count" }, op: ">", value: 1 });
-    assert.deepEqual(filtersOf(removeRules(both, YEAR, [range]), YEAR).map((f) => f.type).sort(), ["exclude", "relative"]);
-    assert.deepEqual(filtersOf(removeRules(both, YEAR), YEAR).map((f) => f.type), ["exclude"]);
+    assert.deepEqual(filtersOf(removeRules(both, YEAR, [range]), YEAR).map((f) => f.type).sort(), ["in", "relative"]);
+    assert.deepEqual(filtersOf(removeRules(both, YEAR), YEAR).map((f) => f.type), ["in"]);
 });
 
 test("years combined: a cyclic grouping's years as whole-year comparisons; a gap is a 'not between'", () => {
     const fk = ruleKind(data, byCyclic, CYCLIC);
     const all = [2019, 2022, 2025];
     assert.deepEqual(yearRules(CYCLIC, all, all), []);
-    assert.deepEqual(yearRules(CYCLIC, [2022, 2025], all), [{ field: CYCLIC, type: "compare", op: "between", value: "2022-01-01", value2: "2025-12-31" }]);
+    assert.deepEqual(yearRules(CYCLIC, [2022, 2025], all), [{ field: CYCLIC, type: "compare", op: "between", value: "2022-01-01", value2: "2025-12-31", not: false, blanks: "exclude" }]);
     assert.deepEqual(yearRules(CYCLIC, [2019, 2025], all), [
-        { field: CYCLIC, type: "compare", op: "between", value: "2019-01-01", value2: "2025-12-31" },
-        { field: CYCLIC, type: "compare", op: "notBetween", value: "2020-01-01", value2: "2024-12-31" }
+        { field: CYCLIC, type: "compare", op: "between", value: "2019-01-01", value2: "2025-12-31", not: false, blanks: "exclude" },
+        { field: CYCLIC, type: "compare", op: "between", value: "2020-01-01", value2: "2024-12-31", not: true, blanks: "exclude" }
     ]);
     let v = setYearsCombined(byCyclic, CYCLIC, [2019, 2025], all);
     assert.deepEqual(quickChoice(v, CYCLIC, fk, all), { id: "yearsCombined", years: [2019, 2025], filters: filtersOf(v, CYCLIC, ["compare"]) });
@@ -111,7 +111,7 @@ test("years combined: a cyclic grouping's years as whole-year comparisons; a gap
     const L = MENU.en;
     assert.equal(compareText({ op: "between", value: "2022-01-01", value2: "2025-12-31" }, L, "en-US", { date: true }), "2022 to 2025");
     assert.equal(compareText({ op: "between", value: "2025-01-01", value2: "2025-12-31" }, L, "en-US", { date: true }), "2025");
-    assert.equal(compareText({ op: "notBetween", value: "2020-01-01", value2: "2024-12-31" }, L, "en-US", { date: true }), "not 2020 to 2024");
+    assert.equal(compareText({ op: "between", not: true, value: "2020-01-01", value2: "2024-12-31" }, L, "en-US", { date: true }), "not 2020 to 2024");
     assert.equal(compareText({ op: "between", value: "2022-01-01", value2: "2025-12-30" }, L, "en-US", { date: true }), "Jan 1, 2022 to Dec 30, 2025");
 });
 
@@ -128,11 +128,11 @@ test("rules: added, replaced and removed one at a time; Remove the rules keeps t
     assert.deepEqual(r.rowRoot.children.map((n) => n.key), [2022, 2025]);
     v = setItemFilter(v, YEAR, [2022], [2019, 2022, 2025]);
     v = { ...v, filters: [...v.filters, { field: YEAR, type: "top", count: 1, bottom: false }] };
-    assert.deepEqual(filtersOf(removeRules(v, YEAR), YEAR).map((f) => f.type), ["exclude", "top"]);
+    assert.deepEqual(filtersOf(removeRules(v, YEAR), YEAR).map((f) => f.type), ["in", "top"]);
     // a field in Filters stays there when its last rule goes
     const zone = addField(norm({}), "Region", "filters");
-    const ruled = setRule(zone, "Region", null, { field: "Region", type: "label", op: "contains", value: "o" });
-    assert.deepEqual(filtersOf(removeRules(ruled, "Region"), "Region"), [{ field: "Region", type: "exclude", items: [] }]);
+    const ruled = setRule(zone, "Region", null, { field: "Region", type: "text", op: "contains", value: "o" });
+    assert.deepEqual(filtersOf(removeRules(ruled, "Region"), "Region"), [{ field: "Region", type: "in", items: [], not: true, blanks: "include" }]);
     assert.ok(RULES_MAX >= 5);
 });
 
@@ -178,7 +178,7 @@ test("the words of a rule: the chip, the first level and the Filter level say th
     assert.equal(compareText({ op: ">=", value: 2022 }, MENU.de, "de-DE", { date: true }), "ab 2022");
     const total = { field: YEAR, type: "value", by: { field: null, agg: "count" }, op: ">", value: 3 };
     assert.equal(ruleText(byYear, total, { labels: L, locale: "en-US", timeZone: "UTC", date: true }), "Count of rows > 3");
-    assert.equal(ruleText(byYear, { field: YEAR, type: "label", op: "contains", value: "2" }, { labels: L, locale: "en-US", timeZone: "UTC", date: true }), "contains “2”");
+    assert.equal(ruleText(byYear, { field: YEAR, type: "text", op: "contains", value: "2" }, { labels: L, locale: "en-US", timeZone: "UTC", date: true }), "contains “2”");
     // the first level's state: the chip's rules first, then the names' and the totals' rules
     const state = { summary: null, rules: ["last 5 years (2022–2026)"] };
     assert.equal(filterState(setRule(byYear, YEAR, null, total), YEAR, state, L, "en-US"), "last 5 years (2022–2026), Count of rows > 3");
@@ -194,12 +194,12 @@ test("search: quick choices with the count typed, a year compared, and the rules
     const chip = (f) => relativeText(f, MENU.en, "en-US", "UTC", undefined, span);
     assert.equal(last2.text, chip({ unit: "year", count: 2 }).replace(/^l/, "L"));
     assert.ok(last2.text.startsWith(`Last 2 years (`) && last2.text.includes(years.from.slice(0, 4)));
-    assert.deepEqual(filtersOf(last2.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 2 }]);
+    assert.deepEqual(filtersOf(last2.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 2, not: false, blanks: "exclude" }]);
     // a range counted back from the latest record (2025): the search's choices count from it too
     const anchored = axisTopics({ view: setQuickRange(byYear, YEAR, { unit: "year", count: 1, anchor: "latest" }), zone: "rows", index: 0, field: YEAR, types, labels: MENU.en, locale: "en-US", encoded: data });
     const hit = searchHits(searchEntries(anchored, "last 3 years"), "last 3 years", "en-US")[0];
     assert.equal(hit.text, chip({ unit: "year", count: 3, anchor: "latest" }).replace(/^l/, "L"));
-    assert.deepEqual(filtersOf(hit.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 3, anchor: "latest" }]);
+    assert.deepEqual(filtersOf(hit.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "relative", unit: "year", count: 3, anchor: "latest", not: false, blanks: "exclude" }]);
     // a cyclic grouping has no quick choices to find
     const cyclic = axisTopics({ view: byCyclic, zone: "rows", index: 0, field: CYCLIC, types, labels: MENU.en, locale: "en-US", encoded: data });
     assert.equal(searchHits(searchEntries(cyclic, "last 2 years"), "last 2 years", "en-US").length, 0);
@@ -207,7 +207,7 @@ test("search: quick choices with the count typed, a year compared, and the rules
     assert.equal(hits("last 2 months").length, 0);
     const from = hits("from 2022")[0];
     assert.equal(from.text, "From 2022");
-    assert.deepEqual(filtersOf(from.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "compare", op: ">=", value: 2022 }]);
+    assert.deepEqual(filtersOf(from.choice.change().view, YEAR, RULE_TYPES), [{ field: YEAR, type: "compare", op: ">=", value: 2022, not: false, blanks: "exclude" }]);
     assert.deepEqual(hits("rule").map((e) => e.id).slice(0, 2), ["open-filter-rules", "open-filter-text"]);
     // a date field: months too, and a year as its first or last day
     const raw = axisTopics({ view: norm({ rows: ["Released"] }), zone: "rows", index: 0, field: "Released", types, labels: MENU.en, locale: "en-US", encoded: data });
@@ -236,7 +236,7 @@ test("the Filters zone's menu: Filter with its state, then Move to (no sort, gro
 });
 
 test("a rule on the names says its words as the others do; counts of one have their own words (en, de)", () => {
-    const label = { field: "Region", type: "label", op: "contains", value: "linux" };
+    const label = { field: "Region", type: "text", op: "contains", value: "linux" };
     assert.equal(itemRuleText(label, MENU.en, "en-US", { timeZone: "UTC", date: false }), "contains “linux”");
     assert.equal(itemRuleText(label, MENU.de, "de-DE", { timeZone: "UTC", date: false }), "enthält „linux“");
     // the chip's words already hold it: the first level does not say it twice
@@ -249,4 +249,20 @@ test("a rule on the names says its words as the others do; counts of one have th
     assert.equal(say(MENU.en.quickLast.year, 1, "en"), "Last 1 year");
     assert.equal(`${say(MENU.de.lastOp, 1, "de")} 1 ${say(MENU.de.ruleUnits.month, 1, "de")}`, "im letzten 1 Monat");
     assert.equal(`${say(MENU.de.lastOp, 3, "de")} 3 ${say(MENU.de.ruleUnits.month, 3, "de")}`, "in den letzten 3 Monaten");
+});
+
+test("a rule on the names keeps every item that begins with the text, whatever its case and spaces (#159)", () => {
+    // items copied from a web page hold no-break spaces; the text typed has plain ones and a space at the end
+    const nbsp = String.fromCharCode(0xa0);
+    const names = encode([{ Name: `ACTIVE${nbsp}DIRECTORY` }, { Name: "ACTIVE DIRECTORY Sync" }, { Name: `Active${nbsp}Directory admins` }, { Name: "Other" }]);
+    const view = setLabelFilter(normalize({ rows: ["Name"] }, names).view, "Name", { op: "beginsWith", value: "ACTIVE DIRECTORY ", on: textOn(names, "Name") });
+    const result = computePivot(names, view);
+    assert.deepEqual(result.issues, []);
+    assert.deepEqual(result.rowRoot.children.map((n) => n.key).sort(), [`ACTIVE${nbsp}DIRECTORY`, "ACTIVE DIRECTORY Sync", `Active${nbsp}Directory admins`].sort());
+    // a not the menus have no word for is said in words
+    assert.equal(itemRuleText({ type: "text", op: "beginsWith", value: "a", not: true }, MENU.en, "en-US", { timeZone: "UTC", date: false }), "not (begins with “a”)");
+    assert.equal(itemRuleText({ type: "text", op: "contains", value: "a", not: true }, MENU.de, "de-DE", { timeZone: "UTC", date: false }), "enthält nicht „a“");
+    // a number field's rule compares the label the table shows
+    assert.equal(textOn(data, "Units"), "label");
+    assert.equal(textOn(names, "Name"), "value");
 });
