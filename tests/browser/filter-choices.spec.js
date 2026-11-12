@@ -7,7 +7,7 @@
 // snapshots with plain JavaScript, relative to today as the browser sees it (the data are in UTC).
 import { readFileSync } from "node:fs";
 import { encodeViewLink } from "pivotkit-core/link";
-import { chipMenu, expect, openRules, tableRows, test } from "./fixtures.js";
+import { chipMenu, expect, openRules, openZones, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
 const load = (name) => unpack(JSON.parse(readFileSync(new URL(`../../examples/playground/data/${name}.json`, import.meta.url), "utf8")));
@@ -360,7 +360,14 @@ test.describe("the review's findings on the quick choices (endoflife, EOL date b
         const fix = menu.getByTestId("quick-last-from-latest");
         const latest = new Date(`${last}T00:00Z`).toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "UTC" });
         await expect(fix).toHaveText(`Count back from the latest record (${latest}) instead`);
-        await fix.click();
+        // it looks like the level's other buttons (a border, as "Compare"), a target's height at least
+        await expectButtonLook(fix, menu.getByTestId("rule-add-total"));
+        // reached by Tab from the checkbox above it, with a focus ring, and pressed with Enter
+        await menu.getByTestId("quick-last-current").focus();
+        await page.keyboard.press("Tab");
+        await expect(fix).toBeFocused();
+        expect(await fix.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe("none");
+        await page.keyboard.press("Enter");
         await expect(menu.getByTestId("quick-anchor")).toHaveValue("latest");
         await expect(fix).toHaveCount(0);
         await expect(menu.getByTestId("quick-last-current").locator("..")).toHaveText("Include the current month");
@@ -371,4 +378,39 @@ test.describe("the review's findings on the quick choices (endoflife, EOL date b
         expect(rows.at(-1)?.[0]).toBe(new Date(`${last.slice(0, 7)}-01T00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" }));
         await expect(badge(page, "rows", MONTH)).toContainText("to ");
     });
+
+    test("at phone width the button that counts back from the latest record wraps inside the menu and stays a button", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const MONTH = "Date by month";
+        await openView(page, "weather", { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ agg: "count" }] });
+        await openZones(page);
+        await chipMenu(page, MONTH, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await menu.getByTestId("quick-last").click();
+        const fix = menu.getByTestId("quick-last-from-latest");
+        await expectButtonLook(fix, menu.getByTestId("rule-add-total"));
+        const [b, m] = [await fix.boundingBox(), await menu.boundingBox()];
+        expect(b.x).toBeGreaterThanOrEqual(m.x);
+        expect(b.x + b.width).toBeLessThanOrEqual(m.x + m.width);
+        // its text is not cut: the button is as wide as its words need, or wraps them
+        expect(await fix.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await fix.click();
+        await expect(menu.getByTestId("quick-anchor")).toHaveValue("latest");
+    });
 });
+
+/**
+ * A secondary action of a level drawn as the level's other buttons: a visible border in the colour the
+ * reference button has, at least a target's height (24 px).
+ */
+async function expectButtonLook(button, reference) {
+    const look = (el) => {
+        const s = getComputedStyle(el);
+        return { width: s.borderTopWidth, style: s.borderTopStyle, color: s.borderTopColor, height: el.getBoundingClientRect().height };
+    };
+    const [mine, theirs] = [await button.evaluate(look), await reference.evaluate(look)];
+    expect(mine.style).toBe("solid");
+    expect(parseFloat(mine.width)).toBeGreaterThan(0);
+    expect({ width: mine.width, color: mine.color }).toEqual({ width: theirs.width, color: theirs.color });
+    expect(mine.height).toBeGreaterThanOrEqual(24);
+}

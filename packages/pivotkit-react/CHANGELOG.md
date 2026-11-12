@@ -65,6 +65,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The Filter level's **Count back from the latest record (…) instead** looked like a note, not like
+  something to click: it is a small button as the level's **Compare** buttons (a border, at least
+  24 px high, its text wrapping inside it at a narrow width)
+  ([#179](https://github.com/eizedev/pivotkit/issues/179)).
 - A rule on the names ("begins with “ACTIVE DIRECTORY”") keeps the items whose names hold a no-break
   space or other whitespace, and a space typed at the end does not matter
   ([#159](https://github.com/eizedev/pivotkit/issues/159)).
