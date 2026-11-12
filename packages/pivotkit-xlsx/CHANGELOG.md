@@ -6,6 +6,10 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- npm keyword `pivot-table` ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+
 ## [0.1.0] - 2026-11-11
 
 First release.

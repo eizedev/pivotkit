@@ -8,6 +8,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The element bundles pivotkit-core with view version 2 and pivotkit-react's filters for it
   ([#165](https://github.com/eizedev/pivotkit/issues/165)): views of version 1 load with the same
   result. The first load grows by about 7.5 KiB (gzip), its budget to 169; the plain words of a

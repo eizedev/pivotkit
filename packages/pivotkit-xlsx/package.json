@@ -17,7 +17,8 @@
     "xlsx",
     "excel",
     "import",
-    "spreadsheet"
+    "spreadsheet",
+    "pivot-table"
   ],
   "type": "module",
   "sideEffects": false,

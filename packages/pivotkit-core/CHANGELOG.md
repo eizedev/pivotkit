@@ -8,6 +8,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
   has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
   keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.
