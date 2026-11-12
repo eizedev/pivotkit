@@ -17,7 +17,7 @@ import { encode } from "pivotkit-core";
 import { IMPORT_TYPES, fileName, retype } from "pivotkit-core/import";
 import { useFormName, useModal } from "./dom.js";
 import { Icon } from "./icons.jsx";
-import { importLabels, noteText } from "./import-labels.js";
+import { errorText, importLabels, noteText } from "./import-labels.js";
 import { formatsOf, readImport, sheetsOf } from "./import-run.js";
 import { shownName, sourceIdOf } from "./import-source.js";
 import { fill, messageOf, plural } from "./labels.js";
@@ -131,13 +131,6 @@ export function SourceLine({ labels, source }) {
     );
 }
 
-/** The reader's message without the file's name in front, which the note names already. */
-function readerMessage(error, name) {
-    const text = messageOf(error);
-    const prefix = `"${name}": `;
-    return text.startsWith(prefix) ? text.slice(prefix.length) : text;
-}
-
 /** A value of the preview as text: a number in the locale, a yes or no, a date as it was read. */
 function cellText(value, type, t, locale) {
     if (value === null || value === undefined) {
@@ -192,9 +185,9 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     const reading = !current && failed !== sheet;
     // what a read takes from the report, read when it starts: a host that passes new plugins or a new
     // worker function on every render does not start the read again
-    const latest = useRef({ onClose, announce, t, name, plugins, worker, locale, limits });
+    const latest = useRef({ onClose, announce, t, name, plugins, worker, locale, limits, where });
     useEffect(() => {
-        latest.current = { onClose, announce, t, name, plugins, worker, locale, limits };
+        latest.current = { onClose, announce, t, name, plugins, worker, locale, limits, where };
     });
 
     // the file, and again for another sheet; Cancel or a new file stops it
@@ -228,7 +221,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                 if (controller.signal.aborted) {
                     return;
                 }
-                const text = fill(latest.current.t.failed, { name: latest.current.name, message: readerMessage(e, latest.current.name) });
+                const text = fill(latest.current.t.failed, { name: latest.current.name, message: errorText(e, latest.current.name, latest.current.t, latest.current.where) });
                 if (sheet === undefined) {
                     // the file itself: the dialog closes, the note stays until it is closed
                     latest.current.announce(text, { tone: "error" });
@@ -320,7 +313,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
             });
         } catch (e) {
             if (live.current) {
-                setError(fill(t.failed, { name, message: readerMessage(e, name) }));
+                setError(fill(t.failed, { name, message: errorText(e, name, t, where) }));
                 setBusy(false);
             }
         }

@@ -195,8 +195,12 @@ step it guards, so a file that is too large costs no memory first:
 
 A file over a limit throws `PivotkitError` `LIMIT_EXCEEDED` with `details` `{ limit, value, max,
 file }` and a message that names the file, the limit and what to change: `"tickets.csv" has more than
-1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise limits.rows`. The
-previous data stays.
+1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit`. The
+previous data stays. pivotkit-react says it in the report's language from `details` (the limits
+`rows`, `columns`, `fileBytes` and `importCells`; `labels.dataImport.overLimit` and `limitWhat`),
+after the file's name: "big.csv could not be loaded: it has more than 1,000 rows (limits.rows): …";
+the key is the one of `limits` also where the host set `importLimits`. Any other error is the
+reader's message without the file's name in front.
 
 ## Errors
 

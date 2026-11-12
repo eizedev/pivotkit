@@ -69,6 +69,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   something to click: it is a small button as the level's **Compare** buttons (a border, at least
   24 px high, its text wrapping inside it at a narrow width)
   ([#179](https://github.com/eizedev/pivotkit/issues/179)).
+- The note of a file over a limit named the file twice (`big.csv could not be loaded: "big.csv" has
+  more than …`) and only `limits.*` as what a host raises, although `importLimits` may set the limit.
+  It says the limit in the report's language (English, German), with its key in brackets, and that a
+  host can raise this limit: "big.csv could not be loaded: it has more than 1,000 rows (limits.rows):
+  load a smaller extract of it, or a host can raise this limit"; other errors of a reader lose the
+  file's name in front in both of its forms ([#185](https://github.com/eizedev/pivotkit/issues/185)).
 - A rule on the names ("begins with “ACTIVE DIRECTORY”") keeps the items whose names hold a no-break
   space or other whitespace, and a space typed at the end does not matter
   ([#159](https://github.com/eizedev/pivotkit/issues/159)).

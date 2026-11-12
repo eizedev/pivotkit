@@ -5,7 +5,7 @@
  * menus' texts are. {name} placeholders are filled by fill(); counts are plural forms.
  */
 
-import { MENU_TEXTS, fill, mergeLabels, plural } from "./labels.js";
+import { MENU_TEXTS, fill, mergeLabels, messageOf, plural } from "./labels.js";
 
 export const en = {
     dataSource: "Data source",
@@ -43,6 +43,9 @@ export const en = {
     originalShown: "The original data is shown",
     failed: "{name} could not be loaded: {message}",
     refused: "{name} was not loaded: {message}",
+    // a limit of pivotkit-core the file is over; {key} the limit's key, as the reader names it
+    overLimit: "it has more than {max} {what} ({key}): load a smaller extract of it, or a host can raise this limit",
+    limitWhat: { rows: "rows", columns: "columns", fileBytes: "bytes", importCells: "values (rows x columns)" },
     sourceLine: "{name}, only in this browser",
     sourceSheet: "{name}, sheet “{sheet}”, only in this browser",
     notes: {
@@ -107,6 +110,8 @@ export const de = {
     originalShown: "Die Originaldaten werden gezeigt",
     failed: "{name} konnte nicht geladen werden: {message}",
     refused: "{name} wurde nicht geladen: {message}",
+    overLimit: "sie hat mehr als {max} {what} ({key}): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben",
+    limitWhat: { rows: "Zeilen", columns: "Spalten", fileBytes: "Bytes", importCells: "Werte (Zeilen x Spalten)" },
     sourceLine: "{name}, nur in diesem Browser",
     sourceSheet: "{name}, Blatt „{sheet}“, nur in diesem Browser",
     notes: {
@@ -184,4 +189,29 @@ export function noteText(note, texts, where) {
         values.type = Object.hasOwn(texts.types, String(p.type)) ? /** @type {any} */ (texts.types)[String(p.type)] : values.type;
     }
     return fill(typeof form === "string" ? form : plural(form, Number(p.count) || 0, where), values);
+}
+
+/**
+ * Why a file could not be read, after "{name} could not be loaded:", which names the file: a limit of
+ * pivotkit-core (`LIMIT_EXCEEDED` with a limit this version has words for) in the report's language
+ * with its key (`limits.rows`, whose words fit `importLimits` too), else the reader's own English
+ * message without the file's name in front (`"name": ` of `fileError`, `"name" ` of `limitError`).
+ * @param {unknown} error
+ * @param {string} name  the file's name
+ * @param {ImportTexts} texts
+ * @param {{ lang: string, locale: string }} where
+ */
+export function errorText(error, name, texts, where) {
+    const e = /** @type {any} */ (error);
+    const d = e && typeof e === "object" && e.code === "LIMIT_EXCEEDED" && e.details && typeof e.details === "object" ? e.details : null;
+    if (d && typeof d.limit === "string" && Object.hasOwn(texts.limitWhat, d.limit) && typeof d.max === "number") {
+        return fill(texts.overLimit, { max: d.max.toLocaleString(where.locale), what: /** @type {any} */ (texts.limitWhat)[d.limit], key: `limits.${d.limit}` });
+    }
+    const text = messageOf(error);
+    for (const prefix of [`"${name}": `, `"${name}" `]) {
+        if (text.startsWith(prefix)) {
+            return text.slice(prefix.length);
+        }
+    }
+    return text;
 }

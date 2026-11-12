@@ -471,13 +471,13 @@ test("importLimits (issue #169): the host's 2,000 rows stay while a file over th
     const csvOf = (n) => `Team,Hours\n${Array.from({ length: n }, (_, i) => `T${i % 7},${i}`).join("\n")}\n`;
     // a file of 1,001 rows, dropped: refused, the limit named, the host's data stays
     await dropFiles(page, page.getByTestId("pivot-table"), [{ name: "big.csv", type: CSV, text: csvOf(1001) }]);
-    await expect(page.locator(".pk-toast.pk-error")).toHaveText(/^big\.csv could not be loaded: .*has more than 1,000 rows \(limits\.rows\)/);
+    await expect(page.locator(".pk-toast.pk-error")).toHaveText("big.csv could not be loaded: it has more than 1,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit");
     await expect(page.getByTestId("import-dialog")).toHaveCount(0);
     await expect.poll(() => fieldNames(page)).toEqual(hostFields);
     await page.locator(".pk-toast-x").first().click();
     // five columns: over the host's limits.columns, which importLimits leaves to it
     await pickThroughMenu(page, page, { name: "tickets.csv", type: CSV, text: TICKETS });
-    await expect(page.locator(".pk-toast.pk-error")).toHaveText(/^tickets\.csv could not be loaded: .*has more than 4 columns \(limits\.columns\)/);
+    await expect(page.locator(".pk-toast.pk-error")).toHaveText("tickets.csv could not be loaded: it has more than 4 columns (limits.columns): load a smaller extract of it, or a host can raise this limit");
     await expect.poll(() => fieldNames(page)).toEqual(hostFields);
     await page.locator(".pk-toast-x").first().click();
     // 1,000 rows fit: the preview, Load data, the file's data shown
@@ -506,7 +506,7 @@ strict("the element's importLimits property: the page's 1,000 rows show, a file 
     const worker = page.waitForEvent("worker", { timeout: 10_000 });
     await dropFiles(page, report.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
     expect((await worker).url()).toMatch(/\/import-worker\.js$/);
-    await expect(report.locator(".pk-toast.pk-error")).toHaveText(/^tickets\.csv could not be loaded: .*has more than 3 rows \(limits\.rows\)/);
+    await expect(report.locator(".pk-toast.pk-error")).toHaveText("tickets.csv could not be loaded: it has more than 3 rows (limits.rows): load a smaller extract of it, or a host can raise this limit");
     await expect(report.getByTestId("import-dialog")).toHaveCount(0);
     await expect.poll(() => fieldNames(report)).toEqual(before);
     expect(await page.evaluate(() => window.__loads)).toEqual([]);

@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
-import { IMPORT_TEXTS, de, en, importLabels, noteText } from "../src/import-labels.js";
+import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
 import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { SHOWN_MAX, sha256Bytes, sha256Hex, shownName, sourceIdOf } from "../src/import-source.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
@@ -175,6 +175,31 @@ test("a note in the report's language: counts in their plural form and the local
     assert.equal(noteText({ code: "PLUGIN_OWN", params: {}, message: "Read 3 records." }, en, where), "Read 3 records.");
     // a param from the file is text: markup stays as it is
     assert.equal(noteText({ code: "JSON_PROPERTY", params: { property: "<b>rows</b>" } }, en, where), "The rows were read from “<b>rows</b>”.");
+});
+
+test("a file's error in the report's language without the file's name the note names already: a limit with its key and that a host can raise it (issue #185)", async () => {
+    const en_ = { lang: "en", locale: "en-US" };
+    const de_ = { lang: "de", locale: "de-DE" };
+    // a limit of the built-in readers, as they throw it: in the report's language, the key in brackets
+    const rows = await readFile(csv("A\n" + "1\n".repeat(1001), "big.csv"), { limits: { rows: 1000 } }).catch((e) => e);
+    assert.equal(rows.code, "LIMIT_EXCEEDED");
+    assert.equal(errorText(rows, "big.csv", en, en_), "it has more than 1,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(rows, "big.csv", de, de_), "sie hat mehr als 1.000 Zeilen (limits.rows): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    const cells = await readFile(csv("A,B\n1,2\n3,4\n5,6\n", "cells.csv"), { limits: { importCells: 5 } }).catch((e) => e);
+    assert.equal(errorText(cells, "cells.csv", en, en_), "it has more than 5 values (rows x columns) (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    const bytes = new PivotkitError("LIMIT_EXCEEDED", "\"huge.csv\" has more than 10 bytes (limits.fileBytes): …", { limit: "fileBytes", value: 11, max: 10, file: "huge.csv" });
+    assert.equal(errorText(bytes, "huge.csv", de, de_), "sie hat mehr als 10 Bytes (limits.fileBytes): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    // a limit this version has no word for (a plugin's own): the reader's message without the name in front
+    const own = new PivotkitError("LIMIT_EXCEEDED", "\"big.log\" has more than 9 records (limits.records): load less", { limit: "records", value: 10, max: 9, file: "big.log" });
+    assert.equal(errorText(own, "big.log", en, en_), "has more than 9 records (limits.records): load less");
+    // a file the reader refuses: its message without the name and colon in front, in either form
+    const invalid = await readFile(new File(["{"], "bad.json", { type: "application/json" })).catch((e) => e);
+    assert.equal(invalid.code, "INVALID_FILE");
+    assert.ok(invalid.message.startsWith('"bad.json": '), invalid.message);
+    assert.equal(errorText(invalid, "bad.json", en, en_), invalid.message.slice('"bad.json": '.length));
+    // a name the message does not start with is left alone, as is a plain text
+    assert.equal(errorText(new Error('"other.csv" has a problem'), "big.csv", en, en_), '"other.csv" has a problem');
+    assert.equal(errorText("no reader", "big.csv", en, en_), "no reader");
 });
 
 test("a host's texts for loading data (labels.dataImport) win over the defaults, of the right kind only", () => {

@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- The message of a file over a limit (`limitError`, `checkFileLimit`) ends "or a host can raise this
+  limit" instead of naming the key a second time, so it fits a UI that reads files with limits of its
+  own; the key stays in brackets: `"big.csv" has more than 1,000 rows (limits.rows): load a smaller
+  extract of it, or a host can raise this limit` ([#185](https://github.com/eizedev/pivotkit/issues/185)).
 - **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
   has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
   keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.

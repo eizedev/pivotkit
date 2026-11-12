@@ -51,7 +51,8 @@ text for a code it does not know, `item` puts the subject and the text together
 lines of one name apart (`"{subject} (no. {n} in {part})"`).
 
 The texts of [loading data](../use/load-data.md) (`labels.dataImport`: the Data menu, the drop
-overlay, the preview, the notes of the readers per note code in `labels.dataImport.notes`) load with
+overlay, the preview, the notes of the readers per note code in `labels.dataImport.notes`, a file
+over a limit in `overLimit` with the limit's words in `limitWhat`) load with
 the import UI, English and German in one file; a language of a host's own takes English there unless
 its `labels` give `dataImport`. The Data button's text (`data`), its dot's words for a screen reader
 (`dataLoaded`) and the empty report's lines and button (`emptyLoad`, `emptyNoData`, `emptyDrop`,
