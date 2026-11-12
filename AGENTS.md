@@ -96,7 +96,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`scripts/third-party-licenses.js`) and checks `SIZE_BUDGET_KIB`. `test/make-xlsx.js` generates the
   workbooks the tests read (none is committed), `test/bench.js` measures a 94,000-row workbook.
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
-  with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled. Its
+  with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,
+  `allow-import` with the element's `dist/import-worker.js` copied as an asset (`angular.json`). Its
   own install and lock file (`npm ci --prefix examples/angular --ignore-scripts`), Angular's packages
   pinned exactly, `pivotkit-element` linked from `packages/` (`file:`; build its `dist/` and run `npm
   run types` first). The CI job `angular` builds it (a build warning fails) and runs

@@ -132,6 +132,7 @@ import type { PivotView } from "pivotkit-element";
             [data]="rows"
             [defaultView]="start"
             locale="en-US"
+            allow-import
             (pivot-view-change)="onView($event)"
         ></pivot-report>
     `
@@ -154,9 +155,22 @@ export class TicketReportComponent {
 ```
 
 The test checks that the bound rows show in the table, that a change in a field's menu reaches
-`onView` and the page shows the new view, and that the page's global stylesheet does not style the
-report (its shadow root keeps it out). Angular's build bundles `pivotkit-element` with the app; ECharts
-and the export still load on first use, as chunks of the app's build.
+`onView` and the page shows the new view, that the page's global stylesheet does not style the
+report (its shadow root keeps it out), and that a CSV file picked with `allow-import` is read in the
+element's import worker. Angular's build bundles `pivotkit-element` with the app; ECharts, the export
+and the import UI still load on first use, as chunks of the app's build.
+
+The import worker is a file of its own that a bundler does not copy: copy it as an asset in
+`angular.json` (the build's `options`), so it lands next to `main-*.js` at the root of the output:
+
+```json
+"assets": [{ "glob": "import-worker.js", "input": "node_modules/pivotkit-element/dist", "output": "/" }]
+```
+
+The element looks for it at `../import-worker.js` from the file its code is in, which from Angular's
+`main-*.js` is `/import-worker.js` of the site: an app served under a path of its own (a `baseHref`
+such as `/reports/`) needs the file at the site's root too. Without it the element reads the file
+on the page, and Firefox and WebKit log the worker that failed to load in the console.
 
 Binding the stored view back as `[defaultView]` is fine: the element ignores the view it reported
 itself. For the controlled form bind `[view]` and set it in the handler. An app that still runs in

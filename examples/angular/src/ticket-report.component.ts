@@ -13,6 +13,7 @@ import type { PivotView } from "pivotkit-element";
             [data]="rows"
             [defaultView]="start"
             locale="en-US"
+            allow-import
             (pivot-view-change)="onView($event)"
         ></pivot-report>
         <table class="page-table">

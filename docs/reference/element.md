@@ -156,7 +156,10 @@ a row; kept in the page's memory only, as for the React prop. Behaviour:
 The element reads CSV and JSON files in a worker of its own, `dist/import-worker.js` (pivotkit-core's
 readers in one file, about 10 KiB gzip), started from its chunk by relative URL: serve it with `dist/`.
 It is a file of the page's origin, never a `blob:` URL, so `script-src 'self'` (or `worker-src`)
-allows it; where it cannot start, the element reads on the page. The import UI is the load group
+allows it; where it cannot start, the element reads on the page (and Firefox and WebKit log the
+failed worker in the console). An app that bundles the element (Angular's build) copies the file as an
+asset to `../import-worker.js` from the bundle that holds the element's code:
+[Angular](../getting-started/web-component.md#angular). The import UI is the load group
 "import", loaded on first use ([Bundle size](#bundle-size)).
 
 ```html
