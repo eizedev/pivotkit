@@ -29,6 +29,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   default, to 7 Sunday) starts its weeks. `relativeDateRange` takes the same options; a bound that is
   not at midnight is written to the minute, `"before"` has `from: null` (its type is `string | null`). Normalized relative filters
   write every key. New issue code `filterRelativeDirection`; `CATALOG.relativeDirections`.
+- A comparison of dates has a `precision`: `year`, `quarter`, `month`, `day` (the default) or `hour`;
+  both sides are taken as the start of their unit. A top N has `ties`: `first` (the default, as it
+  was) or `all` (every item tied at the cut stays). New issue codes `filterPrecision` and
+  `filterTies`; `CATALOG.comparePrecisions` and `CATALOG.topTies`.
 - Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
   another is the issue `filterFieldType` with the type that fits.
 

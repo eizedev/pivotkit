@@ -99,6 +99,8 @@ export const en = {
         filterEmpty: "the filter lists no items and keeps no blanks - it keeps nothing",
         filterText: "the text condition has no text, or more than {max} characters - this filter is left out",
         filterNotNumber: "{agg} gives no number to filter by - this filter is left out",
+        filterTies: "the ties “{value}” are unknown (first or all) - the first in the data are kept",
+        filterPrecision: "the precision “{value}” is unknown or not for this field (year, quarter, month, day or hour of a date) - days are compared",
         filterCount: "Top needs a whole number from 1 to {max} - this filter is left out",
         filterValue: "the condition needs a comparison and a number - this filter is left out",
         filterValue2: "“{value}” needs a second number - this filter is left out",

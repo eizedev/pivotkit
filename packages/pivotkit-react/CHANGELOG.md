@@ -19,6 +19,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   current period, hours, weeks, quarters, counted from the first record or a date) says what it keeps
   in words, in English and German, and stays as it is: its row in the Filter level can only be
   removed. The quick choices and the rules offer years, months and days, as they did.
+- A comparison of dates by another precision (a loaded view's) says its unit ("Feb 2026", "from Q2
+  2026") and stays as it is.
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters
   (pivotkit-core's `outsideLimits`), or the host's lower `limits.filters`.
 

@@ -32,7 +32,7 @@ is computed; value filters and top N drop whole groups after the values are aggr
 | `compare` | The item itself compared with `value`: a number, a date or a grouping's key. `op` `=`, `>`, `>=`, `<`, `<=`, `between` (with `value2`). | number, date |
 | `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included; with `anchor: "latest"` counted back from the latest date of the field's data instead of today. | date, a grouping of a date |
 | `value` | A condition on an aggregated value. `op` as `compare`'s. | any |
-| `top` | Keep the `count` largest items, or with `bottom: true` the smallest. | any |
+| `top` | Keep the `count` largest items, or with `bottom: true` the smallest; `ties` `"first"` (the default) or `"all"`. | any |
 
 `value` and `top` rank by `by`, a value reference such as `{ "field": "Sales", "agg": "sum" }`; without
 it they use the view's first value. A filter type on a field it does not fit is the issue
@@ -80,6 +80,11 @@ What is compared:
 - A number field: the number (a text of one, `"2022"`, is read as the number). A grouping of numbers (ranges) compares each range by its lower bound.
 - A date field: the calendar day. `value` is a date, `"2022-03-01"`; a time in it is left out, so
   "before 2022-03-01" keeps every row of 28 February and none of 1 March, whatever its clock time.
+  `precision` compares by another unit: `"year"`, `"quarter"`, `"month"`, `"day"` (the default) or
+  `"hour"`; both the date and `value` are taken as the start of their unit, so `{ "op": "=", "value":
+  "2025-03-17", "precision": "month" }` keeps every day of March 2025. `normalize` writes `value` as
+  that start (`"2025-03-01"`, with `"hour"` `"2025-03-17T14:00"`). A precision on a number is the
+  issue `filterPrecision`.
 - A date grouping: its key, the number the grouping gives each item: a year `2022`, a month `202503`
   (year × 100 + month), a quarter `20251` (year × 10 + quarter), a week `202512` (ISO year × 100 +
   week), the cyclic ones their number (month `3`, weekday `1` for Monday); a day is a date. With a
@@ -146,8 +151,9 @@ A value filter on a field of an axis works **within each item of the field above
 with Region and Country on rows, "top 3 countries" keeps three countries per region. Totals then add up
 the visible items only, so a region's total is the total of its top three countries.
 
-Top N keeps exactly N items. A tie at the cut keeps the item that appears first in the data; Excel may
-keep all tied items. The report says what a top N does to totals and percentages in a note above the
+Top N keeps exactly N items by default (`ties: "first"`): a tie at the cut keeps the item that
+appears first in the data. With `ties: "all"` every item with the value at the cut stays too, so a
+top 3 may keep four items; Excel may keep all tied items. The report says what a top N does to totals and percentages in a note above the
 table ("Country shows the top 5 only: ...").
 
 ## Sorting

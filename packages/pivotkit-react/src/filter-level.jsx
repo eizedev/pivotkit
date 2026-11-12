@@ -40,9 +40,10 @@ const rulesKeyOf = (rules) => JSON.stringify(rules, (_k, v) => (v && typeof v ==
 const rowKind = (f) => (!editable(f) ? "fixed" : f.type === "value" ? "total" : f.type === "text" ? "name" : "item");
 /**
  * Whether the rows can edit a rule: not one whose `not` they have no word for, not a relative range
- * they do not write (next, this, before, rolling, hours, weeks, quarters; a loaded view's).
+ * they do not write (next, this, before, rolling, hours, weeks, quarters; a loaded view's), not a
+ * comparison of dates by another precision than the day.
  */
-const editable = (f) => !hiddenNot(f) && (f.type !== "relative" || plainRange(f));
+const editable = (f) => !hiddenNot(f) && (f.type !== "relative" || plainRange(f)) && (f.type !== "compare" || (f.precision ?? "day") === "day");
 /** The units of the quick choices and of a rule's relative range. */
 const RANGE_UNITS = Object.freeze(["year", "month", "day"]);
 /** The most years, months and days a quick choice reaches back by itself to the data's latest record. */

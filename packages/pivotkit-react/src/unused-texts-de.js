@@ -84,6 +84,8 @@ export const de = {
         filterEmpty: "der Filter nennt keine Einträge und behält keine leeren - er behält nichts",
         filterText: "die Textbedingung hat keinen Text oder mehr als {max} Zeichen - dieser Filter wird weggelassen",
         filterNotNumber: "{agg} ergibt keine Zahl zum Filtern - dieser Filter wird weggelassen",
+        filterTies: "die Gleichstände „{value}“ sind unbekannt (first oder all) - die ersten in den Daten werden behalten",
+        filterPrecision: "die Genauigkeit „{value}“ ist unbekannt oder passt nicht zum Feld (Jahr, Quartal, Monat, Tag oder Stunde eines Datums) - Tage werden verglichen",
         filterCount: "„Oberste“ braucht eine ganze Zahl von 1 bis {max} - dieser Filter wird weggelassen",
         filterValue: "die Bedingung braucht einen Vergleich und eine Zahl - dieser Filter wird weggelassen",
         filterValue2: "„{value}“ braucht eine zweite Zahl - dieser Filter wird weggelassen",

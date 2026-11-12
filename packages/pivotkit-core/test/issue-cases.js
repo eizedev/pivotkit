@@ -53,6 +53,8 @@ export const ISSUE_CASES = Object.freeze({
     filterEmpty: { version: 2, filters: [{ field: "Region", type: "in", items: [], blanks: "exclude" }] },
     filterNotNumber: { filters: [{ field: "Region", type: "top", count: 3, by: { field: "Region", agg: "listUnique" } }] },
     filterCount: { filters: [{ field: "Region", type: "top", count: 0 }] },
+    filterTies: { filters: [{ field: "Region", type: "top", count: 1, ties: "every" }] },
+    filterPrecision: { version: 2, filters: [{ field: "Date", type: "compare", op: ">", value: "2026-01-01", precision: "week", blanks: "exclude" }] },
     filterValue: { filters: [{ field: "Region", type: "value", op: ">" }] },
     filterValue2: { filters: [{ field: "Region", type: "value", op: "between", value: 1 }] },
     filterCompareValue: { filters: [{ field: "Date", type: "compare", op: ">=", value: "last week" }] },

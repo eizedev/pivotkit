@@ -32,7 +32,7 @@
 import { labelOf } from "./labels.js";
 import { MATCH_CASES, MATCH_DEFAULTS, MATCH_WHITESPACE, foldText } from "./text-match.js";
 import { DERIVED } from "./derive.js";
-import { RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, WEEK_START, rangeOf } from "./relative.js";
+import { RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, WEEK_START, rangeOf, startOf } from "./relative.js";
 import { PivotkitError } from "./errors.js";
 import { isDateMs, resolveTimeZone, toWallMs, wallClock } from "./time.js";
 import { MS_PER_DAY, finite, get, isPlainObject, optionsOf, shown } from "./util.js";
@@ -46,6 +46,14 @@ export const TEXT_ON = Object.freeze(["value", "label"]);
  * inverts each ("not between").
  */
 export const COMPARE_OPS = Object.freeze(["=", ">", ">=", "<", "<=", "between"]);
+/**
+ * How finely a comparison of dates goes: a date and the value are both taken as the start of their
+ * year, quarter, month, day (the default) or hour, so "= 2025-03" with precision "month" keeps every
+ * day of March 2025.
+ */
+export const COMPARE_PRECISIONS = Object.freeze(["year", "quarter", "month", "day", "hour"]);
+/** Which of the groups tied at the cut of a top N stay: the first in the data (Excel's count), or all. */
+export const TOP_TIES = Object.freeze(["first", "all"]);
 /** What a filter does with blank items: drop them (the default), keep them too, keep only them. */
 export const FILTER_BLANKS = Object.freeze(["exclude", "include", "only"]);
 /**
@@ -343,6 +351,13 @@ const byDay = (f) => typeof f.value === "string";
 function normalizeCompare(flt, spec, f, path, ctx, view) {
     const unit = unitOfField(f, view);
     const dated = f.type === "date" || (unit !== undefined && DERIVED[unit].source === "date" && typeof get(flt, "value") === "string" && itemFor("number", get(flt, "value")) === undefined);
+    const precisionIn = get(flt, "precision");
+    const precision = precisionIn === undefined ? "day" : oneOf(precisionIn, COMPARE_PRECISIONS);
+    if (!dated && precisionIn !== undefined) {
+        ctx.issue(`${path}.precision`, "a precision compares dates only", "filterPrecision", { value: shown(precisionIn) });
+    } else if (!precision) {
+        return ctx.issue(path, `unknown precision ${JSON.stringify(precisionIn)}`, "filterPrecision", { value: shown(precisionIn), ...ctx.suggest(precisionIn, COMPARE_PRECISIONS) });
+    }
     const read = (value) => {
         if (!dated) {
             // a number, or a text of one ("2022"), as filter items take them
@@ -352,7 +367,7 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
         // wall-clock ms beyond what a Date holds (±8.64e15) have no calendar day; a grouping
         // compared by its source dates takes days as text only (a number would be its key)
         const ms = value === undefined || (f.type !== "date" && typeof value !== "string") ? undefined : itemFor("date", value);
-        return isDateMs(ms) ? isoDay(dayOf(ms)) : null;
+        return typeof ms === "number" && isDateMs(ms) ? precisionText(ms, /** @type {string} */ (precision)) : null;
     };
     const op = oneOf(get(flt, "op"), COMPARE_OPS);
     const value = read(get(flt, "value"));
@@ -361,8 +376,20 @@ function normalizeCompare(flt, spec, f, path, ctx, view) {
     if (!op || value === null || (twin && value2 === null)) {
         return ctx.issue(path, `needs an operator and ${twin ? "two values" : "a value"} of the ${f.type} field`, "filterCompareValue", { type: f.type, ...negatedHint(get(flt, "op")) });
     }
-    Object.assign(spec, { op, value }, twin ? { value2 } : {});
+    Object.assign(spec, { op, value }, twin ? { value2 } : {}, dated ? { precision } : {});
     return notAndBlanks(flt, spec, path, ctx);
+}
+
+/**
+ * The start of a date's unit as a comparison writes it: the day "2025-03-01", with precision "hour"
+ * the hour "2025-03-01T14:00"; a year before 0 or after 9999 with its sign and six digits. A start
+ * beyond what a Date holds (the first year's, near its edge) is the date's own day.
+ * @param {number} ms  a date's wall-clock ms
+ * @param {string} precision
+ */
+function precisionText(ms, precision) {
+    const start = startOf(precision, ms);
+    return precision === "hour" ? new Date(start).toISOString().slice(0, -":00.000Z".length) : isoDay(Number.isNaN(start) ? dayOf(ms) : start);
 }
 
 /** The hint for a version-1 operator ("!=", "notBetween") that version 2 writes with `not`. */
@@ -428,7 +455,12 @@ function normalizeTop(flt, spec, _f, path, ctx, view) {
         return ctx.issue(path, "needs a whole count of 1 or more", "filterCount", { max: ctx.limits.topCount });
     }
     const bottom = get(flt, "bottom");
-    return Object.assign(spec, { by, count, bottom: typeof bottom === "boolean" ? bottom : false });
+    const tiesIn = get(flt, "ties");
+    const ties = tiesIn === undefined ? "first" : oneOf(tiesIn, TOP_TIES);
+    if (!ties) {
+        ctx.issue(`${path}.ties`, `unknown ties ${JSON.stringify(tiesIn)}`, "filterTies", { value: shown(tiesIn), ...ctx.suggest(tiesIn, TOP_TIES) });
+    }
+    return Object.assign(spec, { by, count, bottom: typeof bottom === "boolean" ? bottom : false, ties: ties ?? "first" });
 }
 
 function normalizeValue(flt, spec, _f, path, ctx, view) {
@@ -516,11 +548,13 @@ function matchTexts(column, f, locale) {
 /** Compare: a date item by its calendar day; a number as it is. */
 function allowedCompared(column, f) {
     const date = column.type === "date";
-    const read = (v) => (date ? Date.parse(`${v}T00:00Z`) : v);
+    // a date and the values as the start of their unit (precision, default the day)
+    const precision = f.precision ?? "day";
+    const read = (v) => (date ? itemFor("date", v) : v);
     const [a, b] = [read(f.value), f.value2 === undefined ? undefined : read(f.value2)];
     const matched = new Uint8Array(column.dict.length + 1);
     column.dict.forEach((v, code) => {
-        matched[code + 1] = compare(f.op, date && typeof v === "number" ? dayOf(v) : v, a, b) ? 1 : 0;
+        matched[code + 1] = compare(f.op, date && typeof v === "number" ? startOf(precision, v) : v, a, b) ? 1 : 0;
     });
     return matched;
 }
@@ -578,13 +612,14 @@ function keepTop(f, values, paths) {
         byParent.get(parent).push(g);
     });
     for (const groups of byParent.values()) {
-        groups
-            .filter((g) => typeof values[g] === "number")
-            .sort((a, b) => (f.bottom ? values[a] - values[b] : values[b] - values[a]) || a - b)
-            .slice(0, f.count)
-            .forEach((g) => {
+        const ranked = groups.filter((g) => typeof values[g] === "number").sort((a, b) => (f.bottom ? values[a] - values[b] : values[b] - values[a]) || a - b);
+        // ties "all": every group with the value at the cut stays too
+        const cut = f.ties === "all" && ranked.length > f.count ? values[ranked[f.count - 1]] : undefined;
+        ranked.forEach((g, i) => {
+            if (i < f.count || values[g] === cut) {
                 keep[g] = 1;
-            });
+            }
+        });
     }
     return keep;
 }
@@ -616,9 +651,9 @@ export const FILTERS = Object.freeze({
     in: { stage: "items", fields: ALL_TYPES, keys: keysOf("items", ...NOT_BLANKS), normalize: normalizeIn, allowed: withNotBlanks(matchItems) },
     blank: { stage: "items", fields: ALL_TYPES, keys: keysOf("not"), normalize: normalizeBlank, allowed: keepBlank },
     text: { stage: "items", fields: ALL_TYPES, keys: keysOf("op", "value", "on", "match", ...NOT_BLANKS), normalize: normalizeText, allowed: withNotBlanks(matchTexts) },
-    compare: { stage: "items", fields: Object.freeze(["number", "date"]), keys: keysOf("op", "value", "value2", ...NOT_BLANKS), normalize: normalizeCompare, allowed: withNotBlanks(allowedCompared), source: byDay },
+    compare: { stage: "items", fields: Object.freeze(["number", "date"]), keys: keysOf("op", "value", "value2", "precision", ...NOT_BLANKS), normalize: normalizeCompare, allowed: withNotBlanks(allowedCompared), source: byDay },
     relative: { stage: "items", fields: Object.freeze(["date", "dateGrouping"]), keys: keysOf("direction", "unit", "count", "calendar", "includeCurrent", "anchor", ...NOT_BLANKS), normalize: normalizeRelative, allowed: withNotBlanks(allowedRelative), source: true },
-    top: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "count", "bottom"), normalize: normalizeTop, keep: keepTop },
+    top: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "count", "bottom", "ties"), normalize: normalizeTop, keep: keepTop },
     value: { stage: "values", fields: ALL_TYPES, keys: keysOf("by", "op", "value", "value2", "not"), normalize: normalizeValue, keep: keepMatching }
 });
 

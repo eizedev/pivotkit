@@ -45,7 +45,7 @@ const at = (y, m, d) => new Date(0).setUTCFullYear(y, m, d);
  * what a Date holds. Counted from `ms`'s own calendar parts, so the unit next to the edge of the Date
  * range is found even where the start of `ms`'s own unit lies beyond it.
  */
-function startOf(unit, ms, weekStart, n = 0) {
+export function startOf(unit, ms, weekStart = WEEK_START, n = 0) {
     if (unit === "hour") {
         const out = (Math.floor(ms / MS_PER_HOUR) + n) * MS_PER_HOUR;
         return isDateMs(out) ? out : NaN;

@@ -291,6 +291,21 @@ function otherRangeText(f, labels, locale, timeZone, now, span, weekStart) {
     return fill(labels.withRange, { text, range: range.from === null ? fill(more.until, { to }) : range.from === range.to ? to : `${pointText(range.from, locale)} – ${to}` });
 }
 
+/**
+ * The start of a comparison's unit ("2026-02-01", "2026-03-01T14:00") as its precision writes it: the
+ * year "2026", the quarter "Q1 2026", the month "Feb 2026", the day, the hour.
+ */
+function precisionText(iso, precision, locale) {
+    if (precision === "year" || precision === "quarter" || precision === "month") {
+        const at = new Date(`${iso.slice(0, 10)}T00:00Z`);
+        if (precision === "month") {
+            return at.toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
+        }
+        return precision === "year" ? iso.slice(0, iso.length - 6) : `Q${Math.floor(at.getUTCMonth() / 3) + 1} ${iso.slice(0, iso.length - 6)}`;
+    }
+    return pointText(iso, locale);
+}
+
 /** A day ("2026-03-01") or a minute ("2026-03-01T14:00") as the locale writes it. */
 const pointText = (iso, locale) =>
     iso.length > 10 ? new Date(`${iso.slice(0, 16)}Z`).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) : dayText(iso, locale);
@@ -308,14 +323,14 @@ export function wholeYears(from, to) {
 /**
  * A comparison of the item itself in short: "from 2022", "2022 to 2024" for a date or a date
  * grouping, "≥ 10" for a number. `labelOf` gives an item's label (a grouping's "Mar 2025").
- * @param {{ op: string, value: number | string, value2?: number | string }} f  a `compare` filter
+ * @param {{ op: string, value: number | string, value2?: number | string, precision?: string, not?: boolean }} f  a `compare` filter
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  * @param {{ date: boolean, labelOf?: (value: number) => string | undefined }} kind
  */
 export function compareText(f, labels, locale, { date, labelOf }) {
     // a date grouping's key without its label is written as it is (2022, not 2,022)
-    const shown = (v) => (typeof v === "string" ? dayText(v, locale) : labelOf?.(v) ?? (date ? String(v) : v.toLocaleString(locale, { maximumFractionDigits: 6 })));
+    const shown = (v) => (typeof v === "string" ? precisionText(v, f.precision, locale) : labelOf?.(v) ?? (date ? String(v) : v.toLocaleString(locale, { maximumFractionDigits: 6 })));
     const forms = labels.compareShort;
     const op = ruleOp(f);
     if (op === "between" || op === "notBetween") {

@@ -282,3 +282,12 @@ test("a relative range the menus do not write says what it keeps in words, and i
     const loaded = norm({ version: 2, rows: ["Released"], filters: [{ field: "Released", type: "relative", direction: "next", unit: "year", count: 1, blanks: "exclude" }] });
     assert.deepEqual(quickChoice(loaded, "Released", ruleKind(data, loaded, "Released")), { id: "all", filters: [] });
 });
+
+test("a comparison of dates by another precision says its unit", () => {
+    const say = (f) => compareText({ op: "=", ...f }, MENU.en, "en-US", { date: true });
+    assert.equal(say({ value: "2026-02-01", precision: "month" }), "Feb 2026");
+    assert.equal(say({ op: ">=", value: "2026-04-01", precision: "quarter" }), "from Q2 2026");
+    assert.equal(say({ op: "<", value: "2026-01-01", precision: "year" }), "before 2026");
+    assert.equal(say({ value: "2026-03-01T14:00", precision: "hour" }), "Mar 1, 2026, 2:00 PM");
+    assert.equal(say({ value: "2026-03-01" }), "Mar 1, 2026");
+});

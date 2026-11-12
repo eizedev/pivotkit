@@ -51,7 +51,7 @@ export const VIEW_ISSUES = /* @__PURE__ */ issueTable({
     unknownConditional: "error schema", conditionalNotNumber: "error", colorScaleColors: "error schema", dataBarColor: "error schema",
     unknownFilterType: "error schema", filterFieldType: "error", filterNoItems: "error schema", filterTextOp: "error schema", filterText: "error schema",
     filterMatch: "error schema", filterNot: "error schema", filterBlanks: "error schema", blanksUnspecified: "warning", filterEmpty: "warning",
-    filterNotNumber: "error", filterCount: "error schema", filterValue: "error schema", filterValue2: "error schema",
+    filterNotNumber: "error", filterCount: "error schema", filterTies: "error schema", filterPrecision: "error", filterValue: "error schema", filterValue2: "error schema",
     filterCompareValue: "error",
     filterRelativeDirection: "error schema", filterRelativeUnit: "error schema", filterRelativeCount: "error schema", filterRelativeAnchor: "error schema",
     sortNoItems: "error schema", sortedTwice: "error",

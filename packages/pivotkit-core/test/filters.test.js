@@ -125,7 +125,7 @@ test("compare: a date by its calendar day, a grouping by its key", () => {
     // a value with a time is read as its day, and normalized to it
     const r = computePivot(data, { values: [sumUnits], filters: [{ field: "Date", type: "compare", op: "<", value: "2026-01-05T18:00" }] });
     assert.equal(total(r), 6);
-    assert.deepEqual(r.view.filters, [{ field: "Date", type: "compare", op: "<", value: "2026-01-05", not: false, blanks: "exclude" }]);
+    assert.deepEqual(r.view.filters, [{ field: "Date", type: "compare", op: "<", value: "2026-01-05", precision: "day", not: false, blanks: "exclude" }]);
     assert.equal(kept([{ field: "Date", type: "compare", op: "between", value: "2026-01-20", value2: "2026-02-14" }]), 14);
     // year 2026 and later; months from 2026-03 (key 202603)
     assert.equal(kept([{ field: "Year", type: "compare", op: ">=", value: 2026 }], byYear), 22);
@@ -159,6 +159,7 @@ test("compare: a date's wall-clock ms beyond what a Date holds are an issue, nev
         op: "between",
         value: "-271821-04-20",
         value2: "+275760-09-13",
+        precision: "day",
         not: false,
         blanks: "exclude"
     });
@@ -318,7 +319,7 @@ test("compare: a date grouping with a calendar day compares the source dates, no
     assert.equal(total(year("notBetween", "2026-01-01", "2026-12-31")), 6);
     assert.equal(total(year("<", "2026-01-01")), 6);
     // kept as the day, and fieldItems marks the months it leaves out (December has only 2025)
-    assert.deepEqual(r.view.filters, [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: "2026-12-31", not: false, blanks: "exclude" }]);
+    assert.deepEqual(r.view.filters, [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: "2026-12-31", precision: "day", not: false, blanks: "exclude" }]);
     const items = fieldItems(data, "Month", { view: { ...v, filters: r.view.filters } });
     assert.deepEqual(items.items.map((i) => [i.value, i.kept]), [[1, true], [2, true], [3, true], [4, true], [12, false]]);
     // a key stays a key; a day and a key mixed is no comparison
@@ -403,4 +404,38 @@ test("value: not inverts the comparison; a group without a number never matches"
     assert.deepEqual(keep({ not: true }), ["North", "West"]);
     const prices = computePivot(data, { version: 2, rows: ["Region"], values: [{ field: "Units", agg: "average" }], filters: [{ field: "Product", type: "value", op: "=", value: 99, not: true, by: { field: "Units", agg: "sum" } }] });
     assert.ok(prices.rows.length > 0);
+});
+
+test("compare: a date's precision takes both sides to the start of their year, quarter, month, day or hour", () => {
+    // Date: 2026-01-05, 01-20, 02-03, 02-14, 03-01, 03-09, 04-30, 2025-12-31 with units 3 5 2 7 1 (blank) 4 6
+    const keep = (op, value, precision, value2) => kept([{ field: "Date", type: "compare", op, value, value2, precision }]);
+    assert.equal(keep("=", "2026-02-20", "month"), 9);
+    assert.equal(keep(">=", "2026-03-31", "quarter"), 22);
+    assert.equal(keep(">=", "2026-04-15", "quarter"), 4);
+    assert.equal(keep("=", "2026-06-01", "year"), 22);
+    assert.equal(keep("between", "2026-01-31", "month", "2026-02-01"), 17);
+    // normalized to the start of the unit
+    const at = (value, precision) => computePivot(data, { filters: [{ field: "Date", type: "compare", op: "=", value, precision }] }).view.filters[0].value;
+    assert.equal(at("2026-02-20", "month"), "2026-02-01");
+    assert.equal(at("2026-05-20T14:35", "quarter"), "2026-04-01");
+    assert.equal(at("2026-05-20T14:35", "hour"), "2026-05-20T14:00");
+    const hours = encode([{ At: "2026-03-01T09:15" }, { At: "2026-03-01T09:59" }, { At: "2026-03-01T10:00" }]);
+    assert.equal(computePivot(hours, { filters: [{ field: "At", type: "compare", op: "=", value: "2026-03-01T09:30", precision: "hour" }] }).rows.length, 2);
+    // a precision on a number, or an unknown one, is an issue
+    const codes = (filter) => validate({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
+    assert.deepEqual(codes({ field: "Price", type: "compare", op: ">", value: 1, precision: "day" }), [["filterPrecision", undefined]]);
+    assert.deepEqual(codes({ field: "Date", type: "compare", op: ">", value: "2026-01-01", precision: "months" }), [["filterPrecision", "month"]]);
+});
+
+test("top: ties at the cut stay with ties all; the first in the data with ties first, the default", () => {
+    // North: Ann 5 and Bob 5 tie for the top one
+    const reps = (ties) => {
+        const r = computePivot(data, { rows: ["Region", "Rep"], values: [sumUnits], filters: [{ field: "Rep", type: "top", count: 1, ...(ties ? { ties } : {}) }] });
+        return findNode(r, "rows", ["North"]).children.map((n) => n.key);
+    };
+    assert.deepEqual(reps(undefined), ["Ann"]);
+    assert.deepEqual(reps("first"), ["Ann"]);
+    assert.deepEqual(reps("all"), ["Ann", "Bob"]);
+    assert.equal(computePivot(data, { filters: [{ field: "Rep", type: "top", count: 1 }] }).view.filters[0].ties, "first");
+    assert.deepEqual(validate({ filters: [{ field: "Rep", type: "top", count: 1, ties: "every" }] }, data).errors.map((e) => e.code), ["filterTies"]);
 });

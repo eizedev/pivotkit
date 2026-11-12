@@ -408,7 +408,7 @@ test("sort by a chosen value and top N by a chosen value reach the engine", () =
     const sorted = setSort(v0, "Region", { by: "value", order: "asc", value: minUnits });
     assert.deepEqual(normalize(sorted, data).view.sort, [{ field: "Region", by: "value", order: "asc", value: minUnits }]);
     const top = setTopFilter(v0, "Region", { count: 1, bottom: true, by: minUnits });
-    assert.deepEqual(normalize(top, data).view.filters, [{ field: "Region", type: "top", count: 1, bottom: true, by: minUnits }]);
+    assert.deepEqual(normalize(top, data).view.filters, [{ field: "Region", type: "top", count: 1, bottom: true, by: minUnits, ties: "first" }]);
     assert.deepEqual(computePivot(data, top).rowRoot.children.map((n) => n.key), ["West"]);
 });
 

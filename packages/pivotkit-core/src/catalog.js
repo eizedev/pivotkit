@@ -6,7 +6,7 @@
 import { AGGREGATOR_NAMES } from "./aggregators.js";
 import { CYCLIC_UNITS, DERIVE_UNITS, TIMELINE_UNITS } from "./derive.js";
 import { COLUMN_TYPES } from "./encode.js";
-import { COMPARE_OPS, FILTERS, FILTER_BLANKS, FILTER_TYPES, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS } from "./filters.js";
+import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, FILTER_TYPES, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "./filters.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "./text-match.js";
 import { FORMAT_NAMES } from "./format.js";
 import { SHOW_AS, SHOW_AS_NAMES } from "./show-as.js";
@@ -34,6 +34,9 @@ export const CATALOG = Object.freeze({
     matchWhitespace: MATCH_WHITESPACE,
     /** the comparisons of an item with a value and of a value condition */
     compareOps: COMPARE_OPS,
+    /** how finely a comparison of dates goes; which groups tied at a top N's cut stay */
+    comparePrecisions: COMPARE_PRECISIONS,
+    topTies: TOP_TIES,
     /** a relative date range ("the last 5 years"): its units and directions, the most it reaches, what it counts from */
     relativeUnits: RELATIVE_UNITS,
     relativeDirections: RELATIVE_DIRECTIONS,
