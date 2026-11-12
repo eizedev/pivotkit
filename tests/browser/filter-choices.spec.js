@@ -379,10 +379,12 @@ test.describe("the review's findings on the quick choices (endoflife, EOL date b
         await expect(badge(page, "rows", MONTH)).toContainText("to ");
     });
 
-    test("at phone width the button that counts back from the latest record wraps inside the menu and stays a button", async ({ page }) => {
+    test("at phone width and in the dark theme the button that counts back from the latest record wraps inside the menu and stays a button", async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
+        await page.emulateMedia({ colorScheme: "dark" });
         const MONTH = "Date by month";
         await openView(page, "weather", { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ agg: "count" }] });
+        await expect(page.locator(".pk-root")).toHaveAttribute("data-pk-theme", "dark");
         await openZones(page);
         await chipMenu(page, MONTH, "filter");
         const menu = page.locator(".pk-chip-menu");
@@ -400,17 +402,32 @@ test.describe("the review's findings on the quick choices (endoflife, EOL date b
 });
 
 /**
- * A secondary action of a level drawn as the level's other buttons: a visible border in the colour the
- * reference button has, at least a target's height (24 px).
+ * A secondary action of a level drawn as the level's other buttons: a visible border and the background in
+ * the colours the reference button has, an icon before its words as the reference has (so a wrapped button
+ * does not read as a text field), at least a target's height (24 px).
  */
 async function expectButtonLook(button, reference) {
     const look = (el) => {
         const s = getComputedStyle(el);
-        return { width: s.borderTopWidth, style: s.borderTopStyle, color: s.borderTopColor, height: el.getBoundingClientRect().height };
+        const first = el.firstElementChild;
+        return {
+            width: s.borderTopWidth,
+            style: s.borderTopStyle,
+            color: s.borderTopColor,
+            background: s.backgroundColor,
+            leadingIcon: first?.tagName.toLowerCase() === "svg" && first.getBoundingClientRect().width > 0,
+            height: el.getBoundingClientRect().height,
+        };
     };
     const [mine, theirs] = [await button.evaluate(look), await reference.evaluate(look)];
     expect(mine.style).toBe("solid");
     expect(parseFloat(mine.width)).toBeGreaterThan(0);
-    expect({ width: mine.width, color: mine.color }).toEqual({ width: theirs.width, color: theirs.color });
+    expect(theirs.leadingIcon, "the reference button starts with an icon").toBe(true);
+    expect({ width: mine.width, color: mine.color, background: mine.background, leadingIcon: mine.leadingIcon }).toEqual({
+        width: theirs.width,
+        color: theirs.color,
+        background: theirs.background,
+        leadingIcon: true,
+    });
     expect(mine.height).toBeGreaterThanOrEqual(24);
 }

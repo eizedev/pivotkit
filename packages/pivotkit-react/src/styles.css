@@ -1882,13 +1882,21 @@
     margin-left: 1.7em;
 }
 
+/* "Count back from the latest record": the level's small button, its icon first as on "Compare"; its
+   words wrap at narrow width, the icon stays at the first line */
 .pk-quick-fix > .pk-btn.pk-small-btn {
+    align-items: flex-start;
     height: auto;
     min-height: max(2em, var(--pk-target));
     max-width: 100%;
     padding-block: 0.25em;
     text-align: start;
     white-space: normal;
+}
+
+.pk-quick-fix > .pk-btn.pk-small-btn > .pk-icon {
+    flex: none;
+    margin-top: 0.2em;
 }
 
 /* the years a cyclic grouping combines: a toggle per year with its rows */

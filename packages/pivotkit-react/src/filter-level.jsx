@@ -500,7 +500,8 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                 {quick.id === d && d !== "next" && currentEmpty && anchor === "today" ? (
                     <div className="pk-quick-fix">
                         <button type="button" className="pk-btn pk-small-btn" onClick={() => setAnchorTo("latest")} data-testid={`quick-${d}-from-latest`}>
-                            {fill(labels.anchorUseLatest, { date: dayText(latestDay, locale) })}
+                            <Icon name="date" size={14} />
+                            <span className="pk-btn-text">{fill(labels.anchorUseLatest, { date: dayText(latestDay, locale) })}</span>
                         </button>
                     </div>
                 ) : null}
