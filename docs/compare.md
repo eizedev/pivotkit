@@ -37,6 +37,8 @@ closest, re-checked on 2026-11-12:
   chart-first: a pivot table component exists in its source and release notes but is not described
   in its README or docs site.
 
+Free of charge, but not open source:
+
 - **WebDataRocks** is free of charge and exports to Excel, but its licence caps the data at 1 MB
   and requires its logo, its React wrapper needs React 17, and charts come from separate libraries.
 
