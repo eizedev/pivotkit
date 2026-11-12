@@ -100,13 +100,20 @@ export const en = {
     // the Filter level of a date field: its quick choices ("Last [5] years" around the number typed),
     // each with the data's share and the rows it keeps, the ones not offered, the reference date
     quickTitle: "Quick choices",
-    quickCount: { year: "Number of years", month: "Number of months", day: "Number of days" },
-    quickLast: { year: { one: "Last {count} year", other: "Last {count} years" }, month: { one: "Last {count} month", other: "Last {count} months" }, day: { one: "Last {count} day", other: "Last {count} days" } },
+    quickCount: { year: "Number of years", quarter: "Number of quarters", month: "Number of months", week: "Number of weeks", day: "Number of days" },
     quickRows: "{rows} rows",
     quickHidden: { one: "{choices} is not offered: the data end {latest}.", other: "{choices} are not offered: the data end {latest}." },
+    // under the choice that is set: whether its periods take the current one ("Last 3 months" with November)
+    quickCurrent: { year: "Include the current year", quarter: "Include the current quarter", month: "Include the current month", week: "Include the current week", day: "Include today" },
+    // the rare choices, folded: Next N, Before the last N, rolling periods
+    quickMore: "More choices",
+    quickRolling: "Rolling instead of whole calendar periods",
     anchorLabel: "Counted back from",
     anchorToday: "today ({date})",
     anchorLatest: "the latest record ({date})",
+    anchorFirst: "the first record ({date})",
+    anchorDate: "a date…",
+    anchorDay: "The date counted from",
     quickLine: "Quick choice: {text}",
     changeAbove: "change it above",
     // a cyclic grouping ("month of the year") combines the years: the ones ticked
@@ -165,6 +172,8 @@ export const en = {
     ruleWhose: "{field} items whose total",
     ruleFixed: "Kept as the view has it; the rules here cannot change it yet.",
     blanksOut: "Blank items are not kept.",
+    // under the rules on the items: the field's blank items kept with them
+    rulesBlanks: { one: "Also keep items without a value ({rows} row)", other: "Also keep items without a value ({rows} rows)" },
     ruleUnit: "Unit",
     moveLeft: "Move left",
     moveRight: "Move right",
@@ -274,6 +283,7 @@ export const en = {
     topCount: "Count",
     bottom: "Bottom",
     topBy: "by",
+    topTies: "Also show items tied with the last one",
     searchValues: "Search values",
     selectAll: "Select all",
     selectNone: "Select none",

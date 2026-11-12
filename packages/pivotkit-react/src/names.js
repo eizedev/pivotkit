@@ -119,22 +119,25 @@ const datesOf = (f, timeZone, now, latest, more = {}) =>
     relativeDateRange(f.unit, f.count ?? 1, { timeZone, now, anchor: f.anchor, latest: latest ?? undefined, first: more.first ?? undefined, direction: f.direction, calendar: f.calendar, includeCurrent: f.includeCurrent, weekStart: more.weekStart });
 
 /**
- * Whether a relative range is one the menus write: the last N years, months or days, whole, the
- * current one included, counted from today or from the latest record.
+ * Whether a relative range is said in short with its periods ("last 3 months (Aug–Oct 2026)", "this
+ * quarter (Q4 2026)"): the last N or this day, week, month, quarter or year, in whole calendar
+ * periods, counted from today or from the latest record. The others are said with their dates.
  * @param {{ unit: string, direction?: string, calendar?: boolean, includeCurrent?: boolean, anchor?: string }} f
  */
-export const plainRange = (f) => (f.direction ?? "last") === "last" && f.calendar !== false && f.includeCurrent !== false && (f.anchor === undefined || f.anchor === "today" || f.anchor === "latest") && ["year", "month", "day"].includes(f.unit);
+export const plainRange = (f) =>
+    ["last", "this"].includes(f.direction ?? "last") && f.calendar !== false && (f.anchor === undefined || f.anchor === "today" || f.anchor === "latest") && ["year", "quarter", "month", "week", "day"].includes(f.unit);
 
 /**
- * A range of days as the unit writes it: "2022–2026" for years, "Dec 2025–Nov 2026" for months, dates
- * for days; one period alone ("2026").
- * @param {{ from: string, to: string }} range  ISO days, both included
+ * A range of days as the unit writes it: "2022–2026" for years, "Q4 2025–Q3 2026" for quarters, "Dec
+ * 2025–Nov 2026" for months, dates for weeks and days; one period alone ("2026").
+ * @param {{ from: string, to: string }} range  ISO days, both included (a minute's day is read)
  * @param {string} unit
  * @param {string} locale
  */
 export function periodText(range, unit, locale) {
-    const month = (iso) => new Date(`${iso}T00:00Z`).toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
-    const text = unit === "year" ? (iso) => iso.slice(0, 4) : unit === "month" ? month : (iso) => dayText(iso, locale);
+    const month = (iso) => new Date(`${iso.slice(0, 10)}T00:00Z`).toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
+    const quarter = (iso) => `Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1} ${iso.slice(0, 4)}`;
+    const text = unit === "year" ? (iso) => iso.slice(0, 4) : unit === "quarter" ? quarter : unit === "month" ? month : (iso) => dayText(iso.slice(0, 10), locale);
     const [from, to] = [text(range.from), text(range.to)];
     return from === to ? from : `${from}–${to}`;
 }
@@ -165,8 +168,11 @@ export function rangeText(f, locale, timeZone, now, latest) {
  *   periods have no data, for the words ("2026 has no data", "2021–2022 have no data")
  */
 export function rangeShare(range, unit, span, locale) {
-    // the data cover the whole period (year, month, day) their first and last date fall in
-    const [first, last] = [periodStart(isoDay(span.min), unit), periodEnd(isoDay(span.max), unit)];
+    // the data cover the whole period (year, month, day) their first and last date fall in; a quarter
+    // is measured in months, a week in days
+    const grain = unit === "quarter" ? "month" : unit === "week" ? "day" : unit;
+    range = { from: range.from.slice(0, 10), to: range.to.slice(0, 10) };
+    const [first, last] = [periodStart(isoDay(span.min), grain), periodEnd(isoDay(span.max), grain)];
     if (first <= range.from && last >= range.to) {
         return null;
     }
@@ -226,7 +232,7 @@ function periodEnd(iso, unit) {
  * (2026)". With the data's span, the data's share of them: "last 2 years (2025; 2026 has no data)",
  * "this year (2026 has no data)". Anchored at the data's latest date: "last 12 months to Dec 2025",
  * its days only when the data do not cover them all.
- * @param {{ unit: string, count: number, anchor?: string }} f  a `relative` filter
+ * @param {{ unit: string, count?: number, anchor?: string, direction?: string, calendar?: boolean, includeCurrent?: boolean }} f  a `relative` filter
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  * @param {string} timeZone  the data's
@@ -238,14 +244,25 @@ export function relativeText(f, labels, locale, timeZone, now, span, weekStart) 
     if (!plainRange(f)) {
         return otherRangeText(f, labels, locale, timeZone, now, span, weekStart);
     }
+    const more = labels.relativeMore;
+    const count = f.count ?? 1;
     // one year is "this year" (the quick choice of that name); one month or day keeps the count in the singular, as the radio "Last [1] month" says it
-    const key = f.count === 1 ? f.unit : `${f.unit}s`;
-    let text = fill(Object.hasOwn(labels.relative, key) ? labels.relative[key] : key, { count: f.count.toLocaleString(locale) });
-    const range = relativeDays(f, timeZone, now, span?.max);
+    const key = count === 1 ? f.unit : `${f.unit}s`;
+    let text =
+        f.direction === "this"
+            ? more.this[f.unit] ?? f.unit
+            : Object.hasOwn(labels.relative, key)
+              ? fill(labels.relative[key], { count: count.toLocaleString(locale) })
+              : fill(plural(more.last[f.unit] ?? { other: f.unit }, count, { lang: labels.lang, locale }), { count: count.toLocaleString(locale) });
+    const range = relativeDays(f, timeZone, now, span?.max, { weekStart });
+    const latest = f.anchor === "latest";
+    // counted to the latest record, its end says which period is the last one
+    if (f.includeCurrent === false && f.direction !== "this" && !latest) {
+        text = fill(more.withoutCurrent, { text });
+    }
     if (!range) {
         return text;
     }
-    const latest = f.anchor === "latest";
     if (latest) {
         text = fill(labels.relativeTo, { text, end: periodText({ from: range.to, to: range.to }, f.unit, locale) });
     }

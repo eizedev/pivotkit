@@ -12,7 +12,7 @@ import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotk
 import { fill, plural } from "./labels.js";
 import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
-import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
+import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
 
 /**
  * One choice of a topic: a menu item. `change` gives the next view and the history's note, or `run`
@@ -203,13 +203,16 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
                   return [];
               }
               const units = n > CATALOG.relativeMaxCount ? [] : fk.months ? ["year", "month"] : ["year"];
-              // the range counts back from what the field's range does now (the latest record, or today)
+              // the range takes the place of the quick choice, counts back from what the field's range does
+              // now (the latest record, or today) and keeps the blanks as the field's rules do
               const anchor = filtersOf(view, field, ["relative"])[0]?.anchor;
+              const previous = quickChoice(view, field, fk).filters[0] ?? null;
+              const blanks = keepsBlanks(view, field) ? "include" : "exclude";
               // the same words as the chip and the Filter level: "Last 3 years (2024–2025; 2026 has no data)"
               const span = dateSpan(encoded, sourceOf(view, field));
               const ranges = units.map((unit) => {
                   const text = capital(relativeText({ unit, count: n, anchor }, labels, locale, timeZone, undefined, span));
-                  return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n, anchor }), note }) } };
+                  return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n, anchor, blanks }, previous), note }) } };
               });
               // a year of a grouping by year, written as its chip will say it ("from 2022"); a date
               // field compares days, which the rule editor picks

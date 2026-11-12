@@ -16,7 +16,7 @@
  */
 
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
-import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter } from "pivotkit-core";
+import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter, relativeDateRange } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { activeIn, useFormName } from "./dom.js";
 import { FILTER_LIST_MAX, keyOf, ValueList } from "./filter.jsx";
@@ -25,11 +25,33 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
-import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
+import { dayText, isoDay, periodText, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
 import { RULE_OPS, dateSpan, filtersOf, hiddenNot, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
-import { RULES_MAX, RULE_TYPES, conditionKind, itemTotals, quickChoice, relativeRule, removeRules, resetFilter, ruleKind, ruleText, setAnchor, setItemFilter, setQuickRange, setRule, setYearsCombined, textOn, textRule } from "./menu-ops.js";
+import {
+    ITEM_RULE_TYPES,
+    RULES_MAX,
+    RULE_TYPES,
+    conditionKind,
+    itemTotals,
+    keepsBlanks,
+    quickChoice,
+    relativeRule,
+    removeRules,
+    resetFilter,
+    rowsInRange,
+    ruleKind,
+    ruleText,
+    setAnchor,
+    setItemFilter,
+    setQuickRange,
+    setRule,
+    setRuleBlanks,
+    setYearsCombined,
+    textOn,
+    textRule
+} from "./menu-ops.js";
 
 const twin = (op) => op === "between" || op === "notBetween";
 /** The first letter as a sentence starts: "last {count} years" in a list of choices is "Last …". */
@@ -38,38 +60,27 @@ const capital = (text, locale) => text.charAt(0).toLocaleUpperCase(locale) + tex
 const rulesKeyOf = (rules) => JSON.stringify(rules, (_k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 /** The kind of row a rule is: the item itself (a comparison or a relative range), its total, its name. */
 const rowKind = (f) => (!editable(f) ? "fixed" : f.type === "value" ? "total" : f.type === "text" ? "name" : "item");
+/** The units of a rule's relative range ("is in the last [5] [years]"). */
+const RANGE_UNITS = Object.freeze(["year", "month", "day"]);
+/** Whether a rule's row writes a relative range: the last N years, months or days, whole, the current one included, from today or the latest record. */
+const ruleRange = (f) =>
+    (f.direction ?? "last") === "last" && f.calendar !== false && f.includeCurrent !== false && (f.anchor === undefined || f.anchor === "today" || f.anchor === "latest") && RANGE_UNITS.includes(f.unit);
 /**
  * Whether the rows can edit a rule: not one whose `not` they have no word for, not a relative range
- * they do not write (next, this, before, rolling, hours, weeks, quarters; a loaded view's), not a
- * comparison of dates by another precision than the day.
+ * they do not write (a loaded view's next, this, before, rolling, hours, weeks, quarters, that is not
+ * the quick choice), not a comparison of dates by another precision than the day.
  */
-const editable = (f) => !hiddenNot(f) && (f.type !== "relative" || plainRange(f)) && (f.type !== "compare" || (f.precision ?? "day") === "day");
-/** The units of the quick choices and of a rule's relative range. */
-const RANGE_UNITS = Object.freeze(["year", "month", "day"]);
-/** The most years, months and days a quick choice reaches back by itself to the data's latest record. */
-const REACH = Object.freeze({ year: 10, month: 24, day: 90 });
+const editable = (f) => !hiddenNot(f) && (f.type !== "relative" || ruleRange(f)) && (f.type !== "compare" || (f.precision ?? "day") === "day");
+/** The most periods a quick choice reaches back by itself to the data's latest record. */
+const REACH = Object.freeze({ year: 10, quarter: 12, month: 24, week: 104, day: 90 });
 /** A grouping's items above this many are picked from a searchable list, not a native select. */
 const PICKER_MIN = 13;
-const MS_PER_DAY = 86_400_000;
 
 /** The noun of a field's items by its grouping: "months", "years", "values" for a number, "items". */
 function nounOf(fk, labels) {
     const unit = fk.unit;
     const key = unit === null ? (fk.item === "number" ? "value" : fk.item === "date" ? "date" : "item") : unit === "bin" ? "range" : unit === "day" ? "day" : unit.replace(/^year(.)/, (_m, c) => c.toLowerCase());
     return Object.hasOwn(labels.nouns, key) ? labels.nouns[key] : labels.nouns.item;
-}
-
-/** A relative filter's days as wall-clock ms, [from, to): the rows of a date column in it. */
-function rowsIn(range, column, counts) {
-    const from = Date.parse(`${range.from}T00:00Z`);
-    const to = Date.parse(`${range.to}T00:00Z`) + MS_PER_DAY;
-    let rows = 0;
-    column.dict.forEach((v, code) => {
-        if (typeof v === "number" && v >= from && v < to) {
-            rows += counts[code];
-        }
-    });
-    return rows;
 }
 
 /** Rows per dictionary code of a column. */
@@ -206,140 +217,247 @@ function Summary({ ctx, state }) {
     );
 }
 
+/** The directions a quick choice counts N periods in; next and before are among More choices. */
+const COUNTED = Object.freeze(["last", "next", "before"]);
+const MORE = Object.freeze(["next", "before"]);
+
+/** Whether a quick choice sits under More choices (next, before, rolling periods): More opens with it. */
+const inMore = (quick) => MORE.includes(quick.id) || (COUNTED.includes(quick.id) && quick.calendar === false);
+
 /**
- * The quick choices of a date along the time line: All, This year, Last [N] years, months (unless the
- * grouping is by year or quarter) and days (a date or a day grouping), each with the days it keeps,
- * the data's share of them and its rows; only those that keep a row, the others named in a line. A
- * choice applies at once, a count typed a moment after the typing stops (and picks its choice). The
- * reference date, today or the latest record, shows when the data end before the current period.
+ * The quick choices of a date along the time line, each with the days it keeps, the data's share of
+ * them and its rows: All; This [unit] (only the units whose current period has data; none: named in a
+ * line); Last [N] [unit], with "Include the current <unit>" under it while it is set. More choices,
+ * folded: Next [N] [unit], Before the last [N] [unit], rolling instead of whole calendar periods.
+ * The units are none finer than the grouping (ruleKind's `units`). A choice applies at once, a count
+ * typed a moment after the typing stops (and picks its choice), a unit chosen at once (Last keeps its
+ * count while it reaches the data, else takes the smallest that does). "Counted back from": today, the
+ * latest or the first record, or a date; shown below Last when the data end before the current
+ * period or the reference is not today, else among More choices.
  */
-function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts }) {
+function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts, moreOpen, setMoreOpen }) {
     const { view, field, labels, locale, fk, timeZone, commit, note, back } = ctx;
     const lang = { lang: labels.lang, locale };
-    const latest = span.max;
-    const latestDay = isoDay(latest);
+    const more = labels.relativeMore;
+    const units = fk.units;
+    const weekStart = view.formatting?.weekStart;
+    const latestDay = isoDay(span.max);
     // today, once per opening of the level (the choices and their shares are measured against it)
     const [now] = useState(() => Date.now());
-    const days = (unit, count) => relativeDays({ unit, count, anchor }, timeZone, now, latest);
-    /** The smallest count whose range reaches the latest record, up to REACH; null when none does. */
+    /** The dates of a range counted from the reference date (`from` null for "before"); null when it leaves what a Date holds. */
+    const datesOf = (spec, at = anchor) => {
+        try {
+            return relativeDateRange(spec.unit, spec.count ?? 1, { ...spec, anchor: at, timeZone, now, latest: span.max, first: span.min, weekStart });
+        } catch {
+            // a date of its own beyond what a Date holds
+            return null;
+        }
+    };
+    const rowsOf = (range) => (range ? rowsInRange(range, column.dict, counts) : 0);
+    /** Whether a range with a start begins on or before the latest record: its last periods reach the data. */
+    const reaches = (r) => r !== null && r.from !== null && r.from.slice(0, 10) <= latestDay;
+    /** The smallest count of a unit whose last periods reach the latest record, up to REACH. */
     const reach = (unit) => {
         for (let n = 1; n <= REACH[unit]; n++) {
-            const r = days(unit, n);
-            if (r && r.from <= latestDay) {
+            if (reaches(datesOf({ unit, count: n }))) {
                 return n;
             }
         }
-        return null;
+        return REACH[unit];
     };
-    // the smallest counts that reach the latest record ("Last 1 year" would be This year: 2 at least)
-    const defaults = useMemo(() => ({ year: Math.max(2, reach("year") ?? REACH.year), month: reach("month") ?? REACH.month, day: reach("day") ?? REACH.day }), [anchor, latest, timeZone]); // eslint-disable-line react-hooks/exhaustive-deps
-    const counted = { year: quick.id === "years" ? quick.count : defaults.year, month: quick.id === "months" ? quick.count : defaults.month, day: quick.id === "days" ? quick.count : defaults.day };
-    const [texts, setTexts] = useState(() => Object.fromEntries(Object.entries(counted).map(([u, n]) => [u, numberText(n, locale)])));
+    // "Last 1 month" would be This month: 2 at least
+    const defaultCount = (unit) => Math.max(2, reach(unit));
+    const firstUnit = units.includes("month") ? "month" : units[0];
+    const readCount = (text) => readNumber(text, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale });
+    /** A counted row as the view has it, or its start: the unit by the grouping, the count that reaches the data. */
+    const rowOf = (d) =>
+        quick.id === d
+            ? { text: numberText(quick.count, locale), unit: quick.unit, current: quick.includeCurrent }
+            : { text: numberText(d === "next" ? 1 : defaultCount(firstUnit), locale), unit: firstUnit, current: true };
+    const [rows, setRows] = useState(() => Object.fromEntries(COUNTED.map((d) => [d, rowOf(d)])));
+    const [thisUnit, setThisUnit] = useState(quick.id === "this" ? quick.unit : "year");
+    const [rolling, setRolling] = useState(() => COUNTED.includes(quick.id) && quick.calendar === false);
     // a change that came from elsewhere (Undo, a rule, the search) shows in a count not being typed in
     const [editing, setEditing] = useState(/** @type {string | null} */ (null));
-    const quickKey = `${quick.id}:${quick.count ?? ""}:${anchor}`;
+    const quickKey = JSON.stringify([quick.id, quick.unit, quick.count, quick.calendar, quick.includeCurrent]);
     const [seen, setSeen] = useState(quickKey);
     if (quickKey !== seen) {
         setSeen(quickKey);
-        const synced = { ...texts };
-        for (const unit of RANGE_UNITS) {
-            if (unit !== editing) {
-                synced[unit] = numberText(counted[unit], locale);
-            }
+        if (COUNTED.includes(quick.id)) {
+            const d = quick.id;
+            const own = rowOf(d);
+            setRows({ ...rows, [d]: editing === d ? { ...own, text: rows[d].text } : own });
+            setRolling(quick.calendar === false);
+        } else if (quick.id === "this") {
+            setThisUnit(/** @type {string} */ (quick.unit));
         }
-        setTexts(synced);
     }
     const later = useLater();
     const group = useId();
     const groupName = useFormName();
-    const set = (range) => commit(setQuickRange(view, field, range ? { ...range, anchor } : null), note);
-    /** The sub-line of a choice: the data's share of its days ("2025 (2026 has no data)") and its rows. */
+    const formName = useFormName();
+    const anchorId = useId();
+    const moreId = useId();
+    const set = (spec) => commit(setQuickRange(view, field, spec ? { ...spec, anchor, blanks: ctx.keepBlanks ? "include" : "exclude" } : null, quick.filters[0] ?? null), note);
+    /** A counted row's range ({ direction, unit, count, ... }), null while its count is not one. */
+    const specOf = (d, row = rows[d], roll = rolling) => {
+        const n = readCount(row.text).value;
+        return n === null ? null : { direction: d, unit: row.unit, count: n, calendar: !roll, includeCurrent: row.current };
+    };
+    // the days with data and the rows of a choice describe its radio (aria-describedby)
+    const subId = (id) => `${group}-${id}`;
+    /** The sub-line of a choice: the data's share of its days ("2025 (2026 has no data)") and its rows; rolling ranges in days. */
     const sub = (range, unit, id) => {
-        const share = rangeShare(range, unit, span, locale);
-        if (share?.none) {
+        if (!range) {
             return null;
         }
-        const period = share ? `${share.data} ` : periodText(range, unit, locale);
-        const missing = share ? fill(plural(labels.noData, share.count, lang), { range: share.missing.join(", ") }) : null;
+        const shownUnit = range.from === null || range.from.length > 10 || range.to.length > 10 ? "day" : unit;
+        let period;
+        /** @type {string | null} */
+        let missing = null;
+        if (range.from === null) {
+            period = fill(more.until, { to: periodText({ from: range.to, to: range.to }, shownUnit, locale) });
+        } else {
+            const share = rangeShare(range, shownUnit, span, locale);
+            if (share?.none) {
+                period = "";
+                missing = fill(plural(labels.noData, 1, lang), { range: periodText(range, shownUnit, locale) });
+            } else {
+                period = share ? `${share.data} ` : periodText(range, shownUnit, locale);
+                missing = share ? fill(plural(labels.noData, share.count, lang), { range: share.missing.join(", ") }) : null;
+            }
+        }
         return (
             <span className="pk-quick-sub" id={subId(id)}>
                 <span>
                     {period}
-                    {missing ? <span className="pk-quick-missing">({missing})</span> : null}
+                    {missing ? <span className="pk-quick-missing">{period ? `(${missing})` : missing}</span> : null}
                 </span>
-                <span className="pk-quick-rows">{fill(labels.quickRows, { rows: rowsIn(range, column, counts).toLocaleString(locale) })}</span>
+                <span className="pk-quick-rows">{fill(labels.quickRows, { rows: rowsOf(range).toLocaleString(locale) })}</span>
             </span>
         );
     };
-    // the days with data and the rows of a choice describe its radio (aria-describedby)
-    const subId = (id) => `${group}-${id}`;
-    const radio = (id, checked, onPick, name, children, sub, described = Boolean(sub)) => (
-        <label className="pk-radio pk-quick" key={id}>
-            <input type="radio" name={groupName} checked={checked} onChange={onPick} aria-label={name} aria-describedby={described ? subId(id) : undefined} data-autofocus={checked && ctx.hint !== "conditions" ? "" : undefined} data-testid={`quick-${id}`} />
+    /** A choice's radio in a label with the words before its fields (a click on them picks it). */
+    const radio = (id, checked, onPick, name, children, described = true) => (
+        <label className="pk-radio pk-quick">
+            <input
+                type="radio"
+                name={groupName}
+                checked={checked}
+                onChange={onPick}
+                aria-label={name}
+                aria-describedby={described ? subId(id) : undefined}
+                data-autofocus={checked && ctx.hint !== "conditions" ? "" : undefined}
+                data-testid={`quick-${id}`}
+            />
             {children}
-            {sub}
         </label>
     );
+    /** A unit's select, or its name alone when the grouping leaves one unit. */
+    const unitPick = (value, options, onChange, testId) =>
+        options.length > 1 ? (
+            <select name={`${formName}-${testId}`} value={value} onChange={(e) => onChange(e.target.value)} aria-label={labels.ruleUnit} data-testid={testId}>
+                {options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                        {o.text}
+                    </option>
+                ))}
+            </select>
+        ) : (
+            <span aria-hidden="true">{options[0]?.text}</span>
+        );
+
     const hidden = [];
-    const rows = [radio("all", quick.id === "all" || quick.id === "custom", () => set(null), labels.filterAll, <span>{labels.filterAll}</span>, (
-        <span className="pk-quick-sub" id={subId("all")}>
-            <span>{`${dayText(isoDay(span.min), locale)}–${dayText(latestDay, locale)}`}</span>
-            <span className="pk-quick-rows">{fill(labels.quickRows, { rows: column.codes.length.toLocaleString(locale) })}</span>
-        </span>
-    ))];
-    const thisYear = days("year", 1);
-    const yearWords = capital(labels.relative.year, locale);
-    if (thisYear && sub(thisYear, "year", "thisYear")) {
-        rows.push(radio("thisYear", quick.id === "thisYear", () => set({ unit: "year", count: 1 }), yearWords, <span>{yearWords}</span>, sub(thisYear, "year", "thisYear")));
-    } else if (thisYear) {
-        hidden.push(`${yearWords} (${periodText(thisYear, "year", locale)})`);
+    const main = [
+        <div className="pk-quick-row" key="all">
+            {radio("all", quick.id === "all", () => set(null), labels.filterAll, <span>{labels.filterAll}</span>)}
+            <span className="pk-quick-sub" id={subId("all")}>
+                <span>{`${dayText(isoDay(span.min), locale)}–${dayText(latestDay, locale)}`}</span>
+                <span className="pk-quick-rows">{fill(labels.quickRows, { rows: column.codes.length.toLocaleString(locale) })}</span>
+            </span>
+        </div>
+    ];
+    // This [unit]: the units whose current period has data (the one set stays)
+    const thisUnits = units.filter((u) => rowsOf(datesOf({ direction: "this", unit: u })) > 0 || (quick.id === "this" && quick.unit === u));
+    if (thisUnits.length) {
+        const u = thisUnits.includes(thisUnit) ? thisUnit : thisUnits[thisUnits.length - 1];
+        const name = capital(more.this[u], locale);
+        main.push(
+            <div className="pk-quick-row" key="this">
+                {radio("this", quick.id === "this", () => set({ direction: "this", unit: u }), name, thisUnits.length > 1 ? null : <span aria-hidden="true">{name}</span>)}
+                {thisUnits.length > 1 && unitPick(
+                    u,
+                    thisUnits.map((o) => ({ value: o, text: capital(more.this[o], locale) })),
+                    (v) => {
+                        setThisUnit(v);
+                        set({ direction: "this", unit: v });
+                    },
+                    "quick-this-unit"
+                )}
+                {sub(datesOf({ direction: "this", unit: u }), u, "this")}
+            </div>
+        );
+    } else {
+        const year = datesOf({ direction: "this", unit: "year" });
+        if (year?.from) {
+            hidden.push(`${capital(more.this.year, locale)} (${periodText({ from: year.from, to: year.to }, "year", locale)})`);
+        }
     }
-    for (const unit of /** @type {const} */ (["year", "month", "day"])) {
-        if ((unit === "month" && !fk.months) || (unit === "day" && !fk.days)) {
-            continue;
-        }
-        const read = readNumber(texts[unit], { kind: "count", max: CATALOG.relativeMaxCount, labels, locale });
-        const n = read.value;
-        const id = `${unit}s`;
-        const shown = n ?? counted[unit];
-        // "Last [5] years", "Letztes [1] Jahr": the words around the count, in its number
-        // (the form of that count with a place for the field instead of the number)
-        const forms = Object.fromEntries(Object.entries(labels.quickLast[unit]).map(([k, v]) => [k, String(v).replace("{count}", "{n}")]));
-        const words = plural(forms, shown, lang);
-        const [before, after] = words.split("{n}");
-        const range = days(unit, shown);
-        const line = range ? sub(range, unit, id) : null;
-        if (!line) {
-            // not one row in reach: not offered, said below
-            if (quick.id !== id) {
-                hidden.push(fill(words, { n: shown.toLocaleString(locale) }));
-                continue;
+
+    /** Last, Next or Before the last [N] [unit], with "Include the current <unit>" under it while it is set. */
+    const counted = (d) => {
+        const row = rows[d];
+        const read = readCount(row.text);
+        // the words around the count in its number ("Last [1] month", "Letztes [1] Jahr"); 2 while it is not a count
+        const n = read.value ?? 2;
+        // the forms with a place for the field instead of the number
+        const formOf = (unit) => plural(Object.fromEntries(Object.entries(more[d][unit]).map(([k, v]) => [k, String(v).replace("{count}", "{n}")])), n, lang);
+        const [before] = formOf(row.unit).split("{n}");
+        const name = capital(fill(formOf(row.unit), { n: n.toLocaleString(locale) }), locale);
+        const range = datesOf({ direction: d, unit: row.unit, count: n, calendar: !rolling, includeCurrent: row.current });
+        const change = (patch, wait = false) => {
+            const next = { ...row, ...patch };
+            setRows({ ...rows, [d]: next });
+            const run = () => {
+                const spec = specOf(d, next);
+                if (spec) {
+                    set(spec);
+                }
+            };
+            if (wait) {
+                later.later(run);
+            } else {
+                later.cancel();
+                run();
             }
-        }
-        const pick = () => set({ unit, count: shown });
-        rows.push(
-            <div className="pk-quick-row" key={unit}>
-                {radio(id, quick.id === id, pick, fill(words, { n: shown.toLocaleString(locale) }), <span aria-hidden="true">{before}</span>, null, Boolean(line))}
+        };
+        const pickUnit = (unit) => {
+            // Last keeps its count while it reaches the data, else takes the smallest count that does
+            const r = d === "last" && read.value !== null ? datesOf({ unit, count: read.value, calendar: !rolling, includeCurrent: row.current }) : null;
+            const keep = d !== "last" || reaches(r);
+            change({ unit, ...(keep ? {} : { text: numberText(defaultCount(unit), locale) }) });
+        };
+        // the current period of the unit, for the words of its checkbox ("Nov 2026 has no data")
+        const current = datesOf({ direction: "this", unit: row.unit });
+        const currentEmpty = current?.from ? rowsOf(current) === 0 : false;
+        return (
+            <div className="pk-quick-row" key={d}>
+                {radio(d, quick.id === d, () => change({}), name, <span aria-hidden="true">{capital(before.trimEnd(), locale)}</span>, range !== null)}
                 <NumberField
-                    value={texts[unit]}
-                    onChange={(t) => {
-                        setTexts({ ...texts, [unit]: t });
-                        later.later(() => {
-                            const v = readNumber(t, { kind: "count", max: CATALOG.relativeMaxCount, labels, locale }).value;
-                            if (v !== null) {
-                                set({ unit, count: v });
-                            }
-                        });
-                    }}
+                    value={row.text}
+                    onChange={(t) => change({ text: t }, true)}
                     onKeyDown={fieldKeys({
                         now: later.now,
                         restore: () => {
                             later.cancel();
-                            const was = numberText(counted[unit], locale);
-                            if (texts[unit] === was) {
+                            if (quick.id !== d) {
                                 return false;
                             }
-                            setTexts({ ...texts, [unit]: was });
+                            const was = numberText(/** @type {number} */ (quick.count), locale);
+                            if (row.text === was) {
+                                return false;
+                            }
+                            setRows({ ...rows, [d]: { ...row, text: was } });
                             return true;
                         },
                         back
@@ -348,53 +466,112 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                         setEditing(null);
                         later.now();
                     }}
-                    onFocus={() => setEditing(unit)}
+                    onFocus={() => setEditing(d)}
                     problem={read.problem}
-                    label={labels.quickCount[unit]}
-                    testId={`quick-${id}-count`}
+                    label={labels.quickCount[row.unit] ?? labels.quickCount.year}
+                    testId={`quick-${d}-count`}
                     className="pk-field-label pk-count-input"
                 />
-                <span aria-hidden="true">{after}</span>
-                {line}
+                {unitPick(
+                    row.unit,
+                    units.map((u) => ({ value: u, text: formOf(u).split("{n}")[1]?.trim() ?? u })),
+                    pickUnit,
+                    `quick-${d}-unit`
+                )}
+                {sub(range, row.unit, d)}
+                {quick.id === d && !rolling ? (
+                    <label className="pk-check pk-quick-current">
+                        <input type="checkbox" name={`${formName}-${d}-current`} checked={row.current} onChange={(e) => change({ current: e.target.checked })} data-testid={`quick-${d}-current`} />
+                        <span>
+                            {labels.quickCurrent[row.unit]}
+                            {currentEmpty ? <span className="pk-quick-missing">{` (${fill(plural(labels.noData, 1, lang), { range: current?.from ? periodText({ from: current.from, to: current.to }, row.unit, locale) : "" })})`}</span> : null}
+                        </span>
+                    </label>
+                ) : null}
             </div>
         );
-    }
-    // the switch shows when the latest record lies before the current period (the month; the year for a grouping by year or quarter)
+    };
+    main.push(counted("last"));
+
+    // the reference date: below the choices when the data end before the current period (the month; the
+    // year for a grouping by year or quarter) or when it is not today, else among More choices; placed
+    // once, so it does not move while it is used
     const today = new Date(relativeDays({ unit: "day", count: 1 }, timeZone, now)?.from ?? isoDay(now));
     const periodStart = fk.months ? Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) : Date.UTC(today.getUTCFullYear(), 0, 1);
-    const showAnchor = latest < periodStart;
-    const anchorId = useId();
-    const anchorName = useFormName();
+    const [anchorOutside] = useState(() => span.max < periodStart || anchor !== "today");
+    const anchorKind = ["today", "latest", "first"].includes(anchor) ? anchor : "date";
+    const [day, setDay] = useState(anchorKind === "date" ? anchor : latestDay);
+    const setAnchorTo = (a) => {
+        setAnchorLocal(a);
+        if (quick.filters.length) {
+            commit(setAnchor(view, field, a), note);
+        }
+    };
+    const anchorRow = (
+        <div className="pk-quick-anchor">
+            <label htmlFor={anchorId}>{labels.anchorLabel}</label>
+            <select id={anchorId} name={`${formName}-anchor`} value={anchorKind} onChange={(e) => setAnchorTo(e.target.value === "date" ? day : e.target.value)} data-testid="quick-anchor">
+                <option value="today">{fill(labels.anchorToday, { date: dayText(isoDay(today.getTime()), locale) })}</option>
+                <option value="latest">{fill(labels.anchorLatest, { date: dayText(latestDay, locale) })}</option>
+                <option value="first">{fill(labels.anchorFirst, { date: dayText(isoDay(span.min), locale) })}</option>
+                <option value="date">{labels.anchorDate}</option>
+            </select>
+            {anchorKind === "date" ? (
+                <input
+                    type="date"
+                    name={`${formName}-day`}
+                    value={day}
+                    onChange={(e) => {
+                        setDay(e.target.value);
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) {
+                            setAnchorTo(e.target.value);
+                        }
+                    }}
+                    aria-label={labels.anchorDay}
+                    data-testid="quick-anchor-date"
+                />
+            ) : null}
+        </div>
+    );
     return (
         <>
             <div role="radiogroup" aria-label={labels.quickTitle} className="pk-radios pk-quick-choices" data-testid="quick-choices">
-                {rows}
+                {main}
             </div>
-            {showAnchor ? (
-                <div className="pk-quick-anchor">
-                    <label htmlFor={anchorId}>{labels.anchorLabel}</label>
-                    <select
-                        id={anchorId}
-                        name={anchorName}
-                        value={anchor}
-                        onChange={(e) => {
-                            const next = /** @type {"today" | "latest"} */ (e.target.value);
-                            setAnchorLocal(next);
-                            if (quick.filters.length) {
-                                commit(setAnchor(view, field, next), note);
-                            }
-                        }}
-                        data-testid="quick-anchor"
-                    >
-                        <option value="today">{fill(labels.anchorToday, { date: dayText(isoDay(today.getTime()), locale) })}</option>
-                        <option value="latest">{fill(labels.anchorLatest, { date: dayText(latestDay, locale) })}</option>
-                    </select>
-                </div>
-            ) : null}
+            {anchorOutside ? anchorRow : null}
             {hidden.length ? (
                 <p className="pk-hint pk-quick-hidden" data-testid="quick-hidden">
                     {fill(plural(labels.quickHidden, hidden.length, lang), { choices: hidden.join(", "), latest: dayText(latestDay, locale) })}
                 </p>
+            ) : null}
+            <button type="button" className="pk-quick-more-toggle" aria-expanded={moreOpen} aria-controls={moreId} onClick={() => setMoreOpen(!moreOpen)} data-testid="quick-more">
+                <Icon name={moreOpen ? "chevronDown" : "chevronRight"} size={14} />
+                <span>{labels.quickMore}</span>
+            </button>
+            {moreOpen ? (
+                <div id={moreId} className="pk-quick-more" data-testid="quick-more-body">
+                    <div role="radiogroup" aria-label={labels.quickMore} className="pk-radios pk-quick-choices">
+                        {counted("next")}
+                        {counted("before")}
+                    </div>
+                    <label className="pk-check">
+                        <input
+                            type="checkbox"
+                            name={`${formName}-rolling`}
+                            checked={rolling}
+                            onChange={(e) => {
+                                setRolling(e.target.checked);
+                                const spec = COUNTED.includes(quick.id) ? specOf(quick.id, rows[quick.id], e.target.checked) : null;
+                                if (spec) {
+                                    set(spec);
+                                }
+                            }}
+                            data-testid="quick-rolling"
+                        />
+                        <span>{labels.quickRolling}</span>
+                    </label>
+                    {anchorOutside ? null : anchorRow}
+                </div>
             ) : null}
         </>
     );
@@ -671,8 +848,8 @@ function ItemRule({ rule, ctx, apply, first }) {
                             {value("b", `${labels.valueFilterTo} ${label}`, "rule-item-value2")}
                         </>
                     ) : null}
-                    {/* a blank item passes no comparison: said where "is not" would suggest otherwise */}
-                    {s.op === "!=" || s.op === "notBetween" ? (
+                    {/* a blank item passes no comparison: said where "is not" would suggest otherwise, unless the rules keep the blanks */}
+                    {(s.op === "!=" || s.op === "notBetween") && (compared?.blanks ?? (ctx.keepBlanks ? "include" : "exclude")) === "exclude" ? (
                         <span className="pk-hint pk-rule-note" data-testid="rule-blanks">
                             {labels.blanksOut}
                         </span>
@@ -810,11 +987,12 @@ const ROWS = { item: ItemRule, total: TotalRule, name: NameRule, fixed: FixedRul
  * choice, when set, stands first as a line to read. `focusFirst`: opened from the search, the focus
  * on the first row (or the first button).
  */
-function RuleEditor({ ctx, rules, focusFirst, quickLine, results }) {
+function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     const { view, field, labels, locale, commit, note, fk, nameKind, noun } = ctx;
     const { explain } = useContext(HelpContext);
     const lang = { lang: labels.lang, locale };
     const [draft, setDraft] = useState(/** @type {"item" | "total" | "name" | null} */ (null));
+    const blanksName = useFormName();
     const [info, setInfo] = useState(/** @type {number | null} */ (null));
     // rows are keyed by their place; a change the rows did not make (a quick choice, Remove, Undo)
     // draws them again from the view
@@ -874,7 +1052,9 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results }) {
     const row = (rule, kind, i) => {
         const Row = ROWS[kind];
         const apply = (entry) => {
-            const next = setRule(view, field, rule, entry);
+            // a new rule on the items keeps the blanks as the others do
+            const own = !rule && ctx.keepBlanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: "include" } : entry;
+            const next = setRule(view, field, rule, own);
             setOwn(rulesKeyOf(filtersOf(next, field, RULE_TYPES).filter((f) => !ctx.quickFilters.includes(f))));
             if (!rule) {
                 setDraft(null);
@@ -938,6 +1118,12 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results }) {
                     {[...rules.map((r, i) => row(r, rowKind(r), i)), ...(draft ? [row(null, draft, rules.length)] : [])]}
                 </ul>
             ) : null}
+            {blanks ? (
+                <label className="pk-check pk-rules-blanks">
+                    <input type="checkbox" name={`${blanksName}`} checked={blanks.on} onChange={(e) => commit(setRuleBlanks(view, field, e.target.checked), note)} data-testid="rules-blanks" />
+                    <span>{fill(plural(labels.rulesBlanks, blanks.rows, lang), { rows: blanks.rows.toLocaleString(locale) })}</span>
+                </label>
+            ) : null}
             <div className="pk-rule-adds" role="group" aria-label={labels.addRule}>
                 {kinds.map((k, i) => (
                     <button
@@ -977,8 +1163,10 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const years = useMemo(() => (fk.cyclic && column && counts ? yearsOf(column, counts) : []), [fk.cyclic, column, counts]);
     const quick = quickChoice(view, field, fk, years.map((y) => y.year));
     // the reference date of the quick choices before one is set: the field's range's, else today
-    const [anchorLocal, setAnchorLocal] = useState(/** @type {"today" | "latest" | null} */ (null));
-    const anchor = /** @type {"today" | "latest"} */ (quick.anchor ?? anchorLocal ?? "today");
+    const [anchorLocal, setAnchorLocal] = useState(/** @type {string | null} */ (null));
+    const anchor = quick.anchor ?? anchorLocal ?? "today";
+    // More choices: open when the choice set is one of them
+    const [moreOpen, setMoreOpen] = useState(() => inMore(quick));
     // the sections: open by hand (true, false) or as the rules decide (null): the items while the
     // field has no rules, the rules while it has
     const [openQuick, setOpenQuick] = useState(true);
@@ -1037,7 +1225,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
             // the checked choice; for Years combined the first year on that can take the focus (the
             // only one on is disabled), else the first year
             const target = /** @type {HTMLElement | null | undefined} */ (
-                box.current?.querySelector('[data-testid="quick-choices"] input:checked, [data-testid="years-combined"] [aria-pressed="true"]:not(:disabled)') ?? box.current?.querySelector('[data-testid="years-combined"] button:not(:disabled)')
+                box.current?.querySelector('[data-testid="quick-choices"] input:checked, [data-testid="quick-more-body"] input[type="radio"]:checked, [data-testid="years-combined"] [aria-pressed="true"]:not(:disabled)') ?? box.current?.querySelector('[data-testid="years-combined"] button:not(:disabled)')
             );
             target?.scrollIntoView?.({ block: "center" });
             target?.focus({ preventScroll: true });
@@ -1094,7 +1282,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     // the quick choice in words: "last 2 years (2025; 2026 has no data)", "2024–2025 combined"
     const yearsOn = quick.id === "yearsCombined" && quick.years ? quick.years : years.map((y) => y.year);
     const yearsText = fk.cyclic && years.length > 1 ? (yearsOn.length === 1 ? fill(labels.yearsOne, { year: String(yearsOn[0]) }) : fill(labels.yearsAll, { years: yearsOn.length === years.length || yearsOn[yearsOn.length - 1] - yearsOn[0] === yearsOn.length - 1 ? `${yearsOn[0]}–${yearsOn[yearsOn.length - 1]}` : yearsOn.join(", ") })) : null;
-    const quickWords = quick.id === "yearsCombined" ? yearsText : quick.filters.length ? relativeText(quick.filters[0], labels, locale, timeZone, undefined, span) : null;
+    const quickWords = quick.id === "yearsCombined" ? yearsText : quick.filters.length ? relativeText(quick.filters[0], labels, locale, timeZone, undefined, span, view.formatting?.weekStart) : null;
     // the items: picked, kept by the quick choice and the rules on items, shown after the rules on totals
     const outByQuick = /** @type {Set<string> | undefined} */ (itemResults.get("quick")) ?? (quick.filters.length ? new Set(info.items.filter((i) => !i.kept).map((i) => keyOf(i.value))) : new Set());
     const kept = info.items.filter((i) => i.kept && selected.has(keyOf(i.value)));
@@ -1156,6 +1344,9 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const scope = scopeParts.length ? scopeParts.join(labels.listAnd) : labels.scopeRows;
     const focusQuick = () => {
         setOpenQuick(true);
+        if (inMore(quick)) {
+            setMoreOpen(true);
+        }
         setGoQuick((n) => n + 1);
     };
     /**
@@ -1171,7 +1362,11 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
             }
         });
     };
-    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act };
+    const keepBlanks = keepsBlanks(view, field);
+    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks };
+    // "Also keep items without a value": for a field with blank items and a rule on its items (the quick choice among them)
+    const blankRows = info.items.find((i) => i.value === null)?.count ?? 0;
+    const blanks = blankRows > 0 && (itemRules.length > 0 || quick.filters.length > 0) ? { rows: blankRows, on: keepBlanks } : null;
     const picksOpen = openPicks ?? !anyRule;
     const rulesOpen = openRules ?? anyRule;
     // on a phone one section at a time
@@ -1191,7 +1386,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     };
     const summary = { shown, total: all.length, noun, unpicked, byQuick, byRules, byTotals, itemRules: itemRules.length, totalRules: totalRules.length, rows: totals.rows, rowsAll: encoded.length, span, yearsText, empty, quickWords, rules: rules.length, canReset: unpicked > 0 || anyRule };
     const outOf = (i) => i.kept === false;
-    const quickSection = fk.quick && span && column && counts ? { id: "quick", title: labels.quickTitle, body: <QuickChoices ctx={ctx} quick={quick} anchor={anchor} setAnchorLocal={setAnchorLocal} span={span} column={column} counts={counts} /> } : fk.cyclic && years.length > 1 && years.length <= 12 ? { id: "years", title: labels.yearsCombined, body: <YearsCombined ctx={ctx} years={years} on={yearsOn} /> } : null;
+    const quickSection = fk.quick && span && column && counts ? { id: "quick", title: labels.quickTitle, body: <QuickChoices ctx={ctx} quick={quick} anchor={anchor} setAnchorLocal={setAnchorLocal} span={span} column={column} counts={counts} moreOpen={moreOpen} setMoreOpen={setMoreOpen} /> } : fk.cyclic && years.length > 1 && years.length <= 12 ? { id: "years", title: labels.yearsCombined, body: <YearsCombined ctx={ctx} years={years} on={yearsOn} /> } : null;
     return (
         <div ref={box} className="pk-filter pk-filter-level">
             <Summary ctx={ctx} state={summary} />
@@ -1242,7 +1437,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
                     </button>
                 }
             >
-                <RuleEditor ctx={ctx} rules={rules} focusFirst={hint === "conditions"} quickLine={quickWords} results={results} />
+                <RuleEditor ctx={ctx} rules={rules} focusFirst={hint === "conditions"} quickLine={quickWords} results={results} blanks={blanks} />
             </Section>
         </div>
     );

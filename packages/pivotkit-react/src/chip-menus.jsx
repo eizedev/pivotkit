@@ -27,8 +27,9 @@ import { binProblem, setTopFilter, updateValue } from "./menu-ops.js";
 
 /**
  * The Top items level: Off, Top 3, Top 5, Top 10, or a count of one's own, largest or smallest
- * first ("Top N…"), by a value when the view has several. A choice applies at once, the count a
- * moment after the typing stops.
+ * first ("Top N…"), by a value when the view has several, and, while one is set, "Also show items
+ * tied with the last one" (ties "all"). A choice applies at once, the count a moment after the typing
+ * stops.
  */
 function TopLevel({ view, field, types, labels, locale, commit, back }) {
     const top = filtersOf(view, field, ["top"])[0];
@@ -50,6 +51,7 @@ function TopLevel({ view, field, types, labels, locale, commit, back }) {
         }
     };
     const groupName = useFormName();
+    const tiesName = useFormName();
     const radio = (id, text, checked, onPick) => (
         <label className="pk-radio">
             <input type="radio" name={groupName} checked={checked} onChange={onPick} data-autofocus={checked ? "" : undefined} data-testid={`top-${id}`} />
@@ -129,6 +131,18 @@ function TopLevel({ view, field, types, labels, locale, commit, back }) {
                         }
                     }} label={labels.topBy} prefix={labels.topBy} testId="top-by" />
             </div>
+            {top ? (
+                <label className="pk-check">
+                    <input
+                        type="checkbox"
+                        name={tiesName}
+                        checked={top.ties === "all"}
+                        onChange={(e) => set({ count: top.count, bottom: Boolean(top.bottom), by: top.by ?? choices[by], ties: e.target.checked ? "all" : "first" })}
+                        data-testid="top-ties"
+                    />
+                    <span>{labels.topTies}</span>
+                </label>
+            ) : null}
         </div>
     );
 }

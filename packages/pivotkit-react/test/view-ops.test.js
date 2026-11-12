@@ -532,7 +532,11 @@ test("the menus' operators and version 2's: a negation is the positive operator 
     assert.deepEqual(opOf("notContains"), { op: "contains", not: true });
     assert.deepEqual(opOf(">="), { op: ">=", not: false });
     // a not the menus have no word for: said in words
-    assert.equal(hiddenNot({ op: "beginsWith", not: true }), true);
+    assert.equal(hiddenNot({ op: "beginsWith", not: true }), false);
+    assert.equal(hiddenNot({ op: "endsWith", not: true }), false);
+    assert.equal(hiddenNot({ op: ">", not: true }), true);
+    assert.deepEqual(opOf("notBeginsWith"), { op: "beginsWith", not: true });
+    assert.deepEqual(opOf("notEndsWith"), { op: "endsWith", not: true });
     assert.equal(hiddenNot({ op: "contains", not: true }), false);
     // the blank is a pick like the others: ticked off, the blanks are dropped
     assert.deepEqual(pickFilter("Region", ["South", null]), { field: "Region", type: "in", items: ["South"], not: true, blanks: "exclude" });

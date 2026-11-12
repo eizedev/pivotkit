@@ -10,7 +10,7 @@
  * nothing yet is emptyPick(): { type: "in", items: [], not: true, blanks: "include" }.
  *
  * Filters are pivotkit-core's view version 2: { field, type, ..., not, blanks }. The menus keep their
- * own words for a negated rule ("is not", "does not contain", "is not between"): ruleOp() reads a
+ * own words for a negated rule ("is not", "does not contain", "does not begin with", "is not between"): ruleOp() reads a
  * filter's operator in those words, opOf() writes one back as version 2's operator with `not`; the
  * picks of a field (its `in` filter) are the values not ticked, read by selectedItems() and written by
  * pickFilter().
@@ -25,17 +25,17 @@ export const ZONES = Object.freeze(/** @type {Zone[]} */ (["filters", "cols", "r
 export const clone = (view) => JSON.parse(JSON.stringify(view));
 
 /** The negated operators the menus offer, by the version-2 operator they negate. */
-const NEGATED = Object.freeze({ "=": "!=", between: "notBetween", equals: "notEquals", contains: "notContains" });
+const NEGATED = Object.freeze({ "=": "!=", between: "notBetween", equals: "notEquals", contains: "notContains", beginsWith: "notBeginsWith", endsWith: "notEndsWith" });
 /** The operators of the menus' rules: on an item's name, on an item or its total. */
 export const RULE_OPS = Object.freeze({
-    text: Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "endsWith"]),
+    text: Object.freeze(["equals", "notEquals", "contains", "notContains", "beginsWith", "notBeginsWith", "endsWith", "notEndsWith"]),
     compare: Object.freeze(["=", "!=", ">", ">=", "<", "<=", "between", "notBetween"])
 });
 
 /**
  * A filter's operator as the menus name it: its own, or with `not` its negation ("!=", "notBetween",
- * "notContains"). A `not` the menus have no word for (a loaded view's "does not begin with") is
- * hiddenNot().
+ * "notContains", "notBeginsWith"). A `not` the menus have no word for (a loaded view's "not greater
+ * than") is hiddenNot().
  * @param {{ op?: string, not?: boolean }} f
  */
 export const ruleOp = (f) => (f.not && typeof f.op === "string" && Object.hasOwn(NEGATED, f.op) ? NEGATED[f.op] : String(f.op));

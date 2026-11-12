@@ -13,12 +13,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   filter (case and runs of whitespace ignored, `on: "label"` for a field that is not text), "is not",
   "does not contain" and "is not between" the positive operator with `not: true`. Views of version 1
   (stored, shared, the host's) load with the same result. A rule the menus have no word for (a
-  loaded view's "does not begin with") is said as "not (…)"; the menus offer no rule for blanks and
-  the new operators yet.
-- A relative range the menus do not write (a loaded view's: next, this, before, rolling, without the
-  current period, hours, weeks, quarters, counted from the first record or a date) says what it keeps
-  in words, in English and German, and stays as it is: its row in the Filter level can only be
-  removed. The quick choices and the rules offer years, months and days, as they did.
+  loaded view's "is not greater than") is said as "not (…)".
+- A relative range the quick choices do not write (a loaded view's hours, or a second range of a
+  field) says what it keeps in words, in English and German, and stays as it is: its row in the
+  Filter level can only be removed.
 - A comparison of dates by another precision (a loaded view's) says its unit ("Feb 2026", "from Q2
   2026") and stays as it is.
 - The view files and links the report writes are of format version 2, with the `$schema`
@@ -29,6 +27,24 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- The Filter level edits what view version 2 can say:
+  - A rule on the name offers "does not begin with" and "does not end with".
+  - **Also keep items without a value (N rows)** under the rules, for a field with blank items and a
+    rule on its items or a quick choice: every such rule keeps the blank items (`blanks: "include"`),
+    a new rule too; off, none does. Only the blanks stay a pick: Select none, then "(blank)".
+  - A date's quick choices count in a unit: **This [unit]** (the units whose current period has
+    data) and **Last [N] [unit]**, with **Include the current <unit>** under it while it is set;
+    **More choices**, folded: **Next [N] [unit]**, **Before the last [N] [unit]** and **Rolling
+    instead of whole calendar periods**. No unit is finer than the grouping (by month: months,
+    quarters, years; a date or by day: days and weeks too). Last keeps its count when the unit
+    changes while it reaches the data. **Counted back from** offers the first record and a date of
+    your own as well; it stands under the choices when the data end before the current period or it
+    is not today, else among More choices. A loaded view's next, this, before, rolling, quarter or
+    week range is its quick choice, editable there.
+  - **Top items**: **Also show items tied with the last one** while a top is set (`ties: "all"`);
+    another count or measure keeps it.
+  Texts in English and German. The chip says a range of quarters, weeks or this period by its
+  periods ("this quarter (Q4 2026)", "last 3 months, current period excluded (Aug–Oct 2026)").
 - The warning about a view's unused parts says when a filter's item is in the data in another case
   (“north”, but “North”), and names a key inside a part of the view by itself. It says when an item
   is longer than 10,000 characters, and how many more problems it does not list.
