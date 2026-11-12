@@ -128,6 +128,7 @@ test("the Angular example installs from its own lock file, at the versions its p
     const pkg = JSON.parse(readFileSync(new URL("examples/angular/package.json", root), "utf8"));
     for (const [name, version] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })) {
         const entry = lock.packages[`node_modules/${name}`];
+        assert.ok(entry, `${name} is missing from examples/angular/package-lock.json`);
         if (OWN.has(name)) {
             assert.deepEqual({ resolved: entry.resolved, link: entry.link }, { resolved: `../../packages/${name}`, link: true }, `${name} in the lock file`);
         } else {

@@ -114,8 +114,8 @@ into an attribute.
 ## Angular
 
 The element is a standard custom element, so Angular's property and event bindings apply. This
-component is the [Angular example](https://github.com/eizedev/pivotkit/tree/main/examples/angular) of
-the repository (Angular 22, zoneless), which CI builds and tests in Chromium, Firefox and WebKit:
+component is shortened from the [Angular example](https://github.com/eizedev/pivotkit/tree/main/examples/angular)
+of the repository (Angular 22, zoneless), which CI builds and tests in Chromium, Firefox and WebKit:
 
 ```ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA, signal } from "@angular/core";
