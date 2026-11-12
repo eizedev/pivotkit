@@ -114,7 +114,7 @@ An issue is `{ path, message, code, severity, params }`:
 | --- | --- |
 | `notView`, `notJson`, `tooLarge`, `badVersion`, `newerVersion`, `noMigration` | Nothing of the view can be used: the empty view instead. |
 | `unknownKey` | A key a view does not have (a template's `name` among them); inside a part (a value, a filter, the chart), a warning. |
-| `notList`, `tooMany`, `tooManyItems`, `itemType` | A list that is none, longer than the [limits](limits.md#limits), or an item that does not fit the field's type. |
+| `notList`, `tooMany`, `tooManyItems`, `itemType`, `itemTooLong` | A list that is none, longer than the [limits](limits.md#limits), an item that does not fit the field's type, or a text item longer than 10,000 characters. |
 | `itemCase` | A warning: a text item of a filter is no item of the data, but one differs from it only in case or whitespace (`params.suggestion`); the filter keeps the item as written. Needs the encoded data. |
 | `unknownField`, `placedTwice`, `sortedTwice` | A field the data does not have; a field twice on the axes or in the sort. |
 | `groupingNoName`, `groupingNameTaken`, `groupingNoSource`, `groupingUnknown`, `binsNeedNumber`, `groupingNeedsDate`, `binSize` | A derived field (grouping) that cannot be made. |
@@ -125,6 +125,7 @@ An issue is `{ path, message, code, severity, params }`:
 | `sortNoItems` | A custom sort order without items. |
 | `badTotals`, `collapsedPath`, `unknownSetting`, `badTitle`, `unknownLocale`, `unknownTimeZone` | Totals, collapsed groups, display and chart settings, formatting. |
 | `timeZoneMismatch` | `computePivot` only: the view's time zone is not the data's. |
+| `tooManyIssues` | A warning, last: more issues than `ISSUE_CAP` (100 of one code, 1,000 in all) were left out of the list; `params.value` counts them. |
 
 A later version may add codes: show a general text for one you do not know.
 
@@ -146,7 +147,7 @@ A view carries `version`; this release writes version 2. pivotkit migrates an ol
 current `VIEW_VERSION` when it reads it (`migrate`, which `normalize` runs first). A view without a
 `version` is read as version 1, so hand-written JSON of version 1 keeps working; the step to version
 2 leaves version 2's shapes as they are, so hand-written JSON of version 2 works without a version
-too. A view of a newer version than it knows is refused: `normalize` returns an empty view with the
+too; write `version: 2` all the same, so a reader never has to guess. A view of a newer version than it knows is refused: `normalize` returns an empty view with the
 issue `version 99 is newer than this pivotkit-core reads (2); update pivotkit-core`. Store views as
 they come from `onViewChange`; they always carry the current version.
 

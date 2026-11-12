@@ -30,7 +30,7 @@ is computed; value filters and top N drop whole groups after the values are aggr
 | `blank` | Keep the blank items (with `not: true`, every other). | any |
 | `text` | Compare an item's text: `op` `equals`, `contains`, `beginsWith`, `endsWith`; `value` the text; `on` `"value"` (a text field's own value, the default) or `"label"` (the label the table shows, for any field); `match` how text is folded ([Text matching](#text-matching)). | text; any with `on: "label"` |
 | `compare` | The item itself compared with `value`: a number, a date or a grouping's key. `op` `=`, `>`, `>=`, `<`, `<=`, `between` (with `value2`). | number, date |
-| `relative` | The dates of the last `count` years, months or days (`unit`: `year`, `month`, `day`), today's included; with `anchor: "latest"` counted back from the latest date of the field's data instead of today. | date, a grouping of a date |
+| `relative` | The dates of a range that moves with today: `direction` `last`, `next`, `this` or `before`, `count` and `unit` `hour` to `year`, by whole units or rolling, counted from today or from an `anchor` ([Relative date ranges](#relative-date-ranges)). | date, a grouping of a date |
 | `value` | A condition on an aggregated value. `op` as `compare`'s. | any |
 | `top` | Keep the `count` largest items, or with `bottom: true` the smallest; `ties` `"first"` (the default) or `"all"`. | any |
 

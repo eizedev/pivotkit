@@ -1,5 +1,5 @@
 // Views of view format version 1 with every filter type and operator, and the data they run on. Their
-// results were recorded once by `node test/make-v1-golden.js` with the pivotkit-core that wrote
+// results were recorded once by `node scripts/make-v1-golden.js` with the pivotkit-core that wrote
 // version 1 (0.4.0) into v1-golden.json; v1-golden.test.js checks that every later version keeps
 // them: the rows each view keeps, and the links of LINK_CASES decoded to the same view.
 import { SALES } from "./fixtures.js";

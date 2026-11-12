@@ -113,7 +113,9 @@ The JSON Schema of a view of version 2 ships as `pivotkit-core/schema/view-2.jso
 `https://pivotkit.eize.dev/schema/view-2.json`, for an editor, a generator or an LLM that writes
 views. It is built from the engine's own tables by `scripts/schemas.js` of the repository and refuses
 everything `normalize` would refuse without looking at the data (`VIEW_ISSUES[code].schema`); what
-only the data can tell (a field's name and type, an aggregator for a field) is `normalize`'s.
+only the data can tell (a field's name and type, an aggregator for a field) is `normalize`'s. A filter
+is checked against the schema of its `type` alone, so a validator's errors are about that type. The
+schema carries the default `LIMITS`; a host with other limits checks those with `normalize`.
 
 ### Describing data and views
 
@@ -123,8 +125,8 @@ should mark them as such.
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, the `aggregators` and filter types (`filters`) that work on it, and with encoded data `distinct`, `blanks`, the first `items` (at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters) and `min`/`max` of numbers and dates (dates as ISO days). A schema `{ fields }` or a fields array gives the types only (`rows: null`). |
-| `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` (with their names), `filters` (each normalized filter with its `text`: `Region is one of "North", "South" (blanks dropped)`), `derived`, `sort`, `display`; `valid`, `errors` and `warnings` of `validate`; and `text`, the whole view in one sentence. |
+| `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, the `aggregators` and filter types (`filters`) that work on it, and with encoded data `distinct`, `blanks`, the first `items` (at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters) and `min`/`max` of numbers and dates (dates as ISO days). A schema `{ fields }` or a fields array gives the types only (`rows: null`). Rows that are not encoded throw `INVALID_ARGUMENT`: `encode()` them first. Field names in the `text`s are cut at 80 characters, as items are. |
+| `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` (with their names), `filters` (each normalized filter with its `text`: `Region is one of "North", "South" (blanks dropped)`), `derived`, `sort`, `display`; `valid`, `errors` and `warnings` of `validate`; and `text`, the whole view in one sentence. A part with an error is left out of the parts; the `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. |
 
 ### View files
 
@@ -263,7 +265,7 @@ which `fromViewFile` reads (a bare view too). See [Sharing](../concepts/sharing.
 | --- | --- |
 | `encodeViewLink(view)` | The text of a link to a view. Throws `PivotkitError` `LIMIT_EXCEEDED` (`details.limit` `"link"`) when the text would be longer than `LINK_LIMITS.text`; `INVALID_ARGUMENT` for a non-object.<br><small>Returns `string`</small> |
 | `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why, its `code` of `LINK_ISSUE_CODES`: `linkEmpty`, `linkTooLong`, `notLink`, `linkDamaged`, `linkTooLarge`, `notView`, `notJson`. Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
-| `readViewLink(hash, key?, { allowParams, limits })` | The view of a page's fragment: the entry of `key` (`#pivot=`, or `#pivot-<key>=` for a report with that key), decoded and read as a view file. `src` is the data source it names, `{ id, params }`: the host's opaque name of the data and only the parameters the host lists in `allowParams` (none by default; the others are left out with an issue), within `limits.srcParams` and `srcParamLength`; `null` without an id. `failed`: `"none"` (no entry), `"link"` (the text is no link, `issues` says why), or `fromViewFile`'s. Never throws. Normalize the view with `outsideLimits()`.<br><small>Returns `{ view, src, name, failed, issues }`</small> |
+| `readViewLink(hash, key?, { allowParams, limits })` | The view of a page's fragment: the entry of `key` (`#pivot=`, or `#pivot-<key>=` for a report with that key), decoded and read as a view file. `src` is the data source it names, `{ id, params }`: the host's opaque name of the data and only the parameters the host lists in `allowParams` (none by default; the others are left out with an issue), within `limits.srcParams` and `srcParamLength`; `null` without an id. `failed`: `"none"` (no entry), `"link"` (the text is no link, `issues` says why), or `fromViewFile`'s. A bad link never throws; a bad `limits` throws `INVALID_OPTION`, link or not. Normalize the view with `outsideLimits()`.<br><small>Returns `{ view, src, name, failed, issues }`</small> |
 | `linkParam(key?)`, `linkFragment(hash, key?)`, `withLinkFragment(url, key, text)` | The name of a report's entry in the fragment (`"pivot"`, `"pivot-<key>"`), its link text in a fragment (or `null`), and a URL with it added, replaced or (`text` null) removed, the rest of the fragment byte for byte. In the main entry too, without fflate. |
 | `LINK_LIMITS` | `{ text: 32000, json: 1000000 }`: the characters of a link text, and of the view inflated (enforced while inflating: 1 KiB of input at a time, it stops at the cap). |
 
@@ -320,7 +322,8 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
 | `DEFAULT_THEME` | Default colours for colour scales and data bars, and the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
-| `OUTSIDE_LIMITS`, `outsideLimits(limits)` | The tighter limits of a view from outside (a link, pasted JSON, an API, an LLM): `{ filters: 50 }`, and the host's limits with each of them at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |
+| `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code and in all that `normalize` and `validate` list for one view; the rest are counted in the warning `tooManyIssues` ([Views from outside](../concepts/limits.md#views-from-outside)). |
+| `OUTSIDE_LIMITS`, `outsideLimits(limits)` | The tighter limits of a view from outside (a link, pasted JSON, an API, an LLM): `{ filters: 50, json: 1000000 }`, and the host's limits with each of them at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `PivotkitError` | The error class; `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `LIMIT_EXCEEDED` or `INVALID_FILE` (a file that cannot be read, [Loading files](import.md#errors)); `details` holds `{ limit, value, max }` for a limit (and `file` for a file), `{ reason, file }` for a file. |
 
 ## Types

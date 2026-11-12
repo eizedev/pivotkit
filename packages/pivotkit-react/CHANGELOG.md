@@ -24,13 +24,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The view files and links the report writes are of format version 2, with the `$schema`
   `https://pivotkit.eize.dev/schema/view-file-2.json` by default; files and links of version 1 load as
   before. The link's place in the fragment is pivotkit-core's (`linkFragment`, `withLinkFragment`).
-- A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters
-  (pivotkit-core's `outsideLimits`), or the host's lower `limits.filters`.
+- A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters and is
+  at most 1,000,000 characters long (pivotkit-core's `outsideLimits`), or the host's lower limits.
 
 ### Added
 
 - The warning about a view's unused parts says when a filter's item is in the data in another case
-  (“north”, but “North”), and names a key inside a part of the view by itself.
+  (“north”, but “North”), and names a key inside a part of the view by itself. It says when an item
+  is longer than 10,000 characters, and how many more problems it does not list.
 
 ### Fixed
 

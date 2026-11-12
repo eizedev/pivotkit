@@ -8,9 +8,6 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
-- `VIEW_FILE_VERSION` is 2 and `VIEW_FILE_SCHEMA` names `view-file-2.json`; files and links of format
-  version 1 are read as before.
-
 - **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
   has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
   keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.
@@ -25,20 +22,55 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `CATALOG.valueOps` (now `textOps` and `compareOps`), must read the new shape; a host that
   overrides the texts of the issue codes `filterLabelOp`, `filterCompareField` and
   `filterRelativeField` uses `filterTextOp` and `filterFieldType`.
+- **Breaking:** `validate()` returns `{ valid, errors, warnings }`. `valid` is true without errors
+  (warnings do not count), and `errors` holds the errors alone: the warnings moved to `warnings`. A
+  host that read `errors` as everything wrong reads both.
+- Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
+  another is the issue `filterFieldType` with the type that fits.
+- A key inside a part of a view (a value, a filter, a sort, the chart, totals, formatting, a grouping)
+  that this version does not know is reported as a warning `unknownKey`; it was dropped without a word.
+- A filter or sort item longer than 10,000 characters is the error `itemTooLong` and left out; it
+  was cut to 10,000 characters without a word.
+- `VIEW_FILE_VERSION` is 2 and `VIEW_FILE_SCHEMA` names `view-file-2.json`; files and links of format
+  version 1 are read as before.
+
+### Added
+
 - Relative date ranges ([#165](https://github.com/eizedev/pivotkit/issues/165)): `direction` (`last`,
   `next`, `this`, `before`), `calendar` (whole units, or rolling from now), `includeCurrent`, the
   units `hour`, `week` and `quarter` besides `day`, `month` and `year`, and `anchor` `"first"` or a
   date of its own besides `"today"` and `"latest"`. A view's `formatting.weekStart` (1 Monday, the
   default, to 7 Sunday) starts its weeks. `relativeDateRange` takes the same options; a bound that is
-  not at midnight is written to the minute, `"before"` has `from: null` (its type is `string | null`). Normalized relative filters
-  write every key. New issue code `filterRelativeDirection`; `CATALOG.relativeDirections`.
+  not at midnight is written to the minute, and `"before"` has `from: null` (its type is
+  `string | null`). Normalized relative filters write every key. New issue code
+  `filterRelativeDirection`; `CATALOG.relativeDirections`.
 - A comparison of dates has a `precision`: `year`, `quarter`, `month`, `day` (the default) or `hour`;
   both sides are taken as the start of their unit. A top N has `ties`: `first` (the default, as it
   was) or `all` (every item tied at the cut stays). New issue codes `filterPrecision` and
   `filterTies`; `CATALOG.comparePrecisions` and `CATALOG.topTies`.
+- `foldText(text, match?)` and `MATCH_DEFAULTS`: the one way text is compared, case-insensitive
+  without the runtime's locale and with every run of whitespace (a no-break space U+00A0 among them)
+  as one space ([#159](https://github.com/eizedev/pivotkit/issues/159)).
+- Every issue carries a `severity`: `"error"` (the part is left out or replaced by its default) or
+  `"warning"` (used as written, but maybe not what was meant). `VIEW_ISSUES` gives each code's
+  severity and whether the view's JSON Schema refuses it; `VIEW_ISSUE_CODES` lists its codes.
+- "Did you mean": an unknown field, aggregator, filter type, operator, unit or key has
+  `params.suggestion`, the closest known name (edit distance, bounded); a version-1 operator in a
+  version-2 view names the version-2 operator to write with `not: true`.
+- The warning `itemCase`: a text item of a filter that is no item of the data, but differs from one
+  only in case or whitespace, names the data's item.
+- New issue codes `filterFieldType`, `filterTextOp`, `filterMatch`, `filterNot`, `filterBlanks`,
+  `itemTooLong`, and the warnings `blanksUnspecified` and `filterEmpty`, which `validate()` gives.
+- The issues of one view are capped: at most 100 of one code and 1,000 in all (`ISSUE_CAP`); the rest
+  are counted in one last warning `tooManyIssues`.
+- Limits `textValue` (1,000 characters of a text filter's text, which was fixed), `srcParams` and
+  `srcParamLength` (a link's data source parameters), and `OUTSIDE_LIMITS` (`{ filters: 50, json:
+  1000000 }`) with `outsideLimits(limits)`: the tighter limits of a view from a link, pasted JSON, an
+  API or an LLM.
 - The JSON Schema of a view of version 2, `pivotkit-core/schema/view-2.json` (published at
   `https://pivotkit.eize.dev/schema/view-2.json`), built from the engine's tables; it refuses every
-  case of an issue code whose `VIEW_ISSUES[code].schema` is true.
+  case of an issue code whose `VIEW_ISSUES[code].schema` is true. A filter is checked against the
+  schema of its `type` alone, so a validator's errors are about that type.
 - View file format version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)): `toViewFile`
   writes it, with `source.params` (a report's parameters: opaque text by name, within
   `LIMITS.srcParams` and `srcParamLength`), and its schema `pivotkit-core/schema/view-file-2.json`
@@ -56,31 +88,6 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   log, an approver or an LLM.
 - `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
   rows left after it, counted as the filters apply.
-- Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
-  another is the issue `filterFieldType` with the type that fits.
-
-- `validate()` returns `{ valid, errors, warnings }`; `valid` is true without errors.
-
-### Added
-
-- Limits `textValue` (1,000 characters of a text filter's text, which was fixed), `srcParams` and
-  `srcParamLength` (a link's data source parameters), and `OUTSIDE_LIMITS` (`{ filters: 50 }`) with
-  `outsideLimits(limits)`: the tighter limits of a view from a link, pasted JSON, an API or an LLM.
-
-- Every issue carries a `severity`: `"error"` (the part is left out or replaced by its default) or
-  `"warning"` (used as written, but maybe not what was meant). `VIEW_ISSUES` gives each code's
-  severity and whether the view's JSON Schema refuses it; `VIEW_ISSUE_CODES` lists its codes.
-- "Did you mean": an unknown field, aggregator, filter type or key has `params.suggestion`, the closest
-  known name (edit distance, bounded).
-- The warning `itemCase`: a text item of a filter that is no item of the data, but differs from one
-  only in case or whitespace, names the data's item.
-- A key inside a part of a view (a value, a filter, a sort, the chart, totals, formatting, a grouping)
-  that this version does not know is reported as a warning `unknownKey`; it was dropped without a word.
-- New issue codes `filterFieldType`, `filterTextOp`, `filterMatch`, `filterNot`, `filterBlanks`, and
-  the warnings `blanksUnspecified` and `filterEmpty`, which `validate()` gives.
-- `foldText(text, match?)` and `MATCH_DEFAULTS`: the one way text is compared, case-insensitive
-  without the runtime's locale and with every run of whitespace (a no-break space U+00A0 among them)
-  as one space ([#159](https://github.com/eizedev/pivotkit/issues/159)).
 
 ## [0.4.0] - 2026-11-11
 

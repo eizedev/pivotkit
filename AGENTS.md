@@ -28,7 +28,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   `not` and `blanks` that `withNotBlanks` applies), `SHOW_AS` (show-as.js); `CATALOG` (catalog.js)
   lists them for a UI. The view is version 2 (`VIEW_VERSION`); `migrate-1.js` is the step from
   version 1 (`MIGRATIONS` in view.js), `test/v1-corpus.js` with `test/v1-golden.json` (recorded once by
-  `test/make-v1-golden.js` with 0.4.0) proves that every version-1 view keeps its rows. `text-match.js`
+  `scripts/make-v1-golden.js` with 0.4.0) proves that every version-1 view keeps its rows. `text-match.js`
   folds text (`foldText`: case without the runtime's locale, whitespace collapsed) for text filters,
   a UI's item search and the hints; `hints.js` is the bounded "did you mean" (`closest`);
   `relative.js` the relative date ranges (`rangeOf`, units hour to year, weeks from
