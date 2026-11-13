@@ -5,10 +5,21 @@
  * and `allow-modals`, so it may print), and it is built as DOM, never as markup with inline styles: the
  * stylesheet goes in through the CSSOM (adoptedStyleSheets), the chart as inline SVG with presentation
  * attributes. So a page with a strict Content-Security-Policy, whose policy the frame inherits, prints
- * it as it is. The frame stays until the dialog is closed (afterprint) or the next print.
+ * it as it is. The frame stays until the dialog is closed (afterprint) or the next print. WebKit runs
+ * no event listener in a frame without scripts, not even the page's own: there the page's afterprint
+ * removes it, and if that does not come either, the next print does.
  */
 
 const FRAME_CLASS = "pk-print-frame";
+
+/** Each frame's listeners, ended with the frame. */
+const listeners = new WeakMap();
+
+/** Removes a print frame and its listeners. */
+function removeFrame(frame) {
+    listeners.get(frame)?.abort();
+    frame.remove();
+}
 /** How long the frame may take to load before printing is given up as blocked (ms). */
 export const PRINT_LOAD_TIMEOUT = 5_000;
 
@@ -43,7 +54,7 @@ export async function printHtml(html, container) {
         return false;
     }
     for (const old of container.querySelectorAll(`iframe.${FRAME_CLASS}`)) {
-        old.remove();
+        removeFrame(/** @type {HTMLIFrameElement} */ (old));
     }
     const parts = printParts(html, new view.DOMParser());
     const frame = doc.createElement("iframe");
@@ -96,7 +107,11 @@ export async function printHtml(html, container) {
     if (!frame.isConnected) {
         return true;
     }
-    win.addEventListener("afterprint", () => setTimeout(() => frame.remove(), 0), { once: true });
+    const ended = new AbortController();
+    listeners.set(frame, ended);
+    const after = () => setTimeout(() => removeFrame(frame), 0);
+    win.addEventListener("afterprint", after, { once: true, signal: ended.signal });
+    view.addEventListener("afterprint", after, { once: true, signal: ended.signal });
     win.print();
     return true;
 }

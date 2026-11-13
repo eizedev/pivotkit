@@ -772,7 +772,7 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
                 <ExportOption icon="image" text={labels.exportSvg} disabled={empty || display !== "chart"} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("svg")} testId="export-svg" />
             </Section>
             <Section title={labels.exportPrintGroup}>
-                <ExportOption icon="file" text={labels.exportPrint} info="exportPrint" onSelect={run("print")} {...off} testId="export-print" />
+                <ExportOption icon="print" text={labels.exportPrint} info="exportPrint" onSelect={run("print")} {...off} testId="export-print" />
             </Section>
             <Section title={labels.exportCopy}>
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
