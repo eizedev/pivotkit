@@ -1,0 +1,21 @@
+{
+  // Type check of the JavaScript sources (JSDoc) and generation of the .d.ts files that ship in the
+  // package: npm run types. CI runs it; the output (types/) is not committed.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "types",
+    "rootDir": "src",
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2023", "dom"],
+    "types": [],
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false
+  },
+  "include": ["src/**/*.js"]
+}

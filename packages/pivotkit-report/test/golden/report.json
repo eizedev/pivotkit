@@ -1,0 +1,202 @@
+{
+  "rowHeaders": [
+    "Region",
+    "Product"
+  ],
+  "columns": [
+    {
+      "labels": [
+        "2025",
+        "Sum of Units"
+      ],
+      "value": "Sum of Units",
+      "total": 0
+    },
+    {
+      "labels": [
+        "2025",
+        "% of column total of Average of Price"
+      ],
+      "value": "% of column total of Average of Price",
+      "total": 0
+    },
+    {
+      "labels": [
+        "2026",
+        "Sum of Units"
+      ],
+      "value": "Sum of Units",
+      "total": 0
+    },
+    {
+      "labels": [
+        "2026",
+        "% of column total of Average of Price"
+      ],
+      "value": "% of column total of Average of Price",
+      "total": 0
+    },
+    {
+      "labels": [
+        "Grand Total",
+        "Sum of Units"
+      ],
+      "value": "Sum of Units",
+      "total": 2
+    },
+    {
+      "labels": [
+        "Grand Total",
+        "% of column total of Average of Price"
+      ],
+      "value": "% of column total of Average of Price",
+      "total": 2
+    }
+  ],
+  "rows": [
+    {
+      "labels": [
+        "North",
+        "A"
+      ],
+      "total": 0,
+      "collapsed": false,
+      "values": [
+        8,
+        1,
+        null,
+        null,
+        8,
+        0.652542372881356
+      ]
+    },
+    {
+      "labels": [
+        "North",
+        "B"
+      ],
+      "total": 0,
+      "collapsed": false,
+      "values": [
+        null,
+        null,
+        2,
+        1.04166666666667,
+        2,
+        1.1864406779661
+      ]
+    },
+    {
+      "labels": [
+        "North Total",
+        ""
+      ],
+      "total": 1,
+      "collapsed": false,
+      "values": [
+        8,
+        1,
+        2,
+        1.04166666666667,
+        10,
+        0.830508474576271
+      ]
+    },
+    {
+      "labels": [
+        "South",
+        "A"
+      ],
+      "total": 0,
+      "collapsed": false,
+      "values": [
+        null,
+        null,
+        7,
+        0.520833333333333,
+        7,
+        0.593220338983051
+      ]
+    },
+    {
+      "labels": [
+        "South",
+        "B"
+      ],
+      "total": 0,
+      "collapsed": false,
+      "values": [
+        null,
+        null,
+        5,
+        1.43229166666667,
+        5,
+        1.63135593220339
+      ]
+    },
+    {
+      "labels": [
+        "South Total",
+        ""
+      ],
+      "total": 1,
+      "collapsed": false,
+      "values": [
+        null,
+        null,
+        12,
+        1.12847222222222,
+        12,
+        1.28531073446328
+      ]
+    },
+    {
+      "labels": [
+        "West",
+        "A"
+      ],
+      "total": 0,
+      "collapsed": false,
+      "values": [
+        null,
+        null,
+        4,
+        0.572916666666667,
+        4,
+        0.652542372881356
+      ]
+    },
+    {
+      "labels": [
+        "West Total",
+        ""
+      ],
+      "total": 1,
+      "collapsed": false,
+      "values": [
+        null,
+        null,
+        4,
+        0.572916666666667,
+        4,
+        0.652542372881356
+      ]
+    },
+    {
+      "labels": [
+        "Grand Total",
+        ""
+      ],
+      "total": 2,
+      "collapsed": false,
+      "values": [
+        8,
+        1,
+        18,
+        1,
+        26,
+        1
+      ]
+    }
+  ]
+}
