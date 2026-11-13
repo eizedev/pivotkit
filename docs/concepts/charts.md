@@ -45,7 +45,7 @@ type writes the value.
 
 The chart's colours, its title's size and weight and the corners of its bars, slices and tooltip come
 from the report's `--pk-*` tokens, so a corporate theme reaches the chart too
-([Theming](../reference/theming.md#chart-colours-and-sizes)).
+([Theming](../reference/theming.md#chart-colours)).
 
 ## `chartOptions` (for developers)
 

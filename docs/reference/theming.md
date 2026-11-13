@@ -86,7 +86,7 @@ through the element.
 | `--pk-radius-xs`<br>`--pk-radius-mark`<br>`--pk-radius-icon` | Smaller corners, in step with `--pk-radius-sm` (set that one and these follow): links, a list's options, a column's sort button and keys; small parts inside a chip, a cell or a list (a field's grip, a badge, a filter's value, the fold button of a group in the table); a field's type icon | `calc(var(--pk-radius-sm) * 4 / 7)` (4 px)<br>`calc(var(--pk-radius-sm) * 5 / 7)` (5 px)<br>`calc(var(--pk-radius-sm) * 6 / 7)` (6 px) | as light |
 | `--pk-radius-card`<br>`--pk-radius-chart` | The chart's tooltip and the HTML report's chart card; the chart's bars and pie slices (a heatmap's cells three quarters of it) | `8px`<br>`var(--pk-radius-xs)` (4 px) | as light |
 | `--pk-font-mono` | The code font of the text field a view's JSON is pasted into | `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` | as light |
-| `--pk-chart-title-size` | The chart's title ([below](#chart-colours-and-sizes)) | `max(16px, var(--pk-font-size))` | as light |
+| `--pk-chart-title-size` | The chart's title ([below](#chart-colours)) | `max(16px, var(--pk-font-size))` | as light |
 | `--pk-focus-width`<br>`--pk-focus-offset`<br>`--pk-glow-width`<br>`--pk-ring-width` | The focus ring's width and its gap to the control (in a list, a cell or a segmented button it sits inside the control, as wide); the soft ring around a focused text field and a zone a field is dragged over; the inset ring of a zone a field is dropped on to remove it (a clickable cell's hover ring is three quarters of it, a file drop's one and a half) | `2px`<br>`2px`<br>`3px`<br>`2px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
@@ -158,7 +158,7 @@ is drawn with another face: above 500 the browser takes the next heavier one, so
 - Every control is at least 24 x 24 px (`--pk-target`); on a touch screen the small ones at least 44 x 44 px (`--pk-target-touch`). In the field list the grip, the "i" and the menu keep their size and get a hit area `--pk-target-touch` high instead (a layer over them; the grip's as wide too), with the gap between rows grown to hold it, so the rows stay compact.
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
 
-## Chart colours and sizes
+## Chart colours and sizes { #chart-colours }
 
 The chart reads `--pk-chart-1` to `--pk-chart-8` for its series, in this order, and
 `--pk-heat-low`/`--pk-heat-high` for the heatmap, in the current theme. Its title is
