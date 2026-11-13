@@ -93,24 +93,24 @@ export async function copyOut(text, { type, container, onExport, ...file }) {
     return (await copyText(text, container)) ? "copied" : "blocked";
 }
 
+/** Whether the browser reads a text as a CSS colour (CSS.supports); false without it. */
+const isColor = (/** @type {string} */ text) => typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("color", text);
+
 /**
  * A CSS colour as "#rrggbb", or null: through a canvas's fillStyle, which writes an opaque sRGB colour
- * that way whatever syntax it was given (a name, rgb(), hsl()). A colour the canvas does not take
- * leaves fillStyle as it was, so it is set over two different colours and must give the same.
+ * that way whatever syntax it was given (a name, rgb(), hsl()). A text that is no colour is refused
+ * first (a canvas would keep the colour it had).
  * @param {string} text
  * @param {{ fillStyle: unknown } | null} ctx  a 2D context
+ * @param {(text: string) => boolean} [supports]  whether the text is a colour
  */
-export function hexColor(text, ctx) {
-    if (!text || !ctx) {
+export function hexColor(text, ctx, supports = isColor) {
+    if (!text || !ctx || !supports(text)) {
         return null;
     }
-    const read = (/** @type {string} */ before) => {
-        ctx.fillStyle = before;
-        ctx.fillStyle = text;
-        return String(ctx.fillStyle).toLowerCase();
-    };
-    const hex = read("#000000");
-    return hex === read("#ffffff") && /^#[0-9a-f]{6}$/.test(hex) ? hex : null;
+    ctx.fillStyle = text;
+    const hex = String(ctx.fillStyle).toLowerCase();
+    return /^#[0-9a-f]{6}$/.test(hex) ? hex : null;
 }
 
 /**
