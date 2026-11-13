@@ -131,6 +131,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   workbook always had Excel's red, yellow, green ([#212](https://github.com/eizedev/pivotkit/issues/212)).
 - The explanation of an "i" inside a menu (Copy table in Export, a total in Options) is drawn above
   the menu; at the window's right edge the menu in the browser's top layer covered it ([#213](https://github.com/eizedev/pivotkit/issues/213)).
+- A description shown on hover of an "i" stays while the pointer is on its way from the "i" to it
+  (beside the "i" towards a description moved aside to stay in the window, or in the gap between
+  them) for up to one and a half seconds, so a slow move gets there; a pointer that took more than a
+  quarter of a second there closed it ([#213](https://github.com/eizedev/pivotkit/issues/213)).
 - A choice clicked in a field's Top items level keeps the focus, also in Safari, where a click does
   not focus a radio button ([#119](https://github.com/eizedev/pivotkit/issues/119)).
 - The rule between a menu's groups had 1.3:1 contrast in the light theme and 1.2:1 in the dark one,

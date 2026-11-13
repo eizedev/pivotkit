@@ -6,7 +6,7 @@ import { drillTable } from "../src/drill-table.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
-import { fromOrigin, keepPlace, placePopover, viewportOf } from "../src/place.js";
+import { fromOrigin, keepPlace, onTheWay, placePopover, viewportOf } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { longestLabels, rowLabelOf, sliceRows, windowOf } from "../src/virtual.js";
 
@@ -146,6 +146,39 @@ test("popover placement: the window's room without its scroll bars", () => {
     assert.equal(at.left + 320, 1263 - 8, "its right edge a margin before the scroll bar");
     // no root box (a document being torn down): the window
     assert.deepEqual(viewportOf(/** @type {any} */ ({ documentElement: null, defaultView: { innerWidth: 800, innerHeight: 600 } })), { width: 800, height: 600 });
+});
+
+test("popover placement: the way from an i to its tip, moved aside to stay in the window", () => {
+    // the i at the window's right, its tip below and further left (#213)
+    const i = { top: 315, bottom: 339, left: 1214, right: 1238 };
+    const below = { top: 345, bottom: 424, left: 952, right: 1272 };
+    const centre = { x: (952 + 1272) / 2, y: (345 + 424) / 2 };
+    // every point of the straight line from the i's centre to the tip's centre
+    for (let k = 0; k <= 20; k++) {
+        const x = 1226 + ((centre.x - 1226) * k) / 20;
+        const y = 327 + ((centre.y - 327) * k) / 20;
+        assert.equal(onTheWay(i, below, { x, y }), true, `${k} of 20`);
+    }
+    assert.equal(onTheWay(i, below, { x: 1174, y: 338.7 }), true, "the first of five steps: beside the i in its row");
+    assert.equal(onTheWay(i, below, { x: 1226, y: 342 }), true, "in the gap under the i");
+    assert.equal(onTheWay(i, below, { x: 1226, y: 327 }), true, "on the i");
+    assert.equal(onTheWay(i, below, { x: 1000, y: 320 }), false, "far left in the i's row: not on the way");
+    assert.equal(onTheWay(i, below, { x: 960, y: 342 }), false, "the gap's far left end, above the tip's corner");
+    assert.equal(onTheWay(i, below, { x: 900, y: 380 }), false, "left of both");
+    assert.equal(onTheWay(i, below, { x: 1226, y: 310 }), false, "above the i");
+    assert.equal(onTheWay(i, below, { x: 1250, y: 330 }), true, "right of the i, above the tip's right part");
+    assert.equal(onTheWay(i, below, { x: 1275, y: 330 }), false, "right of both");
+    assert.equal(onTheWay(i, below, null), false, "no pointer seen");
+    // a tip above its i, and one over it (a bottom sheet): the same rule
+    const above = { top: 230, bottom: 309, left: 952, right: 1272 };
+    assert.equal(onTheWay(i, above, { x: 1100, y: 312 }), true);
+    assert.equal(onTheWay(i, above, { x: 1100, y: 335 }), false);
+    // over its i: the hull of both, true where the page's :hover would say so anyway
+    assert.equal(onTheWay(i, { top: 300, bottom: 400, left: 952, right: 1272 }, { x: 1226, y: 327 }), true);
+    // boxes not laid out (0 × 0 at the origin): nowhere
+    const none = { top: 0, bottom: 0, left: 0, right: 0 };
+    assert.equal(onTheWay(none, none, { x: 0, y: 0 }), false);
+    assert.equal(onTheWay(none, none, { x: 500, y: 300 }), false);
 });
 
 test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", () => {

@@ -10,10 +10,18 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
+import { onTheWay } from "./place.js";
 import { Popover } from "./popover.jsx";
 
 /** How long (ms) a hover popover waits after the pointer left its button, so the pointer can reach it. */
 const LEAVE_DELAY = 250;
+
+/**
+ * How long (ms) after the pointer left its button a hover popover stays for a pointer on its way to it
+ * (place.js onTheWay): a slow move gets there, a pointer that came to rest beside the button does not
+ * keep it for good.
+ */
+const WAY_TIME = 1500;
 
 /**
  * The description and its link.
@@ -51,25 +59,35 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     const leaving = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
     const id = useId();
     const textId = useId();
+    // where the pointer is (client coordinates), followed while the description is shown on hover
+    const pointer = useRef(/** @type {{ x: number, y: number } | null} */ (null));
     const stay = () => {
         if (leaving.current) {
             clearTimeout(leaving.current);
             leaving.current = null;
         }
     };
-    // the pointer on the button or on its popover: there the popover stays. Asked of the page (:hover),
-    // not only of pointerenter: in WebKit on Linux the popover in the top layer (an "i" inside a menu)
-    // got no pointerenter when the pointer moved onto it from the button (#213)
-    const hovered = () => {
+    // the pointer on the button, on its popover or on its way from the one to the other: there the
+    // popover stays. Asked of the page (:hover), not only of pointerenter: in WebKit on Linux the
+    // popover in the top layer (an "i" inside a menu) got no pointerenter when the pointer moved onto
+    // it from the button. And a pointer on its way (beside the i towards a tip moved aside to stay in
+    // the window, or in the gap between them) is not leaving, however slowly it moves: CI's WebKit on
+    // Linux moves it in steps of about 280 ms, longer than the leave delay (#213)
+    const hovered = (/** @type {boolean} */ onItsWay) => {
         const button = ref.current;
         const root = /** @type {Document | ShadowRoot | null} */ (button?.getRootNode() ?? null);
         const pop = root && "getElementById" in root ? root.getElementById(id) : null;
-        return Boolean(button?.matches(":hover") || pop?.matches(":hover"));
+        return Boolean(
+            button?.matches(":hover") ||
+                pop?.matches(":hover") ||
+                (onItsWay && button && pop && onTheWay(button.getBoundingClientRect(), pop.getBoundingClientRect(), pointer.current))
+        );
     };
     const leaveSoon = () => {
         stay();
+        const left = Date.now();
         const check = () => {
-            if (hovered()) {
+            if (hovered(Date.now() - left < WAY_TIME)) {
                 leaving.current = setTimeout(check, LEAVE_DELAY);
                 return;
             }
@@ -79,6 +97,28 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
         leaving.current = setTimeout(check, LEAVE_DELAY);
     };
     useEffect(() => stay, []);
+    useEffect(() => {
+        const doc = ref.current?.ownerDocument;
+        if (mode !== "peek" || !doc) {
+            return undefined;
+        }
+        const follow = (/** @type {PointerEvent} */ e) => {
+            pointer.current = { x: e.clientX, y: e.clientY };
+        };
+        // the pointer leaving the window from the gap: no later move would say it is gone
+        const gone = (/** @type {PointerEvent} */ e) => {
+            if (!e.relatedTarget) {
+                pointer.current = null;
+            }
+        };
+        doc.addEventListener("pointermove", follow, { capture: true, passive: true });
+        doc.addEventListener("pointerout", gone, { capture: true, passive: true });
+        return () => {
+            doc.removeEventListener("pointermove", follow, { capture: true });
+            doc.removeEventListener("pointerout", gone, { capture: true });
+            pointer.current = null;
+        };
+    }, [mode]);
     const close = useCallback(() => {
         quiet.current = true;
         setMode(null);
