@@ -24,9 +24,9 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
   unpacked, under every default limit) took about a minute and a gigabyte of memory and then failed
   with `DAMAGED` ("Maximum call stack size exceeded"): read-excel-file parses a sheet in pieces and
   reads an unfinished text or tag again from its start with every piece. Runs of whitespace in text
-  and between attributes are now cut to 128 KiB before it parses a part, and a text, tag, comment,
-  CDATA section or processing instruction of more than 1 MiB is refused as `DAMAGED` at once (an Excel
-  cell holds at most 32,767 characters). Such a workbook of 50 MiB unpacked is read in about half a
+  and between attributes are now cut to 128 KiB before it parses a part, and a text, comment, CDATA
+  section or processing instruction of more than 1 MiB, or a tag of more than 256 KiB, is refused as
+  `DAMAGED` at once (an Excel cell holds at most 32,767 characters). Such a workbook of 50 MiB unpacked is read in about half a
   second with about 200 MB of memory.
 - The position of a cell or row (`r`) is read in single quotes, with whitespace around `=` and after
   a line break too, so such a value far out is refused before parsing like any other; a row of many

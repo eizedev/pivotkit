@@ -220,7 +220,7 @@ A file that cannot be read throws `PivotkitError` with the code `INVALID_FILE`, 
 | `ENCRYPTED` | A password-protected workbook. |
 | `MACROS` | A workbook with macros (`.xlsm`, `vbaProject.bin`). |
 | `XML_DECLARATION` | A part of a workbook declares a document type or entities, which a workbook never needs. |
-| `DAMAGED` | A workbook is damaged, cut off, a part unpacks to more than its directory states, or an XML part holds a text or tag of more than 1 MiB (an Excel cell holds at most 32,767 characters). |
+| `DAMAGED` | A workbook is damaged, cut off, a part unpacks to more than its directory states, or an XML part holds a text of more than 1 MiB or a tag of more than 256 KiB (an Excel cell holds at most 32,767 characters). |
 
 ## Progress, cancel and workers
 

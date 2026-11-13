@@ -115,6 +115,11 @@ export const SPACE_RUN = 128 * 1024;
  * characters (at most about 300 KB as XML); a longer token is refused.
  */
 export const MAX_TOKEN = 1024 * 1024;
+/**
+ * The longest tag: the parser reads a tag byte by byte in JavaScript, again from its start with every
+ * piece, where it finds a text's end with a native search. A sheet's tags are a few dozen bytes.
+ */
+export const MAX_TAG = 256 * 1024;
 
 const TEXT = 0;
 const TAG = 1;
@@ -126,8 +131,8 @@ const isSpace = (b) => b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d;
 
 /**
  * Passes an XML part on to `out`, piece by piece, with every run of whitespace in its text and
- * between a tag's attributes cut to SPACE_RUN bytes, and refuses (DAMAGED) a text, tag, comment,
- * CDATA section or processing instruction longer than MAX_TOKEN.
+ * between a tag's attributes cut to SPACE_RUN bytes, and refuses (DAMAGED) a tag longer than MAX_TAG
+ * and a text, comment, CDATA section or processing instruction longer than MAX_TOKEN.
  *
  * read-excel-file parses a sheet in pieces; a token that is not finished at the end of a piece is
  * read again from its start with the next one, and it calls itself once per piece. A token of tens
@@ -153,7 +158,8 @@ export function createXmlGuard(out, file, part) {
     let last1 = 0; // the last two bytes seen in MARKUP
     let last2 = 0;
     const tooLong = () =>
-        fileError("DAMAGED", file, `the part "${part}" holds a text or tag of more than 1 MiB (an Excel cell holds at most 32,767 characters); the workbook is refused.`, { part });
+        fileError("DAMAGED", file, `the part "${part}" holds a text of more than 1 MiB (an Excel cell holds at most 32,767 characters); the workbook is refused.`, { part });
+    const tagTooLong = () => fileError("DAMAGED", file, `the part "${part}" holds a tag of more than 256 KiB; the workbook is refused.`, { part });
     const startsAs = (word) => head.length <= word.length && head.every((b, k) => b === word[k]);
     /** Starts a comment, CDATA section or processing instruction that ends with `close` and ">". */
     const endMarkup = (close) => {
@@ -252,7 +258,7 @@ export function createXmlGuard(out, file, part) {
                             sp = 0;
                             if (b === 0x22 || b === 0x27) q = b;
                         }
-                        if (++len > MAX_TOKEN) throw tooLong();
+                        if (++len > MAX_TAG) throw tagTooLong();
                     }
                     if (i < to) {
                         m = TEXT;

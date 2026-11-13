@@ -150,7 +150,7 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
 `unpackedBytes` (500 MiB) bounds how much of a workbook is unpacked; the memory a read takes depends
 on what of it is kept. Before read-excel-file parses a part, pivotkit-xlsx leaves out what it never
 reads (rows without a value, anything between rows that is no row, what follows `</sheetData>`), cuts
-runs of whitespace to 128 KiB and refuses a text or tag of more than 1 MiB as `DAMAGED`, so a small
+runs of whitespace to 128 KiB and refuses a text of more than 1 MiB or a tag of more than 256 KiB as `DAMAGED`, so a small
 file padded with whitespace costs time in proportion to its unpacked size, and memory mostly for the
 pieces being unpacked, which the garbage collector frees as it goes (up to about 2 to 3 times the
 unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large. Measured with Node 26 on an

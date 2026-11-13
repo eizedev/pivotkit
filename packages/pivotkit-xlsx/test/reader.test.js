@@ -339,7 +339,7 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         assert.deepEqual(stats, { lastRow: 9, lastValueRow: 4, dropped: 3, errors: 1 }, `pieces of ${size} bytes`);
     }
     // the guard: whitespace runs cut, over-long tokens refused, the same however the XML is split
-    const { createXmlGuard, SPACE_RUN, MAX_TOKEN } = await import("../src/xml.js");
+    const { createXmlGuard, SPACE_RUN, MAX_TOKEN, MAX_TAG } = await import("../src/xml.js");
     const through = (text, size) => {
         const input = strToU8(text);
         const parts = [];
@@ -357,7 +357,7 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         // short whitespace and markup stay as they are
         [xml, xml],
         // a run in text and between attributes is cut; in a quoted value it is not
-        [`<a>${run(SPACE_RUN + 5)}<b x="1"${run(SPACE_RUN + 3, "\n")}y="${run(SPACE_RUN + 2)}"/>\t${run(SPACE_RUN)}</a>`, `<a>${run(SPACE_RUN)}<b x="1"${run(SPACE_RUN, "\n")}y="${run(SPACE_RUN + 2)}"/>\t${run(SPACE_RUN - 1)}</a>`],
+        [`<a>${run(SPACE_RUN + 5)}<b x="1"${run(SPACE_RUN + 3, "\n")}z="2"/><b y="${run(SPACE_RUN + 2)}"/>\t${run(SPACE_RUN)}</a>`, `<a>${run(SPACE_RUN)}<b x="1"${run(SPACE_RUN, "\n")}z="2"/><b y="${run(SPACE_RUN + 2)}"/>\t${run(SPACE_RUN - 1)}</a>`],
         // a comment, a CDATA section and a processing instruction pass, ">" and quotes in them too
         ['<?pi a="?>"?><a><!-- x > " y --><![CDATA[ <b> ]] > ]]><!--></a>', '<?pi a="?>"?><a><!-- x > " y --><![CDATA[ <b> ]] > ]]><!--></a>']
     ];
@@ -365,10 +365,12 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         for (const size of [1, 2, 3, 7, 4096, input.length]) assert.equal(through(input, size), output, `pieces of ${size} bytes`);
     }
     for (const big of [`<a>${run(MAX_TOKEN + 1, "x")}</a>`, `<a x="${run(MAX_TOKEN, ">")}"/>`, `<a><!--${run(MAX_TOKEN, "->")}--></a>`, `<?${run(MAX_TOKEN, ">")}?>`, `<![CDATA[${run(MAX_TOKEN, "]>")}]]>`]) {
-        for (const size of [3, 65_536]) assert.throws(() => through(big, size), (e) => e.details?.reason === "DAMAGED" && /1 MiB/.test(e.message), `${big.slice(0, 12)} in pieces of ${size} bytes`);
+        for (const size of [3, 65_536]) assert.throws(() => through(big, size), (e) => e.details?.reason === "DAMAGED" && /1 MiB|256 KiB/.test(e.message), `${big.slice(0, 12)} in pieces of ${size} bytes`);
     }
-    // up to MAX_TOKEN passes
+    // up to MAX_TOKEN (text) and MAX_TAG (a tag from "<" to before ">") passes, a byte more does not
     assert.equal(through(`<a>${run(MAX_TOKEN, "x")}</a>`, 65_536).length, MAX_TOKEN + 7);
+    assert.equal(through(`<a x="${run(MAX_TAG - 8, "y")}"/>`, 4096).length, MAX_TAG + 1);
+    assert.throws(() => through(`<a x="${run(MAX_TAG - 7, "y")}"/>`, 4096), (e) => /256 KiB/.test(e.message));
 
     // a declaration split over two pieces is still found
     const evil = strToU8('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]><worksheet/>');
@@ -470,14 +472,14 @@ test("a sheet padded with whitespace is read in linear time and memory, with its
     assert.ok(peak - rss < 300 * MiB, `${Math.round((peak - rss) / MiB)} MiB more resident memory`);
 });
 
-test("a text or tag of more than 1 MiB in a sheet is refused at once, however it is padded", async () => {
+test("a text of more than 1 MiB or a tag of more than 256 KiB in a sheet is refused at once, however it is padded", async () => {
     const MiB = 1024 * 1024;
     const sheet = (body) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">${body}</row></sheetData></worksheet>`);
     const started = performance.now();
     // an Excel cell holds at most 32,767 characters
     await rejects(read(fileOf(sheet(`<c r="A1" t="inlineStr"><is><t>${"a".repeat(2 * MiB)}</t></is></c>`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
     // a quoted attribute value of ">" is one tag to an XML parser
-    await rejects(read(fileOf(sheet(`<c r="A1" x="${">".repeat(2 * MiB)}"><v>1</v></c>`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
+    await rejects(read(fileOf(sheet(`<c r="A1" x="${">".repeat(2 * MiB)}"><v>1</v></c>`))), "DAMAGED", (e) => /256 KiB/.test(e.message));
     await rejects(read(fileOf(sheet(`<c r="A1"><v>1</v></c><!--${"->".repeat(MiB)}-->`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
     assert.ok(performance.now() - started < 5_000, `${Math.round(performance.now() - started)} ms`);
 });
@@ -496,9 +498,10 @@ test("cell and row positions are read however the attribute is quoted or spaced,
     // a quoted value holding ' r="' is no position
     const t = await read(fileOf(sheet(`<row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c></row><row r="2"><c x=' r="A3000000"' r="A2"><v>7</v></c></row>`)));
     assert.deepEqual(col(t, "n"), [7]);
-    // a row of half a megabyte of "<c " without a ">": each tag is scanned once (it was quadratic)
+    // a row of half a megabyte of "<c " without a ">": the filter scans each tag once (it was
+    // quadratic), then the guard refuses the one long tag the parser would read
     const started = performance.now();
-    await read(fileOf(sheet(`<row r="1"><c r="A1"><v>1</v></c></row><row r="2">${"<c ".repeat(170_000)}</c></row>`))).catch(() => {});
+    await rejects(read(fileOf(sheet(`<row r="1"><c r="A1"><v>1</v></c></row><row r="2">${"<c ".repeat(170_000)}</c></row>`))), "DAMAGED", (e) => /256 KiB/.test(e.message));
     assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
 });
 

@@ -9,7 +9,7 @@
  *    XML parts it reads.
  * 2. It unpacks only the parts the chosen sheet needs, streaming, never beyond the size the directory
  *    states; it leaves out the sheet's rows without a value (the used range of formatted empty cells)
- *    and what follows them, cuts long runs of whitespace and refuses a text or tag over 1 MiB, which
+ *    and what follows them, cuts long runs of whitespace and refuses a text over 1 MiB or a tag over 256 KiB, which
  *    read-excel-file would parse in quadratic time (xml.js).
  * 3. read-excel-file (MIT) parses those parts: shared strings, styles (a date is a number with a date
  *    format), the values Excel saved (never a formula). It gets them as a ZIP without compression,
