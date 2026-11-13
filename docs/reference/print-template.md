@@ -35,7 +35,8 @@ Spaces inside the braces are fine (`{{ title }}`); braces that are no placeholde
 - **Text** of the document: any placeholder. Inside `<title>` and `<textarea>`, whose text the
   browser never reads as markup, text placeholders only.
 - **A quoted attribute value** of `lang`, `dir`, `title`, `alt`, `class`, `aria-label` or
-  `aria-description`, and the `content` of `<meta name="description">`: text placeholders only.
+  `aria-description`, and the `content` of `<meta name="description">` without `http-equiv` (whose
+  `content` a browser reads as an instruction, such as a refresh's target): text placeholders only.
 
 Everything else is refused with `PivotkitError` `INVALID_TEMPLATE`, its `details.reason`, the
 placeholder and the line (the CLI: exit 2, kind `template`):
