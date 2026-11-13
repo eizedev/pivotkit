@@ -5,15 +5,18 @@ import { test as base, expect } from "@playwright/test";
  * Playwright's trace recording (trace: "retain-on-failure") injects its snapshot script into every
  * frame; Chromium refuses it in the report's print frame, which is sandboxed without scripts, and logs
  * this. The page itself runs no script there: without tracing the message is not logged (checked with
- * --trace off and with a plain browser), so it is the harness's, not the report's.
+ * --trace off and with a plain browser), so it is the harness's, not the report's. Only the specs that
+ * open the print frame ignore it: `test.use({ ignoreConsole: [TRACE_IN_PRINT_FRAME] })`.
  */
 export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
 
 export const test = base.extend({
-    page: async ({ page }, use) => {
+    /** Console messages a spec expects from the harness, not the page (none by default): each one a whole message. */
+    ignoreConsole: [[], { option: true }],
+    page: async ({ page, ignoreConsole }, use) => {
         const problems = [];
         page.on("console", (m) => {
-            if ((m.type() === "error" || m.type() === "warning") && !TRACE_IN_PRINT_FRAME.test(m.text())) problems.push(`${m.type()}: ${m.text()}`);
+            if ((m.type() === "error" || m.type() === "warning") && !ignoreConsole.some((re) => re.test(m.text()))) problems.push(`${m.type()}: ${m.text()}`);
         });
         page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
         await use(page);

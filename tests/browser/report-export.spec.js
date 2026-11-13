@@ -2,11 +2,14 @@
 // report opened on its own (its policy loads and runs nothing), and the print frame the browser's
 // dialog prints, with print() stubbed (a headless browser has no dialog).
 import { readFile } from "node:fs/promises";
-import { capturePrint, expect, test, toolbar } from "./fixtures.js";
+import { TRACE_IN_PRINT_FRAME, capturePrint, expect, test, toolbar } from "./fixtures.js";
 
 const printed = (page) => page.evaluate(() => /** @type {any} */ (window).__printed ?? null);
 
 test.describe("Export menu: HTML report, SVG and print", () => {
+    // the print frame runs no script; Playwright's trace recorder tries to (fixtures.js)
+    test.use({ ignoreConsole: [TRACE_IN_PRINT_FRAME] });
+
     test("HTML report (.html): the table as shown, the details, a policy first in <head>; it opens on its own", async ({ page, context }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "export");
@@ -56,7 +59,7 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         await viewer.close();
     });
 
-    test("Print or save as PDF: the report in a sandboxed frame, styles adopted, the chart inline; the frame goes after printing", async ({ page }) => {
+    test("Print or save as PDF: the report in a sandboxed frame, styles adopted, the chart inline; the frame goes after printing", async ({ page, browserName }) => {
         await page.goto("?data=tickets");
         await capturePrint(page);
         await page.getByTestId("show-chart").click();
@@ -77,5 +80,28 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         expect(p.body).toContain("<table class=\"pk-table\">");
         // nothing was downloaded, nothing said: the dialog is the answer
         await expect(page.locator(".pk-toasts")).not.toContainText("Exported");
+        // printing again replaces the frame: one frame, never two
+        const frames = page.locator("iframe.pk-print-frame");
+        await expect(frames).toHaveCount(1);
+        await page.evaluate(() => {
+            /** @type {any} */ (window).__printed = null;
+        });
+        await toolbar(page, "export");
+        await page.getByTestId("export-print").click();
+        await expect.poll(() => printed(page)).not.toBeNull();
+        await expect(frames).toHaveCount(1);
+        // the dialog closed (afterprint in the frame): the frame goes. WebKit runs no listener in a
+        // frame without scripts (checked: not even one the page adds), so there it stays for the page's
+        await page.evaluate(() => document.querySelector("iframe.pk-print-frame").contentWindow.dispatchEvent(new Event("afterprint")));
+        if (browserName !== "webkit") {
+            await expect(frames).toHaveCount(0);
+            await toolbar(page, "export");
+            await page.getByTestId("export-print").click();
+            await expect(frames).toHaveCount(1);
+        }
+        await expect(frames).toHaveCount(1);
+        // afterprint of the page: the frame goes in every browser
+        await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+        await expect(frames).toHaveCount(0);
     });
 });
