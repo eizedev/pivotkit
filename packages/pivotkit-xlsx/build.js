@@ -18,7 +18,7 @@ const here = new URL(".", import.meta.url).pathname;
 const SAXEN = dirname(createRequire(fileURLToPath(import.meta.resolve("read-excel-file/package.json"))).resolve("saxen/package.json"));
 
 /**
- * The most each part may be, gzip, in KiB (measured 0.2 and 30.5 on a Mac, Node 26, when set), with a
+ * The most each part may be, gzip, in KiB (measured 0.2 and 30.6 on a Mac, Node 26, when set), with a
  * little room: the descriptor, and the reader with read-excel-file, fflate's inflate, the XML guard
  * (xml.js) and the table of pivotkit-core/import.
  */

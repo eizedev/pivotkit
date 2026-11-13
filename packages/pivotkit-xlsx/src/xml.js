@@ -27,6 +27,12 @@ const ENTITY = ascii("ENTITY");
 const SHEET_DATA = ascii("<sheetData");
 const SHEET_DATA_END = ascii("</sheetData>");
 const ROW = ascii("<row");
+const COMMENT_START = ascii("<!--");
+const COMMENT_END = ascii("-->");
+const CDATA_START = ascii("<![CDATA[");
+const CDATA_END = ascii("]]>");
+const PI_END = ascii("?>");
+const GT = ascii(">");
 const ROW_END = ascii("</row>");
 const CELL_END = ascii("</c>");
 // an error cell's type; the byte before it is whitespace (searched without it: a row padded with
@@ -277,6 +283,7 @@ export function createXmlGuard(out, file, part) {
                             } else if (h === 0x3e) {
                                 m = TEXT;
                                 len = 0;
+                                sp = 0;
                                 break;
                             } else {
                                 sp = isSpace(h) ? sp + 1 : 0;
@@ -308,24 +315,60 @@ export function createXmlGuard(out, file, part) {
     };
 }
 
-/** The row number of a `<row ...>` tag (its `r` attribute), or 0. */
-function rowNumber(buf, from, to) {
-    for (let i = from; i < to - 3; i++) {
-        // ' r="'
-        if ((buf[i] === 0x20 || buf[i] === 0x09 || buf[i] === 0x0a || buf[i] === 0x0d) && buf[i + 1] === 0x72 && buf[i + 2] === 0x3d && buf[i + 3] === 0x22) {
-            let n = 0;
-            for (let k = i + 4; k < to && buf[k] >= 0x30 && buf[k] <= 0x39; k++) n = n * 10 + (buf[k] - 0x30);
-            return n;
+/**
+ * Where the value of the attribute `r` of the tag in buf[from, stop) starts, or -1: after whitespace,
+ * with whitespace around "=" and either quote, as an XML parser reads it; quoted values are skipped.
+ */
+function refAt(buf, from, stop) {
+    for (let k = from; k < stop; k++) {
+        const b = buf[k];
+        if (b === 0x22 || b === 0x27) {
+            k++;
+            while (k < stop && buf[k] !== b) k++;
+        } else if (isSpace(b) && buf[k + 1] === 0x72) {
+            let q = k + 2;
+            while (q < stop && isSpace(buf[q])) q++;
+            if (q < stop && buf[q] === 0x3d) {
+                q++;
+                while (q < stop && isSpace(buf[q])) q++;
+                if (q < stop && (buf[q] === 0x22 || buf[q] === 0x27)) {
+                    q++;
+                    while (q < stop && isSpace(buf[q])) q++;
+                    return q;
+                }
+            }
         }
     }
-    return 0;
+    return -1;
+}
+
+/** Where the tag starting at buf[from] ends: its ">" outside quotes, a "<" (never in a tag), or `to`. */
+function tagEndAt(buf, from, to) {
+    for (let k = from; k < to; k++) {
+        const b = buf[k];
+        if (b === 0x3e || b === LT) return k;
+        if (b === 0x22 || b === 0x27) {
+            k++;
+            while (k < to && buf[k] !== b && buf[k] !== LT) k++;
+            if (buf[k] === LT) return k;
+        }
+    }
+    return to;
+}
+
+/** The row number of a `<row ...>` tag (its `r` attribute), or 0. */
+function rowNumber(buf, from, to) {
+    const at = refAt(buf, from + 4, to);
+    let n = 0;
+    if (at !== -1) for (let k = at; k < to && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
+    return n;
 }
 
 /** The largest row (or start of a sheet before its <sheetData>) the filter holds while it waits for its end. */
 const MAX_PENDING = 64 * 1024 * 1024;
 /** The size from which a row waiting for its end is squeezed by createXmlGuard. */
 const SQUEEZE_AT = 1024 * 1024;
-const CELL = ascii("<c ");
+const CELL = ascii("<c");
 
 /** XML that starts at a "<", through createXmlGuard. */
 function squeeze(buf, file, part) {
@@ -350,21 +393,18 @@ function squeeze(buf, file, part) {
 function cellExtent(buf, from, to) {
     let column = 0;
     let row = 0;
-    for (let i = indexOf(buf, CELL, from, to); i !== -1; i = indexOf(buf, CELL, i + 3, to)) {
-        const gt = buf.indexOf(0x3e, i);
-        const stop = gt === -1 || gt > to ? to : gt;
-        for (let k = i + 2; k < stop - 3; k++) {
-            if ((buf[k] === 0x20 || buf[k] === 0x09) && buf[k + 1] === 0x72 && buf[k + 2] === 0x3d && buf[k + 3] === 0x22) {
-                let c = 0;
-                let q = k + 4;
-                for (; q < stop && ((buf[q] | 0x20) >= 0x61 && (buf[q] | 0x20) <= 0x7a) && c <= 1e7; q++) c = c * 26 + ((buf[q] | 0x20) - 0x60);
-                let r = 0;
-                for (; q < stop && buf[q] >= 0x30 && buf[q] <= 0x39 && r <= 1e12; q++) r = r * 10 + (buf[q] - 0x30);
-                column = Math.max(column, c);
-                row = Math.max(row, r);
-                break;
-            }
-        }
+    for (let i = indexOf(buf, CELL, from, to); i !== -1; i = indexOf(buf, CELL, i + 2, to)) {
+        if (!isSpace(buf[i + 2])) continue; // <col>, <cfRule>
+        // each tag is scanned once, up to its end: the time stays linear in the row's length
+        const stop = tagEndAt(buf, i + 1, to);
+        let q = refAt(buf, i + 2, stop);
+        if (q === -1) continue;
+        let c = 0;
+        for (; q < stop && ((buf[q] | 0x20) >= 0x61 && (buf[q] | 0x20) <= 0x7a) && c <= 1e7; q++) c = c * 26 + ((buf[q] | 0x20) - 0x60);
+        let r = 0;
+        for (; q < stop && buf[q] >= 0x30 && buf[q] <= 0x39 && r <= 1e12; q++) r = r * 10 + (buf[q] - 0x30);
+        column = Math.max(column, c);
+        row = Math.max(row, r);
     }
     return { column, row };
 }
@@ -449,13 +489,16 @@ export function createSheetFilter(out, limits = {}) {
                 continue;
             }
             if (indexOf(buf, ROW, lt, lt + ROW.length) !== lt) {
-                // anything else in sheetData (a comment, say) is left out: read-excel-file reads rows only
-                const gt = buf.indexOf(0x3e, lt);
-                if (gt === -1) {
+                // anything else in sheetData (a comment, say) is left out: read-excel-file reads rows
+                // only. A comment, CDATA section or processing instruction ends where the parser ends
+                // it, so a row inside one stays out too.
+                const close = buf[lt + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, lt, lt + 4) === lt ? COMMENT_END : indexOf(buf, CDATA_START, lt, lt + 9) === lt ? CDATA_END : GT;
+                const end = indexOf(buf, close, lt + 1);
+                if (end === -1) {
                     i = lt;
                     break;
                 }
-                i = gt + 1;
+                i = end + close.length;
                 continue;
             }
             const tagEnd = buf.indexOf(0x3e, lt);

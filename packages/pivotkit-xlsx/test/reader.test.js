@@ -481,3 +481,35 @@ test("a text or tag of more than 1 MiB in a sheet is refused at once, however it
     await rejects(read(fileOf(sheet(`<c r="A1"><v>1</v></c><!--${"->".repeat(MiB)}-->`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
     assert.ok(performance.now() - started < 5_000, `${Math.round(performance.now() - started)} ms`);
 });
+
+test("cell and row positions are read however the attribute is quoted or spaced, in linear time", async () => {
+    const sheet = (rows) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`);
+    const far = [
+        "<row r='3000000'><c r='A3000000'><v>1</v></c></row>",
+        '<row r = "3000000"><c\nr="A3000000"><v>1</v></c></row>',
+        "<row\tr='3000000'><c\tr = 'A3000000' s=\"1\"><v>1</v></c></row>"
+    ];
+    for (const row of far) {
+        await assert.rejects(read(fileOf(sheet(`<row r="1"><c r="A1"><v>1</v></c></row>${row}`))), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "rows", row);
+    }
+    await assert.rejects(read(fileOf(sheet("<row r='1'><c r='XFD1'><v>1</v></c></row>"))), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "columns");
+    // a quoted value holding ' r="' is no position
+    const t = await read(fileOf(sheet(`<row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c></row><row r="2"><c x=' r="A3000000"' r="A2"><v>7</v></c></row>`)));
+    assert.deepEqual(col(t, "n"), [7]);
+    // a row of half a megabyte of "<c " without a ">": each tag is scanned once (it was quadratic)
+    const started = performance.now();
+    await read(fileOf(sheet(`<row r="1"><c r="A1"><v>1</v></c></row><row r="2">${"<c ".repeat(170_000)}</c></row>`))).catch(() => {});
+    assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
+});
+
+test("rows inside a comment or CDATA section between rows are not read", async () => {
+    const book = makeXlsxWithSheet(
+        '<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+            '<row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c></row><row r="2"><c r="A2"><v>1</v></c></row>' +
+            '<!-- <row r="3"><c r="A3"><v>9</v></c></row><row r="4"><c r="A4"><v>5</v></c></row> -->' +
+            '<![CDATA[ <row r="5"><c r="A5"><v>6</v></c></row> ]]><?pi <row r="6"><c r="A6"><v>8</v></c></row> ?>' +
+            '<row r="7"><c r="A7"><v>2</v></c></row></sheetData></worksheet>'
+    );
+    const t = await read(fileOf(book));
+    assert.deepEqual(col(t, "n").filter((v) => v !== null), [1, 2]);
+});

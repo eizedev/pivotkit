@@ -105,7 +105,7 @@ export function readDirectory(bytes, file, limits) {
         }
         total += unpacked;
         if (total > limits.unpackedBytes) {
-            throw limitError("unpackedBytes", total, limits.unpackedBytes, file, "bytes unpacked, by its ZIP directory (a ZIP bomb, or a workbook too large to load)");
+            throw limitError("unpackedBytes", total, limits.unpackedBytes, file, "bytes unpacked, by its ZIP directory; a ZIP bomb or a workbook too large to load");
         }
         entries.push({ name, method, compressedSize, size: unpacked, localOffset });
         p = extraEnd + commentLength;

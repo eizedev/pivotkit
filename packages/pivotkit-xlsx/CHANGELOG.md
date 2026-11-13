@@ -28,6 +28,10 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
   CDATA section or processing instruction of more than 1 MiB is refused as `DAMAGED` at once (an Excel
   cell holds at most 32,767 characters). Such a workbook of 50 MiB unpacked is read in about half a
   second with about 200 MB of memory.
+- The position of a cell or row (`r`) is read in single quotes, with whitespace around `=` and after
+  a line break too, so such a value far out is refused before parsing like any other; a row of many
+  unclosed `<c ` tags is scanned in linear time, no longer quadratic; a row inside a comment, CDATA
+  section or processing instruction between rows is no longer read as data.
 
 ## [0.1.0] - 2026-11-11
 
