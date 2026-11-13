@@ -13,6 +13,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   ([#165](https://github.com/eizedev/pivotkit/issues/165)): views of version 1 load with the same
   result. The first load grows by about 7.5 KiB (gzip), its budget to 169; the plain words of a
   view's unused parts to 5.5.
+- The budget of the first load is 170 KiB (gzip) and that of a shared link 7.6: both were 0.2 and
+  0.1 KiB above what CI measures, too little for the next change ([#198](https://github.com/eizedev/pivotkit/issues/198)).
 
 ### Added
 
