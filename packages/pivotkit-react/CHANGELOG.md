@@ -81,6 +81,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A delayed popover autofocus frame no longer steals focus from a control already in use
+  ([#139](https://github.com/eizedev/pivotkit/issues/139)).
+- Outside pie and donut labels appear on the first draw, including their chosen values
+  ([#103](https://github.com/eizedev/pivotkit/issues/103)).
 - The menus' text actions drew as plain text in the text colour, so they did not look clickable:
   **Back**, **Reset filter**, **Clear**, **Remove**, **change it above**, **Select all**, **Select
   none**, **Only** and **Swap rows and columns** are in the accent colour and semibold (Back at the
