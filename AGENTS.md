@@ -234,10 +234,14 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   ECharts.
 - Every third-party package is pinned to an exact version with the lock file; CI installs with
   `npm ci --ignore-scripts`. Exception: a package of this repository that another one depends on
-  takes a caret range on its current version (`"pivotkit-core": "^0.4.0"` in pivotkit-react); the lock
-  file still pins it in development. In 0.x a caret range spans patch versions only (`^0.4.0` is
-  0.4.x), so a host that also uses pivotkit-core directly must use a version inside the range;
-  npm shares one copy only when the ranges overlap. Chart wrapper packages have been hijacked on npm
+  takes a caret range on its current version (`"pivotkit-core": "^<version of pivotkit-core>"` in
+  pivotkit-react; a devDependency on one, as pivotkit-element's, the exact version), checked by
+  `tests/ci.test.js`; the lock file still pins it in development. In 0.x a caret range spans patch
+  versions only (`^0.y.z` is 0.y.z and later 0.y patches), so a host that also uses pivotkit-core
+  directly must use a version inside the range; npm shares one copy only when the ranges overlap.
+  Docs and READMEs name no version of their own; the few statements that must (`docs/compare.md`, the
+  example of `docs/reference/view-file.md`) are in CONTRIBUTING.md's release steps and checked by
+  `tests/ci.test.js`. Chart wrapper packages have been hijacked on npm
   before: prefer a small own wrapper over a wrapper package.
 - A loaded file is user input like a view: every reader counts what a file can make grow against
   `LIMITS` before the step it guards (the size before reading, an archive's directory before

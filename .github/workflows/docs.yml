@@ -2,8 +2,11 @@ name: Docs site
 
 # Builds the documentation site (pivotkit.eize.dev) on every pull request and push to main, so it never
 # breaks unnoticed, and publishes it to GitHub Pages only for a release: when a GitHub release is
-# published (from its tag), or by hand with the input "tag" (Actions > Docs site > Run workflow, e.g.
-# pivotkit-react@0.1.1). So the site always describes what npm has, not unreleased changes on main. The
+# published, or by hand with the input "tag" (Actions > Docs site > Run workflow, e.g.
+# pivotkit-react@0.1.1). So the site always describes what npm has, not unreleased changes on main.
+# A published release builds the newest release tag on main, whichever release started the run: the
+# releases of several packages (one commit, or a later one) all build the same pages, so the order in
+# which their runs finish cannot leave an older site. The
 # github-pages environment allows main and the release tags (pivotkit-*@*) to deploy. `npm run docs:demo` builds the playground and
 # copies it into docs/playground/ (the live demo); then Zensical builds the pages with the shared design
 # of eizedev/brand. Publishing runs only when the repository variable PAGES_ENABLED is "true"
@@ -25,8 +28,8 @@ on:
 permissions:
   contents: read
 
-# a release of all three packages publishes three releases of one commit: one publication at a time,
-# the last one wins
+# a release of several packages publishes several releases: one publication at a time, the last one
+# wins, and every one of them builds the newest release tag
 concurrency:
   group: docs-${{ (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && 'publish' || github.ref }}
   cancel-in-progress: true
@@ -46,15 +49,27 @@ jobs:
           REPO: ${{ github.server_url }}/${{ github.repository }}
         run: |
           if [ "$TAG" = main ]; then exit 0; fi
-          if ! [[ "$TAG" =~ ^pivotkit-(core|react|element)@[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if ! [[ "$TAG" =~ ^pivotkit-(core|react|element|xlsx|report|cli)@[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::tag must be a release tag such as pivotkit-react@0.2.0, or main"; exit 1
           fi
           git ls-remote --exit-code --tags "$REPO" "refs/tags/$TAG" > /dev/null || { echo "::error::no tag $TAG"; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # a release builds its tag; a run by hand the tag it names; everything else its own ref
-          ref: ${{ github.event.release.tag_name || inputs.tag || github.ref }}
+          # a run by hand builds the tag it names; everything else its own ref (a release: below)
+          ref: ${{ inputs.tag || github.ref }}
+          # a release reads the tags and main to find the newest release
+          fetch-depth: ${{ github.event_name == 'release' && '0' || '1' }}
+      - name: Newest release
+        if: github.event_name == 'release'
+        # the release tag nearest to main's head: every package's tags of one release sit on one commit,
+        # and release.yml publishes only commits on main
+        env:
+          STARTED_BY: ${{ github.event.release.tag_name }}
+        run: |
+          tag="$(git describe --tags --abbrev=0 --match 'pivotkit-*@*' origin/main)"
+          echo "Building $tag (the run was started by the release $STARTED_BY)"
+          git checkout --quiet --detach "refs/tags/$tag"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"

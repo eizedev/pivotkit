@@ -13,7 +13,7 @@ npm install pivotkit-report echarts
 ```
 
 ES modules for Node 22 or later and browsers from Chrome 111, Firefox 113 and Safari 16.4. It depends
-on pivotkit-core (a caret range on 0.4.x). ECharts (`>=6.1.0 <7`) is an optional peer dependency: only
+on pivotkit-core (a caret range on the minor version it was released with, see its `package.json`). ECharts (`>=6.1.0 <7`) is an optional peer dependency: only
 the SVG and the chart of an HTML report need it, passed in as `options.echarts`. TypeScript
 declarations are included.
 

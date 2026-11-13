@@ -42,8 +42,9 @@ dependency require a patched version themselves; lint must still pass unchanged.
 
 Every package of a third party is pinned to an exact version with the lock file; a package of this
 repository that another one depends on takes a caret range on its current version (`pivotkit-react`
-depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.x a caret range
-spans patch versions only (`^0.4.0` matches 0.4.x, `^0.0.1` matches 0.0.1 alone), so a host that
+depends on `^<version of pivotkit-core>`, exactly that) and a devDependency on one its exact version;
+`tests/ci.test.js` checks both. In 0.x a caret range
+spans patch versions only (`^0.y.z` matches 0.y.z and later 0.y patches, `^0.0.1` matches 0.0.1 alone), so a host that
 also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
 when the ranges overlap.
 `pivotkit-element` bundles everything it needs: each bundled package (React, ReactDOM, @dnd-kit,
@@ -142,17 +143,21 @@ pages: they link to the site and repeat none of it.
 The release workflow (`.github/workflows/release.yml`) publishes every package. It was set up once
 with the steps below, and a new package needs steps 2 and 3 again: a trusted publisher is configured
 in a package's settings on npm, so each package is published once by hand before the workflow takes
-over.
+over. pivotkit-report and pivotkit-cli are not on npm yet: they need steps 2 and 3 at their first
+release.
 
 1. Make the repository public: npm generates no provenance for private repositories (npm's
    documentation, "Generating provenance statements").
-2. Publish the first version of each package by hand, in the order `pivotkit-core`, `pivotkit-react`,
-   `pivotkit-element`, `pivotkit-xlsx`, from tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`,
-   `npm pack -w <package>`), with an npm account that has two-factor authentication:
-   `npm publish <tarball> --access public`. Provenance is not in `publishConfig`: the workflow
-   asks for it with `--provenance`, which needs the CI's OIDC token.
-3. Configure trusted publishing for each package on npm: owner `eizedev`, repository `pivotkit`,
-   workflow file `release.yml`, environment `npm`. No npm token is stored in GitHub. A new trusted
+2. Publish the first version of each package by hand, in the publish order below (`pivotkit-core`,
+   `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`), from
+   tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`, `npm pack -w <package>`),
+   with an npm account that has two-factor authentication: `npm publish <tarball> --access public`.
+   Provenance is not in `publishConfig`: the workflow asks for it with `--provenance`, which needs
+   the CI's OIDC token.
+3. Configure trusted publishing for each package on npm (`pivotkit-core`, `pivotkit-xlsx`,
+   `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`): owner `eizedev`,
+   repository `pivotkit`, workflow file `release.yml`, environment `npm`. No npm token is stored in
+   GitHub. A new trusted
    publisher must publish once within two days, or it expires (npm's documentation, "Trusted
    publishers"), so set it up when the next release is ready. Then set the package's publishing
    access to "Require two-factor authentication and disallow tokens". The split of the workflow into
@@ -165,24 +170,48 @@ over.
 5. Add a tag ruleset for `*@*`: only maintainers create, move or delete release tags.
 6. Set the repository variable `NPM_RELEASE_ENABLED` to `true`.
 
-Then for each release of a package, in the order `pivotkit-core`, `pivotkit-react`,
-`pivotkit-element`, `pivotkit-xlsx` (pivotkit-react and pivotkit-xlsx depend on a published
-pivotkit-core; the element bundles core and react):
+The publish order follows the run-time dependencies in each `package.json`: `pivotkit-core` (no own
+dependency), `pivotkit-xlsx` (core), `pivotkit-report` (core), `pivotkit-react` (core, report),
+`pivotkit-element` (bundles core, react and report: devDependencies only, no registry dependency),
+`pivotkit-cli` (core, report, xlsx). A package that depends on pivotkit-core takes `^<its version>`,
+which in 0.x admits that minor only: when core's minor moves (0.4 to 0.5), pivotkit-xlsx,
+pivotkit-report, pivotkit-react and pivotkit-cli are released too, even without a change of their
+own, or their published ranges keep the old core and a host gets two copies (`tests/ci.test.js`
+requires every range to be the version in this repository).
 
-1. Move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md` under the new version and
-   date; set `version` in `packages/<package>/package.json`, and the caret range or the
-   devDependency of the packages that use it (`tests/ci.test.js` checks that every own range takes
-   the version in this repository); merge that pull request.
-2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tag.
+For each release:
+
+1. One pull request prepares it: move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md`
+   under the new version and date; set `version` in `packages/<package>/package.json`, and in the
+   same pull request the caret range or the devDependency of every package that uses it
+   (`tests/ci.test.js` fails on a range or devDependency that is not exactly the version in this
+   repository, #206); update the statements that name the current version, which `tests/ci.test.js`
+   checks against it: the pivotkit row of `docs/compare.md` (version and date) and the example's
+   `generator` in `docs/reference/view-file.md`. Docs and READMEs name no other version of their own.
+   Merge that pull request.
+2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tags one at a
+   time in the publish order, each after the previous one is published: the `build` job runs
+   `scripts/check-release.js --published`, which fails when a package of this repository the tagged
+   one depends on has entries under `[Unreleased]` (it was tested against code npm does not have) or
+   is not on npm at the version in this commit. After a failure for that reason, publish the
+   dependency and re-run the job.
 3. The workflow's `build` job checks that the tag matches the version, that the commit is on main
    and that CI passed for it, runs lint, types, tests and the package check, and packs the tarball;
    it has no publishing right. The `publish` job waits for an environment reviewer, then publishes
    only that tarball with an npm provenance attestation, with npm 11.21.1 (trusted publishing needs
    11.5.1 or later and Node 22.14.0 or later).
 4. Publish a GitHub release for each tag, with a short text and a link to the package's CHANGELOG.
-   Publishing a release also publishes the documentation site from its tag
-   (`.github/workflows/docs.yml`), not a push to main, so the site describes what is on npm. To publish it again by hand: Actions > Docs site > Run workflow with the input `tag` (a release
-   tag that exists, or `main` for a preview of unreleased docs; the next release replaces it).
+   Publishing a release also publishes the documentation site (`.github/workflows/docs.yml`), not a
+   push to main, so the site describes what is on npm. Every release builds the newest release tag
+   on main, whichever release started the run, so the releases of several packages cannot leave an
+   older site behind. To publish it again by hand: Actions > Docs site > Run workflow with the input
+   `tag` (a release tag of any package that exists, or `main` for a preview of unreleased docs; the
+   next release replaces it).
+
+No check compares what a package imports from pivotkit-core with the exports of the lowest version
+its range admits: that needs the published tarball. The exact ranges and `check-release.js` cover it
+instead: a range is the version in this repository, and that version is released before the package
+that depends on it.
 
 `npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
 `dist/`, `types/`, and for pivotkit-element and pivotkit-xlsx `dist/THIRD_PARTY_LICENSES.txt`); it fails while a

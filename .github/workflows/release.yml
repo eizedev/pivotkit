@@ -58,6 +58,12 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
       - name: The tagged commit is on main
         run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$GITHUB_SHA is not on main"; exit 1; }
+      - name: Own dependencies are released
+        # a package of this repository it depends on has no unreleased CHANGELOG entry and is on npm at
+        # the version in this commit: else this one was tested against code npm does not have (#206)
+        env:
+          PACKAGE: ${{ steps.package.outputs.name }}
+        run: node scripts/check-release.js "$PACKAGE" --published
       - name: CI passed for the tagged commit
         # the browser matrix runs in ci.yml only; a release needs its green run for this commit
         env:

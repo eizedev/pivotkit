@@ -27,9 +27,11 @@ exactly) come with the package.
 | `echarts` | `>=6.1.0 <7` | About 1 MB; an app that draws its own charts has it already. It is loaded on the first chart, so a report that never shows one does not load it. |
 
 !!! note "Using pivotkit-core directly as well"
-    pivotkit-react depends on a caret range of pivotkit-core (`^0.4.0`). In 0.x a caret range spans
-    patch versions only (`^0.4.0` is 0.4.x), so an app that imports pivotkit-core itself must use a
-    version inside that range; npm shares one copy only when the ranges overlap.
+    pivotkit-react depends on a caret range of pivotkit-core: the version it was released with, in
+    its `package.json`. In 0.x a caret range spans patch versions only (`^0.y.z` is 0.y.z and later
+    0.y patches), so an app that imports pivotkit-core itself must use a
+    version inside that range; npm shares one copy only when the ranges overlap
+    (`npm ls pivotkit-core` lists the copies).
 
 ## 2. Render the first report { #the-first-report }
 
