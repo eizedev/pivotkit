@@ -43,3 +43,27 @@ test("a view without values draws an empty chart, still a valid SVG", async () =
     assert.equal(r.ok, true);
     assert.match(r.text, /^<svg [^>]*>[\s\S]*<\/svg>$/);
 });
+
+/** The font size (px) of each text of an SVG with the text, as the reader sees it. */
+const textSizes = (svg) => [...svg.matchAll(/<text([^>]*)>([^<]*)<\/text>/g)].map((m) => ({ text: m[2], size: Number(/font-size="(\d*\.?\d+)px"/.exec(m[1])?.[1]) }));
+
+/** Views that write every kind of chart text: axes, group labels, value labels, a legend, slices, cells and a colour scale. */
+const TEXT_VIEWS = {
+    bars: { rows: ["Region", "Product"], cols: ["Q"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", valueLabels: "value", groupLabels: "on", title: "Units" } },
+    horizontal: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", horizontal: true, legend: "bottom", valueLabels: "value" } },
+    lines: { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "line", legend: "right" } },
+    pie: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "pie" } },
+    donut: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "donut", labelPosition: "inside" } },
+    heatmap: { rows: ["Region"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }], chart: { type: "heatmap" } }
+};
+
+// #221: ECharts writes 12 px unless told otherwise, below the 14 px minimum and no token
+test("every text of a chart is at least 14 px, and a host's --pk-chart-text-size reaches every one but the title", async () => {
+    for (const [name, view] of Object.entries(TEXT_VIEWS)) {
+        const plain = textSizes((await render(view, SALES, { format: "svg", echarts, size: { width: 640, height: 400 }, ...FIXED })).text);
+        assert.ok(plain.length > 3, `${name}: texts drawn`);
+        assert.deepEqual(plain.filter((t) => !(t.size >= 14)), [], `${name}: text below 14 px`);
+        const host = textSizes((await render(view, SALES, { format: "svg", echarts, size: { width: 640, height: 400 }, tokens: { "--pk-chart-text-size": "18px" }, ...FIXED })).text);
+        assert.deepEqual(host.filter((t) => t.text !== "Units" && t.size !== 18), [], `${name}: the host's size`);
+    }
+});

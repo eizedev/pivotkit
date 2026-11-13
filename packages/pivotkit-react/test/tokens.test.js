@@ -243,7 +243,8 @@ test("styles.css: every --pk-weight-* a rule uses is declared in the token block
 
 /**
  * What a line of code sets as a literal: a colour, a font weight, a corner radius (other than a shape),
- * a font size or a font family.
+ * a font size (an option's, a default parameter's, a code-built stylesheet's, a text width estimated
+ * at a fixed size) or a font family.
  * @param {string} line
  */
 function codeLiteral(line) {
@@ -252,19 +253,27 @@ function codeLiteral(line) {
         /font-weight:\s*\d/.test(line) ||
         /["'`][^"'`]*(#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\()/.test(line) ||
         /(borderRadius\s*[:=]|border-radius:)\s*[[("'`]*\s*(?!0\b|50%|999px)\d/.test(line) ||
-        /fontSize\s*:\s*["'`]?\d|\.fontSize\s*=\s*["'`]?\d/.test(line) ||
+        /fontSize\s*[:=]\s*["'`]?\d/.test(line) ||
+        /(font-size|\bfont):\s*\d/.test(line) ||
+        /String\([^)]*\)\.length\s*\*\s*\d|\b\d+\s*\*\s*(0\.55|CHAR_WIDTH)\b/.test(line) ||
         /setProperty\(\s*["'`](border(-[a-z]+)*-radius|font-size|font-family|outline(-width|-offset)?)["'`]\s*,\s*["'`][\w"']/.test(line) ||
         /font-family:\s*(?!var\(|inherit|\$)[\w"']/.test(line)
     );
 }
 
-test("the code check finds colours, weights, radii, title sizes and font families written as literals", () => {
+test("the code check finds colours, weights, radii, font sizes and font families written as literals", () => {
     const bad = [
         'extraCssText: "border-radius: 8px;"',
         "itemStyle: { borderRadius: 4 }",
         "itemStyle: { borderRadius: [4, 4, 0, 0] }",
         "textStyle: { fontSize: 16 }",
         'tip.style.fontSize = "12px"',
+        "function columnLabelLayout(names, width, fontSize = 12) {",
+        "body{margin:0;font:14px/1.45 ${font}}",
+        ".pk-report h1{font-size:20px}",
+        "body{font-size:10pt}",
+        "const labelWidth = (text) => String(text).length * 7;",
+        "const longest = names.length * 12 * 0.55;",
         'textStyle: { fontSize: "16px" }',
         'el.style.setProperty("border-radius", "8px")',
         'css: "font-family: Menlo, monospace"',
@@ -273,8 +282,8 @@ test("the code check finds colours, weights, radii, title sizes and font familie
     ];
     const good = [
         'marker.style.borderRadius = "50%"', "borderRadius: s.stack ? 0 : r", "fontSize: theme.titleSize", 'css: "font-family: var(--pk-font-mono)"', "border-radius:var(--pk-radius-card)",
-        // ECharts' own label size, which the chart's layout measures with (not set by the report)
-        "function columnLabelLayout(names, width, fontSize = 12) {"
+        "function columnLabelLayout(names, width, fontSize = DEFAULT_THEME.textSize) {", ".pk-report h1{font-size:var(--pk-report-title-size)}", "body{font:var(--pk-font-size)/1.45 ${font}}",
+        "const longest = names.length * fontSize * CHAR_WIDTH;", "const bits = bytes.length * 8;"
     ];
     assert.deepEqual(bad.filter((l) => !codeLiteral(l)), []);
     assert.deepEqual(good.filter(codeLiteral), []);

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DEFAULT_THEME } from "pivotkit-core";
-import { DARK_TOKENS, LIGHT_TOKENS, SHAPE_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
+import { DARK_TOKENS, LIGHT_TOKENS, SHAPE_TOKENS, SIZE_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
 import { SALES } from "./fixtures.js";
 
 const css = readFileSync(new URL("../../pivotkit-react/src/styles.css", import.meta.url), "utf8");
@@ -33,24 +33,27 @@ test("the light and the dark tokens are pivotkit-react's, name for name", () => 
 });
 
 /**
- * A length token of the light block in px at a 16 px font: its var()s followed, calc(), max() and px
- * worked out (only what styles.css writes for the sizes DEFAULT_THEME keeps).
+ * A length token of the light block in px at the least font size, 14 px: its var()s followed, calc(),
+ * max() and px worked out (only what styles.css writes for the sizes DEFAULT_THEME keeps). A chart
+ * without a page (pivotkit-core alone, an SVG) is drawn at the sizes of the smallest report.
  */
 function px(name, light, depth = 0) {
     assert.ok(depth < 5 && name in light, `${name} is declared`);
     const text = light[name]
         .replace(/var\((--pk-[a-z0-9-]+)\)/g, (_, ref) => `(${px(ref, light, depth + 1)})`)
         .replace(/(\d*\.?\d+)px/g, "$1")
-        .replace(/(\d*\.?\d+)em/g, (_, n) => `(${n} * 16)`)
+        .replace(/(\d*\.?\d+)em/g, (_, n) => `(${n} * 14)`)
         .replace(/calc\(/g, "(")
         .replace(/max\(/g, "Math.max(");
     assert.match(text, /^[\d\s.()*/+,-]*$|Math\.max/, `${name}: ${light[name]}`);
     return Function(`return ${text}`)();
 }
 
-test("DEFAULT_THEME's chart sizes are the light tokens' at a 16 px font", () => {
+test("DEFAULT_THEME's chart sizes are the light tokens' at the least font size, 14 px", () => {
     const light = tokensOf(":where(.pk-root)");
     assert.equal(DEFAULT_THEME.titleSize, px("--pk-chart-title-size", light));
+    assert.equal(DEFAULT_THEME.textSize, px("--pk-chart-text-size", light));
+    assert.equal(DEFAULT_THEME.textSize, 14, "the chart's text at the 14 px minimum");
     assert.equal(DEFAULT_THEME.markRadius, px("--pk-radius-chart", light));
     assert.equal(DEFAULT_THEME.cardRadius, px("--pk-radius-card", light));
 });
@@ -102,9 +105,27 @@ test("print: landscape from more than 8 columns, a smaller font from more than 1
     assert.match(narrow.text, /@page\{margin:12mm;\}/);
     const nine = await render(view, wide(8), { format: "html" });
     assert.match(nine.text, /@page\{margin:12mm;size:landscape;\}/);
-    assert.ok(!nine.text.includes(".pk-table{font-size:7pt}"));
+    assert.ok(!nine.text.includes(".pk-table{font-size:"));
     const many = await render(view, wide(20), { format: "html" });
-    assert.ok(many.text.includes(".pk-table{font-size:7pt}"));
+    assert.ok(many.text.includes(".pk-table{font-size:var(--pk-print-small)}"));
     assert.match(many.text, /thead\{display:table-header-group\}/);
     assert.match(many.text, /tr\{break-inside:avoid\}/);
+});
+
+// #220: the report's font sizes are tokens, so a host matches them as it matches its colours
+test("the report's stylesheet takes its font sizes from the tokens, and a host's sizes reach it", async () => {
+    const wide = Array.from({ length: 20 }, (_, i) => ({ Region: "North", Month: `M${String(i).padStart(2, "0")}`, Units: i }));
+    const view = { rows: ["Region"], cols: ["Month"], values: [{ field: "Units", agg: "sum" }] };
+    const sizes = { "--pk-font-size": "15px", "--pk-small": "14.5px", "--pk-report-title-size": "26px", "--pk-print-size": "11pt", "--pk-print-small": "8pt" };
+    const r = await render(view, wide, { format: "html", tokens: sizes });
+    const style = r.text.slice(r.text.indexOf("<style>"), r.text.indexOf("</style>"));
+    const literal = [...style.matchAll(/(?:font-size|[{;]font):\s*([^;}]+)/g)].map((m) => m[0]).filter((d) => !/:\s*var\(--pk-[a-z-]+\)/.test(d));
+    assert.deepEqual(literal, [], "no literal font size");
+    for (const [name, value] of Object.entries(sizes)) assert.ok(style.includes(`${name}:${value}`), name);
+    // the defaults: 14 px text, a 20 px title, details never below 14 px, 10 pt and 7 pt on paper
+    const plain = await render(view, wide, { format: "html" });
+    for (const [name, value] of Object.entries(SIZE_TOKENS)) assert.ok(plain.text.includes(`${name}:${value}`), name);
+    assert.deepEqual(SIZE_TOKENS, { "--pk-font-size": "14px", "--pk-small": "max(14px, 0.93em)", "--pk-report-title-size": "calc(var(--pk-font-size) * 10 / 7)", "--pk-print-size": "10pt", "--pk-print-small": "7pt" });
+    assert.match(plain.text, /\.pk-report-details\{[^}]*font-size:var\(--pk-small\)/);
+    assert.match(plain.text, /\.pk-table\{font-size:var\(--pk-print-small\)\}/);
 });
