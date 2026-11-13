@@ -15,10 +15,12 @@
 //   node build.js          build
 //   node build.js --size   build, print the gzip size of what a page loads, fail above SIZE_BUDGET_KIB
 import * as esbuild from "esbuild";
-import { readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { options as reactOptions } from "../pivotkit-react/build.js";
+import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
+export { bundledPackages } from "../../scripts/third-party-licenses.js";
 import { hostStyles } from "./src/host-css.js";
 
 const here = new URL(".", import.meta.url).pathname;
@@ -71,58 +73,11 @@ export const workerOptions = {
     metafile: false
 };
 
-/**
- * The package directories (node_modules/<name> or node_modules/@scope/<name>) of the bundled inputs.
- * @param {import("esbuild").Metafile} metafile
- */
-export function bundledPackages(metafile) {
-    const dirs = new Set();
-    for (const input of Object.keys(metafile.inputs)) {
-        const m = /^(.*node_modules[\\/](?:@[^\\/]+[\\/])?[^\\/]+)[\\/]/.exec(input);
-        if (m) {
-            dirs.add(m[1]);
-        }
-    }
-    return [...dirs].sort();
-}
-
 /** The license and notice files of the bundled packages, as one text. */
 async function licenses(metafile) {
-    const parts = [
-        "pivotkit-element bundles the following packages. Their license texts follow; pivotkit-core,",
-        "pivotkit-react and pivotkit-report are part of pivotkit (MIT, see LICENSE).",
-        ""
-    ];
-    // one entry per name and version: tslib, say, is bundled from two directories
-    const seen = new Set();
-    for (const dir of bundledPackages(metafile)) {
-        const abs = join(here, dir);
-        const meta = JSON.parse(await readFile(join(abs, "package.json"), "utf8"));
-        if (seen.has(`${meta.name}@${meta.version}`)) {
-            continue;
-        }
-        seen.add(`${meta.name}@${meta.version}`);
-        parts.push("=".repeat(78), `${meta.name} ${meta.version} (${meta.license})`, "=".repeat(78), "");
-        // LICENSE, NOTICE and the like; a licenses/ directory (ECharts: code it took from d3) too
-        const files = [];
-        for (const entry of await readdir(abs, { withFileTypes: true })) {
-            if (!/^(licen[cs]es?|notice|copying)/i.test(entry.name)) {
-                continue;
-            }
-            if (entry.isFile()) {
-                files.push(entry.name);
-            } else if (entry.isDirectory()) {
-                files.push(...(await readdir(join(abs, entry.name))).map((f) => join(entry.name, f)));
-            }
-        }
-        if (files.length === 0) {
-            throw new Error(`${meta.name}: no license file to bundle`);
-        }
-        for (const f of files.sort()) {
-            parts.push(`--- ${f} ---`, "", (await readFile(join(abs, f), "utf8")).trim(), "");
-        }
-    }
-    return parts.join("\n");
+    return thirdPartyLicenses(metafile, here,
+        "pivotkit-element bundles the following packages. Their license texts follow; pivotkit-core,\n" +
+        "pivotkit-react and pivotkit-report are part of pivotkit (MIT, see LICENSE).");
 }
 
 /**

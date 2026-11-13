@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import { BUILT_IN_READERS, PLUGIN_API_VERSION, csvReader, jsonReader, loadReader, readFile, readerFor, retype, validatePlugin } from "pivotkit-core/import";
 import { LIMITS, PivotkitError, computePivot, encode, toGrid } from "pivotkit-core";
 
+import { fileName } from "../src/import-table.js";
+
 const fixture = (name) => readFileSync(new URL(`./import-fixtures/${name}`, import.meta.url));
 const fileOf = (name, bytes = fixture(name)) => new File([bytes], name);
 const text = (name, content) => new File([new TextEncoder().encode(content)], name);
@@ -350,4 +352,15 @@ test("a JSON key in a note is cleaned and cut", async () => {
     const p = t.notes.find((n) => n.code === "JSON_PROPERTY").params.property;
     assert.ok(!p.includes("\u{202E}"));
     assert.equal(p.length, 256);
+});
+
+test("file names capped at 256 units keep complete Unicode characters", () => {
+    for (const prefix of [254, 255, 256]) {
+        const name = "a".repeat(prefix) + "😀.csv";
+        const expected = prefix === 254 ? "a".repeat(254) + "😀" : "a".repeat(Math.min(prefix, 256));
+        assert.equal(fileName({ name }), expected);
+        assert.equal(fileName(null, { name }), expected);
+        assert.equal(new TextDecoder().decode(new TextEncoder().encode(expected)), expected);
+    }
+    assert.equal(fileName({ name: "" }), "file");
 });

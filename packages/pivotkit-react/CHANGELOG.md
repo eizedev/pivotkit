@@ -95,6 +95,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A choice clicked in a field's Top items level keeps the focus, also in Safari, where a click does
+  not focus a radio button ([#119](https://github.com/eizedev/pivotkit/issues/119)).
 - The rule between a menu's groups had 1.3:1 contrast in the light theme and 1.2:1 in the dark one,
   and in More, whose groups have no titles, it is the only thing that tells them apart. It is drawn
   in the new token `--pk-rule`, 3:1 against the menu in both themes
