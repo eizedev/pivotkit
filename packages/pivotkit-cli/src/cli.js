@@ -11,7 +11,7 @@
 import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import { LIMITS, OUTSIDE_LIMITS, VIEW_FILE_FORMAT, describeSource, describeView, encode, fromViewFile, outsideLimits, validate } from "pivotkit-core";
+import { LIMITS, OUTSIDE_LIMITS, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, validate } from "pivotkit-core";
 import { readFile } from "pivotkit-core/import";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "pivotkit-report";
@@ -41,28 +41,7 @@ export function versions() {
     return { "pivotkit-cli": of("pivotkit-cli"), "pivotkit-report": of("pivotkit-report"), "pivotkit-core": of("pivotkit-core") };
 }
 
-/** The edit distance of two short words, for "did you mean". */
-function distance(a, b) {
-    const row = Array.from({ length: b.length + 1 }, (_, j) => j);
-    for (let i = 1; i <= a.length; i++) {
-        let prev = row[0];
-        row[0] = i;
-        for (let j = 1; j <= b.length; j++) {
-            const keep = row[j];
-            row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
-            prev = keep;
-        }
-    }
-    return row[b.length];
-}
-
-/** The closest of `known` to `word`, when it is close. */
-function closest(word, known) {
-    const best = known.map((k) => [k, distance(word.toLowerCase(), k.toLowerCase())]).sort((a, b) => a[1] - b[1])[0];
-    return best && best[1] <= Math.max(1, Math.floor(best[0].length / 2)) ? best[0] : null;
-}
-
-/** "; did you mean --x?" or "". */
+/** "; did you mean --x?" or "" (pivotkit-core's closest(), as the view's and the template's hints). */
 const didYouMean = (word, known, prefix = "") => {
     const near = closest(word, known);
     return near ? `; did you mean ${prefix}${near}?` : "";
@@ -187,11 +166,15 @@ export async function main(argv, io) {
             return 0;
         }
         // defaults from the environment; an option given wins
+        /** @type {Record<string, string>} the options whose value came from an environment variable */
+        const fromEnv = {};
         for (const [name, spec] of Object.entries(optionsOf(command))) {
             if (spec.env && values[name] === undefined && io.env[spec.env]) {
                 values[name] = io.env[spec.env];
+                fromEnv[name] = spec.env;
             }
         }
+        checkValues(values, fromEnv);
         const ctx = await context(values, io);
         const outcome = command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
         findings = outcome.findings;
@@ -218,6 +201,33 @@ export async function main(argv, io) {
             say(`pivotkit: ${error.message}`);
         }
         return 2;
+    }
+}
+
+/**
+ * Checks the options every command takes the same way, so a wrong one (or a wrong environment
+ * variable) is an error in every command, not only in the one that uses it.
+ * @param {Record<string, any>} values
+ * @param {Record<string, string>} fromEnv
+ */
+function checkValues(values, fromEnv) {
+    const bad = (name, what) => new CliError("usage", "BAD_VALUE", `--${name} ${printable(JSON.stringify(values[name]))} is not ${what}${fromEnv[name] ? ` (from ${fromEnv[name]})` : ""}`);
+    if (values.locale !== undefined) {
+        try {
+            Intl.getCanonicalLocales(values.locale);
+        } catch {
+            throw bad("locale", "a locale tag such as en-US or de-DE");
+        }
+    }
+    if (values["time-zone"] !== undefined) {
+        try {
+            new Intl.DateTimeFormat("en-US", { timeZone: values["time-zone"] });
+        } catch {
+            throw bad("time-zone", "a time zone such as UTC or Europe/Berlin");
+        }
+    }
+    if (values.now !== undefined && Number.isNaN(new Date(values.now).getTime())) {
+        throw bad("now", "a date or an ISO time such as 2026-11-13 or 2026-11-13T09:00:00Z");
     }
 }
 
@@ -300,6 +310,28 @@ async function readData(values, ctx) {
 /** The render options common to the commands. */
 const renderBase = (ctx) => ({ ...(ctx.locale ? { locale: ctx.locale } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(ctx.now ? { now: ctx.now } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
 
+/** The extensions -o names a format by (".htm" is HTML too). */
+const EXTENSIONS = Object.freeze({ ...Object.fromEntries(Object.keys(RENDER_FORMATS).map((f) => [f, f])), htm: "html" });
+
+/** The format of an output file by its extension; html on stdout. Another extension is an error, not HTML in a .pdf. */
+function formatOf(output) {
+    if (!output) {
+        return "html";
+    }
+    const ext = extname(output).slice(1).toLowerCase();
+    if (!Object.hasOwn(EXTENSIONS, ext)) {
+        throw new CliError("usage", "UNKNOWN_EXTENSION", `${shortName(output)}: ${ext ? `.${printable(ext)} is no format pivotkit writes` : "no extension to take the format from"}; give -f ${COMMANDS.render.options.format.choices?.join(", ")}, or an extension of one`);
+    }
+    return EXTENSIONS[ext];
+}
+
+/** Warnings for options given that do nothing in the format (their `formats` in the table). */
+function ignoredOptions(values, format) {
+    return Object.entries(optionsOf("render"))
+        .filter(([name, spec]) => spec.formats && values[name] !== undefined && !spec.formats.includes(format))
+        .map(([name, spec]) => ({ severity: "warning", code: "ignoredOption", path: "", message: `--${name} does nothing in ${format} (only in ${spec.formats.join(", ")})` }));
+}
+
 async function renderCommand(positionals, values, ctx) {
     if (positionals.length > 1) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `render takes one view, not ${positionals.length}`);
@@ -307,7 +339,7 @@ async function renderCommand(positionals, values, ctx) {
     if (values.json && !values.output) {
         throw new CliError("usage", "JSON_NEEDS_OUTPUT", "--json writes the result on stdout: give the output a file with -o");
     }
-    const format = values.format ?? (values.output && Object.hasOwn(RENDER_FORMATS, extname(values.output).slice(1).toLowerCase()) ? extname(values.output).slice(1).toLowerCase() : "html");
+    const format = values.format ?? formatOf(values.output);
     if (!values.output && format === "xlsx" && ctx.io.stdout.isTTY) {
         throw new CliError("usage", "BINARY_TO_TERMINAL", "an XLSX file is not shown in a terminal: write it to a file with -o, or redirect stdout");
     }
@@ -316,6 +348,7 @@ async function renderCommand(positionals, values, ctx) {
     if (!data) {
         throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file> or --data -");
     }
+    const findings = [...data.notes, ...ignoredOptions(values, format)];
     const template = values.template !== undefined ? textOf(await ctx.readInput(values.template, "the template", TEMPLATE_BYTES, "template")) : undefined;
     const echarts = format === "svg" || format === "html" ? await import("echarts") : undefined;
     const width = intOption("width", values.width, 100, 8000);
@@ -330,13 +363,15 @@ async function renderCommand(positionals, values, ctx) {
             ...(values.title !== undefined ? { title: values.title } : {}),
             ...(template !== undefined ? { template } : {}),
             ...(values.chart ? { chart: values.chart === "auto" ? "auto" : values.chart === "on" } : {}),
+            // a byte order mark lets Excel read a CSV file as UTF-8; a program reading stdout gets none
+            ...(format === "csv" ? { bom: values.bom === "on" || ((values.bom ?? "auto") === "auto" && Boolean(values.output)) } : {}),
             ...(echarts ? { echarts } : {}),
             ...(width || height ? { size: { ...(width ? { width } : {}), ...(height ? { height } : {}) } } : {})
         });
     } catch (e) {
         throw asCliError(e, values.template);
     }
-    const findings = [...data.notes, ...result.issues.map(findingOf)];
+    findings.push(...result.issues.map(findingOf));
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
     /** @type {any} */
     const extra = { summary: result.summary };
@@ -345,7 +380,9 @@ async function renderCommand(positionals, values, ctx) {
             try {
                 await writeSafe(values.output, result.body, { cwd: ctx.io.cwd, allow: ctx.allow });
             } catch (e) {
-                throw asCliError(e, values.output);
+                const error = asCliError(e, values.output);
+                // -o /dev/stdout: a device is never replaced, and stdout is where the output goes without -o
+                throw error.code === "SPECIAL_FILE" ? new CliError(error.kind, error.code, `${error.message}; to write to stdout, leave out -o`) : error;
             }
             extra.output = { file: shortName(values.output), format, mediaType: result.mediaType, bytes: result.body.length };
         } else {
@@ -386,10 +423,17 @@ async function describeCommand(positionals, values, ctx) {
     const ext = input === "-" ? values["data-format"] ?? "" : extname(input).slice(1).toLowerCase();
     let kind = values.as;
     let text = null;
+    /** @type {Uint8Array | null} a JSON file read to tell a view from data, kept for reading it as data */
+    let bytes = null;
     if (!kind) {
-        if (ext === "json" || input.trimStart().startsWith("{") || (input === "-" && !values["data-format"])) {
-            text = input.trimStart().startsWith("{") ? input : textOf(await ctx.readInput(input, "the input", Math.max(VIEW_BYTES, ctx.fileLimits.fileBytes), "fileBytes"));
+        if (input.trimStart().startsWith("{")) {
+            text = input;
             kind = isView(text) ? "view" : "data";
+        } else if (ext === "json" || (input === "-" && !values["data-format"])) {
+            bytes = await ctx.readInput(input, "the input", Math.max(VIEW_BYTES, ctx.fileLimits.fileBytes), "fileBytes");
+            // a file larger than a view may be is data: not decoded and parsed only to tell
+            text = bytes.length <= VIEW_BYTES ? textOf(bytes) : null;
+            kind = text !== null && isView(text) ? "view" : "data";
         } else {
             kind = "data";
         }
@@ -411,8 +455,9 @@ async function describeCommand(positionals, values, ctx) {
         }
         return { findings: [...(data?.notes ?? []), ...[...described.errors, ...described.warnings].map(findingOf)], extra: { kind, name: printable(read.name), description: described } };
     }
-    // data: from the text read above (a JSON file that is no view), else the file
-    const data = await readData({ ...values, data: input, "data-format": values["data-format"] ?? (text !== null ? "json" : undefined) }, text !== null ? withText(ctx, input, text) : ctx);
+    // data: the bytes or the text read above (JSON that is no view), else the file
+    const known = bytes ?? (text !== null ? new TextEncoder().encode(text) : null);
+    const data = await readData({ ...values, data: input, "data-format": values["data-format"] ?? (known ? "json" : undefined) }, known ? withBytes(ctx, input, known) : ctx);
     const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}) });
     const full = describeSource(encoded, { items });
     // what is shown by default is names, types and counts: values (items, the smallest and largest) only with --items
@@ -426,9 +471,9 @@ async function describeCommand(positionals, values, ctx) {
     return { findings: data.notes, extra: { kind: "data", description: summary } };
 }
 
-/** A context whose reader hands back text already read (stdin is read once). */
-function withText(ctx, input, text) {
-    return { ...ctx, readInput: async (path) => (path === input ? new TextEncoder().encode(text) : ctx.readInput(path)) };
+/** A context whose reader hands back the bytes already read (stdin is read once). */
+function withBytes(ctx, input, bytes) {
+    return { ...ctx, readInput: async (path, ...rest) => (path === input ? bytes : ctx.readInput(path, ...rest)) };
 }
 
 /** Whether a JSON text is a view: a view file, a template { name, view }, or an object with a view's keys. */

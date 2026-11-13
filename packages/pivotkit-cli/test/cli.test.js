@@ -45,8 +45,61 @@ test("render to stdout: CSV of the view over the data, nothing else on stdout; i
     const dir = fixtureDir();
     const r = await run(["render", "view.json", "--data", "sales.csv", "--format", "csv"], { cwd: dir });
     assert.equal(r.code, 0);
-    assert.equal(r.stdout, "﻿Region,Sum of Units\r\nNorth,5\r\nSouth,4\r\nWest,5\r\nGrand Total,14\r\n");
+    // no byte order mark on stdout: the first header cell is "Region" for cut, diff or a CSV reader
+    assert.equal(r.stdout, "Region,Sum of Units\r\nNorth,5\r\nSouth,4\r\nWest,5\r\nGrand Total,14\r\n");
     assert.equal(r.stderr, "");
+});
+
+test("--bom: a CSV file of -o starts with a byte order mark for Excel, stdout not; on and off decide", async () => {
+    const dir = fixtureDir();
+    const bom = (bytes) => bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    assert.equal((await run(["render", "view.json", "--data", "sales.csv", "-o", "auto.csv"], { cwd: dir })).code, 0);
+    assert.ok(bom(readFileSync(join(dir, "auto.csv"))));
+    assert.equal((await run(["render", "view.json", "--data", "sales.csv", "-o", "off.csv", "--bom", "off"], { cwd: dir })).code, 0);
+    assert.ok(!bom(readFileSync(join(dir, "off.csv"))));
+    assert.ok(bom((await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "--bom", "on"], { cwd: dir })).bytes));
+});
+
+test("-o names the format by a known extension; another extension or none is a usage error, not HTML in a .pdf", async () => {
+    const dir = fixtureDir();
+    for (const [file, message] of [["report.pdf", /report\.pdf: \.pdf is no format pivotkit writes; give -f html, csv, json, xlsx, svg/], ["report", /report: no extension to take the format from/]]) {
+        const r = await run(["render", "view.json", "--data", "sales.csv", "-o", file], { cwd: dir });
+        assert.equal(r.code, 2, file);
+        assert.match(r.stderr, message);
+        assert.ok(!existsSync(join(dir, file)), file);
+    }
+    // -f decides whatever the extension; .htm is HTML
+    assert.equal((await run(["render", "view.json", "--data", "sales.csv", "-o", "report.pdf", "-f", "html"], { cwd: dir })).code, 0);
+    assert.equal((await run(["render", "view.json", "--data", "sales.csv", "-o", "page.htm"], { cwd: dir })).code, 0);
+    assert.ok(readFileSync(join(dir, "page.htm"), "utf8").startsWith("<!doctype html>"));
+});
+
+test("an option that does nothing in the format is a warning (exit 1 with --strict); a device as -o says to leave it out", async () => {
+    const dir = fixtureDir();
+    const r = await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "--width", "800", "--title", "T"], { cwd: dir });
+    assert.equal(r.code, 0);
+    assert.match(r.stderr, /warning ignoredOption: --title does nothing in csv \(only in html, xlsx\)/);
+    assert.match(r.stderr, /warning ignoredOption: --width does nothing in csv \(only in svg, html\)/);
+    assert.equal((await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "--width", "800", "--strict"], { cwd: dir })).code, 1);
+    const device = await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "-o", "/dev/null"], { cwd: dir });
+    assert.equal(device.code, 2);
+    assert.match(device.stderr, /null: exists and is a device or another special file; not replaced; to write to stdout, leave out -o/);
+});
+
+test("--locale, --time-zone and --now are checked by every command, and name the variable they came from", async () => {
+    const dir = fixtureDir();
+    for (const command of [["render", "view.json", "--data", "sales.csv", "-f", "csv"], ["validate", "view.json", "--data", "sales.csv"], ["describe", "sales.csv"]]) {
+        const env = await run(command, { cwd: dir, env: { PIVOTKIT_NOW: "garbage" } });
+        assert.equal(env.code, 2, command[0]);
+        assert.match(env.stderr, /--now "garbage" is not a date .* \(from PIVOTKIT_NOW\)/, command[0]);
+        const flag = await run([...command, "--locale", "not_a_locale"], { cwd: dir });
+        assert.equal(flag.code, 2, command[0]);
+        assert.match(flag.stderr, /--locale "not_a_locale" is not a locale tag/);
+        assert.ok(!flag.stderr.includes("options.locale") && !flag.stderr.includes("from PIVOTKIT"));
+        const zone = await run([...command, "--time-zone", "Mars/Olympus"], { cwd: dir });
+        assert.equal(zone.code, 2, command[0]);
+        assert.match(zone.stderr, /--time-zone "Mars\/Olympus" is not a time zone/);
+    }
 });
 
 test("stdin: the view or the data, not both; data from stdin needs its format", async () => {
@@ -148,10 +201,14 @@ test("--allow-dir is a hard limit: a link out of it, .. and an output outside ar
     for (const [args, what] of [[["describe", "link.csv"], "link.csv"], [["describe", "../outside/secret.csv"], "secret.csv"], [["render", "view.json", "--data", "sales.csv", "-o", "../outside/out.csv"], "out.csv"]]) {
         const r = await run([...args, ...allow], { cwd: inside });
         assert.equal(r.code, 2, args.join(" "));
-        assert.match(r.stderr, new RegExp(`${what.replace(".", "\\.")}: outside the allowed directories`));
+        // the allowed directories are named by their base names, as every path in a message
+        assert.match(r.stderr, new RegExp(`${what.replace(".", "\\.")}: outside the allowed directories \\(--allow-dir inside\\)`));
         assert.ok(!r.stderr.includes("TOP-SECRET") && !r.stdout.includes("TOP-SECRET"));
     }
     assert.ok(!existsSync(join(outside, "out.csv")));
+    // a name that starts with ".." is a name inside the directory, not a way out of it
+    writeFileSync(join(inside, "..data.csv"), SALES_CSV);
+    assert.equal((await run(["describe", "..data.csv", ...allow], { cwd: inside })).code, 0);
     // without --allow-dir the user's own rights apply: the link is followed
     assert.equal((await run(["describe", "link.csv"], { cwd: inside })).code, 0);
 });
@@ -170,10 +227,16 @@ test("only regular files: a FIFO is refused without waiting for a writer, a dire
     symlinkSync(join(dir, "target.txt"), join(dir, "link.csv"));
     const link = await run(["render", "view.json", "--data", "sales.csv", "-o", "link.csv"], { cwd: dir });
     assert.equal(link.code, 2);
-    assert.match(link.stderr, /link\.csv: exists and is not a regular file/);
+    assert.match(link.stderr, /link\.csv: exists and is a symbolic link; not replaced/);
     assert.equal(readFileSync(join(dir, "target.txt"), "utf8"), "keep me");
     const toFolder = await run(["render", "view.json", "--data", "sales.csv", "-o", "folder.csv"], { cwd: dir });
     assert.equal(toFolder.code, 2);
+    assert.match(toFolder.stderr, /folder\.csv: exists and is a directory; not replaced/);
+    // a long name: the temporary file next to it still fits a file name's 255 bytes
+    const long = `${"ä".repeat(120)}.csv`;
+    const longRun = await run(["render", "view.json", "--data", "sales.csv", "-o", long], { cwd: dir });
+    assert.equal(longRun.code, 0, longRun.stderr);
+    assert.ok(existsSync(join(dir, long)));
 });
 
 test("no file content in a message: a broken view, data that cannot be read, a hostile field name cleaned", async () => {

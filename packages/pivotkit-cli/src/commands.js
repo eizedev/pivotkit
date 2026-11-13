@@ -13,6 +13,7 @@
  * @property {string[]} [choices]  the values it takes (checked, and offered by the completions)
  * @property {"file" | "dir"} [complete]  what a shell completes for its value
  * @property {string} [env]  the environment variable that gives its default
+ * @property {string[]} [formats]  render: the output formats it acts in (given with another, a warning)
  * @property {string} text  one line of help
  */
 
@@ -20,9 +21,9 @@
 export const GLOBAL_OPTIONS = Object.freeze({
     json: { type: "boolean", text: "Write the result as one JSON object on stdout (render: needs -o)." },
     quiet: { type: "boolean", short: "q", text: "Write no notes and warnings to stderr; errors still." },
-    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", text: "Numbers, dates and texts in this locale when the view names none (default en-US)." },
+    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", text: "render: numbers, dates and texts in this locale when the view names none (default en-US); checked by every command." },
     "time-zone": { type: "string", value: "zone", env: "PIVOTKIT_TIME_ZONE", text: "Time zone of the data's dates and of the generated time (default UTC)." },
-    now: { type: "string", value: "date", env: "PIVOTKIT_NOW", text: 'The "today" of relative date filters and the generated time; fix it for the same output on every run.' },
+    now: { type: "string", value: "date", env: "PIVOTKIT_NOW", text: 'render: the "today" of relative date filters and the generated time; fix it for the same output on every run; checked by every command.' },
     limit: { type: "string", multiple: true, value: "key=n", text: "Set one of pivotkit-core's limits (rows=200000); may be given more than once." },
     "allow-dir": { type: "string", multiple: true, value: "dir", complete: "dir", text: "Read and write only inside this directory (symbolic links and .. resolved); may be given more than once." },
     help: { type: "boolean", short: "h", text: "Show the help of the command." }
@@ -59,13 +60,14 @@ export const COMMANDS = Object.freeze({
         options: {
             ...VIEW_OPTIONS,
             ...DATA_OPTIONS,
-            format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension, else html." },
+            format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension (another one is an error), html on stdout." },
             output: { type: "string", short: "o", value: "file", complete: "file", text: "Write to this file (replaced if it is a file) instead of stdout." },
-            template: { type: "string", value: "file", complete: "file", text: "html: the print template with {{placeholders}} (default the built-in one)." },
-            title: { type: "string", value: "text", text: "html, xlsx: the report's title (default the view file's name)." },
-            chart: { type: "string", value: "when", choices: ["auto", "on", "off"], text: "html: the chart above the table: auto (when the view shows the chart), on or off." },
-            width: { type: "string", value: "px", text: "svg, html: the chart's width (default 800)." },
-            height: { type: "string", value: "px", text: "svg, html: the chart's height (default 480)." },
+            template: { type: "string", value: "file", complete: "file", formats: ["html"], text: "html: the print template with {{placeholders}} (default the built-in one)." },
+            title: { type: "string", value: "text", formats: ["html", "xlsx"], text: "html, xlsx: the report's title (default the view file's name)." },
+            chart: { type: "string", value: "when", choices: ["auto", "on", "off"], formats: ["html"], text: "html: the chart above the table: auto (when the view shows the chart), on or off." },
+            width: { type: "string", value: "px", formats: ["svg", "html"], text: "svg, html: the chart's width (default 800)." },
+            height: { type: "string", value: "px", formats: ["svg", "html"], text: "svg, html: the chart's height (default 480)." },
+            bom: { type: "string", value: "when", choices: ["auto", "on", "off"], formats: ["csv"], text: "csv: a byte order mark first, so Excel reads UTF-8: auto (in a file of -o, not on stdout), on or off." },
             lenient: { type: "boolean", text: "Write the output also when the view has errors (as the report shows it); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." }
         },

@@ -28,3 +28,18 @@ test("an XLSX is not written to a terminal: exit 2 with the hint, nothing on std
     assert.equal(await main(["render", "view.json", "--data", "sales.csv", "-f", "xlsx"], piped.io), 0);
     assert.deepEqual([...piped.out[0].subarray(0, 2)], [0x50, 0x4b]);
 });
+
+test("a file that has more bytes than its size said is refused as changed, never cut (Linux: a /proc file says 0)", { skip: process.platform === "linux" ? false : "needs /proc, whose files report size 0" }, async () => {
+    const { readSafe } = await import("../src/safe-files.js");
+    await assert.rejects(readSafe("/proc/self/status", { cwd: "/", allow: [], maxBytes: 1_000_000 }), (e) => e.code === "CHANGED" && /status: changed while it was read/.test(e.message));
+});
+
+test("a regular file is read whole, up to the last byte; a file of 0 bytes is empty", async () => {
+    const { readSafe } = await import("../src/safe-files.js");
+    const dir = tempDir();
+    writeFileSync(join(dir, "six.txt"), "abcdef");
+    writeFileSync(join(dir, "empty.txt"), "");
+    assert.equal(new TextDecoder().decode(await readSafe("six.txt", { cwd: dir, allow: [], maxBytes: 6 })), "abcdef");
+    assert.equal((await readSafe("empty.txt", { cwd: dir, allow: [], maxBytes: 6 })).length, 0);
+    await assert.rejects(readSafe("six.txt", { cwd: dir, allow: [], maxBytes: 5 }), (e) => e.code === "LIMIT_EXCEEDED");
+});

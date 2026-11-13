@@ -16,4 +16,9 @@ First release.
 - Files read once as regular files with their size checked before reading, written through a
   temporary file; `--allow-dir` limits every file to the directories named (real paths); no file
   content in a message.
-- Defaults from `PIVOTKIT_LOCALE`, `PIVOTKIT_TIME_ZONE` and `PIVOTKIT_NOW`.
+- Defaults from `PIVOTKIT_LOCALE`, `PIVOTKIT_TIME_ZONE` and `PIVOTKIT_NOW`; every command checks them
+  and names the variable a wrong value came from.
+- `--bom auto|on|off`: a CSV file of `-o` starts with a byte order mark for Excel, CSV on stdout not.
+- The format comes from `-f` or a known extension of `-o`; another extension (`-o report.pdf`) is a
+  usage error instead of HTML in a `.pdf`.
+- An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.

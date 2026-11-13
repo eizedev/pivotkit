@@ -13,7 +13,10 @@
  *   the target is refused, never replaced.
  *
  * Not a sandbox against another process of the same user that changes the directories while the CLI
- * runs: the checks narrow that window, they do not close it. The MCP server of step 3 reuses this module.
+ * runs: the checks narrow that window, they do not close it. A hard link inside an allowed directory
+ * to a file outside it is that file's name inside: no path check can tell it apart. A temporary file
+ * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp").
+ * The MCP server of step 3 reuses this module.
  */
 
 import { constants } from "node:fs";
@@ -26,7 +29,8 @@ const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants
 /** True when `real` is `dir` or lies inside it (both real paths). */
 export function isInside(real, dir) {
     const rel = relative(dir, real);
-    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel) && rel.split(sep)[0] !== "..");
+    // "..foo" is a name inside the directory; only ".." as the first part leaves it
+    return rel === "" || (!isAbsolute(rel) && rel.split(sep)[0] !== "..");
 }
 
 /**
@@ -55,7 +59,8 @@ export async function allowedDirs(dirs, cwd) {
 /** Refuses a real path outside the allowed directories (none given: every path is allowed). */
 function checkAllowed(real, allow, path) {
     if (allow.length > 0 && !allow.some((dir) => isInside(real, dir))) {
-        throw new CliError("io", "OUTSIDE_ALLOWED_DIR", `${shortName(path)}: outside the allowed directories (--allow-dir)`);
+        // the directories by their base names, as every path in a message
+        throw new CliError("io", "OUTSIDE_ALLOWED_DIR", `${shortName(path)}: outside the allowed directories (--allow-dir ${allow.map(shortName).join(", ")})`);
     }
 }
 
@@ -87,7 +92,9 @@ export async function readSafe(path, { cwd, allow, maxBytes, limit = "fileBytes"
         if (info.size > maxBytes) {
             throw tooLarge(path, info.size, maxBytes, limit);
         }
-        // up to one byte more than allowed: a file that grew after the check is refused, not cut
+        // the size the file had at the check, plus one byte: a file that has more by then grew (or, as
+        // a file of /proc, says it has none): over the limit it is refused as too large, else as changed,
+        // never cut
         const buffer = new Uint8Array(Math.min(maxBytes + 1, info.size + 1));
         let length = 0;
         for (;;) {
@@ -99,8 +106,8 @@ export async function readSafe(path, { cwd, allow, maxBytes, limit = "fileBytes"
             if (length > maxBytes) {
                 throw tooLarge(path, length, maxBytes, limit);
             }
-            if (length === buffer.length) {
-                break;
+            if (length > info.size) {
+                throw new CliError("io", "CHANGED", `${shortName(path)}: changed while it was read (it has more than the ${info.size.toLocaleString("en-US")} bytes it had)`);
             }
         }
         return buffer.subarray(0, length);
@@ -156,9 +163,13 @@ export async function writeSafe(path, bytes, { cwd, allow }) {
     checkAllowed(target, allow, path);
     const existing = await lstat(target).catch((e) => (e.code === "ENOENT" ? null : Promise.reject(e)));
     if (existing && !existing.isFile()) {
-        throw new CliError("io", "NOT_REGULAR_FILE", `${shortName(path)}: exists and is not a regular file (a link, a directory or a device); not replaced`);
+        const what = existing.isSymbolicLink() ? "a symbolic link" : existing.isDirectory() ? "a directory" : "a device or another special file";
+        throw new CliError("io", existing.isSymbolicLink() || existing.isDirectory() ? "NOT_REGULAR_FILE" : "SPECIAL_FILE", `${shortName(path)}: exists and is ${what}; not replaced`);
     }
-    const temp = join(dir, `.${basename(full)}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.tmp`);
+    // the temporary name stays within a file name's 255 bytes, however long the target's name is: 50
+    // characters of at most 4 bytes each, then about 25 for the process, a random part and ".tmp"
+    const stem = Array.from(basename(full)).slice(0, 50).join("");
+    const temp = join(dir, `.${stem}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.tmp`);
     const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), existing ? existing.mode & 0o777 : 0o644);
     try {
         await handle.writeFile(bytes);
