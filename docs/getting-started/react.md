@@ -151,7 +151,8 @@ All props are listed in the [pivotkit-react reference](../reference/react.md).
 `dist/index.js` is an ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
 `pivotkit-core/export`, `pivotkit-core/link`, `pivotkit-core/templates` (with the menus),
 `pivotkit-core/import` (with [`allowImport`](../reference/react.md#prop-allowimport), on the first
-use of loading data), `@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
+use of loading data), `pivotkit-report` (on the first HTML report, SVG or print of the Export menu),
+`@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
 `./echarts.js` next to it, which imports `echarts/core`, `echarts/charts`, `echarts/components` and
 `echarts/renderers` by name, so a bundler keeps only the four chart types the report draws, and
 `pivotkit-core/chart` (the chart's marks and label layout). Any

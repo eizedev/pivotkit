@@ -20,7 +20,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The chart's plan, its colours from the tokens and its marks are pivotkit-core's (`chartPlan`,
   `chartThemeFrom`, `pivotkit-core/chart`), so an SVG and a printed report of pivotkit-report draw
   the same chart; the report looks the same. A host page with an import map adds
-  `pivotkit-core/chart` next to `pivotkit-core/export` ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+  `pivotkit-core/chart` next to `pivotkit-core/export`, and `pivotkit-report` (a dependency, loaded on
+  the first HTML report, SVG or print of the Export menu) ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - The table follows pivotkit-core's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals off in a new report,
   no empty column and no total rows for fields in Rows without a value, no subtotal for a group of
   one item (its arrow stays). Labels without a value column next to them take up to 85 % of the
