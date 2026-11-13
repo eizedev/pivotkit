@@ -11,8 +11,9 @@ test("subtotals after their children and a grand total row", () => {
     assert.deepEqual(texts(g).slice(g.headerRows).map((r) => r.filter((t) => t !== null).join("|")), [
         "North|A|8", "B|2", "North Total|10",
         "South|A|7", "B|1", "South Total|8",
-        "West|A|4", "West Total|4",
-        "(blank)|A|6", "(blank) Total|6",
+        // a group with one child has no subtotal: it would repeat the child (#156)
+        "West|A|4",
+        "(blank)|A|6",
         "Grand Total|28"
     ]);
     // the North label is merged down over its two products
@@ -32,7 +33,7 @@ test("totals can be switched off", () => {
 });
 
 test("column subtotals and the grand total column, with merged headers", () => {
-    const r = computePivot(data, { rows: [], cols: ["Product", "Region"], values: [{ field: "Units", agg: "sum" }, { agg: "count" }] });
+    const r = computePivot(data, { rows: [], cols: ["Product", "Region"], values: [{ field: "Units", agg: "sum" }, { agg: "count" }], totals: { colSubtotals: true } });
     const g = toGrid(r, { locale: "en-US" });
     assert.equal(g.headerRows, 3);
     const a = g.rows[0][1];
@@ -97,10 +98,87 @@ test("column sort by value uses the column totals", () => {
 test("values only, rows only and an empty view", () => {
     const valuesOnly = toGrid(computePivot(data, { values: [{ field: "Units", agg: "sum" }] }));
     assert.deepEqual(texts(valuesOnly), [["", "Sum of Units"], ["Grand Total", "28"]]);
+    // rows without values: the labels alone, no empty column and no total without a number (#155, #156)
     const rowsOnly = toGrid(computePivot(data, { rows: ["Product"] }));
-    assert.deepEqual(texts(rowsOnly).map((r) => r[0]), ["Product", "A", "B", "Grand Total"]);
+    assert.deepEqual(texts(rowsOnly), [["Product"], ["A"], ["B"]]);
     const empty = toGrid(computePivot(data, {}));
-    assert.deepEqual(texts(empty), [["", ""], ["", ""]]);
+    assert.deepEqual(texts(empty), [[""], [""]]);
+});
+
+test("rows without values: one column per row field, no empty data column (#155)", () => {
+    const g = toGrid(computePivot(encode([{ g: "a" }, { g: "b" }]), { rows: ["g"] }));
+    assert.equal(g.columnCount, 1);
+    assert.deepEqual(g.dataColumns, []);
+    assert.deepEqual(texts(g), [["g"], ["a"], ["b"]]);
+    // two row fields: two label columns and nothing after them
+    const two = toGrid(computePivot(data, { rows: ["Region", "Product"] }), { locale: "en-US" });
+    assert.equal(two.columnCount, 2);
+    assert.ok(two.rows.every((row) => row.length === 2));
+});
+
+test("rows without values: no subtotal or grand total rows, the toggles stay (#156)", () => {
+    const g = toGrid(computePivot(data, { rows: ["Region", "Product"] }), { locale: "en-US" });
+    assert.deepEqual(texts(g).slice(g.headerRows).map((r) => r.filter((t) => t !== null).join("|")), [
+        "North|A", "B",
+        "South|A", "B",
+        "West|A",
+        "(blank)|A"
+    ]);
+    assert.ok(g.bodyRows.every((r) => r.total === 0));
+    // a group keeps its toggle, also with a single child: collapsing it still hides the inner label
+    assert.deepEqual(bodyRow(g, "North")[0].toggle, { axis: "rows", path: ["North"], collapsed: false });
+    assert.deepEqual(bodyRow(g, "West")[0].toggle, { axis: "rows", path: ["West"], collapsed: false });
+    // the totals switched on explicitly change nothing either
+    const on = toGrid(computePivot(data, { rows: ["Region", "Product"], totals: { grandTotalRow: true, rowSubtotals: true } }), { locale: "en-US" });
+    assert.deepEqual(texts(on), texts(g));
+});
+
+test("columns without values: the column labels stay, without total columns (#156)", () => {
+    const g = toGrid(computePivot(data, { rows: ["Region"], cols: ["Product", "Rep"], totals: { colSubtotals: true } }), { locale: "en-US" });
+    const headerTexts = g.rows.slice(0, g.headerRows).flat().filter(Boolean).map((c) => c.text);
+    assert.ok(headerTexts.includes("A") && headerTexts.includes("Ann"));
+    assert.ok(!headerTexts.some((t) => /Total/.test(t)), headerTexts.join(","));
+    assert.ok(g.dataColumns.every((c) => c.total === 0 && c.valueIndex === -1));
+    assert.equal(g.columnCount, 1 + g.dataColumns.length);
+});
+
+test("columns without rows and values: the only body row is no Grand Total (#156)", () => {
+    const g = toGrid(computePivot(data, { cols: ["Product"] }), { locale: "en-US" });
+    const body = g.rows.slice(g.headerRows);
+    assert.equal(body.length, 1);
+    assert.ok(!body.flat().some((c) => c && /Total/.test(c.text)), body.flat().map((c) => c && c.text).join("|"));
+    assert.ok(body[0].every((c) => c.total === 0));
+    // with a value the same row is the grand total
+    const withValue = toGrid(computePivot(data, { cols: ["Product"], values: [{ field: "Units", agg: "sum" }] }), { locale: "en-US" });
+    assert.equal(withValue.rows[withValue.headerRows][0].text, "Grand Total");
+});
+
+test("a group with a single child has no subtotal, on rows and on columns (#156)", () => {
+    const d = encode([
+        { a: "x", b: "1", c: "x", e: "1", n: 1 },
+        { a: "x", b: "2", c: "x", e: "2", n: 2 },
+        { a: "y", b: "1", c: "y", e: "1", n: 4 }
+    ]);
+    const g = toGrid(computePivot(d, { rows: ["a", "b"], cols: ["c", "e"], values: [{ field: "n", agg: "sum" }], totals: { colSubtotals: true } }), { locale: "en-US" });
+    const rowLabels = g.bodyRows.map((r) => r.rowPath.join("/") + ":" + r.total);
+    assert.deepEqual(rowLabels, ["x/1:0", "x/2:0", "x:1", "y/1:0", ":2"]);
+    assert.deepEqual(g.dataColumns.map((c) => c.colPath.join("/") + ":" + c.total), ["x/1:0", "x/2:0", "x:1", "y/1:0", ":2"]);
+    // y keeps its toggle on both axes
+    assert.deepEqual(bodyRow(g, "y")[0].toggle, { axis: "rows", path: ["y"], collapsed: false });
+    assert.deepEqual(g.rows[0].find((c) => c && c.text === "y").toggle, { axis: "cols", path: ["y"], collapsed: false });
+    // collapsed, y shows its total in one line, as any collapsed group
+    const collapsed = toGrid(computePivot(d, { rows: ["a", "b"], values: [{ field: "n", agg: "sum" }], collapsed: { rows: [["y"]] } }), { locale: "en-US" });
+    assert.deepEqual(bodyRow(collapsed, "y").filter(Boolean).map((c) => c.text), ["y", "4"]);
+});
+
+test("column subtotals are off by default; row subtotals and both grand totals on (#156)", () => {
+    const r = computePivot(data, { rows: ["Region", "Product"], cols: ["Rep", "Date"], values: [{ field: "Units", agg: "sum" }] });
+    assert.deepEqual(r.view.totals, { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false });
+    const g = toGrid(r, { locale: "en-US" });
+    assert.ok(!g.dataColumns.some((c) => c.total === 1));
+    assert.equal(g.dataColumns.at(-1).total, 2);
+    assert.ok(g.bodyRows.some((row) => row.total === 1));
+    assert.equal(g.bodyRows.at(-1).total, 2);
 });
 
 test("no rows left after filtering still gives a grid with zero counts", () => {

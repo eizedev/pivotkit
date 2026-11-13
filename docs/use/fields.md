@@ -124,9 +124,24 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
   direction of calculations: "% of row total" becomes "% of column total", a running total along Rows
   runs along Columns. Where the zone is narrow the button drops its text.
 - Subtotals and grand totals are switched on and off in **Options**, each with an **i** that says what
-  it does. A switch that would change nothing in this layout is greyed out with the reason under it:
-  the grand total row needs a field in Rows, the grand total column a field in Columns, row subtotals
-  two or more fields in Rows, column subtotals two or more fields in Columns.
+  it does. A new report has the grand totals and the row subtotals; the column subtotals are off. A
+  switch that would change nothing in this layout is greyed out, without a tick, with the reason under
+  it: the grand total row needs a field in Rows, the grand total column a field in Columns, row
+  subtotals two or more fields in Rows, column subtotals two or more fields in Columns, and every total
+  a field in Values.
+- A subtotal (“North Total”) adds up a group of the outer field. A group with a single item has
+  none, since it would repeat that item; its arrow still collapses it.
+- With column subtotals on, a subtotal column has a line before it and a darker background, and its
+  header's tooltip says what it adds up. While a Total column shows, a tip says the same, with **Hide
+  column subtotals**; on a phone, where there is no tooltip, the tip is where you read it.
+
+    ![Tickets per team by priority and channel with column subtotals: a line before each Total column, and the tip that says what it adds up](../assets/screenshots/column-subtotals-light.png#only-light)
+    ![Tickets per team by priority and channel with column subtotals: a line before each Total column, and the tip that says what it adds up](../assets/screenshots/column-subtotals-dark.png#only-dark)
+
+- A collapsed column group shows only its total: one column under the group's name.
+- Fields in Rows without a value show their labels only: no empty column after them and no total
+  rows, since a total would have no number. The labels take most of the report's width then, so on a
+  phone a name stays whole. The arrows still collapse the groups.
 - Field names and value names in the header can be dragged into a zone. A click on a value's name
   or on a field's name in Rows sorts the rows ([sort with a click on a header](filters.md#sort-with-a-click-on-a-header)).
 - With one value, its name stands once over all of its columns.

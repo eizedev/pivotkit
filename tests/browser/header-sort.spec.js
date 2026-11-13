@@ -13,9 +13,9 @@ async function regionUnits(page) {
 }
 
 const number = (text) => Number(text.replace(/[^\d.-]/g, ""));
-/** The body rows without the grand total, as [region, units]. */
+/** The body rows without the grand total, as [region, units]; units null for labels without a value column. */
 async function regionRows(page) {
-    return (await tableRows(page)).filter((r) => r[0] !== "Grand Total").map((r) => [r[0], number(r[1])]);
+    return (await tableRows(page)).filter((r) => r[0] !== "Grand Total").map((r) => [r[0], r.length > 1 ? number(r[1]) : null]);
 }
 const units = async (page) => (await regionRows(page)).map((r) => r[1]);
 const names = async (page) => (await regionRows(page)).map((r) => r[0]);

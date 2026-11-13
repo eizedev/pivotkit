@@ -44,7 +44,7 @@ Store it as text wherever you like - local storage, a database, a URL - and pass
         { field: "Country", by: "value", order: "desc", value: { field: "Sales", agg: "sum" } },
         { field: "Season", by: "custom", items: ["Spring", "Summer", "Autumn", "Winter"] }
     ],
-    totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
+    totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
     collapsed: { rows: [["North"]], cols: [] },
     display: "table",                          // or "chart"
     chart: {
@@ -70,7 +70,7 @@ Every key is optional; a partial view is filled with defaults. The smallest usef
 | `filters` | Item lists, blanks, text conditions, comparisons of an item, relative date ranges, top N, value conditions; each with `not` and `blanks`. | [Filters](filters.md) |
 | `derived` | New fields from a date (year, month, ...) or a number (ranges). | [Dates and number ranges](dates.md) |
 | `sort` | Per field: by label, by a value or in a custom order, ascending or descending. | [Sorting](filters.md#sorting) |
-| `totals` | Grand total row and column, row and column subtotals; all on by default. | |
+| `totals` | Grand total row and column, row and column subtotals; all on by default except the column subtotals. Without values the table has none (a total has no number then), and a group with one item has no subtotal. | [The table](../use/fields.md#the-table) |
 | `collapsed` | Key paths of collapsed groups per axis. | |
 | `display`, `chart` | Table or chart, the chart's type, stacking and direction, and how it is drawn: value labels, legend, title, smooth lines, axis labels, group labels ([Charts](charts.md)). | |
 | `formatting` | The view's own locale and time zone, and the first day of a week for relative ranges in weeks (`weekStart`, 1 Monday to 7 Sunday). | [Locale and time zones](limits.md), [Relative date ranges](filters.md#relative-date-ranges) |

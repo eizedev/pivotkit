@@ -8,6 +8,16 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The table follows pivotkit-core's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals off in a new report,
+  no empty column and no total rows for fields in Rows without a value, no subtotal for a group of
+  one item (its arrow stays). Labels without a value column next to them take up to 85 % of the
+  report's width instead of 40 %, so a name on a phone is not broken inside a word.
+- A subtotal column is set apart from its group: a line before it (`--pk-border-strong`) and a
+  slightly darker `--pk-total` (light `#eef1f5`, dark `#21252d`; text on it 14.9:1 and 12.8:1, the
+  muted header text 5.4:1 and 6.6:1), and its header's tooltip says what it adds up ([#156](https://github.com/eizedev/pivotkit/issues/156)).
+- Options: a total switch that changes nothing is disabled without a tick; every total also needs a
+  field in Values ("Needs a field in Values.", `needsValue`). The explanations of the subtotals say
+  "subtotal", name a subtotal's label ("North Total") and say that a group of one item has none ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 - The npm description names views as JSON files, as the README and the docs do, instead of templates
   ([#191](https://github.com/eizedev/pivotkit/issues/191)).
 - npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
@@ -29,6 +39,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   at most 1,000,000 characters long (pivotkit-core's `outsideLimits`), or the host's lower limits.
 
 ### Added
+
+- The tip `colSubtotals`: while a Total column shows (column subtotals on, two or more fields in
+  Columns, a value, an open column group of two or more items), it says that a Total column adds up the group before it, with the button **Hide column subtotals** ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 
 - The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
   loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data
@@ -68,6 +81,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- An open menu or popover follows its anchor when the anchor moves or changes size while it is open
+  (the zones' open animation, a transition of the host page)
+  ([#120](https://github.com/eizedev/pivotkit/issues/120)).
 - A delayed popover autofocus frame no longer steals focus from a control already in use
   ([#139](https://github.com/eizedev/pivotkit/issues/139)).
 - Outside pie and donut labels appear on the first draw, including their chosen values

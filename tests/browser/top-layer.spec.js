@@ -59,8 +59,7 @@ test.describe("menus and sheets above a fixed host navigation (#111)", () => {
             const report = reportOf(page);
             await openZones(page);
             const chip = report.getByTestId("chip-menu-Environment");
-            // the zones open with an animation: the chip at its own place before it is clicked (a
-            // popover is placed when it opens; it does not follow an anchor that moves afterwards)
+            // Let the initial zone animation finish before asserting its first placement.
             await settled(report.locator(".pk-root"));
             await chip.click();
             const menu = report.locator(".pk-popover.pk-chip-menu");
@@ -106,4 +105,53 @@ test.describe("menus and sheets above a fixed host navigation (#111)", () => {
         await page.addStyleTag({ content: ".pk-root { --pk-layer-z: 1300; }" });
         expect((await hitAt(page, 40, box.y + 30))?.inPopover).toBe(true);
     });
+});
+
+test("an open popover follows its anchor after a transition moves it (#120)", async ({ page }) => {
+    await page.goto("?data=sales");
+    const anchor = page.getByTestId("chip-menu-Region");
+    await anchor.click();
+    const menu = page.locator(".pk-chip-menu");
+    await expect(menu).toBeVisible();
+    const before = await anchor.boundingBox();
+    // Position changes do not resize either the popover or its anchor.
+    await anchor.evaluate((el) => {
+        el.style.transition = "transform 120ms linear";
+        el.getBoundingClientRect();
+        el.style.transform = "translateX(40px)";
+    });
+    await expect.poll(async () => Math.round((await anchor.boundingBox()).x - before.x)).toBe(40);
+    await expect.poll(async () => Math.abs((await menu.boundingBox()).x - (await anchor.boundingBox()).x)).toBeLessThan(1.5);
+});
+
+test("a popover follows a transform transition on the host ancestor (#120)", async ({ page }) => {
+    await page.goto("?data=sales");
+    const anchor = page.getByTestId("chip-menu-Region");
+    await anchor.click();
+    const menu = page.locator(".pk-chip-menu");
+    await expect(menu).toBeVisible();
+    const before = await anchor.boundingBox();
+    await page.locator("#app").evaluate((el) => {
+        el.style.transition = "transform 120ms linear";
+        el.getBoundingClientRect();
+        el.style.transform = "translateX(40px)";
+    });
+    await expect.poll(async () => Math.round((await anchor.boundingBox()).x - before.x)).toBe(40);
+    await expect.poll(async () => Math.abs((await menu.boundingBox()).x - (await anchor.boundingBox()).x)).toBeLessThan(1.5);
+});
+
+test("a popover follows immediate anchor movement with reduced motion (#120)", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("?data=sales");
+    const anchor = page.getByTestId("chip-menu-Region");
+    await anchor.click();
+    const menu = page.locator(".pk-chip-menu");
+    await expect(menu).toBeVisible();
+    const before = await anchor.boundingBox();
+    // no transition at all: no transitionend, and the anchor keeps its size
+    await anchor.evaluate((el) => {
+        el.style.transform = "translateX(40px)";
+    });
+    await expect.poll(async () => Math.round((await anchor.boundingBox()).x - before.x)).toBe(40);
+    await expect.poll(async () => Math.abs((await menu.boundingBox()).x - (await anchor.boundingBox()).x)).toBeLessThan(1.5);
 });
