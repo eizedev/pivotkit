@@ -8,7 +8,8 @@ function pathKey(path) {
 
 /**
  * The visible lines of an axis in display order: leaves, collapsed groups, subtotals after their
- * children and the grand total last.
+ * children and the grand total last. A group with a single child has no subtotal: it would only
+ * repeat that child.
  * @param {import("./tree.js").PivotNode} root
  * @param {number} depth  number of fields on the axis
  * @param {any[][]} collapsedPaths
@@ -33,7 +34,7 @@ export function axisLines(root, depth, collapsedPaths, subtotals, grandTotal) {
             return;
         }
         node.children.forEach(visit);
-        if (subtotals) {
+        if (subtotals && node.children.length > 1) {
             lines.push({ node, kind: "subtotal" });
         }
     };

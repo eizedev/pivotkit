@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { readSheet } from "read-excel-file/node";
 import { computePivot, encode, toGrid } from "../src/index.js";
-import { toCsv, toCsvBytes, toXlsx } from "../src/export.js";
+import { toCsv, toCsvBytes, toJson, toXlsx } from "../src/export.js";
 import { csvSeparator, neutralizeFormula } from "../src/csv.js";
 import { SALES } from "./fixtures.js";
 
@@ -102,6 +102,18 @@ test("CSV: separator by locale, quoting, repeated row labels", () => {
     // the grid's locale decides separator and decimal mark
     const de = toCsv(toGrid(computePivot(d, view), { locale: "de-DE" })).split("\r\n");
     assert.equal(de[3], "Smith, John;y;1000,25");
+});
+
+test("rows without values export their labels only: no empty column, no total row (#155, #156)", () => {
+    const g = toGrid(computePivot(data, { rows: ["Region", "Product"] }), { locale: "en-US" });
+    assert.deepEqual(toCsv(g, { bom: false }).split("\r\n"), ["Region,Product", "North,A", "North,B", "South,A", "South,B", "West,A", "(blank),A", ""]);
+    const json = JSON.parse(toJson(g));
+    assert.deepEqual(json.columns, []);
+    assert.deepEqual(json.rows.map((r) => r.labels), [["North", "A"], ["North", "B"], ["South", "A"], ["South", "B"], ["West", "A"], ["(blank)", "A"]]);
+    const sheet = strFromU8(unzipSync(toXlsx(g))["xl/worksheets/sheet1.xml"]);
+    assert.equal(sheet.match(/<col /g).length, 2);
+    assert.doesNotMatch(sheet, / r="C\d+"/);
+    assert.doesNotMatch(sheet, /Total/);
 });
 
 test("CSV formula injection: formulas get a leading quote, numbers and number ranges do not", () => {

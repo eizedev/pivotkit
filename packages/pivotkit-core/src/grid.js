@@ -403,9 +403,15 @@ export function toGrid(result, options) {
     const view = result.view;
     const locale = resolveLocale(view.formatting.locale, options.locale ?? result.locale);
     const labels = { ...DEFAULT_LABELS, ...(options.labels || {}) };
-    const rowLines = axisLines(result.rowRoot, view.rows.length, view.collapsed.rows, view.totals.rowSubtotals, view.totals.grandTotalRow);
-    const colLines = axisLines(result.colRoot, view.cols.length, view.collapsed.cols, view.totals.colSubtotals, view.totals.grandTotalColumn);
-    const dataColumns = colLines.flatMap((line) => (view.values.length === 0 ? [{ line, vi: -1 }] : view.values.map((_, vi) => ({ line, vi }))));
+    // without values a total carries no number: no subtotal or grand total line on either axis
+    const totals = view.values.length > 0 ? view.totals : { grandTotalRow: false, grandTotalColumn: false, rowSubtotals: false, colSubtotals: false };
+    const rowLines = axisLines(result.rowRoot, view.rows.length, view.collapsed.rows, totals.rowSubtotals, totals.grandTotalRow);
+    const colLines = axisLines(result.colRoot, view.cols.length, view.collapsed.cols, totals.colSubtotals, totals.grandTotalColumn);
+    // one data column per value and column line; without values only the column fields' labels
+    // need columns (empty cells under them), and without those there is no data column at all
+    const dataColumns = view.values.length > 0
+        ? colLines.flatMap((line) => view.values.map((_, vi) => ({ line, vi })))
+        : view.cols.length > 0 ? colLines.map((line) => ({ line, vi: -1 })) : [];
     const k = Math.max(1, view.rows.length);
     const h = view.cols.length + 1;
     const width = k + dataColumns.length;
