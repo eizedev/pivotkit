@@ -189,7 +189,7 @@ npm run size -w pivotkit-element    # build the element and print what a page lo
 npm run size -w pivotkit-xlsx       # build pivotkit-xlsx's dist/, gzip of the plugin and its reader against the budget
 npm run bench -w pivotkit-xlsx      # read time and memory of a generated 94,000-row workbook (-- --browser: Chromium too)
 npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
-npx pivotkit render view.json --data data.csv -o out.html   # the CLI of this repository (packages/pivotkit-cli)
+npx pivotkit-cli render view.json --data data.csv -o out.html   # the CLI of this repository (packages/pivotkit-cli; the package name, as outside it)
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report   # rebuild pivotkit-report's golden files after a wanted change
 npm run bench:browser               # the report in Chromium, Firefox and WebKit, 100k to 1M rows (-- --runs 3 --sizes 100000 --browsers chromium)
 node scripts/schemas.js             # rebuild pivotkit-core's JSON Schemas from the engine's tables

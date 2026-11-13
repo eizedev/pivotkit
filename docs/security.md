@@ -145,8 +145,10 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
 
 `pivotkit` ([pivotkit-cli](reference/cli.md#files)) reads a file once, as a regular file, after its
 size is checked; writes through a temporary file; never replaces a link or a directory; and with
-`--allow-dir` reads and writes only inside the directories named, by real path. Its messages never
-hold a file's content, and `describe` shows a data file's values only when asked (`--items`).
+`--allow-dir` reads and writes only inside the directories named, by real path. `--allow-dir` is not a
+sandbox: a hard link inside an allowed directory reaches the file it names, and another process of
+the same user can change the directories while the CLI runs. Its messages never hold a file's
+content, and `describe` shows a data file's values only when asked (`--items`).
 
 ## Content-Security-Policy
 

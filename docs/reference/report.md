@@ -86,7 +86,7 @@ ignored.
 
 A bad view never throws: its issues come back. `PivotkitError` is thrown for a wrong argument
 (`INVALID_ARGUMENT`), a wrong option (`INVALID_OPTION` with `details.option`: an unknown `format`, a
-`size` out of range, an unknown option, an SVG or `chart: true` without `echarts`, a `now` that is no date), a limit (`LIMIT_EXCEEDED`) and
+`size` out of range, an unknown option, a `chart`, `chartEmbed`, `bom`, `strict` or `trusted` of a value it does not take, an SVG or `chart: true` without `echarts`, a `now` that is no date), a limit (`LIMIT_EXCEEDED`) and
 a refused template (`INVALID_TEMPLATE`, see [print template](print-template.md)). The report's own
 issues are warnings: `chartUnavailable` (a view that shows the chart, rendered as HTML with `chart`
 `"auto"` and without `echarts`: the table is there, the chart is not; pass `strict` and check `ok`, or
