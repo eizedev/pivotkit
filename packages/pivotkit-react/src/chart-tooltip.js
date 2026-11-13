@@ -58,7 +58,7 @@ export function tooltipFormatter(doc, options) {
         if (title) {
             const head = doc.createElement("div");
             head.textContent = title;
-            head.style.fontWeight = "600";
+            head.style.fontWeight = "var(--pk-weight-strong)";
             head.style.marginBottom = "2px";
             box.append(head);
         }
@@ -81,7 +81,7 @@ export function tooltipFormatter(doc, options) {
             name.style.flex = "1";
             const value = doc.createElement("span");
             value.textContent = line.value;
-            value.style.fontWeight = "600";
+            value.style.fontWeight = "var(--pk-weight-strong)";
             value.style.marginLeft = "12px";
             row.append(marker, name, value);
             box.append(row);

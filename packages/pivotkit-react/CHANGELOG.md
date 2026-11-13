@@ -45,6 +45,14 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Font weights as tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)):
+  `--pk-weight-normal` (400), `--pk-weight-medium` (500), `--pk-weight-strong` (600) and
+  `--pk-weight-bold` (700), documented in Theming. Every rule uses them, the chart's tooltip, title
+  and group labels too, so a host whose font looks too heavy or too light sets four tokens instead of
+  overriding selectors. The weights 550 (field chips, the drill-down's path) and 650 (titles, table
+  headers) are now 600: Playwright's Chromium on macOS drew 550 heavier than 600, and a font without
+  a 650 face draws it at 700. A test fails on a colour or font weight written outside the token
+  blocks.
 - The tip `colSubtotals`: while a Total column shows (column subtotals on, two or more fields in
   Columns, a value, an open column group of two or more items), it says that a Total column adds up the group before it, with the button **Hide column subtotals** ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 

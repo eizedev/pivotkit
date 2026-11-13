@@ -8,6 +8,8 @@ export const DEFAULT_THEME = Object.freeze({
     colorScale: Object.freeze(["#f8696b", "#ffeb84", "#63be7b"]),
     /** data bar colour when a view names none */
     dataBar: "#638ec6",
+    /** font weight of a chart's title and group labels */
+    strongWeight: 600,
     /** inner and outer radius of a pie: a whole circle */
     pieRadius: Object.freeze(["0%", "70%"]),
     /** inner and outer radius of a donut: a ring */

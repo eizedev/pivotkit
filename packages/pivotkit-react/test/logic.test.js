@@ -27,6 +27,10 @@ test("the chart theme comes from the --pk-* tokens", () => {
     assert.deepEqual(theme.colors, ["#111111", "#222222"]);
     assert.deepEqual([theme.textColor, theme.gridColor, theme.fontFamily], ["#555", "#ddd", "Inter"]);
     assert.deepEqual(theme.heatmapColors, ["#eee", "#00f"]);
+    // the chart's title and group labels take --pk-weight-strong; a keyword or no token leaves the core's default
+    assert.equal(chartThemeFrom({ getPropertyValue: (n) => ({ ...tokens, "--pk-weight-strong": " 520" })[n] ?? "" }).strongWeight, 520);
+    assert.equal(chartThemeFrom({ getPropertyValue: (n) => ({ ...tokens, "--pk-weight-strong": "bold" })[n] ?? "" }).strongWeight, undefined);
+    assert.equal(theme.strongWeight, undefined);
 });
 
 test("labels: the locale picks the language, partial labels merge deeply, en and de have the same keys", () => {

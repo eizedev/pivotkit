@@ -231,7 +231,7 @@ line, area, pie, donut and heatmap. ECharts itself is not imported.
 | Option | Of | What |
 | --- | --- | --- |
 | `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition }`, over the view's chart ([Charts](../concepts/charts.md)). |
-| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `heatmapColors` (low, high), `pieRadius` (inner, outer of a pie; default a whole circle, `0%`, `70%`), `donutRadius` (of a donut; default a ring, `42%`, `70%`). |
+| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `heatmapColors` (low, high), `pieRadius` (inner, outer of a pie; default a whole circle, `0%`, `70%`), `donutRadius` (of a donut; default a ring, `42%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none; default the pivot's locale. |
 | `labels`, `limits` | both | Texts; `cells` caps the data points. |
 | `separator` | both | Between the parts of a multi-level label, default `" / "`. |
@@ -325,7 +325,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `MATCH_DEFAULTS` | `{ case: "insensitive", whitespace: "collapse" }`. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
-| `DEFAULT_THEME` | Default colours for colour scales and data bars, and the radius of a pie and of a donut. |
+| `DEFAULT_THEME` | Default colours for colour scales and data bars, the font weight of a chart's title and group labels, and the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
 | `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code and in all that `normalize` and `validate` list for one view; the rest are counted in the warning `tooManyIssues` ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `OUTSIDE_LIMITS`, `outsideLimits(limits)` | The tighter limits of a view from outside (a link, pasted JSON, an API, an LLM): `{ filters: 50, json: 1000000 }`, and the host's limits with each of them at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |

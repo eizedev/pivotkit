@@ -20,6 +20,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- pivotkit-react's font weight tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)): `--pk-weight-normal`, `--pk-weight-medium`,
+  `--pk-weight-strong` and `--pk-weight-bold`, set on the element like every `--pk-*` token.
 - The property `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)), as
   pivotkit-react's prop: the limits of a file loaded with `allow-import`, merged key by key over
   `limits`; the page's data keeps `limits`. A property only, as `limits`.

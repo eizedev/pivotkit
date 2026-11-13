@@ -45,6 +45,11 @@ export function chartThemeFrom(style) {
         fontFamily: v("font-family") || undefined,
         backgroundColor: "transparent"
     };
+    // a number for ECharts; a host's keyword (bold) or an empty token keeps the core's default
+    const strong = Number(v("--pk-weight-strong"));
+    if (strong > 0) {
+        theme.strongWeight = strong;
+    }
     const low = v("--pk-heat-low");
     const high = v("--pk-heat-high");
     if (low && high) {

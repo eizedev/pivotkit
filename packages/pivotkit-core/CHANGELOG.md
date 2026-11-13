@@ -47,6 +47,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `ChartTheme.strongWeight` ([#201](https://github.com/eizedev/pivotkit/issues/201)): the font weight of a chart's title and group labels
+  (default 600, `DEFAULT_THEME.strongWeight`), so a host's font weight reaches the chart.
 - Relative date ranges ([#165](https://github.com/eizedev/pivotkit/issues/165)): `direction` (`last`,
   `next`, `this`, `before`), `calendar` (whole units, or rolling from now), `includeCurrent`, the
   units `hour`, `week` and `quarter` besides `day`, `month` and `year`, and `anchor` `"first"` or a

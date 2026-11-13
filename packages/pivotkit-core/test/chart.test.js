@@ -112,6 +112,9 @@ test("maxCategories plots the first categories in the view's order and reports h
 test("display settings: a title, the legend where the view puts it, smooth lines", () => {
     const titled = toEChartsOption(r, { chart: { type: "bar", title: "Units" } });
     assert.equal(titled.title.text, "Units");
+    // the title's weight: the theme's strongWeight, else DEFAULT_THEME's
+    assert.equal(titled.title.textStyle.fontWeight, 600);
+    assert.equal(toEChartsOption(r, { chart: { type: "bar", title: "Units" }, theme: { strongWeight: 500 } }).title.textStyle.fontWeight, 500);
     // the grid makes room for the title and the legend above it
     assert.equal(titled.legend.top, 32);
     assert.ok(titled.grid.top > toEChartsOption(r).grid.top);
@@ -187,6 +190,7 @@ test("two row fields: the inner items name the categories, the outer ones are gr
     assert.deepEqual(named, [...new Set(groups.data)]);
     const starts = groups.data.map((_, i) => groups.axisTick.interval(i));
     assert.deepEqual(starts, groups.data.map((g, i) => i > 0 && g !== groups.data[i - 1]));
+    assert.deepEqual([groups.axisLabel.fontWeight, toEChartsOption(nested, { series: s, theme: { strongWeight: 500 } }).xAxis[1].axisLabel.fontWeight], [600, 500]);
     // horizontal bars: on the y axis, both reversed; lines and areas too
     const horizontal = toEChartsOption(nested, { chart: { horizontal: true } });
     assert.deepEqual([horizontal.yAxis.length, horizontal.yAxis[0].inverse, horizontal.yAxis[1].inverse], [2, true, true]);
