@@ -206,9 +206,11 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * The chart's text size as a token (#221: textSize, the layout's fontSize, the room of title and legend
  * from the sizes, in pivotkit-core's chart option of the first load): 171.9 on a Mac (CI 172.5, at
  * the budget of 172.5), budget 173.
+ * Bidi controls left out of the HTML report and the SVG (pivotkit-report) and the CSV and XLSX
+ * (pivotkit-core): report 21.0 on a Mac (CI 21.1, 20.9 before), budget 21.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 173, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21 };
+export const SIZE_BUDGET_KIB = { initial: 173, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

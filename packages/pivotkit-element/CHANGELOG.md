@@ -65,6 +65,10 @@ What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
 
 ### Fixed
 
+- The element bundles pivotkit-core's and pivotkit-report's export fixes: CSV, XLSX, the HTML report
+  and the SVG leave out bidi controls, a print template's `<meta http-equiv>` takes no placeholder,
+  and a token value with a line break or `url(` is left out. The group "report" grows to 21.0 KiB
+  gzip (CI 21.1), its budget to 21.5.
 - A workbook and an HTML report exported while the element shows the dark theme carry the tokens set
   on the element for the light theme, `--pk-scale-mid` too ([#217](https://github.com/eizedev/pivotkit/issues/217)).
 - The element bundles pivotkit-react's fixes: the Excel export in the report's theme colours, the
