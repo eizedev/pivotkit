@@ -6,6 +6,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-13
+
 First release.
 
 ### Added
@@ -44,3 +46,6 @@ First release.
 - Options are checked: an unknown one is refused with the closest name, an option of a few values
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-report@0.1.0

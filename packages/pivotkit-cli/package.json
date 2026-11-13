@@ -54,9 +54,9 @@
   },
   "dependencies": {
     "echarts": "6.1.0",
-    "pivotkit-core": "^0.4.0",
+    "pivotkit-core": "^0.5.0",
     "pivotkit-report": "^0.1.0",
-    "pivotkit-xlsx": "^0.1.0"
+    "pivotkit-xlsx": "^0.2.0"
   },
   "types": "./types/cli.d.ts",
   "publishConfig": {

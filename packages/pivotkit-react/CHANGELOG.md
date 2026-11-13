@@ -6,6 +6,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
 ### Upgrading from 0.4
 
 What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/) has the details.
@@ -28,6 +30,8 @@ What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
 
 ### Changed
 
+- Depends on `pivotkit-core` `^0.5.0` (was `^0.4.0`): a host updates both together, or it gets
+  two copies of pivotkit-core.
 - The chart's axes, legend and labels are 14 px or more (`--pk-chart-text-size`, by default
   `var(--pk-small)`), not ECharts' 12 px; the labels are laid out for that size ([#221](https://github.com/eizedev/pivotkit/issues/221)).
 - Export → HTML report takes the report's font size (`--pk-font-size` and `--pk-small` in px, so a
@@ -931,7 +935,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.4.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.5.0...HEAD
+[0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.4.0...pivotkit-react@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.3.0...pivotkit-react@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.2.0...pivotkit-react@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.1.0...pivotkit-react@0.2.0

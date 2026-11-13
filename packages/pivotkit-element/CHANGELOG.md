@@ -6,6 +6,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
 ### Upgrading from 0.4
 
 What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/) has the details.
@@ -315,7 +317,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.4.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.5.0...HEAD
+[0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.4.0...pivotkit-element@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.3.0...pivotkit-element@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.2.0...pivotkit-element@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.1.0...pivotkit-element@0.2.0

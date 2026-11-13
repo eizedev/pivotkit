@@ -6,6 +6,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-13
+
 First release.
 
 ### Added
@@ -26,3 +28,6 @@ First release.
 - The format comes from `-f` or a known extension of `-o`; another extension (`-o report.pdf`) is a
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-cli@0.1.0
