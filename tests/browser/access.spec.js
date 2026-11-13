@@ -259,3 +259,43 @@ test.describe("notes", () => {
         await expect(toast).toHaveCount(0, { timeout: 9000 });
     });
 });
+
+test("a late popover frame leaves focus on the control already in use (#139)", async ({ page }) => {
+    await page.addInitScript(() => {
+        window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(performance.now()), 2000);
+        window.cancelAnimationFrame = (id) => window.clearTimeout(id);
+    });
+    await page.goto("?data=sales");
+    await page.getByTestId("chip-menu-Region").click();
+    const search = page.getByTestId("menu-search");
+    await search.focus();
+    await expect(search).toBeFocused();
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    await expect(search).toBeFocused();
+});
+
+test("a late parent frame leaves focus inside a sibling child popover (#139)", async ({ page }) => {
+    await page.addInitScript(() => {
+        window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(performance.now()), 2000);
+        window.cancelAnimationFrame = (id) => window.clearTimeout(id);
+    });
+    await page.goto("?data=sales");
+    await page.getByTestId("chip-menu-Region").click();
+    // A child uses the same sibling-portal contract as the rule picker, not DOM containment.
+    await page.locator(".pk-chip-menu").evaluate((parent) => {
+        const child = document.createElement("div");
+        child.className = "pk-popover";
+        child.dataset.pkParent = parent.id;
+        child.setAttribute("popover", "manual");
+        const input = document.createElement("input");
+        input.dataset.testid = "child-search";
+        child.append(input);
+        parent.parentElement.append(child);
+        child.showPopover?.();
+        input.focus();
+    });
+    const search = page.getByTestId("child-search");
+    await expect(search).toBeFocused();
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    await expect(search).toBeFocused();
+});

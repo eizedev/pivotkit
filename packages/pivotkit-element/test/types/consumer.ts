@@ -63,6 +63,18 @@ el.addEventListener("pivot-source-switch", (e) => {
     return id;
 });
 
+// loading data: the attribute's property, the limits of a loaded file, reader plugins, columnar data, the event of the data shown
+el.allowImport = true;
+el.importLimits = { rows: 1_000 };
+const importRows: number | undefined = el.importLimits?.rows;
+el.plugins = [{ apiVersion: 1, kind: "reader", name: "jsonl", label: "JSON Lines", accept: [".jsonl"], load: () => import("./consumer.js") }];
+el.data = { columns: ["Team", "Hours"], types: ["string", "number"], data: [["A"], [1]] };
+el.addEventListener("pivot-data-load", (e) => {
+    const rows: number = e.detail.rows;
+    if (e.detail.cause === "load" && e.detail.file && e.detail.file.size > 1e6) e.preventDefault();
+    return rows + (e.detail.source?.id ?? "").length;
+});
+
 const eventName: keyof PivotReportEventMap = EVENTS.viewChange;
 const sameEventName: keyof PivotReportEventMap = EVENTS_ONLY.viewChange;
 const ctor: CustomElementConstructor | undefined = define("my-report") ?? defineOnly("other-report");

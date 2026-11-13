@@ -6,6 +6,102 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- The npm description names views as JSON files and the JSON export, as the README does ([#191](https://github.com/eizedev/pivotkit/issues/191)).
+- The message of a file over a limit (`limitError`, `checkFileLimit`) ends "or a host can raise this
+  limit" instead of naming the key a second time, so it fits a UI that reads files with limits of its
+  own; the key stays in brackets: `"big.csv" has more than 1,000 rows (limits.rows): load a smaller
+  extract of it, or a host can raise this limit` ([#185](https://github.com/eizedev/pivotkit/issues/185)).
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+- **Breaking:** view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)). Every filter
+  has one shape, `{ field, type, ..., not, blanks }`: `not` inverts which items with a value it
+  keeps, `blanks` (`"exclude"`, the default, `"include"`, `"only"`) alone decides the blank items.
+  The types are `in` (was `include` and `exclude`), `blank` (new), `text` (was `label`: `on` the
+  value or the label, `match` with case and whitespace, default insensitive and collapsed),
+  `compare`, `relative`, `top` and `value`; `!=`, `notBetween`, `notEquals` and `notContains` are
+  written as the positive operator with `not: true`. `migrate()` brings every version-1 view to
+  version 2 with the same result; a view without a version is read as version 1. One exception: in
+  a runtime whose default locale is Turkish, Azeri or Lithuanian, a version-1 label filter with an
+  "I" may keep other items, since version 2 folds case without the runtime's locale. A host that
+  reads normalized `include`, `exclude` or `label` filters, or `CATALOG.labelOps` and
+  `CATALOG.valueOps` (now `textOps` and `compareOps`), must read the new shape; a host that
+  overrides the texts of the issue codes `filterLabelOp`, `filterCompareField` and
+  `filterRelativeField` uses `filterTextOp` and `filterFieldType`.
+- **Breaking:** `validate()` returns `{ valid, errors, warnings }`. `valid` is true without errors
+  (warnings do not count), and `errors` holds the errors alone: the warnings moved to `warnings`. A
+  host that read `errors` as everything wrong reads both.
+- Each filter type works on the field types of the field-type matrix (`CATALOG.filterFields`):
+  another is the issue `filterFieldType` with the type that fits.
+- A key inside a part of a view (a value, a filter, a sort, the chart, totals, formatting, a grouping)
+  that this version does not know is reported as a warning `unknownKey`; it was dropped without a word.
+- A filter or sort item longer than 10,000 characters is the error `itemTooLong` and left out; it
+  was cut to 10,000 characters without a word.
+- `VIEW_FILE_VERSION` is 2 and `VIEW_FILE_SCHEMA` names `view-file-2.json`; files and links of format
+  version 1 are read as before.
+
+### Added
+
+- Relative date ranges ([#165](https://github.com/eizedev/pivotkit/issues/165)): `direction` (`last`,
+  `next`, `this`, `before`), `calendar` (whole units, or rolling from now), `includeCurrent`, the
+  units `hour`, `week` and `quarter` besides `day`, `month` and `year`, and `anchor` `"first"` or a
+  date of its own besides `"today"` and `"latest"`. A view's `formatting.weekStart` (1 Monday, the
+  default, to 7 Sunday) starts its weeks. `relativeDateRange` takes the same options; a bound that is
+  not at midnight is written to the minute, and `"before"` has `from: null` (its type is
+  `string | null`). Normalized relative filters write every key. New issue code
+  `filterRelativeDirection`; `CATALOG.relativeDirections`.
+- A comparison of dates has a `precision`: `year`, `quarter`, `month`, `day` (the default) or `hour`;
+  both sides are taken as the start of their unit. A top N has `ties`: `first` (the default, as it
+  was) or `all` (every item tied at the cut stays). New issue codes `filterPrecision` and
+  `filterTies`; `CATALOG.comparePrecisions` and `CATALOG.topTies`.
+- `foldText(text, match?)` and `MATCH_DEFAULTS`: the one way text is compared, case-insensitive
+  without the runtime's locale and with every run of whitespace (a no-break space U+00A0 among them)
+  as one space ([#159](https://github.com/eizedev/pivotkit/issues/159)).
+- Every issue carries a `severity`: `"error"` (the part is left out or replaced by its default) or
+  `"warning"` (used as written, but maybe not what was meant). `VIEW_ISSUES` gives each code's
+  severity and whether the view's JSON Schema refuses it; `VIEW_ISSUE_CODES` lists its codes.
+- "Did you mean": an unknown field, aggregator, filter type, operator, unit or key has
+  `params.suggestion`, the closest known name (edit distance, bounded); a version-1 operator in a
+  version-2 view names the version-2 operator to write with `not: true`.
+- The warning `itemCase`: a text item of a filter that is no item of the data, but differs from one
+  only in case or whitespace, names the data's item.
+- New issue codes `filterFieldType`, `filterTextOp`, `filterMatch`, `filterNot`, `filterBlanks`,
+  `itemTooLong`, and the warnings `blanksUnspecified` and `filterEmpty`, which `validate()` gives.
+- The issues of one view are capped: at most 100 of one code and 1,000 in all (`ISSUE_CAP`); the rest
+  are counted in one last warning `tooManyIssues`.
+- Limits `textValue` (1,000 characters of a text filter's text, which was fixed), `srcParams` and
+  `srcParamLength` (a link's data source parameters), and `OUTSIDE_LIMITS` (`{ filters: 50, json:
+  1000000 }`) with `outsideLimits(limits)`: the tighter limits of a view from a link, pasted JSON, an
+  API or an LLM.
+- The JSON Schema of a view of version 2, `pivotkit-core/schema/view-2.json` (published at
+  `https://pivotkit.eize.dev/schema/view-2.json`), built from the engine's tables; it refuses every
+  case of an issue code whose `VIEW_ISSUES[code].schema` is true. A filter is checked against the
+  schema of its `type` alone, so a validator's errors are about that type.
+- View file format version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)): `toViewFile`
+  writes it, with `source.params` (a report's parameters: opaque text by name, within
+  `LIMITS.srcParams` and `srcParamLength`), and its schema `pivotkit-core/schema/view-file-2.json`
+  (`VIEW_FILE_SCHEMA`), built from the engine's tables like `view-2.json`; `fromViewFile` reads
+  version 1 and 2 and says which (`formatVersion`). pivotkit 0.4 refuses a file or link of version 2
+  as newer, so a version-2 view is never read as version 1.
+- `readViewLink(hash, key, { allowParams })` in `pivotkit-core/link`: the view of a page's fragment
+  with its name and `src` (`{ id, params }`, only the parameters the host allows by name), for a page
+  that is not a pivotkit report. `linkParam`, `linkFragment` and `withLinkFragment` (the fragment
+  without fflate, in the main entry too). Every issue of `decodeViewLink` has a `code` of
+  `LINK_ISSUE_CODES`.
+- `describeSource(data)` and `describeView(view, schema)`: plain, structured summaries of a data set
+  (each field's type, items, blanks, range, the aggregators and filter types that work on it) and of
+  a view (its parts with one short English text each, and `validate()`'s errors and warnings), for a
+  log, an approver or an LLM.
+- `computePivot`'s result has `filters`: per filter of the view `{ field, type, kept }`, the source
+  rows left after it, counted as the filters apply.
+
+### Fixed
+
+- `options.limits` given as an array (`[]` was taken as no limits) is refused with `INVALID_OPTION`
+  ("options.limits must be an object"), as any other value that is not an object.
+
+## [0.4.0] - 2026-11-11
+
 ### Added
 
 - Columnar data ([#44](https://github.com/eizedev/pivotkit/issues/44)): `encode` takes
@@ -206,7 +302,8 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.3.0...pivotkit-core@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.2.0...pivotkit-core@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.1.0...pivotkit-core@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-core@0.1.0

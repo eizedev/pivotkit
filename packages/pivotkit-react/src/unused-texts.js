@@ -63,6 +63,8 @@ export const en = {
         tooMany: "more than {max} entries - only the first {max} are used",
         tooManyItems: "more than {max} items - only the first {max} are used",
         itemType: "the item “{value}” does not fit a {type} field - it is left out",
+        itemTooLong: "an item is longer than {max} characters - it is left out",
+        itemCase: "the data has no item “{value}”, but “{suggestion}” - the filter keeps the item as written",
         unknownField: "the data has no field “{field}” - {dropped}",
         // the same, when the line is about that field itself (Rows, Columns, a filter or a sort)
         unknownFieldHere: "the data has no field of this name - {dropped}",
@@ -89,18 +91,25 @@ export const en = {
         dataBarColor: "the bar colour is not a colour - the default colour is used",
         unknownFilterType: "the filter type “{value}” is unknown - this filter is left out",
         filterNoItems: "the filter lists no items - it is left out",
-        filterLabelOp: "the text condition “{value}” is unknown - this filter is left out",
-        filterText: "the text condition has no text - this filter is left out",
+        filterFieldType: "a filter of the type “{value}” does not work on “{field}” ({type}) - this filter is left out",
+        filterTextOp: "the text condition “{value}” is unknown - this filter is left out",
+        filterMatch: "the text matching is unknown - case and spaces are ignored",
+        filterNot: "“not” must be true or false - the filter is not inverted",
+        filterBlanks: "what happens to blank items is unknown (“{value}”) - blank items are left out",
+        blanksUnspecified: "the filter does not say what happens to blank items - they are left out",
+        filterEmpty: "the filter lists no items and keeps no blanks - it keeps nothing",
+        filterText: "the text condition has no text, or more than {max} characters - this filter is left out",
         filterNotNumber: "{agg} gives no number to filter by - this filter is left out",
+        filterTies: "the ties “{value}” are unknown (first or all) - the first in the data are kept",
+        filterPrecision: "the precision “{value}” is unknown or not for this field (year, quarter, month, day or hour of a date) - days are compared",
         filterCount: "Top needs a whole number from 1 to {max} - this filter is left out",
         filterValue: "the condition needs a comparison and a number - this filter is left out",
         filterValue2: "“{value}” needs a second number - this filter is left out",
-        filterCompareField: "only numbers and dates can be compared - this filter is left out",
         filterCompareValue: "the comparison needs an operator and a number or a date (2022-03-01) that fits the field - this filter is left out",
-        filterRelativeField: "a range like “last 5 years” needs a date field - this filter is left out",
-        filterRelativeUnit: "the unit “{value}” is unknown (years, months or days) - this filter is left out",
+        filterRelativeDirection: "the direction “{value}” is unknown (last, next, this or before) - this filter is left out",
+        filterRelativeUnit: "the unit “{value}” is unknown (hours, days, weeks, months, quarters or years) - this filter is left out",
         filterRelativeCount: "the range needs a whole number from 1 to {max} - this filter is left out",
-        filterRelativeAnchor: "the range can count back from “today” or from “latest” (the latest record), not from “{value}” - this filter is left out",
+        filterRelativeAnchor: "the range can count from “today”, “latest” (the latest record), “first” (the first record) or a date, not from “{value}” - this filter is left out",
         sortNoItems: "the custom order lists no items - the usual order is used",
         sortedTwice: "the field is sorted twice - only its first sort is used",
         badTotals: "the totals cannot be read - the usual totals are shown",
@@ -109,7 +118,8 @@ export const en = {
         badTitle: "the title is empty or longer than {max} characters - the chart has no title",
         unknownLocale: "the language “{value}” is unknown - the report's language is used",
         unknownTimeZone: "the time zone “{value}” is unknown - the data's time zone is used",
-        timeZoneMismatch: "the view was made for the time zone {value}, the data is in {zone} - times are read in {zone}"
+        timeZoneMismatch: "the view was made for the time zone {value}, the data is in {zone} - times are read in {zone}",
+        tooManyIssues: "{value} more problems are not listed - fix the ones above and load the view again to see them"
     },
     // a problem this version has no text for (a newer pivotkit-core)
     other: "this part could not be used - it is left out"
@@ -149,7 +159,8 @@ function valueName(entry, ctx) {
  */
 function subjectOf(issue, raw, texts, ctx) {
     if (issue.code === "unknownKey") {
-        return ctx.fill(texts.quote, { key: issue.path });
+        // the key itself, also inside a section ("values[0].lable": "lable")
+        return ctx.fill(texts.quote, { key: issue.path.split(".").pop() ?? issue.path });
     }
     const m = ENTRY.exec(issue.path);
     if (m) {
@@ -191,6 +202,7 @@ export function unusedItem(issue, raw, texts, ctx) {
         type: typeof params.type === "string" ? (own(labels.types, params.type) ?? params.type) : "",
         max: typeof params.max === "number" ? params.max.toLocaleString(labels.lang) : "",
         zone: params.zone ?? "",
+        suggestion: params.suggestion ?? "",
         message: issue.message
     };
     // the subject is shown in bold: the item's text around it ("{subject}: {text}"), split before the

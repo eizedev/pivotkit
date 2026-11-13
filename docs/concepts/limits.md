@@ -45,7 +45,8 @@ the size of everything dense (rows x columns) **before** it allocates it and sto
 instead.
 
 `LIMITS` holds the defaults; every function that takes `options.limits` (and the `limits` prop or
-property of the UI) merges your values over them. A resource limit is counted before the memory it
+property of the UI) merges your values over them. A file people load in the UI has limits of its own,
+`importLimits`, merged key by key over `limits` ([below](#limits-of-a-loaded-file)). A resource limit is counted before the memory it
 guards is allocated, or while it grows, and stops with `LIMIT_EXCEEDED`; a view limit drops what is
 over it and reports it as an issue.
 
@@ -73,8 +74,30 @@ over it and reports it as an issue.
 | `sort` | 64 | Sort entries. | In `normalize`. |
 | `collapsed` | 10,000 | Collapsed groups. | In `normalize`. |
 | `topCount` | 1,000,000 | The `count` of a top N filter. | In `normalize`. |
+| `textValue` | 1,000 | Characters of the text a text filter compares with. | In `normalize`. |
+| `srcParams` | 16 | Parameters of a link's data source reference (`source.params`). | When a link is read. |
+| `srcParamLength` | 256 | Characters of each name and value of those parameters. | When a link is read. |
 
-The defaults are sized for a browser tab and the about 100,000 rows the engine is designed for;
+### Views from outside
+
+A person builds a view of a few filters in the UI; a view with dozens was most likely generated, and
+each filter is a pass over the rows. A view that comes from outside the host's own code (a link,
+pasted or loaded JSON, the tab's stored view, a request to an API, an LLM) is therefore normalized
+with tighter limits: `OUTSIDE_LIMITS` (`{ filters: 50, json: 1000000 }`, at most 50 filters and a
+view as large as a link or a view file may be) over the host's. `outsideLimits(limits)` in
+pivotkit-core gives them: each key of `OUTSIDE_LIMITS` at most its preset value, a host's lower value
+stays lower, the host's other limits as they are (`items` and `collapsed` among them: a person's
+picks of a large field are that many). pivotkit-react uses it for every view it reads from a link, a
+file, pasted JSON or the tab's storage; a host that takes views from an API passes
+`{ limits: outsideLimits(myLimits) }` to `normalize`.
+
+The issues of one view are capped too, whatever its limits: at most 100 of one code and 1,000 in all
+(`ISSUE_CAP`), the rest counted in one last warning `tooManyIssues`, so a small hostile view cannot
+make a list of issues larger than itself. The generated JSON Schemas carry the default `LIMITS`; a
+host with other limits checks those with `normalize`.
+
+The defaults are sized for a browser tab: up to the default of 1,000,000 rows the report was
+[measured in the browser](#measured-in-the-browser) below;
 [why the defaults are what they are](#why-the-defaults-are-what-they-are) is below. `groups` can be raised to 2^27 at most. A host
 that takes data or views from untrusted users can lower them, for example
 `{ rows: 200_000, groups: 100_000, pivotCells: 500_000, work: 20_000_000, cells: 500_000 }`.
@@ -91,12 +114,35 @@ Not counted: the data itself (the host's rows and the encoded columns, rows x co
 rows, the number of columns of the host's data is not limited; a loaded file's are), "show values as" and sorting after the aggregation (they
 grow with the cells, which `pivotCells` bounds), and the time a pivot within the limits takes.
 
+### Limits of a loaded file
+
+A file people load into the report ([`allowImport`](../reference/react.md#prop-allowimport)) comes
+from someone other than the host, so the host may want it smaller than its own data. `importLimits`
+(a prop of pivotkit-react, a property of pivotkit-element) holds the limits for it, merged key by key
+over `limits`: a key it sets is the file's, a key it leaves out is `limits`'s, and both over `LIMITS`.
+Without `importLimits` a file has the host's `limits`. They hold for everything about the file: the
+readers (`fileBytes`, `rows`, `columns`, `importCells`, `textLength`, `archiveEntries`,
+`unpackedBytes`; on the page or in the import worker), and its views, results and exports while its
+data is shown. The host's own `data` keeps `limits`. A key of `importLimits` may also be higher than
+the same key of `limits` (a file gets more than the host's data): nothing caps one by the other, so set
+only the keys a file should have differently:
+
+```jsx
+<PivotReport data={rows} allowImport limits={{ cells: 500_000 }} importLimits={{ rows: 1_000, fileBytes: 5_000_000 }} />
+```
+
+The host's rows are capped only by the default `rows` (1,000,000); a file has at most 1,000 rows and
+5,000,000 bytes, and both have at most 500,000 cells in a grid. A file over a limit is refused with the
+limit named (`… has more than 1,000 rows (limits.rows) …`) and the data shown stays. pivotkit-core's
+[`readFile`](../reference/import.md#limits) has one `limits` option: a caller with its own data and
+files merges the import limits over its limits itself (`{ ...limits, ...importLimits }`).
+
 ### Why the defaults are what they are
 
 Measured in Node 26 on arm64; other engines and machines differ.
 
 - `rows`: the encoded columns take about 4 to 12 bytes per row and column, the host's row objects
-  more; a million rows is ten times the design size.
+  more; a million rows is the largest size [measured in the browser](#measured-in-the-browser).
 - `axisFields`: each row updates (row fields + 1) x (column fields + 1) cells per value, 81 at 8 x 8
   and 1,089 at 32 x 32; a report nested deeper than eight levels per axis is hard to read anyway.
 - `groups`: a key tree keeps about 400 bytes per node, so the trees stay at about 200 MB. A table
@@ -134,8 +180,107 @@ most 8 fields. Remove one first."; a saved view with more loads the fields that 
 texts are `tooManyRows`, `tooMuchWork`, `tooManyGroups`, `tooManyCells`, `tooLarge`, `zoneFull` and
 `viewTrimmed` in the [labels](../reference/localisation.md).
 
-The engine is designed for up to about 100,000 rows in the browser. More rows work within `rows`, at
-the cost of time and memory; see the [performance numbers](../reference/react.md#performance).
+The time and memory grow with the rows; how much, from 100,000 to the default 1,000,000 rows, is
+[measured in the browser](#measured-in-the-browser) below.
+
+### Measured in the browser
+
+`npm run bench:browser` hands the playground's generated data (fixed seed: sales with 9 columns,
+IT tickets with 10) to `<PivotReport>` in Chromium, Firefox and WebKit and measures, in the page,
+the time from the data handed over to the first table on screen: `encode`, `computePivot`,
+`toGrid` and React's render together. Median of 5 runs, each in a new page of the same browser process. Measured on one Mac
+(Apple M4, 10 cores, 16 GB, macOS 27) with the browsers of Playwright 1.64.1 (Chromium 156,
+Firefox 157, WebKit 27.2), headless, while the machine was otherwise lightly loaded (load average
+about 3 to 4). These are numbers of one machine; a slower laptop or a busy machine takes longer
+(a run while other browser tests ran took up to 1.7 times as long).
+
+| View | Rows | Chromium | Firefox | WebKit | Memory (Chromium): data + report |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Sales: sum, 2 row fields x 1 column field | 100,000 | 143 ms | 132 ms | 157 ms | 10 + 13 MB |
+| | 250,000 | 294 ms | 277 ms | 304 ms | 25 + 25 MB |
+| | 500,000 | 555 ms | 512 ms | 550 ms | 50 + 45 MB |
+| | 1,000,000 | 1.0 s | 1.0 s | 1.0 s | 100 + 85 MB |
+| Tickets: median by month (date grouping), filtered | 100,000 | 187 ms | 183 ms | 185 ms | 15 + 19 MB |
+| | 250,000 | 400 ms | 402 ms | 404 ms | 37 + 40 MB |
+| | 500,000 | 801 ms | 755 ms | 771 ms | 73 + 75 MB |
+| | 1,000,000 | 1.6 s | 1.5 s | 1.7 s | 147 + 145 MB |
+| Tickets: unique count of the ticket ID + median | 100,000 | 221 ms | 214 ms | 205 ms | 15 + 24 MB |
+| | 250,000 | 484 ms | 507 ms | 474 ms | 37 + 51 MB |
+| | 500,000 | 987 ms | 1.0 s | 944 ms | 73 + 98 MB |
+| | 1,000,000 | 2.0 s | 2.5 s | 1.9 s | 147 + 194 MB |
+
+`encode` is most of it: about 1 to 1.5 s per million rows in each browser. The unique count of a column
+whose every value is distinct is the most expensive aggregation (`computePivot` 0.5 s per million
+rows in Chromium and WebKit, 1 s in Firefox). No size hit a limit or crashed, and the sales view's row
+count matched at every size (the other views have no such check); a million rows is exactly the default `rows` limit.
+
+The page cannot paint while the first table is built: the report shows its skeleton first, then
+the whole build runs as one task (Chromium reports one long task almost as long as the time in the table),
+so the page does not react to clicks or scrolling for that time.
+
+After the first table, the steps of a person on the sales view, by real clicks, from the click to
+the start of the first frame with the result in the page; that frame's last layout and paint are
+not included, so these are lower bounds (the range across the three browsers):
+
+| Step | 100,000 | 250,000 | 500,000 | 1,000,000 |
+| --- | ---: | ---: | ---: | ---: |
+| Open a field's filter values | 11-15 ms | 17-20 ms | 25-32 ms | 41-55 ms |
+| Take a value out of the filter | 19-23 ms | 32-40 ms | 52-68 ms | 90-124 ms |
+| Add a field to Rows | 20-29 ms | 26-37 ms | 39-57 ms | 66-98 ms |
+| Export XLSX (the table, 5 KB) | 13-15 ms | 12-14 ms | 12-14 ms | 13-16 ms |
+| Switch to the chart (ECharts loaded on first use) | 61-78 ms | 70-93 ms | 84-114 ms | 109-151 ms |
+
+During a step the page could not paint for at most the step's time (for the chart less, 33 to 91
+ms: part of its time is spent waiting for the ECharts file). The XLSX export writes the grid,
+not the rows, so its time does not grow with the data.
+
+Memory, Chromium only: the page's JavaScript memory after a garbage collection (the heap, the
+ArrayBuffers of the encoded columns and the DOM), through the DevTools protocol. "Data" is the
+generated row objects, which the host holds anyway; "report" is what the report adds to them
+(encoded columns, caches, the pivot, React's tree). Generated rows repeat a few strings; rows parsed
+from JSON with many distinct texts take more.
+
+Not measured:
+
+- Memory in Firefox and WebKit (no interface for it), and the peak while the table is built: only
+  what stays after it.
+- Long tasks in Firefox and WebKit (they do not report them); the longest gap between two
+  animation frames, measured in all three, stands in for it.
+- Loading a file into the report (see [pivotkit-xlsx](../reference/plugins.md#pivotkit-xlsx)),
+  other views (many distinct row labels, many fields, "show values as"), drill-down and scrolling.
+- Phones, Windows, Linux and other machines; a visible (not headless) window.
+
+What this means for a host:
+
+- **Up to about 250,000 rows** the first table takes about 0.15 to 0.5 s, a filter or a field
+  under 40 ms, the chart under 100 ms: comfortable.
+- **500,000 rows**: the first table takes about 0.5 to 1 s, a filter or a field up to about 70 ms;
+  usable.
+- **1,000,000 rows**: the first table takes 1 to 2.5 s with the page frozen meanwhile, a filter or a
+  field about 0.1 s. It works, but the start is slow, and the report keeps about as much memory again
+  as the host's rows (more with medians and unique counts).
+- **More than a million rows**: aggregate on the server first; see
+  [More than a million rows](#more-than-a-million-rows).
+- At 1,000,000 rows the unique count + median view counts 80,000,000 of `work`'s 100,000,000
+  (rows x 2 x 2 x 2 values x 10 for aggregations that keep values); one more row field would be
+  refused. Raise `work` together with `rows`, knowing that each such aggregation keeps an entry per
+  row and cell (about 10 to 40 bytes each, see `work` above).
+
+### More than a million rows
+
+A million rows is the default `rows` limit and the largest size measured. For more:
+
+1. **Aggregate on the server first**, where the rows are stored (SQL `GROUP BY`, an API that returns
+   totals), by the fields people put into Rows, Columns and Filters, and pass the smaller result.
+   Sums add up again in the report: pass a count as a column and sum it too. An average, a median
+   or a distinct count of the original rows cannot be computed again from groups; compute those on
+   the server at the level the report shows.
+2. **Or build the table on the server**: [pivotkit-core runs in Node](../getting-started/engine.md#on-a-server);
+   send the grid or the XLSX file to the page.
+3. **Or raise the `rows` limit** (`limits={{ rows: 2_000_000 }}`). That was not measured; from
+   100,000 to 1,000,000 rows the times and the memory grew about in proportion to the rows, so
+   expect seconds of a frozen page and memory on top of the host's own rows. Raise `work` with it
+   for medians and unique counts (see above).
 
 ## Errors
 

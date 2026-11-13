@@ -2,11 +2,11 @@
 // JSON (what was left out is unused.test.js), and the host's chartOptions.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { encode, toViewFile, viewFileText } from "pivotkit-core";
+import { encode, linkParam, toViewFile, viewFileText } from "pivotkit-core";
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
 import { CHART_OPTIONS_CAPS, cleanChartOptions, mergeChartOptions } from "../src/chart-options.js";
 import { LABELS } from "../src/labels.js";
-import { linkParam, loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
+import { loadCheck, readLinkParam, readStoredView, shareBase, viewFromObject, viewFromText, viewStorageName, withLinkParam, writeStoredView } from "../src/share.js";
 
 const data = encode([
     { Region: "North", Product: "A", Units: 3 },
@@ -17,26 +17,26 @@ test("the link's place in the fragment: pivot, or pivot-<storageKey>; other entr
     assert.equal(linkParam(undefined), "pivot");
     assert.equal(linkParam("sales"), "pivot-sales");
     const text = encodeViewLink({ rows: ["Region"] });
-    const url = withLinkParam("https://example.com/report?x=1", "pivot", text);
+    const url = withLinkParam("https://example.com/report?x=1", undefined, text);
     assert.equal(url, `https://example.com/report?x=1#pivot=${text}`);
-    const two = withLinkParam(url, "pivot-ops", "1.abc");
-    assert.equal(readLinkParam(new URL(two).hash, "pivot"), text);
-    assert.equal(readLinkParam(new URL(two).hash, "pivot-ops"), "1.abc");
+    const two = withLinkParam(url, "ops", "1.abc");
+    assert.equal(readLinkParam(new URL(two).hash, undefined), text);
+    assert.equal(readLinkParam(new URL(two).hash, "ops"), "1.abc");
     // the rest of the fragment stays byte for byte: an anchor, a hash route with its own query
-    assert.equal(withLinkParam("https://example.com/#top", "pivot", "1.x"), "https://example.com/#top&pivot=1.x");
-    const routed = withLinkParam("https://h/app#/reports/a?tab=2", "pivot", "1.abc");
+    assert.equal(withLinkParam("https://example.com/#top", undefined, "1.x"), "https://example.com/#top&pivot=1.x");
+    const routed = withLinkParam("https://h/app#/reports/a?tab=2", undefined, "1.abc");
     assert.equal(routed, "https://h/app#/reports/a?tab=2&pivot=1.abc");
-    assert.equal(withLinkParam(routed, "pivot", "1.def"), "https://h/app#/reports/a?tab=2&pivot=1.def");
-    assert.equal(withLinkParam(routed, "pivot", null), "https://h/app#/reports/a?tab=2");
-    assert.equal(readLinkParam(new URL(routed).hash, "pivot"), "1.abc");
-    assert.equal(withLinkParam("https://h/#x=%2F&pivot=1.a&y=a+b", "pivot", "1.b"), "https://h/#x=%2F&y=a+b&pivot=1.b");
+    assert.equal(withLinkParam(routed, undefined, "1.def"), "https://h/app#/reports/a?tab=2&pivot=1.def");
+    assert.equal(withLinkParam(routed, undefined, null), "https://h/app#/reports/a?tab=2");
+    assert.equal(readLinkParam(new URL(routed).hash, undefined), "1.abc");
+    assert.equal(withLinkParam("https://h/#x=%2F&pivot=1.a&y=a+b", undefined, "1.b"), "https://h/#x=%2F&y=a+b&pivot=1.b");
     // null removes the entry
-    assert.equal(withLinkParam(two, "pivot", null), "https://example.com/report?x=1#pivot-ops=1.abc");
-    assert.equal(withLinkParam("https://example.com/#pivot=1.x", "pivot", null), "https://example.com/");
-    assert.equal(readLinkParam("", "pivot"), null);
-    assert.equal(readLinkParam("#top", "pivot"), null);
+    assert.equal(withLinkParam(two, undefined, null), "https://example.com/report?x=1#pivot-ops=1.abc");
+    assert.equal(withLinkParam("https://example.com/#pivot=1.x", undefined, null), "https://example.com/");
+    assert.equal(readLinkParam("", undefined), null);
+    assert.equal(readLinkParam("#top", undefined), null);
     // the text survives the fragment unchanged
-    assert.deepEqual(decodeViewLink(readLinkParam(new URL(url).hash, "pivot")).view, { rows: ["Region"] });
+    assert.deepEqual(decodeViewLink(readLinkParam(new URL(url).hash, undefined)).view, { rows: ["Region"] });
 });
 
 test("the link's address: the page's own for true, the host's base URL, none when off", () => {
@@ -92,7 +92,7 @@ test("a view file loads with its envelope; a newer format asks to update pivotki
     assert.deepEqual(loaded.view?.rows, ["Region"]);
     assert.equal(loaded.file?.name, "Units");
     assert.equal(loaded.file?.compatible?.ok, true);
-    const newer = viewFromText(JSON.stringify({ format: "pivotkit-view", formatVersion: 2, view }), data);
+    const newer = viewFromText(JSON.stringify({ format: "pivotkit-view", formatVersion: 3, view }), data);
     assert.equal(newer.failed, "newer");
     assert.match(LABELS.en.viewFailed.newer, /Update pivotkit/);
     assert.match(LABELS.de.viewFailed.newer, /Zum Öffnen pivotkit aktualisieren/);
@@ -191,4 +191,14 @@ test("chartOptions: markup, addresses and text templates are left out wherever t
     assert.ok(problems.includes("chartOptions.tooltip.formatter: a text template (written as markup), not allowed"));
     assert.ok(problems.includes("chartOptions.series[0].symbol: an image address, not allowed"));
     assert.ok(problems.includes("chartOptions.title.link: markup, an address or the tooltip's element, not allowed"));
+});
+
+test("a view from outside (link, file, pasted JSON, the tab's) keeps at most 50 filters, or the host's lower limit", () => {
+    const many = { filters: Array.from({ length: 60 }, () => ({ field: "Region", type: "include", items: ["North"] })) };
+    const sales = encode([{ Region: "North" }]);
+    const loaded = viewFromObject(many, sales);
+    assert.equal(loaded.view?.filters.length, 50);
+    assert.deepEqual(loaded.issues.map((i) => i.code), ["tooMany"]);
+    assert.equal(viewFromObject(many, sales, { limits: { filters: 5 } }).view?.filters.length, 5);
+    assert.equal(viewFromText(JSON.stringify(many), sales, { limits: { filters: 500 } }).view?.filters.length, 50);
 });

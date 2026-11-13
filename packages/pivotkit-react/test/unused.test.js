@@ -70,7 +70,7 @@ test("an issue's line names the value, the field or the part of the view it is a
         "Planet: the data has no field of this name - it is left out of Rows",
         "Quakes: the colour scale needs two or three colours - the default colours are used",
         "Sum of Region: Sum does not work on “Region” (Text) - this value is left out",
-        "Rep: the text condition has no text - this filter is left out",
+        "Rep: the text condition has no text, or more than 1,000 characters - this filter is left out",
         "Region: the data has no field “Moons” - the usual order is used",
         "Chart: the legend position “left” is unknown - the default is used"
     ]);
@@ -161,4 +161,14 @@ test("a line of the warning goes once the part of the view it names is changed b
     assert.equal(stillApplies(scale, null, removed), true);
     // a view that could not be read at all: the line stays while the view is the one shown then
     assert.equal(partOf("", "x", same), JSON.stringify(same));
+});
+
+test("a key inside a section is named by itself, and an item in another case names the data's item", () => {
+    const raw = { rows: ["Region"], values: [{ field: "Units", agg: "sum", lable: "x" }], filters: [{ field: "Region", type: "include", items: ["north"] }] };
+    const issues = normalize(raw, data).issues;
+    const lines = issues.map((issue) => line(issue, raw, LABELS.en));
+    assert.deepEqual(lines, [
+        "“lable”: this setting is unknown here - it is ignored",
+        "Region: the data has no item “north”, but “North” - the filter keeps the item as written"
+    ]);
 });

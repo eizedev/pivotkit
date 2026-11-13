@@ -6,7 +6,7 @@
  * user input: it goes through normalize() against the data before the report shows it.
  */
 
-import { VIEW_FILE_LIMITS, fromViewFile, normalize } from "pivotkit-core";
+import { VIEW_FILE_LIMITS, fromViewFile, linkFragment, normalize, outsideLimits, withLinkFragment } from "pivotkit-core";
 import { fill } from "./labels.js";
 
 /** @type {Promise<typeof import("pivotkit-core/link")> | null} */
@@ -28,48 +28,22 @@ export function loadLink() {
 export const linkNow = () => linkLoaded;
 
 /**
- * The name of a report's view in the URL fragment: "pivot", or "pivot-<storageKey>" so several reports
- * on one page each have their own.
- * @param {string | undefined} storageKey
- */
-export function linkParam(storageKey) {
-    return storageKey ? `pivot-${storageKey}` : "pivot";
-}
-
-/** The entries of a fragment: its text split at "&", each kept as it is. */
-const entries = (fragment) => (fragment ? fragment.split("&") : []);
-/** Whether a fragment entry is the one of `param`. */
-const isEntry = (entry, param) => entry.startsWith(`${encodeURIComponent(param)}=`);
-
-/**
- * The encoded view of a fragment ("#pivot=1.abc&pivot-sales=1.def") under a name, or null. The
- * fragment is read as it is, not as form data, so a hash route next to it ("#/reports/a?tab=2&pivot=...")
- * does not matter.
+ * The link text of a report's entry in a fragment ("#pivot=1.abc&pivot-sales=1.def"), or null:
+ * pivotkit-core's linkFragment. `key` is the report's storageKey: its entry is "pivot-<key>", else
+ * "pivot". The fragment is read as it is, so a hash route next to it does not matter.
  * @param {string} hash  location.hash, with or without "#"
- * @param {string} param
+ * @param {string | undefined} key
  */
-export function readLinkParam(hash, param) {
-    const text = typeof hash === "string" ? hash.replace(/^#/, "") : "";
-    const entry = entries(text).find((e) => isEntry(e, param));
-    const value = entry ? entry.slice(encodeURIComponent(param).length + 1) : "";
-    return value ? value : null;
-}
+export const readLinkParam = (hash, key) => linkFragment(hash, key);
 
 /**
- * A URL with the encoded view under `param` in its fragment. Only that entry is added, replaced or
- * removed; the rest of the fragment (another report's entry, a hash route such as "#/reports/a?tab=2",
- * an anchor) stays byte for byte.
+ * A URL with the report's link text in its fragment (pivotkit-core's withLinkFragment): only that
+ * entry is added, replaced or removed (null), the rest of the fragment stays byte for byte.
  * @param {string} url
- * @param {string} param
- * @param {string | null} encoded  null removes the entry
+ * @param {string | undefined} key  the report's storageKey
+ * @param {string | null} encoded
  */
-export function withLinkParam(url, param, encoded) {
-    const at = url.indexOf("#");
-    const base = at === -1 ? url : url.slice(0, at);
-    const kept = entries(at === -1 ? "" : url.slice(at + 1)).filter((e) => !isEntry(e, param));
-    const next = encoded ? [...kept, `${encodeURIComponent(param)}=${encoded}`] : kept;
-    return next.length ? `${base}#${next.join("&")}` : base;
-}
+export const withLinkParam = (url, key, encoded) => withLinkFragment(url, key, encoded);
 
 /**
  * The address a shared link points to: the host's base URL as given, or for `true` the page's own
@@ -169,6 +143,9 @@ export function viewFromText(text, encoded, options = {}) {
 /**
  * A view from a parsed object (a link's) or a text, read as a view file and normalized against the
  * data; `file.compatible` says how it fits (the same source by `options.sourceId`, its fields there).
+ * Every view that comes in this way (a link, a file, pasted JSON, the tab's stored view) comes from
+ * outside the host's code: it is normalized with pivotkit-core's outsideLimits() over the host's
+ * `options.limits` (at most 50 filters, or the host's lower value).
  * @param {unknown} input
  * @param {import("pivotkit-core").Encoded} encoded
  * @param {{ limits?: object, sourceId?: string }} [options]
@@ -180,7 +157,7 @@ export function viewFromObject(input, encoded, options = {}) {
         const failed = file.failed ?? "notView";
         return { view: null, issues: file.issues, failed: Object.hasOwn(FAILED, failed) ? FAILED[failed] : failed, file };
     }
-    const { view, issues } = normalize(file.view, encoded, options.limits ? { limits: options.limits } : undefined);
+    const { view, issues } = normalize(file.view, encoded, { limits: outsideLimits(options.limits) });
     if (issues.some((i) => i.path === "version")) {
         return { view: null, issues, failed: "newer", file };
     }

@@ -47,24 +47,29 @@
  * @typedef {import("./view-file.js").ViewFileRead} ViewFileRead
  * @typedef {import("./view-file.js").ViewFileCompatibility} ViewFileCompatibility
  * @typedef {import("./view-file.js").ViewFileSource} ViewFileSource
+ * @typedef {import("./text-match.js").TextMatch} TextMatch
+ * @typedef {import("./link.js").ViewLinkRead} ViewLinkRead
  */
 
 export { encode } from "./encode.js";
-export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION, VIEW_ISSUE_CODES } from "./view.js";
+export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION, VIEW_ISSUE_CODES, VIEW_ISSUES } from "./view.js";
 export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
 export { suggestDateUnit } from "./derive.js";
 export { relativeDateRange } from "./filters.js";
+export { foldText, MATCH_DEFAULTS } from "./text-match.js";
 export { toGrid } from "./grid.js";
 export { autoChartType, toSeries, toEChartsOption } from "./chart.js";
 export { createHistory } from "./history.js";
 export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
+export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
 export { DEFAULT_LABELS, fieldLabel } from "./labels.js";
 export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
-export { LIMITS } from "./limits.js";
+export { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";
 export { PivotkitError } from "./errors.js";
+export { linkFragment, linkParam, withLinkFragment } from "./link-fragment.js";
 export { toViewFile, fromViewFile, viewFileText, viewFileName, viewFileFields, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, VIEW_FILE_SCHEMA, VIEW_FILE_LIMITS } from "./view-file.js";

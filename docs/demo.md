@@ -23,7 +23,10 @@ browser too ([Templates and shared views](concepts/templates.md)).
 
 The playground's header picks the data set, a start template, the language and the theme, and for a
 generated data set the number of rows (2,000, 4,000 or 100,000). Its footer shows the engine timings
-of the last change.
+of the last change. With `?import` in its address it lets you [load your own data](use/load-data.md)
+(`allowImport`, with the Excel plugin and the import worker; the footer shows `onDataLoad`):
+<a href="playground/?data=sales&import" target="_blank" rel="noopener">open it with loading data</a>.
+The file stays in your browser.
 
 The real data are snapshots stored with the playground; the page calls none of the sources, and its source line says the day a snapshot was fetched ("as of"), the "now" of templates such as the end-of-life ones. Weather
 data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; contains modified Copernicus Climate

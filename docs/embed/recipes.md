@@ -39,7 +39,8 @@ web component (`<pivot-report>`).
 | Give fields clear names, descriptions and links | [Field descriptions and names](../concepts/fields.md) |
 | Take labels and descriptions from a JSON Schema or OpenAPI document | [`fieldDefaultsFromSchema`](../concepts/fields.md#from-a-json-schema-or-an-openapi-document) |
 | Set how a field is summarized and formatted, its order of items | [`fieldDefaults`](../getting-started/react.md#field-defaults) |
-| Columnar data (`{ columns, rows }`) | [FAQ](../faq.md#my-data-is-columnar-columns-rows-can-i-pass-it) |
+| Columnar data (`{ columns, types, data }`, or `{ columns, rows }`) | [FAQ](../faq.md#my-data-is-columnar-columns-rows-can-i-pass-it) |
+| Let people load a CSV, JSON or Excel file into the report | [`allowImport`](../reference/react.md#prop-allowimport), [plugins](../reference/plugins.md#pivotkit-xlsx), [what they see](../use/load-data.md) |
 | Dates a day off | [time zones](../concepts/limits.md#time-zones), [FAQ](../faq.md#my-dates-are-a-day-off) |
 | Pivots on a server, without UI | [engine on a server](../getting-started/engine.md#on-a-server) |
 
@@ -61,6 +62,7 @@ web component (`<pivot-report>`).
 | Angular | [web component](../getting-started/web-component.md#angular), [zone.js](../reference/element.md#angular-and-zonejs) |
 | PowerShell Universal | [React](../getting-started/react.md#powershell-universal) |
 | A page without a bundler (import map) | [bundlers and import maps](../getting-started/react.md#bundlers-and-import-maps) |
+| Some viewers may see only some rows | [pivotkit is not access control](../security.md#pivotkit-is-not-access-control) |
 | A strict Content-Security-Policy | [security](../security.md#content-security-policy), [element](../reference/element.md#content-security-policy) |
 | Several reports on one page | [FAQ](../faq.md#several-reports-on-one-page) |
 | The report inside a dialog of your page | [Escape and the host page](../reference/react.md#escape-and-the-host-page) |

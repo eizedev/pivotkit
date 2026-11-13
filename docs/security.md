@@ -1,6 +1,6 @@
 ---
 title: Security
-description: How pivotkit treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, and runs under a strict Content-Security-Policy.
+description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, and runs under a strict Content-Security-Policy.
 ---
 
 # Security
@@ -9,6 +9,23 @@ Reports are built by the people who use them, and views travel: they are saved o
 templates and passed in URLs. pivotkit is built for that. To report a vulnerability, use the private
 channel described in the repository's
 [security policy](https://github.com/eizedev/pivotkit/blob/main/SECURITY.md).
+
+## pivotkit is not access control
+
+pivotkit shows every row and column it is given: in the table and the chart, in the drill-down, in
+the exports of the source rows, and in what `onCellClick` and the events pass on. Filters, the start
+view and templates are not permissions: a person can remove a filter, load another view or open a
+link, and sees the rest of the data. `drillDownLimit` caps how many rows a drill-down holds for
+memory, not who sees them.
+
+- Send only the rows and columns this viewer may see, filtered on your server for this user, before
+  they reach the browser: whatever the browser holds, the person can read with its developer tools.
+- A link or a view file names its data by a source id ([Sharing](concepts/sharing.md#opening-a-link-on-another-page)).
+  Load the data behind that id with the rights of the person who opens it, not of the person who
+  shared it, and answer a source they may not see as you answer an unknown one. Check the link's
+  allowed `params` the same way: they come from the link, not from you.
+- A shared view holds the values chosen in its filters, so a view can show a value to someone who
+  could not see the rows ([Privacy](reference/view-file.md#privacy)).
 
 ## Views are untrusted input
 
@@ -93,7 +110,8 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   in and before it is parsed: a file of a few hundred bytes with a value in row 300,000 and column
   XFD would otherwise become a dense array of billions of cells in the parser. Leaving out rows
   without a value (a used range of formatted empty cells) saves time and memory; the limits do not
-  depend on it.
+  depend on it. A host can give loaded files lower limits than its own data
+  ([`importLimits`](concepts/limits.md#limits-of-a-loaded-file)).
 - **Nothing in a file runs**: no formula is evaluated (a workbook's saved values are read), a workbook
   with macros (`.xlsm`, `vbaProject.bin`) is refused, and an XML part that declares a document type or
   entities (`<!DOCTYPE`, `<!ENTITY`) is refused before it is parsed, which rules out entity expansion
@@ -109,6 +127,14 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   workbook named `.csv`) is refused with what it is and what to do.
 - **Plugins** run with the rights of the page: use [plugins](reference/plugins.md) whose source you
   can read, pinned to an exact version.
+- **In the report** (`allowImport`): the file is read only after a person picked or dropped it, and
+  shown first in a preview; the data is replaced only by **Load data**, and the host can refuse it
+  (`onDataLoad`, `pivot-data-load`). Names and values from the file are shown as text in the preview,
+  the field list and the table. A loaded file's data lives only in the tab's memory: none of its
+  values is stored, a reload brings the host's data back. Its name and its column names are, where
+  views are kept or shared: the source id of a saved view, a view file or a link names the file
+  (up to 120 characters and a hash), and a view file lists the fields it uses. Undo keeps at most three data sets, so loading one
+  file after another does not keep every one in memory.
 
 ## Content-Security-Policy
 
@@ -143,6 +169,16 @@ The readers of `pivotkit-core/import` and pivotkit-xlsx start no worker and eval
 policy above is enough for them (measured for pivotkit-xlsx in Chromium, Firefox and WebKit,
 `tests/browser/xlsx.spec.js`); a host that runs them in a module worker of its own needs
 `worker-src 'self'`.
+
+Loading data in the element (`allow-import`) was measured with the same policy
+(`tests/browser/import.spec.js`): its import worker, `dist/import-worker.js`, is a file of the page's
+origin started by URL, never `blob:`, which `script-src 'self'` allows (`worker-src` falls back to
+it); pivotkit-xlsx's `dist/` reads workbooks as a plugin; the drop overlay and the preview set their
+places through the CSSOM. Chromium and Firefox report no violation. WebKit reports one
+`style-src-attr` violation, with a console error, for every native `<select>` it creates (the preview's
+type and sheet lists) and for a page's own `<select>` alike: the control's own inner parts, not the
+report's code; the lists work. A policy whose `worker-src` does not allow the worker's origin makes
+the report read on the page instead (the browser logs the refusal).
 
 ## Loading from another origin
 

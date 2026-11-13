@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { computePivot, emptyView, encode, migrate, normalize, toGrid, validate, VIEW_ISSUE_CODES, VIEW_VERSION } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 import { ISSUE_CASES, issuesOf } from "./issue-cases.js";
+import { VIEW_ISSUES } from "../src/view.js";
 
 const data = encode(SALES);
 /** The normalized view alone; the issues are checked through validate(). */
@@ -31,7 +32,7 @@ test("a full view normalizes to itself, with names in the data's spelling", () =
     assert.deepEqual(n.derived, [{ name: "Month", field: "Date", by: "yearMonth" }]);
     assert.equal(n.formatting.locale, "de-DE");
     assert.deepEqual(norm(n, data), n);
-    assert.deepEqual(validate(n, data), { valid: true, errors: [] });
+    assert.deepEqual(validate(n, data), { valid: true, errors: [], warnings: [] });
 });
 
 test("the schema may be encoded data, { fields } or a field list", () => {
@@ -242,7 +243,7 @@ test("fuzz: normalize never throws, its output is valid and normalizes to itself
     for (let i = 0; i < 2000; i++) {
         const input = rnd() < 0.5 ? make(0) : { ...make(1), rows: [pick(["Region", "Product", "Rep"])], values: [{ field: pick(["Units", "Price", null]), agg: pick(["sum", "count", "average"]) }] };
         const { view } = normalize(input, data);
-        assert.deepEqual(validate(view, data), { valid: true, errors: [] }, JSON.stringify(input));
+        assert.deepEqual(validate(view, data), { valid: true, errors: [], warnings: [] }, JSON.stringify(input));
         assert.deepEqual(normalize(view, data).view, view);
         assert.doesNotThrow(() => toGrid(computePivot(data, input)));
     }
@@ -268,7 +269,7 @@ test("chart display settings: value labels, legend, title and smooth lines, chec
     const chart = { type: "pie", valueLabels: "both", legend: "right", title: "  Units by region ", smooth: true, labelPosition: "inside" };
     assert.deepEqual(norm({ chart }).chart, { type: "pie", stacked: false, horizontal: false, valueLabels: "both", legend: "right", title: "Units by region", smooth: true, axisLabels: "auto", groupLabels: "auto", labelPosition: "inside" });
     assert.equal(norm({ chart: { type: "donut" } }).chart.type, "donut");
-    assert.deepEqual(validate({ chart }, data), { valid: true, errors: [] });
+    assert.deepEqual(validate({ chart }, data), { valid: true, errors: [], warnings: [] });
     // unknown settings fall back to their defaults and are reported
     const bad = normalize({ chart: { valueLabels: "everything", legend: "left", title: 42, smooth: "yes", labelPosition: "above" } }, data);
     assert.deepEqual(bad.view.chart, emptyView().chart);
@@ -326,10 +327,72 @@ test("every issue has a code of VIEW_ISSUE_CODES, and each code is reported by i
         for (const issue of issues) {
             assert.ok(VIEW_ISSUE_CODES.includes(issue.code), `${code}: ${JSON.stringify(issue)}`);
             assert.equal(typeof issue.message, "string");
+            assert.equal(issue.severity, issue.path.includes(".") && issue.code === "unknownKey" ? "warning" : VIEW_ISSUES[issue.code].severity, `${code}: ${JSON.stringify(issue)}`);
             for (const value of Object.values(issue.params ?? {})) {
                 assert.ok(typeof value === "number" || (typeof value === "string" && value.length <= 100), `${code}: params ${JSON.stringify(issue.params)}`);
             }
         }
         assert.ok(issues.some((i) => i.code === code), `${code}: ${JSON.stringify(issues)}`);
     }
+});
+
+test("every issue carries a severity: errors leave a part out, warnings keep it", () => {
+    for (const [code, { severity, schema }] of Object.entries(VIEW_ISSUES)) {
+        assert.ok(severity === "error" || severity === "warning", code);
+        assert.equal(typeof schema, "boolean", code);
+    }
+    const { valid, errors, warnings } = validate({ rows: ["Region"], filters: [{ field: "Region", type: "include", items: ["north", "South"] }] }, data);
+    assert.equal(valid, true);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings, [{
+        path: "filters[0].items", message: 'item "north" is no item of "Region"; did you mean "North"?', code: "itemCase", severity: "warning",
+        params: { field: "Region", value: "north", suggestion: "North" }
+    }]);
+    // the item stays as it was written: a warning changes nothing
+    assert.deepEqual(normalize({ filters: [{ field: "Region", type: "include", items: ["north"] }] }, data).view.filters[0].items, ["north"]);
+});
+
+test("an item that differs from the data's only by whitespace is a warning too; without encoded data there is none", () => {
+    const spaced = encode([{ Name: "Active\u00A0Directory" }, { Name: "Other" }]);
+    const { warnings } = validate({ filters: [{ field: "Name", type: "include", items: ["active directory", "Other"] }] }, spaced);
+    assert.deepEqual(warnings.map((w) => [w.code, w.params?.suggestion]), [["itemCase", "Active\u00A0Directory"]]);
+    assert.deepEqual(validate({ filters: [{ field: "Region", type: "include", items: ["north"] }] }, data.schema).warnings, []);
+});
+
+test("an unknown field, aggregator, filter type or key names the closest known one", () => {
+    const { errors } = validate({ rows: ["regoin"], values: [{ field: "Units", agg: "summ" }], filters: [{ field: "Unit", type: "includ", items: [] }], colls: [] }, data);
+    assert.deepEqual(errors.map((e) => [e.path, e.code, e.params?.suggestion]), [
+        ["colls", "unknownKey", "cols"],
+        ["rows[0]", "unknownField", "Region"],
+        ["values[0]", "unknownAggregator", "sum"],
+        ["filters[0]", "unknownField", "Units"]
+    ]);
+    // nothing close: no suggestion
+    assert.equal(validate({ rows: ["Planet"] }, data).errors[0].params.suggestion, undefined);
+});
+
+test("a key inside a part of the view that this version does not know is a warning, with what was meant", () => {
+    const { valid, errors, warnings } = validate({
+        rows: ["Region"],
+        values: [{ field: "Units", agg: "sum", lable: "Units", showAs: { type: "runningTotal", axes: "rows" } }],
+        filters: [{ field: "Region", type: "include", items: ["North"], item: "x" }],
+        sort: [{ field: "Region", oder: "desc" }],
+        totals: { grandTotalRows: false },
+        chart: { type: "bar", stack: true },
+        formatting: { locale: "en-US", timezone: "UTC" },
+        derived: [{ name: "Y", field: "Date", by: "year", unit: "x" }]
+    }, data);
+    assert.equal(valid, true);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(warnings.map((w) => [w.path, w.params?.suggestion ?? null]), [
+        ["derived[0].unit", null],
+        ["values[0].lable", "label"],
+        ["values[0].showAs.axes", "axis"],
+        ["filters[0].item", "items"],
+        ["sort[0].oder", "order"],
+        ["totals.grandTotalRows", "grandTotalRow"],
+        ["chart.stack", null],
+        ["formatting.timezone", "timeZone"]
+    ]);
+    assert.ok(warnings.every((w) => w.code === "unknownKey" && w.severity === "warning"));
 });

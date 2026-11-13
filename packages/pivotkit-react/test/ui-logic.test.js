@@ -421,23 +421,55 @@ test("history tags: a new schema starts without one, a change from outside keeps
     assert.equal(undo(redo(saved).state).state.tag.name, "Y");
 });
 
-test("toolbar: which buttons go into More follows the width and a fixed priority, never the texts", async () => {
-    const { OVERFLOW_ORDER, TOOLBAR_ROOM, overflowLevel } = await import("../src/overflow.js");
-    // Redo stays with Undo: it never moves; Reset goes first (it makes room for "More"); Views, where
-    // the report is saved, goes last
-    assert.deepEqual(OVERFLOW_ORDER, ["reset", "layout", "options", "chartType", "views"]);
-    const all = TOOLBAR_ROOM.display + TOOLBAR_ROOM.sep + TOOLBAR_ROOM.undo + TOOLBAR_ROOM.redo + TOOLBAR_ROOM.export + OVERFLOW_ORDER.reduce((n, id) => n + TOOLBAR_ROOM[id], 0);
-    assert.equal(overflowLevel(all, false), 0, "room for every button");
-    assert.equal(overflowLevel(all - 0.1, false), 1, "a little less: Reset goes first");
-    assert.equal(overflowLevel(0, false), OVERFLOW_ORDER.length, "no room: all of them");
-    // a narrow report has the Fields button too: Reset and Layout make room for it and for "More"
-    assert.equal(overflowLevel(all, true), 2);
-    // the level only grows as the toolbar gets narrower
-    let last = 0;
-    for (let w = 140; w >= 0; w -= 0.5) {
-        const level = overflowLevel(w, false);
-        assert.ok(level >= last);
-        last = level;
+test("toolbar: which buttons go into More follows a fixed priority and the room left, never more than needed", async () => {
+    const { MORE_GROUPS, OVERFLOW_ORDER, TOOLBAR_ROOM, overflowHidden } = await import("../src/overflow.js");
+    // Redo stays with Undo: it never moves; Layout goes first; Start over (where New is) and Views,
+    // where the report is saved, go last; "data" is the place of a Data button
+    assert.deepEqual(OVERFLOW_ORDER, ["layout", "options", "chartType", "data", "startOver", "views"]);
+    // More's groups hold every entry of the order once
+    assert.deepEqual(MORE_GROUPS.flat().sort(), [...OVERFLOW_ORDER].sort());
+    const present = ["layout", "options", "chartType", "startOver", "views"];
+    const all = TOOLBAR_ROOM.display + TOOLBAR_ROOM.sep + TOOLBAR_ROOM.undo + TOOLBAR_ROOM.redo + TOOLBAR_ROOM.export + present.reduce((n, id) => n + TOOLBAR_ROOM[id], 0);
+    assert.deepEqual(overflowHidden(all, false, present), [], "room for every button");
+    assert.deepEqual(overflowHidden(all - 0.1, false, present), ["layout"], "a little less: Layout goes first");
+    assert.deepEqual(overflowHidden(0, false, present), present, "no room: all of them");
+    // a narrow report has the Fields button too: what goes makes room for it and for More
+    const narrowHidden = overflowHidden(all, true, present);
+    const freed = narrowHidden.reduce((n, id) => n + TOOLBAR_ROOM[id], 0) - TOOLBAR_ROOM.more;
+    assert.ok(freed >= TOOLBAR_ROOM.fields, "the Fields button fits");
+    assert.ok(freed - Math.min(...narrowHidden.map((id) => TOOLBAR_ROOM[id])) < TOOLBAR_ROOM.fields, "no button more than needed");
+    // a Data button's place costs nothing while there is none: the same as without it in the order
+    for (let w = 40; w <= all + 1; w += 0.5) {
+        assert.deepEqual(overflowHidden(w, false, present, { ...TOOLBAR_ROOM, data: 50 }), overflowHidden(w, false, present));
+    }
+    // ... and with one, it goes before Start over and Views
+    assert.deepEqual(overflowHidden(all, false, [...present, "data"], { ...TOOLBAR_ROOM, data: 0.5 }), ["layout"]);
+    assert.deepEqual(overflowHidden(0, false, [...present, "data"], { ...TOOLBAR_ROOM, data: 3 }), ["layout", "options", "chartType", "data", "startOver", "views"]);
+});
+
+test("toolbar: a button the room left holds stays, even when one before it in the order had to go", async () => {
+    const { overflowHidden } = await import("../src/overflow.js");
+    const present = ["layout", "options", "chartType", "startOver", "views"];
+    // fixed parts 100; Options is wide: once it has gone, the narrow Layout before it fits again
+    const room = { display: 60, sep: 4, undo: 18, redo: 18, export: 0, layout: 5, options: 30, chartType: 10, startOver: 10, views: 10, more: 5 };
+    const fixed = 100;
+    // the order alone puts Layout and Options into More (100 + 10 + 10 + 10 + More 5 = 135 fits in
+    // 140); Layout (5) fits in the 5 left, so only Options goes
+    assert.deepEqual(overflowHidden(fixed + 40, false, present, room), ["options"]);
+    // a little less: the order takes the chart type too (125 fits in 134); Layout comes back (130)
+    assert.deepEqual(overflowHidden(fixed + 34, false, present, room), ["options", "chartType"]);
+    // every button is in the toolbar or in More, never both, and the result is in the order
+    for (let w = 0; w <= fixed + 80; w += 1) {
+        const hidden = overflowHidden(w, false, present, room);
+        assert.deepEqual(hidden, present.filter((id) => hidden.includes(id)));
+        const shown = present.filter((id) => !hidden.includes(id));
+        const need = fixed + shown.reduce((n, id) => n + room[id], 0) + (hidden.length ? room.more : 0);
+        assert.ok(need <= w || shown.length === 0, `${w}: the buttons shown fit`);
+        // nothing in More would fit in the room left
+        for (const id of hidden) {
+            const without = hidden.filter((h) => h !== id);
+            assert.ok(need - (without.length ? 0 : room.more) + room[id] > w, `${w}: ${id} would fit`);
+        }
     }
 });
 
@@ -486,17 +518,21 @@ test("a date grouping is named in words: Date by month, Datum nach Monat", async
     assert.equal(groupingName("Date", "year", { ...LABELS.en, unitInName: undefined }), "Date by Year");
 });
 
-test("toolbar room: the widest text of every language, plus what a button has around it", async () => {
-    const { toolbarRoom, toolbarTexts, overflowLevel } = await import("../src/overflow.js");
-    const texts = toolbarTexts([LABELS.en, LABELS.de]);
-    assert.ok(texts.undo.includes("Undo") && texts.undo.includes("Rückgängig"));
-    assert.ok(texts.chartType.includes("Gestapelte Balken"));
-    // one px per character: the room is that of the longer language
-    const room = toolbarRoom(texts, (t) => t.length, { text: 30, menu: 40, display: 50, sep: 9, gap: 6 });
-    assert.equal(room.undo, 30 + "Rückgängig".length + 6);
-    assert.equal(room.chartType, 40 + "Gestapelte Balken".length + 6);
-    assert.equal(room.display, 50 + "Tabelle".length + "Diagramm".length + 6);
-    // the same room whichever language is shown: the same level at the same width
-    const shownDe = toolbarRoom(toolbarTexts([LABELS.en, LABELS.de, LABELS.de]), (t) => t.length, { text: 30, menu: 40, display: 50, sep: 9, gap: 6 });
-    for (let w = 100; w < 600; w += 7) assert.equal(overflowLevel(w, false, shownDe), overflowLevel(w, false, room));
+test("toolbar room: the texts of the report's language, the chart type's longest, plus what a button has around it", async () => {
+    const { toolbarRoom, toolbarTexts } = await import("../src/overflow.js");
+    const chrome = { text: 30, menu: 40, display: 50, sep: 9, gap: 6 };
+    // one px per character
+    const en = toolbarRoom(toolbarTexts(LABELS.en), (t) => t.length, chrome);
+    const de = toolbarRoom(toolbarTexts(LABELS.de), (t) => t.length, chrome);
+    assert.equal(en.undo, 30 + "Undo".length + 6);
+    assert.equal(de.undo, 30 + "Rückgängig".length + 6);
+    assert.equal(en.startOver, 40 + "Start over".length + 6);
+    assert.equal(de.startOver, 40 + "Neu beginnen".length + 6);
+    // the chart type keeps the room of its longest type, so picking one never moves a button
+    assert.equal(en.chartType, 40 + "Horizontal bars".length + 6);
+    assert.equal(de.chartType, 40 + "Gestapelte Balken".length + 6);
+    assert.equal(en.display, 50 + "Table".length + "Chart".length + 6);
+    // a host's own texts are measured as they are
+    assert.equal(toolbarRoom(toolbarTexts({ ...LABELS.en, views: "Saved reports" }), (t) => t.length, chrome).views, 40 + "Saved reports".length + 6);
 });
+

@@ -7,6 +7,11 @@
 
 Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), views as
 JSON files, native Excel export; as a JavaScript core, a React component and a web component.
+Free under MIT, it computes in the browser on the rows the host passes and fetches no data; a saved
+view is plain JSON that cannot run code, and the Excel export is a real .xlsx with the pivot layout
+kept.
+
+[Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
 
 ![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
@@ -90,6 +95,7 @@ npm test
 npm run pack:check               # what npm pack would publish (every package)
 npm run bench -w pivotkit-core
 npm run bench -w pivotkit-xlsx   # reading a generated 94,000-row workbook (-- --browser: also Chromium)
+npm run bench:browser            # the report in Chromium, Firefox and WebKit with 100,000 to 1,000,000 rows
 npm run playground               # the playground on http://localhost:5173
 npm run docs:data                # fetch the playground's real data sets again (network)
 npm run test:browser             # Playwright in Chromium, Firefox and WebKit: playground, host pages, shadow root, web component

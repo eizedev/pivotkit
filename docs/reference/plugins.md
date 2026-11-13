@@ -18,7 +18,7 @@ with npm provenance.
 
 | Plugin | What | Size (gzip) | pivotkit-core |
 | --- | --- | --- | --- |
-| <span id="pivotkit-xlsx"></span>[`pivotkit-xlsx`](https://www.npmjs.com/package/pivotkit-xlsx) | Excel workbooks (`.xlsx`): one sheet, the first visible one or the one asked for; dates from the cell formats; the values Excel saved, never formulas. Refuses `.xls`, `.xlsb`, macro and password-protected workbooks, ZIP bombs and XML with a document type, before anything is parsed. Built on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). | 0.2 KiB descriptor, 29.4 KiB when the first workbook is read | 0.4.0 or later (plugin API 1) |
+| <span id="pivotkit-xlsx"></span>[`pivotkit-xlsx`](https://www.npmjs.com/package/pivotkit-xlsx) | Excel workbooks (`.xlsx`): one sheet, the first visible one or the one asked for; dates from the cell formats; the values Excel saved, never formulas. Refuses `.xls`, `.xlsb`, macro and password-protected workbooks, ZIP bombs and XML with a document type, before anything is parsed. Built on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). | 0.2 KiB descriptor, 29.5 KiB when the first workbook is read | 0.4.0 or later (plugin API 1) |
 
 ### pivotkit-xlsx
 
@@ -27,6 +27,27 @@ With a bundler (React, or the web component in a built app):
 ```bash
 npm install pivotkit-xlsx
 ```
+
+In the report, as a plugin of its Data menu and of files dropped onto it
+([Load your own data](../use/load-data.md)):
+
+```jsx
+import xlsxReader from "pivotkit-xlsx";
+
+<PivotReport data={rows} allowImport plugins={[xlsxReader]} />
+```
+
+```js
+import "pivotkit-element";
+import xlsxReader from "pivotkit-xlsx";
+
+const report = document.querySelector("pivot-report");   // <pivot-report allow-import>
+report.plugins = [xlsxReader];
+```
+
+pivotkit-element does not bundle pivotkit-xlsx: a page that reads only CSV and JSON loads none of it.
+
+Or on its own, with `readFile`:
 
 ```js
 import { readFile } from "pivotkit-core/import";
@@ -40,15 +61,16 @@ ES modules with read-excel-file and fflate bundled; serve the whole `dist/` fold
 is a chunk loaded on demand. Its licences are in `dist/THIRD_PARTY_LICENSES.txt`.
 
 ```html
+<pivot-report allow-import></pivot-report>
+<script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
 <script type="module">
     import xlsxReader from "/assets/pivotkit-xlsx/dist/index.js";
-    import { readFile } from "/assets/pivotkit-core/src/import.js";
-    const table = await readFile(file, { plugins: [xlsxReader] });
+    document.querySelector("pivot-report").plugins = [xlsxReader];
 </script>
 ```
 
-The report's own "Load data…" menu, which takes the plugins as a prop and an element property,
-follows in the next release ([#44](https://github.com/eizedev/pivotkit/issues/44)).
+The plugin is code of the page: the report reads its files on the page, never in the import worker,
+and the workbook's reader loads only when the first workbook is read.
 
 What it reads and refuses:
 

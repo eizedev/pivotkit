@@ -7,6 +7,9 @@ docs/assets/site.css
 docs/playground/
 # the view file schema, copied from packages/pivotkit-core/schema/ by scripts/docs-demo.js
 docs/schema/
+# the social preview (from assets/) and robots.txt, written by scripts/docs-demo.js
+docs/assets/social-preview.png
+docs/robots.txt
 .DS_Store
 ._*
 .claude/*
@@ -17,3 +20,7 @@ packages/*/types/
 packages/*/LICENSE
 test-results/
 playwright-report/
+
+# the Angular example: the CLI's build cache and the CI build log
+examples/angular/.angular/
+examples/angular/build.log

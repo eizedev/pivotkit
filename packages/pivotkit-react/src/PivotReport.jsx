@@ -11,6 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { computePivot, emptyView, encode, fieldLabel, normalize, suggestDateUnit, toGrid, toSeries, viewFields } from "pivotkit-core";
 import { PivotChart } from "./chart.jsx";
 import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
@@ -23,8 +24,10 @@ import { Icon, TYPE_ICON } from "./icons.jsx";
 import { errorText, fill, plural, resolveLabels } from "./labels.js";
 import { useIsoLayoutEffect } from "./iso.js";
 import { MenuPanel, loadMenus, menusNow, onMenuTexts } from "./lazy-menus.jsx";
+import { importNow, loadImport } from "./lazy-import.js";
+import { importLimitsOf } from "./import-limits.js";
 import { LayerContext } from "./popover.jsx";
-import { linkNow, linkParam, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
+import { linkNow, loadCheck, loadLink, readLinkParam, readStoredView, shareBase, viewFromObject, writeStoredView } from "./share.js";
 import { HelpContext } from "./help.js";
 import { Skeleton } from "./skeleton.jsx";
 import { PivotTable } from "./table.jsx";
@@ -39,7 +42,8 @@ import { stillApplies } from "./unused-keep.js";
 import { Toolbar } from "./toolbar.jsx";
 import { prepareExporters, useExport } from "./use-export.js";
 import { useResolvedTheme } from "./use-theme.js";
-import { useViewHistory } from "./use-view-history.js";
+import { schemaKeyOf, useViewHistory } from "./use-view-history.js";
+import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
@@ -131,6 +135,14 @@ const here = () => (typeof location !== "undefined" ? { href: location.href, has
 /** Rows above which the report shows its skeleton first and encodes the data in the next frame. */
 export const DEFER_ROWS = 10_000;
 
+/** The host's data as encode() takes it: rows, or columnar ({ columns, types, data }, one array per column). */
+const dataOf = (d) => (Array.isArray(d) || Array.isArray(d?.columns) ? d : []);
+/** Rows of the host's data. */
+const rowsOf = (d) => (Array.isArray(d) ? d.length : (d?.data?.[0]?.length ?? 0));
+
+/** No data steps (data-history.js): none until a file is loaded. */
+const NO_STEPS = Object.freeze({ past: [], future: [] });
+
 /**
  * The issues of a view loaded from outside as the warning's notes, with the view as given; a
  * template's name and description are unknown keys of its view, nothing the person can act on.
@@ -148,7 +160,7 @@ const unusedNotes = (issues, raw) => issues.filter((i) => (i.code ?? (i.message 
 export function PivotReport(props) {
     const { loading = false, data, encoded } = props;
     // a large data set: the skeleton paints first, the encoding runs after it (a frame later)
-    const [deferred, setDeferred] = useState(() => !encoded && Array.isArray(data) && data.length > DEFER_ROWS);
+    const [deferred, setDeferred] = useState(() => !encoded && rowsOf(data) > DEFER_ROWS);
     const [started, setStarted] = useState(false);
     useEffect(() => {
         if (!deferred) {
@@ -205,7 +217,11 @@ function keyOfHostView(view) {
 /** A subscription to something that never changes (useSyncExternalStore of a value chosen once). */
 const staysTheSame = () => () => undefined;
 
-function EmptyState({ labels, templates, onTemplate }) {
+/**
+ * The start screen of an empty view; with `onLoad` (allowImport) a place to drop a file or pick one,
+ * and without any data (`noData`) only that.
+ */
+function EmptyState({ labels, templates, onTemplate, onLoad, noData }) {
     return (
         <div className="pk-empty" data-testid="empty-state">
             <div className="pk-empty-art" aria-hidden="true">
@@ -213,17 +229,28 @@ function EmptyState({ labels, templates, onTemplate }) {
                 <span className="pk-empty-chip pk-c2" />
                 <span className="pk-empty-chip pk-c3" />
             </div>
-            <h2>{labels.emptyTitle}</h2>
-            <ol className="pk-steps">
-                {labels.emptySteps.map((s, i) => (
-                    <li key={i}>
-                        <span className="pk-step-n" aria-hidden="true">
-                            {i + 1}
-                        </span>
-                        <span>{s}</span>
-                    </li>
-                ))}
-            </ol>
+            <h2>{noData ? labels.emptyNoData : labels.emptyTitle}</h2>
+            {noData ? null : (
+                <ol className="pk-steps">
+                    {labels.emptySteps.map((s, i) => (
+                        <li key={i}>
+                            <span className="pk-step-n" aria-hidden="true">
+                                {i + 1}
+                            </span>
+                            <span>{s}</span>
+                        </li>
+                    ))}
+                </ol>
+            )}
+            {onLoad ? (
+                <div className="pk-drop-zone" data-testid="empty-drop">
+                    <p>{noData ? labels.emptyDrop : labels.emptyLoad}</p>
+                    <button type="button" className="pk-btn" onClick={onLoad} data-testid="empty-load">
+                        <Icon name="upload" />
+                        <span className="pk-btn-text">{labels.loadData}</span>
+                    </button>
+                </div>
+            ) : null}
             {templates.length ? (
                 <div className="pk-empty-actions">
                     {templates.slice(0, 3).map((t, i) => (
@@ -265,6 +292,7 @@ function Report(props) {
         theme = "auto",
         height = 640,
         limits: limitsProp,
+        importLimits: importLimitsProp,
         className,
         fileName = "pivot",
         fieldDefaults,
@@ -286,14 +314,27 @@ function Report(props) {
         schemaUrl,
         grow: growProp,
         fieldList,
-        loading = false
+        loading = false,
+        allowImport = false,
+        plugins: pluginsProp,
+        onDataLoad,
+        importWorker
     } = props;
     // past its box only without a height of the host's (or when the host asks for it): a card with a
     // height keeps the report inside, its result scrolls
     const grow = growProp === "on" || (growProp !== "off" && props.height === undefined);
     // the data the view is made for (the host's source), for the view files and the check before a load
-    const sourceId = typeof sourceProp?.id === "string" && sourceProp.id ? sourceProp.id : undefined;
-    const sourceName = typeof sourceProp?.name === "string" && sourceProp.name ? sourceProp.name : undefined;
+    const hostSourceId = typeof sourceProp?.id === "string" && sourceProp.id ? sourceProp.id : undefined;
+    const hostSourceName = typeof sourceProp?.name === "string" && sourceProp.name ? sourceProp.name : undefined;
+    // loading data in the browser (allowImport): the file being read (the import dialog), a file
+    // dragged over the report, and the import UI once loaded (lazy-import.jsx); the file's data shown
+    // and the data steps further down, with the host's data
+    const [job, setJob] = useState(/** @type {{ file: File, n: number } | null} */ (null));
+    const [dragging, setDragging] = useState(false);
+    const dragDepth = useRef(0);
+    const [importMod, setImportMod] = useState(importNow);
+    const fileInput = useRef(/** @type {HTMLInputElement | null} */ (null));
+    const plugins = Array.isArray(pluginsProp) ? pluginsProp : [];
 
     // props a host may rebuild on every render, compared by value
     const labelsKey = JSON.stringify(customLabels ?? null);
@@ -303,7 +344,12 @@ function Report(props) {
     const baseLabels = useMemo(() => resolveLabels(locale, JSON.parse(labelsKey)), [locale, labelsKey]);
     const typesKey = JSON.stringify(typesOf(fieldDefaults));
     const limitsKey = JSON.stringify(limitsProp ?? null);
-    const limits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
+    const hostLimits = useMemo(() => JSON.parse(limitsKey) ?? undefined, [limitsKey]);
+    // a loaded file's limits: the host's `importLimits` over its `limits`, key by key, so a host that
+    // keeps uploads small does not cap its own data; without importLimits the very object of hostLimits,
+    // so showing a file or the host's data again does not re-run what depends on the limits
+    const importLimitsKey = JSON.stringify(importLimitsProp ?? null);
+    const fileLimits = useMemo(() => importLimitsOf(hostLimits, JSON.parse(importLimitsKey)), [hostLimits, importLimitsKey]);
     const root = useRef(/** @type {HTMLDivElement | null} */ (null));
     const themeName = useResolvedTheme(theme, root);
     const [layer, setLayer] = useState(/** @type {HTMLElement | null} */ (null));
@@ -353,9 +399,8 @@ function Report(props) {
     // its group ("user", "shared"; null for a file or a link), whether the browser store keeps it, and
     // its view as saved (`key`, history.keyOf), so the toolbar shows when it has unsaved changes
     // the saved view each step of the history shows travels with it (history.tag, view-save.js's
-    // LoadedView); `savedKeys` holds each saved view as it was loaded or saved (history.keyOf, by
-    // savedKeyOf), so the toolbar shows when the view shown has unsaved changes
-    const [savedKeys, setSavedKeys] = useState(/** @type {Record<string, string>} */ ({}));
+    // LoadedView); `savedKeys` (with the file's data, below) holds each saved view as it was loaded or
+    // saved
     // the whole label of the row in use while the table is virtual (table.jsx: onRowLabel)
     const [rowLabel, setRowLabel] = useState(/** @type {string | null} */ (null));
     const chartRef = useRef(null);
@@ -375,15 +420,33 @@ function Report(props) {
     const source = useMemo(() => {
         try {
             const types = JSON.parse(typesKey);
-            const enc = encodedProp ?? measured("encode", () => encode(/** @type {any[]} */ (Array.isArray(data) ? data : []), { timeZone: timeZone ?? "UTC", limits, ...(types ? { types } : {}) }));
+            const enc = encodedProp ?? measured("encode", () => encode(dataOf(data), { timeZone: timeZone ?? "UTC", limits: hostLimits, ...(types ? { types } : {}) }));
             return { encoded: enc, error: null };
         } catch (error) {
             return { encoded: encode([]), error };
         }
         // data is read through dataIdentity: with a dataKey a new array with the same key is the same data
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [encodedProp, dataIdentity, timeZone, limits, typesKey]);
-    const encoded = source.encoded;
+    }, [encodedProp, dataIdentity, timeZone, hostLimits, typesKey]);
+    // the file's data shown (null: the host's) and the data steps of the undo history (data-history.js);
+    // a report mounted again with its storageKey over the same host data starts where it was
+    // (data-keep.js: memory only, restored by the layout effect below)
+    const keepKey = allowImport && typeof storageKey === "string" && storageKey ? storageKey : null;
+    const hostData = hostIdentity({ dataKey, sourceId: hostSourceId, schemaKey: schemaKeyOf(source.encoded) });
+    const [kept] = useState(() => (keepKey ? keptData(keepKey, hostData) : null));
+    const [imported, setImported] = useState(/** @type {import("./import-steps.js").ShownData | null} */ (kept?.imported ?? null));
+    const [dataSteps, setDataSteps] = useState(/** @type {import("./data-history.js").DataSteps} */ (kept?.steps ?? NO_STEPS));
+    // each saved view as it was loaded or saved (history.keyOf, by savedKeyOf), so the toolbar shows
+    // when the view shown has unsaved changes
+    const [savedKeys, setSavedKeys] = useState(/** @type {Record<string, string>} */ (kept?.savedKeys ?? {}));
+    // the data the view is made for: the file's (its name and the hash of its columns, so the browser
+    // store keeps views per file), else the host's source
+    const sourceId = imported ? imported.source.id : hostSourceId;
+    const sourceName = imported ? imported.source.name : hostSourceName;
+    const encoded = imported ? imported.encoded : source.encoded;
+    // the limits of the data shown: a file's are the import limits, so its views, results and exports
+    // are bounded the way it was read
+    const limits = imported ? fileLimits : hostLimits;
     // the display names (labels.fields), told apart where two fields would look the same
     const fieldNamesKey = encoded.schema.fields.map((f) => f.name).join("\u0000");
     const labels = useMemo(() => {
@@ -404,7 +467,7 @@ function Report(props) {
         }
         return (/** @type {string} */ field) => orders.find(([name]) => name.toLowerCase() === field.toLowerCase())?.[1];
     }, [ordersKey]);
-    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf });
+    const history = useViewHistory({ encoded, view: viewProp, defaultView, onViewChange, limits, outsideNote: labels.steps.outside, orderOf, dataKey: imported ? imported.key : 0, initial: kept?.history });
     const view = history.view;
     // the host's view (`view`, else the first `defaultView`) and what of it the data cannot use: shown
     // above the result like a loaded view's unused parts, once per distinct view (a host may render the
@@ -413,7 +476,8 @@ function Report(props) {
     const hostKey = keyOfHostView(viewProp !== undefined ? viewProp : startView);
     const keyOf = history.keyOf;
     const hostNotes = useMemo(() => {
-        if (hostKey === "null" || loading || encoded.schema.fields.length === 0) {
+        // a file's data shown: the host's view is the host's data's business, not the person's
+        if (hostKey === "null" || loading || imported || encoded.schema.fields.length === 0) {
             return null;
         }
         const raw = JSON.parse(hostKey);
@@ -422,7 +486,7 @@ function Report(props) {
         }
         const notes = unusedNotes(normalize(raw, encoded, { limits }).issues, raw);
         return notes.length ? { notes, loaded: JSON.parse(keyOf(raw)) } : null;
-    }, [hostKey, loading, encoded, limits, keyOf]);
+    }, [hostKey, loading, imported, encoded, limits, keyOf]);
     /** What a loaded view (`given`, as given) left out, for the area above the result. */
     const leaveOut = useCallback((notes, given) => setLeftOut({ notes, loaded: given ? JSON.parse(keyOf(given)) : null, after: hostKey }), [keyOf, hostKey]);
     // the saved view shown: the history step's, when it was loaded for the data shown now (another
@@ -450,18 +514,23 @@ function Report(props) {
         },
         [labels]
     );
-    const undo = useCallback(() => {
-        const note = history.undo();
+    // the import UI's view of the report (`api` below), for the steps an event starts
+    const apiNow = useRef(/** @type {any} */ (null));
+    // Undo and Redo: the view's own steps first, then a data step (a file loaded, the original data)
+    const undo = () => {
+        const note = history.canUndo || !importMod ? history.undo() : importMod.moveData(apiNow.current, true);
         if (note !== null) {
             announce(fill(labels.toastUndone, { step: note }));
         }
-    }, [history, labels, announce]);
-    const redo = useCallback(() => {
-        const note = history.redo();
+    };
+    const redo = () => {
+        const note = history.canRedo || !importMod ? history.redo() : importMod.moveData(apiNow.current, false);
         if (note !== null) {
             announce(fill(labels.toastRedone, { step: note }));
         }
-    }, [history, labels, announce]);
+    };
+    /** A new step drops the data steps undone before it. */
+    const newStep = useCallback(() => setDataSteps((s) => (s.future.length ? { past: s.past, future: [] } : s)), []);
     // the toast's Undo runs later, on the history of that moment
     const undoLater = useRef(undo);
     useEffect(() => {
@@ -470,12 +539,13 @@ function Report(props) {
     // Reset shows the start view, no saved view: the history's step has no tag (Undo brings it back)
     const reset = useCallback(() => {
         history.reset(labels.steps.reset);
-        announce(labels.toastReset);
-    }, [history, labels, announce]);
+        newStep();
+        // as New's note: Undo right there brings the view back
+        announce(labels.toastReset, { action: { label: labels.undo, run: () => undoLater.current() } });
+    }, [history, labels, announce, newStep]);
 
     // a view that comes back by itself: the tab's stored one, then a shared link (which wins); read
     // once, after the first render. A link needs pivotkit-core/link: while it loads the result waits.
-    const param = linkParam(storageKey);
     const [opening, setOpening] = useState(false);
     const appliedLink = useRef(/** @type {string | null} */ (null));
     // commit() is defined further down: the ref gets it after the render
@@ -485,7 +555,7 @@ function Report(props) {
     /**
      * Opens the view of a link text; the result waits while the link module loads. At load the link is
      * where the report starts (a new history); a link opened later in the tab (only the fragment
-     * changed) is a step Undo takes back, like Load view.
+     * changed) is a step Undo takes back, like Open view file.
      */
     const openLink = useCallback((text, asStep = false) => {
         appliedLink.current = text;
@@ -541,8 +611,13 @@ function Report(props) {
         );
     }, []);
     useIsoLayoutEffect(() => {
+        // a report mounted again with its file's data (data-keep.js) is where it was: its own view
+        // comes back below, not the link's or the tab's
+        if (kept) {
+            return;
+        }
         const page = here();
-        const link = shareLink ? readLinkParam(page?.hash ?? "", param) : null;
+        const link = shareLink ? readLinkParam(page?.hash ?? "", storageKey) : null;
         if (link) {
             openLink(link);
         } else if (persistView === "session") {
@@ -566,14 +641,14 @@ function Report(props) {
             return undefined;
         }
         const onHash = () => {
-            const link = readLinkParam(here()?.hash ?? "", param);
+            const link = readLinkParam(here()?.hash ?? "", storageKey);
             if (link && link !== appliedLink.current) {
                 openLink(link, true);
             }
         };
         window.addEventListener("hashchange", onHash);
         return () => window.removeEventListener("hashchange", onHash);
-    }, [shareLink, param, openLink]);
+    }, [shareLink, storageKey, openLink]);
     // the tab keeps the view shown (persistView="session"); Reset stores the start view the same way
     useEffect(() => {
         if (persistView === "session") {
@@ -598,13 +673,14 @@ function Report(props) {
             if (changed) {
                 changesRef.current += 1;
                 setChanges(changesRef.current);
+                newStep();
             }
             if (!changed || !note.removed) {
                 return;
             }
             announce(fill(labels.toastRemoved, { field: note.field ?? "" }).trim(), { action: { label: labels.undo, run: () => undoLater.current() } });
         },
-        [history, stepText, labels, announce, limits, locale]
+        [history, stepText, labels, announce, limits, locale, newStep]
     );
 
     /** A saved view as it is kept now (loaded or saved): the view shown differs from it, or not. */
@@ -866,7 +942,8 @@ function Report(props) {
                 return;
             }
             setHinted(true);
-            const { count, rows, indices } = drillRows(result, { rowPath, colPath, data: encodedProp ? null : data, limit: drillDownLimit });
+            // the host's own row objects, unless the rows are rebuilt from the columns (encoded, columnar, a file's)
+            const { count, rows, indices } = drillRows(result, { rowPath, colPath, data: encodedProp || imported || !Array.isArray(data) ? null : data, limit: drillDownLimit });
             onCellClick?.({ row: rowPath, col: colPath, value, valueIndex, text, count, rows });
             if (drillDown) {
                 // the values as the table shows them; a host's format for a field (fieldDefaults) applies
@@ -878,10 +955,85 @@ function Report(props) {
                 setDrill({ result, rowPath, colPath, count, indices, formatOf, nameOf, infoOf });
             }
         },
-        [result, encodedProp, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
+        [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
     const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport });
+
+    // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
+    // file dragged over the report, the empty report's button) and renders the file input, the drop
+    // overlay and the preview; "Load data" there replaces the data shown (import-steps.js)
+    // (rendered at once: the empty report's "Load data…" clicks the file input the module renders)
+    const requestImport = () => loadImport().then((m) => (flushSync(() => setImportMod(() => m)), m));
+    /** What the import UI works on: this render's state, its setters and the props it needs. */
+    const api = {
+        imported, setImported, steps: dataSteps, setSteps: setDataSteps, job, setJob, dragging, history, encoded, hostEncoded: source.encoded, hostSource: sourceProp, sourceName, labels, locale, plugins, worker: importWorker, limits: fileLimits, timeZone, onDataLoad, announce, dismiss,
+        undo: () => undoLater.current(),
+        box: () => root.current?.getBoundingClientRect(),
+        pick: () => importMod?.pickFile(fileInput.current),
+        load: requestImport
+    };
+    useEffect(() => {
+        apiNow.current = api;
+    });
+    // a report mounted again with its file's data (data-keep.js) starts on its kept view history (the
+    // first render already, so the kept entry is never written from a history before it, even when the
+    // host unmounts the report again before it renders twice); the host hears that the file is shown
+    // again (onDataLoad "restore"), then the history's view through onViewChange (a host that controls
+    // the view takes the file's) before the browser paints
+    // (once: React's StrictMode runs a mount's effects twice)
+    const restored = useRef(false);
+    useIsoLayoutEffect(() => {
+        if (kept && !restored.current) {
+            restored.current = true;
+            importMod?.restoreData(api);
+            history.replace(kept.history);
+        }
+        // once per mounted report
+    }, []);
+    // while a file's data is shown the report's latest state is kept for a new mount; the host's data
+    // shown again after a file lets it go (Back to original data, Undo of the load). An unmount keeps
+    // it. A report mounted over other host data lets an entry made over another go; over data without
+    // columns (a host still on its way, without `loading`) it leaves it for the next mount.
+    const snapshot = history.snapshot;
+    const keptKey = useRef(keepKey);
+    const fileShown = useRef(false);
+    const hostHasColumns = source.encoded.schema.fields.length > 0;
+    useIsoLayoutEffect(() => {
+        if (keepKey !== null && !kept && hostHasColumns) {
+            forgetData(keepKey);
+        }
+        // once per mounted report
+    }, []);
+    useEffect(() => {
+        if (keptKey.current !== keepKey && keptKey.current !== null) {
+            forgetData(keptKey.current);
+        }
+        keptKey.current = keepKey;
+        if (keepKey === null) {
+            return;
+        }
+        if (imported) {
+            fileShown.current = true;
+            keepData(keepKey, { host: hostData, imported, steps: dataSteps, history: snapshot(), savedKeys });
+        } else if (fileShown.current) {
+            fileShown.current = false;
+            forgetData(keepKey);
+        }
+    }, [keepKey, hostData, imported, dataSteps, snapshot, savedKeys]);
+    /** A file dragged over the report and dropped: counted in and out of its parts, then read. */
+    const fileDrag = (/** @type {React.DragEvent} */ e) => {
+        if (!Array.prototype.includes.call(e.dataTransfer?.types ?? [], "Files")) {
+            return;
+        }
+        e.preventDefault();
+        const files = e.type === "drop" ? [...e.dataTransfer.files] : null;
+        dragDepth.current = files ? 0 : Math.max(0, dragDepth.current + (e.type === "dragenter" ? 1 : e.type === "dragleave" ? -1 : 0));
+        setDragging(dragDepth.current > 0);
+        if (e.type !== "dragover") {
+            requestImport().then((m) => files && m.startFiles(apiNow.current, files), () => undefined);
+        }
+    };
 
     // sharing: a link (when the host allows it), the view as a view file (JSON, a file), loading one;
     // what each does is share-actions.js's, loaded with the menus
@@ -897,7 +1049,7 @@ function Report(props) {
         schemaUrl,
         encoded,
         shareLink,
-        param,
+        linkKey: storageKey,
         root,
         fileName,
         onExport,
@@ -981,9 +1133,7 @@ function Report(props) {
                 now.setTag(tag);
             }
         },
-        viewKey: history.viewKey,
-        onNew: newReport,
-        canNew: !empty
+        viewKey: history.viewKey
     };
 
     const onKeyDown = (e) => {
@@ -995,7 +1145,8 @@ function Report(props) {
             big.setEnlarged(false);
             return;
         }
-        if (target.closest("input, textarea, select, [contenteditable]")) {
+        // a modal dialog of the report (the preview of a file) keeps its keys: Undo never changes what is behind it
+        if (target.closest("input, textarea, select, [contenteditable], [aria-modal='true']")) {
             return;
         }
         const mod = e.ctrlKey || e.metaKey;
@@ -1189,6 +1340,10 @@ function Report(props) {
             // a click anywhere in the report focuses it, so the undo and redo shortcuts work
             tabIndex={-1}
             onKeyDown={onKeyDown}
+            onDragEnter={allowImport ? fileDrag : undefined}
+            onDragOver={allowImport ? fileDrag : undefined}
+            onDragLeave={allowImport ? fileDrag : undefined}
+            onDrop={allowImport ? fileDrag : undefined}
         >
             <LayerContext.Provider value={layerValue}>
               <FormNameContext.Provider value={formPrefix}>
@@ -1235,12 +1390,15 @@ function Report(props) {
                                 chartPlan={plan}
                                 labels={labels}
                                 size={size}
-                                canUndo={history.canUndo}
-                                canRedo={history.canRedo}
+                                canUndo={history.canUndo || dataSteps.past.length > 0}
+                                canRedo={history.canRedo || dataSteps.future.length > 0}
                                 canReset={history.canReset}
+                                startEmpty={history.startEmpty}
+                                canNew={!empty}
                                 onUndo={undo}
                                 onRedo={redo}
                                 onReset={reset}
+                                onNew={newReport}
                                 loadedView={loadedView ? { name: loadedView.name, changed: unsaved } : null}
                                 onDisplay={(d) => commit(setDisplay(view, d), { step: "display", display: d })}
                                 onChart={(p) => commit(setChart(view, p), { step: "chart", type: p })}
@@ -1270,6 +1428,7 @@ function Report(props) {
                                     explanations: explainUser ? { on: !dismissed.includes(NO_EXPLANATIONS), set: (on) => toggle(NO_EXPLANATIONS, on) } : null
                                 }}
                                 viewsRequest={viewsRequest}
+                                data={allowImport ? { loaded: Boolean(imported), panel: (/** @type {() => void} */ close) => <MenuPanel name="DataMenu" loadingText={labels.loadingMenu} props={{ api, close, labels }} /> } : null}
                             />
                             <Zones
                                 view={view}
@@ -1354,7 +1513,7 @@ function Report(props) {
                                         <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
-                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} />
+                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
                                 ) : view.display === "chart" && chartResult ? (
                                     <PivotChart
                                         result={chartResult}
@@ -1379,6 +1538,7 @@ function Report(props) {
                             </section>
                             <div className="pk-status">
                                 <span data-testid="row-count">{result ? plural(labels.rowsCount, result.rows.length, { lang: labels.lang, locale }) : ""}</span>
+                                {importMod ? <importMod.SourceLine api={api} /> : null}
                                 {rowLabel && showTable ? (
                                     <span className="pk-row-label" data-testid="row-label">
                                         {fill(labels.rowLabel, { label: rowLabel })}
@@ -1396,6 +1556,8 @@ function Report(props) {
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}
                 </PivotDnd>
+                {/* loading data: the file input, the drop overlay, the preview (import-host.jsx) */}
+                {allowImport && importMod ? <importMod.ImportLayer api={api} input={fileInput} /> : null}
                 <div className="pk-layer" ref={setLayer}>
                     {/* a fixed probe at 0, 0: where fixed popovers start (popover.jsx) */}
                     <span className="pk-origin" aria-hidden="true" />

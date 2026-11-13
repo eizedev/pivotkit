@@ -17,7 +17,8 @@
     "xlsx",
     "excel",
     "import",
-    "spreadsheet"
+    "spreadsheet",
+    "pivot-table"
   ],
   "type": "module",
   "sideEffects": false,
@@ -55,7 +56,7 @@
   },
   "dependencies": {
     "fflate": "0.8.3",
-    "pivotkit-core": "^0.3.0",
+    "pivotkit-core": "^0.4.0",
     "read-excel-file": "9.3.14"
   },
   "types": "./types/index.d.ts",

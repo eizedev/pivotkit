@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { deflateSync, strToU8 } from "fflate";
-import { PivotkitError, encode, normalize } from "pivotkit-core";
-import { LINK_LIMITS, decodeViewLink, encodeViewLink } from "pivotkit-core/link";
+import { readFileSync } from "node:fs";
+import { PivotkitError, encode, fromViewFile, normalize, toViewFile } from "pivotkit-core";
+import { LINK_ISSUE_CODES, LINK_LIMITS, decodeViewLink, encodeViewLink, linkFragment, linkParam, readViewLink } from "pivotkit-core/link";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -39,7 +40,7 @@ test("the link text and the inflated view are size-capped before anything large 
     // a small link that inflates to a huge text (a deflate bomb) stops at the limit
     const bomb = `1.${b64(deflateSync(strToU8(`{"rows":["${"x".repeat(LINK_LIMITS.json + 10)}"]}`), { level: 9 }))}`;
     assert.ok(bomb.length < LINK_LIMITS.text);
-    assert.deepEqual(decodeViewLink(bomb), { view: null, issues: [{ path: "", message: `view larger than ${LINK_LIMITS.json} characters` }] });
+    assert.deepEqual(decodeViewLink(bomb), { view: null, issues: [{ path: "", message: `view larger than ${LINK_LIMITS.json} characters`, code: "linkTooLarge", severity: "error" }] });
 });
 
 test("a view too large for a link throws LIMIT_EXCEEDED; a non-object is a programmer error", () => {
@@ -72,4 +73,68 @@ test("an empty payload is damaged; inflating stops at the cap instead of inflati
     const small = inflateCapped(deflateSync(strToU8("hello")), 100);
     assert.equal(Buffer.from(small.bytes).toString(), "hello");
     assert.throws(() => inflateCapped(deflateSync(strToU8("hello")).subarray(0, 3), 100));
+});
+
+// ---- a link's data source and readViewLink ----
+
+const golden = JSON.parse(readFileSync(new URL("./v1-golden.json", import.meta.url), "utf8"));
+
+test("every issue of a link has a code of LINK_ISSUE_CODES", () => {
+    const codes = ["", `1.${"A".repeat(LINK_LIMITS.text)}`, "2.abc", "1.", "1.AAAA", `1.${b64(deflateSync(strToU8("[1]")))}`, `1.${b64(deflateSync(strToU8("{x")))}`].map((t) => decodeViewLink(t).issues[0].code);
+    assert.deepEqual(codes, ["linkEmpty", "linkTooLong", "notLink", "linkDamaged", "linkDamaged", "notView", "notJson"]);
+    assert.ok(codes.every((c) => LINK_ISSUE_CODES.includes(c)));
+});
+
+test("readViewLink: the view of a report's entry in the fragment, with its name and data source", () => {
+    const file = toViewFile(view, { name: "By region", source: { id: "sales", params: { year: "2026", region: "north" } } }, { link: true });
+    assert.deepEqual(file.source, { id: "sales", params: { year: "2026", region: "north" } });
+    const hash = `#/reports/a?tab=2&pivot-sales=${encodeViewLink(file)}&pivot=${encodeViewLink({ rows: ["Product"] })}`;
+    const read = readViewLink(hash, "sales", { allowParams: ["year"] });
+    assert.deepEqual(read.view, view);
+    assert.equal(read.name, "By region");
+    // only the parameters the host allows by name; the others are left out with an issue
+    assert.deepEqual(read.src, { id: "sales", params: { year: "2026" } });
+    assert.deepEqual(read.issues.map((i) => i.path), ["source.params.region"]);
+    assert.deepEqual(readViewLink(hash, "sales").src, { id: "sales" });
+    assert.deepEqual(readViewLink(hash).view, { rows: ["Product"] });
+    assert.equal(readViewLink(hash).src, null);
+    assert.equal(readViewLink("#other=1", "sales").failed, "none");
+    assert.deepEqual(readViewLink("#pivot=2.x").issues.map((i) => i.code), ["notLink"]);
+    assert.equal(linkFragment(hash, "sales"), encodeViewLink(file));
+    assert.equal(linkParam("sales"), "pivot-sales");
+});
+
+test("readViewLink: a parameter the host allows is kept whatever its name; bad host options throw at once", () => {
+    const params = JSON.parse('{"__proto__": "p", "constructor": "c", "a": "1"}');
+    const file = toViewFile(view, { source: { id: "s", params } }, { link: true });
+    const read = readViewLink(`#pivot=${encodeViewLink(file)}`, null, { allowParams: ["__proto__", "constructor", "a"] });
+    assert.deepEqual(Object.keys(read.src?.params ?? {}), ["__proto__", "constructor", "a"]);
+    assert.equal(Object.getPrototypeOf(read.src?.params), Object.prototype);
+    assert.equal(/** @type {any} */ ({}).p, undefined);
+    // a programmer error, whether or not the page has a link
+    for (const hash of ["", "#pivot=x", `#pivot=${encodeViewLink(file)}`]) {
+        assert.throws(() => readViewLink(hash, null, { limits: /** @type {any} */ ({ nope: 1 }) }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION");
+    }
+});
+
+test("source params are text within the limits; what does not fit is left out", () => {
+    const many = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`p${i}`, "x"]));
+    const written = toViewFile(view, { source: { id: "s", params: { ...many, long: "x".repeat(300), n: /** @type {any} */ (5) } } });
+    assert.equal(Object.keys(written.source.params).length, 16);
+    const read = fromViewFile({ format: "pivotkit-view", formatVersion: 2, source: { id: "s", params: { a: "1", b: 2, ["x".repeat(300)]: "y" } }, view });
+    assert.deepEqual(read.source, { id: "s", params: { a: "1" } });
+    assert.equal(read.issues.length, 2);
+    // without an id there is no source to parameterize
+    assert.equal(toViewFile(view, { source: { params: { a: "1" } } }).source.params, undefined);
+});
+
+test("links of view format version 1 decode and read as they did (golden texts of pivotkit-core 0.4.0)", () => {
+    for (const [name, text] of Object.entries(golden.links)) {
+        const read = readViewLink(`#pivot=${text}`);
+        assert.equal(read.failed, null, name);
+        assert.equal(/** @type {any} */ (read.view).version, 1, name);
+        // normalized, a version-1 view becomes version 2 without an error
+        assert.deepEqual(normalize(read.view, data).issues.filter((i) => i.severity === "error"), [], name);
+    }
+    assert.deepEqual(readViewLink(`#pivot=${golden.links["with source and filters"]}`).src, { id: "sales" });
 });

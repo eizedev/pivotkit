@@ -28,7 +28,6 @@ export const en = {
         groupLabels: "With two or more fields in Rows: the outer field's items written once under the axis, below their categories.",
         labelPosition: "Outside: each slice's name and number next to it. Inside: the number on the slice, the names in the legend; outside when a donut's ring is too thin for it.",
         sharedView: "Only admins can change shared views.",
-        newReport: "Takes every field out, to start over. Undo brings them back; saved views stay.",
         valuesFilter: "Values are not filtered here: filter a field on Rows or Columns through its menu, or move a field to Filters."
     },
     // a menu in levels: the way back, a level's title, the search of a menu
@@ -101,13 +100,27 @@ export const en = {
     // the Filter level of a date field: its quick choices ("Last [5] years" around the number typed),
     // each with the data's share and the rows it keeps, the ones not offered, the reference date
     quickTitle: "Quick choices",
-    quickCount: { year: "Number of years", month: "Number of months", day: "Number of days" },
-    quickLast: { year: { one: "Last {count} year", other: "Last {count} years" }, month: { one: "Last {count} month", other: "Last {count} months" }, day: { one: "Last {count} day", other: "Last {count} days" } },
+    quickCount: { year: "Number of years", quarter: "Number of quarters", month: "Number of months", week: "Number of weeks", day: "Number of days" },
     quickRows: "{rows} rows",
     quickHidden: { one: "{choices} is not offered: the data end {latest}.", other: "{choices} are not offered: the data end {latest}." },
+    // under the choice that is set: whether its periods take the current one ("Last 3 months" with November)
+    quickCurrent: { year: "Include the current year", quarter: "Include the current quarter", month: "Include the current month", week: "Include the current week", day: "Include today" },
+    // the rare choices, folded: Next N, Before the last N, rolling periods
+    quickMore: "More choices",
+    quickRolling: "Rolling instead of whole calendar periods",
+    // the names of the unit selects, after their choice: "Unit of “Last …”"; This's select picks the period
+    quickUnitOf: "Unit of “{choice} …”",
+    quickThisUnit: "Current period",
     anchorLabel: "Counted back from",
     anchorToday: "today ({date})",
     anchorLatest: "the latest record ({date})",
+    anchorFirst: "the first record ({date})",
+    anchorDate: "a date…",
+    anchorDay: "The date counted from",
+    // the date field without a whole date: the range keeps the one before
+    anchorDayIncomplete: "Enter a whole date; the ranges still count from {date}.",
+    // under a choice whose current period has no data (the data end before it)
+    anchorUseLatest: "Count back from the latest record ({date}) instead",
     quickLine: "Quick choice: {text}",
     changeAbove: "change it above",
     // a cyclic grouping ("month of the year") combines the years: the ones ticked
@@ -164,7 +177,10 @@ export const en = {
     ruleUnits: { year: { one: "year", other: "years" }, month: { one: "month", other: "months" }, day: { one: "day", other: "days" } },
     // a rule on the total, as a sentence: "Product items whose / Count of Cycle / is greater than / 3"
     ruleWhose: "{field} items whose total",
+    ruleFixed: "Kept as the view has it; the rules here cannot change it yet.",
     blanksOut: "Blank items are not kept.",
+    // under the rules on the items: the field's blank items kept with them
+    rulesBlanks: { one: "Also keep items without a value ({rows} row)", other: "Also keep items without a value ({rows} rows)" },
     ruleUnit: "Unit",
     moveLeft: "Move left",
     moveRight: "Move right",
@@ -211,7 +227,6 @@ export const en = {
     replaceConfirm: "“{name}” exists. Replace it?",
     replaceAction: "Replace",
     replaceSharedConfirm: "Replace the shared view “{name}” for everyone?",
-    newAlready: "The report is empty already.",
     save: "Save",
     cancel: "Cancel",
     expandAll: "Expand all",
@@ -275,6 +290,10 @@ export const en = {
     topCount: "Count",
     bottom: "Bottom",
     topBy: "by",
+    topTies: "Also show items with the same value as the last one",
+    // under it: how many items the top shows (the field first on its axis), else that a group can show more
+    topShown: { one: "{count} item shown", other: "{count} items shown" },
+    topTiesGroups: "A group can show more than {count} items.",
     searchValues: "Search values",
     selectAll: "Select all",
     selectNone: "Select none",
@@ -345,15 +364,14 @@ export const en = {
     groupLabels: "Group labels under the axis",
     groupLabelNames: { auto: "Automatic", on: "On", off: "Off" },
     defaultName: "Use the default name",
-    // sharing a view (the Views menu): the group heading above the Share row, and the row
+    // sharing a view (the Views menu): the group's title
     shareThisView: "Share this view",
-    share: "Share",
     copyLink: "Copy link",
     copyJson: "Copy view as JSON",
     downloadView: "Download view (.pivotkit.json)",
     // said where a view leaves the report as a file, as JSON or as a link
     sharePrivacy: "A view holds the names of fields and, in its filters, the values chosen there: share it only where those may be seen.",
-    loadView: "Load view…",
+    loadView: "Open view file…",
     loadViewHint: "Paste a view file, a view as JSON or a link, or choose a .pivotkit.json file.",
     loadViewText: "View as JSON or link",
     chooseFile: "Choose file…",

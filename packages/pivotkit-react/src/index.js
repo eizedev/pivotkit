@@ -86,7 +86,9 @@
 
 /**
  * @typedef {object} PivotReportProps
- * @property {object[]} [data]  the rows; encoded once per array, or once per `dataKey`
+ * @property {object[] | import("pivotkit-core").ColumnarData} [data]  the rows, or columnar data
+ *   (`{ columns, types, data }`, one array per column, as pivotkit-core's encode takes it); encoded once
+ *   per array or object, or once per `dataKey`
  * @property {string | number} [dataKey]  identity of `data`: a new array with the same key is not encoded again
  * @property {import("pivotkit-core").Encoded} [encoded]  already encoded data, instead of `data`
  * @property {ViewInput} [view]  controlled: the view to show; pass back what onViewChange gives
@@ -120,7 +122,11 @@
  *   (the page scrolls); with it the report stays inside that height and its result scrolls
  * @property {"on" | "off"} [grow]  whether the report grows past its height to keep the result's
  *   least height: "on" by default without `height`, "off" with it
- * @property {Partial<import("pivotkit-core").Limits>} [limits]
+ * @property {Partial<import("pivotkit-core").Limits>} [limits]  pivotkit-core's limits for the host's data
+ *   (and for a loaded file, where `importLimits` leaves a key out)
+ * @property {Partial<import("pivotkit-core").Limits>} [importLimits]  the limits a file loaded with
+ *   `allowImport` is read and shown with, merged key by key over `limits` (default: `limits`), so a
+ *   host can keep uploads small without capping its own data
  * @property {string} [label]  the name of the report's region landmark (default the labels' `report`);
  *   several reports on one page each need their own
  * @property {string} [className]
@@ -160,8 +166,8 @@
  * @property {ViewSource[]} [sources]  the other data the host can show: a view made for one of them
  *   offers "Switch to <name> and load" (with `onSourceSwitch`)
  * @property {string | null} [schemaUrl]  the `$schema` of the view files the report writes: by default
- *   https://pivotkit.eize.dev/schema/view-file-1.json, a host's own copy of the schema (it ships in
- *   pivotkit-core as "pivotkit-core/schema/view-file-1.json"), or null or "" to leave it out; loading a
+ *   https://pivotkit.eize.dev/schema/view-file-2.json, a host's own copy of the schema (it ships in
+ *   pivotkit-core as "pivotkit-core/schema/view-file-2.json"), or null or "" to leave it out; loading a
  *   view never depends on it
  * @property {(request: SourceSwitch) => void} [onSourceSwitch]  the user chose to switch to the data a
  *   view was made for and load it there: the host shows that data and the view (as its start view)
@@ -170,6 +176,25 @@
  *   decides. With it the user can still change it until the page is loaded again
  * @property {boolean} [loading]  the host is loading the data: the report shows its skeleton (before
  *   the first data) or covers its result (later loads)
+ * @property {boolean} [allowImport]  people may load a file into the report in the browser: a Data
+ *   button with "Load data…", a file dropped onto the report, a preview before it replaces the data
+ *   (nothing is uploaded; Undo and "Back to original data" bring the host's data back). With a
+ *   `storageKey` a report mounted again over the same host data shows the file again (memory only).
+ *   Default false
+ * @property {import("pivotkit-core/import").ReaderPlugin[]} [plugins]  reader plugins (contract v1,
+ *   pivotkit-core/import's validatePlugin) for more formats, such as pivotkit-xlsx; CSV, TSV, text and
+ *   JSON are built in
+ * @property {(load: DataLoad) => unknown} [onDataLoad]  the data shown changed: a file is loaded
+ *   (`cause` "load"; returning false refuses it, the data stays), the host's data shown again
+ *   ("original"), one of those undone or redone ("undo", "redo"), or the file shown again by a report
+ *   mounted again with its storageKey ("restore")
+ * @property {() => Worker} [importWorker]  starts a module worker that runs pivotkit-react's
+ *   `import-worker` entry, so CSV and JSON files are read off the page; without it they are read on
+ *   the page (pivotkit-element brings its own)
+ */
+
+/**
+ * @typedef {import("./import-steps.js").DataLoad} DataLoad
  */
 
 /**

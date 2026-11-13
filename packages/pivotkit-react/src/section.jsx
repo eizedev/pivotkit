@@ -5,10 +5,11 @@
  * Only the menus use these, so they load with them (menus.js), not with the report.
  */
 
-import React, { useContext, useId } from "react";
+import React, { useContext } from "react";
 import { HelpContext } from "./help.js";
 import { InfoButton } from "./info.jsx";
 import { fill } from "./labels.js";
+import { Group } from "./popover.jsx";
 
 /**
  * The "i" next to a setting: its explanation (labels.settingInfo[id], loaded with the menus) on
@@ -27,22 +28,15 @@ export function SettingInfo({ id, name, tabIndex }) {
 }
 
 /**
- * A titled group of a menu's entries (the Export menus, the chart type), with `info`, the id of an
- * explanation shown as an "i" next to the title.
+ * A titled group of a menu's entries (the Export menus, the chart type): popover.jsx's Group, with
+ * `info`, the id of an explanation shown as an "i" next to the title.
  * @param {{ title: React.ReactNode, children: React.ReactNode, info?: string }} props
  */
 export function Section({ title, children, info }) {
-    const titleId = useId();
     const name = typeof title === "string" ? title : "";
     return (
-        <div className="pk-section" role="group" aria-labelledby={titleId}>
-            <div className="pk-section-head">
-                <div className="pk-section-title" id={titleId}>
-                    {title}
-                </div>
-                {info ? <SettingInfo id={info} name={name} /> : null}
-            </div>
+        <Group title={title} head={info ? <SettingInfo id={info} name={name} /> : null}>
             {children}
-        </div>
+        </Group>
     );
 }

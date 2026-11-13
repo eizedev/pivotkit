@@ -62,14 +62,32 @@ The report adapts to its own width, not the window's.
   lands.
 - **Sheets**: on a phone **More** and every menu are a sheet at the bottom of the window, at most
   82 % of its height, scrolling inside: every entry is reachable.
-- **More**: toolbar buttons that do not fit move into **More**, always in the same order - Reset
-  first, then Layout, Options, the chart type and Views last, so Views (where you save) stays in the
-  toolbar from a window about 1280 px wide (with the field list open). At about 1280 px the chart
-  type is in **More** to make room for Views; from about 1440 px both show. Which buttons move
-  depends on the report's width only, so the same buttons show in every language, and a click on
-  Layout never moves it. Table or Chart, Undo with Redo next to it, and Export always stay. The name
-  of the view you loaded takes the room that is left on its line and is shortened with "…", never
-  to less than a few letters; a tap on it opens Views.
+- **More**: toolbar buttons that do not fit move into **More**, in a fixed order - Layout
+  first, then Options, the chart type, and Start over and Views last (Start over holds New, and
+  Views is where you save) - but only those the room left in the
+  toolbar cannot hold: a button that fits stays, even when one before it in that order had to go.
+  The room is measured with the texts of the report's language, so a shorter language keeps more
+  buttons. The chart type keeps the room of its longest type, so picking another type never moves a
+  button, and a click on Layout never moves it either. While a menu of the toolbar is open nothing
+  moves (a narrower window, another language): the buttons settle when it closes. A menu opened
+  from **More** closes when its own button fits in the toolbar again. Table or Chart, Undo with Redo next to it,
+  and Export always stay. In **More** the entries come in groups with a line between them: Start
+  over's **Reset** and **New, empty report** as entries of their own; Layout, the chart type and
+  Options; Views. The name of the view you loaded takes the room that is left on its line and is
+  shortened with "…", never to less than a few letters; a tap on it opens Views.
+
+  | Window (field list open / folded) | English | German |
+  | --- | --- | --- |
+  | 1920 px | every button / every button | every button / every button |
+  | 1440 px | Layout and Options in More / every button | Layout, Options and the chart type in More / Layout and Options in More |
+  | 1280 px | Options and the chart type in More / every button | everything but Views in More / Layout and the chart type in More |
+  | 1000 px | everything in More / Layout, Options and the chart type in More | everything in More / everything but Views in More |
+
+  Measured in the playground with the sales data (Chromium); another font or other texts move the
+  limits a little.
+
+  ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-light.png#only-light)
+  ![More in a window 1000 px wide: Reset and New, empty report; Layout, the chart type and Options; Views - with a line between the groups](../assets/screenshots/more-menu-dark.png#only-dark)
 - **The table**: row labels wrap between words; a table wider than the phone scrolls sideways.
 
 ### A low report
@@ -93,7 +111,7 @@ squeezing the table into a sliver.
   item of Options it is for the pointer: a screen reader reads the explanation with the item.
   **Options**, **Help**, **Show explanations** hides them all.
 - Every text field in a menu - the field search, a value's name, "Starting at" of number ranges, a
-  saved view's name, the text of a filter condition, the box of Load view - has an **×** while it
+  saved view's name, the text of a filter condition, the box of Open view file - has an **×** while it
   holds text. It empties the field and keeps the focus there; Ctrl+Z in the field brings the text
   back.
 - **Escape** in such a field empties it first; the next Escape closes the menu (in a level of a
@@ -131,10 +149,16 @@ The menu of a chip, **Options** and **Views** are in levels, so their first leve
   not scroll; scrolling a long menu by touch stops at its end too. A menu is never higher than the
   window; what does not fit scrolls inside it.
 
-**Views** is in levels too: its first level is the list of views to scan (This view, Shared views, My
-views, Share); Save as…, Share and the questions before a delete or a publish open levels of their
-own ([views](views.md#the-views-menu)). The chart type menu and the Export menus are flat lists in
-titled groups. No menu folds.
+**Views** is in levels too: its first level is the list to scan (This view, Shared views, My views,
+Share this view); Save as…, Open view file… and the questions before a delete or a publish open levels
+of their own ([views](views.md#the-views-menu)). The chart type menu, the Export menus, **Start
+over** and **More** are flat lists. No menu folds.
+
+Every menu draws its groups alike: each group under its title in bold (Totals, Rows and Help in
+Options; This view, Shared views, My views and Share this view in Views; Chart type and Display in the
+chart type menu; Download and Copy in Export; More statistics and the like in a value's levels), with
+a line between one group and the next. **More** has lines only, no titles. Inside the chart's
+Display, its own groups (Value labels, Legend, Title, ...) are parted by a dashed line.
 
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-light.png#only-light){ width="320" }
 ![A value's menu on a phone: a sheet at the bottom, its first level with Number format · ● Currency and Highlight side by side](../assets/screenshots/phone-value-menu-dark.png#only-dark){ width="320" }

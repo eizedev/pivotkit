@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { computePivot, encode, normalize, toGrid } from "pivotkit-core";
 import {
     addField, defaultAgg, filterZoneFields, groupField, isEmptyView, isFiltered, moveField, removeAt, reorder,
-    selectedItems, setChart, setSort, swapAxes, toggleCollapsed, numberRange, withHostOrders, zoneOverLimit,
+    searchItems, selectedItems, setChart, RULE_OPS, ruleOp, opOf, hiddenNot, pickFilter, emptyPick, setSort, swapAxes, toggleCollapsed, numberRange, withHostOrders, zoneOverLimit,
     setChartDisplay, rowFolding, numericResult, sameRef, headerSortTarget, headerSortState, nextHeaderSort, sortEntry
 } from "../src/view-ops.js";
 import {
@@ -36,7 +36,7 @@ test("adding a field: an axis takes it from the other axis, Values adds a value,
     assert.deepEqual(v.values.map((x) => [x.field, x.agg]), [["Units", "sum"], ["Region", "count"]]);
     v = addField(v, "Product", "filters");
     assert.deepEqual(filterZoneFields(norm(v)), ["Product"]);
-    assert.deepEqual(norm(v).filters, [{ field: "Product", type: "exclude", items: [] }], "a valid filter that filters nothing");
+    assert.deepEqual(norm(v).filters, [{ field: "Product", type: "in", items: [], not: true, blanks: "include" }], "a valid filter that filters nothing");
     assert.equal(isFiltered(v, "Product"), false);
     assert.deepEqual(addField(v, "Product", "rows", { index: 0 }).rows, ["Product"]);
 });
@@ -106,7 +106,7 @@ test("a new range size keeps the ranges' start; a start of its own replaces it",
 test("item filters exclude what is not selected; selectedItems reads them back", () => {
     const all = ["North", "South", "West"];
     let v = setItemFilter(norm({ rows: ["Region"] }), "Region", ["North", "West"], all);
-    assert.deepEqual(norm(v).filters, [{ field: "Region", type: "exclude", items: ["South"] }]);
+    assert.deepEqual(norm(v).filters, [{ field: "Region", type: "in", items: ["South"], not: true, blanks: "include" }]);
     assert.deepEqual(selectedItems(norm(v), "Region", all), ["North", "West"]);
     assert.equal(isFiltered(v, "Region"), true);
     v = setItemFilter(v, "Region", all, all);
@@ -324,19 +324,23 @@ test("a value condition: set, changed, removed; it keeps the field's other filte
     v = setValueFilter(v, "Region", { by: units, op: ">=", value: 3 });
     const checked = normalize(v, data);
     assert.deepEqual(checked.issues, []);
-    assert.deepEqual(checked.view.filters.map((f) => f.type).sort(), ["exclude", "value"]);
+    assert.deepEqual(checked.view.filters.map((f) => f.type).sort(), ["in", "value"]);
     // what the engine keeps: North 3, South 7; West is excluded by the item filter
     const r = computePivot(data, v);
     assert.deepEqual(r.rowRoot.children.map((n) => n.key), ["North", "South"]);
     // between takes a second number; a new condition replaces the old one
     v = setValueFilter(v, "Region", { by: { field: "Units", agg: "max" }, op: "between", value: 2, value2: 5 });
-    assert.deepEqual(v.filters.filter((f) => f.type === "value"), [{ field: "Region", type: "value", by: { field: "Units", agg: "max" }, op: "between", value: 2, value2: 5 }]);
+    assert.deepEqual(v.filters.filter((f) => f.type === "value"), [{ field: "Region", type: "value", by: { field: "Units", agg: "max" }, op: "between", value: 2, value2: 5, not: false }]);
+    // "is not between" of the menu is between with not
+    const notBetween = setValueFilter(v, "Region", { by: { field: "Units", agg: "max" }, op: "notBetween", value: 2, value2: 5 });
+    assert.deepEqual(computePivot(data, notBetween).rowRoot.children.map((n) => n.key), ["South"]);
+    assert.equal(valueConditionText(notBetween, notBetween.filters.find((f) => f.type === "value"), LABELS.en, "en-US"), "Biggest not between 2 and 5");
     assert.deepEqual(computePivot(data, v).rowRoot.children.map((n) => n.key), ["North"]);
     assert.equal(valueConditionText(v, v.filters.find((f) => f.type === "value"), LABELS.en, "en-US"), "Biggest between 2 and 5");
-    assert.equal(valueConditionText(v, { op: "!=", value: 0.5 }, LABELS.de, "de-DE"), "Summe von Units ≠ 0,5");
+    assert.equal(valueConditionText(v, { op: "=", not: true, value: 0.5 }, LABELS.de, "de-DE"), "Summe von Units ≠ 0,5");
     // Remove the rules takes it and keeps the picks; Clear takes it alone
-    assert.deepEqual(removeRules(v, "Region").filters.map((f) => f.type), ["exclude"]);
-    assert.deepEqual(setValueFilter(v, "Region", null).filters.map((f) => f.type), ["exclude"]);
+    assert.deepEqual(removeRules(v, "Region").filters.map((f) => f.type), ["in"]);
+    assert.deepEqual(setValueFilter(v, "Region", null).filters.map((f) => f.type), ["in"]);
 });
 
 test("editing one value condition or top N keeps the field's other ones of that type", () => {
@@ -365,7 +369,7 @@ test("editing one value condition or top N keeps the field's other ones of that 
     // the last filter of a field in the Filters zone leaves it there, filtering nothing
     let z = addField(norm({ values: [units] }), "Product", "filters");
     z = norm(setValueFilter(z, "Product", { by: units, op: ">", value: 0 }));
-    assert.deepEqual(setValueFilter(z, "Product", null, z.filters.find((f) => f.type === "value")).filters, [{ field: "Product", type: "exclude", items: [] }]);
+    assert.deepEqual(setValueFilter(z, "Product", null, z.filters.find((f) => f.type === "value")).filters, [{ field: "Product", type: "in", items: [], not: true, blanks: "include" }]);
 });
 
 test("a measure the view no longer shows stays a choice, so applying again keeps it", () => {
@@ -378,7 +382,7 @@ test("a measure the view no longer shows stays a choice, so applying again keeps
 test("between is written with the smaller number first, as the engine compares", () => {
     const v = norm({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] });
     assert.equal(valueConditionText(v, { op: "between", value: 10, value2: 2 }, LABELS.en, "en-US"), "Sum of Units between 2 and 10");
-    assert.equal(valueConditionText(v, { op: "notBetween", value: 1000.5, value2: -3 }, LABELS.de, "de-DE"), "Summe von Units nicht zwischen -3 und 1.000,5");
+    assert.equal(valueConditionText(v, { op: "between", not: true, value: 1000.5, value2: -3 }, LABELS.de, "de-DE"), "Summe von Units nicht zwischen -3 und 1.000,5");
 });
 
 test("the measures to sort, rank and filter by: each value that gives numbers, once, the row count without one", () => {
@@ -404,7 +408,7 @@ test("sort by a chosen value and top N by a chosen value reach the engine", () =
     const sorted = setSort(v0, "Region", { by: "value", order: "asc", value: minUnits });
     assert.deepEqual(normalize(sorted, data).view.sort, [{ field: "Region", by: "value", order: "asc", value: minUnits }]);
     const top = setTopFilter(v0, "Region", { count: 1, bottom: true, by: minUnits });
-    assert.deepEqual(normalize(top, data).view.filters, [{ field: "Region", type: "top", count: 1, bottom: true, by: minUnits }]);
+    assert.deepEqual(normalize(top, data).view.filters, [{ field: "Region", type: "top", count: 1, bottom: true, by: minUnits, ties: "first" }]);
     assert.deepEqual(computePivot(data, top).rowRoot.children.map((n) => n.key), ["West"]);
 });
 
@@ -511,4 +515,39 @@ test("sortText names a sort as the chip menu does", () => {
     assert.equal(sortText(v, { by: "label", order: "desc" }, en), "Z to A");
     assert.equal(sortText(v, { by: "custom", order: "asc" }, en), "Custom order");
     assert.equal(fill(LABELS.de.headerSorted, { field: "Region", order: sortText(v, { by: "label", order: "asc" }, LABELS.de) }), "Region sortiert: A bis Z");
+});
+
+test("the picker's search finds an item whatever its case and whitespace (#159)", () => {
+    // data copied from a web page holds a no-break space; what is typed holds a plain one
+    const items = [{ label: "ACTIVE\u00A0DIRECTORY" }, { label: "Active  Directory admins" }, { label: "Other" }];
+    assert.deepEqual(searchItems(items, "ACTIVE DIRECTORY").map((i) => i.label), ["ACTIVE\u00A0DIRECTORY", "Active  Directory admins"]);
+    assert.deepEqual(searchItems(items, " active directory ").length, 2);
+    assert.equal(searchItems(items, "  ").length, 3);
+});
+
+test("the menus' operators and version 2's: a negation is the positive operator with not; picks drop what is not ticked", () => {
+    for (const op of [...RULE_OPS.text, ...RULE_OPS.compare]) {
+        assert.equal(ruleOp(opOf(op)), op, op);
+    }
+    assert.deepEqual(opOf("notContains"), { op: "contains", not: true });
+    assert.deepEqual(opOf(">="), { op: ">=", not: false });
+    // a not the menus have no word for: said in words
+    assert.equal(hiddenNot({ op: "beginsWith", not: true }), false);
+    assert.equal(hiddenNot({ op: "endsWith", not: true }), false);
+    assert.equal(hiddenNot({ op: ">", not: true }), true);
+    assert.deepEqual(opOf("notBeginsWith"), { op: "beginsWith", not: true });
+    assert.deepEqual(opOf("notEndsWith"), { op: "endsWith", not: true });
+    assert.equal(hiddenNot({ op: "contains", not: true }), false);
+    // the blank is a pick like the others: ticked off, the blanks are dropped
+    assert.deepEqual(pickFilter("Region", ["South", null]), { field: "Region", type: "in", items: ["South"], not: true, blanks: "exclude" });
+    const all = ["North", "South", null];
+    const v = norm({ filters: [pickFilter("Region", ["South", null])] });
+    assert.deepEqual(selectedItems(v, "Region", all), ["North"]);
+    // a loaded view's in list, with its blanks: read back as the values it keeps
+    const kept = norm({ version: 2, filters: [{ field: "Region", type: "in", items: ["South"], blanks: "include" }] });
+    assert.deepEqual(selectedItems(kept, "Region", all), ["South", null]);
+    const only = norm({ version: 2, filters: [{ field: "Region", type: "in", items: ["South"], blanks: "only" }] });
+    assert.deepEqual(selectedItems(only, "Region", all), [null]);
+    assert.equal(isFiltered(norm({ filters: [emptyPick("Region")] }), "Region"), false);
+    assert.equal(isFiltered(kept, "Region"), true);
 });

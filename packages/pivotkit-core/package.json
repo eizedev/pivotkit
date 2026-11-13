@@ -1,7 +1,7 @@
 {
   "name": "pivotkit-core",
-  "version": "0.3.0",
-  "description": "Pivot engine without UI: typed encoding, pivot tables with totals and subtotals, show values as, filters, date grouping, chart options for Apache ECharts, XLSX and CSV export.",
+  "version": "0.4.0",
+  "description": "Pivot engine without UI: typed encoding, pivot tables with totals and subtotals, show values as, filters, date grouping, chart options for Apache ECharts, views as JSON files, XLSX, CSV and JSON export.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
   "homepage": "https://pivotkit.eize.dev",
@@ -17,7 +17,9 @@
     "reporting",
     "excel-export",
     "echarts",
-    "self-service-bi"
+    "self-service-bi",
+    "pivot-grid",
+    "pivottable"
   ],
   "type": "module",
   "sideEffects": false,
@@ -43,6 +45,8 @@
       "default": "./src/templates.js"
     },
     "./schema/view-file-1.json": "./schema/view-file-1.json",
+    "./schema/view-2.json": "./schema/view-2.json",
+    "./schema/view-file-2.json": "./schema/view-file-2.json",
     "./package.json": "./package.json"
   },
   "files": [

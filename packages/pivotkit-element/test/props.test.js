@@ -120,3 +120,14 @@ test("field-info, zone-info and setting-info: on or off decide, anything else le
         assert.equal(toAttribute(def(attr), "off"), "off");
     }
 });
+
+test("allow-import is a boolean attribute; the plugins are a property", () => {
+    assert.equal(fromAttribute(def("allow-import"), null), false);
+    assert.equal(fromAttribute(def("allow-import"), ""), true);
+    assert.equal(toAttribute(def("allow-import"), true), "");
+    assert.equal(toAttribute(def("allow-import"), false), null);
+    assert.equal(def("allow-import").prop, "allowImport");
+    assert.ok(OBJECT_PROPS.includes("plugins"), "plugins hold functions: a property only");
+    assert.ok(OBJECT_PROPS.includes("importLimits"), "the limits of a loaded file are an object: a property only, as limits");
+    assert.ok(OBJECT_PROPS.includes("limits"));
+});

@@ -12,7 +12,7 @@ import { CATALOG, aggregatorsFor, fieldLabel, formatter, isFormat } from "pivotk
 import { fill, plural } from "./labels.js";
 import { groupingName, refLabel, relativeText, sortText, valueLabel } from "./names.js";
 import { ZONES, dateSpan, filterZoneFields, filtersOf, groupField, groupingOf, moveField, numericResult, reorder, sameRef, setSort, sortEntry, sortOf, sourceOf } from "./view-ops.js";
-import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
+import { TOTALS, filterState, keepsBlanks, measureChoices, quickChoice, ruleKind, setQuickRange, setRule, setTopFilter, totalNoEffect, updateValue, withMeasure } from "./menu-ops.js";
 
 /**
  * One choice of a topic: a menu item. `change` gives the next view and the history's note, or `run`
@@ -32,13 +32,12 @@ import { TOTALS, filterState, measureChoices, ruleKind, setQuickRange, setRule, 
  * "panel" a row that opens a level with a form (the menu's component draws it, by the topic's id).
  * `state` is what is set, in short, on the row's right; `changed` marks a setting that is not the
  * default; `info` the id of an explanation next to the level's title. `hidden`: a level a choice
- * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices;
- * `heading`: a group heading above a "menu" or "panel" row on the first level, as an inline topic's title.
+ * opens, with no row of its own (`levelTitle` its title); `note`: a line under its choices.
  * @typedef {{ id: string, title: string, kind: "segmented" | "inline" | "menu" | "panel",
  *   groups?: Array<{ title?: string, choices: Choice[] }>, state?: string | null, changed?: boolean,
- *   icon?: string, titled?: boolean, heading?: string, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
- *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice }>,
- *   searchFor?: (query: string) => Array<{ id: string, text: string, focus?: string, choice: Choice }> }} Topic
+ *   icon?: string, titled?: boolean, info?: string, hidden?: boolean, levelTitle?: string, note?: string | null, noteId?: string,
+ *   keywords?: string, searchExtra?: Array<{ id: string, text: string, focus?: string, choice?: Choice, keywords?: string }>,
+ *   searchFor?: (query: string) => Array<{ id: string, text: string, focus?: string, choice: Choice, keywords?: string }> }} Topic
  * `keywords`: more words the search finds the topic's entries by (a choice's own `keywords` put it
  * first among the hits for them); `searchExtra`: more entries of a panel topic (a part of its level,
  * or a quick choice of it); `searchFor`: entries made from what is typed ("last 3 years", "from 2022").
@@ -204,13 +203,16 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
                   return [];
               }
               const units = n > CATALOG.relativeMaxCount ? [] : fk.months ? ["year", "month"] : ["year"];
-              // the range counts back from what the field's range does now (the latest record, or today)
+              // the range takes the place of the quick choice, counts back from what the field's range does
+              // now (the latest record, or today) and keeps the blanks as the field's rules do
               const anchor = filtersOf(view, field, ["relative"])[0]?.anchor;
+              const previous = quickChoice(view, field, fk).filters[0] ?? null;
+              const blanks = keepsBlanks(view, field) ? "include" : "exclude";
               // the same words as the chip and the Filter level: "Last 3 years (2024–2025; 2026 has no data)"
               const span = dateSpan(encoded, sourceOf(view, field));
               const ranges = units.map((unit) => {
                   const text = capital(relativeText({ unit, count: n, anchor }, labels, locale, timeZone, undefined, span));
-                  return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n, anchor }), note }) } };
+                  return { id: `quick-${unit}-${n}`, text, choice: { id: `quick-${unit}-${n}`, text, change: () => ({ view: setQuickRange(view, field, { unit, count: n, anchor, blanks }, previous), note }) } };
               });
               // a year of a grouping by year, written as its chip will say it ("from 2022"); a date
               // field compares days, which the rule editor picks
@@ -219,7 +221,7 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
                   return ranges;
               }
               const compares = [">=", "<=", "<", ">"].map((op) => {
-                  const entry = { field, type: "compare", op, value: n };
+                  const entry = { field, type: "compare", op, value: n, not: false, blanks: "exclude" };
                   // the words of the chip, with the year as typed ("from 2022", not a date)
                   const text = capital(fill(labels.compareShort[op], { value: String(n) }));
                   return { id: `compare-${op}-${n}`, text, choice: { id: `compare-${op}-${n}`, text, change: () => ({ view: setRule(view, field, null, entry), note }) } };
@@ -238,7 +240,8 @@ export function filterTopic({ view, field, labels, locale, state, encoded }) {
         // the rules are found by their names, and open the level on them
         searchExtra: [
             { id: "open-filter-rules", text: labels.rulesTitle, focus: "conditions" },
-            { id: "open-filter-text", text: labels.addRuleName, focus: "conditions" },
+            // the rule on the name by its operators too ("does not begin with")
+            { id: "open-filter-text", text: labels.addRuleName, focus: "conditions", keywords: Object.values(labels.labelOps).join(" ") },
             { id: "open-filter-value", text: labels.addRuleTotal, focus: "conditions" }
         ],
         searchFor
@@ -481,7 +484,7 @@ export const afterDelete = (list, place) => list[place + 1] ?? list[place - 1];
 /**
  * One entry of a menu's search: a choice of a topic (with the path to it), or a topic's level
  * (`focus`: the part of it to show and focus).
- * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice, focus?: string }} SearchEntry
+ * @typedef {{ id: string, text: string, path: string, topic: Topic, choice?: Choice, focus?: string, keywords?: string }} SearchEntry
  */
 
 /**
@@ -498,7 +501,7 @@ export function searchEntries(topics, query = "") {
             return [];
         }
         const typed = query && topic.searchFor ? topic.searchFor(query) : [];
-        const extra = [...typed, ...(topic.searchExtra ?? [])].map((x) => ({ id: x.id, text: x.text, path: topic.title, topic, choice: x.choice, focus: x.focus }));
+        const extra = [...typed, ...(topic.searchExtra ?? [])].map((x) => ({ id: x.id, text: x.text, path: topic.title, topic, choice: x.choice, focus: x.focus, keywords: x.keywords }));
         return topic.kind === "panel"
             ? [{ id: `open-${topic.id}`, text: topic.title, path: "", topic }, ...extra]
             : (topic.groups ?? []).flatMap((g) => g.choices.map((choice) => ({ id: choice.id, text: choice.text, path: [topic.title, g.title].filter(Boolean).join(" › "), topic, choice })));
@@ -523,7 +526,7 @@ export function searchHits(entries, query, locale) {
         return [];
     }
     const found = entries.filter((e) => {
-        const text = lower(`${e.text} ${e.path} ${e.topic.keywords ?? ""} ${e.choice?.keywords ?? ""}`);
+        const text = lower(`${e.text} ${e.path} ${e.topic.keywords ?? ""} ${e.choice?.keywords ?? e.keywords ?? ""}`);
         return words.every((w) => text.includes(w));
     });
     // a stable sort: the entries with the first word among their own keywords ("percent": the shares

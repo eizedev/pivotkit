@@ -10,12 +10,12 @@ text, JSON, and Excel workbooks with the [pivotkit-xlsx](plugins.md#pivotkit-xls
 the browser (nothing is uploaded) and in Node. The table it returns is `encode`'s
 [columnar input](core.md#columnar-input), so it goes into the engine without an object per row.
 
-!!! note "The report's Load data menu follows"
-    This page describes the readers. The report's own "Load data…" entry, a drop zone and a preview
-    where the person picks the column types follow in the next release
-    ([#44](https://github.com/eizedev/pivotkit/issues/44)). Until then a React host reads the file itself and passes
-    `encode(table)` as the `encoded` prop; a page with pivotkit-element turns the table into row
-    objects for `data`.
+!!! note "In the report"
+    This page describes the readers. The report uses them itself with
+    [`allowImport`](react.md#prop-allowimport) (the element's `allow-import`): a Data menu, a file
+    dropped onto the report and a preview where the person picks the column types
+    ([Load your own data](../use/load-data.md)). A host that reads a file itself passes the table as
+    `data` (`{ columns, types, data }` is the columnar input both take).
 
 ```js
 import { readFile, retype } from "pivotkit-core/import";
@@ -72,6 +72,45 @@ and one shared part (`createTable`) does the rest.
   `@`) stays as it is: the [exports](../security.md#exports) guard it.
 - **Empty rows** are left out; a column without a name and without a single value is left out; a row
   with more values than there are names adds columns named `Column N`. Each is a note.
+
+## How a loaded file is named { #how-a-loaded-file-is-named }
+
+A file loaded in the report ([`allowImport`](react.md#prop-allowimport)) becomes the report's
+[`source`](react.md#prop-source) while its data is shown. Its `id` names the views saved for it in the
+browser store (`templateStore="browser"`) and in the view files and links shared from it, so the same
+file loaded again finds its views and other data does not. The rule, in this order:
+
+1. **The name** is the file's `File.name` as the browser gives it, cleaned as a column name is:
+   control characters (but tabs and line breaks), the characters that turn text around and the
+   invisible ones (zero-width characters, the soft hyphen, the byte order mark, tag characters, a
+   lone half of a surrogate pair) taken out, each run of tabs and line breaks as one space, trimmed;
+   then cut to 256 characters (UTF-16 code units, a fixed cut that `limits` does not change, and not
+   trimmed again). An empty name becomes `file`. Two names that differ only in characters taken out
+   are the same name.
+2. **The columns** are the names of the table after the readers' cleanup
+   ([above](#column-names-and-values)): cleaned the same way and cut to `limits.name` characters (256
+   by default); a number or date in the header row as its text (a date in ISO form); columns without a
+   name and without a value left out; an empty name `Column N` (N its place among the columns kept);
+   a name that repeats, compared without case, `Name (2)` ("Team" and "team" become "Team" and
+   "team (2)"); nested JSON as `a.b`. A type picked in the preview changes nothing.
+3. **The hash**: SHA-256 of the UTF-8 bytes of the name and the column names in their order, joined
+   with U+0000. The browser's `crypto.subtle` computes it; a page without it (plain `http` on a host
+   other than `localhost`) uses pivotkit-react's own implementation, which gives the same digest.
+4. **`source.id`** is the shown name, `#` and the first 16 hex digits of the hash.
+   **`source.name`** is the shown name: the name itself, or, above 120 characters, its first 117
+   followed by `...` (116 when the 117th is the first half of a surrogate pair, so no character is
+   split). The hash always covers the whole name.
+
+| File | Columns | `source.id` |
+| --- | --- | --- |
+| `tickets.csv` | `Id`, `Team`, `Opened`, `Hours`, `Zip` | `tickets.csv#e51bd4bc21e98ee8` |
+| `tickets.csv` | `Team`, `Id`, `Opened`, `Hours`, `Zip` | `tickets.csv#d11fe64346f1d906` |
+
+The first row is SHA-256 of `tickets.csv\0Id\0Team\0Opened\0Hours\0Zip`
+(`e51bd4bc21e98ee818b3a8efcb49347b…`). Reordered, renamed or added columns, or another file name
+(`Tickets.csv` too: the name is compared as it is), make other data. The sheet of a workbook is not
+part of it: two sheets with the same columns share their views. The rows are not part of it either: a
+newer export of the same table keeps its views.
 
 ## Types
 
@@ -140,8 +179,9 @@ characters: show them as text, never as HTML.
 
 ## Limits
 
-Each file is checked against [`LIMITS`](../concepts/limits.md#limits) (the host's `limits` merged
-over them) before the step it guards, so a file that is too large costs no memory first:
+Each file is checked against [`LIMITS`](../concepts/limits.md#limits) (the `limits` option merged
+over them; in the report, [`importLimits`](react.md#prop-importlimits) over `limits`) before the
+step it guards, so a file that is too large costs no memory first:
 
 | Limit | Default | When |
 | --- | --- | --- |
@@ -155,8 +195,12 @@ over them) before the step it guards, so a file that is too large costs no memor
 
 A file over a limit throws `PivotkitError` `LIMIT_EXCEEDED` with `details` `{ limit, value, max,
 file }` and a message that names the file, the limit and what to change: `"tickets.csv" has more than
-1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise limits.rows`. The
-previous data stays.
+1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit`. The
+previous data stays. pivotkit-react says it in the report's language from `details` (the limits
+`rows`, `columns`, `fileBytes` and `importCells`; `labels.dataImport.overLimit` and `limitWhat`),
+after the file's name: "big.csv could not be loaded: it has more than 1,000 rows (limits.rows): …";
+the key is the one of `limits` also where the host set `importLimits`. Any other error is the
+reader's message without the file's name in front.
 
 ## Errors
 
@@ -188,7 +232,9 @@ page stays responsive enough to show progress and a Cancel button; for files of 
 host can run `readFile` in a module worker of its own: the readers use no DOM, and the table is plain
 arrays, which `postMessage` copies.
 
-The readers start no worker themselves. pivotkit-xlsx hands read-excel-file an uncompressed archive of
+The readers start no worker themselves; the report runs the built-in ones in a worker where the host
+gives one ([`importWorker`](react.md#prop-importworker); pivotkit-element brings its own,
+`dist/import-worker.js`). pivotkit-xlsx hands read-excel-file an uncompressed archive of
 the parts it needs, so no `blob:` worker is started (fflate, which read-excel-file unpacks with, would
 start one for parts over 512 KiB), and a strict Content-Security-Policy without `worker-src blob:`
 works. A host that runs the readers in its own worker needs `worker-src 'self'` (or the worker's

@@ -6,6 +6,10 @@
 
 import { fieldLabel, relativeDateRange } from "pivotkit-core";
 import { fill, plural } from "./labels.js";
+import { hiddenNot, ruleOp } from "./view-ops.js";
+
+/** A rule's short text, inverted in words when its `not` has no word of its own (hiddenNot). */
+const withNot = (f, text, labels) => (hiddenNot(f) ? fill(labels.notRule, { rule: text }) : text);
 
 /** "Sum of Revenue", "% of grand total of Revenue", or the value's own name. */
 export function valueLabel(spec, labels) {
@@ -76,12 +80,13 @@ const OP_SIGNS = Object.freeze({ "=": "=", "!=": "≠", ">": ">", ">=": "≥", "
 export function valueConditionText(view, f, labels, locale) {
     const number = (x) => (typeof x === "number" ? x.toLocaleString(locale, { maximumFractionDigits: 6 }) : "");
     const value = refLabel(view, f.by ?? (view.values?.[0] ? { field: view.values[0].field ?? null, agg: view.values[0].agg } : null), labels);
-    if (f.op === "between" || f.op === "notBetween") {
+    const op = ruleOp(f);
+    if (op === "between" || op === "notBetween") {
         // the engine compares with the smaller number first; so does the text
         const [from, to] = typeof f.value2 === "number" && f.value2 < f.value ? [f.value2, f.value] : [f.value, f.value2];
-        return fill(labels.valueConditions[f.op], { value, from: number(from), to: number(to) });
+        return fill(labels.valueConditions[op], { value, from: number(from), to: number(to) });
     }
-    return fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op, number: number(f.value) });
+    return withNot(f, fill(labels.valueConditions.compare, { value, op: Object.hasOwn(OP_SIGNS, op) ? OP_SIGNS[op] : op, number: number(f.value) }), labels);
 }
 
 /** A calendar day ("2022-03-01") as the locale writes a date. */
@@ -97,24 +102,42 @@ const dayAfter = (iso, n = 1) => isoDay(Date.parse(`${iso}T00:00Z`) + n * 86_400
  * The days a relative filter keeps, both included (pivotkit-core's relativeDateRange): counted back
  * from today (`now`, default the current time) or, with `anchor: "latest"`, from the data's latest
  * date (`latest`, wall-clock ms); null without one then, or for a range that leaves what a Date holds.
- * @param {{ unit: string, count: number, anchor?: string }} f  a `relative` filter
+ * @param {{ unit: string, count?: number, anchor?: string, direction?: string, calendar?: boolean, includeCurrent?: boolean }} f  a `relative` filter
  * @param {string} timeZone  the data's
  * @param {Date | number | string} [now]
  * @param {number | null} [latest]
- * @returns {{ from: string, to: string } | null}
+ * @param {{ first?: number | null, weekStart?: number }} [more]  the data's first date (anchor "first"), the view's first day of a week
+ * @returns {{ from: string, to: string } | null}  null too for a range without a start ("before")
  */
-export const relativeDays = (f, timeZone, now, latest) => relativeDateRange(f.unit, f.count, { timeZone, now, anchor: f.anchor, latest: latest ?? undefined });
+export function relativeDays(f, timeZone, now, latest, more = {}) {
+    const range = datesOf(f, timeZone, now, latest, more);
+    return range && range.from !== null ? { from: range.from, to: range.to } : null;
+}
+
+/** The dates of any relative filter (relativeDays' arguments): `from` null for "before". */
+const datesOf = (f, timeZone, now, latest, more = {}) =>
+    relativeDateRange(f.unit, f.count ?? 1, { timeZone, now, anchor: f.anchor, latest: latest ?? undefined, first: more.first ?? undefined, direction: f.direction, calendar: f.calendar, includeCurrent: f.includeCurrent, weekStart: more.weekStart });
 
 /**
- * A range of days as the unit writes it: "2022–2026" for years, "Dec 2025–Nov 2026" for months, dates
- * for days; one period alone ("2026").
- * @param {{ from: string, to: string }} range  ISO days, both included
+ * Whether a relative range is said in short with its periods ("last 3 months (Aug–Oct 2026)", "this
+ * quarter (Q4 2026)"): the last N or this day, week, month, quarter or year, in whole calendar
+ * periods, counted from today or from the latest record. The others are said with their dates.
+ * @param {{ unit: string, direction?: string, calendar?: boolean, includeCurrent?: boolean, anchor?: string }} f
+ */
+export const plainRange = (f) =>
+    ["last", "this"].includes(f.direction ?? "last") && f.calendar !== false && (f.anchor === undefined || f.anchor === "today" || f.anchor === "latest") && ["year", "quarter", "month", "week", "day"].includes(f.unit);
+
+/**
+ * A range of days as the unit writes it: "2022–2026" for years, "Q4 2025–Q3 2026" for quarters, "Dec
+ * 2025–Nov 2026" for months, dates for weeks and days; one period alone ("2026").
+ * @param {{ from: string, to: string }} range  ISO days, both included (a minute's day is read)
  * @param {string} unit
  * @param {string} locale
  */
 export function periodText(range, unit, locale) {
-    const month = (iso) => new Date(`${iso}T00:00Z`).toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
-    const text = unit === "year" ? (iso) => iso.slice(0, 4) : unit === "month" ? month : (iso) => dayText(iso, locale);
+    const month = (iso) => new Date(`${iso.slice(0, 10)}T00:00Z`).toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
+    const quarter = (iso) => `Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1} ${iso.slice(0, 4)}`;
+    const text = unit === "year" ? (iso) => iso.slice(0, 4) : unit === "quarter" ? quarter : unit === "month" ? month : (iso) => dayText(iso.slice(0, 10), locale);
     const [from, to] = [text(range.from), text(range.to)];
     return from === to ? from : `${from}–${to}`;
 }
@@ -145,8 +168,11 @@ export function rangeText(f, locale, timeZone, now, latest) {
  *   periods have no data, for the words ("2026 has no data", "2021–2022 have no data")
  */
 export function rangeShare(range, unit, span, locale) {
-    // the data cover the whole period (year, month, day) their first and last date fall in
-    const [first, last] = [periodStart(isoDay(span.min), unit), periodEnd(isoDay(span.max), unit)];
+    // the data cover the whole period (year, month, day) their first and last date fall in; a quarter
+    // is measured in months, a week in days
+    const grain = unit === "quarter" ? "month" : unit === "week" ? "day" : unit;
+    range = { from: range.from.slice(0, 10), to: range.to.slice(0, 10) };
+    const [first, last] = [periodStart(isoDay(span.min), grain), periodEnd(isoDay(span.max), grain)];
     if (first <= range.from && last >= range.to) {
         return null;
     }
@@ -206,22 +232,37 @@ function periodEnd(iso, unit) {
  * (2026)". With the data's span, the data's share of them: "last 2 years (2025; 2026 has no data)",
  * "this year (2026 has no data)". Anchored at the data's latest date: "last 12 months to Dec 2025",
  * its days only when the data do not cover them all.
- * @param {{ unit: string, count: number, anchor?: string }} f  a `relative` filter
+ * @param {{ unit: string, count?: number, anchor?: string, direction?: string, calendar?: boolean, includeCurrent?: boolean }} f  a `relative` filter
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  * @param {string} timeZone  the data's
  * @param {Date | number | string} [now]  today, default the current time
  * @param {{ min: number, max: number } | null} [span]  the data's first and last date (wall-clock ms)
+ * @param {number} [weekStart]  the view's first day of a week, 1 (Monday, the default) to 7
  */
-export function relativeText(f, labels, locale, timeZone, now, span) {
+export function relativeText(f, labels, locale, timeZone, now, span, weekStart) {
+    if (!plainRange(f)) {
+        return otherRangeText(f, labels, locale, timeZone, now, span, weekStart);
+    }
+    const more = labels.relativeMore;
+    const count = f.count ?? 1;
     // one year is "this year" (the quick choice of that name); one month or day keeps the count in the singular, as the radio "Last [1] month" says it
-    const key = f.count === 1 ? f.unit : `${f.unit}s`;
-    let text = fill(Object.hasOwn(labels.relative, key) ? labels.relative[key] : key, { count: f.count.toLocaleString(locale) });
-    const range = relativeDays(f, timeZone, now, span?.max);
+    const key = count === 1 ? f.unit : `${f.unit}s`;
+    let text =
+        f.direction === "this"
+            ? more.this[f.unit] ?? f.unit
+            : Object.hasOwn(labels.relative, key)
+              ? fill(labels.relative[key], { count: count.toLocaleString(locale) })
+              : fill(plural(more.last[f.unit] ?? { other: f.unit }, count, { lang: labels.lang, locale }), { count: count.toLocaleString(locale) });
+    const range = relativeDays(f, timeZone, now, span?.max, { weekStart });
+    const latest = f.anchor === "latest";
+    // counted to the latest record, its end says which period is the last one
+    if (f.includeCurrent === false && f.direction !== "this" && !latest) {
+        text = fill(more.withoutCurrent, { text });
+    }
     if (!range) {
         return text;
     }
-    const latest = f.anchor === "latest";
     if (latest) {
         text = fill(labels.relativeTo, { text, end: periodText({ from: range.to, to: range.to }, f.unit, locale) });
     }
@@ -237,6 +278,59 @@ export function relativeText(f, labels, locale, timeZone, now, span) {
 }
 
 /**
+ * A relative range the menus do not write (a loaded view's: next, this, before, rolling, without the
+ * current unit, hours, weeks, quarters, counted from the first record or a date) in words, with the
+ * dates it keeps: "next 2 weeks (Mar 16, 2026 – Mar 29, 2026)", "before the last 30 days, rolling
+ * (until Feb 13, 2026, 11:59 AM)".
+ */
+function otherRangeText(f, labels, locale, timeZone, now, span, weekStart) {
+    const more = labels.relativeMore;
+    const lang = { lang: labels.lang, locale };
+    const direction = f.direction ?? "last";
+    let text = direction === "this" ? more.this[f.unit] ?? f.unit : plural(more[direction]?.[f.unit] ?? { other: f.unit }, f.count ?? 1, lang);
+    if (f.calendar === false && direction !== "this") {
+        text = fill(more.rolling, { text });
+    } else if (f.includeCurrent === false && direction !== "this") {
+        text = fill(more.withoutCurrent, { text });
+    }
+    if (f.anchor === "latest") {
+        text = fill(more.fromLatest, { text });
+    } else if (f.anchor === "first") {
+        text = fill(more.fromFirst, { text });
+    } else if (f.anchor && f.anchor !== "today") {
+        text = fill(more.fromDate, { text, date: pointText(f.anchor, locale) });
+    }
+    const range = datesOf(f, timeZone, now, span?.max, { first: span?.min, weekStart });
+    if (!range) {
+        return text;
+    }
+    // bounds at midnight (a rolling range from a date of its own) are said as days, not as "12:00 AM"
+    const days = (range.from === null || range.from.endsWith("T00:00")) && range.to.endsWith("T00:00");
+    const point = (iso) => pointText(days ? iso.slice(0, 10) : iso, locale);
+    const to = point(range.to);
+    return fill(labels.withRange, { text, range: range.from === null ? fill(more.until, { to }) : range.from === range.to ? to : `${point(range.from)} – ${to}` });
+}
+
+/**
+ * The start of a comparison's unit ("2026-02-01", "2026-03-01T14:00") as its precision writes it: the
+ * year "2026", the quarter "Q1 2026", the month "Feb 2026", the day, the hour.
+ */
+function precisionText(iso, precision, locale) {
+    if (precision === "year" || precision === "quarter" || precision === "month") {
+        const at = new Date(`${iso.slice(0, 10)}T00:00Z`);
+        if (precision === "month") {
+            return at.toLocaleDateString(locale, { month: "short", year: "numeric", timeZone: "UTC" });
+        }
+        return precision === "year" ? iso.slice(0, iso.length - 6) : `Q${Math.floor(at.getUTCMonth() / 3) + 1} ${iso.slice(0, iso.length - 6)}`;
+    }
+    return pointText(iso, locale);
+}
+
+/** A day ("2026-03-01") or a minute ("2026-03-01T14:00") as the locale writes it. */
+const pointText = (iso, locale) =>
+    iso.length > 10 ? new Date(`${iso.slice(0, 16)}Z`).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) : dayText(iso, locale);
+
+/**
  * The years two calendar days bound as whole years (Jan 1 to Dec 31), or null: the days a comparison
  * on a date grouping's source dates gets from Years combined.
  * @returns {[string, string] | null}
@@ -249,46 +343,47 @@ export function wholeYears(from, to) {
 /**
  * A comparison of the item itself in short: "from 2022", "2022 to 2024" for a date or a date
  * grouping, "≥ 10" for a number. `labelOf` gives an item's label (a grouping's "Mar 2025").
- * @param {{ op: string, value: number | string, value2?: number | string }} f  a `compare` filter
+ * @param {{ op: string, value: number | string, value2?: number | string, precision?: string, not?: boolean }} f  a `compare` filter
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
  * @param {{ date: boolean, labelOf?: (value: number) => string | undefined }} kind
  */
 export function compareText(f, labels, locale, { date, labelOf }) {
     // a date grouping's key without its label is written as it is (2022, not 2,022)
-    const shown = (v) => (typeof v === "string" ? dayText(v, locale) : labelOf?.(v) ?? (date ? String(v) : v.toLocaleString(locale, { maximumFractionDigits: 6 })));
+    const shown = (v) => (typeof v === "string" ? precisionText(v, f.precision, locale) : labelOf?.(v) ?? (date ? String(v) : v.toLocaleString(locale, { maximumFractionDigits: 6 })));
     const forms = labels.compareShort;
-    if (f.op === "between" || f.op === "notBetween") {
+    const op = ruleOp(f);
+    if (op === "between" || op === "notBetween") {
         // the smaller first, as the engine reads them (ISO days sort as text)
         const [from, to] = f.value2 !== undefined && f.value2 < f.value ? [f.value2, f.value] : [f.value, f.value2];
         // whole years of days (Years combined): "2024 to 2025", "2025", "not 2025"
         const years = wholeYears(from, to);
         if (years) {
-            return years[0] === years[1] ? fill(forms[f.op === "between" ? "=" : "!="], { value: years[0] }) : fill(forms[f.op], { from: years[0], to: years[1] });
+            return years[0] === years[1] ? fill(forms[op === "between" ? "=" : "!="], { value: years[0] }) : fill(forms[op], { from: years[0], to: years[1] });
         }
-        return fill(forms[f.op], { from: shown(from), to: shown(to) });
+        return fill(forms[op], { from: shown(from), to: shown(to) });
     }
-    return date && Object.hasOwn(forms, f.op) ? fill(forms[f.op], { value: shown(f.value) }) : `${Object.hasOwn(OP_SIGNS, f.op) ? OP_SIGNS[f.op] : f.op} ${shown(f.value)}`;
+    return withNot(f, date && Object.hasOwn(forms, op) ? fill(forms[op], { value: shown(f.value) }) : `${Object.hasOwn(OP_SIGNS, op) ? OP_SIGNS[op] : op} ${shown(f.value)}`, labels);
 }
 
 /**
  * A rule on a field's items in short, as its chip and its menu say it: "last 5 years (2022–2026)",
  * "from 2022", "contains “an”".
- * @param {{ type: string, op?: string, value?: any, value2?: any, unit?: string, count?: number }} f  a `relative`, `compare` or `label` filter
+ * @param {{ type: string, op?: string, value?: any, value2?: any, unit?: string, count?: number, not?: boolean }} f  a `relative`, `compare` or `text` filter
  * @param {import("./labels.js").UiLabels} labels
  * @param {string} locale
- * @param {{ timeZone: string, date: boolean, labelOf?: (value: number) => string | undefined, span?: { min: number, max: number } | null }} kind
- *   `span`: the data's first and last date, for the data's share of a relative range
+ * @param {{ timeZone: string, date: boolean, labelOf?: (value: number) => string | undefined, span?: { min: number, max: number } | null, weekStart?: number }} kind
+ *   `span`: the data's first and last date, for the data's share of a relative range; `weekStart`: the view's first day of a week
  */
-export function itemRuleText(f, labels, locale, { timeZone, date, labelOf, span }) {
+export function itemRuleText(f, labels, locale, { timeZone, date, labelOf, span, weekStart }) {
     if (f.type === "relative") {
-        return relativeText(/** @type {any} */ (f), labels, locale, timeZone, undefined, span);
+        return withNot(f, relativeText(/** @type {any} */ (f), labels, locale, timeZone, undefined, span, weekStart), labels);
     }
     if (f.type === "compare") {
         return compareText(/** @type {any} */ (f), labels, locale, { date, labelOf });
     }
-    const op = String(f.op);
-    return `${Object.hasOwn(labels.labelOps, op) ? labels.labelOps[op] : op} ${fill(labels.quote, { text: f.value })}`;
+    const op = ruleOp(f);
+    return withNot(f, `${Object.hasOwn(labels.labelOps, op) ? labels.labelOps[op] : op} ${fill(labels.quote, { text: f.value })}`, labels);
 }
 
 /** The name of a derived field for a grouping, in the labels' language: "Date by month", "Amount (by 100)". */

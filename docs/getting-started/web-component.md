@@ -114,44 +114,69 @@ into an attribute.
 ## Angular
 
 The element is a standard custom element, so Angular's property and event bindings apply. This
-example is not built or tested in the pivotkit repository:
+component is shortened from the [Angular example](https://github.com/eizedev/pivotkit/tree/main/examples/angular)
+of the repository (Angular 22, zoneless), which CI builds and tests in Chromium, Firefox and WebKit:
 
 ```ts
-import { Component, CUSTOM_ELEMENTS_SCHEMA } from "@angular/core";
+import { Component, CUSTOM_ELEMENTS_SCHEMA, signal } from "@angular/core";
 import "pivotkit-element";
 import type { PivotView } from "pivotkit-element";
 
 @Component({
-    selector: "app-ticket-report",
-    standalone: true,
+    selector: "app-root",
     // <pivot-report> is no Angular component: the schema lets the template use it
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
     template: `
+        <p>{{ shown() }}</p>
         <pivot-report
             [data]="rows"
             [defaultView]="start"
-            [templates]="templates"
-            locale="de-DE"
+            locale="en-US"
+            allow-import
             (pivot-view-change)="onView($event)"
         ></pivot-report>
     `
 })
 export class TicketReportComponent {
-    rows: object[] = [];
-    templates = [];
-    start: PivotView = { rows: ["Team"], values: [{ field: "Ticket", agg: "count" }] };
+    // data and views are properties: Angular sets them on the element, never as attributes
+    readonly rows = [
+        { Ticket: 1, Team: "Billing", Priority: "High" },
+        { Ticket: 2, Team: "Network", Priority: "Low" }
+    ];
+    readonly start: PivotView = { rows: ["Team"], values: [{ field: "Ticket", agg: "count" }] };
+    readonly view = signal<PivotView>(this.start);
+    readonly shown = () => `Rows: ${this.view().rows?.join(", ") || "none"}; columns: ${this.view().cols?.join(", ") || "none"}`;
 
     onView(event: Event) {
-        const { view } = (event as CustomEvent<{ view: PivotView }>).detail;
-        // store the view
+        // a real app stores the view (a server, the URL); this one shows what it got
+        this.view.set((event as CustomEvent<{ view: PivotView }>).detail.view);
     }
 }
 ```
 
+The test checks that the bound rows show in the table, that a change in a field's menu reaches
+`onView` and the page shows the new view, that the page's global stylesheet does not style the
+report (its shadow root keeps it out), and that a CSV file picked with `allow-import` is read in the
+element's import worker. Angular's build bundles `pivotkit-element` with the app; ECharts, the export
+and the import UI still load on first use, as chunks of the app's build.
+
+The import worker is a file of its own that a bundler does not copy: copy it as an asset in
+`angular.json` (the build's `options`), so it lands next to `main-*.js` at the root of the output:
+
+```json
+"assets": [{ "glob": "import-worker.js", "input": "node_modules/pivotkit-element/dist", "output": "/" }]
+```
+
+The element looks for it at `../import-worker.js` from the file its code is in, which from Angular's
+`main-*.js` is `/import-worker.js` of the site: an app served under a path of its own (a `baseHref`
+such as `/reports/`) needs the file at the site's root too. Without it the element reads the file
+on the page, and Firefox and WebKit log the worker that failed to load in the console.
+
 Binding the stored view back as `[defaultView]` is fine: the element ignores the view it reported
-itself. The report's React scheduler and ECharts' pointer listeners run in Angular's zone and may
-trigger change detection (not measured); if that shows, create and feed the element outside the zone, as the [element reference](../reference/element.md#angular-and-zonejs)
-shows how.
+itself. For the controlled form bind `[view]` and set it in the handler. An app that still runs in
+Angular's zone (zone.js) may see extra change detection from the report's scheduler and ECharts'
+pointer listeners (not measured); the [element reference](../reference/element.md#angular-and-zonejs)
+shows how to create and feed the element outside the zone.
 
 ## React pages
 

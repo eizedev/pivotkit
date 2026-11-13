@@ -65,7 +65,9 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
             // numbers inside a ring too thin for them (a low or narrow chart) would spill over its edges
             // onto the background: they are written outside, on a line to their slice, instead
             let label = s.label;
-            let line = s.labelLine;
+            // ECharts needs an explicit outside guide line on the first draw: an
+            // undefined labelLine replaces its defaults and leaves the labels unplaced.
+            let line = s.labelLine ?? { show: true };
             if (label?.position === "inside" && label.show !== false && Array.isArray(s.radius)) {
                 const box = { width: width - (typeof s.right === "number" ? s.right : 0), height: height - top - bottom };
                 const total = (s.data || []).reduce((sum, d) => sum + (typeof d.value === "number" ? d.value : 0), 0);

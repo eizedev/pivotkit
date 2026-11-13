@@ -26,6 +26,8 @@ const base = `http://127.0.0.1:${port}/`;
 const WIDE = { width: 1440, height: 900 };
 const THEMES = ["light", "dark"];
 const PHONE = { width: 390, height: 844 };
+/** A window of 1000 px with the field list open: every toolbar button that can move is in More. */
+const MEDIUM = { width: 1000, height: 760 };
 
 /** The three largest countries per region as bars: the regions are the group labels under the axis. */
 const GROUPED = encodeViewLink({
@@ -55,6 +57,11 @@ const DATES = encodeViewLink({ ...MONTHLY, filters: [{ field: "Date by month", t
 const CYCLIC = { derived: [{ name: "Date by month of year", field: "Date", by: "month" }], rows: ["Date by month of year"], cols: ["City"], values: [{ field: "Mean °C", agg: "average" }] };
 const YEARS = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "compare", op: "between", value: "2024-01-01", value2: "2025-12-31" }] });
 const RULES = encodeViewLink({ ...CYCLIC, filters: [{ field: "Date by month of year", type: "value", op: ">", value: 25, by: { field: "Mean °C", agg: "average" } }] });
+/** End-of-life dates by month, the next 2 years: the quick choices with More choices open (Next is one of them). */
+const EOL_MONTHLY = { derived: [{ name: "EOL date by month", field: "EOL date", by: "yearMonth" }], rows: ["EOL date by month"], values: [{ agg: "count" }] };
+const MORE = encodeViewLink({ version: 2, ...EOL_MONTHLY, filters: [{ field: "EOL date by month", type: "relative", direction: "next", unit: "year", count: 2, blanks: "exclude" }] });
+/** The Nobel laureates by country: a rule on the name that keeps the laureates without a country. */
+const BLANKS = encodeViewLink({ version: 2, rows: ["Country"], values: [{ agg: "count" }], filters: [{ field: "Country", type: "text", op: "beginsWith", value: "united", not: true, blanks: "include" }] });
 /** A date in Filters: the whole report counts the release cycles of the last 12 months. */
 const ZONE = encodeViewLink({ rows: ["Category"], values: [{ field: "Cycle", agg: "count", label: "Release cycles" }], filters: [{ field: "Released", type: "relative", unit: "month", count: 12 }] });
 
@@ -100,6 +107,39 @@ async function toolbar(page, testId) {
     }
     await page.getByTestId("more").click();
     await page.getByTestId(`more-${testId}`).click();
+}
+
+/**
+ * A CSV export as a ticket tool on a German Windows writes it (made up here, with a fixed pattern):
+ * semicolons, German numbers and dates, a title line above the header, an empty line, postcodes.
+ */
+const TICKETS_CSV = (() => {
+    const teams = ["Network", "Server", "Client", "Service desk"];
+    const states = ["Open", "In progress", "Closed"];
+    const lines = ["Ticket export, all teams", "Ticket;Team;Opened;State;Hours;Site postcode"];
+    for (let i = 0; i < 240; i++) {
+        lines.push(`${27_000 + i};${teams[i % 4]};${String((i % 28) + 1).padStart(2, "0")}.${String((i % 12) + 1).padStart(2, "0")}.2026;${states[(i * 7 + Math.floor(i / 5)) % 3]};${(i * 37) % 40},${(i * 3) % 10};0${1000 + ((i * 131) % 8000)}`);
+        if (i === 120) lines.push("");
+    }
+    return `${lines.join("\n")}\n`;
+})();
+
+/** Drags the ticket CSV over the report (`drop`: lets go, the preview opens). */
+async function dragTickets(page, drop) {
+    const dt = await page.evaluateHandle((text) => {
+        // eslint-disable-next-line no-undef -- runs in the page
+        const t = new DataTransfer();
+        t.items.add(new File([text], "tickets-2026.csv", { type: "text/csv" }));
+        return t;
+    }, TICKETS_CSV);
+    const target = page.locator(".pk-result");
+    await target.dispatchEvent("dragenter", { dataTransfer: dt });
+    await target.dispatchEvent("dragover", { dataTransfer: dt });
+    await page.getByTestId("drop-overlay").waitFor();
+    if (drop) {
+        await target.dispatchEvent("drop", { dataTransfer: dt });
+        await page.getByTestId("import-apply").waitFor();
+    }
 }
 
 /** @type {{ name: string, query: string, hash?: string, size: typeof WIDE, chart?: boolean, open?: (page: import("@playwright/test").Page) => Promise<void> }[]} */
@@ -226,13 +266,19 @@ const SHOTS = [
     },
     { name: "chart-groups", query: "data=countries", hash: GROUPED, size: WIDE, chart: true },
     {
-        name: "share-menu",
+        // Start over open at the start view: Reset greyed out with its reason, New with what it does;
+        // a window of 1920 px, where Start over is in the toolbar with the field list open
+        name: "start-over",
         query: "data=sales",
-        size: WIDE,
-        open: async (page) => {
-            await toolbar(page, "views");
-            await page.getByTestId("topic-share").click();
-        }
+        size: { width: 1920, height: 900 },
+        open: (page) => page.getByTestId("start-over").click()
+    },
+    {
+        // More in a window where every button that can move is in it: its groups with a rule between
+        name: "more-menu",
+        query: "data=sales",
+        size: MEDIUM,
+        open: (page) => page.getByTestId("more").click()
     },
     {
         // Shared views (the presets and the views of the OpenAPI document) and My views with one saved
@@ -263,7 +309,7 @@ const SHOTS = [
         }
     },
     {
-        // This view in the Views menu: Save for one of my views, changed, Save as… and New
+        // This view in the Views menu: Save for one of my views, changed, and Save as…
         name: "views-this-view",
         query: "data=tickets",
         size: WIDE,
@@ -325,6 +371,31 @@ const SHOTS = [
             await page.getByTestId("topic-filter").click();
         }
     },
+    // a date's More choices, open since the choice set is one of them: Next and Before the last with
+    // their counts and units, Rolling, and Counted back from (the data reach past today)
+    {
+        name: "filter-more",
+        query: "data=endoflife&empty",
+        hash: MORE,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-EOL date by month").click();
+            await page.getByTestId("topic-filter").click();
+            await page.getByTestId("quick-more-body").scrollIntoViewIfNeeded();
+        }
+    },
+    // a rule on the name with the blank items kept: "does not begin with", the checkbox with its rows
+    {
+        name: "filter-blanks",
+        query: "data=nobel&empty",
+        hash: BLANKS,
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("chip-menu-Country").click();
+            await page.getByTestId("topic-filter").click();
+            await page.getByTestId("rules-blanks").scrollIntoViewIfNeeded();
+        }
+    },
     // a grouping that combines the years: Years combined with 2023 off, the summary saying so
     {
         name: "filter-cyclic",
@@ -358,7 +429,7 @@ const SHOTS = [
         open: (page) => page.getByTestId("chip-menu-Released").click()
     },
     {
-        // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…
+        // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…, the ties
         name: "top-items",
         query: "data=countries&preset=0",
         size: WIDE,
@@ -413,7 +484,6 @@ const SHOTS = [
         size: WIDE,
         open: async (page) => {
             await toolbar(page, "views");
-            await page.getByTestId("topic-share").click();
             await page.getByTestId("load-view").click();
             const file = toViewFile({ rows: ["City"], values: [{ field: "Sunshine h", agg: "average" }] }, { name: "Sunshine per city", source: { id: "weather", name: "Weather" } });
             await page.getByTestId("load-view-text").fill(JSON.stringify(file));
@@ -433,6 +503,35 @@ const SHOTS = [
         }
     },
     { name: "german", query: "data=sales&lang=de", size: WIDE },
+    // loading data (allowImport, the playground's ?import): the Data menu, a file dragged over the
+    // report, its preview, the report on it, the empty report's place to drop, the preview on a phone
+    { name: "data-menu", query: "data=sales&import", size: WIDE, open: (page) => toolbar(page, "data") },
+    { name: "import-drop", query: "data=sales&import", size: WIDE, open: (page) => dragTickets(page, false) },
+    { name: "import-preview", query: "data=sales&import", size: WIDE, open: (page) => dragTickets(page, true) },
+    {
+        name: "import-loaded",
+        query: "data=sales&import",
+        size: WIDE,
+        open: async (page) => {
+            await dragTickets(page, true);
+            await page.getByTestId("import-apply").click();
+            await page.getByTestId("source-line").waitFor();
+            for (const [field, zone] of [["Team", "Add to Rows"], ["State", "Add to Columns"], ["Hours", "Add to Values"]]) {
+                await page.getByTestId(`field-menu-${field}`).click();
+                await page.getByRole("menuitem", { name: zone }).click();
+            }
+            await page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" });
+        }
+    },
+    { name: "import-empty", query: "data=sales&empty&import", size: WIDE },
+    {
+        name: "import-phone",
+        query: "data=sales&import",
+        size: PHONE,
+        open: async (page) => {
+            await dragTickets(page, true);
+        }
+    },
     // a field's description (fieldDefaults) opened from its "i", and the tips above the table
     {
         name: "field-info",

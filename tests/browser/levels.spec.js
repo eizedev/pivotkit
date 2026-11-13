@@ -189,14 +189,14 @@ test.describe("the search of a menu", () => {
 });
 
 test.describe("the Views menu in levels", () => {
-    test("German: the group heading above Share", async ({ page }) => {
+    test("German: Diese Ansicht teilen with its entries, Ansichtsdatei öffnen… among them", async ({ page }) => {
         await page.goto("?data=tickets&lang=de");
         await toolbar(page, "views");
         await expect(page.getByTestId("topic-title-share")).toHaveText("Diese Ansicht teilen");
-        await expect(page.getByRole("menu", { name: "Ansichten" }).getByRole("group", { name: "Diese Ansicht teilen" }).getByRole("menuitem", { name: "Teilen" })).toBeVisible();
+        await expect(page.getByRole("menu", { name: "Ansichten" }).getByRole("group", { name: "Diese Ansicht teilen" }).getByRole("menuitem", { name: "Ansichtsdatei öffnen…" })).toBeVisible();
     });
 
-    test("a flat list to scan; Save as… and Share open levels; an entry's Delete is reached by the arrow keys and asks in a level", async ({ page }) => {
+    test("a flat list to scan; Save as… and Open view file… open levels; an entry's Delete is reached by the arrow keys and asks in a level", async ({ page }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "views");
         const menu = page.getByRole("menu", { name: "Views" });
@@ -204,21 +204,22 @@ test.describe("the Views menu in levels", () => {
           - menu "Views":
             - group "This view":
               - menuitem "Save current view…"
-              - menuitem /New, empty report/
             - group "Shared views":
               - menuitem "Tickets per team and priority"
               - menuitem "Median lead time by month"
               - menuitem "Open work per team (chart)"
             - group "My views"
             - group "Share this view":
-              - menuitem "Share"
+              - menuitem "Copy link"
+              - menuitem "Copy view as JSON"
+              - menuitem "Download view (.pivotkit.json)"
+              - menuitem "Open view file…"
         `);
-        // the Share row under a group heading of its own, above it, marked up as the other headings
+        // the group titles are drawn alike, the Share group's under the lists before it
         const shareHeading = page.getByTestId("topic-title-share");
         await expect(shareHeading).toHaveText("Share this view");
-        await expect(shareHeading).toHaveClass(/pk-subtitle/);
-        await expect(page.getByTestId("topic-title-myViews")).toHaveClass(/pk-subtitle/);
-        expect(await shareHeading.evaluate((h) => h.compareDocumentPosition(document.querySelector('[data-testid="topic-share"]')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+        await expect(shareHeading).toHaveClass(/pk-section-title/);
+        await expect(page.getByTestId("topic-title-myViews")).toHaveClass(/pk-section-title/);
         // no fold anywhere: every group is there at once
         await expect(page.locator(".pk-popover button.pk-section-title")).toHaveCount(0);
         // Save as… by keyboard: its level with the name field, saved with Enter
@@ -243,16 +244,14 @@ test.describe("the Views menu in levels", () => {
         // Escape: back to the entry, nothing deleted
         await page.keyboard.press("Escape");
         await expect(page.getByTestId("saved-view-Mine")).toBeFocused();
-        // Share: its level, the privacy note under its entries
-        await page.keyboard.press("End");
-        await expect(page.getByTestId("topic-share")).toBeFocused();
-        await page.keyboard.press("ArrowRight");
-        await expect(page.getByTestId("level-title")).toHaveText("Views › Share");
+        // the last entry, Open view file…, opens its level; the privacy note is under the group
         await expect(page.getByTestId("share-privacy")).toBeVisible();
-        await page.getByTestId("load-view").click();
-        await expect(page.getByTestId("level-title")).toHaveText("Views › Load view");
+        await page.keyboard.press("End");
+        await expect(page.getByTestId("load-view")).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect(page.getByTestId("level-title")).toHaveText("Views › Open view file");
         await expect(page.getByTestId("load-view-text")).toBeFocused();
-        // Back from Load view goes to Share, on its entry
+        // Back goes to the list, on its entry
         await page.getByTestId("level-back").click();
         await expect(page.getByTestId("load-view")).toBeFocused();
     });

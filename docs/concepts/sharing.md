@@ -15,14 +15,14 @@ not fit is left out and said in plain words.
 
 ## In the Views menu (for the people who use the report)
 
-The **Share** level of the Views menu - Copy link, Copy view as JSON, Download view, Load view… -
+The **Share this view** group of the Views menu - Copy link, Copy view as JSON, Download view, Open view file… -
 and what people see while a view loads are on [Views, saving and sharing](../use/views.md#share-a-view)
 under Use a report. For the host:
 
 - **Copy link** shows only with `shareLink` ([Links](#links-for-developers)).
 - **Download view** names the file `<name>.pivotkit.json` after the view's name, else `source.name`,
   else `fileName` (`pivot.pivotkit.json` without one); it passes `onExport` (`"json"`) first.
-- **Load view…** caps the text at 1,000,000 characters and a file at 1,000,000 bytes before it is
+- **Open view file…** caps the text at 1,000,000 characters and a file at 1,000,000 bytes before it is
   parsed, reads a view file, a bare view's JSON or a link, and normalizes what it gets against the
   data; a view file of a newer format or view version is refused
   ([reading a view file](../reference/view-file.md#reading-a-view-file)).
@@ -95,7 +95,7 @@ have their own. Only that entry is added or replaced: the rest of the fragment s
 also a hash route with its own query (`#/reports/a?tab=2&pivot=1.…`). With `shareLink` set the report
 reads its entry after the first render (so a server render and its hydration match): a link at load is
 where the report starts, with a new undo history (Reset still goes to the start view). When only the
-fragment changes later (a link opened in the same tab), its view is one step, like Load view, and Undo
+fragment changes later (a link opened in the same tab), its view is one step, like Open view file, and Undo
 goes back to the view before.
 
 The text is pivotkit's share format, `encodeViewLink` and `decodeViewLink` of
@@ -110,7 +110,29 @@ keep the page busy. The module is loaded on first use: a report that never share
 
 A host that keeps the view in its own address, as the playground does, writes the same entry with
 `encodeViewLink(toViewFile(view, { source: { id } }, { link: true }))` on every `onViewChange`. A link
-that holds a bare view still opens.
+that holds a bare view still opens, and so does every link of view format version 1.
+
+### Opening a link on another page
+
+A page that is not a pivotkit report (a server-side route, a dashboard that picks the data first)
+reads a link with `readViewLink(location.hash, key, { allowParams })` of `pivotkit-core/link`: the
+view, its name, and `src`, the data source the link names. `src.id` is the host's opaque name of the
+data, never an address or a query; `src.params` are what the host needs besides it to find the data
+(a report's parameters, `toViewFile`'s `source.params`), and only those the host lists by name in
+`allowParams` come through (none by default). The page resolves the source itself, with the viewer's
+own rights, and answers an unknown source and one the viewer may not see the same way. The view is
+user input from outside: normalize it with `outsideLimits()`.
+
+```js
+import { readViewLink } from "pivotkit-core/link";
+import { encode, normalize, outsideLimits } from "pivotkit-core";
+
+const link = readViewLink(location.hash, "sales", { allowParams: ["year"] });
+if (link.view && link.src) {
+    const rows = await loadRowsFor(link.src.id, link.src.params);   // the host's own lookup
+    const { view } = normalize(link.view, encode(rows), { limits: outsideLimits() });
+}
+```
 
 ## Keeping the view per tab
 

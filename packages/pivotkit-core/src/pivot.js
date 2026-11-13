@@ -23,7 +23,7 @@ import { KEEPS_VALUES_WEIGHT, resolveLimits } from "./limits.js";
 import { SHOW_AS } from "./show-as.js";
 import { buildTree, groupBy } from "./tree.js";
 import { resolveLocale, optionsOf } from "./util.js";
-import { normalize } from "./view.js";
+import { issueOf, normalize } from "./view.js";
 
 /** @typedef {import("./tree.js").PivotNode} PivotNode */
 
@@ -45,6 +45,9 @@ import { normalize } from "./view.js";
  * @property {string} timeZone                      the data's time zone
  * @property {import("./encode.js").Encoded} encoded
  * @property {Int32Array} rows                      source row indices left after all filters
+ * @property {Array<{ field: string, type: string, kept: number | null }>} filters  per filter of the view, in
+ *   its order: the source rows left after it (filters apply in turn: item filters in the view's
+ *   order, then value filters from the outer level in); null when it did not apply
  * @property {string[]} rowFields
  * @property {string[]} colFields
  * @property {import("./encode.js").Column[]} rowColumns
@@ -263,12 +266,7 @@ export function computePivot(data, viewInput, options) {
     const { view, issues } = normalize(viewInput, data, options);
     const locale = resolveLocale(view.formatting.locale, options.locale);
     if (view.formatting.timeZone && view.formatting.timeZone !== data.timeZone) {
-        issues.push({
-            path: "formatting.timeZone",
-            message: `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`,
-            code: "timeZoneMismatch",
-            params: { value: view.formatting.timeZone, zone: data.timeZone }
-        });
+        issues.push(issueOf("formatting.timeZone", `the view was made for ${view.formatting.timeZone}, the data is encoded in ${data.timeZone}; pass timeZone to encode()`, "timeZoneMismatch", { value: view.formatting.timeZone, zone: data.timeZone }));
     }
     const columnOf = columnResolver(data, view);
     const ranks = (column) => ranksOf(column, locale, data.cache);
@@ -294,7 +292,9 @@ export function computePivot(data, viewInput, options) {
     for (let i = 0; i < rows.length; i++) {
         rows[i] = i;
     }
-    rows = applyFilters(ctx, rows);
+    /** @type {Array<number | null>} */
+    const kept = view.filters.map(() => null);
+    rows = applyFilters(ctx, rows, kept);
 
     // Measures: the visible values plus references used only for sorting, each computed once.
     const measureIndex = new Map();
@@ -366,6 +366,7 @@ export function computePivot(data, viewInput, options) {
         timeZone: data.timeZone,
         encoded: data,
         rows,
+        filters: view.filters.map((f, i) => ({ field: f.field, type: f.type, kept: kept[i] })),
         rowFields: view.rows,
         colFields: view.cols,
         rowColumns,

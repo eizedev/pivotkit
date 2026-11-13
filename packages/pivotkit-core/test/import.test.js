@@ -243,7 +243,7 @@ test("limits: the file size before reading, rows, columns and cells while readin
     await rejects(readFile(big), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "fileBytes" && e.details.file === "huge.csv");
     assert.equal(read, false, "the bytes were not read");
     const rows = "A\n" + "1\n".repeat(11);
-    await rejects(readFile(text("rows.csv", rows), { limits: { rows: 10 } }), (e) => e.details.limit === "rows" && e.message === '"rows.csv" has more than 10 rows (limits.rows): load a smaller extract of it, or a host can raise limits.rows');
+    await rejects(readFile(text("rows.csv", rows), { limits: { rows: 10 } }), (e) => e.details.limit === "rows" && e.message === '"rows.csv" has more than 10 rows (limits.rows): load a smaller extract of it, or a host can raise this limit');
     await rejects(readFile(text("cols.csv", "A,B,C\n1,2,3\n"), { limits: { columns: 2 } }), (e) => e.details.limit === "columns");
     await rejects(readFile(text("cells.csv", "A,B\n1,2\n3,4\n5,6\n"), { limits: { importCells: 5 } }), (e) => e.details.limit === "importCells");
     await rejects(readFile(text("j.json", JSON.stringify(Array.from({ length: 11 }, (_, i) => ({ i })))), { limits: { rows: 10 } }), (e) => e.details.limit === "rows");

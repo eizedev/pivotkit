@@ -14,19 +14,19 @@ const src = fileURLToPath(new URL("../src/", import.meta.url));
 
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
-        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
-        "cellRows", "computePivot", "createHistory", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "formatter", "fromViewFile", "isFormat",
-        "migrate", "normalize", "relativeDateRange", "suggestDateUnit", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText"
+        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "ISSUE_CAP", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
+        "cellRows", "computePivot", "createHistory", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
+        "migrate", "normalize", "outsideLimits", "relativeDateRange", "suggestDateUnit", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "withLinkFragment"
     ]);
     assert.deepEqual(Object.keys(exporters).sort(), ["rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
-    assert.deepEqual(Object.keys(links).sort(), ["LINK_LIMITS", "decodeViewLink", "encodeViewLink"]);
+    assert.deepEqual(Object.keys(links).sort(), ["LINK_ISSUE_CODES", "LINK_LIMITS", "decodeViewLink", "encodeViewLink", "linkFragment", "linkParam", "readViewLink", "withLinkFragment"]);
     assert.deepEqual(Object.keys(templates).sort(), ["TEMPLATES_EXTENSION", "TEMPLATE_LIMITS", "parseTemplates", "templatesFromSchema"]);
     assert.deepEqual(Object.keys(importer).sort(), [
         "BUILT_IN_READERS", "IMPORT_NOTE_CODES", "IMPORT_TYPES", "PLUGIN_API_VERSION", "bytesOf", "checkFileLimit", "cleanText", "createTable", "csvReader", "dateToIso", "fileError", "fileName",
         "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "validatePlugin"
     ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./import", "./link", "./templates", "./schema/view-file-1.json", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./import", "./link", "./templates", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */

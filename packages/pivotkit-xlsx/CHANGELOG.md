@@ -6,6 +6,14 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- npm keyword `pivot-table` ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+
+## [0.1.0] - 2026-11-11
+
+First release.
+
 ### Added
 
 - The reader plugin for Excel workbooks (.xlsx) of `pivotkit-core/import`, plugin API 1
@@ -19,3 +27,6 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
   read-excel-file 9.3.14 (MIT), which gets an uncompressed archive of only the parts it needs, so no
   worker is started and a strict Content-Security-Policy works. `dist/` holds a bundle for pages
   without a bundler, with `THIRD_PARTY_LICENSES.txt`.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-xlsx@0.1.0

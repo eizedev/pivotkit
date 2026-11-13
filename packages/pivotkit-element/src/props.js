@@ -43,12 +43,13 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "schema-url", prop: "schemaUrl", kind: "string" },
     { attr: "grow", prop: "grow", kind: "on-off" },
     { attr: "field-list", prop: "fieldList", kind: "string" },
+    { attr: "allow-import", prop: "allowImport", kind: "flag" },
     { attr: "view", prop: "view", kind: "json" },
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);
 
 /** Properties without an attribute: objects and arrays a host sets from script. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "dismissedTips", "chartOptions", "sources"]);
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "sources", "plugins"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 

@@ -12,9 +12,10 @@ import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
  * only, so they stay out of the first load).
- * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts }} UiLabels
+ * @typedef {typeof en & import("./menu-labels.js").MenuTexts & { unused?: import("./unused-texts.js").UnusedTexts, dataImport?: import("./import-labels.js").ImportTexts }} UiLabels
  *   `unused`: the texts of a view's unused parts (unused-texts.js), loaded when a view has such parts;
- *   a host's are kept aside as the menus' are
+ *   `dataImport`: those of loading data (import-labels.js), loaded with the import UI; a host's of
+ *   both are kept aside as the menus' are
  */
 
 export const en = {
@@ -82,8 +83,15 @@ export const en = {
     chartTypes: { auto: "Automatic", bar: "Bars", stacked: "Stacked bars", horizontal: "Horizontal bars", line: "Lines", area: "Area", pie: "Pie", donut: "Donut", heatmap: "Heatmap" },
     undo: "Undo",
     redo: "Redo",
+    // Start over: the toolbar's menu of Reset and New (or their entries in More), each with what it
+    // does and, while it does nothing, why
+    startOver: "Start over",
     reset: "Reset",
-    resetHint: "Back to the start view",
+    resetHint: "Back to the start view. Your data stays.",
+    resetAlready: "Already at the start view.",
+    resetStartEmpty: "The start view is empty: use New, empty report.",
+    newHint: "No fields. Undo brings it back. Your data stays.",
+    newAlready: "The report is empty already.",
     // next to Views: the name of the view loaded, and the mark while it has changes not saved
     unsavedChanges: "Unsaved changes",
     swap: "Swap rows and columns",
@@ -94,6 +102,13 @@ export const en = {
     more: "More",
     // the Views menu: the saved views (the host's templates) and sharing
     views: "Views",
+    // loading data (allowImport): the Data button, its dot while a file's data is shown, the empty report
+    data: "Data",
+    dataLoaded: "Data from a file",
+    loadData: "Load data…",
+    emptyLoad: "Or load your own data: drop a file onto the report, or",
+    emptyDrop: "Drop a file onto the report, or",
+    emptyNoData: "Load data to start",
     exportLabel: "Export",
     options: "Options",
     expand: "Expand {label}",
@@ -184,7 +199,7 @@ export const en = {
     toastUndone: "Undone: {step}",
     toastRedone: "Redone: {step}",
     toastReset: "Back to the start view",
-    // New's step said in the status line, and its entry in the Views menu
+    // New's entry under Start over, and its step said in the status line
     newEmpty: "New, empty report",
     toastLoaded: "View “{name}” loaded",
     toastExportFailed: "Export failed: {message}",
@@ -310,12 +325,39 @@ export const en = {
     // the measure a sort or a filter goes by when the view shows no value: the rows counted
     countOfRows: "Count of rows",
     // a rule on the names of a field's items, on its chip and in its menu: "contains “an”"
-    labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", endsWith: "ends with" },
+    labelOps: { equals: "is", notEquals: "is not", contains: "contains", notContains: "does not contain", beginsWith: "begins with", notBeginsWith: "does not begin with", endsWith: "ends with", notEndsWith: "does not end with" },
+    // a rule inverted (a loaded view's "not" the menus have no word for): "not (begins with “a”)"
+    notRule: "not ({rule})",
     // a relative date range and a date compared, in short (the chip and the Filter level): "last 5 years (2022–2026)", "from 2022"
     relative: { year: "this year", years: "last {count} years", month: "last {count} month", months: "last {count} months", day: "last {count} day", days: "last {count} days" },
     withRange: "{text} ({range})",
     // the range counted back from the data's latest record, and the data's share of a range
     relativeTo: "{text} to {end}",
+    // a relative range the menus do not write yet (a loaded view's): its words, and the dates it keeps
+    relativeMore: {
+        last: {
+            hour: { one: "last {count} hour", other: "last {count} hours" }, day: { one: "last {count} day", other: "last {count} days" },
+            week: { one: "last {count} week", other: "last {count} weeks" }, month: { one: "last {count} month", other: "last {count} months" },
+            quarter: { one: "last {count} quarter", other: "last {count} quarters" }, year: { one: "last {count} year", other: "last {count} years" }
+        },
+        next: {
+            hour: { one: "next {count} hour", other: "next {count} hours" }, day: { one: "next {count} day", other: "next {count} days" },
+            week: { one: "next {count} week", other: "next {count} weeks" }, month: { one: "next {count} month", other: "next {count} months" },
+            quarter: { one: "next {count} quarter", other: "next {count} quarters" }, year: { one: "next {count} year", other: "next {count} years" }
+        },
+        before: {
+            hour: { one: "before the last {count} hour", other: "before the last {count} hours" }, day: { one: "before the last {count} day", other: "before the last {count} days" },
+            week: { one: "before the last {count} week", other: "before the last {count} weeks" }, month: { one: "before the last {count} month", other: "before the last {count} months" },
+            quarter: { one: "before the last {count} quarter", other: "before the last {count} quarters" }, year: { one: "before the last {count} year", other: "before the last {count} years" }
+        },
+        this: { hour: "this hour", day: "today", week: "this week", month: "this month", quarter: "this quarter", year: "this year" },
+        rolling: "{text}, rolling",
+        withoutCurrent: "{text}, current period excluded",
+        fromLatest: "{text}, counted from the latest record",
+        fromFirst: "{text}, counted from the first record",
+        fromDate: "{text}, counted from {date}",
+        until: "until {to}"
+    },
     withShare: "{text} ({range}; {missing})",
     noData: { one: "{range} has no data", other: "{range} have no data" },
     compareShort: { "=": "{value}", "!=": "not {value}", ">": "after {value}", ">=": "from {value}", "<": "before {value}", "<=": "up to {value}", between: "{from} to {to}", notBetween: "not {from} to {to}" },
@@ -411,8 +453,13 @@ export const de = {
     chartTypes: { auto: "Automatisch", bar: "Balken", stacked: "Gestapelte Balken", horizontal: "Liegende Balken", line: "Linien", area: "Fläche", pie: "Kreis", donut: "Ring", heatmap: "Heatmap" },
     undo: "Rückgängig",
     redo: "Wiederholen",
+    startOver: "Neu beginnen",
     reset: "Zurücksetzen",
-    resetHint: "Zurück zur Startansicht",
+    resetHint: "Zurück zur Startansicht. Deine Daten bleiben.",
+    resetAlready: "Schon in der Startansicht.",
+    resetStartEmpty: "Die Startansicht ist leer: Nimm „Neuer, leerer Bericht“.",
+    newHint: "Keine Felder. Rückgängig bringt den Bericht zurück. Deine Daten bleiben.",
+    newAlready: "Der Bericht ist schon leer.",
     unsavedChanges: "Nicht gespeicherte Änderungen",
     swap: "Zeilen und Spalten tauschen",
     layout: "Anordnung",
@@ -420,6 +467,12 @@ export const de = {
     layoutEmpty: "Noch keine Felder angeordnet",
     more: "Mehr",
     views: "Ansichten",
+    data: "Daten",
+    dataLoaded: "Daten aus einer Datei",
+    loadData: "Daten laden…",
+    emptyLoad: "Oder eigene Daten laden: eine Datei auf den Bericht ziehen, oder",
+    emptyDrop: "Eine Datei auf den Bericht ziehen, oder",
+    emptyNoData: "Daten laden, um zu beginnen",
     exportLabel: "Export",
     options: "Optionen",
     expand: "{label} aufklappen",
@@ -609,10 +662,35 @@ export const de = {
     },
     valueConditions: { compare: "{value} {op} {number}", between: "{value} zwischen {from} und {to}", notBetween: "{value} nicht zwischen {from} und {to}" },
     countOfRows: "Anzahl der Zeilen",
-    labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", endsWith: "endet mit" },
+    labelOps: { equals: "ist", notEquals: "ist nicht", contains: "enthält", notContains: "enthält nicht", beginsWith: "beginnt mit", notBeginsWith: "beginnt nicht mit", endsWith: "endet mit", notEndsWith: "endet nicht mit" },
+    notRule: "nicht ({rule})",
     relative: { year: "dieses Jahr", years: "letzte {count} Jahre", month: "letzter {count} Monat", months: "letzte {count} Monate", day: "letzter {count} Tag", days: "letzte {count} Tage" },
     withRange: "{text} ({range})",
     relativeTo: "{text} bis {end}",
+    relativeMore: {
+        last: {
+            hour: { one: "letzte {count} Stunde", other: "letzte {count} Stunden" }, day: { one: "letzter {count} Tag", other: "letzte {count} Tage" },
+            week: { one: "letzte {count} Woche", other: "letzte {count} Wochen" }, month: { one: "letzter {count} Monat", other: "letzte {count} Monate" },
+            quarter: { one: "letztes {count} Quartal", other: "letzte {count} Quartale" }, year: { one: "letztes {count} Jahr", other: "letzte {count} Jahre" }
+        },
+        next: {
+            hour: { one: "nächste {count} Stunde", other: "nächste {count} Stunden" }, day: { one: "nächster {count} Tag", other: "nächste {count} Tage" },
+            week: { one: "nächste {count} Woche", other: "nächste {count} Wochen" }, month: { one: "nächster {count} Monat", other: "nächste {count} Monate" },
+            quarter: { one: "nächstes {count} Quartal", other: "nächste {count} Quartale" }, year: { one: "nächstes {count} Jahr", other: "nächste {count} Jahre" }
+        },
+        before: {
+            hour: { one: "vor der letzten {count} Stunde", other: "vor den letzten {count} Stunden" }, day: { one: "vor dem letzten {count} Tag", other: "vor den letzten {count} Tagen" },
+            week: { one: "vor der letzten {count} Woche", other: "vor den letzten {count} Wochen" }, month: { one: "vor dem letzten {count} Monat", other: "vor den letzten {count} Monaten" },
+            quarter: { one: "vor dem letzten {count} Quartal", other: "vor den letzten {count} Quartalen" }, year: { one: "vor dem letzten {count} Jahr", other: "vor den letzten {count} Jahren" }
+        },
+        this: { hour: "diese Stunde", day: "heute", week: "diese Woche", month: "dieser Monat", quarter: "dieses Quartal", year: "dieses Jahr" },
+        rolling: "{text}, gleitend",
+        withoutCurrent: "{text}, ohne den laufenden Zeitraum",
+        fromLatest: "{text}, gezählt ab dem letzten Datensatz",
+        fromFirst: "{text}, gezählt ab dem ersten Datensatz",
+        fromDate: "{text}, gezählt ab {date}",
+        until: "bis {to}"
+    },
     withShare: "{text} ({range}; {missing})",
     noData: { one: "{range} hat keine Daten", other: "{range} haben keine Daten" },
     compareShort: { "=": "{value}", "!=": "nicht {value}", ">": "nach {value}", ">=": "ab {value}", "<": "vor {value}", "<=": "bis {value}", between: "{from} bis {to}", notBetween: "nicht {from} bis {to}" },

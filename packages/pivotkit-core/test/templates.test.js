@@ -40,7 +40,7 @@ test("parseTemplates leaves out what it cannot use, with an issue, and never thr
         { name: "   ", view: VIEW },
         42,
         { name: "Newer", view: { ...VIEW, version: VIEW_VERSION + 1 } },
-        { format: "pivotkit-view", formatVersion: 2, name: "Newer format", view: VIEW },
+        { format: "pivotkit-view", formatVersion: 3, name: "Newer format", view: VIEW },
         cyclic,
         { name: "Kept", view: VIEW }
     ]);

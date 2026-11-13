@@ -6,8 +6,46 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+- The element bundles pivotkit-core with view version 2 and pivotkit-react's filters for it
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)): views of version 1 load with the same
+  result. The first load grows by about 7.5 KiB (gzip), its budget to 169; the plain words of a
+  view's unused parts to 5.5.
+
 ### Added
 
+- The property `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)), as
+  pivotkit-react's prop: the limits of a file loaded with `allow-import`, merged key by key over
+  `limits`; the page's data keeps `limits`. A property only, as `limits`.
+
+### Fixed
+
+- An app whose bundler reads `sideEffects` (Angular's build) no longer warns about, or may drop,
+  the chunks `dist/index.js` imports for their effects: `sideEffects` lists `dist/chunks/*.js` too
+  ([#174](https://github.com/eizedev/pivotkit/issues/174)).
+- An app that bundles the element (Angular's build) had no `import-worker.js`, so with
+  `allow-import` the element read files on the page and Firefox and WebKit logged the failed worker.
+  The docs and the Angular example copy `dist/import-worker.js` as an asset (`angular.json`), and the
+  example's test reads a CSV file in the worker ([#182](https://github.com/eizedev/pivotkit/issues/182)).
+
+## [0.4.0] - 2026-11-11
+
+### Added
+
+- Loading data in the browser ([#44](https://github.com/eizedev/pivotkit/issues/44)): the attribute
+  `allow-import` (property `allowImport`) with pivotkit-react's Data menu, drop onto the report and
+  preview; the property `plugins` for reader plugins (pivotkit-xlsx is not bundled: a page adds its
+  `dist/` as a plugin); the cancelable event `pivot-data-load` for every change of the data shown.
+  CSV and JSON files are read in the element's own worker, `dist/import-worker.js` (a file of the
+  page's origin, so a strict CSP with `script-src 'self'` allows it; where it cannot start, the
+  element reads on the page). The import UI is the load group "import" (19.9 KiB gzip), loaded on its
+  first use.
+- An element with `storage-key` taken out of the page and put back
+  ([#131](https://github.com/eizedev/pivotkit/issues/131)) shows the loaded file again with its view
+  and its undo steps (in the page's memory only); `pivot-data-load` says so with `cause` "restore".
+- `data` takes columnar data (`{ columns, types, data }`).
 - pivotkit-react's identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field named ID, …Id, …_id, Nr, No, Number
   or Key with whole numbers, without `agg`, `format` or `drillFormat` in `fieldDefaults`, is counted
   in Values and shown as it is in the drill-down.
@@ -15,8 +53,24 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   attribute or event.
 - What of the page's `view` or `defaultView` the data cannot use shows above the result ([#83](https://github.com/eizedev/pivotkit/issues/83)).
 
+### Changed
+
+- The first load grows from 157.5 to 160.4 KiB gzip (the Data button, the drop handler and the rules
+  of the import UI, and two more files esbuild splits off); its budget is 161.5.
+- pivotkit-react's **Start over** menu in the toolbar (Reset and New, empty report, each with what it
+  does or why it is off) replaces the Reset button; the Views menu holds This view, Shared views, My
+  views and Share this view (with "Open view file…", formerly "Load view…"), New moved to Start over;
+  every menu's groups have bold titles and a rule between them
+  ([#88](https://github.com/eizedev/pivotkit/issues/88), [#105](https://github.com/eizedev/pivotkit/issues/105)). The test id `reset` is Reset's entry in Start over's menu now.
+  No new attribute or event.
+
 ### Fixed
 
+- A loaded file shown again lost its view when the element was taken out and put back twice in a row
+  while its view is controlled (pivotkit-react's fix,
+  [#135](https://github.com/eizedev/pivotkit/issues/135)).
+- Toolbar buttons move into More only when the room left cannot hold them, measured with the texts
+  of the element's language ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and popups open in the browser's top layer, still inside the shadow root:
   above a page's fixed navigation whatever its z-index ([#111](https://github.com/eizedev/pivotkit/issues/111)).
 - pivotkit-react's fixes of one scroll container for a large table ([#112](https://github.com/eizedev/pivotkit/issues/112)), a row label column
@@ -207,7 +261,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.3.0...pivotkit-element@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.2.0...pivotkit-element@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.1.0...pivotkit-element@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-element@0.1.0

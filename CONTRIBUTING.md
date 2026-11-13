@@ -15,14 +15,17 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
    changes `npm run test:browser` (Playwright's browsers: `npx playwright install` once) and a look
    at the playground (`npm run playground`) in light and dark, wide and narrow; for the web component
    also `npm run size -w pivotkit-element` and the example (`examples/element/`, served after
-   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`);
+   `npm run build:playground` with `node examples/playground/serve.js` at `/examples/element/`) and the
+   Angular example (`examples/angular/`, see AGENTS.md);
    for a reader (`pivotkit-core/import`, pivotkit-xlsx) tests on real files of its format (see
    `packages/pivotkit-core/test/import-fixtures/SOURCES.md`), and for pivotkit-xlsx also
    `npm run size -w pivotkit-xlsx` and `npm run bench -w pivotkit-xlsx`.
    The type declarations in `packages/pivotkit-core/types/` are generated, not committed: run
    `npm run types` before a TypeScript consumer in this repository (a later package) imports the core.
 4. Describe what people see on the [documentation site](https://pivotkit.eize.dev/) too: its pages are
-   in `docs/`. Preview them with `npm run docs:demo` (the live demo), then
+   in `docs/`, a new page also in a section of `[project.plugins.llmstxt.sections]` in `zensical.toml`
+   (`tests/llms-sections.test.js` checks it). Preview them with `npm run docs:demo` (the live demo, the
+   view file schema, the social preview and `robots.txt`), then
    `curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css`
    and `uvx zensical@<version> serve` (the version is in eizedev/brand's
    `docs-site/requirements.txt`); `zensical build --strict` is what CI runs. A change of the UI takes
@@ -33,10 +36,14 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 
 ## Dependencies
 
+The root override pins ESLint's development-only `minimatch` to 11.0.1 to avoid the
+globparts-amplification advisory (#76). Remove it when ESLint and its config-array
+dependency require a patched version themselves; lint must still pass unchanged.
+
 Every package of a third party is pinned to an exact version with the lock file; a package of this
 repository that another one depends on takes a caret range on its current version (`pivotkit-react`
 depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.x a caret range
-spans patch versions only (`^0.3.0` matches 0.3.x, `^0.0.1` matches 0.0.1 alone), so a host that
+spans patch versions only (`^0.4.0` matches 0.4.x, `^0.0.1` matches 0.0.1 alone), so a host that
 also uses pivotkit-core directly must use a version inside that range; npm shares one copy only
 when the ranges overlap.
 `pivotkit-element` bundles everything it needs: each bundled package (React, ReactDOM, @dnd-kit,
@@ -73,6 +80,7 @@ npm test -w pivotkit-xlsx              # node --test on generated workbooks (tes
 npm run build -w pivotkit-xlsx         # dist/: the plugin for pages without a bundler, THIRD_PARTY_LICENSES.txt
 npm run size -w pivotkit-xlsx          # build, gzip size of the plugin and its reader, fails above SIZE_BUDGET_KIB
 npm run bench -w pivotkit-xlsx         # read time and memory of a 94,000-row workbook (-- --browser: Chromium too)
+npm run bench:browser                  # the report in three browsers, 100,000 to 1,000,000 rows (docs/concepts/limits.md)
 ```
 
 `npm run coverage -w pivotkit-react` covers its `.js` modules; the `.jsx` components are covered by

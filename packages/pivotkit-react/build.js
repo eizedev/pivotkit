@@ -25,7 +25,9 @@ export const options = {
     // a chunk of its own (splitting), so both use one copy of each module (one React context each)
     // labels.js (the package's "./labels"): every text, for hosts; not part of the report's first load
     // menu-texts-de.js: the menus' German texts, loaded with the menus for a German report only
-    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", "menu-texts-de": "src/menu-labels-de.js", labels: "src/all-labels.js", styles: "src/styles.css" },
+    // import-ui.js: loading data (allowImport), loaded on its first use (lazy-import.jsx)
+    // import-worker.js: the module worker a host may start to read CSV and JSON off the page (importWorker)
+    entryPoints: { index: "src/index.js", echarts: "src/echarts.js", menus: "src/menus.js", "menu-texts-de": "src/menu-labels-de.js", labels: "src/all-labels.js", "import-ui": "src/import-module.js", "import-worker": "src/import-worker.js", styles: "src/styles.css" },
     outdir: "dist",
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",

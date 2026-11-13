@@ -125,7 +125,7 @@ test("compare: a date by its calendar day, a grouping by its key", () => {
     // a value with a time is read as its day, and normalized to it
     const r = computePivot(data, { values: [sumUnits], filters: [{ field: "Date", type: "compare", op: "<", value: "2026-01-05T18:00" }] });
     assert.equal(total(r), 6);
-    assert.deepEqual(r.view.filters, [{ field: "Date", type: "compare", op: "<", value: "2026-01-05" }]);
+    assert.deepEqual(r.view.filters, [{ field: "Date", type: "compare", op: "<", value: "2026-01-05", precision: "day", not: false, blanks: "exclude" }]);
     assert.equal(kept([{ field: "Date", type: "compare", op: "between", value: "2026-01-20", value2: "2026-02-14" }]), 14);
     // year 2026 and later; months from 2026-03 (key 202603)
     assert.equal(kept([{ field: "Year", type: "compare", op: ">=", value: 2026 }], byYear), 22);
@@ -134,7 +134,7 @@ test("compare: a date by its calendar day, a grouping by its key", () => {
 
 test("compare: normalize reports what it cannot use, with codes", () => {
     const issues = (filters) => validate({ filters, ...byYear }, data).errors.map((i) => i.code);
-    assert.deepEqual(issues([{ field: "Region", type: "compare", op: ">", value: 1 }]), ["filterCompareField"]);
+    assert.deepEqual(issues([{ field: "Region", type: "compare", op: ">", value: 1 }]), ["filterFieldType"]);
     assert.deepEqual(issues([{ field: "Price", type: "compare", op: "~", value: 1 }]), ["filterCompareValue"]);
     assert.deepEqual(issues([{ field: "Price", type: "compare", op: ">", value: "ten" }]), ["filterCompareValue"]);
     assert.deepEqual(issues([{ field: "Price", type: "compare", op: "between", value: 1 }]), ["filterCompareValue"]);
@@ -158,7 +158,10 @@ test("compare: a date's wall-clock ms beyond what a Date holds are an issue, nev
         type: "compare",
         op: "between",
         value: "-271821-04-20",
-        value2: "+275760-09-13"
+        value2: "+275760-09-13",
+        precision: "day",
+        not: false,
+        blanks: "exclude"
     });
 });
 
@@ -199,9 +202,9 @@ test("relative: now is read in the data's time zone, never the machine's", () =>
 
 test("relative: normalize checks the field, the unit and the count", () => {
     const issues = (filters) => validate({ filters, derived: [...byYear.derived, { name: "Band", field: "Units", by: "bin", size: 5 }] }, data).errors.map((i) => i.code);
-    assert.deepEqual(issues([{ field: "Region", type: "relative", unit: "year", count: 1 }]), ["filterRelativeField"]);
-    assert.deepEqual(issues([{ field: "Band", type: "relative", unit: "year", count: 1 }]), ["filterRelativeField"]);
-    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "week", count: 1 }]), ["filterRelativeUnit"]);
+    assert.deepEqual(issues([{ field: "Region", type: "relative", unit: "year", count: 1 }]), ["filterFieldType"]);
+    assert.deepEqual(issues([{ field: "Band", type: "relative", unit: "year", count: 1 }]), ["filterFieldType"]);
+    assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "decade", count: 1 }]), ["filterRelativeUnit"]);
     assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "year", count: 0 }]), ["filterRelativeCount"]);
     assert.deepEqual(issues([{ field: "Date", type: "relative", unit: "year", count: CATALOG.relativeMaxCount + 1 }]), ["filterRelativeCount"]);
     assert.deepEqual(issues([{ field: "Month", type: "relative", unit: "year", count: CATALOG.relativeMaxCount }]), []);
@@ -220,7 +223,7 @@ test("relativeDateRange says the days a range keeps", () => {
     // epoch ms beyond a Date's range are no time
     assert.throws(() => relativeDateRange("year", 1, { now: 9e15 }), { code: "INVALID_OPTION" });
     assert.throws(() => computePivot(data, { values: [sumUnits] }, { now: -9e15 }), { code: "INVALID_OPTION" });
-    assert.equal(relativeDateRange("week", 1), null);
+    assert.equal(relativeDateRange("decade", 1), null);
     assert.equal(relativeDateRange("year", 0), null);
     assert.equal(relativeDateRange("year", 1.5), null);
 });
@@ -263,11 +266,11 @@ test("relative: anchor latest counts back from the data's latest date, whatever 
     assert.equal(latest("month", 4), 22);
     // the latest record's day alone
     assert.equal(latest("day", 1), 4);
-    // "today" written out is the default, and normalize drops it; "latest" is kept
+    // normalize writes every key: the anchor "today" when none is given
     const anchored = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "latest" }] }).view.filters[0];
-    assert.deepEqual(anchored, { field: "Date", type: "relative", unit: "year", count: 1, anchor: "latest" });
-    const plain = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "today" }] }).view.filters[0];
-    assert.deepEqual(plain, { field: "Date", type: "relative", unit: "year", count: 1 });
+    assert.deepEqual(anchored, { field: "Date", type: "relative", direction: "last", unit: "year", count: 1, calendar: true, includeCurrent: true, anchor: "latest", not: false, blanks: "exclude" });
+    const plain = computePivot(data, { filters: [{ field: "Date", type: "relative", unit: "year", count: 1 }] }).view.filters[0];
+    assert.deepEqual(plain, { field: "Date", type: "relative", direction: "last", unit: "year", count: 1, calendar: true, includeCurrent: true, anchor: "today", not: false, blanks: "exclude" });
     // an unknown anchor: the filter is left out, with its code
     const bad = normalize({ filters: [{ field: "Date", type: "relative", unit: "year", count: 1, anchor: "yesterday" }] }, data);
     assert.deepEqual(bad.issues.map((i) => i.code), ["filterRelativeAnchor"]);
@@ -316,10 +319,152 @@ test("compare: a date grouping with a calendar day compares the source dates, no
     assert.equal(total(year("notBetween", "2026-01-01", "2026-12-31")), 6);
     assert.equal(total(year("<", "2026-01-01")), 6);
     // kept as the day, and fieldItems marks the months it leaves out (December has only 2025)
-    assert.deepEqual(r.view.filters, [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: "2026-12-31" }]);
+    assert.deepEqual(r.view.filters, [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: "2026-12-31", precision: "day", not: false, blanks: "exclude" }]);
     const items = fieldItems(data, "Month", { view: { ...v, filters: r.view.filters } });
     assert.deepEqual(items.items.map((i) => [i.value, i.kept]), [[1, true], [2, true], [3, true], [4, true], [12, false]]);
     // a key stays a key; a day and a key mixed is no comparison
     assert.deepEqual(computePivot(data, { ...v, filters: [{ field: "Month", type: "compare", op: ">=", value: "3" }] }).rowRoot.children.map((n) => n.key), [3, 4, 12]);
     assert.deepEqual(normalize({ ...v, filters: [{ field: "Month", type: "compare", op: "between", value: "2026-01-01", value2: 3 }] }, data).issues.map((i) => i.code), ["filterCompareValue"]);
+});
+
+// ---- version 2: one condition shape, not and blanks ----
+
+/** The regions a version-2 view keeps (null for the blank). */
+const keptRegions = (filters) => regions(computePivot(data, { version: 2, rows: ["Region"], values: [sumUnits], filters }));
+
+test("in: not inverts the items with a value, blanks alone decides the blank", () => {
+    const f = (extra) => [{ field: "Region", type: "in", items: ["North"], ...extra }];
+    assert.deepEqual(keptRegions(f({})), ["North"]);
+    assert.deepEqual(keptRegions(f({ blanks: "include" })), ["North", null]);
+    assert.deepEqual(keptRegions(f({ blanks: "only" })), [null]);
+    assert.deepEqual(keptRegions(f({ not: true })), ["South", "West"]);
+    assert.deepEqual(keptRegions(f({ not: true, blanks: "include" })), ["South", "West", null]);
+    assert.deepEqual(keptRegions(f({ not: true, blanks: "only" })), [null]);
+    // null is no item in version 2: an error that says to use blanks
+    assert.deepEqual(validate({ version: 2, filters: [{ field: "Region", type: "in", items: [null], blanks: "exclude" }] }, data).errors.map((e) => e.code), ["filterBlanks"]);
+});
+
+test("blank: the blank items, or with not every other", () => {
+    assert.deepEqual(keptRegions([{ field: "Region", type: "blank" }]), [null]);
+    assert.deepEqual(keptRegions([{ field: "Region", type: "blank", not: true }]), ["North", "South", "West"]);
+    assert.deepEqual(computePivot(data, { version: 2, filters: [{ field: "Units", type: "blank" }] }).rows.length, 1);
+    // a blank filter has no blanks of its own
+    assert.deepEqual(validate({ version: 2, filters: [{ field: "Region", type: "blank", blanks: "only" }] }, data).warnings.map((w) => w.path), ["filters[0].blanks"]);
+});
+
+test("text: a text field's value or any field's label, folded as match says; not and blanks", () => {
+    const spaced = encode([{ Name: "ACTIVE\u00A0DIRECTORY" }, { Name: "Active Directory admins" }, { Name: "active  directory sync" }, { Name: "Other" }, { Name: null }]);
+    const names = (filter) => computePivot(spaced, { version: 2, rows: ["Name"], filters: [{ field: "Name", type: "text", ...filter }] }).rowRoot.children.map((n) => n.key).sort();
+    // #159: the default folds case and whitespace, a no-break space too
+    assert.deepEqual(names({ op: "beginsWith", value: "ACTIVE DIRECTORY " }), ["ACTIVE\u00A0DIRECTORY", "Active Directory admins", "active  directory sync"]);
+    assert.deepEqual(names({ op: "equals", value: "active directory" }), ["ACTIVE\u00A0DIRECTORY"]);
+    assert.deepEqual(names({ op: "equals", value: "active directory", match: { whitespace: "exact" } }), []);
+    assert.deepEqual(names({ op: "contains", value: "Directory", match: { case: "sensitive" } }), ["Active Directory admins"]);
+    assert.deepEqual(names({ op: "endsWith", value: "sync", not: true }), ["ACTIVE\u00A0DIRECTORY", "Active Directory admins", "Other"]);
+    assert.deepEqual(names({ op: "endsWith", value: "sync", not: true, blanks: "include" }).length, 4);
+    // on the label: a number as the table shows it
+    const units = computePivot(data, { version: 2, rows: ["Units"], filters: [{ field: "Units", type: "text", op: "beginsWith", value: "5", on: "label" }] });
+    assert.deepEqual(units.rowRoot.children.map((n) => n.key), [5]);
+    // normalized: every key written
+    assert.deepEqual(units.view.filters[0], { field: "Units", type: "text", op: "beginsWith", value: "5", on: "label", match: { case: "insensitive", whitespace: "collapse" }, not: false, blanks: "exclude" });
+});
+
+test("the field-type matrix: a filter type on a field it does not fit is an error with the type that fits", () => {
+    const errors = (filter) => validate({ version: 2, derived: [{ name: "Year", field: "Date", by: "year" }], filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
+    assert.deepEqual(errors({ field: "Region", type: "compare", op: ">", value: 1 }), [["filterFieldType", "text"]]);
+    assert.deepEqual(errors({ field: "Units", type: "relative", unit: "year", count: 1 }), [["filterFieldType", "compare"]]);
+    assert.deepEqual(errors({ field: "Units", type: "text", op: "equals", value: "5" }), [["filterFieldType", "label"]]);
+    assert.deepEqual(errors({ field: "Units", type: "text", op: "equals", value: "5", on: "label" }), []);
+    assert.deepEqual(errors({ field: "Year", type: "relative", unit: "year", count: 1 }), []);
+    assert.deepEqual(CATALOG.filterFields.relative, ["date", "dateGrouping"]);
+});
+
+test("version 1's operators and types in a version-2 view are errors that name version 2's", () => {
+    const errors = (filter) => validate({ version: 2, filters: [filter] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
+    assert.deepEqual(errors({ field: "Region", type: "include", items: ["North"] }), [["unknownFilterType", "in"]]);
+    assert.deepEqual(errors({ field: "Region", type: "label", op: "contains", value: "N" }), [["unknownFilterType", "text"]]);
+    assert.deepEqual(errors({ field: "Region", type: "text", op: "notEquals", value: "N" }), [["filterTextOp", "equals"]]);
+    assert.deepEqual(errors({ field: "Price", type: "compare", op: "!=", value: 1, blanks: "exclude" }), [["filterCompareValue", "="]]);
+    assert.deepEqual(errors({ field: "Region", type: "value", op: "notBetween", value: 1, value2: 2 }), [["filterValue", "between"]]);
+    // the message says how version 2 writes it, for compare as for text
+    const messages = (filter) => validate({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => [e.message, e.params?.value]);
+    assert.deepEqual(messages({ field: "Region", type: "text", op: "notContains", value: "N" }), [['unknown text operator "notContains"; write "contains" with not: true', "notContains"]]);
+    assert.deepEqual(messages({ field: "Price", type: "compare", op: "!=", value: 1 }), [['unknown operator "!="; write "=" with not: true', "!="]]);
+    assert.deepEqual(messages({ field: "Price", type: "compare", op: "notBetween", value: 1, value2: 2 }), [['unknown operator "notBetween"; write "between" with not: true', "notBetween"]]);
+    assert.deepEqual(messages({ field: "Region", type: "value", op: "!=", value: 1 }), [['unknown operator "!="; write "=" with not: true', "!="]]);
+    // an operator that is no version-1 one gets the closest
+    assert.deepEqual(errors({ field: "Price", type: "compare", op: "betwen", value: 1, value2: 2, blanks: "exclude" }), [["filterCompareValue", "between"]]);
+});
+
+test("strict warnings: a filter that says nothing about blanks, an in filter that keeps nothing", () => {
+    const warnings = (filter) => validate({ version: 2, filters: [filter] }, data).warnings.map((w) => w.code);
+    assert.deepEqual(warnings({ field: "Region", type: "in", items: ["North"] }), ["blanksUnspecified"]);
+    assert.deepEqual(warnings({ field: "Region", type: "in", items: [], blanks: "exclude" }), ["filterEmpty"]);
+    assert.deepEqual(warnings({ field: "Region", type: "in", items: [], not: true, blanks: "exclude" }), []);
+    assert.deepEqual(warnings({ field: "Region", type: "in", items: [], blanks: "include" }), []);
+    // normalize() does not give them
+    assert.deepEqual(normalize({ version: 2, filters: [{ field: "Region", type: "in", items: [] }] }, data).issues, []);
+});
+
+test("value: not inverts the comparison; a group without a number never matches", () => {
+    const keep = (extra) => keptRegions([{ field: "Region", type: "value", op: "between", value: 5, value2: 8, ...extra }]);
+    assert.deepEqual(keep({}), ["South", null]);
+    assert.deepEqual(keep({ not: true }), ["North", "West"]);
+    const prices = computePivot(data, { version: 2, rows: ["Region"], values: [{ field: "Units", agg: "average" }], filters: [{ field: "Product", type: "value", op: "=", value: 99, not: true, by: { field: "Units", agg: "sum" } }] });
+    assert.ok(prices.rows.length > 0);
+});
+
+test("compare: a date's precision takes both sides to the start of their year, quarter, month, day or hour", () => {
+    // Date: 2026-01-05, 01-20, 02-03, 02-14, 03-01, 03-09, 04-30, 2025-12-31 with units 3 5 2 7 1 (blank) 4 6
+    const keep = (op, value, precision, value2) => kept([{ field: "Date", type: "compare", op, value, value2, precision }]);
+    assert.equal(keep("=", "2026-02-20", "month"), 9);
+    assert.equal(keep(">=", "2026-03-31", "quarter"), 22);
+    assert.equal(keep(">=", "2026-04-15", "quarter"), 4);
+    assert.equal(keep("=", "2026-06-01", "year"), 22);
+    assert.equal(keep("between", "2026-01-31", "month", "2026-02-01"), 17);
+    // normalized to the start of the unit
+    const at = (value, precision) => computePivot(data, { filters: [{ field: "Date", type: "compare", op: "=", value, precision }] }).view.filters[0].value;
+    assert.equal(at("2026-02-20", "month"), "2026-02-01");
+    assert.equal(at("2026-05-20T14:35", "quarter"), "2026-04-01");
+    assert.equal(at("2026-05-20T14:35", "hour"), "2026-05-20T14:00");
+    const hours = encode([{ At: "2026-03-01T09:15" }, { At: "2026-03-01T09:59" }, { At: "2026-03-01T10:00" }]);
+    assert.equal(computePivot(hours, { filters: [{ field: "At", type: "compare", op: "=", value: "2026-03-01T09:30", precision: "hour" }] }).rows.length, 2);
+    // a precision on a number, or an unknown one, is an issue
+    const codes = (filter) => validate({ version: 2, filters: [{ blanks: "exclude", ...filter }] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
+    assert.deepEqual(codes({ field: "Price", type: "compare", op: ">", value: 1, precision: "day" }), [["filterPrecision", undefined]]);
+    assert.deepEqual(codes({ field: "Date", type: "compare", op: ">", value: "2026-01-01", precision: "months" }), [["filterPrecision", "month"]]);
+});
+
+test("top: ties at the cut stay with ties all; the first in the data with ties first, the default", () => {
+    // North: Ann 5 and Bob 5 tie for the top one
+    const reps = (ties) => {
+        const r = computePivot(data, { rows: ["Region", "Rep"], values: [sumUnits], filters: [{ field: "Rep", type: "top", count: 1, ...(ties ? { ties } : {}) }] });
+        return findNode(r, "rows", ["North"]).children.map((n) => n.key);
+    };
+    assert.deepEqual(reps(undefined), ["Ann"]);
+    assert.deepEqual(reps("first"), ["Ann"]);
+    assert.deepEqual(reps("all"), ["Ann", "Bob"]);
+    assert.equal(computePivot(data, { filters: [{ field: "Rep", type: "top", count: 1 }] }).view.filters[0].ties, "first");
+    assert.deepEqual(validate({ filters: [{ field: "Rep", type: "top", count: 1, ties: "every" }] }, data).errors.map((e) => e.code), ["filterTies"]);
+});
+
+test("each filter says how many rows are left after it, in the order the filters apply", () => {
+    const r = computePivot(data, {
+        version: 2,
+        rows: ["Region"],
+        values: [sumUnits],
+        filters: [
+            { field: "Region", type: "top", count: 2 },
+            { field: "Region", type: "in", items: ["North"], not: true, blanks: "include" },
+            { field: "Product", type: "in", items: ["A"], blanks: "exclude" }
+        ]
+    });
+    // 8 rows: not North leaves 5, product A of those 3 (South, West and the blank region); then the top 2 regions by units: South 7, blank 6
+    assert.deepEqual(r.filters, [
+        { field: "Region", type: "top", kept: 2 },
+        { field: "Region", type: "in", kept: 5 },
+        { field: "Product", type: "in", kept: 3 }
+    ]);
+    assert.equal(r.rows.length, 2);
+    assert.deepEqual(computePivot(data, { rows: ["Region"] }).filters, []);
 });

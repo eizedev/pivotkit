@@ -37,7 +37,7 @@ supported.
 
 | Property | Attribute | Type | Default | What |
 | --- | --- | --- | --- | --- |
-| `data` |  | `object[]` | `[]` | The rows: an array of objects. Encoded once per array, or once per `dataKey`. pivotkit-core takes rows only; columnar data (`{ columns, rows }`) is not supported, map it to objects first. |
+| `data` |  | `object[]` or `{ columns, types, data }` | `[]` | The rows: an array of objects, or columnar data (one array per column, as pivotkit-core's [`encode`](core.md#columnar-input) takes it, without an object per row). Encoded once per array or object, or once per `dataKey`. |
 | `dataKey` |  | `string` or `number` |  | The identity of `data`: a new array with the same key is not encoded again. |
 | `view` | `view` (JSON) | view |  | Controlled: the view to show, see below. |
 | `defaultView` | `default-view` (JSON) | view | empty | Uncontrolled: the start view, see below. |
@@ -47,7 +47,7 @@ supported.
 | `canPublish` | `can-publish` (boolean) | `boolean` | `false` | Offers "Publish as shared view" on the user's views and Save on a shared view loaded (without it Save is greyed out there: "Shared view: you cannot change it. Use Save as."); both are a `pivot-template-publish` event. The element only shows what the page allows: the server must check who may save, publish or delete. |
 | `fieldDefaults` |  | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and format a field gets in Values (another aggregator in the value's menu keeps the format while the result is in the field's unit, not for a count). [More](#prop-fielddefaults) |
 | `labels` |  | partial labels |  | Texts merged over the language's labels (the keys are in pivotkit-react's `LABELS.en`). |
-| `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits), as the `limits` prop of pivotkit-react. |
+| `limits` |  | `Partial<Limits>` |  | pivotkit-core's [limits](../concepts/limits.md#limits) for the page's data, as the `limits` prop of pivotkit-react. |
 | `locale` | `locale` | `string` | `"en-US"` | Numbers, dates, sorting and the language of the labels (`de-*` is German). Without it the element's own `lang` attribute is used; the page's language is not. |
 | `theme` | `theme` | `"auto"` or `"light"` or `"dark"` | `"auto"` | `auto` follows the nearest `data-theme="light"` or `data-theme="dark"` on the element or above it (`<html>`), then `prefers-color-scheme`, and changes with them. |
 | `height` | `height` | `number` or `string` | `640` | Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then needs a height from the page (`pivot-report { height: 70vh }`). [More](#prop-height) |
@@ -72,11 +72,14 @@ supported.
 | `shareLink` | `share-link` | `boolean` or `string` | off | "Copy link" and opening shared links: the attribute alone (or `"true"`) links to the page's address without its query, a value is the base URL as it is, `"false"` is off ([Sharing](../concepts/sharing.md)). |
 | `persistView` | `persist-view` | `"session"` |  | `"session"` keeps the view for this tab (`sessionStorage`, per `storage-key`). |
 | `loading` | `loading` (boolean) | `boolean` | `false` | The page is loading the data: the skeleton before the first data, the result covered on later loads. |
+| `allowImport` | `allow-import` (boolean) | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview first; nothing is uploaded. [More](#prop-allowimport) |
+| `importLimits` |  | `Partial<Limits>` | `limits` | The limits of a file loaded with `allow-import`, merged key by key over `limits`; the page's data keeps `limits`. As the [`importLimits`](react.md#prop-importlimits) prop. |
+| `plugins` |  | `ReaderPlugin[]` |  | Reader plugins for more formats with `allow-import`: [pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel. CSV, TSV, text and JSON are built in. |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
 is not one is ignored with a console warning); setting the property does not write the attribute.
-Data, templates, sources, labels, field defaults, limits and dismissed tips are properties only. A view is user input either
+Data, templates, sources, labels, field defaults, limits, import limits, plugins and dismissed tips are properties only. A view is user input either
 way: pivotkit-core normalizes it against the data and it cannot run code.
 
 The element sets `data-pk-theme="light|dark"` on itself, the theme the report shows. It is an
@@ -125,13 +128,56 @@ Pixels (`height="480"`) or a CSS length; `"100%"` fills the element, which then 
 
 Attribute: `storage-key`. Type: `string`.
 
-Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too.
+Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. Without it they stay dismissed until the page is loaded again. With `template-store="browser"` the user's own views are kept under `pivotkit:views:<key>` too. With `allow-import` a loaded file survives taking the element out of the page and putting it back under this key (in memory only).
 
 ### `sourceId` { #prop-sourceid }
 
 Attribute: `source-id`. Type: `string`.
 
 The id of the data shown ("sales"): it goes into the [view files](view-file.md) and links the report shares, and a view made for another source asks before it loads ([Sharing](../concepts/sharing.md#the-source-of-a-view-for-developers)).
+
+### `allowImport` { #prop-allowimport }
+
+Attribute: `allow-import`. Type: `boolean`; default: `false`.
+
+People may load a CSV, TSV, text or JSON file (and with `plugins` other formats) into the report: a
+**Data** button with the data source and **Load data…**, a file dropped onto the report, a preview
+before the data is replaced. Read in the browser, nothing is uploaded; Undo and "Back to original
+data" bring the page's data back. Each change of the data shown is a `pivot-data-load` event; while a
+file's data is shown its source id is the file's name and a hash of its name and columns
+([How a loaded file is named](import.md#how-a-loaded-file-is-named)), so `template-store="browser"`
+keeps views per file. An element with a `storage-key` that is taken out of
+the page and put back (its React root unmounts once it stays out past the task) shows the loaded file
+again with its view and its undo steps, if its data is the same, also when that happens twice in
+a row; kept in the page's memory only, as for the React prop. Behaviour:
+[Load your own data](../use/load-data.md), and as the React prop
+[`allowImport`](react.md#prop-allowimport).
+
+The element reads CSV and JSON files in a worker of its own, `dist/import-worker.js` (pivotkit-core's
+readers in one file, about 10 KiB gzip), started from its chunk by relative URL: serve it with `dist/`.
+It is a file of the page's origin, never a `blob:` URL, so `script-src 'self'` (or `worker-src`)
+allows it; where it cannot start, the element reads on the page (and Firefox and WebKit log the
+failed worker in the console). The element resolves `../import-worker.js` against the URL of the
+file its code is in (`import.meta.url`): in `dist/` that file is a chunk in `dist/chunks/`, so the
+worker is `dist/import-worker.js`. An app that bundles the element serves the worker where that URL
+points from the app's own file that holds the element's code; where that is depends on the bundler's
+output layout. For Angular's flat output it is the site's root, with `angular.json` copying the file
+as an asset: [Angular](../getting-started/web-component.md#angular). The import UI is the load group
+"import", loaded on first use ([Bundle size](#bundle-size)).
+
+```html
+<pivot-report allow-import source-id="sales" source-name="Sales"></pivot-report>
+<script type="module">
+    import xlsxReader from "/assets/pivotkit-xlsx/dist/index.js";   // Excel workbooks, optional
+    const report = document.querySelector("pivot-report");
+    report.data = rows;
+    report.plugins = [xlsxReader];
+    report.importLimits = { rows: 200_000 };   // files people load; the page's rows keep report.limits
+    report.addEventListener("pivot-data-load", (e) => {
+        if (e.detail.cause === "load" && e.detail.rows > 200_000) e.preventDefault();
+    });
+</script>
+```
 
 ## Controlled and uncontrolled
 
@@ -177,6 +223,7 @@ would for the data itself.
 | `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard; cancelable. [More](#event-pivot-export)<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
+| `pivot-data-load` | The data shown changed (with `allow-import`): a file loaded (cancelable), the page's data again, one of those undone or redone, or the file shown again after the element was put back. [More](#event-pivot-data-load)<br><small>`detail`: `{ cause, source, file, sheet, rows, columns, notes }`</small> |
 
 The template events wait for the page's answer: call `event.detail.respondWith(promise)` in the
 listener itself (later throws `InvalidStateError`). The report shows "Saved" or "Published" (or removes the entry)
@@ -215,6 +262,19 @@ Every exported file before its download and every copy before it goes on the cli
 `detail`: `{ source, view, name }`.
 
 "Switch to “name” and load" for a view made for one of `sources`: show that data and set `defaultView` to `view` (as the file has it, not normalized). Switching starts the report anew: Undo begins there. The view is untrusted input like any loaded view (it comes from a file or a link): hand it only to a report as its start view, which normalizes it, never run or render anything from it.
+
+### `pivot-data-load` { #event-pivot-data-load }
+
+`detail`: `{ cause, source, file, sheet, rows, columns, notes }`.
+
+`cause` is `"load"` for a file, sent before it is shown: `preventDefault()` refuses it and the data
+stays (cancelable for `"load"` only); `"original"` when "Back to original data" shows the page's
+data; `"undo"` and `"redo"` when one of those steps is undone or redone; `"restore"` when an element
+with `storage-key` put back into the page shows the file it had. `source` is `{ id, name }` of
+the data shown now (the file's, or the element's `source-id` and `source-name`), `file` its
+`{ name, size, type }` (`null` for the page's data), `sheet` a workbook's sheet, `rows` and `columns`
+(`[{ name, type }]`) what it holds, `notes` the readers' notes for `"load"`
+([codes](import.md#the-table)). Names and notes come from the file: show them as text, never as HTML.
 
 ## Styles
 
@@ -293,7 +353,8 @@ declares `<pivot-report>` with its properties and `on<event>` props in React's J
 
 ## Angular and zone.js
 
-The Angular example is in [Getting started](../getting-started/web-component.md#angular). Not built or tested in this repository.
+The Angular example is in [Getting started](../getting-started/web-component.md#angular): a zoneless
+Angular 22 app in `examples/angular/`, built and tested in CI.
 
 `[data]="rows"` sets the property (Angular binds properties of an element with the schema); a new
 array is a new data set. For the controlled form bind `[view]="view"` and set `this.view` in the
@@ -301,8 +362,10 @@ handler. Binding the stored view back as `[defaultView]` is fine: the element ig
 reported itself.
 
 Change detection: the element runs React's scheduler, ECharts' pointer listeners and animation
-frames in whatever zone created it. Inside Angular's zone (zone.js) each of them may trigger change
-detection of the app. Not measured here; if it shows, create and feed the element outside the zone
+frames in whatever zone created it. A zoneless app, as the example,
+runs change detection only for its own bindings, signals and event handlers. Inside Angular's zone
+(zone.js) each of them may trigger change detection of the app. Not measured here, since the example
+is zoneless; if it shows, create and feed the element outside the zone
 and come back in for the app's own state:
 
 ```ts
@@ -329,20 +392,24 @@ above.
 
 ## Bundle size
 
-What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
-gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
-update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
-(about 1 KiB above what CI measures for the first load, 3 to 5 per cent for the groups loaded later;
-CI reads about 0.3 KiB more than these numbers):
+What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-13
+(esbuild 0.28.2, gzip level 9 per file, sizes add up per group; approximate, they change with every
+dependency update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in
+`build.js` (169 KiB for the first load, which CI measured at 168.8 on 2026-11-12; 1 to 7 per cent
+above what CI measures for the groups loaded later; CI reads up to about 0.7 KiB more than these
+numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 6 | 481 KiB | 156 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 9 | 517 KiB | 168 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 1 | 604 KiB | 204 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
-| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 123 KiB | 40 KiB |
-| With the menus, for a German report only (the menus' German texts) | 1 | 17 KiB | 6 KiB |
+| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 131 KiB | 42 KiB |
+| With the menus, for a German report only (the menus' German texts) | 1 | 18 KiB | 6 KiB |
+| When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
+| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 50 KiB | 20 KiB |
+| With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no
 way to provide it, and loading it on first use keeps it out of the first load. Only the four chart

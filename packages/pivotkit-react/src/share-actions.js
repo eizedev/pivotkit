@@ -25,7 +25,7 @@ const here = () => (typeof location !== "undefined" ? location.href : undefined)
  * @property {string | null | undefined} schemaUrl  the `$schema` of the view files (the prop)
  * @property {import("pivotkit-core").Encoded} encoded
  * @property {boolean | string | undefined} shareLink  the prop: the base of the link
- * @property {string} param  the link's parameter in the fragment
+ * @property {string | undefined} linkKey  the report's key in the fragment (its storageKey): "pivot-<key>", else "pivot"
  * @property {{ current: HTMLElement | null }} root  the report's root (copies and downloads start from its document)
  * @property {string | undefined} fileName  the host's file name of exports
  * @property {((file: any) => unknown) | undefined} onExport
@@ -42,7 +42,7 @@ const here = () => (typeof location !== "undefined" ? location.href : undefined)
  * @param {any} labels  with the menus' texts
  */
 export function shareActions(ctx, labels) {
-    const { view, viewName, sourceId, sourceName, schemaUrl, encoded, announce, limits, param } = ctx;
+    const { view, viewName, sourceId, sourceName, schemaUrl, encoded, announce, limits, linkKey } = ctx;
     /** The view as a view file (pivotkit-core's toViewFile): its name, the source, the fields it uses. */
     const viewFile = () => viewFileText(toViewFile(view, { name: viewName ?? "", createdAt: new Date(), generator: { name: "pivotkit-react", version: VERSION }, source: { id: sourceId, name: sourceName }, data: encoded, ...(schemaUrl !== undefined ? { schemaUrl } : {}) }));
     return {
@@ -58,7 +58,7 @@ export function shareActions(ctx, labels) {
                 announce(e && /** @type {any} */ (e).code === "LIMIT_EXCEEDED" ? labels.toastLinkTooLong : fill(labels.error, { message: String(e) }), { tone: "error" });
                 return;
             }
-            const ok = await copyText(withLinkParam(target, param, text), ctx.root.current);
+            const ok = await copyText(withLinkParam(target, linkKey, text), ctx.root.current);
             announce(ok ? labels.toastLinkCopied : labels.toastCopyFailed, ok ? undefined : { tone: "error" });
         },
         copyJson: async () => {
@@ -86,7 +86,7 @@ export function shareActions(ctx, labels) {
             if (loaded.failed === "notJson") {
                 // a link (or its "#pivot=..." part) pasted instead of JSON
                 const t = text.trim();
-                const fromUrl = t.includes("#") ? readLinkParam(t.slice(t.indexOf("#")), param) ?? readLinkParam(t.slice(t.indexOf("#")), "pivot") : null;
+                const fromUrl = t.includes("#") ? readLinkParam(t.slice(t.indexOf("#")), linkKey) ?? readLinkParam(t.slice(t.indexOf("#")), undefined) : null;
                 const payload = fromUrl ?? (t.startsWith("1.") ? t : null);
                 if (!payload) {
                     return labels.viewFailed.notJson;

@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-element",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The pivot report builder of pivotkit as the web component <pivot-report>, with its own React: for Angular, PHP and plain HTML pages without React.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -18,11 +18,14 @@
     "custom-element",
     "reporting",
     "echarts",
-    "self-service-bi"
+    "self-service-bi",
+    "pivot-grid",
+    "pivottable"
   ],
   "type": "module",
   "sideEffects": [
-    "./dist/index.js"
+    "./dist/index.js",
+    "./dist/chunks/*.js"
   ],
   "exports": {
     ".": {
@@ -62,8 +65,8 @@
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/sortable": "10.0.0",
     "echarts": "6.1.0",
-    "pivotkit-core": "0.3.0",
-    "pivotkit-react": "0.3.0",
+    "pivotkit-core": "0.4.0",
+    "pivotkit-react": "0.4.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

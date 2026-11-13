@@ -23,6 +23,7 @@
     "playground": "node examples/playground/build.js --serve",
     "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node packages/pivotkit-xlsx/build.js && node tests/browser/pages/build.js",
     "test:browser": "npm run build:playground && playwright test",
+    "bench:browser": "node bench/browser/run.js",
     "docs:demo": "npm run build:playground && node scripts/docs-demo.js",
     "docs:screenshots": "npm run build:playground && node scripts/docs-screenshots.js",
     "docs:data": "node scripts/docs-data.js"
@@ -40,5 +41,8 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "typescript": "7.0.2"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
   }
 }

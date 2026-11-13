@@ -1,0 +1,1207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pivotkit.eize.dev/schema/view-file-2.json",
+  "title": "pivotkit view file, format version 2",
+  "description": "A pivotkit view (the report's layout as JSON) with what a person and another pivotkit need to know about it. Readers ignore keys of the envelope they do not know; a newer formatVersion or view.version is refused. Built by scripts/schemas.js. See https://pivotkit.eize.dev/reference/view-file/",
+  "type": "object",
+  "required": [
+    "format",
+    "formatVersion",
+    "view"
+  ],
+  "properties": {
+    "$schema": {
+      "description": "This schema's address.",
+      "type": "string"
+    },
+    "format": {
+      "description": "Marks a view file; a document without it is read as a bare view.",
+      "const": "pivotkit-view"
+    },
+    "formatVersion": {
+      "description": "The version of this envelope. A reader refuses a newer one.",
+      "const": 2
+    },
+    "name": {
+      "description": "What the view shows, for people. Plain text.",
+      "type": "string",
+      "maxLength": 256
+    },
+    "description": {
+      "description": "More about the view, for people. Plain text; left out when empty.",
+      "type": "string",
+      "maxLength": 2000
+    },
+    "createdAt": {
+      "description": "When the file was written, in UTC (ISO 8601).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "description": "The program that wrote the file.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "source": {
+      "description": "The data the view was made for.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The host's stable name of the data (\"sales\"): opaque, never an address or a query.",
+          "type": "string",
+          "maxLength": 256
+        },
+        "name": {
+          "description": "The data's name for people.",
+          "type": "string",
+          "maxLength": 256
+        },
+        "fields": {
+          "description": "The fields of the data the view uses (rows, columns, values, filters, sort; a grouping as its source field), with their types.",
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "type"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "type": {
+                "enum": [
+                  "string",
+                  "number",
+                  "date",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "params": {
+          "description": "What the host needs besides the id to find the data (a report's parameters): opaque names and texts. A reader takes only those its host allows by name.",
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": {
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "extensions": {
+      "description": "Reserved for hosts: their own data under a key of their own (a domain or a package name). pivotkit ignores it.",
+      "type": "object"
+    },
+    "view": {
+      "description": "The view itself, with its own version. Every reader passes it through normalize() against its data.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 2,
+          "description": "A view without a version is read as version 1."
+        },
+        "rows": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/fieldName"
+          }
+        },
+        "cols": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/fieldName"
+          }
+        },
+        "values": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/value"
+          }
+        },
+        "filters": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "in",
+                  "blank",
+                  "text",
+                  "compare",
+                  "relative",
+                  "top",
+                  "value"
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "in"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type",
+                    "items"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "in"
+                    },
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100000,
+                      "items": {
+                        "$ref": "#/$defs/item"
+                      },
+                      "description": "The items, as the data has them; a blank is no item (see blanks)."
+                    },
+                    "not": {
+                      "type": "boolean",
+                      "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                    },
+                    "blanks": {
+                      "enum": [
+                        "exclude",
+                        "include",
+                        "only"
+                      ],
+                      "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "blank"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "blank"
+                    },
+                    "not": {
+                      "type": "boolean",
+                      "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "text"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type",
+                    "op",
+                    "value"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "text"
+                    },
+                    "op": {
+                      "enum": [
+                        "equals",
+                        "contains",
+                        "beginsWith",
+                        "endsWith"
+                      ]
+                    },
+                    "value": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "on": {
+                      "enum": [
+                        "value",
+                        "label"
+                      ],
+                      "description": "value: a text field's own value; label: the label the table shows (any field)."
+                    },
+                    "match": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "case": {
+                          "enum": [
+                            "insensitive",
+                            "sensitive"
+                          ]
+                        },
+                        "whitespace": {
+                          "enum": [
+                            "collapse",
+                            "exact"
+                          ]
+                        }
+                      },
+                      "description": "How text is folded before it is compared; default insensitive and collapse."
+                    },
+                    "not": {
+                      "type": "boolean",
+                      "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                    },
+                    "blanks": {
+                      "enum": [
+                        "exclude",
+                        "include",
+                        "only"
+                      ],
+                      "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "compare"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type",
+                    "op",
+                    "value"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "compare"
+                    },
+                    "op": {
+                      "enum": [
+                        "=",
+                        ">",
+                        ">=",
+                        "<",
+                        "<=",
+                        "between"
+                      ]
+                    },
+                    "value": {
+                      "type": [
+                        "number",
+                        "string"
+                      ],
+                      "description": "A number (also as text, \"2022\") or a date \"2022-03-01\"."
+                    },
+                    "value2": {
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    "precision": {
+                      "enum": [
+                        "year",
+                        "quarter",
+                        "month",
+                        "day",
+                        "hour"
+                      ],
+                      "description": "Dates only: both sides as the start of their unit; default day."
+                    },
+                    "not": {
+                      "type": "boolean",
+                      "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                    },
+                    "blanks": {
+                      "enum": [
+                        "exclude",
+                        "include",
+                        "only"
+                      ],
+                      "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "op": {
+                            "const": "between"
+                          }
+                        },
+                        "required": [
+                          "op"
+                        ]
+                      },
+                      "then": {
+                        "required": [
+                          "value2"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "relative"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type",
+                    "unit"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "relative"
+                    },
+                    "direction": {
+                      "enum": [
+                        "last",
+                        "next",
+                        "this",
+                        "before"
+                      ],
+                      "description": "Default last."
+                    },
+                    "unit": {
+                      "enum": [
+                        "hour",
+                        "day",
+                        "week",
+                        "month",
+                        "quarter",
+                        "year"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 500
+                    },
+                    "calendar": {
+                      "type": "boolean",
+                      "description": "true (the default): whole units; false: rolling from now."
+                    },
+                    "includeCurrent": {
+                      "type": "boolean",
+                      "description": "With calendar: whether the current unit counts; default true."
+                    },
+                    "anchor": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "today",
+                            "latest",
+                            "first"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^[+-]?\\d{4,6}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:?\\d{2})?)?$"
+                        }
+                      ],
+                      "description": "What the range counts from: today (the default), latest, first, or a date."
+                    },
+                    "not": {
+                      "type": "boolean",
+                      "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                    },
+                    "blanks": {
+                      "enum": [
+                        "exclude",
+                        "include",
+                        "only"
+                      ],
+                      "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "direction": {
+                            "const": "this"
+                          }
+                        },
+                        "required": [
+                          "direction"
+                        ]
+                      },
+                      "then": {
+                        "not": {
+                          "required": [
+                            "count"
+                          ]
+                        }
+                      },
+                      "else": {
+                        "required": [
+                          "count"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "top"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type",
+                    "count"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "top"
+                    },
+                    "by": {
+                      "$ref": "#/$defs/valueRef"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1000000
+                    },
+                    "bottom": {
+                      "type": "boolean"
+                    },
+                    "ties": {
+                      "enum": [
+                        "first",
+                        "all"
+                      ],
+                      "description": "first (the default): exactly count groups; all: every group tied at the cut too."
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "value"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                },
+                "then": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "type",
+                    "op",
+                    "value"
+                  ],
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/fieldName"
+                    },
+                    "type": {
+                      "const": "value"
+                    },
+                    "by": {
+                      "$ref": "#/$defs/valueRef"
+                    },
+                    "op": {
+                      "enum": [
+                        "=",
+                        ">",
+                        ">=",
+                        "<",
+                        "<=",
+                        "between"
+                      ]
+                    },
+                    "value": {
+                      "type": "number"
+                    },
+                    "value2": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean",
+                      "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                    }
+                  },
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "op": {
+                            "const": "between"
+                          }
+                        },
+                        "required": [
+                          "op"
+                        ]
+                      },
+                      "then": {
+                        "required": [
+                          "value2"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "description": "The filters, applied together (and)."
+        },
+        "derived": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/derived"
+          }
+        },
+        "sort": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/sort"
+          }
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "grandTotalRow": {
+              "type": "boolean"
+            },
+            "grandTotalColumn": {
+              "type": "boolean"
+            },
+            "rowSubtotals": {
+              "type": "boolean"
+            },
+            "colSubtotals": {
+              "type": "boolean"
+            }
+          }
+        },
+        "collapsed": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rows": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "$ref": "#/$defs/item"
+                },
+                "minItems": 1
+              }
+            },
+            "cols": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "$ref": "#/$defs/item"
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "display": {
+          "enum": [
+            "table",
+            "chart"
+          ]
+        },
+        "chart": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "enum": [
+                "auto",
+                "bar",
+                "line",
+                "area",
+                "pie",
+                "donut",
+                "heatmap"
+              ]
+            },
+            "stacked": {
+              "type": "boolean"
+            },
+            "horizontal": {
+              "type": "boolean"
+            },
+            "valueLabels": {
+              "enum": [
+                "auto",
+                "off",
+                "value",
+                "percent",
+                "both"
+              ]
+            },
+            "legend": {
+              "enum": [
+                "auto",
+                "bottom",
+                "right",
+                "off"
+              ]
+            },
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "smooth": {
+              "type": "boolean"
+            },
+            "axisLabels": {
+              "enum": [
+                "auto",
+                "all",
+                "nth"
+              ]
+            },
+            "groupLabels": {
+              "enum": [
+                "auto",
+                "on",
+                "off"
+              ]
+            },
+            "labelPosition": {
+              "enum": [
+                "outside",
+                "inside"
+              ]
+            }
+          }
+        },
+        "formatting": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "locale": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "timeZone": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "weekStart": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fieldName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "\\S"
+    },
+    "item": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ],
+      "maxLength": 10000
+    },
+    "valueRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agg"
+      ],
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fieldName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agg": {
+          "enum": [
+            "count",
+            "countUnique",
+            "listUnique",
+            "sum",
+            "average",
+            "median",
+            "min",
+            "max",
+            "stdev",
+            "stdevp",
+            "var",
+            "varp",
+            "first",
+            "last"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "agg": {
+            "not": {
+              "const": "count"
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "field"
+        ],
+        "properties": {
+          "field": {
+            "$ref": "#/$defs/fieldName"
+          }
+        }
+      }
+    },
+    "value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agg"
+      ],
+      "properties": {
+        "field": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fieldName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agg": {
+          "enum": [
+            "count",
+            "countUnique",
+            "listUnique",
+            "sum",
+            "average",
+            "median",
+            "min",
+            "max",
+            "stdev",
+            "stdevp",
+            "var",
+            "varp",
+            "first",
+            "last"
+          ]
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "showAs": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "enum": [
+                    "percentOfGrandTotal",
+                    "percentOfRowTotal",
+                    "percentOfColumnTotal",
+                    "percentOfParentRow",
+                    "percentOfParentColumn",
+                    "differenceFromPrevious",
+                    "percentDifferenceFromPrevious",
+                    "runningTotal",
+                    "percentRunningTotal",
+                    "rankAscending",
+                    "rankDescending"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "percentOfGrandTotal",
+                        "percentOfRowTotal",
+                        "percentOfColumnTotal",
+                        "percentOfParentRow",
+                        "percentOfParentColumn",
+                        "differenceFromPrevious",
+                        "percentDifferenceFromPrevious",
+                        "runningTotal",
+                        "percentRunningTotal",
+                        "rankAscending",
+                        "rankDescending"
+                      ]
+                    },
+                    "axis": {
+                      "enum": [
+                        "rows",
+                        "cols"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conditional": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "colorScale"
+                    },
+                    "colors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+                      },
+                      "anyOf": [
+                        {
+                          "maxItems": 0
+                        },
+                        {
+                          "minItems": 2,
+                          "maxItems": 3
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "dataBar"
+                    },
+                    "color": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "agg": {
+            "not": {
+              "const": "count"
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "field"
+        ],
+        "properties": {
+          "field": {
+            "$ref": "#/$defs/fieldName"
+          }
+        }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "field",
+        "by"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "field": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "by": {
+          "enum": [
+            "year",
+            "quarter",
+            "month",
+            "week",
+            "day",
+            "hour",
+            "weekday",
+            "yearQuarter",
+            "yearMonth",
+            "yearWeek",
+            "bin"
+          ]
+        },
+        "size": {
+          "type": "number",
+          "minimum": 1e-9
+        },
+        "origin": {
+          "type": "number"
+        }
+      },
+      "if": {
+        "properties": {
+          "by": {
+            "const": "bin"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "size"
+        ]
+      }
+    },
+    "sort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field"
+      ],
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "by": {
+          "enum": [
+            "label",
+            "value",
+            "custom"
+          ]
+        },
+        "order": {
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        },
+        "value": {
+          "$ref": "#/$defs/valueRef"
+        }
+      },
+      "if": {
+        "properties": {
+          "by": {
+            "const": "custom"
+          }
+        },
+        "required": [
+          "by"
+        ]
+      },
+      "then": {
+        "required": [
+          "items"
+        ]
+      }
+    }
+  }
+}

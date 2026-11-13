@@ -10,11 +10,12 @@ import endoflifeApi from "../data/endoflife-openapi.json";
 const RELEASE_VIEWS = [
     {
         format: "pivotkit-view",
-        formatVersion: 1,
+        formatVersion: 2,
         name: "Long-term support cycles per category",
         description: "Release cycles per category, with and without long-term support.",
         source: { id: "endoflife" },
         view: {
+            version: 2,
             rows: ["Category"],
             cols: ["LTS"],
             values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
@@ -25,7 +26,7 @@ const RELEASE_VIEWS = [
         name: "Release cycles per year (chart)",
         rows: ["Release year"],
         values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
-        filters: [{ field: "Release year", type: "include", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026] }],
+        filters: [{ field: "Release year", type: "in", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026], blanks: "exclude" }],
         display: "chart",
         chart: { type: "line" }
     }

@@ -1,6 +1,6 @@
 ---
 title: Filters, top N and sorting
-description: Leave values out of a pivotkit report - the filter with its values and row counts, quick choices for dates such as "Last 5 years", rules such as "from 2022" or "Count of Released > 3", the top or bottom N - and sort rows and columns.
+description: Leave values out of a pivotkit report - the filter with its values and row counts, quick choices for dates such as "Last 3 months" or "This quarter", rules such as "from 2022", "does not begin with" or "Count of Released > 3", items without a value, the top or bottom N with ties - and sort rows and columns.
 ---
 
 # Filters, top N and sorting
@@ -11,8 +11,8 @@ is greater than 3"). A field in **Filters** filters the whole report; a field on
 filters its own items. **Top items** keeps the largest (or smallest) N.
 
 The menu's first level says on the Filter row what the filter keeps ("All", "4 of 12", "last 2 years
-(2025; 2026 has no data)", "from 2022", "Sum of Revenue > 1,000"), with a dot when it filters; the
-chip says the same words.
+(2025; 2026 has no data)", "from 2022", "does not begin with “Service”", "Sum of Revenue > 1,000"),
+with a dot when it filters; the chip says the same words.
 
 ## Filter by values
 
@@ -31,8 +31,8 @@ sections that fold: **Quick choices** (dates only), **Pick items** and **Rules**
 
 | In the Filter level | What it does |
 | --- | --- |
-| The summary | In bold, what the table shows of the field: "All 12 months shown", "3 of 12 months shown", or "Nothing shown" in red. Under it, why the rest does not show, each reason with its count: "9 left out by your picks", "24 outside last 2 years (2025; 2026 has no data)", "11 left out by the rule", "2 left out by the rule on the total". With nothing shown, the one reason and the nearest value: "No month has a total Average of Mean °C that is greater than 25 – the totals go from 13.4 (Jan) to 22.2 (Jul)." The small line says the rows ("1,104 of 4,386 rows") and, for a date, the data's dates ("data Jan 1, 2023 – Dec 31, 2025"; a grouping that combines the years adds "2023–2025 combined" or "2025 only"). A screen reader hears the card as it changes. **Reset filter** at its right takes the picks, the quick choice and the rules off; Top N stays. |
-| Quick choices | A date along the time line only (a date field, or a grouping by year, quarter, month, week or day), open at first: **All**, **This year**, **Last [N] years**, **Last [N] months**, **Last [N] days**, each with the days it keeps and its rows. [Below](#quick-choices-for-dates). A grouping that combines the years (month of the year, weekday, hour) has **Years combined** instead. |
+| The summary | What the table shows of the field and why not the rest, with **Reset filter** ([below](#the-summary)). |
+| Quick choices | A date along the time line only (a date field, or a grouping by year, quarter, month, week or day), open at first: **All**, **This [unit]**, **Last [N] [unit]**, and folded under **More choices** **Next [N] [unit]**, **Before the last [N] [unit]** and rolling periods, each with the days it keeps and its rows. [Below](#quick-choices-for-dates). A grouping that combines the years (month of the year, weekday, hour) has **Years combined** instead. |
 | Pick items | Its header says what is picked ("3 of 12 picked", "all 12 picked"); **Clear** beside it ticks every value again. Inside: a search, **Select all**, **Select none**, and the values with their row counts; at most 300 are listed, below them "300 of 1,045 values; search to find more" says that the search finds the rest. The items a quick choice or a rule leaves out are not among them: they stand in a folded group at the end, "Left out by the rules (24) – their ticks apply again once they go", muted, their ticks kept and still yours to change. Open when the field has no rule, folded once it has one. |
 | Rules | Its header says "No rules" or "● 1 rule" (the quick choice is no rule); **Remove** beside it takes the rules off, the quick choice stays. Inside, the rules as sentences that must all be true ([below](#value-filter)); the quick choice stands first among them as a line to read, "Quick choice: last 2 years (2025; 2026 has no data) – change it above". Folded while the field has no rule; the first rule or quick choice opens it and folds Pick items, the last one going does the reverse, every time the field goes from none to one and back, and a fold by hand wins until the next such change. "Change it above" scrolls to the quick choice, unfolds its section and puts the focus on the choice that is set. |
 
@@ -60,6 +60,21 @@ A chip in **Filters** opens the same Filter level from its menu, with **Move to*
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Move to and Remove field](../assets/screenshots/filter-zone-light.png#only-light)
 ![The menu of Released in Filters: the Filter row says last 12 months with its months, then Move to and Remove field](../assets/screenshots/filter-zone-dark.png#only-dark)
 
+### The summary
+
+- In bold, what the table shows of the field: "All 12 months shown", "3 of 12 months shown", or
+  "Nothing shown" in red.
+- Under it, why the rest does not show, each reason with its count: "9 left out by your picks", "24
+  outside last 2 years (2025; 2026 has no data)", "11 left out by the rule", "2 left out by the rule
+  on the total".
+- With nothing shown, the one reason and the nearest value: "No month has a total Average of Mean °C
+  that is greater than 25 – the totals go from 13.4 (Jan) to 22.2 (Jul)."
+- The small line says the rows ("1,104 of 4,386 rows") and, for a date, the data's dates ("data Jan
+  1, 2023 – Dec 31, 2025"; a grouping that combines the years adds "2023–2025 combined" or "2025
+  only").
+- A screen reader hears the card as it changes.
+- **Reset filter** at its right takes the picks, the quick choice and the rules off; Top N stays.
+
 ### Filter a field that is not in the report
 
 **Filter…** in the menu of a field in the field list opens its filter at once: its values and a
@@ -71,38 +86,57 @@ filter, and its chip opens the whole Filter level.
 
 A date field, or a grouping of one along the time line ("Date by month", "Released by year"), has
 quick choices above its values. They stay right over time: "Last 5 years" is this year and the four
-before it, today as well as next year. Only the choices that keep at least one row are offered; a
-line under them names the others and why: "This year (2026) is not offered: the data end Dec 31,
-2025."
+before it, today as well as next year. Each counts in a unit you pick: days, weeks, months, quarters
+or years, none finer than the grouping (by month: months, quarters and years; a date itself or a
+grouping by day: days and weeks too; by year: years alone, without a choice of unit).
 
 | Choice | Keeps |
 | --- | --- |
 | **All** | Every date (it takes the quick choice away; the rules stay). The line under it shows the data's first and last date and all rows. |
-| **This year** | The dates of this year, also those later this year. |
-| **Last [N] years** | This year and the N - 1 before it. Type N, from 1 to 500 (more says "Enter a whole number up to 500." and changes nothing); it applies a moment after you stop typing, or with Enter. The words follow the number: "Last 1 year", "Letztes 1 Jahr". |
-| **Last [N] months** | This month and the N - 1 before it. Not offered for a grouping by year or by quarter. |
-| **Last [N] days** | Today and the N - 1 before it. A date field or a grouping by day only. |
+| **This [unit]** | The dates of the current year, quarter, month, week or day, also those later in it. Only the units whose current period has data are offered; with none, a line names it and why: "This year (2026) is not offered: the data end Dec 31, 2025." |
+| **Last [N] [unit]** | The current unit and the N - 1 before it, as whole calendar periods: "Last 3 months" in November is September to November. Type N, from 1 to 500 (more says "Enter a whole number up to 500." and changes nothing); it applies a moment after you stop typing, or with Enter. The words follow the number: "Last 1 year", "Letztes 1 Jahr". While it is set, **Include the current month** (year, quarter, week, or "Include today") under it decides whether the current period counts: off, "Last 3 months" in November is August to October. When the current period has no data, the checkbox says so: "Include the current month (Nov 2026 has no data)", and a button under it, **Count back from the latest record (Dec 31, 2025) instead**, sets **Counted back from** to the latest record, so "Last 2 years" are the last two years of the data. |
+| **Next [N] [unit]** (More choices) | The current unit and the N - 1 after it, or with the current one left out the N after it: for EOL dates, licences, planned work. |
+| **Before the last [N] [unit]** (More choices) | Every date before the last N units: what is older than the last 2 years. |
+| **Rolling instead of whole calendar periods** (More choices) | Last, Next and Before count from the moment itself instead of whole periods: rolling, "Last 3 months" on Nov 12 is Aug 12 to Nov 12. There is no current period then, so its checkbox goes. Ticked while All or This is set, it waits for the next counted choice. |
 
 ![The Filter level of Date by month on the weather data: the summary, the quick choices with the data's share of each and their rows, This year not offered, and Counted back from today or the latest record](../assets/screenshots/filter-dates-light.png#only-light)
 ![The Filter level of Date by month on the weather data: the summary, the quick choices with the data's share of each and their rows, This year not offered, and Counted back from today or the latest record](../assets/screenshots/filter-dates-dark.png#only-dark)
 
-- The counts start at the smallest that reaches the latest record (2 years at least, since "Last 1
-  year" is This year), so a choice always keeps something.
+![More choices of EOL date by month on the end-of-life data, open with Next 2 years set: Next and Before the last with their counts and units, Rolling, and Counted back from](../assets/screenshots/filter-more-light.png#only-light)
+![More choices of EOL date by month on the end-of-life data, open with Next 2 years set: Next and Before the last with their counts and units, Rolling, and Counted back from](../assets/screenshots/filter-more-dark.png#only-dark)
+
+- A choice applies at once; so does a unit picked, which also picks its choice. The counts start at
+  the smallest that reaches the latest record (2 at least, since "Last 1 month" is This month), so a
+  choice keeps something. Last keeps its count when you pick another unit, as long as that still
+  reaches the data, else it takes the smallest count that does.
 - Each choice shows the days it keeps and its rows ("2022–2026 · 2,190 rows"). When the data do not
   cover all of them, the days with data and the ones without: "2025 (2026 has no data)". The chip,
-  the summary and the menu's first level say the same: "last 2 years (2025; 2026 has no data)".
-- **Counted back from** appears under the choices when the latest record lies before this month (or
-  this year, for a grouping by year or quarter): **today** (the default; "last 12 months" means the
-  same next month) or **the latest record** (for data that end, an archive or a closed year). From
-  the latest record, "Last 12 months" is the twelve months up to it and "This year" is its year; the
-  chip says "last 12 months to Dec 2025". The choice is saved with the view.
+  the summary and the menu's first level say the same: "last 2 years (2025; 2026 has no data)",
+  "this quarter (Q4 2026)", "last 3 months, current period excluded (Aug 2026–Oct 2026)". A rolling
+  range, Before and a range counted from the first record or a date are said with their dates.
+- **Counted back from**: **today** (the default; "last 12 months" means the same next month), **the
+  latest record** (for data that end, an archive or a closed year), **the first record**, or **a
+  date…** with a date field of its own. While the date field holds no whole date, the ranges keep
+  the last one and the field says so ("Enter a whole date; the ranges still count from Jun 30,
+  2024."); left that way, it shows that date again. From the latest record, "Last 12 months" is the twelve months
+  up to it and "This year" is its year; the chip says "last 12 months to Dec 2025". It stands under
+  the choices when the latest record lies before this month (or this year, for a grouping by year or
+  quarter) or it is not today; otherwise it waits among **More choices**. It does not move while the
+  menu is open. The choice is saved with the view, and every relative range of the field counts from
+  it, a rule's range too.
+- **More choices** opens with a click or Enter; it is open by itself when the choice set is Next,
+  Before or rolling.
 - Today is the day in the data's time zone (the report's `timeZone`, UTC unless the application
   says otherwise), not your computer's.
 - On a grouping, the range goes by the dates themselves: with "Last 18 months" on a grouping by year,
   the oldest year shows only its months in the range.
-- The arrow keys move between the choices and apply each, as radio buttons do; Tab goes to a count.
+- The arrow keys move between the choices and apply each, as radio buttons do; Tab goes to a count
+  and a unit.
 - Undo, or a rule that changes the range, shows in the choices and their counts at once, unless you
   are typing in that count. The section folds like the others; folded, its header says the choice.
+- A view from elsewhere with a range the choices write (next, before, rolling, a quarter, counted
+  from a date) shows it as its quick choice, to change there; a range in hours, an inverted one or a
+  second one of the same field stands among the rules.
 
 ### Years combined
 
@@ -128,7 +162,7 @@ example, and a line under it with what it keeps by itself: "Keeps 7 of 12 months
 | --- | --- | --- |
 | **Compare** the item itself | "Released by year is from 2022", "Price is between 10 and 20", "Released is in the last 3 months" | Numbers and dates, and their groupings |
 | **Compare its total** | "Count of Released is greater than 3" | Every field |
-| **Rule on the name** | "The name contains an" | Text and numbers (the number as the table writes it) |
+| **Rule on the name** | "The name does not begin with Service" | Text and numbers (the number as the table writes it) |
 
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-light.png#only-light)
 ![The Filter level of Date by month of year with a rule on the total: Average of Mean °C is greater than 25, its explanation open, its line saying it keeps 0 of 12 months with the lowest and the highest total, and the red summary](../assets/screenshots/filter-rules-dark.png#only-dark)
@@ -145,12 +179,35 @@ example, and a line under it with what it keeps by itself: "Keeps 7 of 12 months
   field's first such range is the quick choice, any other one a rule).
 - A date is compared by its day: "is before Mar 1, 2022" keeps every row of 28 February, whatever its
   time.
-- An item without a value ("(blank)") is never kept by a comparison; with **is not** and **is not
-  between** the rule says so under it ("Blank items are not kept.").
+- An item without a value ("(blank)") is not kept by a comparison unless the rules keep the blank
+  items ([below](#items-without-a-value)); with **is not** and **is not between** the rule says so
+  under it ("Blank items are not kept.").
 - The **i**: a grouping along the time line "compares each month by its place on the time line"; one
   that combines the years "by its place in the year, over all the years combined"; a number "the
   value itself, not its total"; a date "by its calendar day".
 - The chip says it in short: "from 2022", "2022 to 2024", "≥ 10".
+
+### Rule on the name
+
+"The name [does not begin with] [Service]": the comparisons are **is**, **is not**, **contains**,
+**does not contain**, **begins with**, **does not begin with**, **ends with** and **does not end
+with**. The text applies a moment after you stop typing. Case and runs of spaces do not matter:
+"SERVER" matches "Server", a no-break space matches a space. A text field compares its value, any
+other field the name the table writes ("Mar 2025", "1,000").
+
+### Items without a value
+
+A rule keeps the items that meet it; an item without a value ("(blank)") meets none, so the rules
+leave it out. When the field has blank items and at least one rule on its items (or a quick choice),
+**Also keep items without a value (37 rows)** shows under the rules, with the rows of the blank item.
+Ticked, every rule on the items keeps the blank item, a rule added later too; unticked, none does. A
+rule on the total is not affected: the blank item's total is compared like any other.
+
+![The rules of Country on the Nobel data: the name does not begin with united, and Also keep items without a value ticked with its 7 rows](../assets/screenshots/filter-blanks-light.png#only-light)
+![The rules of Country on the Nobel data: the name does not begin with united, and Also keep items without a value ticked with its 7 rows](../assets/screenshots/filter-blanks-dark.png#only-dark)
+
+To show only the items without a value, use the picks: **Select none** under Pick items, then tick
+"(blank)".
 
 ### Compare its total
 
@@ -206,7 +263,8 @@ greater than 2,000,000".
   whole.
 - Pointing anywhere at a chip shows all of it as a tooltip: the field and everything set on it, in the
   words its name has for screen readers ("Month, filtered 10 of 12, 2025").
-- The search of the menu finds the rules ("rule", "compare its total"), the quick choices with the
+- The search of the menu finds the rules ("rule", "compare its total", and the rule on the name by
+  its words, such as "does not begin with"), the quick choices with the
   count you type ("last 3 years", counted back as the field's range is) and, for a grouping by year,
   a year compared ("from 2022", "up to 2022", "before 2022", "after 2022"); Enter applies a found
   choice at once. A date field compares days: its rule editor picks them.
@@ -217,21 +275,26 @@ greater than 2,000,000".
 
 **Top items** in the same menu opens its level: **Off**, **Top 3**, **Top 5**, **Top 10**, or
 **Top N…** with **Top** or **Bottom** and a count of your own, and the value it goes by (a choice when
-the report has several values that give numbers; the first value is the default). A choice applies at
-once and the level stays open; a count applies a moment after you stop typing, or with Enter. The
-menu's row then says it, "Top 10 by Sum of Revenue", and the chip shows "Top 10". Each change is one
-step Undo takes back.
+the report has several values that give numbers; the first value is the default). While a top is set,
+**Also show items with the same value as the last one** keeps every item whose value equals the
+last one's; under it, the level says how many items show ("7 items shown"), or, for a field with
+another one above it on its axis, that a group can show more than N. A
+choice applies at once and the level stays open; a count applies a moment after you stop typing, or
+with Enter. The menu's row then says it, "Top 10 by Sum of Revenue", and the chip shows "Top 10".
+Each change is one step Undo takes back.
 
-![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population](../assets/screenshots/top-items-light.png#only-light)
-![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population](../assets/screenshots/top-items-dark.png#only-dark)
+![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-light.png#only-light)
+![The Top items level of Country: Off, Top 3 (checked, the template's), Top 5, Top 10 and Top N…, by Sum of Population, Also show items with the same value as the last one, and the items shown](../assets/screenshots/top-items-dark.png#only-dark)
 
 - Top N and value filters work within each item of the field above, as in Excel: with Region and
   Country on Rows, "top 3 countries" keeps three countries per region. Totals then add up the items
   shown only, so a region's total is the total of its top three countries.
 - A note above the table says what a top N does to totals and percentages ("Country shows the top 5
   only: ..."). It always shows and cannot be dismissed.
-- Top N keeps exactly N items. A tie at the cut keeps the item that comes first in the data; Excel may
-  keep all tied items.
+- Top N keeps exactly N items: a tie at the cut keeps the item that comes first in the data. With
+  **Also show items with the same value as the last one** every tied item stays, as Excel does, so "Top 6" may show
+  7 when the 6th and the 7th have the same value. It stays ticked when you change the count or the
+  value; Off takes it away with the top.
 
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-light.png#only-light)
 ![Above the table: the notice that the top 3 cover these items only, and a tip with its x](../assets/screenshots/tips-dark.png#only-dark)
@@ -288,6 +351,6 @@ The first level of a row or column field's menu:
   A to Z to sort it by label instead, and the report keeps that choice.
 
 !!! note "For developers"
-    The view's `filters` (`include`, `exclude`, `label`, `compare`, `relative`, `value`, `top`) and `sort` (`label`,
+    The view's `filters` (`in`, `blank`, `text`, `compare`, `relative`, `value`, `top`) and `sort` (`label`,
     `value`, `custom`), and how a field gets its order (`fieldDefaults.order`), are in
     [Filters, top N and sorting](../concepts/filters.md).

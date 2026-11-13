@@ -6,7 +6,134 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- The npm description names views as JSON files, as the README and the docs do, instead of templates
+  ([#191](https://github.com/eizedev/pivotkit/issues/191)).
+- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+- The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
+  the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`
+  filter (case and runs of whitespace ignored, `on: "label"` for a field that is not text), "is not",
+  "does not contain" and "is not between" the positive operator with `not: true`. Views of version 1
+  (stored, shared, the host's) load with the same result. A rule the menus have no word for (a
+  loaded view's "is not greater than") is said as "not (…)".
+- A relative range the quick choices do not write (a loaded view's hours, or a second range of a
+  field) says what it keeps in words, in English and German, and stays as it is: its row in the
+  Filter level can only be removed.
+- A comparison of dates by another precision (a loaded view's) says its unit ("Feb 2026", "from Q2
+  2026") and stays as it is.
+- The view files and links the report writes are of format version 2, with the `$schema`
+  `https://pivotkit.eize.dev/schema/view-file-2.json` by default; files and links of version 1 load as
+  before. The link's place in the fragment is pivotkit-core's (`linkFragment`, `withLinkFragment`).
+- A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters and is
+  at most 1,000,000 characters long (pivotkit-core's `outsideLimits`), or the host's lower limits.
+
 ### Added
+
+- The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
+  loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data
+  keeps `limits`, so a host can keep uploads small (`importLimits={{ rows: 1000 }}`) without capping
+  its own data. Without it a file has `limits`, as before. A key of `importLimits` is not capped by
+  `limits`, so a file may also get more. Compared by value, as `limits`.
+- The Filter level edits what view version 2 can say:
+  - A rule on the name offers "does not begin with" and "does not end with".
+  - **Also keep items without a value (N rows)** under the rules, for a field with blank items and a
+    rule on its items or a quick choice: every such rule keeps the blank items (`blanks: "include"`),
+    a new rule too; off, none does. Only the blanks stay a pick: Select none, then "(blank)".
+  - A date's quick choices count in a unit: **This [unit]** (the units whose current period has
+    data) and **Last [N] [unit]**, with **Include the current <unit>** under it while it is set;
+    **More choices**, folded: **Next [N] [unit]**, **Before the last [N] [unit]** and **Rolling
+    instead of whole calendar periods**. No unit is finer than the grouping (by month: months,
+    quarters, years; a date or by day: days and weeks too). Last keeps its count when the unit
+    changes while it reaches the data. **Counted back from** offers the first record and a date of
+    your own as well; it stands under the choices when the data end before the current period or it
+    is not today, else among More choices. A date being typed keeps the last whole date for the
+    ranges and says so; left incomplete, the field shows that date again. When Last's current period
+    has no data, **Count back from the latest record (date) instead** under it does that in one
+    click. A loaded view's next, this, before, rolling, quarter or week range is its quick choice,
+    editable there.
+  - **Top items**: **Also show items with the same value as the last one** while a top is set
+    (`ties: "all"`); another count or measure keeps it. Under it the level says how many items
+    show ("7 items shown"), or, for a field below another on its axis, that a group can show more.
+  - The menu's search finds the rule on the name by its operators ("does not begin with").
+  Texts in English and German. The chip says a range of quarters, weeks or this period by its
+  periods ("this quarter (Q4 2026)", "last 3 months, current period excluded (Aug–Oct 2026)"); a
+  rolling range counted from a date says its days, not midnight as a time. The unit selects of the
+  quick choices are named after their choice ("Unit of “Last …”") and as high as the count beside
+  them. In German, a range counted from the latest or first record says "Datensatz", as the menu
+  does.
+- The warning about a view's unused parts says when a filter's item is in the data in another case
+  (“north”, but “North”), and names a key inside a part of the view by itself. It says when an item
+  is longer than 10,000 characters, and how many more problems it does not list.
+
+### Fixed
+
+- A delayed popover autofocus frame no longer steals focus from a control already in use
+  ([#139](https://github.com/eizedev/pivotkit/issues/139)).
+- Outside pie and donut labels appear on the first draw, including their chosen values
+  ([#103](https://github.com/eizedev/pivotkit/issues/103)).
+- The menus' text actions drew as plain text in the text colour, so they did not look clickable:
+  **Back**, **Reset filter**, **Clear**, **Remove**, **change it above**, **Select all**, **Select
+  none**, **Only** and **Swap rows and columns** are in the accent colour and semibold (Back at the
+  size of the text around it, the others at the small size); Reset filter, Clear, Remove and Swap
+  are greyed out while they would change nothing. A status note's **Undo** is semibold in a tint of
+  the accent that reads on the note. The reset that gives buttons and fields the report's font and
+  colour had outranked these styles; it no longer does, so the other controls look as designed too:
+  the icon buttons (×, "i", a field's menu, a tip's ×, a table row's expand arrow) and the folding
+  lines of the Filter level (More choices, the items left out by the rules) are muted until hovered,
+  a chip's name is semibold, the folded field list's **Fields** button is bold, the link **Skip to
+  the toolbar** (shown only while it has the keyboard focus) is in the accent colour and semibold,
+  and the folded layout line is at the small size. A field's menu button is
+  no longer faded on top of that, so it keeps 3:1. Text fields and selects keep the report's font
+  ([#193](https://github.com/eizedev/pivotkit/issues/193)).
+- The Filter level's **Count back from the latest record (…) instead** looked like a note, not like
+  something to click: it is a small button as the level's **Compare** buttons (a border, an icon
+  before its words, at least 24 px high, its text wrapping inside it at a narrow width)
+  ([#179](https://github.com/eizedev/pivotkit/issues/179)).
+- The note of a file over a limit named the file twice (`big.csv could not be loaded: "big.csv" has
+  more than …`) and only `limits.*` as what a host raises, although `importLimits` may set the limit.
+  It says the limit in the report's language (English, German), with its key in brackets, and that a
+  host can raise this limit: "big.csv could not be loaded: it has more than 1,000 rows (limits.rows):
+  load a smaller extract of it, or a host can raise this limit"; other errors of a reader lose the
+  file's name in front in both of its forms ([#185](https://github.com/eizedev/pivotkit/issues/185)).
+- A rule on the names ("begins with “ACTIVE DIRECTORY”") keeps the items whose names hold a no-break
+  space or other whitespace, and a space typed at the end does not matter
+  ([#159](https://github.com/eizedev/pivotkit/issues/159)).
+- The search of a field's item list and of a grouping's item picker finds an item whose label holds
+  a no-break space or another run of whitespace when a plain space is typed, and ignores spaces
+  typed at the ends ([#159](https://github.com/eizedev/pivotkit/issues/159)). Both searches fold
+  text with pivotkit-core's `foldText`.
+
+## [0.4.0] - 2026-11-11
+
+### Added
+
+- Loading data in the browser ([#44](https://github.com/eizedev/pivotkit/issues/44)), with the new
+  prop `allowImport` (off by default): a **Data** button before Views (under More on a narrow report)
+  with the data source (name, rows × columns), **Load data…** and **Back to original data**; a file
+  dropped onto the report, with an overlay while it is dragged; a preview before the data is
+  replaced: the sheet of a workbook, the first rows, a type per column (Text, Number, Date, Yes/No),
+  the readers' notes, progress and **Cancel** while it reads, Escape to cancel. A file that cannot be
+  read keeps the data and says why with the reader's message. Loading is a step of the undo history
+  (Undo and Redo move between the data sets with their own views, up to three kept); a dot on Data
+  and a line under the result name the file while its data is shown. The empty report offers to load a
+  file ("Load data to start" without data). Texts in English and German (`labels.dataImport`).
+- `plugins`: reader plugins of `pivotkit-core/import` (pivotkit-xlsx for Excel workbooks);
+  `onDataLoad`: every change of the data shown (`cause` "load", "original", "undo", "redo"; returning
+  `false` refuses a file); `importWorker`: a module worker (the new entry `pivotkit-react/import-worker`)
+  that reads CSV and JSON off the page, with the page as the fallback.
+- While a file's data is shown the report's source is the file's: its name and the first 16 hex digits
+  of the SHA-256 of its name and column names, so the browser store keeps views per file.
+- A report mounted again by its host ([#131](https://github.com/eizedev/pivotkit/issues/131)), as
+  PowerShell Universal does on its light/dark switch and on `Sync-UDElement`, shows the loaded file
+  again with its view and its undo steps, when it has the same `storageKey` and the host's data is
+  the same (`dataKey`, else its columns, and `source`). Kept in the page's memory only, never in
+  browser storage, for up to four reports; let go when the host's data is shown again. `onDataLoad`
+  hears it as `cause` "restore".
+- `data` takes columnar data (`{ columns, types, data }`), as pivotkit-core's `encode` does.
+- The import UI is a file of its own, `dist/import-ui.js` (with `pivotkit-core/import`, which this
+  release needs from pivotkit-core), loaded on its first use; the first load keeps the Data button and
+  the drop handler.
 
 - Identifier fields ([#113](https://github.com/eizedev/pivotkit/issues/113)): a number field of whole numbers whose name ends in the word ID, Nr,
   No, Number, Key or "#" ("ID", "CustomerId", "customer_id", "Order No", "Serial #", "userID2", "ID
@@ -19,8 +146,52 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The host's own view (`view`, else the first `defaultView`) is warned about like a loaded view when
   the data cannot use parts of it, once per distinct view, not while `loading` ([#83](https://github.com/eizedev/pivotkit/issues/83)).
 
+### Changed
+
+- UI: **Start over** in the toolbar, a menu button after Undo and Redo, replaces the Reset button. It
+  holds **Reset** ("Back to the start view. Your data stays.") and **New, empty report** ("No fields.
+  Undo brings it back. Your data stays."), each greyed out with its reason ("Already at the start
+  view.", "The report is empty already."); Reset is also off when the start view is the empty report
+  ("The start view is empty: use New, empty report."). When both are off, Start over itself is off
+  (focusable, `aria-disabled`, with the reason "The report is empty already." as its description
+  and tooltip). Enter, Space or the down arrow opens it. In
+  More, Reset and New are entries of their own. The test id `reset` is now Reset's entry in that menu
+  (`start-over` is the button; `new-report` and `more-new-report` New's), so a host's test that
+  clicked `reset` opens Start over first. New labels `startOver`, `resetAlready`, `resetStartEmpty`,
+  `newHint`; `resetHint` is the new longer text; `newAlready` is a first-load text now
+  ([#88](https://github.com/eizedev/pivotkit/issues/88)).
+- UI: the Views menu holds what persists, in four groups: This view (Save, Save as…), Shared views,
+  My views, Share this view (Copy link, Copy view as JSON, Download view, Open view file…), with no
+  Share level in between. "New, empty report" left it for Start over; "Load view…" reads "Open view
+  file…" (the label `loadView`; German "Ansichtsdatei öffnen…"), its level "Views › Open view file".
+  The labels `share` and `settingInfo.newReport` are gone.
+- UI: every menu draws its groups alike: each group's title in bold, as Export's, with a rule between
+  one group and the next (Options, Views, the chart type, More, a chip menu's levels such as "More
+  statistics"); More has rules only; the chart's Display parts its own groups (Value labels, Legend,
+  Title, ...) with a dashed rule, each a named group for a screen reader. One component draws them
+  (`Group` in popover.jsx) ([#105](https://github.com/eizedev/pivotkit/issues/105)).
+- An item of a toolbar menu (Start over, More) that is greyed out stays reachable with the arrow keys
+  (`aria-disabled`), so a screen reader hears its reason.
+- Reset's note "Back to the start view" has **Undo**, as New's has. In More, a letter jumps to the
+  next entry that starts with it, as in the other menus, and Layout is a checkbox item
+  (`menuitemcheckbox`), not one of a set of choices.
+
 ### Fixed
 
+- A loaded file shown again after a new mount lost its view when the host mounted the report twice in
+  a row (PowerShell Universal's `Sync-UDElement`, two mounts within about 30 ms) or mounted it again
+  before it passed back a view it was told: the report now starts on the kept view history at once,
+  and keeps the view it told a host that controls the view, not the host's view from before
+  ([#135](https://github.com/eizedev/pivotkit/issues/135)).
+- Toolbar buttons moved into More although the free room would hold some of them (a report about
+  1,000 px wide showed Reset, Layout and Options in More next to a wide gap). A button moves now only
+  when the room left cannot hold it: the room is measured with the texts of the report's language
+  (not the longest of every language), and a button that fits stays even when one before it in the
+  order had to go. The chart type keeps the room of its longest type, so picking one never moves a
+  button, and while a toolbar menu is open nothing moves (a language change keeps the menu, its
+  button and its focus). The order is Layout, Options, the chart type, then Start over (where New is) and Views
+  last; More lists them in groups
+  ([#88](https://github.com/eizedev/pivotkit/issues/88)).
 - Menus, bottom sheets and "i" popups opened by a click open in the browser's top layer
   (`popover="manual"`; a description shown on hover stays in the report's layer): a host's
   fixed navigation above z-index 50 (PowerShell Universal's drawer at 1200) no longer covers the left
@@ -47,6 +218,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   ([#115](https://github.com/eizedev/pivotkit/issues/115)).
 - A line of the warning about a view's unused parts goes once its part of the view is changed by
   hand, and comes back with Undo ([#82](https://github.com/eizedev/pivotkit/issues/82)).
+- A modal layer (the file preview, the drill-down, the field drawer) whose first frame comes late
+  (WebKit) no longer takes the focus back from a control inside it: **Load data** keeps the focus once
+  the first rows are read, and the sheet list keeps it after a sheet over the limits
+  ([#136](https://github.com/eizedev/pivotkit/issues/136)).
 
 ## [0.3.0] - 2026-11-09
 
@@ -641,7 +816,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.4.0...HEAD
+[0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.3.0...pivotkit-react@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.2.0...pivotkit-react@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.1.0...pivotkit-react@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-react@0.1.0

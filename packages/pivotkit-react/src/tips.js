@@ -12,7 +12,7 @@ import { CATALOG, fieldLabel, suggestDateUnit } from "pivotkit-core";
 import { CHART_TYPES, MANY_SERIES, SLICE_TYPES, chartPlan } from "./chart-types.js";
 import { fill } from "./labels.js";
 import { readItem, subscribeItem, writeItem } from "./storage.js";
-import { filterZoneFields, filtersOf, isFiltered, sourceOf } from "./view-ops.js";
+import { emptyPick, filterZoneFields, filtersOf, isFiltered, sourceOf } from "./view-ops.js";
 
 /** Tips shown at a time: one, the most important; the next waits until it is followed or dismissed. */
 export const TIP_LIMIT = 1;
@@ -505,5 +505,5 @@ export function writeDismissed(key, storage, dismissed) {
 
 /** The Filters zone fields, kept with empty filters, and every other filter gone: "Remove filter". */
 export function withoutFilters(view) {
-    return { ...view, filters: filterZoneFields(view).map((field) => ({ field, type: "exclude", items: [] })) };
+    return { ...view, filters: filterZoneFields(view).map(emptyPick) };
 }

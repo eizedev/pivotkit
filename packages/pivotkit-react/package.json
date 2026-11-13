@@ -1,7 +1,7 @@
 {
   "name": "pivotkit-react",
-  "version": "0.3.0",
-  "description": "React 18/19 pivot report builder on pivotkit-core: drag-and-drop fields, table and Apache ECharts chart, filters, templates as JSON, undo, Excel and CSV export.",
+  "version": "0.4.0",
+  "description": "React 18/19 pivot report builder on pivotkit-core: drag-and-drop fields, table and Apache ECharts chart, filters, views as JSON files, undo, Excel and CSV export.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
   "homepage": "https://pivotkit.eize.dev",
@@ -18,7 +18,9 @@
     "reporting",
     "drag-and-drop",
     "echarts",
-    "self-service-bi"
+    "self-service-bi",
+    "pivot-grid",
+    "pivottable"
   ],
   "type": "module",
   "sideEffects": [
@@ -34,6 +36,7 @@
       "types": "./types/all-labels.d.ts",
       "default": "./dist/labels.js"
     },
+    "./import-worker": "./dist/import-worker.js",
     "./styles.css": "./dist/styles.css",
     "./package.json": "./package.json"
   },
@@ -60,7 +63,7 @@
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/sortable": "10.0.0",
-    "pivotkit-core": "^0.3.0"
+    "pivotkit-core": "^0.4.0"
   },
   "devDependencies": {
     "echarts": "6.1.0"

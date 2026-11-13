@@ -204,7 +204,7 @@ export const REAL = {
                     cols: ["Season"],
                     derived: [{ name: "Year", field: "Date", by: "year" }],
                     values: [{ field: "Rain day", agg: "sum", label: "Rain days", conditional: { type: "dataBar" } }],
-                    filters: [{ field: "Year", type: "include", items: [2025] }],
+                    filters: [{ field: "Year", type: "in", items: [2025], blanks: "exclude" }],
                     sort: [{ field: "City", by: "value", order: "desc" }]
                 }
             },
@@ -215,7 +215,7 @@ export const REAL = {
                     cols: ["Date by year"],
                     derived: [{ name: "Date by month of year", field: "Date", by: "month" }, { name: "Date by year", field: "Date", by: "year" }],
                     values: [{ field: "Mean °C", agg: "average", format: "number:1" }],
-                    filters: [{ field: "City", type: "include", items: ["Berlin"] }],
+                    filters: [{ field: "City", type: "in", items: ["Berlin"], blanks: "exclude" }],
                     display: "chart",
                     chart: { type: "line" }
                 }
@@ -238,7 +238,7 @@ export const REAL = {
                 view: {
                     rows: ["Region", "Country"],
                     values: [{ field: "Population", agg: "sum", format: "compact" }],
-                    filters: [{ field: "Year", type: "include", items: [2024] }, { field: "Country", type: "top", count: 3, by: { field: "Population", agg: "sum" } }],
+                    filters: [{ field: "Year", type: "in", items: [2024], blanks: "exclude" }, { field: "Country", type: "top", count: 3, by: { field: "Population", agg: "sum" } }],
                     sort: [{ field: "Region", by: "value", order: "desc" }, { field: "Country", by: "value", order: "desc" }]
                 }
             },
@@ -248,7 +248,7 @@ export const REAL = {
                     rows: ["Region"],
                     cols: ["Year"],
                     values: [{ field: "CO2 (Mt)", agg: "sum", label: "Share of CO2", showAs: { type: "percentOfColumnTotal" } }],
-                    filters: [{ field: "Year", type: "include", items: [2005, 2010, 2015, 2020, 2024] }],
+                    filters: [{ field: "Year", type: "in", items: [2005, 2010, 2015, 2020, 2024], blanks: "exclude" }],
                     sort: [{ field: "Region", by: "value", order: "desc" }]
                 }
             },
@@ -258,7 +258,7 @@ export const REAL = {
                     rows: ["Income group"],
                     cols: ["Year"],
                     values: [{ field: "GDP (US$)", agg: "sum", label: "GDP change", showAs: { type: "percentDifferenceFromPrevious", axis: "cols" } }],
-                    filters: [{ field: "Year", type: "include", items: [2019, 2020, 2021, 2022, 2023, 2024] }],
+                    filters: [{ field: "Year", type: "in", items: [2019, 2020, 2021, 2022, 2023, 2024], blanks: "exclude" }],
                     totals: { grandTotalColumn: false }
                 }
             },
@@ -306,7 +306,7 @@ export const REAL = {
                     rows: ["Region"],
                     cols: ["Tsunami flag"],
                     values: [{ field: "Time", agg: "count", label: "Quakes" }],
-                    filters: [{ field: "Magnitude (by 1)", type: "include", items: [7, 8] }],
+                    filters: [{ field: "Magnitude (by 1)", type: "in", items: [7, 8], blanks: "exclude" }],
                     derived: [{ name: "Magnitude (by 1)", field: "Magnitude", by: "bin", size: 1, origin: 0 }],
                     sort: [{ field: "Region", by: "value", order: "desc" }]
                 }
@@ -355,7 +355,7 @@ export const REAL = {
                     rows: ["Category"],
                     cols: ["Gender"],
                     values: [{ field: "Laureate", agg: "count", label: "Laureates", showAs: { type: "percentOfRowTotal" } }],
-                    filters: [{ field: "Type", type: "include", items: ["Person"] }],
+                    filters: [{ field: "Type", type: "in", items: ["Person"], blanks: "exclude" }],
                     sort: [{ field: "Category", by: "label", order: "asc" }]
                 }
             },
@@ -393,7 +393,7 @@ export const REAL = {
                     rows: ["EOL date by year"],
                     derived: [{ name: "EOL date by year", field: "EOL date", by: "year" }],
                     values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
-                    filters: [{ field: "EOL date by year", type: "include", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030] }],
+                    filters: [{ field: "EOL date by year", type: "in", items: [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030], blanks: "exclude" }],
                     display: "chart",
                     chart: { type: "bar" }
                 }
@@ -403,7 +403,7 @@ export const REAL = {
                 view: {
                     rows: ["Product"],
                     values: [{ field: "Cycle", agg: "count", label: "Supported cycles", conditional: { type: "dataBar" } }, { field: "Released", agg: "min", label: "Oldest supported" }],
-                    filters: [{ field: "Maintained", type: "include", items: [true] }, { field: "Product", type: "top", count: 10, by: { field: "Cycle", agg: "count" } }],
+                    filters: [{ field: "Maintained", type: "in", items: [true], blanks: "exclude" }, { field: "Product", type: "top", count: 10, by: { field: "Cycle", agg: "count" } }],
                     sort: [{ field: "Product", by: "value", order: "desc" }]
                 }
             },
@@ -415,7 +415,7 @@ export const REAL = {
                     derived: [{ name: "Support years (by 2)", field: "Support years", by: "bin", size: 2, origin: 0 }],
                     values: [{ field: "Cycle", agg: "count", label: "Release cycles", showAs: { type: "percentOfRowTotal" }, conditional: { type: "colorScale", colors: ["#f4f4f4", "#5a8dee"] } }],
                     // a cycle without a known end of life has no support length
-                    filters: [{ field: "Support years (by 2)", type: "exclude", items: [null] }],
+                    filters: [{ field: "Support years (by 2)", type: "blank", not: true }],
                     sort: [{ field: "Category", by: "label", order: "asc" }]
                 }
             },
@@ -435,7 +435,7 @@ export const REAL = {
                     cols: ["EOL date by quarter"],
                     derived: [{ name: "EOL date by quarter", field: "EOL date", by: "yearQuarter" }, { name: "Days to EOL (by 365)", field: "Days to EOL", by: "bin", size: 365, origin: 0 }],
                     values: [{ field: "Cycle", agg: "count", label: "Release cycles" }],
-                    filters: [{ field: "Days to EOL (by 365)", type: "include", items: [0] }],
+                    filters: [{ field: "Days to EOL (by 365)", type: "in", items: [0], blanks: "exclude" }],
                     sort: [{ field: "Category", by: "value", order: "desc" }, { field: "Product", by: "value", order: "desc" }]
                 }
             }
@@ -463,7 +463,7 @@ export const DATASETS = {
                     cols: ["Priority"],
                     derived: [{ name: "Created (Year and month)", field: "Created", by: "yearMonth" }],
                     values: [{ field: "Lead hours", agg: "median", format: "duration:h", conditional: { type: "colorScale", colors: ["#63be7b", "#ffeb84", "#f8696b"] } }],
-                    filters: [{ field: "Status", type: "include", items: ["Resolved", "Closed"] }]
+                    filters: [{ field: "Status", type: "in", items: ["Resolved", "Closed"], blanks: "exclude" }]
                 }
             },
             {
@@ -472,7 +472,7 @@ export const DATASETS = {
                     rows: ["Team"],
                     cols: ["Status"],
                     values: [{ field: "Ticket", agg: "count" }],
-                    filters: [{ field: "Status", type: "include", items: ["Open", "In progress", "Waiting"] }],
+                    filters: [{ field: "Status", type: "in", items: ["Open", "In progress", "Waiting"], blanks: "exclude" }],
                     display: "chart",
                     chart: { type: "bar", stacked: true }
                 }
@@ -520,7 +520,7 @@ export const DATASETS = {
             },
             {
                 name: "Cost by type and location",
-                view: { rows: ["Type", "Location"], values: [{ field: "Cost", agg: "sum", format: "currency:EUR" }, { field: "Cost", agg: "average", format: "currency:EUR" }], filters: [{ field: "Status", type: "exclude", items: ["Retired"] }] }
+                view: { rows: ["Type", "Location"], values: [{ field: "Cost", agg: "sum", format: "currency:EUR" }, { field: "Cost", agg: "average", format: "currency:EUR" }], filters: [{ field: "Status", type: "in", items: ["Retired"], not: true, blanks: "include" }] }
             },
             {
                 name: "Purchases per year (chart)",

@@ -25,13 +25,19 @@ test("the Playwright container image matches @playwright/test in package-lock.js
 const WORKSPACES = JSON.parse(readFileSync(new URL("package.json", root), "utf8")).workspaces;
 const OWN = new Set(WORKSPACES.map((w) => w.split("/").pop()));
 
+// The examples with an install of their own (examples/angular) link this repository's packages from
+// packages/ (their built dist/), so they test what the repository has, not a release.
+const LINKED = ["examples/angular/package.json"];
+
 test("every dependency is pinned to an exact version; this repository's own packages take a caret range", () => {
-    const manifests = ["package.json", ...WORKSPACES.map((w) => `${w}/package.json`), "tests/react19/package.json"];
+    const manifests = ["package.json", ...WORKSPACES.map((w) => `${w}/package.json`), "tests/react19/package.json", ...LINKED];
     for (const file of manifests) {
         const pkg = JSON.parse(readFileSync(new URL(file, root), "utf8"));
         for (const section of ["dependencies", "devDependencies"]) {
             for (const [name, range] of Object.entries(pkg[section] ?? {})) {
-                if (section === "dependencies" && OWN.has(name)) {
+                if (LINKED.includes(file) && OWN.has(name)) {
+                    assert.equal(range, `file:../../packages/${name}`, `${file} ${section}.${name} is "${range}", not the package of this repository`);
+                } else if (section === "dependencies" && OWN.has(name)) {
                     assert.match(range, /^\^\d+\.\d+\.\d+$/, `${file} ${section}.${name} is "${range}", not a caret range of an own package`);
                 } else {
                     assert.match(range, /^\d+\.\d+\.\d+$/, `${file} ${section}.${name} is "${range}", not an exact version`);
@@ -114,6 +120,20 @@ test("the React 19 check installs from its own lock file", () => {
     for (const name of ["react", "react-dom"]) {
         assert.match(lock.packages[`node_modules/${name}`].version, /^19\./);
         assert.equal(lock.packages[`node_modules/${name}`].version, pkg.devDependencies[name]);
+    }
+});
+
+test("the Angular example installs from its own lock file, at the versions its package.json pins", () => {
+    const lock = JSON.parse(readFileSync(new URL("examples/angular/package-lock.json", root), "utf8"));
+    const pkg = JSON.parse(readFileSync(new URL("examples/angular/package.json", root), "utf8"));
+    for (const [name, version] of Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })) {
+        const entry = lock.packages[`node_modules/${name}`];
+        assert.ok(entry, `${name} is missing from examples/angular/package-lock.json`);
+        if (OWN.has(name)) {
+            assert.deepEqual({ resolved: entry.resolved, link: entry.link }, { resolved: `../../packages/${name}`, link: true }, `${name} in the lock file`);
+        } else {
+            assert.equal(entry.version, version, `${name} in the lock file`);
+        }
     }
 });
 

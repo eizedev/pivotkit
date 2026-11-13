@@ -13,11 +13,14 @@ description: Common questions about pivotkit - which package to use, data size, 
 
 ## How many rows can it handle?
 
-It is designed for up to about 100,000 rows in the browser; a change then stays within a frame or two
-(see [Performance](reference/react.md#performance)). `encode` accepts up to 1,000,000 rows by
-default, at the cost of time and memory. Beyond the rows, the [limits](concepts/limits.md#limits)
+Measured up to 1,000,000 rows in Chromium, Firefox and WebKit on one Mac: the first table took
+about 0.15 s at 100,000 rows and 1 to 2.5 s at a million, with the page frozen while it is built;
+after that a filter, a field or the chart took about 0.15 s at most
+([measured in the browser](concepts/limits.md#measured-in-the-browser), which also says what was not
+measured, such as loading a file). A million rows is the default `rows` limit. Beyond the rows, the [limits](concepts/limits.md#limits)
 guard the work of a layout (`work`), its groups (`groups`), its aggregated cells (`pivotCells`) and
-the size of the table (`cells`).
+the size of the table (`cells`). For more rows, see
+[more than a million rows](concepts/limits.md#more-than-a-million-rows).
 
 ## My data is on a server. Does pivotkit fetch it?
 
@@ -28,10 +31,13 @@ or the XLSX file.
 
 ## My data is columnar (`{ columns, rows }`). Can I pass it?
 
-Not directly: pivotkit takes rows as objects. Map them first:
+Data with one array per column, `{ columns, types, data }`, goes in as it is: as `data` of the React
+component and the web component, and into pivotkit-core's [`encode`](reference/core.md#columnar-input),
+without an object per row. Row arrays under `columns` (`{ columns, rows }`) are not taken; turn them
+into one array per column first:
 
 ```js
-const objects = data.rows.map((r) => Object.fromEntries(data.columns.map((c, i) => [c, r[i]])));
+const columnar = { columns: data.columns, data: data.columns.map((_, c) => data.rows.map((r) => r[c])) };
 ```
 
 ## How do I save a report?

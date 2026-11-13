@@ -27,8 +27,8 @@ exactly) come with the package.
 | `echarts` | `>=6.1.0 <7` | About 1 MB; an app that draws its own charts has it already. It is loaded on the first chart, so a report that never shows one does not load it. |
 
 !!! note "Using pivotkit-core directly as well"
-    pivotkit-react depends on a caret range of pivotkit-core (`^0.3.0`). In 0.x a caret range spans
-    patch versions only (`^0.3.0` is 0.3.x), so an app that imports pivotkit-core itself must use a
+    pivotkit-react depends on a caret range of pivotkit-core (`^0.4.0`). In 0.x a caret range spans
+    patch versions only (`^0.4.0` is 0.4.x), so an app that imports pivotkit-core itself must use a
     version inside that range; npm shares one copy only when the ranges overlap.
 
 ## 2. Render the first report { #the-first-report }
@@ -148,7 +148,8 @@ All props are listed in the [pivotkit-react reference](../reference/react.md).
 
 `dist/index.js` is an ES module whose imports stay bare: `react`, `react-dom`, `pivotkit-core`,
 `pivotkit-core/export`, `pivotkit-core/link`, `pivotkit-core/templates` (with the menus),
-`@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
+`pivotkit-core/import` (with [`allowImport`](../reference/react.md#prop-allowimport), on the first
+use of loading data), `@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
 `./echarts.js` next to it, which imports `echarts/core`, `echarts/charts`, `echarts/components` and
 `echarts/renderers` by name, so a bundler keeps only the four chart types the report draws. Any
 bundler that understands ES modules resolves them. A page without a bundler maps each bare name to a

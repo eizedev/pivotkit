@@ -39,7 +39,7 @@ export const hasTopLayer = () => typeof HTMLElement === "function" && typeof HTM
  * @param {unknown} key  what re-shows them (the sheet's scrim coming or going)
  * @param {unknown} layer  the report's layer: the elements are there only once it is
  */
-function useTopLayer(open, refs, key, layer) {
+export function useTopLayer(open, refs, key, layer) {
     useIsoLayoutEffect(() => {
         if (!open || !hasTopLayer()) {
             return undefined;
@@ -179,17 +179,20 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             return undefined;
         }
         const el = ref.current;
-        // the first option that is shown (a folded section's are hidden)
-        const shown = (/** @type {Element} */ o) => o.getClientRects().length > 0;
-        // never an "i" first: its explanation would open over the menu; a menu whose entries are all off
-        // (the Export menu of an empty report) takes the focus itself
-        const first =
-            el?.querySelector("[data-autofocus]") ??
-            [...(el?.querySelectorAll(OPTION) ?? [])].find(shown) ??
-            [...(el?.querySelectorAll(FOCUSABLE) ?? [])].find((o) => shown(o) && !o.classList.contains("pk-info")) ??
-            (el?.querySelector("[data-pk-option]") ? el : null);
-        // after the placement, so the page does not scroll to a popover still at 0,0
-        const t = requestAnimationFrame(() => /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true }));
+        // After placement, which can be a late frame on a busy page. Resolve the target then:
+        // a control the person already reached inside keeps its focus (#139).
+        const t = requestAnimationFrame(() => {
+            if (!el?.isConnected) return;
+            const now = activeIn(el);
+            if (now && now !== el && (el.contains(now) || now.closest(".pk-popover")?.getAttribute("data-pk-parent") === elId)) return;
+            const shown = (/** @type {Element} */ o) => o.getClientRects().length > 0;
+            const first =
+                el.querySelector("[data-autofocus]") ??
+                [...el.querySelectorAll(OPTION)].find(shown) ??
+                [...el.querySelectorAll(FOCUSABLE)].find((o) => shown(o) && !o.classList.contains("pk-info")) ??
+                (el.querySelector("[data-pk-option]") ? el : null);
+            /** @type {HTMLElement | null} */ (first)?.focus({ preventScroll: true });
+        });
         // a press inside a popover opened from this one (a rule's item picker) is inside
         const onDown = (e) => {
             if (!eventWithin(e, [el, anchor.current]) && !e.composedPath().some((n) => n instanceof Element && n !== el && n.getAttribute("data-pk-parent") === elId)) {
@@ -235,6 +238,22 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         } else if (tabWithin(e, ref.current) === "out") {
             e.preventDefault();
             onClose();
+            return;
+        }
+        if (role === "menu" && e.key.length === 1 && e.key !== " " && !e.altKey && !e.ctrlKey && !e.metaKey) {
+            // type-ahead: a letter moves to the next entry whose text starts with it
+            const options = /** @type {HTMLElement[]} */ ([...(ref.current?.querySelectorAll(OPTION) ?? [])]).filter((o) => o.getClientRects().length > 0);
+            const at = options.indexOf(/** @type {HTMLElement} */ (activeIn(ref.current)));
+            const texts = options.map((o) => (o.querySelector(".pk-option-text")?.firstChild?.textContent ?? "").trim().toLowerCase());
+            const want = e.key.toLowerCase();
+            for (let i = 1; i <= options.length; i++) {
+                const k = (Math.max(0, at) + i) % options.length;
+                if (texts[k].startsWith(want)) {
+                    e.preventDefault();
+                    options[k].focus();
+                    break;
+                }
+            }
             return;
         }
         if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Home" || e.key === "End") {
@@ -289,12 +308,19 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
  * @param {{ label: string, icon?: string, text?: React.ReactNode, showText?: boolean, className?: string,
  *   role?: "menu" | "dialog", align?: "start" | "end", popoverClass?: string, disabled?: boolean,
  *   title?: string, children: (close: () => void) => React.ReactNode, testId?: string, name?: string,
- *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode }} props
+ *   buttonRef?: React.RefObject<HTMLButtonElement>, tabIndex?: number, slot?: string, fill?: boolean, mark?: React.ReactNode, arrowOpens?: boolean, off?: string }} props
  *   `tabIndex`: -1 where a list moves the focus itself (the field list); `mark`: after the text (the
- *   dot for unsaved changes on "More")
+ *   dot for unsaved changes on "More"); `arrowOpens`: the down arrow opens it (a toolbar's menu);
+ *   `off`: why it opens nothing now (every entry of its menu is off): it stays focusable
+ *   (aria-disabled) with the reason as its description and tooltip
  */
-export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark }) {
+export function MenuButton({ label, icon, text, showText = true, className, role = "menu", align, popoverClass, disabled, title, children, testId, buttonRef, name, tabIndex, slot, fill, mark, arrowOpens = false, off }) {
     const [open, setOpen] = useState(false);
+    const offId = useId();
+    // an open menu closes once every entry in it is off (New right in it)
+    if (off && open) {
+        setOpen(false);
+    }
     const own = useRef(/** @type {HTMLButtonElement | null} */ (null));
     const ref = buttonRef ?? own;
     const id = useId();
@@ -304,22 +330,36 @@ export function MenuButton({ label, icon, text, showText = true, className, role
             <button
                 ref={ref}
                 type="button"
-                className={className ?? "pk-btn"}
                 aria-haspopup={role === "menu" ? "menu" : "dialog"}
                 aria-expanded={open}
                 aria-controls={open ? id : undefined}
                 aria-label={name ?? (showText && text ? undefined : label)}
-                title={title ?? (showText && text ? undefined : label)}
+                aria-disabled={off ? true : undefined}
+                aria-describedby={off ? offId : undefined}
+                title={off ?? title ?? (showText && text ? undefined : label)}
+                className={`${className ?? "pk-btn"}${off ? " pk-off" : ""}`}
                 disabled={disabled}
                 tabIndex={tabIndex}
                 data-pk-slot={slot}
                 data-testid={testId}
-                onClick={() => setOpen((o) => !o)}
+                onClick={() => (off ? undefined : setOpen((o) => !o))}
+                // the menu button pattern: the down arrow opens the menu too (Enter and Space click)
+                onKeyDown={arrowOpens ? (e) => {
+                    if (e.key === "ArrowDown" && !open && !off) {
+                        e.preventDefault();
+                        setOpen(true);
+                    }
+                } : undefined}
             >
                 {icon ? <Icon name={/** @type {any} */ (icon)} /> : null}
                 {showText && text ? <span className="pk-btn-text">{text}</span> : null}
                 {mark}
                 {showText && text ? <Icon name="chevronDown" size={14} className="pk-caret" /> : null}
+                {off ? (
+                    <span id={offId} hidden>
+                        {off}
+                    </span>
+                ) : null}
             </button>
             <Popover open={open} anchor={ref} onClose={close} label={label} role={role} align={align} className={popoverClass} id={id} fill={fill}>
                 {children(close)}
@@ -329,17 +369,64 @@ export function MenuButton({ label, icon, text, showText = true, className, role
 }
 
 /**
+ * A group of a menu's entries, the one way every menu draws its groups (the toolbar's menus, More,
+ * a chip menu's levels; section.jsx's Section adds the "i"): its title in bold above it, a rule
+ * between it and what comes before (styles.css: .pk-section), none above the first. In a dialog the
+ * group is the whole block, named by its title. In an ARIA menu (`menu`) the block is presentational
+ * and the group holds only the items, as a menu may own groups of items but no other text; a group
+ * without a title (More) is named by `label`.
+ * @param {{ title?: React.ReactNode, label?: string, menu?: boolean, head?: React.ReactNode, after?: React.ReactNode, children: React.ReactNode, testId?: string, titleTestId?: string }} props
+ *   `head`: next to the title (an "i"); `after`: under the entries, inside the block (a note);
+ *   `testId`: the group's, `titleTestId`: the title's
+ */
+export function Group({ title, label, menu = false, head, after, children, testId, titleTestId }) {
+    const titleId = useId();
+    const top = title ? (
+        <div className="pk-section-head">
+            <div className="pk-section-title" id={titleId} role={menu ? "presentation" : undefined} data-testid={titleTestId}>
+                {title}
+            </div>
+            {head}
+        </div>
+    ) : null;
+    const name = title ? { "aria-labelledby": titleId } : { "aria-label": label };
+    if (menu) {
+        // a group without a name is only the rule for a screen reader: no unnamed group
+        return (
+            <div className="pk-section" role="none">
+                {top}
+                <div role={title || label ? "group" : "none"} {...(title || label ? name : {})} data-testid={testId}>
+                    {children}
+                </div>
+                {after}
+            </div>
+        );
+    }
+    return (
+        <div className="pk-section" role="group" {...name} data-testid={testId}>
+            {top}
+            {children}
+            {after}
+        </div>
+    );
+}
+
+/**
  * One option of a menu or of a chip's settings: one line. `hint` is a short second line that belongs
  * to the option (a date unit's example); `reason` says why a disabled option does nothing and shows
  * only while it is disabled (it is state, not an explanation: those go into an "i").
- * @param {{ onSelect: () => void, icon?: string, checked?: boolean, children: React.ReactNode, hint?: React.ReactNode,
+ * @param {{ onSelect: () => void, icon?: string, checked?: boolean, checkbox?: boolean, children: React.ReactNode, hint?: React.ReactNode,
  *   reason?: React.ReactNode, inMenu?: boolean, disabled?: boolean, danger?: boolean, tone?: "accent", testId?: string, current?: boolean }} props
+ *   `checkbox`: a toggle of its own in a menu (menuitemcheckbox), not one of a set of choices;
  *   `tone`: "accent" for an option that says what is set (a filter); `current`: the entry shown now
  *   (the view loaded), with a check and aria-current
  */
-export function Option({ onSelect, icon, checked, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
+export function Option({ onSelect, icon, checked, checkbox = false, children, hint, reason, inMenu = false, disabled, danger, tone, testId, current }) {
     const second = disabled && reason ? reason : hint;
-    const role = inMenu ? (checked === undefined ? "menuitem" : "menuitemradio") : undefined;
+    const role = inMenu ? (checked === undefined ? "menuitem" : checkbox ? "menuitemcheckbox" : "menuitemradio") : undefined;
+    // an item of a menu that does nothing now stays in the arrow keys' way (aria-disabled), so its
+    // reason is heard (WAI-ARIA Authoring Practices: disabled menu items are focusable)
+    const off = inMenu && disabled;
     return (
         <button
             type="button"
@@ -347,11 +434,12 @@ export function Option({ onSelect, icon, checked, children, hint, reason, inMenu
             aria-checked={inMenu && checked !== undefined ? checked : undefined}
             aria-pressed={!inMenu && checked !== undefined ? checked : undefined}
             aria-current={current ? "true" : undefined}
-            className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${tone === "accent" ? " pk-accent" : ""}`}
+            aria-disabled={off || undefined}
+            className={`pk-option${checked ? " pk-checked" : ""}${danger ? " pk-danger" : ""}${tone === "accent" ? " pk-accent" : ""}${off ? " pk-disabled" : ""}`}
             data-pk-option=""
             data-testid={testId}
-            disabled={disabled}
-            onClick={onSelect}
+            disabled={off ? undefined : disabled}
+            onClick={off ? undefined : onSelect}
         >
             <span className="pk-option-icon">{checked || current ? <Icon name="check" /> : icon ? <Icon name={/** @type {any} */ (icon)} /> : null}</span>
             <span className="pk-option-text">

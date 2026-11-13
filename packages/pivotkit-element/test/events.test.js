@@ -66,3 +66,7 @@ test("request: respondWith() only while the event is dispatched, and once", asyn
     assert.equal(second.name, "InvalidStateError");
     assert.throws(() => later(3), { name: "InvalidStateError" });
 });
+
+test("pivot-data-load is the event of the data shown", () => {
+    assert.equal(EVENTS.dataLoad, "pivot-data-load");
+});

@@ -115,9 +115,10 @@ test("the menus' German texts load only for a German report: neither in the firs
     assert.ok(!text(groups.menus).includes("Anwenden"), "the German menu texts are in the menus");
     assert.ok(!text(groups.initial).includes("Anwenden"), "the German menu texts are in the first load");
     assert.ok(text(groups.menus).includes("Apply"), "the English menu texts are not in the menus");
-    // the menus' sections (section.jsx) load with the menus, only their context (help.js) first
-    assert.ok(text(groups.menus).includes('className:"pk-section-head"'));
-    assert.ok(!text(groups.initial).includes('className:"pk-section-head"'), "the menus' sections are in the first load");
+    // the "i" of the menus' sections (section.jsx) loads with the menus, only their context (help.js)
+    // first; the groups themselves (popover.jsx: Group) are first load, as More draws its groups
+    assert.ok(text(groups.menus).includes('className:"pk-setting-info"'));
+    assert.ok(!text(groups.initial).includes('className:"pk-setting-info"'), "the menus' sections are in the first load");
 });
 
 test("the plain words of a view's unused parts load only when a view has such parts", () => {
@@ -172,6 +173,35 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     assert.ok(text(groups.initial).includes('"aria-sort"'));
 });
 
+test("loading data (allow-import) loads on first use: the import UI, its texts and the readers are no part of the first load or the menus", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");
+    for (const name of ["pivotkit-react/dist/import-ui.js", "pivotkit-core/src/import.js", "pivotkit-core/src/import-table.js", "pivotkit-core/src/import-csv.js", "pivotkit-core/src/import-json.js"]) {
+        assert.ok(inputsOf(groups.import).some((i) => i.includes(name)), `${name} is not in the import group`);
+        for (const other of ["initial", "menus"]) {
+            assert.ok(!inputsOf(groups[other]).some((i) => i.includes(name)), `${name} is in ${other}`);
+        }
+    }
+    // the dialog's and the notes' texts, English and German, come with it; the Data button's first
+    for (const words of ["Back to original data", "Datenquelle", "empty rows were left out."]) {
+        assert.ok(text(groups.import).includes(words), `"${words}" is not in the import group`);
+        assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
+    }
+    assert.ok(text(groups.initial).includes("Or load your own data"), "the empty report's line is not in the first load");
+});
+
+test("the import worker is one file next to dist/, without imports, where the element's code looks for it", async () => {
+    const { workerOptions } = await import("../build.js");
+    const worker = await esbuild.build({ ...workerOptions, write: false, metafile: true, logLevel: "silent" });
+    assert.deepEqual(worker.outputFiles.map((f) => f.path.slice(f.path.indexOf("/dist/") + 1)), ["dist/import-worker.js"]);
+    assert.deepEqual(Object.values(worker.metafile.outputs)[0].imports, [], "the worker imports a module");
+    assert.ok(Object.keys(worker.metafile.inputs).some((i) => i.includes("pivotkit-core/src/import-csv.js")));
+    // the element's code asks for "../import-worker.js" from its module: that module is in dist/chunks/
+    const holder = built.outputFiles.filter((f) => f.text.includes('"../import-worker.js"'));
+    assert.equal(holder.length, 1);
+    assert.match(holder[0].path, /\/dist\/chunks\/[^/]+\.js$/);
+});
+
 test("the bundled React is 18.3.1, the one of the package's devDependencies", async () => {
     const pkg = JSON.parse(await readFile(new URL("package.json", pkgDir), "utf8"));
     assert.equal(pkg.devDependencies.react, "18.3.1");
@@ -201,4 +231,18 @@ test("the built package imports in Node without a DOM and defines nothing there"
     // the entry without the definition has the same exports
     assert.deepEqual(Object.keys(bare).sort(), Object.keys(mod).sort());
     assert.equal(bare.EVENTS, mod.EVENTS);
+});
+
+// A bundler (Angular's esbuild, Vite, webpack) drops an import of a file that package.json's
+// "sideEffects" leaves out. dist/index.js imports some chunks only for their effects ("import './x.js'"):
+// each of them must be listed, else the host's build warns and may leave the chunk out.
+test("every file dist/index.js imports for its effects is listed in sideEffects", async () => {
+    const pkg = JSON.parse(await readFile(new URL("package.json", pkgDir), "utf8"));
+    const listed = pkg.sideEffects.map((pattern) => new RegExp(`^${pattern.replace(/[.]/g, "\\.").replace(/\*/g, "[^/]*")}$`));
+    const index = await readFile(new URL("dist/index.js", pkgDir), "utf8");
+    const bare = [...index.matchAll(/import\s*"(\.\/[^"]+)"/g)].map((m) => `./dist/${m[1].slice(2)}`);
+    assert.ok(bare.length > 0, "dist/index.js imports no file for its effects: the check would prove nothing");
+    for (const file of bare) {
+        assert.ok(listed.some((re) => re.test(file)), `${file} is imported by dist/index.js for its effects but not listed in sideEffects`);
+    }
 });

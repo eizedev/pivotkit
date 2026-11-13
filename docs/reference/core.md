@@ -100,13 +100,33 @@ A view is the report as JSON; [Views and saved views](../concepts/views.md) desc
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported as an issue `{ path, message, code, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
-| `validate(view, schema, { limits })` | `{ valid, errors }` | Everything `normalize` would drop or change, against the same `limits` (`errors` are `normalize`'s issues). |
-| `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION`; a newer version is refused (`view: null`). `normalize` runs it first. |
+| `normalize(view, schema, { limits })` | `{ view, issues }` | Names resolved against the schema (or the `Encoded` data) and fixed lists; everything else dropped and reported as an issue `{ path, message, code, severity, params }` ([Issues](../concepts/views.md#issues-for-developers)). Nothing in a view runs as code. |
+| `validate(view, schema, { limits })` | `{ valid, errors, warnings }` | Everything `normalize` would drop or change (`errors`) and what it uses but may not be what was meant (`warnings`), against the same `limits`; with the warnings only a strict check gives. `valid` without errors. |
+| `migrate(view)` | `{ view, issues }` | A parsed view brought to `VIEW_VERSION` (a view without `version` is read as version 1; [Versions](../concepts/views.md#versions)); a newer version is refused (`view: null`). `normalize` runs it first. |
 | `emptyView()` | `View` | A new, empty report. |
 | `viewFields(view, schema)` | `[{ name, type, derived? }]` | The fields of the data and the view's derived fields (`derived: true`; `type` is `"date"` for a grouping by day, `"number"` for every other unit and for number ranges). |
-| `VIEW_VERSION` | `number` | The view version this release writes. |
+| `VIEW_VERSION` | `number` | The view version this release writes: 2. |
 | `VIEW_ISSUE_CODES` | `string[]` | Every `code` an issue of `normalize`, `migrate`, `validate` or `computePivot` can have ([Issues](../concepts/views.md#issues-for-developers)). |
+| `VIEW_ISSUES` | object | Per code: `severity` (`"error"` or `"warning"`) and `schema` (whether the view's JSON Schema refuses the case too). |
+
+The JSON Schema of a view of version 2 ships as `pivotkit-core/schema/view-2.json` and is published at
+`https://pivotkit.eize.dev/schema/view-2.json`, for an editor, a generator or an LLM that writes
+views. It is built from the engine's own tables by `scripts/schemas.js` of the repository and refuses
+everything `normalize` would refuse without looking at the data (`VIEW_ISSUES[code].schema`); what
+only the data can tell (a field's name and type, an aggregator for a field) is `normalize`'s. A filter
+is checked against the schema of its `type` alone, so a validator's errors are about that type. The
+schema carries the default `LIMITS`; a host with other limits checks those with `normalize`.
+
+### Describing data and views
+
+Plain, structured summaries for a log, an approver or an LLM that writes or explains views: JSON with
+one short English `text` per part, no locale, nothing rendered. Values from the data are data: a prompt
+should mark them as such.
+
+| Function | Returns | What |
+| --- | --- | --- |
+| `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, the `aggregators` and filter types (`filters`) that work on it, and with encoded data `distinct`, `blanks`, the first `items` (at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters) and `min`/`max` of numbers and dates (dates as ISO days). A schema `{ fields }` or a fields array gives the types only (`rows: null`). Rows that are not encoded throw `INVALID_ARGUMENT`: `encode()` them first. Field names in the `text`s are cut at 80 characters, as items are. |
+| `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` (with their names), `filters` (each normalized filter with its `text`: `Region is one of "North", "South" (blanks dropped)`), `derived`, `sort`, `display`; `valid`, `errors` and `warnings` of `validate`; and `text`, the whole view in one sentence. A part with an error is left out of the parts; the `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. |
 
 ### View files
 
@@ -121,7 +141,7 @@ and its JSON Schema are in [View file format](view-file.md).
 | `viewFileText(file)` | `string` | The file as JSON with a 2-space indent and a trailing newline. |
 | `viewFileName(name)` | `string` | `"<slug>.pivotkit.json"` ("Revenue by region" gives `revenue-by-region.pivotkit.json`), `view.pivotkit.json` without a letter or digit. |
 | `viewFileFields(view)` | `string[]` | The data's fields a view uses (rows, columns, values, filters, sort; a grouping as its source field), each once. |
-| `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | | `"pivotkit-view"`, `1`, the schema's address, and `{ text: 1000000, name: 256, description: 2000, fields: 1000 }`. |
+| `VIEW_FILE_FORMAT`, `VIEW_FILE_VERSION`, `VIEW_FILE_SCHEMA`, `VIEW_FILE_LIMITS` | | `"pivotkit-view"`, `2` (the version written; 1 is read too), the schema's address, and `{ text: 1000000, name: 256, description: 2000, fields: 1000 }`. |
 
 ## Pivot
 
@@ -144,6 +164,7 @@ The `PivotResult` has, among others:
 | `issues` | What `normalize` dropped, and a time zone that differs from the data's (`code: "timeZoneMismatch"`). |
 | `locale`, `timeZone` | The resolved locale and the data's time zone. |
 | `rows` | The source row indices left after all filters. |
+| `filters` | Per filter of the view, in its order: `{ field, type, kept }`, the source rows left after it. Filters apply in turn, item filters in the view's order, then value filters from the outer level in, so `kept` says what each one took away from the rows before it; `null` for a filter whose field is not in the data. |
 | `rowRoot`, `colRoot`, `rowNodes`, `colNodes` | The key trees and their nodes. |
 | `value(row, col, i)` | The raw aggregate of value `i` at a row and column node. |
 | `display(row, col, i)` | The same after "show values as". |
@@ -152,16 +173,18 @@ The `PivotResult` has, among others:
 
 ### `relativeDateRange(unit, count, options?)`
 
-The days a relative date range keeps, both included: `relativeDateRange("year", 5, { now:
-"2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. `unit` is `"year"`, `"month"` or
-`"day"`, `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500); anything else returns
-`null`, as does a range that leaves what a `Date` holds (the years -271821 to 275760). Options: `now`
-(as `computePivot`'s, default the current time; beyond what a `Date` holds, `INVALID_OPTION`),
-`timeZone` (the data's, default `"UTC"`, never the machine's), and `anchor` with `latest`: with
-`anchor: "latest"` the range ends with `latest`, the data's latest date (read like `now`; the
-wall-clock milliseconds a date column holds too), not with today; `"latest"` without a `latest` date,
-or an anchor not of `CATALOG.relativeAnchors`, is `null`. A UI shows the range with it ("last 5
-years (2022–2026)", "last 12 months to Dec 2025").
+The dates a relative date range keeps, both included: `relativeDateRange("year", 5, { now:
+"2026-11-09" })` is `{ from: "2022-01-01", to: "2026-12-31" }`. Whole days are ISO days; where a bound
+is not at midnight (hours, a rolling range) it is the minute, `"2026-03-15T12:00"`; `"before"` has
+`from: null`. `unit` is one of `CATALOG.relativeUnits` (`hour`, `day`, `week`, `month`, `quarter`,
+`year`), `count` a whole number from 1 to `CATALOG.relativeMaxCount` (500; not read for `"this"`).
+Options as a filter has them ([Relative date ranges](../concepts/filters.md#relative-date-ranges)):
+`direction`, `calendar`, `includeCurrent`, `anchor` (`"today"`, `"latest"` with `latest`, `"first"`
+with `first`, or a date), `weekStart` (1 to 7, default 1), and `now` (as `computePivot`'s, default
+the current time; beyond what a `Date` holds, `INVALID_OPTION`) and `timeZone` (the data's, default
+`"UTC"`, never the machine's). Anything a filter could not have, an anchor without its date, or a
+range that leaves what a `Date` holds (the years -271821 to 275760) is `null`. A UI shows the range
+with it ("last 5 years (2022–2026)", "last 12 months to Dec 2025").
 
 ### Drill-down
 
@@ -241,7 +264,9 @@ which `fromViewFile` reads (a bare view too). See [Sharing](../concepts/sharing.
 | Name | What |
 | --- | --- |
 | `encodeViewLink(view)` | The text of a link to a view. Throws `PivotkitError` `LIMIT_EXCEEDED` (`details.limit` `"link"`) when the text would be longer than `LINK_LIMITS.text`; `INVALID_ARGUMENT` for a non-object.<br><small>Returns `string`</small> |
-| `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why (empty, too long, not a pivotkit link, damaged, too large, no JSON object). Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
+| `decodeViewLink(text)` | The view of a link text as parsed JSON, or `null` with an issue that says why, its `code` of `LINK_ISSUE_CODES`: `linkEmpty`, `linkTooLong`, `notLink`, `linkDamaged`, `linkTooLarge`, `notView`, `notJson`. Never throws. The view is user input: pass it to `normalize()`.<br><small>Returns `{ view, issues }`</small> |
+| `readViewLink(hash, key?, { allowParams, limits })` | The view of a page's fragment: the entry of `key` (`#pivot=`, or `#pivot-<key>=` for a report with that key), decoded and read as a view file. `src` is the data source it names, `{ id, params }`: the host's opaque name of the data and only the parameters the host lists in `allowParams` (none by default; the others are left out with an issue), within `limits.srcParams` and `srcParamLength`; `null` without an id. `failed`: `"none"` (no entry), `"link"` (the text is no link, `issues` says why), or `fromViewFile`'s. A bad link never throws; a bad `limits` throws `INVALID_OPTION`, link or not. Normalize the view with `outsideLimits()`.<br><small>Returns `{ view, src, name, failed, issues }`</small> |
+| `linkParam(key?)`, `linkFragment(hash, key?)`, `withLinkFragment(url, key, text)` | The name of a report's entry in the fragment (`"pivot"`, `"pivot-<key>"`), its link text in a fragment (or `null`), and a URL with it added, replaced or (`text` null) removed, the rest of the fragment byte for byte. In the main entry too, without fflate. |
 | `LINK_LIMITS` | `{ text: 32000, json: 1000000 }`: the characters of a link text, and of the view inflated (enforced while inflating: 1 KiB of input at a time, it stops at the cap). |
 
 ### Templates: `pivotkit-core/templates` { #templates }
@@ -289,12 +314,16 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
 | `isFormat(format)` | Whether a name is a known format. |
-| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `labelOps`, `valueOps`, `relativeUnits`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
+| `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
+| `foldText(text, match?)` | A text folded as text filters compare it: `match` `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale; `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |
+| `MATCH_DEFAULTS` | `{ case: "insensitive", whitespace: "collapse" }`. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
 | `DEFAULT_THEME` | Default colours for colour scales and data bars, and the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
+| `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code and in all that `normalize` and `validate` list for one view; the rest are counted in the warning `tooManyIssues` ([Views from outside](../concepts/limits.md#views-from-outside)). |
+| `OUTSIDE_LIMITS`, `outsideLimits(limits)` | The tighter limits of a view from outside (a link, pasted JSON, an API, an LLM): `{ filters: 50, json: 1000000 }`, and the host's limits with each of them at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `PivotkitError` | The error class; `code` is `INVALID_ARGUMENT`, `INVALID_OPTION`, `LIMIT_EXCEEDED` or `INVALID_FILE` (a file that cannot be read, [Loading files](import.md#errors)); `details` holds `{ limit, value, max }` for a limit (and `file` for a file), `{ reason, file }` for a file. |
 
 ## Types
@@ -302,7 +331,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 `View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `IssueParams`, `Encoded`, `Column`,
 `ColumnType`, `ColumnarData`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
 `Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults`, `PivotkitErrorCode`, `ViewFileMeta`, `ViewFileRead`,
-`ViewFileCompatibility` and `ViewFileSource`, from `pivotkit-core`.
+`ViewFileCompatibility`, `ViewFileSource` and `TextMatch`, from `pivotkit-core`.
 
 ## Performance
 
@@ -319,3 +348,7 @@ approximate, other machines differ; `npm run bench -w pivotkit-core` measures yo
 | `toGrid`, 9,268 cells | 3 |
 | `toXlsx`, 75 KB | 10 |
 | `toCsv` | 2 |
+
+These are the engine alone in Node. The report in Chromium, Firefox and WebKit from 100,000 to
+1,000,000 rows, with React's render and the steps of a person, is
+[measured in the browser](../concepts/limits.md#measured-in-the-browser) (`npm run bench:browser`).
