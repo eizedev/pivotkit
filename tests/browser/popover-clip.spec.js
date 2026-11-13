@@ -109,6 +109,10 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });
             await page.waitForTimeout(400);
             await expect(tip).toBeVisible();
+            // and the pointer leaving both closes it, the menu stays
+            await page.mouse.move(box.x - 40, box.y + box.height + 120, { steps: 5 });
+            await expect(tip).toHaveCount(0);
+            await expect(page.locator(".pk-popover").first()).toBeVisible();
         });
     }
 

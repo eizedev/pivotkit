@@ -57,9 +57,26 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
             leaving.current = null;
         }
     };
+    // the pointer on the button or on its popover: there the popover stays. Asked of the page (:hover),
+    // not only of pointerenter: in WebKit on Linux the popover in the top layer (an "i" inside a menu)
+    // got no pointerenter when the pointer moved onto it from the button (#213)
+    const hovered = () => {
+        const button = ref.current;
+        const root = /** @type {Document | ShadowRoot | null} */ (button?.getRootNode() ?? null);
+        const pop = root && "getElementById" in root ? root.getElementById(id) : null;
+        return Boolean(button?.matches(":hover") || pop?.matches(":hover"));
+    };
     const leaveSoon = () => {
         stay();
-        leaving.current = setTimeout(() => setMode((m) => (m === "peek" ? null : m)), LEAVE_DELAY);
+        const check = () => {
+            if (hovered()) {
+                leaving.current = setTimeout(check, LEAVE_DELAY);
+                return;
+            }
+            leaving.current = null;
+            setMode((m) => (m === "peek" ? null : m));
+        };
+        leaving.current = setTimeout(check, LEAVE_DELAY);
     };
     useEffect(() => stay, []);
     const close = useCallback(() => {
