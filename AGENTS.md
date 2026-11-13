@@ -260,19 +260,21 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   the node's root, `composedPath()`), animations through `--pk-duration` so
   `prefers-reduced-motion` turns them off. Layout follows the report's width (`data-pk-size`), not the
   window's. Check changes with screenshots in both themes at wide and narrow width.
-- Visual values come from `--pk-*` tokens, so a host matches its corporate design without
-  overriding selectors. Colours and font weights are tokens everywhere: no rule of `styles.css` and no
-  style set from code (the chart's tooltip, the table's label probe; the chart reads its colours and
-  weight through `theme.js`) writes one as a literal; the literals live in the token blocks
-  (`:where(.pk-root)` and its dark theme), each token documented in `docs/reference/theming.md`.
-  pivotkit-report's stylesheet (`report-css.js`) uses the same tokens, its values in `tokens.js`.
-  `test/tokens.test.js` fails on a colour or font weight outside them, in `styles.css` and in the
-  sources of pivotkit-react, pivotkit-element and pivotkit-report; both themes must pass `test/contrast.test.js`. Font
-  sizes are `--pk-font-size`, `--pk-small` or `em` of them. Not tokens yet, so not to be copied: the
-  small corner radii (4 to 6 px) of some controls, the tooltip's and the chart marks' radii, the
-  code font of the JSON text field and the chart title's 16 px; a new visual value gets a token, and an existing
-  literal becomes one when its rule is touched. Shapes (`999px` pills, `50%` circles, `0`) are not
-  theme values. Reviews check this rule for every change of the UI.
+- Visual values come from `--pk-*` tokens, so a host matches its corporate design without overriding
+  selectors. Colours and font weights are tokens everywhere: no rule of `styles.css` and no style set
+  from code (the chart's tooltip, the table's label probe; the chart reads its colours and weight
+  through pivotkit-core's `chartThemeFrom` in `chart-plan.js`) writes one as a literal; the literals
+  live in the token blocks (`:where(.pk-root)` and its dark theme), each token documented in
+  `docs/reference/theming.md`. pivotkit-report's stylesheet (`report-css.js`) uses the same tokens,
+  its values in `tokens.js`. `test/tokens.test.js` fails on a colour or font weight outside them, in
+  `styles.css` and in the sources of pivotkit-react, pivotkit-element and pivotkit-report; both themes
+  must pass `test/contrast.test.js`. Font sizes are `--pk-font-size`, `--pk-small` or `em` of them.
+  Not tokens yet, so not to be copied: the small corner radii (4 to 6 px) of some controls, the
+  tooltip's and the chart marks' radii, the code font of the JSON text field, the chart title's 16 px,
+  the geometry of the focus rings' and inset shadows, and pivotkit-core's `DEFAULT_THEME` colours (the
+  colour scale and data bar a host without the stylesheet gets); a new visual value gets a token, and
+  an existing literal becomes one when its rule is touched. Shapes (`999px` pills, `50%` circles, `0`)
+  are not theme values. Reviews check this rule for every change of the UI.
 - A host's field labels and descriptions (`fieldDefaults`) are optional extras: a field without them
   looks and works exactly as without `fieldDefaults` (no "i", no extra text, its own name); labels are
   display only, views keep field names. A schema is data: local `$ref`s only, nothing fetched, sizes

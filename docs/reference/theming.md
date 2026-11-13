@@ -119,8 +119,8 @@ with a `z-index`, a `transform` or an `opacity` below 1 keeps it inside.
 
 A brand font can look heavier or lighter than the system font at the same weight. The four weight
 tokens are a scale: set the steps your font needs, and every part of the report that uses a step
-follows, the chart's title and group labels too (the chart reads `--pk-weight-strong` as a number; a
-keyword such as `bold` leaves the chart at 600).
+follows, the chart's title and group labels too (the chart reads `--pk-weight-strong` as a number from 1 to
+1000; a keyword such as `bold` leaves the chart at 600).
 
 ```css
 /* a brand font whose semibold looks too heavy */

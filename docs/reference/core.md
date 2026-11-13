@@ -257,7 +257,7 @@ pivot of `swapAxes(view)`, so the dates run along the axis), else bars. `swapAxe
 normalized view with Rows and Columns swapped, their collapsed groups with them and a "show values
 as" that names an axis turned to the other one, so every number stays what it was. `chartThemeFrom`
 reads the chart's theme (`colors` from `--pk-chart-1` to `--pk-chart-8`, text, axis and grid colours,
-the heatmap's ends, the font, `strongWeight` from `--pk-weight-strong` when it is a number) from any
+the heatmap's ends, the font, `strongWeight` from `--pk-weight-strong` when it is a number from 1 to 1000) from any
 object with `getPropertyValue`: a report's computed style, or a map of tokens; `CHART_COLORS` is 8.
 
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
