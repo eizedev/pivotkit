@@ -66,6 +66,18 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The menus' text actions drew as plain text in the text colour, so they did not look clickable:
+  **Back**, **Reset filter**, **Clear**, **Remove**, **change it above**, **Select all**, **Select
+  none**, **Only** and **Swap rows and columns** are in the accent colour and semibold (Back at the
+  size of the text around it, the others at the small size); Reset filter, Clear, Remove and Swap
+  are greyed out while they would change nothing. A status note's **Undo** is semibold in a tint of
+  the accent that reads on the note. The reset that gives buttons and fields the report's font and
+  colour had outranked these styles; it no longer does, so the other controls look as designed too:
+  the icon buttons (×, "i", a field's menu, a tip's ×, a table row's expand arrow) and the folding
+  lines of the Filter level (More choices, the items left out by the rules) are muted until hovered,
+  a chip's name is semibold and the folded layout line is at the small size. A field's menu button is
+  no longer faded on top of that, so it keeps 3:1. Text fields and selects keep the report's font
+  ([#193](https://github.com/eizedev/pivotkit/issues/193)).
 - The Filter level's **Count back from the latest record (…) instead** looked like a note, not like
   something to click: it is a small button as the level's **Compare** buttons (a border, an icon
   before its words, at least 24 px high, its text wrapping inside it at a narrow width)

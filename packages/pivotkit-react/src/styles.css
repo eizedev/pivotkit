@@ -176,7 +176,10 @@
     box-sizing: border-box;
 }
 
-.pk-root :is(button, input, select, textarea) {
+/* form controls take the report's font and colour, not the browser's; :where() keeps this reset at
+   the specificity of .pk-root alone, so a class of the report (.pk-action, .pk-link, .pk-icon-btn,
+   ...) sets its own colour, size and weight over it */
+.pk-root :where(button, input, select, textarea) {
     font: inherit;
     color: inherit;
 }
@@ -311,7 +314,9 @@
     transition: background var(--pk-duration), color var(--pk-duration);
 }
 
-.pk-icon-btn:hover {
+/* hovered, or its menu or dialog open */
+.pk-icon-btn:hover,
+.pk-icon-btn[aria-haspopup][aria-expanded="true"] {
     background: var(--pk-surface-3);
     color: var(--pk-text);
 }
@@ -638,16 +643,14 @@
     color: var(--pk-accent);
 }
 
+/* quiet in the muted colour of an icon button (no opacity on top: it would fall below 3:1) */
 .pk-field-menu {
     /* as narrow as a control may be: the room goes to the field's name (a touch screen keeps its hit area) */
     width: var(--pk-target);
-    opacity: 0.6;
 }
 
-.pk-field:hover .pk-field-menu,
-.pk-field-menu:focus-visible,
-.pk-field-menu[aria-expanded="true"] {
-    opacity: 1;
+.pk-field:hover .pk-field-menu {
+    color: var(--pk-text);
 }
 
 .pk-panel.pk-removing {

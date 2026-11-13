@@ -63,10 +63,10 @@ through the element.
 | `--pk-font` | Font family; unset, the report inherits the page's font. | the page's | the page's |
 | `--pk-font-size` | Body text: the host's size, at least 14 px. Other sizes are relative to it. | `max(14px, 1em)` | as light |
 | `--pk-surface`<br>`--pk-surface-2`<br>`--pk-surface-3`<br>`--pk-surface-raised` | Background, panels and zones, hover, popovers | `#ffffff`<br>`#f6f7f9`<br>`#eceff3`<br>`#ffffff` | `#16181d`<br>`#1c1f25`<br>`#262a32`<br>`#22262d` |
-| `--pk-text`<br>`--pk-muted` | Text, secondary text | `#1a1d23`<br>`#5a6270` | `#e8eaef`<br>`#a3aab7` |
+| `--pk-text`<br>`--pk-muted` | Text; secondary text, the icon buttons until hovered (×, "i", a field's menu) and an action that would change nothing | `#1a1d23`<br>`#5a6270` | `#e8eaef`<br>`#a3aab7` |
 | `--pk-border`<br>`--pk-border-strong`<br>`--pk-grid` | Borders, table lines | `#dde1e7`<br>`#c3c9d2`<br>`#edf0f3` | `#2f343e`<br>`#454c58`<br>`#23272e` |
 | `--pk-input-border` | The edge of a text field, a search and a select in a menu (3:1 against the surfaces) | `#7d8592` | `#737b88` |
-| `--pk-accent`<br>`--pk-accent-text`<br>`--pk-accent-soft` | Primary buttons, selection, text on the accent, soft highlight | `#2b5fd9`<br>`#ffffff`<br>`#e9effc` | `#84a3ff`<br>`#0d1426`<br>`#232d48` |
+| `--pk-accent`<br>`--pk-accent-text`<br>`--pk-accent-soft` | Primary buttons, selection, the text actions of the menus (Back, Reset filter, Clear, Select all, Swap rows and columns), text on the accent, soft highlight | `#2b5fd9`<br>`#ffffff`<br>`#e9effc` | `#84a3ff`<br>`#0d1426`<br>`#232d48` |
 | `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge of a zone (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
 | `--pk-note` | Notes and hints above the result | `#eef3fd` | `#1e2638` |
 | `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours | `#f8696b`<br>`#ffeb84`<br>`#63be7b` | `#c2413f`<br>`#b39a2e`<br>`#3f9a5c` |
