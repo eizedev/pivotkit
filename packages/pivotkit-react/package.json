@@ -20,7 +20,8 @@
     "echarts",
     "self-service-bi",
     "pivot-grid",
-    "pivottable"
+    "pivottable",
+    "excel-export"
   ],
   "type": "module",
   "sideEffects": [

@@ -8,6 +8,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- npm keywords `angular` (the Angular example) and `excel-export`.
 - `dist/THIRD_PARTY_LICENSES.txt` is written by the repository's shared licence script, as for
   pivotkit-xlsx; its text is unchanged ([#125](https://github.com/eizedev/pivotkit/issues/125)).
 - The element bundles pivotkit-core's and pivotkit-react's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals

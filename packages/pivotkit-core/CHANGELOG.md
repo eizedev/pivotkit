@@ -8,6 +8,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- npm keyword `excel`, as the repository's topics.
 - The chart writes its axes, legend and labels at 14 px (`DEFAULT_THEME.textSize`), the 14 px
   minimum, instead of ECharts' 12 px, and its layout measures them at that size, so labels slant,
   thin out or leave a small cell or ring a little sooner ([#221](https://github.com/eizedev/pivotkit/issues/221)). A host that wants the

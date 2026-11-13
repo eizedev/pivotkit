@@ -43,3 +43,11 @@ test("a regular file is read whole, up to the last byte; a file of 0 bytes is em
     assert.equal((await readSafe("empty.txt", { cwd: dir, allow: [], maxBytes: 6 })).length, 0);
     await assert.rejects(readSafe("six.txt", { cwd: dir, allow: [], maxBytes: 5 }), (e) => e.code === "LIMIT_EXCEEDED");
 });
+
+// safe-files.js is internal until the open points of #209 are settled: an export is an API that a
+// later release could not take back
+test("the package exports the command's main() only, not its file helpers", async () => {
+    const { default: pkg } = await import("pivotkit-cli/package.json", { with: { type: "json" } });
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./package.json"]);
+    await assert.rejects(import("pivotkit-cli/safe-files"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
+});

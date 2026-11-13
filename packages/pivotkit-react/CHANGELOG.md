@@ -33,7 +33,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   "subtotal", name a subtotal's label ("North Total") and say that a group of one item has none ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 - The npm description names views as JSON files, as the README and the docs do, instead of templates
   ([#191](https://github.com/eizedev/pivotkit/issues/191)).
-- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+- npm keywords `pivot-grid`, `pivottable` and `excel-export`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
   the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`
   filter (case and runs of whitespace ignored, `on: "label"` for a field that is not text), "is not",

@@ -18,7 +18,9 @@
     "excel",
     "import",
     "spreadsheet",
-    "pivot-table"
+    "pivot-table",
+    "pivot-grid",
+    "pivottable"
   ],
   "type": "module",
   "sideEffects": false,

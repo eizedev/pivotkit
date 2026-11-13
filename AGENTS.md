@@ -117,8 +117,8 @@ cli) in the root `package.json`: `npm run types` and the builds depend on it.
   io, limit, template; `--json` on stdout), `src/commands.js` (the one table of commands and options
   that the parser, the help and the completions are made from), `src/help.js` (help and bash, zsh,
   fish and PowerShell completions), `src/safe-files.js` (read a regular file once with its size checked
-  first, write through a temporary file, `--allow-dir` by real path; the MCP server of step 3 reuses
-  it), `src/errors.js` (`CliError` with a kind; no file content in a message, `printable` cleans
+  first, write through a temporary file, `--allow-dir` by real path; internal, not an export of the
+  package, until the open points of #209 are settled), `src/errors.js` (`CliError` with a kind; no file content in a message, `printable` cleans
   names). `test/` spawns the CLI as a user runs it.
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,
