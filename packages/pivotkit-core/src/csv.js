@@ -4,8 +4,8 @@
  * formula gets a leading ' (CSV injection):
  *
  * - text starting with a tab or a carriage return;
- * - text whose first visible character (after spaces, line breaks and control characters, which some
- *   spreadsheets skip) is = or @;
+ * - text whose first visible character (after spaces, line breaks, control characters and invisible
+ *   format characters such as zero-width spaces, which some spreadsheets skip) is = or @;
  * - text whose first visible character is + or -, unless the whole text is a number as a locale
  *   writes it ("-5%", "-1,234.5", "-1.234,5", "-1'234.5" and "-1’234.5" in de-CH, "-5,3 %", "-€1.50",
  *   "-1 234,50 €") or a number range like the bin label "-10 – 0": those are data, and a ' would change
@@ -24,10 +24,15 @@ import { DEFAULT_LOCALE, MS_PER_DAY, pad, optionsOf } from "./util.js";
 // separators of the locales (. , ' ’ and the spaces), a percent sign after an optional space
 const NUMBER = String.raw`[+\-\u2212]?\p{Sc}?\d[\d.,'\u2019\u00a0\u202f ]*(?:[\u00a0\u202f ]?(?:%|\p{Sc}))?`;
 const PLAIN_NUMBER = new RegExp(`^${NUMBER}$`, "u");
-// the characters that change the direction of text, left out of every exported text as the import
-// leaves them out (import-table.js): "invoice\u202Etxt.exe" would read as another name, and one before
+// the characters that change the direction of text, left out of every exported text (CSV, TSV, XLSX)
+// as the import leaves them out (import-table.js): "invoice\u202Etxt.exe" would read as another name, and one before
 // "=" would hide a formula from neutralizeFormula
-const BIDI_CONTROLS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+export const BIDI_CONTROLS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+
+// what a spreadsheet may skip before a formula: whitespace, C0 and C1 controls, and the invisible
+// format characters the import removes (soft hyphen, zero-width and word joiners, bidi controls, BOM)
+// eslint-disable-next-line no-control-regex
+const LEADING_INVISIBLE = /^[\s\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\ufeff]+/;
 
 /** Text of a cell as an export writes it: bidi controls left out, a formula guarded. */
 const exportText = (text) => neutralizeFormula(text.replace(BIDI_CONTROLS, ""));
@@ -54,8 +59,7 @@ export function neutralizeFormula(text) {
     if (/^[\t\r]/.test(text)) {
         return `'${text}`;
     }
-    // eslint-disable-next-line no-control-regex
-    const start = text.replace(/^[\s\u0000-\u001F\u007F]+/, "");
+    const start = text.replace(LEADING_INVISIBLE, "");
     const formula = /^[=@]/.test(start) || (/^[+-]/.test(start) && !PLAIN_NUMBER.test(start) && !NUMBER_RANGE.test(start));
     return formula ? `'${text}` : text;
 }

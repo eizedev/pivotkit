@@ -79,6 +79,10 @@ test("text never becomes a formula in XLSX and control characters are removed", 
     assert.ok(!sheet.includes("<f>"));
     assert.ok(sheet.includes("ab&lt;&amp;&gt;"));
     assert.ok(sheet.includes('t="inlineStr"'));
+    // bidi controls are left out, as in the CSV: no name reads as another one in Excel
+    const bidi = unzipSync(toXlsx(toGrid(computePivot(encode([{ k: "invoice\u202Etxt.exe", v: 1 }]), { rows: ["k"], values: [{ field: "v", agg: "sum" }] })), { sheetName: "Q\u20664" }));
+    assert.ok(!/[\u202a-\u202e\u2066-\u2069]/.test(strFromU8(bidi["xl/worksheets/sheet1.xml"]) + strFromU8(bidi["xl/workbook.xml"])));
+    assert.ok(strFromU8(bidi["xl/worksheets/sheet1.xml"]).includes("invoicetxt.exe"));
 });
 
 test("CSV: separator by locale, quoting, repeated row labels", () => {
@@ -142,6 +146,13 @@ test("CSV and TSV leave out bidi controls, as the import does: no text reads as 
     assert.ok(csv.includes("'=1+1,2"), csv);
     assert.ok(csv.includes("abcde,3"), csv);
     assert.ok(toTsv([["\u202E=2+2"]]).startsWith("'=2+2"));
+});
+
+test("CSV formula guard looks past invisible characters to the first visible one", () => {
+    for (const s of ["\u200b=1", "\u2060=1", "\u00ad=1", "\u206a=1", "\u180e=1", "\u0085=1", "\ufeff@x", "\u200b-2+3"]) {
+        assert.equal(neutralizeFormula(s), `'${s}`, JSON.stringify(s));
+    }
+    assert.equal(neutralizeFormula("\u200b-5"), "\u200b-5");
 });
 
 test("CSV bytes start with a byte order mark unless switched off", () => {

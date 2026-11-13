@@ -251,9 +251,11 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   format. A reader starts no worker of its own (a strict CSP blocks `blob:` workers). Errors are
   `INVALID_FILE` with `details.reason`, or `LIMIT_EXCEEDED` with `details.file`.
 - Exports must be safe to open: CSV text that a spreadsheet would run as a formula gets a leading `'`
-  (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace and control
-  characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
-  inline strings, never as formulas.
+  (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace, control and
+  invisible characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
+  inline strings, never as formulas. CSV, TSV, XLSX, the HTML report and the SVG leave out bidi
+  controls (`BIDI_CONTROLS` in `src/csv.js`; pivotkit-report's copy in `texts.js` is compared with it
+  by a test).
 - Measured up to 1,000,000 rows in three browsers (`npm run bench:browser`, `docs/concepts/limits.md`
   "Measured in the browser"): typed arrays, no per-row objects in hot loops. Run the
   benchmark before and after engine changes and compare with the baseline in `docs/reference/core.md`

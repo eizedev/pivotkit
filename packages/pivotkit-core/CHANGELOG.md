@@ -142,10 +142,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
-- `toCsv`, `toCsvBytes`, `rowsToCsv`, `toTsv` and the copies leave out the characters that change the
+- `toCsv`, `toCsvBytes`, `rowsToCsv`, `toTsv`, the copies and `toXlsx` leave out the characters that change the
   direction of text (U+061C, U+200E, U+200F, U+202A to U+202E, U+2066 to U+2069), as the import does:
   in rows a host passed in, `invoice\u202Etxt.exe` read as another name, and a control before `=` hid
-  a formula from the leading `'`.
+  a formula from the leading `'`. The CSV's formula guard also looks past invisible characters (a
+  zero-width space, a soft hyphen, a word joiner, a C1 control) before `=`, `@`, `+` and `-`.
 - `toXlsx`: a row label merged over its group's rows sits at their top, as in the report; Excel drew
   it next to the group's last row ([#212](https://github.com/eizedev/pivotkit/issues/212)).
 - A file name longer than 256 UTF-16 code units is cut before a character outside the BMP (an

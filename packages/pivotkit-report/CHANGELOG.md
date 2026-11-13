@@ -37,7 +37,7 @@ First release.
   `content` of a `<meta>` takes one only for `name="description"` without `http-equiv`.
 - A host's `tokens` are left out when a value holds a line break or `url(` (also in a quoted string,
   which a line break would end), a comment or a function that is not a colour, `calc()`, `min()`,
-  `max()`, `clamp()` or `var()`. The HTML report and the SVG leave out bidi controls, as the CSV does.
+  `max()`, `clamp()` or `var()`. The HTML report and the SVG leave out bidi controls, as the CSV does (in the SVG also as numeric references).
 - The chart as SVG through ECharts' server-side renderer, checked and cleaned (`cleanSvg`): no
   script, event attribute, link or style attribute; attribute names plain names, namespaces only
   SVG's and xlink's.

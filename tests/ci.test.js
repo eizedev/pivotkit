@@ -121,9 +121,16 @@ test("ownRangeProblems finds a range or a devDependency left behind by a release
     assert.deepEqual(ownRangeProblems({ ...consistent, "pivotkit-react": at("0.5.0", { "pivotkit-core": "^0.5.0", fflate: "0.8.3" }) }), []);
 });
 
-test("every package of this repository names the others at their version in this repository", () => {
+// examples outside the workspaces that take pivotkit-core from npm, as a host does
+const EXAMPLES_FROM_NPM = ["examples/reader-plugin/package.json"];
+
+test("every package of this repository, and every example that takes it from npm, names the others at their version in this repository", () => {
     const manifests = Object.fromEntries([...OWN].map((name) => [name, JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, root), "utf8"))]));
     assert.deepEqual(ownRangeProblems(manifests), []);
+    for (const file of EXAMPLES_FROM_NPM) {
+        const example = JSON.parse(readFileSync(new URL(file, root), "utf8"));
+        assert.deepEqual(ownRangeProblems({ ...manifests, [file]: example }), [], file);
+    }
 });
 
 test("check-release refuses a package whose own dependency has unreleased changes", () => {

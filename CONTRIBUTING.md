@@ -143,8 +143,8 @@ pages: they link to the site and repeat none of it.
 The release workflow (`.github/workflows/release.yml`) publishes every package. It was set up once
 with the steps below, and a new package needs steps 2 and 3 again: a trusted publisher is configured
 in a package's settings on npm, so each package is published once by hand before the workflow takes
-over. pivotkit-report and pivotkit-cli are not on npm yet: they need steps 2 and 3 at their first
-release.
+over. A package that is not on npm yet (`npm view <package>` answers E404) needs steps 2 and 3 at
+its first release.
 
 1. Make the repository public: npm generates no provenance for private repositories (npm's
    documentation, "Generating provenance statements").
@@ -185,7 +185,8 @@ For each release:
    under the new version and date; set `version` in `packages/<package>/package.json`, and in the
    same pull request the caret range or the devDependency of every package that uses it
    (`tests/ci.test.js` fails on a range or devDependency that is not exactly the version in this
-   repository, #206); update the statements that name the current version, which `tests/ci.test.js`
+   repository, #206; `examples/reader-plugin/package.json` too, which takes pivotkit-core from npm);
+   update the statements that name the current version, which `tests/ci.test.js`
    checks against it: the pivotkit row of `docs/compare.md` (version and date) and the example's
    `generator` in `docs/reference/view-file.md`. Docs and READMEs name no other version of their own.
    Merge that pull request.

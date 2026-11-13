@@ -58,16 +58,17 @@ jobs:
           persist-credentials: false
           # a run by hand builds the tag it names; everything else its own ref (a release: below)
           ref: ${{ inputs.tag || github.ref }}
-          # a release reads the tags and main to find the newest release
-          fetch-depth: ${{ github.event_name == 'release' && '0' || '1' }}
+          # the whole history and the tags: a release finds the newest release tag on main
+          fetch-depth: 0
       - name: Newest release
         if: github.event_name == 'release'
         # the release tag nearest to main's head: every package's tags of one release sit on one commit,
-        # and release.yml publishes only commits on main
+        # and release.yml publishes only commits on main. A tag is pushed only after the one before it
+        # is published (CONTRIBUTING.md, "Releasing"), so the nearest tag is published or about to be.
         env:
           STARTED_BY: ${{ github.event.release.tag_name }}
         run: |
-          tag="$(git describe --tags --abbrev=0 --match 'pivotkit-*@*' origin/main)"
+          tag="$(git describe --tags --abbrev=0 --match 'pivotkit-*@*' origin/main)" || { echo "::error::no release tag on main"; exit 1; }
           echo "Building $tag (the run was started by the release $STARTED_BY)"
           git checkout --quiet --detach "refs/tags/$tag"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

@@ -66,12 +66,16 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         for (const dep of ownDependencies(name, read)) {
             const { version } = JSON.parse(read(`packages/${dep}/package.json`));
             let published = "";
+            let error = "";
             try {
-                published = execFileSync("npm", ["view", `${dep}@${version}`, "version"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-            } catch {
-                // E404: not published
+                published = execFileSync("npm", ["view", `${dep}@${version}`, "version"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+            } catch (e) {
+                error = String(e.stderr ?? e.message);
             }
-            if (published !== version) {
+            if (published === version) continue;
+            if (error && !/E404/.test(error)) {
+                problems.push(`${name}: npm could not tell whether ${dep} ${version} is published: ${error.trim().split("\n")[0]}`);
+            } else {
                 problems.push(`${name} depends on ${dep} ${version}, which is not on npm: publish ${dep} first (CONTRIBUTING.md, "Releasing")`);
             }
         }

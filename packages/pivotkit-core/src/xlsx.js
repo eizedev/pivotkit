@@ -14,6 +14,7 @@
  */
 
 import { strToU8, zipSync } from "fflate";
+import { BIDI_CONTROLS } from "./csv.js";
 import { DEFAULT_THEME } from "./defaults.js";
 import { checkLimit, expect } from "./errors.js";
 import { excelNumberFormat } from "./format.js";
@@ -35,6 +36,7 @@ const RESERVED_SHEET_NAMES = new Set(["history"]);
 /** Characters XML 1.0 does not allow are removed; markup characters are escaped. */
 export function xmlEscape(text) {
     return String(text)
+        .replace(BIDI_CONTROLS, "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
