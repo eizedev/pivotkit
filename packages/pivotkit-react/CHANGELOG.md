@@ -27,6 +27,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   before. The link's place in the fragment is pivotkit-core's (`linkFragment`, `withLinkFragment`).
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters and is
   at most 1,000,000 characters long (pivotkit-core's `outsideLimits`), or the host's lower limits.
+- The field list's menu has one entry for filtering, **Add to Filters**, instead of two that did almost
+  the same ([#157](https://github.com/eizedev/pivotkit/issues/157)): it opens the field's filter at
+  once, **Apply** puts the field into Filters with the choice, **Cancel** places nothing. A field on
+  Rows or Columns moves to Filters on Apply; a field in Filters opens its filter. "Filter…" is gone,
+  and with it the label `filter` (a host's text for it is ignored).
 
 ### Added
 

@@ -47,7 +47,7 @@ import { forgetData, hostIdentity, keepData, keptData } from "./data-keep.js";
 import { tagFor } from "./view-history.js";
 import { useBigResult, useFitHeight } from "./use-big-result.js";
 import {
-    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
+    addField, filterZoneFields, groupField, isEmptyView, moveField, removeAt, rowFolding, same, setChart, setChartDisplay, setCollapsed, setDisplay, setSort, setTotal, sourceOf, swapAxes, toggleCollapsed, zoneOverLimit
 } from "./view-ops.js";
 import { Zones, zoneEntries } from "./zones.jsx";
 
@@ -893,13 +893,15 @@ function Report(props) {
     );
 
     /**
-     * "Filter…" of a field not in the report: the filter of a draft that puts it into Filters (a date
-     * grouped as it would be placed), so Apply places it with the selection and Cancel changes nothing.
+     * The field list's "Add to Filters": the field's filter on a draft that puts it into Filters (a
+     * date grouped as it would be placed, a field on Rows or Columns moved), so Apply places it with
+     * the selection and Cancel changes nothing; a field in Filters already opens its own filter.
      */
-    const filterNew = useCallback(
+    const filterField = useCallback(
         (field, anchor) => {
             const options = placeOptions(field, "filters");
-            const draft = addField(view, field, "filters", options);
+            const name = options.groupName ?? field;
+            const draft = filterZoneFields(view).some((f) => same(f, name)) ? undefined : addField(view, field, "filters", options);
             // on a narrow report the field list is a drawer: it closes, the filter anchors to its button
             const opener = size === "narrow" ? /** @type {HTMLElement | null} */ (root.current?.querySelector("[data-pk-opener='fields']") ?? null) : null;
             if (size === "narrow") {
@@ -907,7 +909,7 @@ function Report(props) {
             }
             const target = opener ?? anchor;
             if (target) {
-                setFilterTarget({ field: options.groupName ?? field, anchor: target, base: draft });
+                setFilterTarget({ field: name, anchor: target, base: draft });
             }
         },
         [placeOptions, view, size]
@@ -1371,7 +1373,7 @@ function Report(props) {
                                     }
                                 }}
                                 onNote={(text) => announce(text)}
-                                onFilter={filterNew}
+                                onFilter={filterField}
                                 nameOf={nameOf}
                                 info={info}
                                 showInfo={fieldSwitch.on}
