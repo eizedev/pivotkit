@@ -60,6 +60,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   computes it ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - The error code `INVALID_TEMPLATE` for a print template pivotkit-report refuses
   ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- `closest(name, candidates)` and `HINT_LIMITS`: the bounded "did you mean" of the view's hints, for
+  pivotkit-report's template check and pivotkit-cli's options. An unknown view key that other pivot
+  tools use (`columns`, `measures`, `filter`) names the view's own (`cols`, `values`, `filters`); a
+  filter without a type lists the types ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - Relative date ranges ([#165](https://github.com/eizedev/pivotkit/issues/165)): `direction` (`last`,
   `next`, `this`, `before`), `calendar` (whole units, or rolling from now), `includeCurrent`, the
   units `hour`, `week` and `quarter` besides `day`, `month` and `year`, and `anchor` `"first"` or a

@@ -460,7 +460,7 @@ function filtersSection(raw, view, ctx) {
         }
         if (!def) {
             const renamed = typeof type === "string" && Object.hasOwn(FILTER_TYPES_V1, type) ? { suggestion: FILTER_TYPES_V1[type] } : suggest(type, Object.keys(FILTERS));
-            return ctx.issue(path, `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...renamed });
+            return ctx.issue(path, type === undefined ? `a filter needs a type: one of ${Object.keys(FILTERS).join(", ")}` : `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...renamed });
         }
         ctx.keys(flt, def.keys, path);
         if (!fieldKinds(f, view).some((kind) => def.fields.includes(kind))) {
