@@ -255,7 +255,7 @@ The events whose line in the table ends in "More", in full.
 
 `detail`: `{ kind, fileName, blob, text, rows }`.
 
-Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"png"`, `"json"` for the view file of "Download view"; the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). Not sent for an empty report (no field placed): its Export entries are greyed out ("Add a field first.").
+Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"html"`, `"png"`, `"svg"`, `"json"` for the view file of "Download view"; `"print"`, the HTML report before the print dialog opens (`preventDefault()` prints nothing); the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). Not sent for an empty report (no field placed): its Export entries are greyed out ("Add a field first.").
 
 ### `pivot-source-switch` { #event-pivot-source-switch }
 
