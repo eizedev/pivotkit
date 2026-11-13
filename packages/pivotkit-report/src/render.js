@@ -67,6 +67,9 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {boolean} [bom]  csv: start with a byte order mark, so Excel reads it as UTF-8 (default true)
  */
 
+/** @type {Readonly<Record<string, ReadonlyArray<unknown>>>} The options that take one of a few values. */
+const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false] });
+
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
 const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom"]);
 
@@ -148,6 +151,13 @@ export async function render(view, data, options = {}) {
     // a template is checked before any work
     const template = format === "html" ? parseTemplate(options.template ?? DEFAULT_TEMPLATE) : null;
     const size = format === "svg" || format === "html" ? sizeOf(options.size) : null;
+    // options that take one of a few values: anything else (a CLI's "on") would be read as the default
+    for (const [key, allowed] of Object.entries(OPTION_VALUES)) {
+        const value = /** @type {Record<string, unknown>} */ (options)[key];
+        if (value !== undefined && !allowed.includes(value)) {
+            throw badOption(key, `${key} takes ${allowed.map((v) => JSON.stringify(v)).join(", ")}, not ${JSON.stringify(String(value)).slice(0, 40)}`);
+        }
+    }
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }

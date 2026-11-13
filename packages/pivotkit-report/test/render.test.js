@@ -176,6 +176,20 @@ test("options are checked: an unknown format, a chart size out of range, SVG wit
     await assert.rejects(render(BY_REGION, SALES, { format: "svg", echarts, size: { width: REPORT_LIMITS.chartWidth + 1 } }), option("size"));
     await assert.rejects(render(BY_REGION, SALES, { format: "svg" }), option("echarts"));
     await assert.rejects(render(BY_REGION, SALES, { format: "html", now: "yesterday" }), option("now"));
+    // a misspelt option is refused with the closest name, not ignored
+    await assert.rejects(render(BY_REGION, SALES, { fromat: "csv" }), (e) => option("fromat")(e) && /did you mean "format"\?/.test(e.message));
+    // an option of a few values takes only those: "on" is not read as the default
+    await assert.rejects(render(BY_REGION, SALES, { format: "html", chart: "on" }), option("chart"));
+    await assert.rejects(render(BY_REGION, SALES, { format: "html", chartEmbed: "svg" }), option("chartEmbed"));
+    await assert.rejects(render(BY_REGION, SALES, { format: "csv", bom: "no" }), option("bom"));
+});
+
+test("CSV: a byte order mark by default, none with bom: false", async () => {
+    const withBom = await render(BY_REGION, SALES, { format: "csv", ...FIXED });
+    const without = await render(BY_REGION, SALES, { format: "csv", bom: false, ...FIXED });
+    assert.deepEqual([...withBom.body.slice(0, 3)], [0xef, 0xbb, 0xbf]);
+    assert.equal(new TextDecoder().decode(without.body.slice(0, 6)), "Region");
+    assert.deepEqual(without.body, withBom.body.slice(3));
 });
 
 test("a limit throws PivotkitError LIMIT_EXCEEDED before the work", async () => {

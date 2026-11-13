@@ -55,6 +55,13 @@ test("cleanSvg refuses what a chart never draws, and turns style attributes into
     refuses("<text>a < b</text>", "markup");
     refuses("<text>a & b</text>", "escaped");
     refuses("<a><text>x</text></a>", "<a>");
+    // an attribute's name is a plain name: a quote in it would end up as markup in a stand-alone SVG
+    refuses('<g a"onload="alert(1)"></g>', "attribute name");
+    refuses("<g a<b=\"1\"></g>", "attribute name");
+    // only SVG's own namespace and xlink's: no XHTML elements inside the chart
+    refuses('<g xmlns="http://www.w3.org/1999/xhtml"><title>x</title></g>', "namespace xmlns");
+    refuses('<g xmlns:h="http://www.w3.org/1999/xhtml"></g>', "namespace xmlns:h");
+    assert.ok(cleanSvg(svg('<g xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve"></g>')).includes('xmlns:xlink="http://www.w3.org/1999/xlink"'));
     assert.throws(() => cleanSvg('<svg xmlns="http://www.w3.org/2000/svg"><g>'), (e) => e.details.reason.includes("not closed"));
     const clean = cleanSvg(svg('<text style="font-size:12px;font-family:Arial;cursor:pointer;fill:url(https://x)" x="1">a &amp; b</text><style>.x:hover{}</style><rect fill="url(#g1)"/>'));
     assert.equal(clean, '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><text x="1" font-size="12px" font-family="Arial">a &amp; b</text><rect fill="url(#g1)"></rect></svg>'.replace("<rect fill=\"url(#g1)\"></rect>", '<rect fill="url(#g1)"/>'));

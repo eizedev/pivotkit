@@ -20,4 +20,8 @@ First release.
 - The print template (`pivotkit-report/template`): `{{placeholders}}` from a fixed table, allowed in
   text and a few attributes only, checked before anything is rendered (`INVALID_TEMPLATE`).
 - The chart as SVG through ECharts' server-side renderer, checked and cleaned (`cleanSvg`): no
-  script, event attribute, link or style attribute.
+  script, event attribute, link or style attribute; attribute names plain names, namespaces only
+  SVG's and xlink's.
+- Options are checked: an unknown one is refused with the closest name, an option of a few values
+  (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
+  `echarts` is an error. `bom: false` writes CSV without a byte order mark.
