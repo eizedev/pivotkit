@@ -24,8 +24,8 @@ MIT · Excel-like pivot in the browser · views as [safe](security.md) JSON · n
 
 </div>
 
-![The pivot report in the light theme with real weather data: field list on the left, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](assets/screenshots/report-light.png#only-light)
-![The pivot report in the dark theme with real weather data: field list on the left, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](assets/screenshots/report-dark.png#only-dark)
+![The pivot report: average temperature of 14 cities by month as a colour scale](assets/screenshots/report-light.png#only-light)
+![The pivot report in the dark theme: average temperature of 14 cities by month as a colour scale](assets/screenshots/report-dark.png#only-dark)
 
 <small>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information ([attribution](learn.md#query-it-live)).</small>
 
@@ -101,7 +101,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - Every file and every copy passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
 - Reports without a browser: `render()` writes JSON, CSV, XLSX, SVG or a printable HTML report from a template ([pivotkit-report](reference/report.md)); the command line `pivotkit` renders, validates and describes views in CI ([pivotkit-cli](reference/cli.md)).
 - Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)); every text replaceable, English and German built in ([localisation](reference/localisation.md)).
-- Measured up to 1,000,000 rows in three browsers ([measured in the browser](concepts/limits.md#measured-in-the-browser)); heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
+- Measured up to 1,000,000 rows in three browsers on an Apple M4 ([measured in the browser](concepts/limits.md#measured-in-the-browser)); heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
 
 </div>
 
@@ -116,7 +116,7 @@ stronger: [Comparison](compare.md).
 - **Measured up to 1,000,000 rows** in Chromium, Firefox and WebKit: typed columns, no object per row
   in the hot loops. The first table took about 0.15 s at 100,000 rows and 1 to 2.5 s at a million
   (the page is frozen while it is built), a change after it about 0.15 s at most, on one Mac
-  ([measured in the browser](concepts/limits.md#measured-in-the-browser)).
+  (Apple M4, 16 GB; [measured in the browser](concepts/limits.md#measured-in-the-browser)).
 - **Safe input**: a view is user input. It holds names only (and the values chosen in its filters), cannot run code and is checked against
   limits before anything big is allocated. Exports are safe to open. Not access control: send only
   the rows a viewer may see. See [Security](security.md).
