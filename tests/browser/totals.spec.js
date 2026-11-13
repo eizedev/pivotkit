@@ -2,6 +2,8 @@
 // number, the toggles that still fold), the column subtotals off by default with their tip, title
 // and edge, and the Options switches that change nothing (disabled, no tick). Issues #155 and #156;
 // every test here fails without its fix.
+import { toViewFile } from "pivotkit-core";
+import { encodeViewLink } from "pivotkit-core/link";
 import { chipMenu, chips, expect, tableRows, test, toolbar } from "./fixtures.js";
 
 /** Adds a field to a zone through its menu in the field list, as a person does without dragging. */
@@ -41,6 +43,18 @@ test("text fields in Rows without values: the labels alone, no empty column, no 
         await expect(sw).toHaveAttribute("aria-checked", "false");
         await expect(page.getByTestId(`total-${key}-reason`)).toHaveText("Needs a field in Values.");
     }
+});
+
+test("labels without a value column take the report's width on a phone: a team's name stays whole", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const link = encodeViewLink(toViewFile({ rows: ["Team", "Priority"] }, {}, { link: true }));
+    await page.goto(`?data=tickets&empty#pivot-playground=${link}`);
+    const label = page.locator('[data-testid="pivot-table"] tbody th .pk-th-text', { hasText: "Applications" });
+    await expect(label).toBeVisible();
+    const lines = await label.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+    expect(lines).toBe(1);
+    // nothing scrolls sideways
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test("column subtotals are off by default; switched on, a tip and the header's title say what they add up, and the tip hides them", async ({ page }) => {

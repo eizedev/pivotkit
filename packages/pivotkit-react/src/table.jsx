@@ -487,7 +487,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                 </span>
             ) : null}
             {/* --pk-row-cols: the row label columns share at most 40 % of the width (styles.css) */}
-            <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
+            <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}${grid.columnCount === grid.rowHeaderColumns ? " pk-labels-only" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
                     {grid.rows.slice(0, grid.headerRows).map((row, r) => (
                         <tr key={r}>{row.map((cell, c) => (cell ? headerCell(cell, r, c) : null))}</tr>

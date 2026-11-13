@@ -2582,7 +2582,8 @@
 }
 
 /* A long row label wraps instead of pushing every value out of view on a phone: the row label
-   columns (and the field names above them) share at most 40 % of the main area's width, each at
+   columns (and the field names above them) share at most 40 % of the main area's width (85 % without
+   a value column), each at
    least 5.5em, and a value's name wraps beyond 30 %. A virtual table needs rows of one height (2.45em,
    too low for two lines of 1.45), so there a row label is cut with an ellipsis; its full text is the
    cell's title and, for a tapped label or a focused value, the status line (table.jsx: onRowLabel). */
@@ -2590,7 +2591,12 @@
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
     width: max-content;
-    max-width: max(5.5em, calc(40cqi / var(--pk-row-cols, 1)));
+    max-width: max(5.5em, calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)));
+}
+
+/* labels without a value column next to them (fields in Rows alone) take the report's width */
+.pk-table.pk-labels-only {
+    --pk-row-share: 85cqi;
 }
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {

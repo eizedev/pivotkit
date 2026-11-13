@@ -140,7 +140,8 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 
 - A collapsed column group shows only its total: one column under the group's name.
 - Fields in Rows without a value show their labels only: no empty column after them and no total
-  rows, since a total would have no number. The arrows still collapse the groups.
+  rows, since a total would have no number. The labels take most of the report's width then, so on a
+  phone a name stays whole. The arrows still collapse the groups.
 - Field names and value names in the header can be dragged into a zone. A click on a value's name
   or on a field's name in Rows sorts the rows ([sort with a click on a header](filters.md#sort-with-a-click-on-a-header)).
 - With one value, its name stands once over all of its columns.

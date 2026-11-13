@@ -10,7 +10,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - The table follows pivotkit-core's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals off in a new report,
   no empty column and no total rows for fields in Rows without a value, no subtotal for a group of
-  one item (its arrow stays).
+  one item (its arrow stays). Labels without a value column next to them take up to 85 % of the
+  report's width instead of 40 %, so a name on a phone is not broken inside a word.
 - A subtotal column is set apart from its group: a line before it (`--pk-border-strong`) and a
   slightly darker `--pk-total` (light `#eef1f5`, dark `#21252d`; text on it 14.9:1 and 12.8:1, the
   muted header text 5.4:1 and 6.6:1), and its header's tooltip says what it adds up ([#156](https://github.com/eizedev/pivotkit/issues/156)).
