@@ -58,8 +58,8 @@ export const CHART_COLORS = 8;
 /**
  * The theme of toEChartsOption and toXlsx from the --pk-* tokens of a report: the computed style of a
  * report's root, or any object with getPropertyValue (a map of tokens, as pivotkit-report passes).
- * A token missing, or not what the chart can read (a weight as a keyword, a title size not in px),
- * keeps DEFAULT_THEME's value. pivotkit-react resolves the title size to px first (chart-decorate.js, chartStyle).
+ * A token missing, or not what the chart can read (a weight as a keyword, a size not in px), keeps
+ * DEFAULT_THEME's value. pivotkit-react resolves the sizes to px first (chart-decorate.js, chartStyle).
  * @param {{ getPropertyValue(name: string): string }} style
  * @returns {import("./chart.js").ChartTheme}
  */
@@ -89,6 +89,10 @@ export function chartThemeFrom(style) {
     const title = pxOf(v("--pk-chart-title-size"));
     if (title !== null && title >= 1) {
         theme.titleSize = title;
+    }
+    const text = pxOf(v("--pk-chart-text-size"));
+    if (text !== null && text >= 1) {
+        theme.textSize = text;
     }
     const low = v("--pk-heat-low");
     const high = v("--pk-heat-high");

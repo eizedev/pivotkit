@@ -119,7 +119,7 @@ test("the report's stylesheet takes its font sizes from the tokens, and a host's
     const sizes = { "--pk-font-size": "15px", "--pk-small": "14.5px", "--pk-report-title-size": "26px", "--pk-print-size": "11pt", "--pk-print-small": "8pt" };
     const r = await render(view, wide, { format: "html", tokens: sizes });
     const style = r.text.slice(r.text.indexOf("<style>"), r.text.indexOf("</style>"));
-    const literal = [...style.matchAll(/(?:font-size|[{;]font):\s*([^;}]+)/g)].map((m) => m[0]).filter((d) => !/:\s*var\(--pk-[a-z-]+\)/.test(d));
+    const literal = [...style.matchAll(/(?<![\w-])(?:font-size|font):\s*([^;}]+)/g)].map((m) => m[0]).filter((d) => !/:\s*var\(--pk-[a-z-]+\)/.test(d));
     assert.deepEqual(literal, [], "no literal font size");
     for (const [name, value] of Object.entries(sizes)) assert.ok(style.includes(`${name}:${value}`), name);
     // the defaults: 14 px text, a 20 px title, details never below 14 px, 10 pt and 7 pt on paper

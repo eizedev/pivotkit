@@ -101,6 +101,7 @@ export function toSeries(result, options) {
  * @property {string} [fontFamily]
  * @property {number} [strongWeight]    font weight of the title and the group labels, default 600
  * @property {number} [titleSize]       font size of the title in px, default 16
+ * @property {number} [textSize]        font size of every other text (axes, legend, labels) in px, default 14
  * @property {string[]} [colorScale]     a colour scale whose view names none (low, an optional middle, high), for toXlsx
  * @property {string} [dataBar]          data bars whose view names no colour, for toXlsx
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
@@ -179,7 +180,7 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
             axisLine: { show: false },
             // the separators: from this axis to the main one, at the first category of each group
             axisTick: { show: true, inside: true, length: GROUP_AXIS_OFFSET, interval: (i) => i > 0 && starts[i] === true, lineStyle: axisLine.lineStyle },
-            axisLabel: { color: theme.textColor, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight, interval: (i) => middles.has(i) },
+            axisLabel: { color: theme.textColor, fontSize: theme.textSize ?? DEFAULT_THEME.textSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight, interval: (i) => middles.has(i) },
             axisPointer: { show: false },
             splitLine: { show: false },
             groups: true,
@@ -246,7 +247,10 @@ export function toEChartsOption(result, options) {
     const first = s.series[0];
     const fmt = formatterFor(first ? first.format : "number", locale);
     const compact = formatterFor(first && /^percent/.test(first.format) ? first.format : "compact", locale);
-    const textStyle = { color: theme.textColor, fontFamily: theme.fontFamily };
+    // every text but the title at the theme's size: ECharts' own is 12 px, and its axis labels do not
+    // take the option's textStyle, so each one names its size (axisText)
+    const textStyle = { color: theme.textColor, fontFamily: theme.fontFamily, fontSize: theme.textSize ?? DEFAULT_THEME.textSize };
+    const axisText = { color: textStyle.color, fontSize: textStyle.fontSize };
     const axisLine = { lineStyle: { color: theme.axisColor } };
     const base = {
         backgroundColor: theme.backgroundColor ?? "transparent",
@@ -327,8 +331,8 @@ export function toEChartsOption(result, options) {
             // no split areas: ECharts paints them light grey whatever the theme, so the empty cells
             // would be the brightest part of a dark chart; an empty cell shows the background
             // every column is labelled (interval 0): ECharts would otherwise hide every second name
-            xAxis: { type: "category", data: columns.map((c) => c.name), axisLine, axisLabel: { color: theme.textColor, interval: 0 }, splitArea: { show: false } },
-            yAxis: { type: "category", data: s.categories, axisLine, axisLabel: { color: theme.textColor }, splitArea: { show: false } },
+            xAxis: { type: "category", data: columns.map((c) => c.name), axisLine, axisLabel: { ...axisText, interval: 0 }, splitArea: { show: false } },
+            yAxis: { type: "category", data: s.categories, axisLine, axisLabel: { ...axisText }, splitArea: { show: false } },
             visualMap: {
                 min: data.length ? min : 0,
                 max: data.length ? max : 1,
@@ -350,11 +354,11 @@ export function toEChartsOption(result, options) {
     const type = chart.type === "line" || chart.type === "area" ? "line" : "bar";
     const groups = groupAxisOf(s, result.view.rows.length, chart, { separator: options.separator ?? " / ", axisLine, theme });
     // with group labels the axis names each category by its inner levels, the group axis the outer one
-    const categoryAxis = { type: "category", data: groups ? groups.leaves : s.categories, axisLine, axisLabel: { color: theme.textColor } };
+    const categoryAxis = { type: "category", data: groups ? groups.leaves : s.categories, axisLine, axisLabel: { ...axisText } };
     const valueAxis = {
         type: "value",
         axisLine,
-        axisLabel: { color: theme.textColor, formatter: (v) => compact(v) },
+        axisLabel: { ...axisText, formatter: (v) => compact(v) },
         splitLine: { lineStyle: { color: theme.gridColor } }
     };
     // value labels: at the end of a bar, inside a stacked one, above a point of a line

@@ -153,17 +153,18 @@ function xlsxTheme(root) {
 
 /**
  * The tokens of an HTML report and an SVG from the report's root: the light theme's (report-run.js's
- * REPORT_TOKENS) in either theme, and the chart's lengths in px (the chart's module).
+ * REPORT_TOKENS) in either theme, and the chart's lengths and the report's font sizes in px (the
+ * chart's module resolves them: LENGTH_TOKENS, report-run.js's REPORT_LENGTHS).
  * @param {HTMLElement | null} root
- * @param {readonly string[]} names
+ * @param {{ REPORT_TOKENS: readonly string[], REPORT_LENGTHS: readonly string[] }} report
  * @param {{ LENGTH_TOKENS: readonly string[], tokenLengths: (root: HTMLElement, names: readonly string[]) => Record<string, string> }} chart
  * @returns {Record<string, string> | undefined}
  */
-function reportTokens(root, names, chart) {
+function reportTokens(root, report, chart) {
     if (!root) {
         return undefined;
     }
-    const tokens = lightTokens(root, names, () => chart.tokenLengths(root, chart.LENGTH_TOKENS));
+    const tokens = lightTokens(root, report.REPORT_TOKENS, () => chart.tokenLengths(root, [...chart.LENGTH_TOKENS, ...report.REPORT_LENGTHS]));
     return Object.keys(tokens).length ? tokens : undefined;
 }
 
@@ -218,7 +219,7 @@ export async function runExport(kind, { fileName, result, locale, labels, limits
                 ...(title ? { title } : {}),
                 ...(source ? { source } : {}),
                 ...(size ? { size } : {}),
-                tokens: reportTokens(root.current, report.REPORT_TOKENS, echarts),
+                tokens: reportTokens(root.current, report, echarts),
                 chartEmbed: kind === "print" ? "inline" : "image"
             });
             const file = `${base}.${kind === "svg" ? "svg" : "html"}`;

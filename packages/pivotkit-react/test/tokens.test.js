@@ -226,7 +226,7 @@ test("styles.css: every --pk-* token a rule uses is declared in the token block"
     const optional = new Set(["--pk-font", "--pk-scale-mid"]);
     const used = new Set([...css.matchAll(/var\((--pk-[a-z0-9-]+)/g)].map((m) => m[1]));
     for (const name of used) {
-        if (/^--pk-(radius|font-mono|focus-|ring-|chart-title)/.test(name) && !optional.has(name)) {
+        if (/^--pk-(radius|font-mono|focus-|ring-|chart-title|chart-text)/.test(name) && !optional.has(name)) {
             assert.ok(declared.has(name), `${name} is used but has no default in :where(.pk-root)`);
         }
     }

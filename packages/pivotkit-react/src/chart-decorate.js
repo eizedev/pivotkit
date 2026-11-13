@@ -25,10 +25,11 @@ export function decorate(option, style, height = 480, doc = undefined, width = 8
 }
 
 /**
- * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption). A computed custom
- * property keeps the calc(), max() and em it was written with, so the report resolves them first.
+ * The tokens the chart reads as lengths in px (chartThemeFrom, decorateOption): the title's and the
+ * other text's size, the marks' corners. A computed custom property keeps the calc(), max() and em it
+ * was written with, so the report resolves them first.
  */
-export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-radius-chart"]);
+export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-chart-text-size", "--pk-radius-chart"]);
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root

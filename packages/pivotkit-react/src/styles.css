@@ -42,9 +42,10 @@
     --pk-radius-chart: var(--pk-radius-xs);
     /* the code font of the JSON text field (a view or a template pasted) */
     --pk-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    /* the chart's title: as large as the report's text, at least 16 px (chart-decorate.js resolves it
-       to px) */
+    /* the chart's title: as large as the report's text, at least 16 px; the chart's other text (axes,
+       legend, labels): secondary text, at least 14 px (chart-decorate.js resolves both to px) */
     --pk-chart-title-size: max(16px, var(--pk-font-size));
+    --pk-chart-text-size: var(--pk-small);
     /* the focus ring: its width and its gap to the control (inside a list, a cell or a segmented
        button it sits inside the control, as wide); the soft ring around a focused text field and a zone
        a field is dragged over */

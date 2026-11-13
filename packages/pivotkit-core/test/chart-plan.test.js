@@ -97,8 +97,8 @@ test("chartThemeFrom: the text's size in px, else DEFAULT_THEME's; toEChartsOpti
     const names = Array.from({ length: 10 }, (_, i) => `Name ${i}`);
     assert.equal(categoryLabelLayout(names, { width: 640, height: 400, fontSize: 12 }).rotate, 0);
     assert.equal(categoryLabelLayout(names, { width: 640, height: 400, fontSize: 20 }).rotate, 45);
-    assert.equal(columnLabelLayout(names, 760, 12).rotate, 0);
-    assert.equal(columnLabelLayout(names, 760, 20).rotate, 45);
+    assert.equal(columnLabelLayout(names, 700, 12).rotate, 0);
+    assert.equal(columnLabelLayout(names, 700, 20).rotate, 45);
     // a row of 15 px holds a line of 12 px text, not one of 20 px
     assert.equal(rowLabelInterval(10, 120 + 10 * 17, 12), 0);
     assert.ok(rowLabelInterval(10, 120 + 10 * 17, 20) > 0);
@@ -108,6 +108,6 @@ test("chartThemeFrom: the text's size in px, else DEFAULT_THEME's; toEChartsOpti
     assert.equal(ringLabelsFit(["42%", "70%"], { width: 300, height: 300 }, ["12.5%"], 20), false);
     const bars = computePivot(data, { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" } });
     const rotateAt = (textSize, width) => decorateOption(toEChartsOption(bars, { theme: { textSize } }), { getPropertyValue: () => "" }, { width, height: 300 }).xAxis.axisLabel.rotate;
-    // three names ("(blank)" the longest, 7 characters) in 80 + 3 * 60 px: straight at 12 px, slanted at 20 px
-    assert.deepEqual([rotateAt(12, 260), rotateAt(20, 260)], [0, 45]);
+    // four regions ("(blank)" the longest, 7 characters) in 80 + 4 * 60 px: straight at 12 px, slanted at 20 px
+    assert.deepEqual([rotateAt(12, 320), rotateAt(20, 320)], [0, 45]);
 });

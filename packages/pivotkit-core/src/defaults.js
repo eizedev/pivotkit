@@ -5,7 +5,7 @@
  * styles.css): the colour scale its --pk-heat-low and --pk-heat-high, light for low and strong for
  * high, so it says "more", not "good" or "bad" (Excel's red, yellow, green reads the wrong way round
  * for a temperature or a cost); the data bars its --pk-chart-1; the sizes its --pk-chart-title-size,
- * --pk-radius-chart and --pk-radius-card at a 16 px font.
+ * --pk-chart-text-size, --pk-radius-chart and --pk-radius-card at the least font size, 14 px.
  */
 
 export const DEFAULT_THEME = Object.freeze({
@@ -17,6 +17,8 @@ export const DEFAULT_THEME = Object.freeze({
     strongWeight: 600,
     /** font size of a chart's title, px */
     titleSize: 16,
+    /** font size of a chart's other text (axes, legend, labels), px: the 14 px minimum */
+    textSize: 14,
     /** corner radius of a chart's bars and pie slices, px (a heatmap's cells three quarters of it) */
     markRadius: 4,
     /** corner radius of a chart's tooltip, px */

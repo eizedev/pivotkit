@@ -32,8 +32,9 @@ test("SVG: hostile category and series names are text nodes; no script, handler,
         assert.ok(!tag.attributes.some((a) => a.startsWith("on") || a === "style" || a === "href" || a === "xlink:href"), `attributes of <${tag.name}>: ${tag.attributes}`);
     }
     const texts = svgTexts(r.text);
-    // ECharts cuts a long category name; the name is a text node, read back as written
-    assert.ok(texts.includes("<script>alert(1)</scr..."), "the category name is a text node");
+    // ECharts cuts a long category name (where depends on the text's size); the name is a text node,
+    // read back as written
+    assert.ok(texts.some((t) => t.startsWith("<script>alert(1)</") && t.endsWith("...")), "the category name is a text node");
     assert.ok(texts.includes('Sum of "><img src=x onerror=alert(1)>'), "the series name is a text node");
     // a control character XML does not allow would make the whole SVG unreadable: it is left out
     assert.ok(texts.includes("]8;;http://xESC"));

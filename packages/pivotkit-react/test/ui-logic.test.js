@@ -194,8 +194,11 @@ test("the compact layout's one line names every zone with fields, rows first", (
 
 test("a donut's numbers fit inside its ring only when the ring is wide enough for them", () => {
     const texts = ["32.3%", "10.7%"];
-    // 42 % to 70 % of half of 300 px: a ring of 42 px holds "32.3%" (about 35 px with its room)
-    assert.equal(ringLabelsFit(["42%", "70%"], { width: 330, height: 300 }, texts), true);
+    // 42 % to 70 % of half of 360 px: a ring of 50 px holds "32.3%" at 14 px (about 45 px with its room);
+    // one of 42 px (300 px) does not, at 12 px it would
+    assert.equal(ringLabelsFit(["42%", "70%"], { width: 390, height: 360 }, texts), true);
+    assert.equal(ringLabelsFit(["42%", "70%"], { width: 330, height: 300 }, texts), false);
+    assert.equal(ringLabelsFit(["42%", "70%"], { width: 330, height: 300 }, texts, 12), true);
     // the box left by a legend on the right of a phone's chart: a ring of about 24 px does not
     assert.equal(ringLabelsFit(["42%", "70%"], { width: 170, height: 300 }, texts), false);
     // a pie has room from its centre
@@ -313,8 +316,11 @@ test("chart tooltips are nodes with texts and CSSOM styles, never markup", () =>
 
 test("heatmap column names: straight when they fit, slanted and cut when they would overlap", () => {
     const names = ["App", "Database", "Device", "Framework", "Language", "Operating system", "Server app", "Service", "Standard"];
-    // the chart of a report 1440 px wide is about 1100 px
-    assert.deepEqual(columnLabelLayout(names, 1100), { rotate: 0 });
+    // "Operating system" at 14 px takes about 123 px: straight from a chart of about 1200 px; the chart
+    // of a report 1440 px wide (about 1100 px) slants them, at 12 px it would not
+    assert.deepEqual(columnLabelLayout(names, 1200), { rotate: 0 });
+    assert.deepEqual(columnLabelLayout(names, 1100), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });
+    assert.deepEqual(columnLabelLayout(names, 1100, 12), { rotate: 0 });
     assert.deepEqual(columnLabelLayout(names, 390), { rotate: 45, width: SLANTED_LABEL_WIDTH, overflow: "truncate" });
     assert.deepEqual(columnLabelLayout(["2024", "2025"], 390), { rotate: 0 });
     assert.deepEqual(columnLabelLayout([], 390), { rotate: 0 });
@@ -324,8 +330,11 @@ test("heatmap cells show their numbers only when the formatted numbers fit", () 
     const counts = ["4", "37", "487"];
     // 9 columns of about 113 px and 15 rows of 21 px: counts fit
     assert.equal(heatmapCellLabels(9, 15, 1100, 440, counts), true);
-    // a phone: 29 px wide cells hold "487" (20 px) but not "1,234.5" or "-12.3%" (46 px, 40 px)
-    assert.equal(heatmapCellLabels(9, 15, 340, 440, counts), true);
+    // a phone: 29 px wide cells at 14 px hold "37" (15 px and its room) but not "487" (23 px), nor
+    // "1,234.5" or "-12.3%" (54 px, 46 px)
+    assert.equal(heatmapCellLabels(9, 15, 340, 440, ["4", "37"]), true);
+    assert.equal(heatmapCellLabels(9, 15, 340, 440, counts), false);
+    assert.equal(heatmapCellLabels(9, 15, 340, 440, counts, 12), true);
     assert.equal(heatmapCellLabels(9, 15, 340, 440, ["1,234.5"]), false);
     assert.equal(heatmapCellLabels(9, 15, 340, 440, ["-12.3%"]), false);
     assert.equal(heatmapCellLabels(3, 15, 340, 440, ["1,234.5"]), true);
@@ -335,12 +344,13 @@ test("heatmap cells show their numbers only when the formatted numbers fit", () 
 });
 
 test("heatmap row names: every one when a line fits each row, else every n-th", () => {
-    // 15 rows in 440 px: 21 px each
+    // a line of 14 px text takes 19 px: 15 rows in 440 px, 21 px each, hold every name
     assert.equal(rowLabelInterval(15, 440), 0);
     // 15 rows in 300 px: 12 px each, every second name
     assert.equal(rowLabelInterval(15, 300), 1);
-    // 45 rows in 300 px: 4 px each, every fourth
-    assert.equal(rowLabelInterval(45, 300), 3);
+    // 45 rows in 300 px: 4 px each, every fifth (every fourth at 12 px, a line of 16 px)
+    assert.equal(rowLabelInterval(45, 300), 4);
+    assert.equal(rowLabelInterval(45, 300, 12), 3);
     assert.equal(rowLabelInterval(0, 300), 0);
 });
 

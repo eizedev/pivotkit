@@ -76,14 +76,32 @@ export const SHAPE_TOKENS = Object.freeze({
 });
 
 /**
+ * The report's font sizes, the same in both themes: its text (--pk-font-size, 14 px, the report's own
+ * default: pivotkit-react's follows the page, at least 14 px, and its Export menu passes it in px),
+ * secondary text (--pk-small, pivotkit-react's: the details, never below 14 px), the title (20 px at a
+ * 14 px text) and the printed text, in pt on paper: the table and, for a very wide table, the smaller
+ * size (PRINT_WIDE.small, never below 7 pt). A host passes its own as `tokens`.
+ */
+export const SIZE_TOKENS = Object.freeze({
+    "--pk-font-size": "14px",
+    "--pk-small": "max(14px, 0.93em)",
+    "--pk-report-title-size": "calc(var(--pk-font-size) * 10 / 7)",
+    "--pk-print-size": "10pt",
+    "--pk-print-small": "7pt"
+});
+
+/**
  * The report's font: the system's, as the screen's report inherits from most hosts. Without quotes
  * (names of several words are valid unquoted): ECharts 6.1 writes a font into an SVG's style attribute
  * without escaping its quotes, which would end the attribute.
  */
 export const REPORT_FONT = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif";
 
-/** A token value is written into CSS only when it holds no character that could end the rule. */
-const SAFE_VALUE = /^[#\w\s.,%()/+-]*$/;
+/**
+ * A token value is written into CSS only when it holds no character that could end the rule, and no
+ * comment (a calc()'s * and / are kept apart from each other).
+ */
+const SAFE_VALUE = /^(?!.*(\/\*|\*\/))[#\w\s.,%()/*+-]*$/;
 /**
  * The CSS functions a token may call: colours, a shadow's lengths and other tokens. Any other, url(),
  * image-set() or src() among them, could load a resource where a report loads none.
@@ -102,7 +120,7 @@ function safeValue(value) {
  * @returns {{ getPropertyValue(name: string): string }}
  */
 export function tokenStyle(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
+    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...SIZE_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
     // the chart's font without quotes (see REPORT_FONT)
     all["font-family"] = all["font-family"].replace(/["']/g, "");
     return { getPropertyValue: (name) => (Object.hasOwn(all, name) ? all[name] : "") };

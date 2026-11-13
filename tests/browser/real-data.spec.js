@@ -242,8 +242,15 @@ test.describe("software end of life", () => {
     test("the products with the most supported release cycles, top 10", async ({ page }) => {
         await open(page, "data=endoflife&preset=1");
         const ranked = Object.entries(Object.groupBy(eol.filter((x) => x.Maintained), (x) => x.Product)).sort((a, b) => b[1].length - a[1].length);
-        const rows = await tableRows(page);
-        expect(rows.map((r) => r[0])).toEqual([...ranked.slice(0, 10).map(([p]) => p), "Grand Total"]);
+        // the end-of-life data loads as a chunk of its own after the report: the table is polled until
+        // it shows the ten products (#224)
+        let rows = [];
+        await expect
+            .poll(async () => {
+                rows = await tableRows(page);
+                return rows.map((r) => r[0]);
+            }, { message: "the top 10 products and the grand total in the table" })
+            .toEqual([...ranked.slice(0, 10).map(([p]) => p), "Grand Total"]);
         const oldest = ranked[0][1].map((x) => x.Released).sort()[0];
         expect(rows[0].slice(1)).toEqual([int(ranked[0][1].length), usDate(oldest)]);
         await expect(page.getByTestId("tip-top")).toContainText("Product shows the top 10 only");
