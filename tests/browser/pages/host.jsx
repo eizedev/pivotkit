@@ -42,6 +42,11 @@ function Host() {
     const [empty, setEmpty] = useState(false);
     // ?asyncecho: the views on their way back
     const echoes = useRef(new Set());
+    const manual = useRef([]);
+    useEffect(() => {
+        window.__echoNext = () => setView(manual.current.shift());
+        return () => { delete window.__echoNext; };
+    }, []);
     const remount = () => {
         echoes.current.forEach(clearTimeout);
         echoes.current.clear();
@@ -67,7 +72,9 @@ function Host() {
     }, [empty]);
     const onViewChange = (next) => {
         window.__order.push("view");
-        if (query.has("asyncecho")) {
+        if (query.has("manualecho")) {
+            manual.current.push(next);
+        } else if (query.has("asyncecho")) {
             const t = setTimeout(() => {
                 echoes.current.delete(t);
                 setView(next);

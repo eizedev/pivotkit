@@ -125,6 +125,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   its light theme for the export, without a transition or a frame in between, also inside
   pivotkit-element. Before, they got pivotkit-core's and pivotkit-report's defaults. The HTML report
   takes a host's `--pk-scale-mid` too ([#217](https://github.com/eizedev/pivotkit/issues/217)).
+- A change made while a controlled host is still passing back an earlier view (a host whose view
+  goes through its server) builds on the report's own history, also when some of the earlier views
+  have come back in between: Undo takes back the user's steps one by one and records no "change
+  from outside" ([#141](https://github.com/eizedev/pivotkit/issues/141)).
 - The Excel export writes a colour scale and data bars in the theme's colours the report resolves
   from its tokens (`--pk-scale-low`, `--pk-scale-mid`, `--pk-scale-high`, `--pk-chart-1`), so a
   theme of the host's carries over; a dark report writes the light theme's colours. Before, the

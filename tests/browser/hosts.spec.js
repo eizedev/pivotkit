@@ -1,6 +1,6 @@
 // pivotkit-react as hosts load it: its own dist file with React from the page (import map), the
 // React version of the CI job, a host that renders again all the time, and a shadow root.
-import { chips, drag, expect, test, toolbar } from "./fixtures.js";
+import { chips, drag, expect, openZones, test, toolbar } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -110,3 +110,37 @@ test.describe("server rendering", () => {
         await expect(page.getByTestId("cell-hint")).toHaveCount(1);
     });
 });
+
+// Explicit host acknowledgements test the pending window without relying on machine speed.
+for (const intermediate of [false, true]) {
+    test(`delayed controlled history keeps two steps (intermediate echo: ${intermediate}) #141`, async ({ page }) => {
+        await page.goto("pages/host.html?manualecho");
+        await openZones(page);
+        await page.getByRole("button", { name: "Remove Country" }).click();
+        await expect.poll(() => page.evaluate(() => window.__order.length)).toBe(1);
+        await page.getByRole("button", { name: "Remove Category" }).click();
+        await expect.poll(() => page.evaluate(() => window.__order.length)).toBe(2);
+        // Controlled rendering remains the host's responsibility, not an optimistic UI (#142).
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+        if (intermediate) {
+            await page.evaluate(() => window.__echoNext());
+            await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+        }
+        await page.locator(".pk-status").click();
+        await page.keyboard.press("ControlOrMeta+z");
+        await expect(page.locator(".pk-toasts")).toContainText("Undone: Category removed");
+        // Drain pending host messages, including the Undo acknowledgement.
+        if (!intermediate) await page.evaluate(() => window.__echoNext());
+        await page.evaluate(() => window.__echoNext());
+        await page.evaluate(() => window.__echoNext());
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+        await expect.poll(() => chips(page, "cols")).toEqual(["Category"]);
+        await page.keyboard.press("ControlOrMeta+z");
+        await expect(page.locator(".pk-toasts")).toContainText("Undone: Country removed");
+        await page.evaluate(() => window.__echoNext());
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country"]);
+        await page.keyboard.press("ControlOrMeta+Shift+z");
+        await page.evaluate(() => window.__echoNext());
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+    });
+}

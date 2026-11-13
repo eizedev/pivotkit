@@ -399,6 +399,8 @@ tip dismissed earlier goes right after hydration.
   every change through `onViewChange`.
 - **Controlled**: pass `view` and set it from `onViewChange`. The undo history stays in the report
   however often the host renders; a view the host changes on its own becomes one undo step.
+  While a delayed host is acknowledging changes, actions keep the pending undo history, including
+  when earlier acknowledgements arrive between actions. The view shown still comes from the host.
 
 A host may render the report on every change of its own state: `labels`, `limits` and `importLimits`
 are compared by value, `data` by identity or by `dataKey`.
