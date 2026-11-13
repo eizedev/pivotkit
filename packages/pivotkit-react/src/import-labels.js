@@ -43,8 +43,9 @@ export const en = {
     originalShown: "The original data is shown",
     failed: "{name} could not be loaded: {message}",
     refused: "{name} was not loaded: {message}",
-    // a limit of pivotkit-core the file is over (archiveEntries and unpackedBytes: pivotkit-xlsx's ZIP checks); {key} the limit's key, as the reader names it
+    // a limit of pivotkit-core the file is over; {key} the limit's key, as the reader names it
     overLimit: "it has more than {max} {what} ({key}): load a smaller extract of it, or a host can raise this limit",
+    // the limits a reader stops a file at (archiveEntries and unpackedBytes: pivotkit-xlsx's ZIP checks)
     limitWhat: { rows: "rows", columns: "columns", fileBytes: "bytes", importCells: "values (rows x columns)", archiveEntries: "parts in its ZIP directory", unpackedBytes: "bytes unpacked" },
     sourceLine: "{name}, only in this browser",
     sourceSheet: "{name}, sheet “{sheet}”, only in this browser",
