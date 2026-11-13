@@ -37,6 +37,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   before. The link's place in the fragment is pivotkit-core's (`linkFragment`, `withLinkFragment`).
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters and is
   at most 1,000,000 characters long (pivotkit-core's `outsideLimits`), or the host's lower limits.
+- The field list's menu has one entry for filtering, **Add to Filters**, instead of two that did almost
+  the same ([#157](https://github.com/eizedev/pivotkit/issues/157)): it opens the field's filter at
+  once, **Apply** puts the field into Filters with the choice, **Cancel** places nothing. A field on
+  Rows or Columns moves to Filters on Apply; a field in Filters opens its filter. "Filter…" is gone,
+  and with it the label `filter` (a host's text for it is ignored).
 
 ### Added
 
@@ -81,6 +86,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A choice clicked in a field's Top items level keeps the focus, also in Safari, where a click does
+  not focus a radio button ([#119](https://github.com/eizedev/pivotkit/issues/119)).
+- The rule between a menu's groups had 1.3:1 contrast in the light theme and 1.2:1 in the dark one,
+  and in More, whose groups have no titles, it is the only thing that tells them apart. It is drawn
+  in the new token `--pk-rule`, 3:1 against the menu in both themes
+  ([#128](https://github.com/eizedev/pivotkit/issues/128)).
 - An open menu or popover follows its anchor when the anchor moves or changes size while it is open
   (the zones' open animation, a transition of the host page)
   ([#120](https://github.com/eizedev/pivotkit/issues/120)).

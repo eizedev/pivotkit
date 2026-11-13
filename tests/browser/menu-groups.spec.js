@@ -130,3 +130,61 @@ test("a value's Summarize by: More statistics under its title, a rule above it",
     expect(groups[1].bold).toBe(true);
     await expect(level.getByRole("group", { name: "More statistics" })).toBeVisible();
 });
+
+/**
+ * The contrast of each group's rule against the menu behind it, as drawn: the rule's colour and the
+ * background of the first ancestor with one (the popover), composed over white.
+ * @param {import("@playwright/test").Locator} scope
+ */
+async function ruleContrasts(scope) {
+    return scope.locator(".pk-section").evaluateAll((els) => {
+        const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+        const parse = (c) => {
+            ctx.clearRect(0, 0, 1, 1);
+            ctx.fillStyle = c;
+            ctx.fillRect(0, 0, 1, 1);
+            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+            return [r, g, b, a / 255];
+        };
+        const over = (top, below) => [0, 1, 2].map((i) => top[i] * top[3] + below[i] * (1 - top[3])).concat(1);
+        const lum = (c) => {
+            const [r, g, b] = c.slice(0, 3).map((v) => {
+                const s = v / 255;
+                return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        return els
+            .filter((el) => parseFloat(getComputedStyle(el).borderTopWidth) >= 1)
+            .map((el) => {
+                const layers = [];
+                for (let n = el; n; n = n.parentElement) {
+                    const bg = parse(getComputedStyle(n).backgroundColor);
+                    if (bg[3] > 0) layers.push(bg);
+                    if (bg[3] === 1) break;
+                }
+                let behind = [255, 255, 255, 1];
+                for (const layer of layers.reverse()) behind = over(layer, behind);
+                const rule = over(parse(getComputedStyle(el).borderTopColor), behind);
+                const [hi, lo] = [lum(rule), lum(behind)].sort((a, b) => b - a);
+                return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
+            });
+    });
+}
+
+for (const theme of ["light", "dark"]) {
+    test(`the rules between groups stand 3:1 against the menu in the ${theme} theme: More, whose groups have no titles, and Options`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.goto(`?data=sales&theme=${theme}`);
+        await toolbar(page, "more");
+        const more = await ruleContrasts(page.getByRole("menu", { name: "More" }));
+        expect(more).toHaveLength(2);
+        for (const ratio of more) expect(ratio, `More: ${more.join(", ")}`).toBeGreaterThanOrEqual(3);
+        await page.keyboard.press("Escape");
+        await page.setViewportSize({ width: 1920, height: 1000 });
+        await toolbar(page, "options");
+        const options = await ruleContrasts(page.getByRole("menu", { name: "Options" }));
+        expect(options).toHaveLength(2);
+        for (const ratio of options) expect(ratio, `Options: ${options.join(", ")}`).toBeGreaterThanOrEqual(3);
+    });
+}

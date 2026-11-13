@@ -102,6 +102,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- A file name longer than 256 UTF-16 code units is cut before a character outside the BMP (an
+  emoji), not in the middle of it; the source id of such a file changes
+  ([#133](https://github.com/eizedev/pivotkit/issues/133)).
 - `toGrid` without values: no empty data column when there are no column fields either, so fields in
   Rows alone are a table of their labels ([#155](https://github.com/eizedev/pivotkit/issues/155)); no subtotal or grand total row or column, since it
   would have no number, and with fields in Columns alone the only row is no "Grand Total" ([#156](https://github.com/eizedev/pivotkit/issues/156)). The exports (CSV, TSV, XLSX, JSON) follow the grid.

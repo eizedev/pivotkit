@@ -39,8 +39,9 @@ All three give the same result. Details:
   of ID" instead of a sum no one needs; **Sum** stays a choice of its menu. Its numbers show as they
   are, 27000 and not 27,000, on Rows and Columns and in the rows behind a value. The application can
   set this otherwise ([field settings](../concepts/fields.md#identifier-fields)).
-- A field that is not in the report yet also has **Filter…** in its menu: see
-  [Filters](filters.md#filter-a-field-that-is-not-in-the-report).
+- **Add to Filters** opens the field's filter first: **Apply** puts the field into Filters with what
+  you chose, **Cancel** places nothing. See
+  [Filters](filters.md#add-a-field-to-filters-from-the-field-list).
 - An empty report shows three first steps and up to three saved views to start from.
 - A date is grouped as soon as it is placed, by the span of its values: up to 62 days by day, up to
   two years by month ("Jan 2025"), up to six years by quarter, longer by year. The chip says so:

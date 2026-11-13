@@ -437,6 +437,17 @@ const SHOTS = [
         size: WIDE,
         open: (page) => page.getByTestId("chip-menu-Released").click()
     },
+    // the field list's Add to Filters: the field's filter opens first, nothing is placed until Apply
+    {
+        name: "add-to-filters",
+        query: "data=sales",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("field-menu-Product").click();
+            await page.getByRole("menuitem", { name: "Add to Filters" }).click();
+            await page.locator(".pk-filter-popover").waitFor();
+        }
+    },
     {
         // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…, the ties
         name: "top-items",

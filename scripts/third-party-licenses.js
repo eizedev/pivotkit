@@ -1,5 +1,5 @@
 // The license texts of the packages an esbuild bundle contains, as one text: what a package that
-// bundles third-party code ships as dist/THIRD_PARTY_LICENSES.txt (pivotkit-xlsx).
+// bundles third-party code ships as dist/THIRD_PARTY_LICENSES.txt (pivotkit-element, pivotkit-xlsx).
 import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 

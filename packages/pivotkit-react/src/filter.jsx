@@ -1,10 +1,10 @@
 /*
- * The filter popover of a field that is not placed yet (the field list's "Filter…"): its values with row
+ * The filter popover of the field list's "Add to Filters": its values with row
  * counts (pivotkit-core's fieldItems), a search, select all and none, "only this value", and a
  * condition on the label by the field's type (conditionKind: text, a number's label; none for dates). Changes are a draft until Apply, so one filter is one undo step; the × of the
- * condition's text removes the condition at once. A field that is not placed yet (the field list's
- * "Filter…") is filtered on a draft that puts it into Filters: Apply places it with the selection,
- * Cancel leaves the report as it was.
+ * condition's text removes the condition at once. A field that is not in Filters yet is filtered on a
+ * draft that puts it there (off Rows or Columns): Apply places it with the selection, Cancel leaves
+ * the report as it was.
  */
 
 import React, { useMemo, useState } from "react";
@@ -190,7 +190,7 @@ function FilterBody({ view: current, base, field, encoded, locale, labels, commi
 /**
  * @param {{ target: { field: string, anchor: HTMLElement, base?: object } | null, onClose: () => void, view: object,
  *   encoded: import("pivotkit-core").Encoded, locale: string, labels: import("./labels.js").UiLabels, commit: (v: object, note?: any) => void }} props
- *   `target.base`: the draft view of a field that is not placed yet (it goes into Filters on Apply)
+ *   `target.base`: the draft view of a field that is not in Filters yet (it goes there on Apply)
  */
 export function FilterPopover({ target, onClose, view, encoded, locale, labels, commit }) {
     const anchor = useMemo(() => ({ current: target ? target.anchor : null }), [target]);

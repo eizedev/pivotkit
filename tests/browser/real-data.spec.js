@@ -644,3 +644,18 @@ test.describe("what the real data showed (#21 to #26)", () => {
         expect(String(full).length).toBeGreaterThan(8);
     });
 });
+
+test("Top choices explicitly keep focus when mouse clicks do not focus radios (#119)", async ({ page }) => {
+    await page.goto("?data=countries&preset=0");
+    await chipMenu(page, "Country", "top");
+    const off = page.getByTestId("top-off");
+    // Match WebKit on macOS: the click changes a radio but does not focus it by default.
+    await page.evaluate(() => document.addEventListener("mousedown", (event) => {
+        if (event.target instanceof HTMLInputElement && event.target.type === "radio") event.preventDefault();
+    }));
+    await off.check();
+    await expect(off).toBeChecked();
+    await expect(off).toBeFocused();
+    await page.getByTestId("top-5").check();
+    await expect(page.getByTestId("top-5")).toBeFocused();
+});

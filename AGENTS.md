@@ -54,7 +54,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   builds pivotkit-react's `dist/` first and bundles it with React, ReactDOM, pivotkit-core and
   @dnd-kit into `dist/` (ES modules, minified, production React); ECharts (only the parts
   pivotkit-react's `echarts.js` imports) and the export are chunks loaded on first use; it writes
-  `dist/THIRD_PARTY_LICENSES.txt`. Every bundled package is a devDependency, the package has no
+  `dist/THIRD_PARTY_LICENSES.txt` (`scripts/third-party-licenses.js`). Every bundled package is a devDependency, the package has no
   runtime dependency. `src/element.js` is the element (properties, lifecycle, one React root per
   element), `src/props.js` the one table of attributes and how each maps to a property,
   `src/events.js` the events (`pivot-*`, `respondWith()`), `src/host-css.js` moves pivotkit-react's

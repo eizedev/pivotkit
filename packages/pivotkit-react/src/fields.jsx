@@ -5,8 +5,9 @@
  * value of a field).
  * Dropping a chip here removes it from the report. On a narrow report it is a modal drawer. A field
  * shows its display name and, when the host describes it (fieldDefaults), an "i" with the description;
- * the search finds a field by its name, its display name and its description. A field not in the report
- * yet has "Filter…" in its menu: the filter opens at once, and Apply puts the field into Filters.
+ * the search finds a field by its name, its display name and its description. "Add to Filters" in the
+ * menu opens the field's filter at once: Apply puts the field into Filters with the choice, Cancel
+ * places nothing (a field in Filters already: its filter).
  *
  * For the keyboard the list is one stop of the Tab order (a roving tabindex): the arrow keys move up
  * and down between the fields and left and right between a field's grip, name, "i" and menu; Enter
@@ -46,7 +47,7 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
     const tab = (slot) => (own === slot ? 0 : -1);
     return (
         <li className={`pk-field${isDragging ? " pk-dragging" : ""}${zones.length ? " pk-placed" : ""}`} ref={ref} {...itemProps} data-field={field.name}>
-            {/* the grip: dragged into a zone; a click opens the field's menu (Add to, Filter…) */}
+            {/* the grip: dragged into a zone; a click opens the field's menu (Add to) */}
             <span className="pk-handle" {...handleProps} tabIndex={tab("handle")} data-pk-slot="handle" aria-label={fill(labels.dragHandle, { field: name })} title={labels.dragIntoZone} onClick={() => menu.current?.click()}>
                 <Icon name="grip" size={18} />
             </span>
@@ -104,26 +105,19 @@ function FieldItem({ field, labels, zones, onAdd, onNote, onFilter, name, info, 
                                 icon={zone === "values" ? "sigma" : zone === "filters" ? "filter" : zone}
                                 onSelect={() => {
                                     close();
-                                    onAdd(field.name, zone);
+                                    // into Filters through the field's filter: nothing placed until Apply
+                                    if (zone === "filters" && onFilter) {
+                                        onFilter(field.name, item.current);
+                                    } else {
+                                        onAdd(field.name, zone);
+                                    }
                                 }}
+                                testId={zone === "filters" ? `field-filter-${field.name}` : undefined}
                             >
                                 {/* a second value of a field in Values is asked for here, never by a click */}
                                 {fill(zone === "values" && zones.includes("values") ? labels.addAgain : labels.addTo, { zone: labels.zones[zone] })}
                             </Option>
                         ))}
-                        {zones.length === 0 && onFilter ? (
-                            <Option
-                                inMenu
-                                icon="filter"
-                                onSelect={() => {
-                                    close();
-                                    onFilter(field.name, item.current);
-                                }}
-                                testId={`field-filter-${field.name}`}
-                            >
-                                {labels.filter}
-                            </Option>
-                        ) : null}
                     </>
                 )}
             </MenuButton>

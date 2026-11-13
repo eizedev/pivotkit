@@ -143,7 +143,6 @@ export const en = {
     topBadge: "Top {count}",
     bottomBadge: "Bottom {count}",
     by: "by {value}",
-    filter: "Filter…",
     filtered: "Filtered",
     filterSummary: "{shown} of {total}",
     /** a text the user typed or a name, quoted as the language quotes: a text condition, field names */
@@ -507,7 +506,6 @@ export const de = {
     topBadge: "Top {count}",
     bottomBadge: "Letzte {count}",
     by: "nach {value}",
-    filter: "Filtern…",
     filtered: "Gefiltert",
     filterSummary: "{shown} von {total}",
     quote: "„{text}“",

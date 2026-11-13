@@ -140,7 +140,9 @@ export function checkFileLimit(limit, value, max, file, what) {
 /** The file's name for messages. */
 export function fileName(file, options) {
     const own = file && typeof file === "object" && typeof (/** @type {any} */ (file).name) === "string" ? /** @type {any} */ (file).name : "";
-    return cleanText(String(options?.name ?? own ?? "")).slice(0, 256) || "file";
+    const name = cleanText(String(options?.name ?? own ?? "")).slice(0, 256);
+    // A UTF-16 cap must not leave half of an astral character at the end.
+    return (/\p{Surrogate}$/u.test(name) ? name.slice(0, -1) : name) || "file";
 }
 
 /**
