@@ -116,14 +116,16 @@ dates. Such a value keeps Summarize by, Name and Move.
 
 `conditional` colours the cells of a value, as Excel's conditional formatting does:
 
-- `{ "type": "colorScale", "colors": ["#f8696b", "#ffeb84", "#63be7b"] }`: two or three colours from
-  low to high. Without `colors`, or with an empty list, the theme's scale is used (`--pk-scale-low`, `-mid`, `-high` in the
-  UI).
+- `{ "type": "colorScale", "colors": ["#5a8dee", "#f4f4f4", "#e8554e"] }`: two or three colours from
+  low to high. Without `colors`, or with an empty list, the theme's scale is used: in the UI
+  `--pk-scale-low` and `--pk-scale-high` (the heatmap's light-to-strong blue by default, so a scale
+  says "more", not "good" or "bad"), in the workbook the same colours ([theming](../reference/theming.md#the-excel-export)).
 - `{ "type": "dataBar", "color": "#638ec6" }`: a bar in each cell, its length the cell's place between
   the smallest and the largest cell of that value.
 
 Totals are not highlighted. The XLSX export writes both as Excel's native conditional formats, so they
-stay live in the workbook.
+stay live in the workbook, in the colours the report shows; a row label over several rows sits at
+their top there too, as in the report.
 
 ## Export
 

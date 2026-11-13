@@ -2,7 +2,7 @@
 // export menu (Copy, Copy as JSON, Download CSV, Download Excel), the note on a cut list.
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
-import { expect, test, toolbar } from "./fixtures.js";
+import { chipMenu, expect, test, toolbar } from "./fixtures.js";
 
 /**
  * navigator.clipboard.writeText that keeps what it was given in window.__copied (every browser, no
@@ -230,5 +230,84 @@ test.describe("what a copy says, and the Export menu's groups", () => {
         // nothing folds: no title is a button
         await expect(page.locator(".pk-popover button.pk-section-title, .pk-popover [data-section]")).toHaveCount(0);
         await expect(page.getByTestId("export-xlsx")).toBeVisible();
+    });
+});
+
+// #212: a colour scale in the theme's colours (Highlight, Colour scale, no colours of the view's own)
+// goes into the workbook in the colours the report resolves from its tokens, low end first, so a
+// corporate theme carries over; a dark report exports the light theme's colours (a workbook is
+// light with black text)
+test.describe("Excel export: a colour scale in the theme's colours", () => {
+    /** The colour scale's colours in the downloaded workbook, as #rrggbb, low to high. */
+    async function exportedScale(page) {
+        await page.keyboard.press("Escape");
+        await toolbar(page, "export");
+        const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
+        const sheet = strFromU8(unzipSync(await readFile(await download.path()))["xl/worksheets/sheet1.xml"]);
+        const scale = sheet.match(/<colorScale>(.*?)<\/colorScale>/)[1];
+        // the first colour belongs to the lowest value
+        expect(scale.startsWith('<cfvo type="min"/>')).toBe(true);
+        return [...scale.matchAll(/<color rgb="FF([0-9A-F]{6})"\/>/g)].map((m) => `#${m[1].toLowerCase()}`);
+    }
+
+    /** The colour scale's tokens as the report resolves them. */
+    const tokens = (page) =>
+        page.locator(".pk-root").evaluate((root) => {
+            const style = getComputedStyle(root);
+            return ["--pk-scale-low", "--pk-scale-high"].map((n) => style.getPropertyValue(n).trim().toLowerCase());
+        });
+
+    /** The background of the table's cells with the lowest and the highest value. */
+    const ends = (page) =>
+        page.locator('[data-testid="pivot-table"] tbody td.pk-has-scale').evaluateAll((cells) => {
+            const num = (td) => Number(td.textContent.replace(/[^\d.-]/g, ""));
+            const sorted = [...cells].sort((a, b) => num(a) - num(b));
+            const bg = (td) => getComputedStyle(td).backgroundColor;
+            return { low: bg(sorted[0]), high: bg(sorted.at(-1)) };
+        });
+
+    async function scaleRevenue(page) {
+        await chipMenu(page, "Sum of Revenue");
+        await page.locator(".pk-chip-menu").getByTestId("cond-colorScale").click();
+        await expect(page.locator(".pk-td.pk-has-scale").first()).toBeVisible();
+    }
+
+    test("light: the workbook gets the report's resolved scale colours, light for low, strong for high", async ({ page }) => {
+        await page.goto("?data=sales&theme=light");
+        await scaleRevenue(page);
+        const [low, high] = await tokens(page);
+        expect(await exportedScale(page)).toEqual([low, high]);
+        // the theme's heat colours: light blue for low, strong blue for high, never Excel's red for low
+        expect([low, high]).toEqual(["#eaf1fb", "#2a78d6"]);
+        // the report draws the lowest value lighter than the highest
+        const { low: lowBg, high: highBg } = await ends(page);
+        const light = (rgb) => rgb.match(/\d+/g).slice(0, 3).map(Number).reduce((a, b) => a + b, 0);
+        expect(light(lowBg)).toBeGreaterThan(light(highBg));
+    });
+
+    test("a corporate theme's tokens carry over into the workbook", async ({ page }) => {
+        await page.goto("?data=sales&theme=light");
+        await page.addStyleTag({ content: ".pk-root { --pk-heat-low: #fff5e6; --pk-heat-high: #b34700; }" });
+        await scaleRevenue(page);
+        expect(await exportedScale(page)).toEqual(["#fff5e6", "#b34700"]);
+        // a host that sets the scale's own tokens, a middle colour too, gets those
+        await page.addStyleTag({ content: ".pk-root { --pk-scale-low: rgb(0, 0, 255); --pk-scale-mid: white; --pk-scale-high: #c00; }" });
+        expect(await exportedScale(page)).toEqual(["#0000ff", "#ffffff", "#cc0000"]);
+        // data bars in the theme's colour: the report's --pk-chart-1
+        await page.addStyleTag({ content: ".pk-root { --pk-chart-1: #6b2fa0; }" });
+        await chipMenu(page, "Sum of Revenue");
+        await page.locator(".pk-chip-menu").getByTestId("cond-dataBar").click();
+        await expect(page.locator(".pk-td.pk-has-bar").first()).toBeVisible();
+        await page.keyboard.press("Escape");
+        await toolbar(page, "export");
+        const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-xlsx").click()]);
+        const sheet = strFromU8(unzipSync(await readFile(await download.path()))["xl/worksheets/sheet1.xml"]);
+        expect(sheet).toMatch(/<dataBar>.*<color rgb="FF6B2FA0"\/><\/dataBar>/);
+    });
+
+    test("dark: the workbook gets the light theme's colours, readable with Excel's black text", async ({ page }) => {
+        await page.goto("?data=sales&theme=dark");
+        await scaleRevenue(page);
+        expect(await exportedScale(page)).toEqual(["#eaf1fb", "#2a78d6"]);
     });
 });

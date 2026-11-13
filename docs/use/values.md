@@ -115,11 +115,13 @@ median, minimum or maximum of dates. Such a value keeps Summarize by, Name and M
 
 ## Highlight
 
-- **Colour scale**: each cell coloured from low to high.
+- **Colour scale**: each cell coloured from low to high, in the theme's colours from light (low) to
+  strong (high), so it says "more", not "good" or "bad".
 - **Data bars**: a bar in each cell, its length the cell's place between the smallest and the
   largest cell of that value.
 
-Totals are not highlighted. The Excel export keeps both as Excel's own conditional formats.
+Totals are not highlighted. The Excel export keeps both as Excel's own conditional formats, in the
+colours the report shows.
 
 A value can bring colours of its own (a saved view's colour scale from blue to red). The choice
 that is checked changes nothing, and switching to None or Data bars and back gives the value its own

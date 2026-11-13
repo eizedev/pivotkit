@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { strFromU8, unzipSync } from "fflate";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { readSheet } from "read-excel-file/node";
-import { computePivot, encode, toGrid } from "../src/index.js";
+import { DEFAULT_THEME, computePivot, encode, toGrid } from "../src/index.js";
 import { toCsv, toCsvBytes, toJson, toXlsx } from "../src/export.js";
 import { csvSeparator, neutralizeFormula } from "../src/csv.js";
 import { SALES } from "./fixtures.js";
@@ -44,7 +44,8 @@ test("merged headers, frozen panes, column widths and native conditional formatt
     assert.equal([].concat(sheet.cols.col).length, grid.columnCount);
     const cf = sheet.conditionalFormatting;
     assert.equal(cf.cfRule.type, "colorScale");
-    assert.equal([].concat(cf.cfRule.colorScale.color).length, 3);
+    // no colours of its own: the default theme's, low to high
+    assert.deepEqual([].concat(cf.cfRule.colorScale.color).map((c) => c.rgb), DEFAULT_THEME.colorScale.map((c) => `FF${c.slice(1).toUpperCase()}`));
 });
 
 test("values are typed numbers and dates; totals are bold; a reader gets them back", async () => {
@@ -234,6 +235,44 @@ test("XLSX data bars start at zero as in the grid", () => {
 test("XLSX theme: default colours of conditional formats can be replaced", () => {
     const g = gridOf([{ k: "a", v: 1 }, { k: "b", v: 2 }], { rows: ["k"], values: [{ field: "v", agg: "sum", conditional: { type: "dataBar" } }] });
     assert.match(sheetOf(toXlsx(g, { theme: { dataBar: "#123456" } })).sheetXml, /<color rgb="FF123456"\/>/);
+});
+
+/** Relative luminance (WCAG) of a #rrggbb colour. */
+const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+// #212: the default scale said "low = bad (red), high = good (green)", wrong for a temperature or a cost
+test("XLSX colour scale without colours of its own: a light low end and a strong high end, no red for low", () => {
+    const g = gridOf([{ k: "cold", v: -5 }, { k: "mild", v: 10 }, { k: "warm", v: 30 }], { rows: ["k"], values: [{ field: "v", agg: "average", conditional: { type: "colorScale" } }] });
+    const rule = (options) => sheetOf(toXlsx(g, options)).sheetXml.match(/<colorScale>(.*?)<\/colorScale>/)[1];
+    const [low, high] = [DEFAULT_THEME.colorScale[0], DEFAULT_THEME.colorScale.at(-1)];
+    assert.ok(luminance(low) > luminance(high) * 2, `${low} is not lighter than ${high}`);
+    assert.ok(!DEFAULT_THEME.colorScale.includes("#f8696b"), "Excel's red is no default low colour");
+    // the lowest value (min) gets the first colour
+    assert.equal(rule(), `<cfvo type="min"/><cfvo type="max"/><color rgb="FF${low.slice(1).toUpperCase()}"/><color rgb="FF${high.slice(1).toUpperCase()}"/>`);
+    // a host's colours (the report's resolved theme) replace them, in their order
+    assert.equal(rule({ theme: { colorScale: ["#0000ff", "#ffffff", "#ff0000"] } }), `<cfvo type="min"/><cfvo type="percentile" val="50"/><cfvo type="max"/><color rgb="FF0000FF"/><color rgb="FFFFFFFF"/><color rgb="FFFF0000"/>`);
+    // a view's own colours win over the theme's
+    const own = gridOf([{ k: "a", v: 1 }, { k: "b", v: 2 }], { rows: ["k"], values: [{ field: "v", agg: "sum", conditional: { type: "colorScale", colors: ["#5a8dee", "#e8554e"] } }] });
+    assert.match(sheetOf(toXlsx(own, { theme: { colorScale: ["#000000", "#111111"] } })).sheetXml, /<color rgb="FF5A8DEE"\/><color rgb="FFE8554E"\/>/);
+});
+
+// #212: Excel draws a merged cell's text at its bottom, so a group's label stood next to its last row
+test("XLSX: a row label merged over its group's rows sits at the top, as in the report", () => {
+    const rows = [["Europe", "Berlin"], ["Europe", "Oslo"], ["Europe", "Rome"], ["Asia", "Tokyo"]].map(([Continent, City], i) => ({ Continent, City, v: i }));
+    const g = gridOf(rows, { rows: ["Continent", "City"], values: [{ field: "v", agg: "sum" }] });
+    const files = unzipSync(toXlsx(g));
+    const sheet = parser.parse(strFromU8(files["xl/worksheets/sheet1.xml"])).worksheet;
+    const merge = [].concat(sheet.mergeCells.mergeCell).map((m) => m.ref).find((ref) => /^A\d+:A\d+$/.test(ref));
+    assert.ok(merge, "Europe's label is merged over its rows");
+    const first = merge.split(":")[0];
+    const cell = [].concat(sheet.sheetData.row).flatMap((r) => [].concat(r.c ?? [])).find((c) => c.r === first);
+    assert.equal(cell.is.t["#text"], "Europe");
+    const xf = [].concat(parser.parse(strFromU8(files["xl/styles.xml"])).styleSheet.cellXfs.xf)[Number(cell.s ?? 0)];
+    assert.equal(xf.alignment?.vertical, "top");
+    assert.equal(xf.applyAlignment, "1");
 });
 
 test("CSV numbers: tiny and huge values keep their value; minus zero is 0", () => {

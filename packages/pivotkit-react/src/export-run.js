@@ -1,5 +1,6 @@
 /*
- * The report's exports, loaded with the menus (menus.js): the table as an Excel workbook or a CSV file
+ * The report's exports, loaded with the menus (menus.js): the table as an Excel workbook (its colour
+ * scales and data bars in the theme's colours where the view names none) or a CSV file
  * (pivotkit-core/export, loaded on first use), the chart as a PNG image, and the table on the
  * clipboard: as the table shows it, tab-separated (a spreadsheet takes it as columns), or its data as
  * JSON. The file name is the host's fileName made safe (files.js). The host's onExport sees every file
@@ -74,6 +75,56 @@ export async function copyOut(text, { type, container, onExport, ...file }) {
 }
 
 /**
+ * A CSS colour as "#rrggbb", or null: through a canvas's fillStyle, which writes an opaque sRGB colour
+ * that way whatever syntax it was given (a name, rgb(), hsl()). A colour the canvas does not take
+ * leaves fillStyle as it was, so it is set over two different colours and must give the same.
+ * @param {string} text
+ * @param {{ fillStyle: unknown } | null} ctx  a 2D context
+ */
+export function hexColor(text, ctx) {
+    if (!text || !ctx) {
+        return null;
+    }
+    const read = (/** @type {string} */ before) => {
+        ctx.fillStyle = before;
+        ctx.fillStyle = text;
+        return String(ctx.fillStyle).toLowerCase();
+    };
+    const hex = read("#000000");
+    return hex === read("#ffffff") && /^#[0-9a-f]{6}$/.test(hex) ? hex : null;
+}
+
+/**
+ * The colours of the theme the workbook gets for a conditional format whose view names none, as the
+ * report resolves its tokens: the colour scale (--pk-scale-low, the host's --pk-scale-mid, -high) and
+ * the data bars (--pk-chart-1). Each one missing or not a colour stays pivotkit-core's default.
+ * @param {{ getPropertyValue(name: string): string }} style  getComputedStyle of the report's root
+ * @param {(text: string) => string | null} toHex
+ * @returns {{ colorScale?: string[], dataBar?: string }}
+ */
+export function xlsxThemeOf(style, toHex) {
+    const [low, mid, high, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map((name) => toHex(style.getPropertyValue(name).trim()));
+    return {
+        ...(low && high ? { colorScale: mid ? [low, mid, high] : [low, high] } : {}),
+        ...(bar ? { dataBar: bar } : {})
+    };
+}
+
+/**
+ * The theme of the workbook from the report's root. A dark report gives none: a workbook is light,
+ * with Excel's black text, so it keeps pivotkit-core's defaults (the light theme's colours).
+ * @param {HTMLElement | null} root
+ */
+function xlsxTheme(root) {
+    const view = root?.ownerDocument.defaultView;
+    if (!root || !view || root.getAttribute("data-pk-theme") === "dark") {
+        return undefined;
+    }
+    const ctx = root.ownerDocument.createElement("canvas").getContext("2d");
+    return xlsxThemeOf(view.getComputedStyle(root), (text) => hexColor(text, ctx));
+}
+
+/**
  * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, locale: string,
  *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
  *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
@@ -116,7 +167,7 @@ export async function runExport(kind, { fileName, result, locale, labels, limits
             return;
         }
         const file = `${base}.${kind}`;
-        const bytes = kind === "xlsx" ? m.toXlsx(grid, { sheetName: base }) : m.toCsvBytes(grid, { bom: true });
+        const bytes = kind === "xlsx" ? m.toXlsx(grid, { sheetName: base, theme: xlsxTheme(root.current) }) : m.toCsvBytes(grid, { bom: true });
         if (deliver(new Blob([/** @type {BlobPart} */ (bytes)], { type: kind === "xlsx" ? XLSX_TYPE : "text/csv;charset=utf-8" }), { kind, fileName: file, doc, onExport })) {
             announce(fill(labels.toastExported, { file }));
         }

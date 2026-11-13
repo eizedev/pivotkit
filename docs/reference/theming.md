@@ -70,7 +70,7 @@ through the element.
 | `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge of a zone (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
 | `--pk-rule` | The rule between the groups of a menu (3:1 against the menu: More's groups have no titles) | `#868e9a` | `#6f7785` |
 | `--pk-note` | Notes and hints above the result | `#eef3fd` | `#1e2638` |
-| `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours | `#f8696b`<br>`#ffeb84`<br>`#63be7b` | `#c2413f`<br>`#b39a2e`<br>`#3f9a5c` |
+| `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours: low, an optional middle, high. Low and high are the heatmap's colours (`--pk-heat-low`, `--pk-heat-high`), so a theme that sets those colours both; without `--pk-scale-mid` the scale runs straight from low to high. The Excel export writes them as the light theme resolves them ([below](#the-excel-export)) | `var(--pk-heat-low)`<br>not set<br>`var(--pk-heat-high)` | as light (the dark heat colours) |
 | `--pk-small`<br>`--pk-target`<br>`--pk-target-touch` | Secondary text, never below 14 px; the smallest hit area of a control; that of a small control (×, "i", a field's menu and grip, a tip's x) on a touch screen (`pointer: coarse`) | `max(14px, 0.93em)`<br>`24px`<br>`44px` | as light |
 | `--pk-shadow-sm`<br>`--pk-scrim`<br>`--pk-scrim-light`<br>`--pk-knob` | Chip shadow; behind sheets and the drawer; behind the drill-down; the knob of a switch | see `styles.css` | see `styles.css` |
 | `--pk-total`<br>`--pk-total-strong` | Subtotal and grand total rows and columns | `#eef1f5`<br>`#e9edf3` | `#21252d`<br>`#252a33` |
@@ -83,7 +83,7 @@ through the element.
 | `--pk-duration`<br>`--pk-ease` | Animations; `0ms` with `prefers-reduced-motion: reduce` | `180ms`<br>`cubic-bezier(0.2, 0.8, 0.2, 1)` | as light |
 | `--pk-type-string`<br>`--pk-type-number`<br>`--pk-type-date`<br>`--pk-type-boolean` | Field type icons | `#6250d6`<br>`#1a7f5a`<br>`#b5560b`<br>`#a3367a` | `#a99dff`<br>`#5fd3a3`<br>`#f2a65a`<br>`#f08cc6` |
 | `--pk-chart-1` ... `--pk-chart-8` | Chart series colours, in this order; read by ECharts | `#2a78d6`<br>`#eb6834`<br>`#1baf7a`<br>`#eda100`<br>`#e87ba4`<br>`#008300`<br>`#6250d6`<br>`#e34948` | `#3987e5`<br>`#d95926`<br>`#199e70`<br>`#c98500`<br>`#d55181`<br>`#008300`<br>`#9085e9`<br>`#e66767` |
-| `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
+| `--pk-heat-low`<br>`--pk-heat-high` | Heatmap scale, and a colour scale in the table whose view names no colours (through `--pk-scale-low` and `--pk-scale-high`) | `#eaf1fb`<br>`#2a78d6` | `#1d2735`<br>`#3987e5` |
 | `--pk-layer-z` | The z-index of the layer of menus, sheets and popups, only in a browser without the Popover API ([below](#popovers-above-the-page)) | `50` | as light |
 
 Both themes meet WCAG contrast: 4.5:1 for text, 3:1 for interface colours such as borders, the focus
@@ -98,9 +98,12 @@ bar with a z-index of 1200 too, and never cut off by a box of the page that clip
 report in the DOM, so the tokens above and the theme reach them, also inside the web component's
 shadow root, and they are placed against the window.
 
-A description shown while the pointer rests on an "i" stays in the report's own layer (stacked by
-`--pk-layer-z`): in WebKit a pointer that moved from the "i" onto it in the top layer closed it, so
-its link could not be reached. A click or tap on the "i" opens it in the top layer.
+A description shown while the pointer rests on an "i" in the field list stays in the report's own
+layer (stacked by `--pk-layer-z`): in WebKit a pointer that moved from the "i" onto it in the top
+layer closed it, so its link could not be reached. An "i" inside a menu (Export, Options, Views, a
+field's menu) shows its description in the top layer, after the menu, so it is drawn above the menu;
+next to the window's edge it moves to stay whole in the window. A click or tap on any "i" opens it in
+the top layer.
 
 A browser without the Popover API (Chrome before 114, Firefox before 125, Safari before 17) opens
 them in the report's own layer, stacked by `--pk-layer-z` (default `50`). A page whose fixed parts
@@ -125,3 +128,18 @@ with a `z-index`, a `transform` or an `opacity` below 1 keeps it inside.
 The chart reads `--pk-chart-1` to `--pk-chart-8` for its series, in this order, and
 `--pk-heat-low`/`--pk-heat-high` for the heatmap, in the current theme. With pivotkit-core alone, pass
 the colours as `theme` to [`toEChartsOption`](core.md#output).
+
+## The Excel export
+
+A colour scale or data bars whose view names no colours go into the workbook in the theme's colours,
+as the report resolves its tokens: the colour scale from `--pk-scale-low`, `--pk-scale-mid` (when set)
+and `--pk-scale-high`, low first, and the data bars from `--pk-chart-1`. A theme of your own
+carries over into the workbook that way. A view's own colours are written as they are.
+
+The workbook always gets the light theme's colours, since a spreadsheet shows them behind black
+text: a report shown in the dark theme writes pivotkit-core's defaults, which are the light theme's
+(`DEFAULT_THEME`, light blue to blue, and blue bars). A token that the browser cannot write as an
+sRGB colour (`oklch()` outside sRGB, say) keeps that default too. The report itself shows a colour
+scale lighter than the workbook (mixed with the background, so the numbers stay readable); the
+workbook has Excel's full colours. With pivotkit-core alone, pass the colours as `theme` to
+[`toXlsx`](core.md#output).

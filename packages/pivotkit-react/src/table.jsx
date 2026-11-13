@@ -78,6 +78,9 @@ const fontOf = (/** @type {HTMLTableElement} */ table) => {
     return `${s.fontFamily}|${s.fontSize}|${s.fontWeight}`;
 };
 
+/** The middle of the theme's colour scale: the host's --pk-scale-mid, else halfway from low to high. */
+const SCALE_MID = "var(--pk-scale-mid, color-mix(in srgb, var(--pk-scale-low), var(--pk-scale-high)))";
+
 /**
  * Inline style of a value cell with conditional formatting: custom properties the stylesheet reads.
  * @returns {any}
@@ -91,10 +94,11 @@ function conditionalStyle(cell) {
         return { "--pk-cell-bg": s.color };
     }
     if (s.scale !== undefined) {
-        // a scale without colours of its own: the theme's low, middle and high colours (--pk-scale-*)
+        // a scale without colours of its own: the theme's low and high colours (--pk-scale-*), through
+        // a middle colour where the host sets --pk-scale-mid (else halfway between them)
         const t = Math.max(0, Math.min(1, s.scale));
-        const [from, to, part] = t < 0.5 ? ["--pk-scale-low", "--pk-scale-mid", t * 2] : ["--pk-scale-mid", "--pk-scale-high", (t - 0.5) * 2];
-        return { "--pk-cell-bg": `color-mix(in srgb, var(${to}) ${Math.round(part * 100)}%, var(${from}))` };
+        const [from, to, part] = t < 0.5 ? ["var(--pk-scale-low)", SCALE_MID, t * 2] : [SCALE_MID, "var(--pk-scale-high)", (t - 0.5) * 2];
+        return { "--pk-cell-bg": `color-mix(in srgb, ${to} ${Math.round(part * 100)}%, ${from})` };
     }
     if (s.bar !== undefined) {
         return { "--pk-bar": `${Math.round(s.bar * 1000) / 10}%`, ...(s.color ? { "--pk-bar-color": s.color } : {}) };

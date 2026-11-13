@@ -3,7 +3,8 @@
  * Office Open XML package Excel, LibreOffice and Numbers open, zipped with fflate.
  *
  * Value cells stay numbers (dates are date serials) with an Excel number format that shows them as
- * the grid does, header labels are merged as in the grid, totals are bold, header rows and label
+ * the grid does, header labels are merged as in the grid (a label over several rows at their top, as
+ * the report draws it), totals are bold, header rows and label
  * columns are frozen, and colour scales and data bars become native Excel conditional formats. Text
  * is written as inline strings, which Excel never evaluates as formulas.
  *
@@ -122,7 +123,8 @@ function sqref(cells) {
  * The grid as an .xlsx workbook.
  * @param {import("./grid.js").Grid} grid  from toGrid()
  * @param {{ sheetName?: string, theme?: { colorScale?: string[], dataBar?: string } }} [options]
- *   theme: colours for conditional formats whose view names none
+ *   theme: colours (#rgb or #rrggbb) for conditional formats whose view names none; colorScale two or
+ *   three, low to high (pivotkit-react passes the report's resolved --pk-scale-* tokens)
  * @returns {Uint8Array}
  */
 export function toXlsx(grid, options) {
@@ -132,11 +134,13 @@ export function toXlsx(grid, options) {
     checkLimit("xlsxColumns", grid.columnCount, EXCEL_MAX_COLUMNS, "columns (an Excel sheet)");
     const theme = { ...DEFAULT_THEME, ...(options.theme || {}) };
     const locale = grid.locale;
-    // Styles: one cellXfs entry per (number format, bold) pair, created as cells need them.
+    // Styles: one cellXfs entry per (number format, bold, top) triple, created as cells need them.
+    // "top": a label merged over several rows; Excel draws a merged cell's text at its bottom, the
+    // report draws a group's label next to its first row
     const numFmts = new Map(); // code -> id
-    const xfs = [{ fmt: 0, bold: false }];
-    const xfIndex = new Map([["0|false", 0]]);
-    const styleOf = (code, bold) => {
+    const xfs = [{ fmt: 0, bold: false, top: false }];
+    const xfIndex = new Map([["0|false|false", 0]]);
+    const styleOf = (code, bold, top = false) => {
         let fmt = 0;
         if (code && code !== "General") {
             if (!numFmts.has(code)) {
@@ -144,18 +148,18 @@ export function toXlsx(grid, options) {
             }
             fmt = numFmts.get(code);
         }
-        const key = `${fmt}|${bold}`;
+        const key = `${fmt}|${bold}|${top}`;
         if (!xfIndex.has(key)) {
             xfIndex.set(key, xfs.length);
-            xfs.push({ fmt, bold });
+            xfs.push({ fmt, bold, top });
         }
         return xfIndex.get(key);
     };
-    const textCell = (ref, text, bold) => {
+    const textCell = (ref, text, bold, top) => {
         const t = text.length > EXCEL_MAX_TEXT ? text.slice(0, EXCEL_MAX_TEXT) : text;
-        return `<c r="${ref}" t="inlineStr" s="${styleOf("General", bold)}"><is><t xml:space="preserve">${xmlEscape(t)}</t></is></c>`;
+        return `<c r="${ref}" t="inlineStr" s="${styleOf("General", bold, top)}"><is><t xml:space="preserve">${xmlEscape(t)}</t></is></c>`;
     };
-    const numberCell = (ref, v, code, bold) => `<c r="${ref}" s="${styleOf(code, bold)}"><v>${v}</v></c>`;
+    const numberCell = (ref, v, code, bold, top) => `<c r="${ref}" s="${styleOf(code, bold, top)}"><v>${v}</v></c>`;
 
     const widths = new Array(grid.columnCount).fill(6);
     /** valueIndex -> { cells: [[r, c]], min, max } */
@@ -185,15 +189,16 @@ export function toXlsx(grid, options) {
                 }
                 return numberCell(ref, cell.value, excelNumberFormat(cell.format, cell.value, locale), bold);
             }
+            const top = (cell.rowSpan ?? 1) > 1;
             if ((cell.kind === "rowHeader" || cell.kind === "colHeader") && typeof cell.value === "number" && cell.text === String(cell.value)) {
                 // a label that is a plain number (a year, a number key) stays a number
-                return numberCell(ref, cell.value, "General", bold);
+                return numberCell(ref, cell.value, "General", bold, top);
             }
             if (cell.text === "") {
                 // keeps the bold total style on empty cells of a total row
                 return bold ? `<c r="${ref}" s="${styleOf("General", true)}"/>` : "";
             }
-            return textCell(ref, cell.text, bold);
+            return textCell(ref, cell.text, bold, top);
         });
         return `<row r="${r + 1}">${cells.join("")}</row>`;
     });
@@ -231,7 +236,7 @@ export function toXlsx(grid, options) {
 
     const fmtXml = [...numFmts.entries()].map(([code, id]) => `<numFmt numFmtId="${id}" formatCode="${xmlEscape(code)}"/>`).join("");
     const styles = `${xml}<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${numFmts.size ? `<numFmts count="${numFmts.size}">${fmtXml}</numFmts>` : ""}<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs
-        .map((x) => `<xf numFmtId="${x.fmt}" fontId="${x.bold ? 1 : 0}"${x.fmt ? ` applyNumberFormat="1"` : ""}${x.bold ? ` applyFont="1"` : ""}/>`)
+        .map((x) => `<xf numFmtId="${x.fmt}" fontId="${x.bold ? 1 : 0}"${x.fmt ? ` applyNumberFormat="1"` : ""}${x.bold ? ` applyFont="1"` : ""}${x.top ? ` applyAlignment="1"><alignment vertical="top"/></xf>` : "/>"}`)
         .join("")}</cellXfs><dxfs count="0"/></styleSheet>`;
 
     const name = xmlEscape(sheetName(options.sheetName));

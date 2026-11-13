@@ -8,7 +8,7 @@ import { drillTable } from "../src/drill-table.js";
 import { LABELS } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, menuLabels } from "../src/menu-labels.js";
-import { loadExporters, runExport } from "../src/export-run.js";
+import { hexColor, loadExporters, runExport, xlsxThemeOf } from "../src/export-run.js";
 
 // the German menu texts, as lazy-menus.jsx adds them once their chunk has loaded
 addMenuTexts("de", menuDe);
@@ -132,4 +132,45 @@ test("the menus' export texts exist in English and German, distinct from the vie
         assert.equal(typeof en[key], "string");
         assert.equal(typeof de[key], "string");
     }
+});
+
+/** A stand-in for a canvas's 2D context: fillStyle takes #rgb, #rrggbb and two names, as hex. */
+function fakeContext() {
+    const named = { white: "#ffffff", rebeccapurple: "#663399" };
+    let style = "#000000";
+    return {
+        get fillStyle() {
+            return style;
+        },
+        set fillStyle(v) {
+            const t = String(v).trim().toLowerCase();
+            const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(t);
+            if (short) style = `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`;
+            else if (/^#[0-9a-f]{6}$/.test(t)) style = t;
+            else if (Object.hasOwn(named, t)) style = named[t];
+            // anything else: a canvas keeps the colour it had
+        }
+    };
+}
+
+// #212: the workbook's colours are the report's resolved tokens
+test("hexColor: a colour the canvas takes as #rrggbb, else null (also black and white themselves)", () => {
+    const ctx = fakeContext();
+    assert.equal(hexColor("#EAF1FB", ctx), "#eaf1fb");
+    assert.equal(hexColor("#c00", ctx), "#cc0000");
+    assert.equal(hexColor("white", ctx), "#ffffff");
+    assert.equal(hexColor("#000000", ctx), "#000000");
+    assert.equal(hexColor("not a colour", ctx), null);
+    assert.equal(hexColor("", ctx), null);
+    assert.equal(hexColor("#eaf1fb", null), null);
+});
+
+test("xlsxThemeOf: the scale's low and high tokens (a middle one when set) and the bars' colour", () => {
+    const ctx = fakeContext();
+    const toHex = (t) => hexColor(t, ctx);
+    const style = (tokens) => ({ getPropertyValue: (name) => tokens[name] ?? "" });
+    assert.deepEqual(xlsxThemeOf(style({ "--pk-scale-low": " #eaf1fb", "--pk-scale-high": "#2a78d6", "--pk-chart-1": "#2a78d6" }), toHex), { colorScale: ["#eaf1fb", "#2a78d6"], dataBar: "#2a78d6" });
+    assert.deepEqual(xlsxThemeOf(style({ "--pk-scale-low": "#00f", "--pk-scale-mid": "white", "--pk-scale-high": "#c00" }), toHex), { colorScale: ["#0000ff", "#ffffff", "#cc0000"] });
+    // one end missing or not a colour: pivotkit-core's default scale, not half of the theme's
+    assert.deepEqual(xlsxThemeOf(style({ "--pk-scale-low": "#00f", "--pk-scale-high": "oklch(0.5 0.1 200)" }), toHex), {});
 });

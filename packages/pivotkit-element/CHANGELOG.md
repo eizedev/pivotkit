@@ -28,6 +28,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The element bundles pivotkit-react's fixes: the Excel export in the report's theme colours, the
+  default colour scale from light to strong blue, a group's label at the top of its rows in the
+  workbook ([#212](https://github.com/eizedev/pivotkit/issues/212)), and an "i" inside a menu explained above the menu ([#213](https://github.com/eizedev/pivotkit/issues/213)).
 - An app whose bundler reads `sideEffects` (Angular's build) no longer warns about, or may drop,
   the chunks `dist/index.js` imports for their effects: `sideEffects` lists `dist/chunks/*.js` too
   ([#174](https://github.com/eizedev/pivotkit/issues/174)).
