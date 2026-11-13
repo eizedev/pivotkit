@@ -171,7 +171,7 @@ is not proof of absence.
 ??? info "WebDataRocks"
 
     - Free of charge but not open source. Its [licence](https://www.webdatarocks.com/license-agreement/)
-      (revision date October 20, 2026), clause 4.2, forbids to "change, remove, disable, circumvent,
+      (revision date October 20, 2026) forbids to "change, remove, disable, circumvent,
       or modify any: limitations included in Proprietary Code, including the 1 MB limitation on the
       data size loaded to WebDataRocks" and any "proprietary notice, copyright notice or label (e.g.,
       WebDataRocks logo and/or "WebDataRocks.com" text displayed when the WebDataRocks reporting tool
