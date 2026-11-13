@@ -198,6 +198,7 @@ npm run playground                  # playground with rebuilds on http://localho
 npm run test:browser                # build the playground, the element and the test pages, Playwright in three browsers (as CI)
 PLAYGROUND_PORT=4195 npm run test:browser   # on another port, when 4173 is taken
 PIVOTKIT_REACT=19 npm run test:browser   # the same on React 19 (npm ci --prefix tests/react19 first)
+npm run types --prefix tests/react19   # the TypeScript consumer against React 19's types (after npm run types; as CI)
 npx playwright test -c examples/angular/playwright.config.js   # the Angular example (build it first: npm run build --prefix examples/angular)
 npm run docs:data                   # fetch the real data sets once more into examples/playground/data/ (network)
 npm run docs:demo                   # build the playground into docs/playground/ (the live demo), and the schema, social preview and robots.txt

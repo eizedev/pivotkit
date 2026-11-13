@@ -51,7 +51,9 @@ ECharts, and pivotkit-core and pivotkit-react at the version in this repository)
 devDependency, and the package has no runtime dependency. A change of a bundled version changes what
 the element ships; its license lands in `dist/THIRD_PARTY_LICENSES.txt` by itself.
 React 19 for the browser tests is a separate install with its own lock file in `tests/react19/` (an
-alias in the workspace would clash with React 18's peer dependencies). Check the license of every library
+alias in the workspace would clash with React 18's peer dependencies). Its pinned React 19 types
+are checked against the generated declarations with `npm run types --prefix tests/react19`
+(after `npm run types` at the root), also in each React 19 browser CI job. Check the license of every library
 you add: permissive (MIT, Apache-2.0, BSD) and free for companies. `pivotkit-core` has no runtime
 dependency except `fflate` for the XLSX zip; keep it that way.
 `pivotkit-xlsx` depends on pivotkit-core (a caret range, as above), fflate and read-excel-file (exact

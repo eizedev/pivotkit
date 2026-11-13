@@ -139,6 +139,11 @@ jobs:
         env:
           PIVOTKIT_REACT: ${{ matrix.react }}
         run: npm run build:playground
+      - name: React 19 types
+        if: matrix.react == '19'
+        # Generate declarations in workspace build order, then resolve the consumer's React from
+        # tests/react19 via tsconfig paths, never from the React 18 workspace install.
+        run: npm run types && npm run types --prefix tests/react19
       - name: Browser tests
         # tests/browser against the build, in the job's engine and shard only
         env:
