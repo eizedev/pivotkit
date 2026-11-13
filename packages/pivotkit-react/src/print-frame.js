@@ -52,6 +52,9 @@ export async function printHtml(html, container) {
     frame.setAttribute("aria-hidden", "true");
     frame.setAttribute("tabindex", "-1");
     frame.title = parts.title;
+    // not laid out while it loads: a layout of the page would otherwise lay out the frame's document
+    // before it has loaded (Firefox warns of it); shown, at 1 px, once it is filled
+    frame.hidden = true;
     // the frame's own document: a browser may first load about:blank (Firefox), which srcdoc replaces
     const loaded = new Promise((resolve) => {
         const timer = setTimeout(() => resolve(false), PRINT_LOAD_TIMEOUT);
@@ -87,8 +90,13 @@ export async function printHtml(html, container) {
         fdoc.head.append(style);
     }
     fdoc.body.replaceChildren(...[...parts.body.childNodes].map((node) => fdoc.importNode(node, true)));
+    frame.hidden = false;
+    // the frame lays out its content in the page's next frame, not forced by print() at once
+    await new Promise((resolve) => view.requestAnimationFrame(() => setTimeout(resolve, 0)));
+    if (!frame.isConnected) {
+        return true;
+    }
     win.addEventListener("afterprint", () => setTimeout(() => frame.remove(), 0), { once: true });
-    win.focus();
     win.print();
     return true;
 }
