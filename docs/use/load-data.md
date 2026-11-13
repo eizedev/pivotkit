@@ -93,7 +93,7 @@ reason in the words of the reader (English):
 | Note | What to do |
 | --- | --- |
 | "tickets.csv could not be loaded: the quote that opens a value in line 12 is never closed." | Fix the line in the file, or export it again. |
-| "big.csv could not be loaded: it has more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit" | Load a smaller extract; the application can raise the limit. An application can allow fewer rows for a file than its own data has. The same note names columns, bytes or values (rows x columns). |
+| "big.csv could not be loaded: it has more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit" | Load a smaller extract; the application can raise the limit. An application can allow fewer rows for a file than its own data has. The same note names columns, bytes or values (rows x columns), and for a workbook the parts in its ZIP directory or the bytes it unpacks to. |
 | "… the workbook holds macros …", "… an Excel 97-2003 workbook …", "… protected with a password …" | Save it as an Excel workbook (`.xlsx`) without macros, or as CSV. |
 | "… no reader for this kind of file." | The report does not read this format (a PDF, say); save the data as CSV. |
 | "Drop one file at a time." | More than one file was dropped. |

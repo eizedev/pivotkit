@@ -43,9 +43,9 @@ export const en = {
     originalShown: "The original data is shown",
     failed: "{name} could not be loaded: {message}",
     refused: "{name} was not loaded: {message}",
-    // a limit of pivotkit-core the file is over; {key} the limit's key, as the reader names it
+    // a limit of pivotkit-core the file is over (archiveEntries and unpackedBytes: pivotkit-xlsx's ZIP checks); {key} the limit's key, as the reader names it
     overLimit: "it has more than {max} {what} ({key}): load a smaller extract of it, or a host can raise this limit",
-    limitWhat: { rows: "rows", columns: "columns", fileBytes: "bytes", importCells: "values (rows x columns)" },
+    limitWhat: { rows: "rows", columns: "columns", fileBytes: "bytes", importCells: "values (rows x columns)", archiveEntries: "parts in its ZIP directory", unpackedBytes: "bytes unpacked" },
     sourceLine: "{name}, only in this browser",
     sourceSheet: "{name}, sheet “{sheet}”, only in this browser",
     notes: {
@@ -111,7 +111,7 @@ export const de = {
     failed: "{name} konnte nicht geladen werden: {message}",
     refused: "{name} wurde nicht geladen: {message}",
     overLimit: "sie hat mehr als {max} {what} ({key}): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben",
-    limitWhat: { rows: "Zeilen", columns: "Spalten", fileBytes: "Bytes", importCells: "Werte (Zeilen x Spalten)" },
+    limitWhat: { rows: "Zeilen", columns: "Spalten", fileBytes: "Bytes", importCells: "Werte (Zeilen x Spalten)", archiveEntries: "Teile in ihrem ZIP-Verzeichnis", unpackedBytes: "entpackte Bytes" },
     sourceLine: "{name}, nur in diesem Browser",
     sourceSheet: "{name}, Blatt „{sheet}“, nur in diesem Browser",
     notes: {

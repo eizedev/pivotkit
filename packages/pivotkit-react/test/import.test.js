@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { PivotkitError, encode } from "pivotkit-core";
-import { IMPORT_NOTE_CODES, readFile } from "pivotkit-core/import";
+import { IMPORT_NOTE_CODES, limitError, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
 import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
 import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
@@ -200,6 +200,23 @@ test("a file's error in the report's language without the file's name the note n
     // a name the message does not start with is left alone, as is a plain text
     assert.equal(errorText(new Error('"other.csv" has a problem'), "big.csv", en, en_), '"other.csv" has a problem');
     assert.equal(errorText("no reader", "big.csv", en, en_), "no reader");
+});
+
+test("a workbook over the archive limits of pivotkit-xlsx is said in the report's language too (issue #239)", () => {
+    const en_ = { lang: "en", locale: "en-US" };
+    const de_ = { lang: "de", locale: "de-DE" };
+    // as pivotkit-xlsx's zip.js throws them (LIMIT_EXCEEDED since #236)
+    const parts = limitError("archiveEntries", 9, 5, "book.xlsx", "parts in its ZIP directory");
+    assert.equal(errorText(parts, "book.xlsx", en, en_), "it has more than 5 parts in its ZIP directory (limits.archiveEntries): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(parts, "book.xlsx", de, de_), "sie hat mehr als 5 Teile in ihrem ZIP-Verzeichnis (limits.archiveEntries): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    const bomb = limitError("unpackedBytes", 209_715_200, 104_857_600, "book.xlsx", "bytes unpacked, by its ZIP directory; a ZIP bomb or a workbook too large to load");
+    assert.equal(errorText(bomb, "book.xlsx", en, en_), "it has more than 104,857,600 bytes unpacked (limits.unpackedBytes): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(bomb, "book.xlsx", de, de_), "sie hat mehr als 104.857.600 entpackte Bytes (limits.unpackedBytes): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    // every limit a reader of pivotkit-core or pivotkit-xlsx stops a file at has words in both languages
+    const stops = ["fileBytes", "rows", "columns", "importCells", "archiveEntries", "unpackedBytes"];
+    for (const texts of [en, de]) {
+        assert.deepEqual(Object.keys(texts.limitWhat).sort(), [...stops].sort());
+    }
 });
 
 test("a host's texts for loading data (labels.dataImport) win over the defaults, of the right kind only", () => {

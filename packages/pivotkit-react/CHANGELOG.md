@@ -207,6 +207,10 @@ What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started
   host can raise this limit: "big.csv could not be loaded: it has more than 1,000 rows (limits.rows):
   load a smaller extract of it, or a host can raise this limit"; other errors of a reader lose the
   file's name in front in both of its forms ([#185](https://github.com/eizedev/pivotkit/issues/185)).
+- A workbook over pivotkit-xlsx's limits `archiveEntries` or `unpackedBytes` is said in the report's
+  language too ("book.xlsx could not be loaded: it has more than 524,288,000 bytes unpacked
+  (limits.unpackedBytes): …"), with the words in `labels.dataImport.limitWhat`; it showed
+  pivotkit-xlsx's English message ([#239](https://github.com/eizedev/pivotkit/issues/239)).
 - A rule on the names ("begins with “ACTIVE DIRECTORY”") keeps the items whose names hold a no-break
   space or other whitespace, and a space typed at the end does not matter
   ([#159](https://github.com/eizedev/pivotkit/issues/159)).
