@@ -203,9 +203,12 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * budget 171.5. The Export menu's three entries and the report's export and print code took the menus
  * to 43.6 (42.3 before), budget 45. Together with the column subtotals' tip (#156) and the report's
  * closest() hints: first load 170.7 on a Mac (CI about 171.2), budget 172; menus 43.8; report 20.2.
+ * The chart's text size as a token (#221: textSize, the layout's fontSize, the room of title and legend
+ * from the sizes, in pivotkit-core's chart option of the first load): 171.9 on a Mac (CI 172.5, at
+ * the budget of 172.5), budget 173.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 172.5, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21 };
+export const SIZE_BUDGET_KIB = { initial: 173, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
