@@ -147,6 +147,7 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
             await page.mouse.move(b.x + b.width / 2, (gap[0] + gap[1]) / 2);
             // to the start of the i's own row in the menu (its switch), not onto another i
             const menuBox = await page.locator(".pk-popover").first().boundingBox();
+            expect(menuBox.x + 12, "the row's start, left of the i").toBeLessThan(b.x);
             await page.mouse.move(menuBox.x + 12, b.y + b.height / 2, { steps: 3 });
             await expect(tip).toHaveCount(0);
             await expect(page.locator(".pk-popover").first()).toBeVisible();

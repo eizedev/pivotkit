@@ -107,5 +107,7 @@ export function inGap(anchor, popover, point) {
         return false;
     }
     const [top, bottom] = popover.top >= anchor.bottom ? [anchor.bottom, popover.top] : [popover.bottom, anchor.top];
-    return top <= bottom && point.y >= top && point.y <= bottom && point.x >= Math.min(anchor.left, popover.left) && point.x <= Math.max(anchor.right, popover.right);
+    // a popover over its anchor (top > bottom) leaves no gap
+    const across = point.x >= Math.min(anchor.left, popover.left) && point.x <= Math.max(anchor.right, popover.right);
+    return top <= bottom && point.y >= top && point.y <= bottom && across;
 }

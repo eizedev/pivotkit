@@ -94,9 +94,17 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
         const follow = (/** @type {PointerEvent} */ e) => {
             pointer.current = { x: e.clientX, y: e.clientY };
         };
+        // the pointer leaving the window from the gap: no later move would say it is gone
+        const gone = (/** @type {PointerEvent} */ e) => {
+            if (!e.relatedTarget) {
+                pointer.current = null;
+            }
+        };
         doc.addEventListener("pointermove", follow, { capture: true, passive: true });
+        doc.addEventListener("pointerout", gone, { capture: true, passive: true });
         return () => {
             doc.removeEventListener("pointermove", follow, { capture: true });
+            doc.removeEventListener("pointerout", gone, { capture: true });
             pointer.current = null;
         };
     }, [mode]);
