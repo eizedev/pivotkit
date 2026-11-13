@@ -38,7 +38,8 @@ the menu, also at the window's edge.
     Every number with all its decimals, the number formats, the merged headers (a group's label at
     the top of its rows, as in the report), the bold totals and the highlighting (colour scales and
     data bars as Excel's own conditional formats, so they stay live, in the report's colours: the
-    light theme's, also when the report is dark, since Excel shows them behind black text). The sheet has the file's name, made valid for Excel: at most 31 characters. Where Excel
+    light theme's, also when the report is dark, since Excel shows them behind black text). The
+    sheet has the file's name, made valid for Excel: at most 31 characters. Where Excel
     cannot follow a format: bytes and durations are written as plain numbers, compact numbers in
     languages that group by ten thousand (Japanese) as general numbers, and dates before 1900 as text.
     Number labels (a year on rows) stay numbers.

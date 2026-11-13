@@ -564,7 +564,7 @@ are not stable across page loads; do not select the fields by them (the `data-te
 
 ## Popovers and the host page
 
-Menus, bottom sheets and the "i" popups opened by a click open in the browser's top layer (`popover="manual"`; a description shown on hover stays in the report's layer): above
+Menus, bottom sheets and the "i" popups opened by a click open in the browser's top layer (`popover="manual"`; a description shown on hover of an "i" outside a menu stays in the report's layer, one inside a menu opens above the menu): above
 the host page's own layout whatever its z-indexes (a fixed navigation drawer at 1200, an app bar), and
 never clipped by its boxes; they stay in the report's DOM and are placed against the window. A
 browser without the Popover API stacks them by `--pk-layer-z`:

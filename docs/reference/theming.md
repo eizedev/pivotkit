@@ -98,8 +98,8 @@ bar with a z-index of 1200 too, and never cut off by a box of the page that clip
 report in the DOM, so the tokens above and the theme reach them, also inside the web component's
 shadow root, and they are placed against the window.
 
-A description shown while the pointer rests on an "i" in the field list stays in the report's own
-layer (stacked by `--pk-layer-z`): in WebKit a pointer that moved from the "i" onto it in the top
+A description shown while the pointer rests on an "i" outside a menu (the field list, the zones, a
+chip) stays in the report's own layer (stacked by `--pk-layer-z`): in WebKit a pointer that moved from the "i" onto it in the top
 layer closed it, so its link could not be reached. An "i" inside a menu (Export, Options, Views, a
 field's menu) shows its description in the top layer, after the menu, so it is drawn above the menu;
 next to the window's edge it moves to stay whole in the window. A click or tap on any "i" opens it in
@@ -138,7 +138,8 @@ carries over into the workbook that way. A view's own colours are written as the
 
 The workbook always gets the light theme's colours, since a spreadsheet shows them behind black
 text: a report shown in the dark theme writes pivotkit-core's defaults, which are the light theme's
-(`DEFAULT_THEME`, light blue to blue, and blue bars). A token that the browser cannot write as an
+(`DEFAULT_THEME`, light blue to blue, and blue bars), so a theme of your own does not reach a
+workbook exported from the dark theme. A token that the browser cannot write as an
 sRGB colour (`oklch()` outside sRGB, say) keeps that default too. The report itself shows a colour
 scale lighter than the workbook (mixed with the background, so the numbers stay readable); the
 workbook has Excel's full colours. With pivotkit-core alone, pass the colours as `theme` to

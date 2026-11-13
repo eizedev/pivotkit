@@ -11,7 +11,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `DEFAULT_THEME` holds pivotkit-react's light theme colours: the colour scale runs from light blue to
   blue (`["#eaf1fb", "#2a78d6"]`, was Excel's red, yellow, green, which said "low is bad" for a
   temperature or a cost), data bars `"#2a78d6"` (was `"#638ec6"`) ([#212](https://github.com/eizedev/pivotkit/issues/212)). A view's own
-  colours and a `theme` passed to `toXlsx` are unchanged.
+  colours and a `theme` passed to `toXlsx` are unchanged; a host that wants the old colours passes
+  `theme: { colorScale: ["#f8696b", "#ffeb84", "#63be7b"], dataBar: "#638ec6" }`.
 - Column subtotals are off by default (`totals.colSubtotals: false`); row subtotals and both grand
   totals stay on ([#156](https://github.com/eizedev/pivotkit/issues/156)). A view that names `colSubtotals` keeps it, and every view the UI saves,
   shares or stores names all four totals. A host's start view, a template or a view file written by

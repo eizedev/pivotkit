@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { DEFAULT_THEME } from "pivotkit-core";
 import { DARK_TOKENS, LIGHT_TOKENS, render } from "pivotkit-report";
 import { SALES } from "./fixtures.js";
 
@@ -18,10 +19,19 @@ test("the light and the dark tokens are pivotkit-react's, name for name", () => 
     const light = tokensOf(":where(.pk-root)");
     const dark = tokensOf(':where(.pk-root[data-pk-theme="dark"])');
     for (const [name, value] of Object.entries(LIGHT_TOKENS)) assert.equal(value, light[name], `light ${name}`);
-    // a token the dark rule does not declare again is the light rule's (the colour scale's, which
-    // refer to the heat tokens of either theme)
-    for (const [name, value] of Object.entries(DARK_TOKENS)) assert.equal(value, dark[name] ?? light[name], `dark ${name}`);
+    // the colour scale's tokens are declared once, in the light rule: they refer to the heat tokens of
+    // either theme; every other dark token is declared in the dark rule
+    const inherited = new Set(["--pk-scale-low", "--pk-scale-high"]);
+    for (const [name, value] of Object.entries(DARK_TOKENS)) assert.equal(value, inherited.has(name) ? light[name] : dark[name], `dark ${name}`);
+    for (const name of inherited) assert.equal(dark[name], undefined, `${name} is not declared again for dark`);
     assert.deepEqual(Object.keys(DARK_TOKENS), Object.keys(LIGHT_TOKENS));
+});
+
+// pivotkit-core's DEFAULT_THEME is the light theme's colours, for a workbook or a report without tokens (#212)
+test("DEFAULT_THEME's colour scale and bar colour are the light heat tokens and --pk-chart-1", () => {
+    const light = tokensOf(":where(.pk-root)");
+    assert.deepEqual(DEFAULT_THEME.colorScale, [light["--pk-heat-low"], light["--pk-heat-high"]]);
+    assert.equal(DEFAULT_THEME.dataBar, light["--pk-chart-1"]);
 });
 
 test("a host's tokens go into the report only as --pk-* names with plain values", async () => {
