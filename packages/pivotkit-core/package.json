@@ -32,6 +32,10 @@
       "types": "./types/export.d.ts",
       "default": "./src/export.js"
     },
+    "./chart": {
+      "types": "./types/chart-style.d.ts",
+      "default": "./src/chart-style.js"
+    },
     "./import": {
       "types": "./types/import.d.ts",
       "default": "./src/import.js"
@@ -72,7 +76,7 @@
     "fflate": "0.8.3"
   },
   "devDependencies": {
-    "fast-xml-parser": "5.11.2",
+    "fast-xml-parser": "5.12.0",
     "read-excel-file": "9.3.14"
   },
   "types": "./types/index.d.ts",

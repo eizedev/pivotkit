@@ -745,10 +745,11 @@ export function ExportOption({ icon, text, info, onSelect, testId, disabled, rea
 }
 
 /**
- * The Export menu: the table as a file (Excel, CSV), the chart as an image, and the table on the
- * clipboard (as shown, or its data as JSON). The export module loads when the menu opens, so a copy
- * happens right in the click.
- * An empty report (no field placed) has nothing to export: every entry is off, and says so.
+ * The Export menu: the table as a file (Excel, CSV), the chart as an image (PNG, SVG), an HTML report,
+ * printing (or saving as PDF from the print dialog), and the table on the clipboard (as shown, or its
+ * data as JSON). The export module loads when the menu opens, so a copy happens right in the click.
+ * An empty report (no field placed) has nothing to export: every entry is off, and says so; the chart's
+ * images are off while the table is shown.
  * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, empty?: boolean, prepare: () => void, close: () => void }} props
  */
 export function ExportPanel({ labels, onExport, chartReady, display, empty = false, prepare, close }) {
@@ -766,7 +767,12 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
             <Section title={labels.exportDownload}>
                 <ExportOption icon="file" text={labels.exportXlsx} info="exportXlsx" onSelect={run("xlsx")} {...off} testId="export-xlsx" />
                 <ExportOption icon="file" text={labels.exportCsv} info="exportCsv" onSelect={run("csv")} {...off} testId="export-csv" />
+                <ExportOption icon="file" text={labels.exportHtml} info="exportHtml" onSelect={run("html")} {...off} testId="export-html" />
                 <ExportOption icon="image" text={labels.exportPng} disabled={empty || !chartReady} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("png")} testId="export-png" />
+                <ExportOption icon="image" text={labels.exportSvg} disabled={empty || display !== "chart"} reason={empty ? off.reason : display !== "chart" ? labels.exportPngNeedsChart : undefined} onSelect={run("svg")} testId="export-svg" />
+            </Section>
+            <Section title={labels.exportPrintGroup}>
+                <ExportOption icon="print" text={labels.exportPrint} info="exportPrint" onSelect={run("print")} {...off} testId="export-print" />
             </Section>
             <Section title={labels.exportCopy}>
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />

@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The chart's plan, its colours from the tokens and its marks are pivotkit-core's (`chartPlan`,
+  `chartThemeFrom`, `pivotkit-core/chart`), so an SVG and a printed report of pivotkit-report draw
+  the same chart; the report looks the same. A host page with an import map adds
+  `pivotkit-core/chart` next to `pivotkit-core/export` ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - The table follows pivotkit-core's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals off in a new report,
   no empty column and no total rows for fields in Rows without a value, no subtotal for a group of
   one item (its arrow stays). Labels without a value column next to them take up to 85 % of the
@@ -51,10 +55,17 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   and group labels too, so a host whose font looks too heavy or too light sets four tokens instead of
   overriding selectors. The weights 550 (field chips, the drill-down's path) and 650 (titles, table
   headers) are now 600, to keep the scale at four steps; a font without those faces drew them as 600
-  or 700 anyway. A test fails on a colour or font weight written outside the token blocks.
+  or 700 anyway. The HTML report and print take the report's weights along, in the dark theme too
+  (its colours only in the light theme, as before). A test fails on a colour or font weight written
+  outside the token blocks.
+- Export → "HTML report (.html)", "Chart image (.svg)" and a group "Print" with "Print or save as
+  PDF…": the table as it is shown (and the chart when it is shown) as a page that opens anywhere and
+  prints well, the chart as SVG, and the same report in the browser's print dialog, from a sandboxed
+  frame a strict Content-Security-Policy allows. `onExport` gets the kinds `html`, `svg` and `print`
+  (with the report's HTML; `false` prints nothing). pivotkit-report is a new dependency, loaded on the
+  first of these exports ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - The tip `colSubtotals`: while a Total column shows (column subtotals on, two or more fields in
   Columns, a value, an open column group of two or more items), it says that a Total column adds up the group before it, with the button **Hide column subtotals** ([#156](https://github.com/eizedev/pivotkit/issues/156)).
-
 - The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
   loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data
   keeps `limits`, so a host can keep uploads small (`importLimits={{ rows: 1000 }}`) without capping

@@ -1,31 +1,35 @@
 ---
 title: Export and copy
-description: Download a pivotkit report as an Excel workbook or a CSV file, the chart as a PNG image, or copy the table into a spreadsheet or as JSON - what each one holds.
+description: Download a pivotkit report as an Excel workbook, a CSV file or an HTML report, the chart as a PNG or SVG image, print it or save it as PDF, or copy the table into a spreadsheet or as JSON - what each one holds.
 ---
 
 # Export and copy
 
-**Export** in the toolbar downloads the table as an Excel workbook or a CSV file, the chart as a
-picture, or copies the table so you can paste it into a spreadsheet. The Excel file keeps every number
-with all its decimals and the formats; the CSV and the copy hold the numbers as the table shows them.
+**Export** in the toolbar downloads the table as an Excel workbook, a CSV file or an HTML report, the
+chart as a picture, prints the report (or saves it as PDF), or copies the table so you can paste it
+into a spreadsheet. The Excel file keeps every number with all its decimals and the formats; the CSV,
+the HTML report and the copy hold the numbers as the table shows them.
 
-![The Export menu: Excel workbook, CSV file and chart image under Download; Copy table and Copy data as JSON under Copy](../assets/screenshots/export-menu-light.png#only-light)
-![The Export menu: Excel workbook, CSV file and chart image under Download; Copy table and Copy data as JSON under Copy](../assets/screenshots/export-menu-dark.png#only-dark)
+![The Export menu: Excel workbook, CSV file, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table and Copy data as JSON under Copy](../assets/screenshots/export-menu-light.png#only-light)
+![The Export menu: Excel workbook, CSV file, HTML report and the chart images under Download; Print or save as PDF under Print; Copy table and Copy data as JSON under Copy](../assets/screenshots/export-menu-dark.png#only-dark)
 
 | Entry | Gives | Best for |
 | --- | --- | --- |
 | **Excel workbook (.xlsx)** | The table with every number and all its decimals, the number formats, the merged headers, the bold totals and the highlighting. | Calculating on in Excel. |
 | **CSV file (.csv)** | The table as text: percentages and "show as" calculations as the table shows them, other numbers with all their decimals. | Other programs. |
+| **HTML report (.html)** | A page with the table as it is shown, the chart when the chart is shown, and the filters. Opens in any browser, prints well. | Sending a report to read or to print. |
 | **Chart image (.png)** | The chart as drawn. Greyed out while the table is shown ("Switch to Chart first."). | A slide or a message. |
+| **Chart image (.svg)** | The chart as a vector image: sharp at any size. Greyed out while the table is shown ("Switch to Chart first."). | A document or a print layout. |
+| **Print or save as PDF…** | The HTML report in the browser's print dialog: print it, or pick "Save as PDF" there. | Paper, or a PDF. |
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
 
 While no field is placed there is nothing to export: every entry is greyed out with "Add a field
 first." under it, and nothing is downloaded or copied.
 
-The menu has two titled groups, **Download** and **Copy**, in that order also in the drill-down's
-Export menu. An
-**i** next to Excel, CSV, Copy table and Copy data as JSON says what each holds.
+The menu has three titled groups, **Download**, **Print** and **Copy**. The drill-down's Export menu
+has **Download** and **Copy** with the rows behind a number; it has no HTML report, SVG or print. An
+**i** next to Excel, CSV, HTML report, Print, Copy table and Copy data as JSON says what each holds.
 
 ## What each one holds
 
@@ -44,9 +48,28 @@ Export menu. An
     numbers keep all their decimals (15 significant digits). A row label is repeated on every row it
     spans.
 
+??? info "HTML report"
+    One file that opens in any browser, offline: a heading (the loaded view's name, or "Report"), the
+    chart when the chart is shown, the table as it is shown (merged headers, bold totals, colour
+    scales and data bars, collapsed groups marked "+"; every number as the table writes it), and below
+    it the data's name, its rows, the filters in words and when it was made. Light or dark after your
+    system on screen, always light on paper. It loads and runs nothing: no script, no address it
+    fetches. A very large table is cut after 200,000 cells, and the report says how many rows it
+    shows; export Excel or CSV for all of them.
+
 ??? info "Chart image"
-    The chart as drawn, at twice the screen's resolution, on the report's background colour: with
-    its title, legend, value labels and group labels.
+    The PNG: the chart as drawn, at twice the screen's resolution, on the report's background colour:
+    with its title, legend, value labels and group labels. The SVG: the same chart at the size it has
+    on the screen, as a vector image on a light background, its texts as text; at most the first 50
+    categories, as on the screen.
+
+??? info "Print or save as PDF"
+    Opens the browser's print dialog with the HTML report (not the page around it). Every page repeats
+    the table's header row and never splits a row; a table with more than 8 columns is printed
+    landscape, one with more than 16 in a smaller font, the chart stays whole on its page. To get a
+    PDF, pick "Save as PDF" (or "Microsoft Print to PDF") as the printer. Where the page does not allow
+    it, a note says so: "This page does not allow printing the report. Download the HTML report
+    instead."
 
 ??? info "Copy table"
     The table as it is shown: headers, labels and totals, every number as the table writes it
@@ -64,7 +87,7 @@ Export menu. An
 ## File names
 
 The files are named after the application's report name, "pivot" when it gives none: `pivot.xlsx`,
-`pivot.csv`, `pivot.png`. A downloaded view is `<name>.pivotkit.json`, after the view's or the
+`pivot.csv`, `pivot.html`, `pivot.png`, `pivot.svg`. A downloaded view is `<name>.pivotkit.json`, after the view's or the
 data's name ([views](views.md#share-a-view)). The rows behind a number are named after the cell
 ([drill-down](drill-down.md#copy-or-download-the-rows)).
 
@@ -72,7 +95,8 @@ data's name ([views](views.md#share-a-view)). The rows behind a number are named
 
 A label a spreadsheet would run as a formula (it starts with `=`, `@`, or `+` or `-` and is no number)
 gets a leading `'`, in the CSV and in the copies. The Excel file writes text as text, never as a
-formula ([security](../security.md#exports)).
+formula. The HTML report and the SVG write every text as text, never as markup
+([security](../security.md#exports)).
 
 ## When copying is not allowed
 
@@ -81,7 +105,10 @@ note says so: "This page does not allow copying. Download a file instead."
 
 !!! note "For developers"
     `fileName` names the files; every file and every copy passes `onExport` first (`xlsx`, `csv`,
-    `png`, `json` for a downloaded view file, `copy-table`, `copy-json`), so the host can keep it
-    ([React props](../reference/react.md#props)). The shape of Copy data as JSON is
+    `html`, `png`, `svg`, `print` with the HTML before the dialog opens, `json` for a downloaded view
+    file, `copy-table`, `copy-json`), so the host can keep it or print it its own way
+    ([React props](../reference/react.md#props)). The HTML report and the SVG are
+    [pivotkit-report](../reference/report.md)'s, the same as the command line's
+    ([pivotkit-cli](../reference/cli.md)). The shape of Copy data as JSON is
     [pivotkit-core's `toJson`](../reference/core.md); how formats reach Excel and CSV is in
     [Values](../concepts/values.md#export).

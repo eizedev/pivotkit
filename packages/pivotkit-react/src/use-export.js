@@ -14,7 +14,7 @@ import { fill, messageOf } from "./labels.js";
 
 /**
  * @param {import("./export-run.js").ExportContext} context
- * @returns {(kind: "xlsx" | "csv" | "png" | "copy-table" | "copy-json") => Promise<void>}
+ * @returns {(kind: "xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json") => Promise<void>}
  */
 export function useExport(context) {
     return async (kind) => {

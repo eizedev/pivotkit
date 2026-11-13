@@ -58,8 +58,8 @@ Start with the [quick start](use/quick-start.md) (your first report in six steps
   or one of your own under Views, save changes to it with one click or under a new name, publish it
   for everyone where allowed, or share it as a link, as JSON or as a
   view file; a view for other data asks first ([views and sharing](use/views.md)).
-- Export the table to Excel or CSV and the chart to PNG, or copy the table into a spreadsheet
-  ([export and copy](use/export.md)).
+- Export the table to Excel, CSV or an HTML report, the chart to PNG or SVG, print the report or save
+  it as PDF, or copy the table into a spreadsheet ([export and copy](use/export.md)).
 - Where the application allows it, load a CSV, JSON or Excel file of your own: drop it onto the report,
   check the preview and the column types, go back with Undo ([load your own data](use/load-data.md)).
 - Enlarge the result or put the report on the full screen; tips, one at a time, say what the report
@@ -99,6 +99,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
 - Every file and every copy passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
+- Reports without a browser: `render()` writes JSON, CSV, XLSX, SVG or a printable HTML report from a template ([pivotkit-report](reference/report.md)); the command line `pivotkit` renders, validates and describes views in CI ([pivotkit-cli](reference/cli.md)).
 - Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)); every text replaceable, English and German built in ([localisation](reference/localisation.md)).
 - Measured up to 1,000,000 rows in three browsers ([measured in the browser](concepts/limits.md#measured-in-the-browser)); heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
 

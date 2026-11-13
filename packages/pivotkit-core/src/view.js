@@ -460,7 +460,7 @@ function filtersSection(raw, view, ctx) {
         }
         if (!def) {
             const renamed = typeof type === "string" && Object.hasOwn(FILTER_TYPES_V1, type) ? { suggestion: FILTER_TYPES_V1[type] } : suggest(type, Object.keys(FILTERS));
-            return ctx.issue(path, `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...renamed });
+            return ctx.issue(path, type === undefined ? `a filter needs a type: one of ${Object.keys(FILTERS).join(", ")}` : `unknown filter type ${JSON.stringify(type)}`, "unknownFilterType", { value: shown(type), ...renamed });
         }
         ctx.keys(flt, def.keys, path);
         if (!fieldKinds(f, view).some((kind) => def.fields.includes(kind))) {
@@ -631,6 +631,12 @@ function formattingSection(raw, view, ctx) {
 /** In order: derived fields first, values before filters and sort (their default measure). */
 const SECTIONS = [derivedSection, axesSection, valuesSection, filtersSection, sortSection, totalsSection, collapsedSection, displaySection, formattingSection];
 
+/**
+ * Top-level keys other pivot tools use for a key of a view, too far from it in spelling for closest()
+ * to find ("columns" is three edits from "cols"): the hint of an unknown key names the view's own.
+ */
+const KEY_SYNONYMS = Object.freeze({ columns: "cols", column: "cols", measures: "values", measure: "values", aggregations: "values", filter: "filters", sorting: "sort" });
+
 /** `{ suggestion }` with the name of `candidates` closest to `name`, else nothing ("did you mean"). */
 function suggest(name, candidates) {
     const suggestion = closest(name, candidates);
@@ -783,7 +789,7 @@ function check(input, schema, options, strict) {
     const raw = migrated.view;
     for (const key of Object.keys(raw)) {
         if (!Object.hasOwn(view, key)) {
-            issues.add(issueOf(key.slice(0, 100), "unknown key", "unknownKey", { value: shown(key), ...suggest(key, VIEW_KEYS.view) }));
+            issues.add(issueOf(key.slice(0, 100), "unknown key", "unknownKey", { value: shown(key), ...(Object.hasOwn(KEY_SYNONYMS, key.toLowerCase()) ? { suggestion: KEY_SYNONYMS[key.toLowerCase()] } : suggest(key, VIEW_KEYS.view)) }));
         }
     }
     const ctx = context(schema, limits, issues.add, strict);

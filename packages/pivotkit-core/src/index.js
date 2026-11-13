@@ -12,6 +12,7 @@
  *   const file = toViewFile(view, { name, source: { id }, data }); // the view file; fromViewFile reads one
  *   // import { parseTemplates, templatesFromSchema } from "pivotkit-core/templates" (named views)
  *   // import { toXlsx, toCsv } from "pivotkit-core/export"
+ *   // import { decorateOption } from "pivotkit-core/chart" (a report's marks on the chart's option)
  *
  * Conventions: required inputs first (the subject leads), everything optional in one trailing options
  * object. Locale: view.formatting.locale, then options.locale, then "en-US". Errors: a bad view never
@@ -59,8 +60,10 @@ export { fieldItems } from "./items.js";
 export { suggestDateUnit } from "./derive.js";
 export { relativeDateRange } from "./filters.js";
 export { foldText, MATCH_DEFAULTS } from "./text-match.js";
+export { closest, HINT_LIMITS } from "./hints.js";
 export { toGrid } from "./grid.js";
 export { autoChartType, toSeries, toEChartsOption } from "./chart.js";
+export { chartPlan, swapAxes, chartThemeFrom, CHART_COLORS } from "./chart-plan.js";
 export { createHistory } from "./history.js";
 export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor } from "./aggregators.js";

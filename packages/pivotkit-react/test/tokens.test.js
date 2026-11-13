@@ -146,11 +146,13 @@ test("styles.css: every --pk-weight-* a rule uses is declared in the token block
     }
 });
 
-test("styles set from code take colours and font weights from tokens too (the chart's tooltip, the table's probe)", () => {
+test("styles set from code take colours and font weights from tokens too (the chart's tooltip, the table's probe, the HTML report)", () => {
     const found = [];
-    for (const dir of ["../src/", "../../pivotkit-element/src/"]) {
+    // pivotkit-report's tokens.js is its token block, a kept copy of this stylesheet's; pivotkit-core has
+    // no tokens (its DEFAULT_THEME is what a host without a stylesheet gets, theme.js passes the tokens)
+    for (const dir of ["../src/", "../../pivotkit-element/src/", "../../pivotkit-report/src/"]) {
         const url = new URL(dir, import.meta.url);
-        for (const name of readdirSync(url).filter((n) => /\.jsx?$/.test(n))) {
+        for (const name of readdirSync(url).filter((n) => /\.jsx?$/.test(n) && !(dir.includes("report") && n === "tokens.js"))) {
             // without comments: they name issues (#136) and colours in words
             const code = readFileSync(new URL(name, url), "utf8").replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " ")).replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
             code.split("\n").forEach((line, i) => {

@@ -133,3 +133,54 @@ test("the menus' export texts exist in English and German, distinct from the vie
         assert.equal(typeof de[key], "string");
     }
 });
+
+test("the HTML report, the chart as SVG and the report to print go through onExport first; a host may take them", async () => {
+    const files = [];
+    const said = [];
+    const chartView = computePivot(encoded, { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart", chart: { type: "bar" } });
+    const context = {
+        fileName: "sales/2026",
+        result: chartView,
+        locale: "de-DE",
+        labels: LABELS.de,
+        limits: undefined,
+        root: { current: null },
+        chartRef: { current: { getWidth: () => 640.4, getHeight: () => 50 } },
+        announce: (t, extra) => said.push([t, extra]),
+        onExport: (f) => (files.push(f), false),
+        title: "Units by region",
+        source: "sales.csv",
+        loadECharts: () => import("../src/echarts.js")
+    };
+    await runExport("html", context);
+    await runExport("svg", context);
+    await runExport("print", context);
+    assert.deepEqual(files.map((f) => [f.kind, f.fileName, f.blob.type]), [["html", "sales-2026.html", "text/html;charset=utf-8"], ["svg", "sales-2026.svg", "image/svg+xml"], ["print", "sales-2026.html", "text/html;charset=utf-8"]]);
+    const html = await files[0].blob.text();
+    assert.match(html, /<html lang="de-DE"/);
+    assert.match(html, /<h1>Units by region<\/h1>/);
+    assert.match(html, /<dt>Quelle<\/dt><dd>sales\.csv<\/dd>/);
+    // the table as the report shows it, the chart as an image since the view shows the chart
+    assert.match(html, /<th scope="row" class="pk-th pk-row">Central<\/th><td class="pk-td pk-num">1\.236,5<\/td>/);
+    assert.match(html, /<img alt="Diagramm: Units by region" width="640" height="100" src="data:image\/svg\+xml;base64,/);
+    const svg = await files[1].blob.text();
+    assert.match(svg, /^<svg width="640" height="100" /);
+    assert.ok(svg.includes(">Central</text>"));
+    // printing: the chart inline (no data: image a strict page would block)
+    const print = await files[2].blob.text();
+    assert.match(print, /<figure class="pk-report-chart"><svg /);
+    assert.deepEqual(said, [], "a host that takes the file says itself what became of it");
+});
+
+test("the new export texts exist in English and German", () => {
+    for (const labels of [en, de]) {
+        for (const key of ["exportHtml", "exportSvg", "exportPrintGroup", "exportPrint", "toastPrintBlocked"]) {
+            assert.equal(typeof labels[key], "string", `${labels.lang} ${key}`);
+        }
+        for (const key of ["exportHtml", "exportPrint"]) {
+            assert.equal(typeof labels.settingInfo[key], "string", `${labels.lang} settingInfo.${key}`);
+        }
+    }
+    assert.equal(en.exportPrint, "Print or save as PDF…");
+    assert.equal(de.exportPrint, "Drucken oder als PDF speichern…");
+});

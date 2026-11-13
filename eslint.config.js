@@ -30,9 +30,14 @@ export default [
         languageOptions: { globals: { ...globals["shared-node-browser"] } }
     },
     {
-        // the reader plugins run in browsers and Node, as the engine
-        files: ["packages/pivotkit-xlsx/src/**/*.js"],
+        // the reader plugins and the report run in browsers and Node, as the engine
+        files: ["packages/pivotkit-xlsx/src/**/*.js", "packages/pivotkit-report/src/**/*.js"],
         languageOptions: { globals: { ...globals["shared-node-browser"] } }
+    },
+    {
+        // the command line runs in Node only
+        files: ["packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js"],
+        languageOptions: { globals: { ...globals.node } }
     },
     {
         // the UI, the web component, the playground and the element example run in browsers

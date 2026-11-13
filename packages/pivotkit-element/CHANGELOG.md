@@ -8,6 +8,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- `dist/THIRD_PARTY_LICENSES.txt` is written by the repository's shared licence script, as for
+  pivotkit-xlsx; its text is unchanged ([#125](https://github.com/eizedev/pivotkit/issues/125)).
 - The element bundles pivotkit-core's and pivotkit-react's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals
   off by default, no empty column or total rows without values, no subtotal for a group of one item,
   the tip on column subtotals. Size budgets ([#198](https://github.com/eizedev/pivotkit/issues/198)): the first load to 170.5 KiB (168.6 measured on
@@ -22,6 +24,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 - pivotkit-react's font weight tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)): `--pk-weight-normal`, `--pk-weight-medium`,
   `--pk-weight-strong` and `--pk-weight-bold`, set on the element like every `--pk-*` token.
+- Export → HTML report, Chart image (.svg) and Print or save as PDF (pivotkit-react), loaded as the
+  chunk group "report" on first use (19.9 KiB gzip); `pivot-export` has the kinds `html`, `svg` and
+  `print` ([#165](https://github.com/eizedev/pivotkit/issues/165)). ECharts' SVG renderer comes with
+  the chart chunks (215.8 KiB, budget 222.5) and pivotkit-core's describe module with the first load
+  (170.0 KiB, budget 171.5): esbuild puts a module where any importer of its barrel loads it.
 - The property `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)), as
   pivotkit-react's prop: the limits of a file loaded with `allow-import`, merged key by key over
   `limits`; the page's data keeps `limits`. A property only, as `limits`.

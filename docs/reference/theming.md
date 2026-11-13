@@ -131,7 +131,8 @@ keyword such as `bold` leaves the chart at 600).
 }
 ```
 
-The same declarations go on `pivot-report` for the web component. A weight the font has no face for
+The same declarations go on `pivot-report` for the web component. The HTML report and print
+(Export) take the report's weights along, in either theme. A weight the font has no face for
 is drawn with another face: above 500 the browser takes the next heavier one, so with a font of only
 400 and 700 a weight of 550 is drawn at 700. Pick weights the font has, or use a variable font.
 

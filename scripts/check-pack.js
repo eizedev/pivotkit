@@ -19,7 +19,9 @@ const pkg = JSON.parse(readFileSync(new URL(`../packages/${workspace}/package.js
 const exportPaths = Object.values(pkg.exports).flatMap((target) => (typeof target === "string" ? [target] : Object.values(target)));
 // a package that bundles third-party code ships their license texts
 const BUNDLED_LICENSES = { "pivotkit-element": ["dist/THIRD_PARTY_LICENSES.txt"], "pivotkit-xlsx": ["dist/index.js", "dist/THIRD_PARTY_LICENSES.txt"] };
-const required = ["LICENSE", "README.md", "CHANGELOG.md", "package.json", ...exportPaths.map((p) => p.replace(/^\.\//, "")), ...(BUNDLED_LICENSES[workspace] ?? [])];
+// a command-line package ships the files of its commands
+const binPaths = typeof pkg.bin === "string" ? [pkg.bin] : Object.values(pkg.bin ?? {});
+const required = ["LICENSE", "README.md", "CHANGELOG.md", "package.json", ...exportPaths.map((p) => p.replace(/^\.\//, "")), ...binPaths.map((p) => p.replace(/^\.\//, "")), ...(BUNDLED_LICENSES[workspace] ?? [])];
 const forbidden = /^(test|bench|scripts)\/|^tsconfig\.json$|^node_modules\//;
 
 // a package marked private cannot be published: npm publish stops with EPRIVATE

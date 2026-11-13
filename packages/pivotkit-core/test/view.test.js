@@ -369,6 +369,8 @@ test("an unknown field, aggregator, filter type or key names the closest known o
     ]);
     // nothing close: no suggestion
     assert.equal(validate({ rows: ["Planet"] }, data).errors[0].params.suggestion, undefined);
+    // the name other pivot tools give a key, too far in spelling: the view's own key
+    assert.deepEqual(validate({ rows: ["Region"], columns: ["Year"], Measures: [] }, data).errors.map((e) => [e.path, e.params?.suggestion]), [["columns", "cols"], ["Measures", "values"]]);
 });
 
 test("a key inside a part of the view that this version does not know is a warning, with what was meant", () => {

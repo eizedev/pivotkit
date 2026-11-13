@@ -1,0 +1,73 @@
+{
+  "name": "pivotkit-report",
+  "version": "0.1.0",
+  "description": "Render pivotkit views without a browser: JSON, CSV, XLSX, SVG charts and a printable HTML report from a template, in Node and in the browser.",
+  "license": "MIT",
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev/reference/report/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-report"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivotkit",
+    "pivot-table",
+    "reporting",
+    "report",
+    "print",
+    "svg",
+    "echarts",
+    "excel-export"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./template": {
+      "types": "./types/template.d.ts",
+      "default": "./src/template.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "types",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "test:types": "tsc -p test/types",
+    "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
+  },
+  "peerDependencies": {
+    "echarts": ">=6.1.0 <7"
+  },
+  "peerDependenciesMeta": {
+    "echarts": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "pivotkit-core": "^0.4.0"
+  },
+  "devDependencies": {
+    "echarts": "6.1.0",
+    "pivotkit-xlsx": "0.1.0"
+  },
+  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
+}
