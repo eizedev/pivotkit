@@ -4,7 +4,7 @@
 // strict Content-Security-Policy. Playwright's CSS locators reach into open shadow roots.
 import { readFile } from "node:fs/promises";
 import { test as plain } from "@playwright/test";
-import { expect, openSaveAs, test } from "./fixtures.js";
+import { TRACE_IN_PRINT_FRAME, capturePrint, expect, openSaveAs, test } from "./fixtures.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -558,9 +558,10 @@ test.describe("keyboard and focus inside the shadow root", () => {
 // enforced, and checks the console itself.
 plain("a strict Content-Security-Policy: styles, chart and export work without 'unsafe-inline' or 'unsafe-eval'", async ({ page }) => {
     const problems = [];
-    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && !TRACE_IN_PRINT_FRAME.test(m.text()) && problems.push(m.text()));
     page.on("pageerror", (e) => problems.push(e.message));
     await page.goto("pages/element-csp.html");
+    await capturePrint(page);
     const el = page.locator("#strict");
     await expect(el.locator(".pk-root")).toBeVisible();
     expect(await page.locator("#strict").evaluate((el) => (el.shadowRoot.adoptedStyleSheets.length === 1 && !el.shadowRoot.querySelector("style") ? "adopted" : "other"))).toBe("adopted");
@@ -583,6 +584,21 @@ plain("a strict Content-Security-Policy: styles, chart and export work without '
     await expect(el.getByTestId("export-png")).toBeEnabled();
     const [png] = await Promise.all([page.waitForEvent("download"), el.getByTestId("export-png").click()]);
     expect((await readFile(await png.path())).subarray(1, 4).toString()).toBe("PNG");
+    // the chart as SVG and the HTML report from their chunk; printing from a frame the page's policy
+    // allows: no inline style, the stylesheet adopted, the chart inline
+    await el.getByTestId("export").click();
+    const [svg] = await Promise.all([page.waitForEvent("download"), el.getByTestId("export-svg").click()]);
+    expect((await readFile(await svg.path(), "utf8")).startsWith("<svg ")).toBe(true);
+    await el.getByTestId("export").click();
+    const [html] = await Promise.all([page.waitForEvent("download"), el.getByTestId("export-html").click()]);
+    expect(html.suggestedFilename()).toBe("pivot.html");
+    await el.getByTestId("export").click();
+    await el.getByTestId("export-print").click();
+    await expect.poll(() => page.evaluate(() => window.__printed ?? null)).not.toBeNull();
+    const printed = await page.evaluate(() => window.__printed);
+    expect([printed.sheets, printed.styleElements]).toEqual([1, 0]);
+    expect(printed.body).toMatch(/<figure class="pk-report-chart"><svg /);
+    expect(await page.evaluate(() => window.__violations)).toEqual([]);
     await el.getByTestId("show-table").click();
     await el.getByTestId("export").click();
     const [xlsx] = await Promise.all([page.waitForEvent("download"), el.getByTestId("export-xlsx").click()]);

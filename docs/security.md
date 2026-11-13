@@ -91,6 +91,11 @@ reference depth and the number of schema objects it reads.
   runs a pasted formula too. Copy as JSON writes values, never markup or code.
 - **XLSX**: text is written as inline strings, never as formulas. The XML is written by pivotkit-core
   itself; no spreadsheet library is involved. Excel's sheet limits are checked before writing.
+- **HTML report and SVG** ([pivotkit-report](reference/report.md)): every text is escaped; a
+  [print template](reference/print-template.md) may hold placeholders in text and a few attributes
+  only, checked before anything is rendered; the report's Content-Security-Policy loads and runs
+  nothing, its chart is an image; the SVG is checked element by element (no script, event attribute,
+  link or style attribute). Printing from the page fills a frame sandboxed without scripts.
 - Downloads use a blob URL on an `<a download>`; nothing is sent anywhere. File names are made safe:
   path separators and characters a file system refuses are replaced. With `onExport` (or the
   cancelable `pivot-export` event) your page gets every file and every copy first and can keep it
@@ -135,6 +140,15 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   views are kept or shared: the source id of a saved view, a view file or a link names the file
   (up to 120 characters and a hash), and a view file lists the fields it uses. Undo keeps at most three data sets, so loading one
   file after another does not keep every one in memory.
+
+## The command line
+
+`pivotkit` ([pivotkit-cli](reference/cli.md#files)) reads a file once, as a regular file, after its
+size is checked; writes through a temporary file; never replaces a link or a directory; and with
+`--allow-dir` reads and writes only inside the directories named, by real path. `--allow-dir` is not a
+sandbox: a hard link inside an allowed directory reaches the file it names, and another process of
+the same user can change the directories while the CLI runs. Its messages never hold a file's
+content, and `describe` shows a data file's values only when asked (`--items`).
 
 ## Content-Security-Policy
 

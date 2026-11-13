@@ -72,7 +72,9 @@
 /**
  * @typedef {object} ExportFile  a file the report made, before it is downloaded, or a text before it
  *   goes on the clipboard
- * @property {"xlsx" | "csv" | "png" | "json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ * @property {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ *   "html": the HTML report; "svg": the chart as SVG; "print": the HTML report before it is printed
+ *   (returning false prints nothing: the host prints it, e.g. as a PDF of its own);
  *   "json": the view file (Views, "Download view"); "copy-table", "copy-json": Export → Copy table,
  *   Copy data as JSON; "drill-*": the drill-down panel's Export menu (Copy, Copy as JSON, Download
  *   CSV, Download Excel)

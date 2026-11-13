@@ -211,6 +211,19 @@
     border: 0;
 }
 
+/* the frame the HTML report is printed from (print-frame.js): in the page, never seen; the print
+   dialog prints the frame's own document at the page's size */
+.pk-print-frame {
+    position: fixed;
+    inset-inline-start: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .pk-muted {
     color: var(--pk-muted);
 }

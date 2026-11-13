@@ -43,7 +43,7 @@ el.templates = [{ file: { format: "pivotkit-view", formatVersion: 1, name: "From
 // composed: a listener on the document knows the detail too
 document.addEventListener("pivot-export", (e) => {
     const file: ExportFile = e.detail;
-    if (file.kind === "csv") e.preventDefault();
+    if (file.kind === "csv" || file.kind === "print") e.preventDefault();
 });
 
 el.addEventListener("pivot-tip-dismiss", (e) => {

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="de-DE" dir="ltr">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pivotkit">
+<meta name="description" content="sum of Units, average of Price by Region &gt; Product across Year where Date is in the last 2 years (blanks dropped)">
+<title>Units by region</title>
+<style>:root{--pk-surface:#ffffff;--pk-surface-2:#f6f7f9;--pk-surface-raised:#ffffff;--pk-text:#1a1d23;--pk-muted:#5a6270;--pk-border:#dde1e7;--pk-border-strong:#c3c9d2;--pk-grid:#edf0f3;--pk-total:#eef1f5;--pk-total-strong:#e9edf3;--pk-shadow:0 1px 2px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.08);--pk-heat-low:#eaf1fb;--pk-heat-high:#2a78d6;--pk-scale-low:var(--pk-heat-low);--pk-scale-high:var(--pk-heat-high);--pk-chart-1:#2a78d6;--pk-chart-2:#eb6834;--pk-chart-3:#1baf7a;--pk-chart-4:#eda100;--pk-chart-5:#e87ba4;--pk-chart-6:#008300;--pk-chart-7:#6250d6;--pk-chart-8:#e34948;color-scheme:light dark}
+@media screen and (prefers-color-scheme:dark){:root{--pk-surface:#16181d;--pk-surface-2:#1c1f25;--pk-surface-raised:#22262d;--pk-text:#e8eaef;--pk-muted:#a3aab7;--pk-border:#2f343e;--pk-border-strong:#454c58;--pk-grid:#23272e;--pk-total:#21252d;--pk-total-strong:#252a33;--pk-shadow:0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);--pk-heat-low:#1d2735;--pk-heat-high:#3987e5;--pk-scale-low:var(--pk-heat-low);--pk-scale-high:var(--pk-heat-high);--pk-chart-1:#3987e5;--pk-chart-2:#d95926;--pk-chart-3:#199e70;--pk-chart-4:#c98500;--pk-chart-5:#d55181;--pk-chart-6:#008300;--pk-chart-7:#9085e9;--pk-chart-8:#e66767}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif}
+.pk-report{padding:24px}
+.pk-report h1{font-size:20px;line-height:1.3;margin:0 0 4px}
+.pk-report-description{margin:0 0 12px;color:var(--pk-muted)}
+.pk-report-description:empty{display:none}
+.pk-report-chart{margin:12px 0 16px;padding:8px;background:#ffffff;border:1px solid var(--pk-border);border-radius:8px;break-inside:avoid;width:max-content;max-width:100%}
+.pk-report-chart img,.pk-report-chart svg{display:block;max-width:100%;height:auto}
+.pk-table{border-collapse:collapse;font-variant-numeric:tabular-nums;margin:12px 0 0}
+.pk-table th,.pk-table td{border:1px solid var(--pk-border);padding:4px 8px;vertical-align:top}
+.pk-th{background:var(--pk-surface-2);text-align:left;font-weight:600}
+.pk-th.pk-row{font-weight:400;background:var(--pk-surface)}
+.pk-num{text-align:right;white-space:nowrap}
+.pk-table .pk-sub{background:var(--pk-total);font-weight:600}
+.pk-table .pk-grand{background:var(--pk-total-strong);font-weight:700}
+.pk-collapsed::before{content:"+ ";color:var(--pk-muted)}
+.pk-td.pk-has-scale{background:color-mix(in srgb,var(--pk-cell-bg) 48%,var(--pk-surface))}
+.pk-td.pk-has-bar{background-image:linear-gradient(90deg,color-mix(in srgb,var(--pk-bar-color,var(--pk-chart-1)) 32%,transparent) var(--pk-bar),transparent var(--pk-bar));background-repeat:no-repeat;background-size:100% 64%;background-position:left center}
+.pk-report-note{color:var(--pk-muted);margin:8px 0}
+.pk-report-details{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:16px 0 0;color:var(--pk-muted);font-size:12px}
+.pk-report-details dt{font-weight:600}
+.pk-report-details dd{margin:0}
+@page{margin:12mm;}
+@media print{
+body{font-size:10pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pk-report{padding:0}
+.pk-report-chart{border:none;padding:0}
+thead{display:table-header-group}
+tr{break-inside:avoid}
+.pk-table th,.pk-table td{padding:2px 6px}
+
+}
+.pk-c0{--pk-bar:100%;--pk-bar-color:#2a78d6}
+.pk-c1{--pk-bar:25%;--pk-bar-color:#2a78d6}
+.pk-c2{--pk-bar:87.5%;--pk-bar-color:#2a78d6}
+.pk-c3{--pk-bar:62.5%;--pk-bar-color:#2a78d6}
+.pk-c4{--pk-bar:50%;--pk-bar-color:#2a78d6}</style>
+</head>
+<body>
+<main class="pk-report">
+<header>
+<h1>Units by region</h1>
+<p class="pk-report-description"></p>
+</header>
+
+<table class="pk-table"><thead><tr><th scope="col" class="pk-th pk-corner"></th><th scope="col" class="pk-th pk-corner">Year</th><th scope="col" class="pk-th" colspan="2">2025</th><th scope="col" class="pk-th" colspan="2">2026</th><th scope="col" class="pk-th pk-grand" colspan="2">Grand Total</th></tr><tr><th scope="col" class="pk-th pk-corner">Region</th><th scope="col" class="pk-th pk-corner">Product</th><th scope="col" class="pk-th">Sum of Units</th><th scope="col" class="pk-th">% of column total of Average of Price</th><th scope="col" class="pk-th">Sum of Units</th><th scope="col" class="pk-th">% of column total of Average of Price</th><th scope="col" class="pk-th pk-grand">Sum of Units</th><th scope="col" class="pk-th pk-grand">% of column total of Average of Price</th></tr></thead><tbody><tr><th scope="row" class="pk-th pk-row" rowspan="2">North</th><th scope="row" class="pk-th pk-row">A</th><td class="pk-td pk-num pk-has-bar pk-c0">8</td><td class="pk-td pk-num">100,0 %</td><td class="pk-td pk-num"></td><td class="pk-td pk-num"></td><td class="pk-td pk-num pk-grand">8</td><td class="pk-td pk-num pk-grand">65,3 %</td></tr><tr><th scope="row" class="pk-th pk-row">B</th><td class="pk-td pk-num"></td><td class="pk-td pk-num"></td><td class="pk-td pk-num pk-has-bar pk-c1">2</td><td class="pk-td pk-num">104,2 %</td><td class="pk-td pk-num pk-grand">2</td><td class="pk-td pk-num pk-grand">118,6 %</td></tr><tr><th scope="row" class="pk-th pk-row pk-sub" colspan="2">North Total</th><td class="pk-td pk-num pk-sub">8</td><td class="pk-td pk-num pk-sub">100,0 %</td><td class="pk-td pk-num pk-sub">2</td><td class="pk-td pk-num pk-sub">104,2 %</td><td class="pk-td pk-num pk-grand">10</td><td class="pk-td pk-num pk-grand">83,1 %</td></tr><tr><th scope="row" class="pk-th pk-row" rowspan="2">South</th><th scope="row" class="pk-th pk-row">A</th><td class="pk-td pk-num"></td><td class="pk-td pk-num"></td><td class="pk-td pk-num pk-has-bar pk-c2">7</td><td class="pk-td pk-num">52,1 %</td><td class="pk-td pk-num pk-grand">7</td><td class="pk-td pk-num pk-grand">59,3 %</td></tr><tr><th scope="row" class="pk-th pk-row">B</th><td class="pk-td pk-num"></td><td class="pk-td pk-num"></td><td class="pk-td pk-num pk-has-bar pk-c3">5</td><td class="pk-td pk-num">143,2 %</td><td class="pk-td pk-num pk-grand">5</td><td class="pk-td pk-num pk-grand">163,1 %</td></tr><tr><th scope="row" class="pk-th pk-row pk-sub" colspan="2">South Total</th><td class="pk-td pk-num pk-sub"></td><td class="pk-td pk-num pk-sub"></td><td class="pk-td pk-num pk-sub">12</td><td class="pk-td pk-num pk-sub">112,8 %</td><td class="pk-td pk-num pk-grand">12</td><td class="pk-td pk-num pk-grand">128,5 %</td></tr><tr><th scope="row" class="pk-th pk-row">West</th><th scope="row" class="pk-th pk-row">A</th><td class="pk-td pk-num"></td><td class="pk-td pk-num"></td><td class="pk-td pk-num pk-has-bar pk-c4">4</td><td class="pk-td pk-num">57,3 %</td><td class="pk-td pk-num pk-grand">4</td><td class="pk-td pk-num pk-grand">65,3 %</td></tr><tr><th scope="row" class="pk-th pk-row pk-grand" colspan="2">Grand Total</th><td class="pk-td pk-num pk-grand">8</td><td class="pk-td pk-num pk-grand">100,0 %</td><td class="pk-td pk-num pk-grand">18</td><td class="pk-td pk-num pk-grand">100,0 %</td><td class="pk-td pk-num pk-grand">26</td><td class="pk-td pk-num pk-grand">100,0 %</td></tr></tbody></table>
+<dl class="pk-report-details"><dt>Quelle</dt><dd>sales.csv</dd><dt>Zeilen</dt><dd>8 Zeilen</dd><dt>Filter</dt><dd>Date is in the last 2 years (blanks dropped)</dd><dt>Erstellt</dt><dd>13.11.2026, 11:00</dd></dl>
+</main>
+</body>
+</html>

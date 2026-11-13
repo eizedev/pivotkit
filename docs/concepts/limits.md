@@ -137,6 +137,22 @@ limit named (`… has more than 1,000 rows (limits.rows) …`) and the data show
 [`readFile`](../reference/import.md#limits) has one `limits` option: a caller with its own data and
 files merges the import limits over its limits itself (`{ ...limits, ...importLimits }`).
 
+### Limits of a report file
+
+[pivotkit-report](../reference/report.md) and the command line count against pivotkit-core's limits
+(the view with `outsideLimits()`, the data with `rows`, the table with `cells`) and these of their
+own (`REPORT_LIMITS`):
+
+| Limit | Default | Counts |
+| --- | --- | --- |
+| `template` | 262,144 | Characters of a [print template](../reference/print-template.md). |
+| `chartWidth`, `chartHeight` | 8,000 | Pixels of a chart (SVG, a report's chart). |
+| `tableCells` | 200,000 | Cells of an HTML report's table; a larger one is cut after the last whole row, and says so. Excel and CSV hold every cell up to `cells`. |
+| `categories` | 50 | Categories a chart draws, the first ones, as on the screen. |
+
+The command line reads a view file of at most 4 MB and a template of at most 1 MB before it parses
+them, and data files up to `fileBytes` ([pivotkit-cli](../reference/cli.md#files)).
+
 ### Why the defaults are what they are
 
 Measured in Node 26 on arm64; other engines and machines differ.

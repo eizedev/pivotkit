@@ -50,6 +50,7 @@ const PATHS = {
     warn: "M12 4 2.8 20h18.4ZM12 10v4.5M12 17.5h.01",
     image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01",
     file: "M6 3h8l4 4v14H6zM14 3v4h4",
+    print: "M7 9V3h10v6M7 17H5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2M7 14h10v7H7z",
     newFile: "M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6",
     swap: "M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7",
     top: "M4 20v-6h5v6M9 20V8h6v12M15 20v-9h5v9M3 20h18",

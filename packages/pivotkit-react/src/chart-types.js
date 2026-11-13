@@ -4,7 +4,7 @@
  * chart type pivotkit-core draws (CATALOG.chartTypes) and a label in every language.
  */
 
-import { autoChartType } from "pivotkit-core";
+import { chartPlan as corePlan } from "pivotkit-core";
 
 /** @typedef {{ chart: { type: string, stacked: boolean, horizontal: boolean }, icon: string, axis: boolean }} ChartTypeEntry */
 
@@ -51,24 +51,16 @@ export function chartTypeOf(chart) {
 }
 
 /**
- * What the chart draws for a view. A type the user chose is drawn as it is. "auto" (the default)
- * draws lines when a date is on Rows; with a date on Columns only it draws lines too, with rows and
- * columns swapped for the chart alone (`swap`), so the dates run along the axis and the table keeps
- * its layout; else bars (pivotkit-core's autoChartType decides).
+ * What the chart draws for a view: pivotkit-core's chartPlan (the same on the screen, in an SVG and a
+ * printed report) with the picker entry drawn.
  * @param {{ rows: string[], cols: string[], derived: any[], chart: { type: string, stacked?: boolean, horizontal?: boolean } }} view
  * @param {import("pivotkit-core").Encoded} encoded
  * @returns {{ name: string, auto: boolean, swap: boolean, chart: { type: string, stacked: boolean, horizontal: boolean } }}
  *   `name`: the picker entry drawn (never "auto"); `chart`: the settings to draw with
  */
 export function chartPlan(view, encoded) {
-    if (view.chart.type !== "auto") {
-        const name = chartTypeOf(view.chart);
-        return { name, auto: false, swap: false, chart: { type: view.chart.type, stacked: Boolean(view.chart.stacked), horizontal: Boolean(view.chart.horizontal) } };
-    }
-    const own = autoChartType(/** @type {any} */ (view), encoded);
-    const swap = own === "bar" && view.cols.length > 0 && autoChartType(/** @type {any} */ ({ ...view, rows: view.cols }), encoded) === "line";
-    const name = own === "line" || swap ? "line" : "bar";
-    return { name, auto: true, swap, chart: { ...CHART_TYPES[name].chart } };
+    const plan = corePlan(view, encoded);
+    return { name: chartTypeOf(plan.chart), ...plan };
 }
 
 /** Charts with more series than this get a hint to swap or filter. */

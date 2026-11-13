@@ -199,7 +199,7 @@ test("an empty report has nothing to export: every entry is off and says why", a
     await page.goto("?data=tickets&start=empty");
     await expect(page.getByTestId("empty-state")).toBeVisible();
     await toolbar(page, "export");
-    for (const id of ["export-xlsx", "export-csv", "export-png", "export-copy-table", "export-copy-json"]) {
+    for (const id of ["export-xlsx", "export-csv", "export-html", "export-png", "export-svg", "export-print", "export-copy-table", "export-copy-json"]) {
         await expect(page.getByTestId(id)).toBeDisabled();
         await expect(page.getByTestId(id)).toContainText("Add a field first.");
     }

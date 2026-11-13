@@ -246,7 +246,31 @@ writes a percentage; a heatmap's colour scale (`visualMap.formatter`) in the val
 
 What the chart type `"auto"` stands for, for a normalized view and its data: `"line"` when a field on
 Rows is a date or a grouping of one along the time line (a repeating one such as weekday is categories), else `"bar"`. A date on Columns alone gives `"bar"`; a UI that
-wants lines there swaps rows and columns for the chart (pivotkit-react does).
+wants lines there swaps rows and columns for the chart (pivotkit-react and pivotkit-report do, through `chartPlan`).
+
+### `chartPlan(view, data)`, `swapAxes(view)` and `chartThemeFrom(style)`
+
+What a chart draws, the same on the screen, in an SVG and in a printed report. `chartPlan` gives
+`{ auto, swap, chart: { type, stacked, horizontal } }`: a type the view chose as it is; for `"auto"`
+lines when a date is on Rows, lines with `swap: true` when a date is on Columns only (draw from the
+pivot of `swapAxes(view)`, so the dates run along the axis), else bars. `swapAxes` returns a copy of a
+normalized view with Rows and Columns swapped, their collapsed groups with them and a "show values
+as" that names an axis turned to the other one, so every number stays what it was. `chartThemeFrom`
+reads the chart's theme (`colors` from `--pk-chart-1` to `--pk-chart-8`, text, axis and grid colours,
+the heatmap's ends, the font) from any object with `getPropertyValue`: a report's computed style, or a
+map of tokens; `CHART_COLORS` is 8.
+
+### The chart's marks: `pivotkit-core/chart` { #chart-marks }
+
+`decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
+a report's marks on `toEChartsOption`'s option: the theme's colours from the `--pk-*` tokens of
+`style`, rounded bars, 2 px lines, the room around a pie, a legend moved below a narrow chart, and the
+category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every n-th,
+`chart.axisLabels`); the option's `axisEvery` says when every n-th label is written. pivotkit-react
+adds its DOM tooltip through `tooltipFormatter`; [pivotkit-report](report.md) draws the SVG with it.
+The entry exports the layout functions too (`categoryLabelLayout`, `columnLabelLayout`,
+`groupLabelsFit`, `heatmapCellLabels`, `pieLabelRoom`, `ringLabelsFit`, `rowLabelInterval` and their
+constants). It imports nothing, so a report's first load does not carry it.
 
 `toSeries` gives `categories` (the whole path of each category, "Asia / Japan"), `categoryLevels`
 (its label per level, `["Asia", "Japan"]`), `categoryPaths`, `series` and `totals`. The view's display
@@ -256,7 +280,7 @@ it), value labels (`label` of the series; for a pie or a donut outside or, with 
 more row fields a second category axis with the outer field's items, once per group at its middle,
 with a separator tick where a group starts (`xAxis` or `yAxis` is then a list of two). Where to write
 the category labels (`chart.axisLabels`) depends on the chart's size, so the UI decides it
-(pivotkit-react's `categoryLabelLayout`).
+(`categoryLabelLayout` of [pivotkit-core/chart](#chart-marks)).
 
 ### Links: `pivotkit-core/link`
 
@@ -307,6 +331,7 @@ builds its table with. A separate entry point whose readers load on demand. See
 | `toJson(grid, { space })` | The grid's data as JSON text: `{ rowHeaders, columns, rows }`. `rowHeaders`: the names of the row label columns. `columns`: per value column `{ labels, value, total }`, the header texts above it, the value's name, `total` 0 none, 1 subtotal, 2 grand total. `rows`: per body row `{ labels, total, collapsed, values }`, its labels (a label repeated on every row it spans, `""` beside a subtotal's label and beside a collapsed group), `collapsed` true for a collapsed group (its values are the group's totals), and its values in the order of `columns`: numbers with 15 significant digits, a "show values as" share as the fraction (0.25 for 25%, the table shows "25%"), dates as ISO dates of their wall clock, text as it is, a blank cell `null`. `space`: indentation, default 2.<br><small>Returns `string`</small> |
 | `rowsToCsv(data, indices, { columns, locale, formats, labels, separator, limits })` | Source rows as CSV: the rows at `indices` of the encoded `data` (the positions `cellRows` gives: a drill-down's rows), a header row with the fields' display names (`labels.fields`), one line per row. `columns`: the fields and their order, default every column of the data. Each value as a drill-down panel shows it: a number with its field's format (`formats`, a format name per field, matched case-insensitively) or with up to 6 decimals, a date as its day (with the time when the column has times), yes/no as `labels.true` and `labels.false`; the format `text` keeps an identifier as it is. Written as `toCsv` writes the grid: separator and decimal mark of `locale`, numbers with full precision, dates as ISO dates, the formula guard. Rows x columns count against `limits.cells`.<br><small>Returns `string`</small> |
 | `rowsToCsvBytes(data, indices, { ..., bom })` | The same as UTF-8 bytes with a byte order mark.<br><small>Returns `Uint8Array`</small> |
+| `scaleColor(colors, t)` | The colour at `t` (0 to 1) of a colour scale of two or three hex colours, as the grid computes a cell's (`style.color`).<br><small>Returns `string`</small> |
 | `rowsToXlsx(data, indices, { columns, locale, formats, labels, sheetName, limits })` | Source rows as an Excel workbook: a bold, frozen header row, numbers and dates as typed cells with the number format the panel shows them in, text as inline strings. `sheetName` as in `toXlsx`.<br><small>Returns `Uint8Array`</small> |
 
 What the files contain, and where Excel's number formats cannot follow the grid, is in
@@ -323,6 +348,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |
 | `foldText(text, match?)` | A text folded as text filters compare it: `match` `{ case: "insensitive" \| "sensitive", whitespace: "collapse" \| "exact" }`, default `MATCH_DEFAULTS`. `insensitive` lower-cases with `toLowerCase()`, which does not depend on the runtime's locale; `collapse` turns every run of whitespace, a no-break space (U+00A0) among them, into one space and trims the ends. A UI's search over a field's items folds with it, so a search and a text filter agree. |
 | `MATCH_DEFAULTS` | `{ case: "insensitive", whitespace: "collapse" }`. |
+| `closest(name, candidates)` | "Did you mean": the name of `candidates` closest to `name` as `foldText` folds both, within an edit distance of a third of its length (at least 1, at most 3; a swap of two neighbours is one edit), else `null`. Bounded by `HINT_LIMITS` (`{ candidates: 1000, length: 64, distance: 3 }`), so a hint costs a few thousand steps per name at most. The view's hints, pivotkit-report's template check and pivotkit-cli's options use it. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
 | `DEFAULT_THEME` | Default colours for colour scales and data bars, those of pivotkit-react's light theme (`colorScale` `["#eaf1fb", "#2a78d6"]`, light for low and strong for high; `dataBar` `"#2a78d6"`), and the radius of a pie and of a donut. |

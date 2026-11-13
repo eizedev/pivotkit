@@ -11,3 +11,5 @@
 packages/pivotkit-core/test/import-fixtures/*.csv -text
 packages/pivotkit-core/test/import-fixtures/*.txt -text
 packages/pivotkit-core/test/import-fixtures/*.json -text
+# golden files of pivotkit-report keep their bytes: a CSV ends its lines with CRLF
+packages/pivotkit-report/test/golden/* -text

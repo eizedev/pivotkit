@@ -383,6 +383,10 @@ test("version 1's operators and types in a version-2 view are errors that name v
     const errors = (filter) => validate({ version: 2, filters: [filter] }, data).errors.map((e) => [e.code, e.params?.suggestion]);
     assert.deepEqual(errors({ field: "Region", type: "include", items: ["North"] }), [["unknownFilterType", "in"]]);
     assert.deepEqual(errors({ field: "Region", type: "label", op: "contains", value: "N" }), [["unknownFilterType", "text"]]);
+    // no type at all: the message lists the types, not "unknown filter type undefined"
+    const untyped = validate({ version: 2, filters: [{ field: "Region", items: ["North"] }] }, data).errors[0];
+    assert.equal(untyped.code, "unknownFilterType");
+    assert.match(untyped.message, /^a filter needs a type: one of in, /);
     assert.deepEqual(errors({ field: "Region", type: "text", op: "notEquals", value: "N" }), [["filterTextOp", "equals"]]);
     assert.deepEqual(errors({ field: "Price", type: "compare", op: "!=", value: 1, blanks: "exclude" }), [["filterCompareValue", "="]]);
     assert.deepEqual(errors({ field: "Region", type: "value", op: "notBetween", value: 1, value2: 2 }), [["filterValue", "between"]]);

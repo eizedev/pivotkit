@@ -1,0 +1,69 @@
+{
+  "name": "pivotkit-cli",
+  "version": "0.1.0",
+  "description": "The pivotkit command line: render views over CSV, JSON or Excel data to HTML reports, CSV, JSON, XLSX and SVG, and validate or describe views in CI.",
+  "license": "MIT",
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev/reference/cli/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-cli"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivotkit",
+    "pivot-table",
+    "cli",
+    "reporting",
+    "report",
+    "csv",
+    "excel"
+  ],
+  "type": "module",
+  "bin": {
+    "pivotkit": "bin/pivotkit.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/cli.d.ts",
+      "default": "./src/cli.js"
+    },
+    "./safe-files": {
+      "types": "./types/safe-files.d.ts",
+      "default": "./src/safe-files.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "types",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "test:types": "tsc -p test/types",
+    "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
+  },
+  "dependencies": {
+    "echarts": "6.1.0",
+    "pivotkit-core": "^0.4.0",
+    "pivotkit-report": "^0.1.0",
+    "pivotkit-xlsx": "^0.1.0"
+  },
+  "types": "./types/cli.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4"
+  }
+}

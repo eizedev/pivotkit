@@ -18,7 +18,7 @@ const partial: PartialLabels = { zones: { rows: de }, undo: "Zurück" };
 // @ts-expect-error a label is text, not a number
 const wrong: PartialLabels = { undo: 5 };
 const deleteLater = async (name: string): Promise<void> => void name;
-const keepCsv = (f: ExportFile): boolean => f.kind !== "csv" || f.blob.size < 0 || f.fileName === "";
+const keepCsv = (f: ExportFile): boolean => (f.kind !== "csv" && f.kind !== "print") || f.blob.size < 0 || f.fileName === "";
 // loading data: a reader plugin, columnar data, the host told (and refusing a large file)
 const jsonl = { apiVersion: 1 as const, kind: "reader" as const, name: "jsonl", label: "JSON Lines", accept: [".jsonl"], load: async () => ({ read: async (): Promise<never> => { throw new Error("not in this test"); } }) };
 const onLoad = (d: DataLoad): boolean => !(d.cause === "load" && (d.file?.size ?? 0) > 50e6) && d.columns.every((c) => c.name.length > 0);
