@@ -168,22 +168,6 @@
     },
     {
       "labels": [
-        "West Total",
-        ""
-      ],
-      "total": 1,
-      "collapsed": false,
-      "values": [
-        null,
-        null,
-        4,
-        0.572916666666667,
-        4,
-        0.652542372881356
-      ]
-    },
-    {
-      "labels": [
         "Grand Total",
         ""
       ],

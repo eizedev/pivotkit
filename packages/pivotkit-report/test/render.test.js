@@ -47,8 +47,10 @@ test("HTML: subtotals and the grand total are marked, merged labels span their r
     assert.match(r.text, /<th scope="row" class="pk-th pk-row pk-sub" colspan="2">North Total<\/th><td class="pk-td pk-num pk-sub">10<\/td>/);
     assert.match(r.text, /<th scope="row" class="pk-th pk-row pk-grand" colspan="2">Grand Total<\/th><td class="pk-td pk-num pk-grand">32<\/td>/);
     assert.deepEqual(bodyCells(r.text)[0], ["North", "A", "8"]);
-    // a blank region is named as the table names it, after the others
-    assert.deepEqual(bodyCells(r.text).at(-3), ["(blank)", "A", "6"]);
+    // a blank region is named as the table names it, after the others; a group of one item (West,
+    // the blank region) has no subtotal row, as on the screen
+    assert.deepEqual(bodyCells(r.text).at(-2), ["(blank)", "A", "6"]);
+    assert.ok(!r.text.includes("West Total") && !r.text.includes("(blank) Total"));
 });
 
 test("HTML: a merged column header spans its columns, and a collapsed group is marked", async () => {
