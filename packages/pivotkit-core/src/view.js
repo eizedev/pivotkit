@@ -163,7 +163,9 @@ export const COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
  * @property {FilterSpec[]} filters
  * @property {DerivedSpec[]} derived
  * @property {SortSpec[]} sort
- * @property {{ grandTotalRow: boolean, grandTotalColumn: boolean, rowSubtotals: boolean, colSubtotals: boolean }} totals
+ * @property {{ grandTotalRow: boolean, grandTotalColumn: boolean, rowSubtotals: boolean, colSubtotals: boolean }} totals  all on
+ *   by default except the column subtotals; without values toGrid() draws none (a total carries no
+ *   number then), and a group with one child has no subtotal
  * @property {{ rows: any[][], cols: any[][] }} collapsed
  * @property {"table" | "chart"} display
  * @property {ChartSpec} chart
@@ -185,7 +187,7 @@ export function emptyView() {
         filters: [],
         derived: [],
         sort: [],
-        totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: true },
+        totals: { grandTotalRow: true, grandTotalColumn: true, rowSubtotals: true, colSubtotals: false },
         collapsed: { rows: [], cols: [] },
         display: "table",
         chart: { type: "auto", stacked: false, horizontal: false, valueLabels: "auto", legend: "auto", title: null, smooth: false, axisLabels: "auto", groupLabels: "auto", labelPosition: "outside" },

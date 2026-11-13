@@ -8,6 +8,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- Column subtotals are off by default (`totals.colSubtotals: false`); row subtotals and both grand
+  totals stay on ([#156](https://github.com/eizedev/pivotkit/issues/156)). A view that names `colSubtotals` keeps it, and every view the UI saves,
+  shares or stores names all four totals. A host's start view, a template or a view file written by
+  hand without the key shows no column subtotals any more: add `totals: { colSubtotals: true }` to
+  keep them. The exports follow the grid.
+- The npm description names views as JSON files and the JSON export, as the README does ([#191](https://github.com/eizedev/pivotkit/issues/191)).
 - The message of a file over a limit (`limitError`, `checkFileLimit`) ends "or a host can raise this
   limit" instead of naming the key a second time, so it fits a UI that reads files with limits of its
   own; the key stays in brackets: `"big.csv" has more than 1,000 rows (limits.rows): load a smaller
@@ -109,6 +115,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- `toGrid` without values: no empty data column when there are no column fields either, so fields in
+  Rows alone are a table of their labels ([#155](https://github.com/eizedev/pivotkit/issues/155)); no subtotal or grand total row or column, since it
+  would have no number, and with fields in Columns alone the only row is no "Grand Total" ([#156](https://github.com/eizedev/pivotkit/issues/156)). The exports (CSV, TSV, XLSX, JSON) follow the grid.
+- A group with a single child has no subtotal row or column: it only repeated the child. The group
+  keeps its toggle ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 - `options.limits` given as an array (`[]` was taken as no limits) is refused with `INVALID_OPTION`
   ("options.limits must be an object"), as any other value that is not an object.
 

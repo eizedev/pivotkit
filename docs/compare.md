@@ -19,8 +19,8 @@ What pivotkit offers, in short:
 
 ## The short answer
 
-When we compared 25 options on 2026-11-06 (pivot tables, data grids with a pivot mode, chart
-builders, embeddable BI and in-browser engines), we found no free component that offers all of these:
+When we compared pivot tables, data grids with a pivot mode, chart builders, embeddable BI and
+in-browser engines on 2026-11-06, we found no free component that offers all of these:
 
 1. a field list that people without technical knowledge can use,
 2. pivot with a switch between table and chart,
@@ -49,8 +49,10 @@ sources. See [where others are stronger](#where-others-are-stronger).
 
 ## At a glance
 
-Checked on 2026-11-12 in each project's own documentation, npm and GitHub. "Not found" means not
-found in the pages linked, on that date; it is not proof of absence.
+Checked on 2026-11-12 in each project's own documentation, npm and GitHub; the Flexmonster and
+WebDataRocks rows again on 2026-11-13 in a browser, with their words quoted in
+[each in detail](#each-in-detail). "Not found" means not found in the pages linked, on that date; it
+is not proof of absence.
 
 | | Licence | Latest release | Where the pivot is computed | Rows its docs name | Frameworks | Excel (.xlsx) export |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -59,8 +61,8 @@ found in the pages linked, on that date; it is not proof of absence.
 | [Graphic Walker](https://docs.kanaries.net/graphic-walker) | [Apache-2.0](https://github.com/Kanaries/graphic-walker/blob/main/LICENSE) | [0.6.0 on 2026-11-12](https://github.com/Kanaries/graphic-walker/releases/tag/v0.6.0) | [Web workers; DuckDB WASM or your server optional](https://docs.kanaries.net/graphic-walker/guides/computation) | [100K-1M "Usable", above 1M on a server](https://docs.kanaries.net/graphic-walker/faq) | React 19, plain JS mount functions | Not found; [SVG, PNG](https://docs.kanaries.net/graphic-walker/guides/chart-export), CSV |
 | [PivotTable.js](https://pivottable.js.org/) / [react-pivottable](https://github.com/plotly/react-pivottable) | MIT | [2.23.0 on 2018-11-04](https://github.com/nicolaskruchten/pivottable/releases/tag/v2.23.0) / [0.11.1 on 2026-03-13](https://github.com/plotly/react-pivottable/releases/tag/v0.11.1) | JavaScript in the browser | ["up to around a hundred thousand records"](https://github.com/nicolaskruchten/pivottable#readme) | jQuery and jQuery UI / React | Not found; TSV renderer; [open request](https://github.com/plotly/react-pivottable/issues/168) |
 | [AG Grid Enterprise](https://www.ag-grid.com/react-data-grid/pivoting/) | [Paid licence](https://www.ag-grid.com/javascript-data-grid/community-vs-enterprise/) for pivoting; Community is MIT | [36.3.0 on 2026-11-04](https://github.com/ag-grid/ag-grid/releases/tag/release-36.3.0) | In the browser, or [on a server](https://www.ag-grid.com/react-data-grid/server-side-model-pivoting/) | [Client-side "100k+ rows"](https://www.ag-grid.com/react-data-grid/row-models/) | JavaScript, React, Angular, Vue | [Yes](https://www.ag-grid.com/react-data-grid/excel-export/) (Enterprise) |
-| [Flexmonster](https://www.flexmonster.com/doc/) | [Paid licence](https://www.flexmonster.com/pivot-table-editions-and-pricing/), 30-day trial | [2.9.142](https://www.flexmonster.com/doc/release-notes/) (npm 2.9.142-1 on 2026-11-03) | Mainly in the browser; server options | About 1 million rows of grouped data (vendor statement) | JavaScript, React, Angular, Vue and more | [Yes](https://www.flexmonster.com/doc/export-report/), with caveats |
-| [WebDataRocks](https://www.webdatarocks.com/doc/js/intro/) | Free, [proprietary licence](https://www.webdatarocks.com/license-agreement/): 1 MB data limit, logo required | [1.4.9 on 2023-10-19](https://www.npmjs.com/package/webdatarocks) | In the browser | 1 MB of data (licence) | JavaScript, React, Angular, Vue | [Yes](https://www.webdatarocks.com/doc/js/exporting/) |
+| [Flexmonster](https://www.flexmonster.com/doc/) | [Paid licence](https://www.flexmonster.com/pivot-table-editions-and-pricing/), 30-day trial | [2.9.142](https://www.flexmonster.com/doc/release-notes/) (npm 2.9.142-1 on 2026-11-03) | Mainly in the browser; server options | ["up to 1 million rows of grouped data"](https://www.flexmonster.com/doc/introduction/) (vendor statement) | JavaScript, React, Angular, Vue and more | [Yes](https://www.flexmonster.com/doc/export-report/), with caveats |
+| [WebDataRocks](https://www.webdatarocks.com/doc/js/intro/) | Free, [proprietary licence](https://www.webdatarocks.com/license-agreement/): 1 MB data limit, logo required | [1.4.9 on 2023-10-19](https://www.npmjs.com/package/webdatarocks) | In the browser | [1 MB of data](https://www.webdatarocks.com/license-agreement/) (licence) | JavaScript, React, Angular, Vue | [Yes](https://www.webdatarocks.com/doc/js/exporting/) |
 
 ## Where others are stronger
 
@@ -145,21 +147,37 @@ found in the pages linked, on that date; it is not proof of absence.
 
 ??? info "Flexmonster"
 
-    - Paid licence types for companies, SaaS and OEM; a 30-day trial with all features and a
-      watermark. Its licence agreement was revised, effective 2026-10-15.
-    - Export to PDF, Excel, CSV, HTML and image; its export page names caveats, for example the
-      children of a collapsed row are not exported.
+    - Paid licences for a company, SaaS and OEM; a trial of at most 30 days, watermarked, for
+      evaluation only (clause 3.1.1 of its
+      [licence agreement](https://www.flexmonster.com/software-license-agreement/), "Last updated:
+      October 15, 2026").
+    - Rows: "you can load more than 1GB of data and display up to 1 million rows of grouped data"
+      ([introduction](https://www.flexmonster.com/doc/introduction/)).
+    - [Export](https://www.flexmonster.com/doc/export-report/) to PDF, Excel, CSV, HTML and image,
+      with caveats: "A node is not included in the exported file if its parent nodes are collapsed",
+      and "the chart view or the grid and charts view can be exported only to PDF, HTML, or an image".
+    - UI languages: localization files for 13 languages ship with it
+      ([localizing](https://www.flexmonster.com/doc/localizing-component/)); data from Microsoft
+      Analysis Services, SQL databases, MongoDB and Elasticsearch, some through its own server tools
+      ([data sources](https://www.flexmonster.com/doc/supported-data-sources/)).
     - Reports save as a JSON object
       ([save and restore](https://www.flexmonster.com/doc/save-and-restore-report/)).
-    - [Accessibility](https://www.flexmonster.com/doc/accessibility-overview/): based on WCAG 2.1 and
-      Section 508; no conformance level or audit named there.
-    - Wrappers for React 17 to 19, Angular and Vue on npm.
+    - [Accessibility](https://www.flexmonster.com/doc/accessibility-overview/): "Flexmonster follows
+      accessibility guidelines based on WCAG 2.1 and Section 508 standards"; no conformance level or
+      audit named there.
+    - Wrappers on npm: `react-flexmonster` for React 17 to 19, `ngx-flexmonster` for Angular 12 or
+      later, and `vue-flexmonster`.
 
 ??? info "WebDataRocks"
 
-    - Free of charge but not open source: its [licence](https://www.webdatarocks.com/license-agreement/)
-      forbids removing the 1 MB limit on the data loaded and hiding its logo.
-    - Export to PDF, Excel and HTML, and printing.
+    - Free of charge but not open source. Its [licence](https://www.webdatarocks.com/license-agreement/)
+      (revision date October 20, 2026) forbids to "change, remove, disable, circumvent,
+      or modify any: limitations included in Proprietary Code, including the 1 MB limitation on the
+      data size loaded to WebDataRocks" and any "proprietary notice, copyright notice or label (e.g.,
+      WebDataRocks logo and/or "WebDataRocks.com" text displayed when the WebDataRocks reporting tool
+      is running)".
+    - [Export](https://www.webdatarocks.com/doc/js/exporting/) "to a file in which format is the most
+      convenient for you – PDF, Excel or HTML. Besides, you can print it as well."
     - The React wrapper `react-webdatarocks` 1.4.9 (2023-10-19) declares React `^17.0.1`, a range
       that excludes React 18 and 19.
     - Charts: its docs describe integrations with amCharts, Highcharts, Google Charts and
@@ -179,7 +197,7 @@ found in the pages linked, on that date; it is not proof of absence.
 
 Each fact comes from the project's own documentation, its npm entry or its GitHub repository,
 linked in the table, and was checked on the date given. Prices are left out; the licence links lead
-to them. The comparison of 25 options on 2026-11-06 also covered, among others, MUI X Premium, Syncfusion,
+to them. The comparison on 2026-11-06 also covered, among others, MUI X Premium, Syncfusion,
 DevExtreme, Handsontable, RevoGrid and Univer (pivoting only in a paid edition), TanStack Table,
 Tabulator and Glide (no pivot UI), DuckDB-WASM and Arquero (engines without a UI), and Orb and
 Voyager; these were not checked again for this page. Corrections are welcome as an

@@ -58,8 +58,8 @@ The report adapts to its own width, not the window's.
 ![The report at phone width: toolbar, the zones folded into one line, one tip, Enlarge and Full screen, and the table below](../assets/screenshots/phone-dark.png#only-dark){ width="320" }
 
 - **The drawer** closes with its **x** ("Close field list"), Escape or a tap beside it, and by itself
-  once a field is added from it, its "Filter…" opens or a drag starts, so you see where the field
-  lands.
+  once a field is added from it, its **Add to Filters** opens the filter or a drag starts, so you see
+  where the field lands.
 - **Sheets**: on a phone **More** and every menu are a sheet at the bottom of the window, at most
   82 % of its height, scrolling inside: every entry is reachable.
 - **More**: toolbar buttons that do not fit move into **More**, in a fixed order - Layout

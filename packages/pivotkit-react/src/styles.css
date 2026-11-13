@@ -48,12 +48,14 @@
     --pk-input-border: #7d8592;
     /* the dashed edge of an empty drop zone: 3:1 against --pk-surface-2 */
     --pk-drop-border: #868e9a;
+    /* the rule between a menu's groups: 3:1 against the menu, since More's groups have no titles */
+    --pk-rule: #868e9a;
     --pk-grid: #edf0f3;
     --pk-accent: #2b5fd9;
     --pk-accent-text: #ffffff;
     --pk-accent-soft: #e9effc;
     --pk-drop: #dfe8fd;
-    --pk-total: #f4f6f9;
+    --pk-total: #eef1f5;
     --pk-total-strong: #e9edf3;
     --pk-danger: #b42318;
     --pk-danger-soft: #fdecea;
@@ -93,12 +95,13 @@
     --pk-border-strong: #454c58;
     --pk-input-border: #737b88;
     --pk-drop-border: #6f7785;
+    --pk-rule: #6f7785;
     --pk-grid: #23272e;
     --pk-accent: #84a3ff;
     --pk-accent-text: #0d1426;
     --pk-accent-soft: #232d48;
     --pk-drop: #263a6b;
-    --pk-total: #1d2128;
+    --pk-total: #21252d;
     --pk-total-strong: #252a33;
     --pk-danger: #ff8b80;
     --pk-danger-soft: #3a1f1d;
@@ -1223,7 +1226,7 @@
 /* a rule between a menu's groups (popover.jsx: Group), none above the first: the groups of every menu
    look alike (Export, Options, Views, the chart type, More, a chip menu's levels) */
 .pk-section:not(:first-child) {
-    border-top: 1px solid var(--pk-border);
+    border-top: 1px solid var(--pk-rule);
     margin-top: 2px;
     padding-top: 6px;
 }
@@ -2595,7 +2598,8 @@
 }
 
 /* A long row label wraps instead of pushing every value out of view on a phone: the row label
-   columns (and the field names above them) share at most 40 % of the main area's width, each at
+   columns (and the field names above them) share at most 40 % of the main area's width (85 % without
+   a value column), each at
    least 5.5em, and a value's name wraps beyond 30 %. A virtual table needs rows of one height (2.45em,
    too low for two lines of 1.45), so there a row label is cut with an ellipsis; its full text is the
    cell's title and, for a tapped label or a focused value, the status line (table.jsx: onRowLabel). */
@@ -2603,7 +2607,12 @@
    columns would shrink to the longest word otherwise); only the cap makes it wrap */
 .pk-table :is(tbody th.pk-rowHeader, thead th.pk-corner) .pk-th-content {
     width: max-content;
-    max-width: max(5.5em, calc(40cqi / var(--pk-row-cols, 1)));
+    max-width: max(5.5em, calc(var(--pk-row-share, 40cqi) / var(--pk-row-cols, 1)));
+}
+
+/* labels without a value column next to them (fields in Rows alone) take the report's width */
+.pk-table.pk-labels-only {
+    --pk-row-share: 85cqi;
 }
 
 .pk-table thead tr:last-child th.pk-colHeader .pk-th-content {
@@ -2738,6 +2747,11 @@
 .pk-table :is(td, th).pk-sub {
     background: var(--pk-total);
     font-weight: 600;
+}
+
+/* a subtotal column is set apart from the group it adds up: an edge before it */
+.pk-table :is(td, th).pk-sub-start {
+    border-left: 1px solid var(--pk-border-strong);
 }
 
 .pk-table :is(td, th).pk-grand {

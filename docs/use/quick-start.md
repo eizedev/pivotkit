@@ -21,7 +21,8 @@ with up to three saved views to start from instead.
 ## 2. Put a field into Rows
 
 Drag **Region** from the field list into **Rows**, or click it: a text field goes to Rows. The table
-gets one row per region and a grand total row; a tip says what comes next.
+lists the regions, one row each; a tip says what comes next. The grand total row comes with the first
+value, since without one it has no number.
 
 ![Region in Rows: one row per region, and the tip to add a number to Values](../assets/screenshots/quick-rows-light.png#only-light)
 ![Region in Rows: one row per region, and the tip to add a number to Values](../assets/screenshots/quick-rows-dark.png#only-dark)

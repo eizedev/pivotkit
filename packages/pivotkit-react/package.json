@@ -1,7 +1,7 @@
 {
   "name": "pivotkit-react",
   "version": "0.4.0",
-  "description": "React 18/19 pivot report builder on pivotkit-core: drag-and-drop fields, table and Apache ECharts chart, filters, templates as JSON, undo, Excel and CSV export.",
+  "description": "React 18/19 pivot report builder on pivotkit-core: drag-and-drop fields, table and Apache ECharts chart, filters, views as JSON files, undo, Excel and CSV export.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
   "homepage": "https://pivotkit.eize.dev",

@@ -124,7 +124,8 @@ test.describe("building a report", () => {
         await chipMenu(page, "Created by month", "group");
         await page.getByTestId("group-year").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created by year"]);
-        expect((await tableRows(page)).map((r) => r[0])).toEqual(["2025", "2026", "Grand Total"]);
+        // without a value no grand total row: it would have no number (#156)
+        expect((await tableRows(page)).map((r) => r[0])).toEqual(["2025", "2026"]);
         await chipMenu(page, "Created by year", "group");
         await page.getByTestId("group-none").click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Created"]);

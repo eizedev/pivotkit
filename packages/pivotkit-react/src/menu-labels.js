@@ -15,8 +15,8 @@ export const en = {
     settingInfo: {
         grandTotalRow: "A last row with the total of every column.",
         grandTotalColumn: "A last column with the total of every row.",
-        rowSubtotals: "With two or more fields in Rows: a total row under each group of the outer field.",
-        colSubtotals: "With two or more fields in Columns: a total column after each group of the outer field.",
+        rowSubtotals: "With two or more fields in Rows: a subtotal row (“North Total”) under each group of the outer field that has more than one item.",
+        colSubtotals: "With two or more fields in Columns: a subtotal column (“North Total”) after each group of the outer field that has more than one item.",
         along: "The direction the calculation walks: Rows goes down the rows of each column, Columns across the columns of each row. A running total adds up along it, a difference compares with the item before it.",
         showAs: "Shows each value as a share, a difference, a running total or a rank instead of the number itself. For percentages, a tip above the result says what 100% is.",
         exportXlsx: "Every number with all its decimals, formats kept, ready to calculate with.",
@@ -410,6 +410,7 @@ export const en = {
     needsColField: "Needs a field in Columns.",
     needsRowFields: "Needs two or more fields in Rows.",
     needsColFields: "Needs two or more fields in Columns.",
+    needsValue: "Needs a field in Values.",
     expandNothing: "Nothing is collapsed.",
     collapseNeedsRows: "Needs two or more fields in Rows.",
     collapseAllDone: "Every group is collapsed already.",

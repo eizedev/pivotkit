@@ -264,8 +264,8 @@ test("a limit of the core is a message in words with what to change, any other e
     assert.equal(errorText(refused({ pivotCells: 100 }), LABELS.de, "de-DE"), fill(LABELS.de.tooManyCells, { max: "100" }));
     // 40 rows x 2 x 2 x 1 count
     assert.equal(errorText(refused({ work: 100 }, { rows: ["A"], cols: ["B"], values: [{ agg: "count" }] }), en, "en-US"), fill(en.tooMuchWork, { value: "160", max: "100" }));
-    // (2 header rows + 41 body rows) x (1 label column + 41 columns)
-    assert.equal(errorText(refused({ cells: 1000 }), en, "en-US"), "This layout makes 1,806 cells, more than the limit of 1,000. Move a field with many values to Filters, or filter it.");
+    // (2 header rows + 41 body rows) x (1 label column + 41 columns), the totals included (a count makes them)
+    assert.equal(errorText(refused({ cells: 1000 }, { rows: ["A"], cols: ["B"], values: [{ agg: "count" }] }), en, "en-US"), "This layout makes 1,806 cells, more than the limit of 1,000. Move a field with many values to Filters, or filter it.");
     let rows;
     try {
         encode([{}, {}, {}], { limits: { rows: 2 } });

@@ -392,20 +392,22 @@ above.
 
 ## Bundle size
 
-What a page loads, measured with `npm run size -w pivotkit-element` on one Mac (esbuild 0.28.2,
-gzip level 9 per file, sizes add up per group; approximate, they change with every dependency
-update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in `build.js`
-(about 1 KiB above what CI measures for the first load, 3 to 5 per cent for the groups loaded later;
-CI reads about 0.3 KiB more than these numbers):
+What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-13
+(esbuild 0.28.2, gzip level 9 per file, sizes add up per group; approximate, they change with every
+dependency update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in
+`build.js` (170.5 KiB for the first load, about 1.4 above what CI measures; 1 to 7 per cent
+above what CI measures for the groups loaded later; CI reads up to about 0.7 KiB more than these
+numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 8 | 493 KiB | 160 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 9 | 518 KiB | 169 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 1 | 604 KiB | 204 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
-| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 14 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 123 KiB | 40 KiB |
-| With the menus, for a German report only (the menus' German texts) | 1 | 17 KiB | 6 KiB |
+| On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 131 KiB | 42 KiB |
+| With the menus, for a German report only (the menus' German texts) | 1 | 18 KiB | 6 KiB |
+| When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 50 KiB | 20 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |
 

@@ -82,6 +82,15 @@ const UNUSED = encodeViewLink({
     chart: { legend: "left" }
 });
 
+/** Column subtotals switched on with two fields in Columns: the line before each, and the tip that explains them. */
+const COLUMN_SUBTOTALS = encodeViewLink({
+    rows: ["Team"],
+    cols: ["Priority", "Channel"],
+    values: [{ field: "Ticket", agg: "count" }],
+    filters: [{ field: "Priority", type: "in", items: ["P1 Critical", "P2 High"] }],
+    totals: { colSubtotals: true }
+});
+
 /** The quick start's steps, clicked from the empty report: Region to Rows, Revenue to Values, Category to Columns. */
 const QUICK_STEPS = [
     (page) => page.locator('.pk-field[data-field="Region"] .pk-field-name').click(),
@@ -428,6 +437,17 @@ const SHOTS = [
         size: WIDE,
         open: (page) => page.getByTestId("chip-menu-Released").click()
     },
+    // the field list's Add to Filters: the field's filter opens first, nothing is placed until Apply
+    {
+        name: "add-to-filters",
+        query: "data=sales",
+        size: WIDE,
+        open: async (page) => {
+            await page.getByTestId("field-menu-Product").click();
+            await page.getByRole("menuitem", { name: "Add to Filters" }).click();
+            await page.locator(".pk-filter-popover").waitFor();
+        }
+    },
     {
         // the Top items level of a field's menu: the template's Top 3, the quick choices and Top N…, the ties
         name: "top-items",
@@ -543,6 +563,14 @@ const SHOTS = [
         }
     },
     { name: "tips", query: "data=countries&preset=0", size: WIDE },
+    {
+        name: "column-subtotals",
+        query: "data=tickets&empty",
+        hash: COLUMN_SUBTOTALS,
+        size: WIDE,
+        // the note that the view came from the link would cover the last column
+        open: (page) => page.addStyleTag({ content: ".pk-toast { visibility: hidden; }" })
+    },
     // "Learn with real data": one template of each real data set
     { name: "learn-weather", query: "data=weather&preset=0", size: WIDE },
     { name: "learn-countries", query: "data=countries&preset=0", size: WIDE },

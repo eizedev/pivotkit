@@ -1,5 +1,5 @@
 // What the menus say and do: a filter in words with Clear picks, the clear × of text fields,
-// "Filter…" for a field not placed yet, the sentence on filtering in the Values menu, Expand and
+// the field list's Add to Filters, which opens the field's filter, the sentence on filtering in the Values menu, Expand and
 // Collapse all only when they change something, the grip of a field, sort, top N and value conditions by a
 // chosen value. Every test fails without its feature.
 import { decodeViewLink, encodeViewLink } from "pivotkit-core/link";
@@ -172,29 +172,54 @@ test.describe("clearing text fields", () => {
     });
 });
 
-test.describe("a field that is not placed", () => {
-    test("Filter… in the field list filters it at once; it lands in Filters and keeps the filter on Rows", async ({ page }) => {
+test.describe("the field list's menu", () => {
+    test("Add to Filters opens the field's filter: Cancel places nothing, Apply places it with the choice, and it keeps the filter on Rows", async ({ page }) => {
         await page.goto("?data=sales");
+        const addToFilters = page.getByRole("menuitem", { name: "Add to Filters" });
         await page.getByTestId("field-menu-Product").click();
-        await page.getByTestId("field-filter-Product").click();
-        await expect(page.locator(".pk-filter-popover")).toBeVisible();
+        // one entry: no second one that also filters (#157)
+        await expect(page.getByRole("menuitem", { name: /^Filter/ })).toHaveCount(0);
+        await addToFilters.click();
+        await expect(page.locator(".pk-filter-popover h3")).toHaveText("Filter Product");
         // Cancel changes nothing
         await page.locator(".pk-filter-popover").getByRole("button", { name: "Cancel" }).click();
+        await expect(page.locator(".pk-filter-popover")).toHaveCount(0);
         expect(await chips(page, "filters")).toEqual([]);
         await page.getByTestId("field-menu-Product").click();
-        await page.getByTestId("field-filter-Product").click();
+        await addToFilters.click();
         const first = await page.locator(".pk-filter-popover .pk-value-label").first().textContent();
         await onlyValue(page, first);
         await expect.poll(() => chips(page, "filters")).toEqual(["Product"]);
         await expect(page.locator('[data-zone="filters"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
         // moved to Rows, it keeps the filter: one product row per region
-        await page.getByTestId("field-menu-Product").click();
-        await expect(page.getByTestId("field-filter-Product")).toHaveCount(0);
-        await page.keyboard.press("Escape");
         await page.locator('.pk-field[data-field="Product"] .pk-field-name').click();
         await expect.poll(() => chips(page, "rows")).toEqual(["Region", "Country", "Product"]);
         await chipMenu(page, "Product");
         await expect(page.locator(".pk-chip-menu").getByTestId("topic-state-filter")).toHaveText(/^● 1 of \d+$/);
+    });
+
+    test("Add to Filters of a field on Rows opens its filter there: Cancel keeps it on Rows, Apply moves it with the choice", async ({ page }) => {
+        await page.goto("?data=sales");
+        const addToFilters = page.getByRole("menuitem", { name: "Add to Filters" });
+        await page.getByTestId("field-menu-Region").click();
+        await addToFilters.click();
+        await expect(page.locator(".pk-filter-popover h3")).toHaveText("Filter Region");
+        await page.locator(".pk-filter-popover").getByRole("button", { name: "Cancel" }).click();
+        expect(await chips(page, "rows")).toEqual(["Region", "Country"]);
+        expect(await chips(page, "filters")).toEqual([]);
+        await page.getByTestId("field-menu-Region").click();
+        await addToFilters.click();
+        await onlyValue(page, await page.locator(".pk-filter-popover .pk-value-label").first().textContent());
+        await expect.poll(() => chips(page, "filters")).toEqual(["Region"]);
+        expect(await chips(page, "rows")).toEqual(["Country"]);
+        await expect(page.locator('[data-zone="filters"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
+        // in Filters already: the entry opens its filter with the choice made, and Cancel keeps it
+        await page.getByTestId("field-menu-Region").click();
+        await addToFilters.click();
+        await expect(page.locator(".pk-filter-popover").getByText(/^1 selected$/)).toBeVisible();
+        await page.locator(".pk-filter-popover").getByRole("button", { name: "Cancel" }).click();
+        expect(await chips(page, "filters")).toEqual(["Region"]);
+        await expect(page.locator('[data-zone="filters"] .pk-badge-text')).toHaveText(/^1 of \d+$/);
     });
 
     test("the grip says it is dragged, and a click on it opens the field's menu", async ({ page }) => {
@@ -203,7 +228,7 @@ test.describe("a field that is not placed", () => {
         await expect(grip).toHaveAttribute("title", "Drag into a zone");
         await grip.click();
         await expect(page.getByRole("menuitem", { name: "Add to Columns" })).toBeVisible();
-        await expect(page.getByTestId("field-filter-Product")).toBeVisible();
+        await expect(page.getByRole("menuitem", { name: "Add to Filters" })).toBeVisible();
     });
 });
 
@@ -590,9 +615,9 @@ test.describe("menus in levels", () => {
         // the i next to a menu's item shows its text to the pointer; a screen reader reads the text
         // with the item (the arrow keys stay on the items)
         const info = page.getByTestId("setting-info-rowSubtotals");
-        await expect(page.getByTestId("total-rowSubtotals")).toHaveAccessibleDescription(/a total row under each group/);
+        await expect(page.getByTestId("total-rowSubtotals")).toHaveAccessibleDescription(/a subtotal row \(“North Total”\) under each group/);
         await info.hover();
-        await expect(page.locator(".pk-info-pop")).toContainText("a total row under each group");
+        await expect(page.locator(".pk-info-pop")).toContainText("a subtotal row (“North Total”) under each group");
         // Show explanations off: no i anywhere, the reason stays (it is state)
         const show = page.getByTestId("show-explanations");
         await show.focus();

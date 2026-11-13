@@ -75,12 +75,17 @@ A chip in **Filters** opens the same Filter level from its menu, with **Move to*
 - A screen reader hears the card as it changes.
 - **Reset filter** at its right takes the picks, the quick choice and the rules off; Top N stays.
 
-### Filter a field that is not in the report
+### Add a field to Filters from the field list
 
-**Filter…** in the menu of a field in the field list opens its filter at once: its values and a
-condition on the names, a draft until **Apply**, which puts the field into Filters with what you
-chose; **Cancel** changes nothing. In Filters, and moved to Rows or Columns later, it keeps its
-filter, and its chip opens the whole Filter level.
+**Add to Filters** in the menu of a field in the field list opens its filter at once: its values and
+a condition on the names, a draft until **Apply**, which puts the field into Filters with what you
+chose; **Cancel** changes nothing. A field on Rows or Columns moves to Filters on **Apply** and stays
+where it is on **Cancel**; a field in Filters already opens its filter there. In Filters, and moved
+to Rows or Columns later, it keeps its filter, and its chip opens the whole Filter level. Dragging a
+field into Filters places it at once, with every item kept.
+
+![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-light.png#only-light)
+![The filter of Product opened from Add to Filters in the field list: its values with row counts, a search, Select all and Select none, a condition on the names, Cancel and Apply](../assets/screenshots/add-to-filters-dark.png#only-dark)
 
 ## Quick choices for dates
 

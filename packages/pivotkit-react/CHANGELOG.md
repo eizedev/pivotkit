@@ -12,6 +12,18 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   `chartThemeFrom`, `pivotkit-core/chart`), so an SVG and a printed report of pivotkit-report draw
   the same chart; the report looks the same. A host page with an import map adds
   `pivotkit-core/chart` next to `pivotkit-core/export` ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- The table follows pivotkit-core's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals off in a new report,
+  no empty column and no total rows for fields in Rows without a value, no subtotal for a group of
+  one item (its arrow stays). Labels without a value column next to them take up to 85 % of the
+  report's width instead of 40 %, so a name on a phone is not broken inside a word.
+- A subtotal column is set apart from its group: a line before it (`--pk-border-strong`) and a
+  slightly darker `--pk-total` (light `#eef1f5`, dark `#21252d`; text on it 14.9:1 and 12.8:1, the
+  muted header text 5.4:1 and 6.6:1), and its header's tooltip says what it adds up ([#156](https://github.com/eizedev/pivotkit/issues/156)).
+- Options: a total switch that changes nothing is disabled without a tick; every total also needs a
+  field in Values ("Needs a field in Values.", `needsValue`). The explanations of the subtotals say
+  "subtotal", name a subtotal's label ("North Total") and say that a group of one item has none ([#156](https://github.com/eizedev/pivotkit/issues/156)).
+- The npm description names views as JSON files, as the README and the docs do, instead of templates
+  ([#191](https://github.com/eizedev/pivotkit/issues/191)).
 - npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
   the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`
@@ -29,6 +41,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   before. The link's place in the fragment is pivotkit-core's (`linkFragment`, `withLinkFragment`).
 - A view read from a link, a file, pasted JSON or the tab's storage keeps at most 50 filters and is
   at most 1,000,000 characters long (pivotkit-core's `outsideLimits`), or the host's lower limits.
+- The field list's menu has one entry for filtering, **Add to Filters**, instead of two that did almost
+  the same ([#157](https://github.com/eizedev/pivotkit/issues/157)): it opens the field's filter at
+  once, **Apply** puts the field into Filters with the choice, **Cancel** places nothing. A field on
+  Rows or Columns moves to Filters on Apply; a field in Filters opens its filter. "Filter…" is gone,
+  and with it the label `filter` (a host's text for it is ignored).
 
 ### Added
 
@@ -38,6 +55,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   frame a strict Content-Security-Policy allows. `onExport` gets the kinds `html`, `svg` and `print`
   (with the report's HTML; `false` prints nothing). pivotkit-report is a new dependency, loaded on the
   first of these exports ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- The tip `colSubtotals`: while a Total column shows (column subtotals on, two or more fields in
+  Columns, a value, an open column group of two or more items), it says that a Total column adds up the group before it, with the button **Hide column subtotals** ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 - The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
   loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data
   keeps `limits`, so a host can keep uploads small (`importLimits={{ rows: 1000 }}`) without capping
@@ -76,6 +95,17 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The rule between a menu's groups had 1.3:1 contrast in the light theme and 1.2:1 in the dark one,
+  and in More, whose groups have no titles, it is the only thing that tells them apart. It is drawn
+  in the new token `--pk-rule`, 3:1 against the menu in both themes
+  ([#128](https://github.com/eizedev/pivotkit/issues/128)).
+- An open menu or popover follows its anchor when the anchor moves or changes size while it is open
+  (the zones' open animation, a transition of the host page)
+  ([#120](https://github.com/eizedev/pivotkit/issues/120)).
+- A delayed popover autofocus frame no longer steals focus from a control already in use
+  ([#139](https://github.com/eizedev/pivotkit/issues/139)).
+- Outside pie and donut labels appear on the first draw, including their chosen values
+  ([#103](https://github.com/eizedev/pivotkit/issues/103)).
 - The menus' text actions drew as plain text in the text colour, so they did not look clickable:
   **Back**, **Reset filter**, **Clear**, **Remove**, **change it above**, **Select all**, **Select
   none**, **Only** and **Swap rows and columns** are in the accent colour and semibold (Back at the
