@@ -116,6 +116,43 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
         });
     }
 
+    // the tip is placed a few pixels off its i: the pointer on its way from the i to the tip passes
+    // that gap. Resting there longer than the leave delay (a slow machine's pointer steps: about
+    // 280 ms each in CI's WebKit on Linux) closed the tip before the pointer reached it
+    for (const [menu, info] of [
+        ["export", "setting-info-copyTable"],
+        ["options", "setting-info-rowSubtotals"]
+    ]) {
+        test(`${menu}: the pointer resting between ${info} and its tip keeps the tip`, async ({ page }) => {
+            await page.goto("?data=tickets");
+            await toolbar(page, menu);
+            const button = page.getByTestId(info);
+            await button.hover();
+            const tip = page.locator(".pk-info-pop");
+            await expect(tip).toBeVisible();
+            const b = await button.boundingBox();
+            const t = await tip.boundingBox();
+            const below = t.y >= b.y + b.height;
+            const gap = below ? [b.y + b.height, t.y] : [t.y + t.height, b.y];
+            expect(gap[1] - gap[0], "a gap between the i and its tip").toBeGreaterThan(1);
+            // in the gap, at the i's centre line: neither on the i nor on the tip
+            await page.mouse.move(b.x + b.width / 2, (gap[0] + gap[1]) / 2);
+            await page.waitForTimeout(800);
+            await expect(tip).toBeVisible();
+            // on from there onto the tip: it stays
+            await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2, { steps: 3 });
+            await page.waitForTimeout(400);
+            await expect(tip).toBeVisible();
+            // the gap is no place that keeps the tip for good: leaving through it closes it
+            await page.mouse.move(b.x + b.width / 2, (gap[0] + gap[1]) / 2);
+            // to the start of the i's own row in the menu (its switch), not onto another i
+            const menuBox = await page.locator(".pk-popover").first().boundingBox();
+            await page.mouse.move(menuBox.x + 12, b.y + b.height / 2, { steps: 3 });
+            await expect(tip).toHaveCount(0);
+            await expect(page.locator(".pk-popover").first()).toBeVisible();
+        });
+    }
+
     test("the web component, light and dark: Export's Copy table i above the menu", async ({ page }) => {
         await page.goto("pages/element-two.html");
         for (const id of ["sales", "tickets"]) {

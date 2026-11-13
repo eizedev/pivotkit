@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
+import { inGap } from "./place.js";
 import { Popover } from "./popover.jsx";
 
 /** How long (ms) a hover popover waits after the pointer left its button, so the pointer can reach it. */
@@ -51,20 +52,26 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     const leaving = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
     const id = useId();
     const textId = useId();
+    // where the pointer is (client coordinates), followed while the description is shown on hover
+    const pointer = useRef(/** @type {{ x: number, y: number } | null} */ (null));
     const stay = () => {
         if (leaving.current) {
             clearTimeout(leaving.current);
             leaving.current = null;
         }
     };
-    // the pointer on the button or on its popover: there the popover stays. Asked of the page (:hover),
-    // not only of pointerenter: in WebKit on Linux the popover in the top layer (an "i" inside a menu)
-    // got no pointerenter when the pointer moved onto it from the button (#213)
+    // the pointer on the button, on its popover or in the gap between them (on its way from the one
+    // to the other): there the popover stays. Asked of the page (:hover), not only of pointerenter: in
+    // WebKit on Linux the popover in the top layer (an "i" inside a menu) got no pointerenter when the
+    // pointer moved onto it from the button; and a pointer that rests in the gap for longer than the
+    // leave delay (a slow machine's steps, a slow hand) is still on its way (#213)
     const hovered = () => {
         const button = ref.current;
         const root = /** @type {Document | ShadowRoot | null} */ (button?.getRootNode() ?? null);
         const pop = root && "getElementById" in root ? root.getElementById(id) : null;
-        return Boolean(button?.matches(":hover") || pop?.matches(":hover"));
+        return Boolean(
+            button?.matches(":hover") || pop?.matches(":hover") || (button && pop && inGap(button.getBoundingClientRect(), pop.getBoundingClientRect(), pointer.current))
+        );
     };
     const leaveSoon = () => {
         stay();
@@ -79,6 +86,20 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
         leaving.current = setTimeout(check, LEAVE_DELAY);
     };
     useEffect(() => stay, []);
+    useEffect(() => {
+        const doc = ref.current?.ownerDocument;
+        if (mode !== "peek" || !doc) {
+            return undefined;
+        }
+        const follow = (/** @type {PointerEvent} */ e) => {
+            pointer.current = { x: e.clientX, y: e.clientY };
+        };
+        doc.addEventListener("pointermove", follow, { capture: true, passive: true });
+        return () => {
+            doc.removeEventListener("pointermove", follow, { capture: true });
+            pointer.current = null;
+        };
+    }, [mode]);
     const close = useCallback(() => {
         quiet.current = true;
         setMode(null);

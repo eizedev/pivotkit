@@ -93,3 +93,19 @@ export function keepPlace(last, next, anchor, size, viewport) {
 export function fromOrigin(place, origin) {
     return { ...place, top: place.top - origin.top, left: place.left - origin.left };
 }
+
+/**
+ * Whether a point is in the gap between an anchor and its popover placed below or above it (GAP
+ * pixels), across both their widths: the way of a pointer moving from the one to the other. A hover
+ * tip stays while the pointer is there (info.jsx), whatever time the move takes.
+ * @param {{ top: number, bottom: number, left: number, right: number }} anchor  getBoundingClientRect()
+ * @param {{ top: number, bottom: number, left: number, right: number }} popover  getBoundingClientRect()
+ * @param {{ x: number, y: number } | null} point  client coordinates
+ */
+export function inGap(anchor, popover, point) {
+    if (!point) {
+        return false;
+    }
+    const [top, bottom] = popover.top >= anchor.bottom ? [anchor.bottom, popover.top] : [popover.bottom, anchor.top];
+    return top <= bottom && point.y >= top && point.y <= bottom && point.x >= Math.min(anchor.left, popover.left) && point.x <= Math.max(anchor.right, popover.right);
+}

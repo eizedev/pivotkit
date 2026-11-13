@@ -6,7 +6,7 @@ import { drillTable } from "../src/drill-table.js";
 import { LABELS, fill, hostFailure, resolveLabels } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { addMenuTexts, en as menuEn, menuLabels } from "../src/menu-labels.js";
-import { fromOrigin, keepPlace, placePopover, viewportOf } from "../src/place.js";
+import { fromOrigin, inGap, keepPlace, placePopover, viewportOf } from "../src/place.js";
 import { chartThemeFrom, resolveTheme } from "../src/theme.js";
 import { longestLabels, rowLabelOf, sliceRows, windowOf } from "../src/virtual.js";
 
@@ -146,6 +146,24 @@ test("popover placement: the window's room without its scroll bars", () => {
     assert.equal(at.left + 320, 1263 - 8, "its right edge a margin before the scroll bar");
     // no root box (a document being torn down): the window
     assert.deepEqual(viewportOf(/** @type {any} */ ({ documentElement: null, defaultView: { innerWidth: 800, innerHeight: 600 } })), { width: 800, height: 600 });
+});
+
+test("popover placement: the gap between an i and its tip is the pointer's way from one to the other", () => {
+    // the i at the right, its tip below and further left (placed inside the window, #213)
+    const i = { top: 315, bottom: 339, left: 1214, right: 1238 };
+    const below = { top: 345, bottom: 424, left: 952, right: 1272 };
+    assert.equal(inGap(i, below, { x: 1203, y: 342 }), true, "the first step from the i towards the tip's centre");
+    assert.equal(inGap(i, below, { x: 1226, y: 339 }), true, "the i's lower edge");
+    assert.equal(inGap(i, below, { x: 900, y: 342 }), false, "left of both");
+    assert.equal(inGap(i, below, { x: 1203, y: 330 }), false, "beside the i, in its row");
+    assert.equal(inGap(i, below, { x: 1203, y: 350 }), false, "on the tip: the page's :hover says so");
+    assert.equal(inGap(i, below, null), false, "no pointer seen");
+    // a tip above its i
+    const above = { top: 230, bottom: 309, left: 952, right: 1272 };
+    assert.equal(inGap(i, above, { x: 1100, y: 312 }), true);
+    assert.equal(inGap(i, above, { x: 1100, y: 342 }), false);
+    // a tip over its i (a bottom sheet, a fill popover): no gap
+    assert.equal(inGap(i, { top: 300, bottom: 400, left: 952, right: 1272 }, { x: 1226, y: 327 }), false);
 });
 
 test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", () => {
