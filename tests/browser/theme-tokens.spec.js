@@ -106,6 +106,10 @@ test.describe("a host's tokens for corners, the code font, the focus ring and th
         });
         await chart.evaluate((el) => (el.style.width = `${el.clientWidth - 20}px`));
         await expect.poll(drawn).toEqual({ title: 27, bar: [0, 0, 0, 0], tooltip: "2px" });
+        // a corner that is no length keeps the default instead of becoming square
+        await page.addStyleTag({ content: ".brand { --pk-radius-chart: rounded; }" });
+        await chart.evaluate((el) => (el.style.width = `${el.clientWidth - 20}px`));
+        await expect.poll(drawn).toEqual({ title: 27, bar: [4, 4, 0, 0], tooltip: "2px" });
     });
 });
 

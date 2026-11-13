@@ -32,14 +32,17 @@ export const LENGTH_TOKENS = Object.freeze(["--pk-chart-title-size", "--pk-radiu
 
 /**
  * Tokens that are lengths, in px as the report resolves them (em of its font): a probe inside the root
- * takes each one as its margin. A token not set is left out.
+ * takes each one as its margin. A token not set, or not a length CSS takes (a keyword: its margin would
+ * be 0), is left out, so the chart keeps its default.
  * @param {HTMLElement} root  the report's root
  * @param {readonly string[]} [names]
  * @returns {Record<string, string>}  "16px" per token
  */
 export function tokenLengths(root, names = LENGTH_TOKENS) {
     const view = root.ownerDocument.defaultView;
-    const set = view ? names.filter((name) => view.getComputedStyle(root).getPropertyValue(name).trim()) : [];
+    const style = view?.getComputedStyle(root);
+    const lengthy = (/** @type {string} */ value) => Boolean(value) && (typeof CSS === "undefined" || CSS.supports("margin-left", value));
+    const set = style ? names.filter((name) => lengthy(style.getPropertyValue(name).trim())) : [];
     if (!view || !set.length) {
         return {};
     }

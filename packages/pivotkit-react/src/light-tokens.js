@@ -11,18 +11,20 @@
  * element whose :host rules declare the tokens, and the dark one again in the same task, so nothing is
  * drawn in between; --pk-duration is 0ms meanwhile (on the root, important), so no transition of the
  * report's starts on the way there or back. A host's dark rules on data-pk-theme="dark" are left out
- * that way; rules on something else (an html[data-theme] of the page) apply in both. Lengths are the
- * same in both themes: the chart's module resolves them (chart-decorate.js, tokenLengths).
+ * that way; rules on something else (an html[data-theme] of the page) apply in both. Lengths are
+ * resolved by the chart's module (chart-decorate.js, tokenLengths), passed in as `more`, read in the
+ * light theme too.
  * @param {HTMLElement} root  the report's root
  * @param {readonly string[]} names
+ * @param {() => Record<string, string>} [more]  further tokens read while the light theme shows
  * @returns {Record<string, string>}  the tokens that are set
  */
-export function lightTokens(root, names) {
+export function lightTokens(root, names, more = () => ({})) {
     const host = /** @type {{ host?: Element }} */ (root.getRootNode()).host;
     const dark = [root, ...(host ? [host] : [])].filter((el) => el.getAttribute("data-pk-theme") === "dark");
     const read = () => {
         const style = getComputedStyle(root);
-        return Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]).filter(([, value]) => value));
+        return { ...Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]).filter(([, value]) => value)), ...more() };
     };
     if (!dark.length) {
         return read();

@@ -136,7 +136,7 @@ function geometry(text) {
         }
         const radius = /^border(-[a-z]+)*-radius$/.test(prop) && !parts(value).every((p) => SHAPES.has(p) || /^var\(--pk-radius[a-z-]*\)$/.test(p) || /^calc\(.*var\(--pk-radius[a-z-]*\)/.test(p));
         const family = prop === "font-family" && !/^(inherit|var\(--pk-font[a-z-]*(,\s*inherit)?\))$/.test(value);
-        const ring = /^(outline|outline-width|outline-offset|box-shadow)$/.test(prop) && LENGTH.test(value.replace(/var\([^()]*\)/g, ""));
+        const ring = /^(outline|outline-width|outline-offset|box-shadow)$/.test(prop) && LENGTH.test(value.replace(/var\(--[\w-]+\)/g, ""));
         if (radius || family || ring) {
             found.push(`${line}: ${selector} { ${prop}: ${value} }`);
         }
@@ -158,7 +158,8 @@ test("the geometry check finds radii, font families and ring lengths outside the
         .i { outline-offset: -2px; }
         .j { box-shadow: 0 0 0 3px var(--pk-accent-soft); }
         .k { border-radius: calc(4px + 1px); }
-        .l { box-shadow: inset 0 0 0 1.5px var(--pk-accent); }`;
+        .l { box-shadow: inset 0 0 0 1.5px var(--pk-accent); }
+        .m { outline: var(--pk-focus-width, 2px) solid var(--pk-focus); }`;
     assert.deepEqual(
         geometry(sample).map((f) => f.replace(/^\d+: /, "")),
         [
@@ -169,7 +170,8 @@ test("the geometry check finds radii, font families and ring lengths outside the
             ".i { outline-offset: -2px }",
             ".j { box-shadow: 0 0 0 3px var(--pk-accent-soft) }",
             ".k { border-radius: calc(4px + 1px) }",
-            ".l { box-shadow: inset 0 0 0 1.5px var(--pk-accent) }"
+            ".l { box-shadow: inset 0 0 0 1.5px var(--pk-accent) }",
+            ".m { outline: var(--pk-focus-width, 2px) solid var(--pk-focus) }"
         ]
     );
 });
@@ -250,7 +252,8 @@ function codeLiteral(line) {
         /font-weight:\s*\d/.test(line) ||
         /["'`][^"'`]*(#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\()/.test(line) ||
         /(borderRadius\s*[:=]|border-radius:)\s*[[("'`]*\s*(?!0\b|50%|999px)\d/.test(line) ||
-        /fontSize\s*:\s*\d|\.fontSize\s*=\s*["'`]?\d/.test(line) ||
+        /fontSize\s*:\s*["'`]?\d|\.fontSize\s*=\s*["'`]?\d/.test(line) ||
+        /setProperty\(\s*["'`](border(-[a-z]+)*-radius|font-size|font-family|outline(-width|-offset)?)["'`]\s*,\s*["'`][\w"']/.test(line) ||
         /font-family:\s*(?!var\(|inherit|\$)[\w"']/.test(line)
     );
 }
@@ -262,6 +265,8 @@ test("the code check finds colours, weights, radii, title sizes and font familie
         "itemStyle: { borderRadius: [4, 4, 0, 0] }",
         "textStyle: { fontSize: 16 }",
         'tip.style.fontSize = "12px"',
+        'textStyle: { fontSize: "16px" }',
+        'el.style.setProperty("border-radius", "8px")',
         'css: "font-family: Menlo, monospace"',
         "fontWeight: 600",
         'color: "#fff"'

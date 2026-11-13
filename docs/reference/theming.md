@@ -193,7 +193,9 @@ carries over into the workbook that way. A view's own colours are written as the
 The workbook always gets the light theme's colours, since a spreadsheet shows them behind black
 text: from a report shown in the dark theme it gets the colours your light theme sets. The report
 shows its light theme for the moment it reads them, in the same task, so nothing is drawn and no
-transition starts (on `pivot-report` too, where the element shows it). Your dark rules stay out when
+transition of the report starts (on `pivot-report` too, where the element shows it; the element's
+`data-pk-theme` changes to `light` and back within that task, which a `MutationObserver` of the page
+sees as two records, and a transition the page itself puts on `pivot-report` is not stopped). Your dark rules stay out when
 they are written for `[data-pk-theme="dark"]` ([above](#light-and-dark)). A token that the browser
 cannot write as an sRGB colour (`oklch()` outside sRGB, say) keeps pivotkit-core's default
 (`DEFAULT_THEME`, the default light theme's: light blue to blue, and blue bars). The report itself shows a colour

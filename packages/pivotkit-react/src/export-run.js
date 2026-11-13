@@ -163,7 +163,7 @@ function reportTokens(root, names, chart) {
     if (!root) {
         return undefined;
     }
-    const tokens = { ...lightTokens(root, names), ...chart.tokenLengths(root, chart.LENGTH_TOKENS) };
+    const tokens = lightTokens(root, names, () => chart.tokenLengths(root, chart.LENGTH_TOKENS));
     return Object.keys(tokens).length ? tokens : undefined;
 }
 
