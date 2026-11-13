@@ -201,18 +201,18 @@ for (const theme of ["light", "dark"]) {
             expect(s.color, "skip link: colour").toBe(s.accent);
             expect(s.fontWeight, "skip link: weight").toBe("600");
             expect(s.contrast, "skip link: contrast").toBeGreaterThanOrEqual(4.5);
-            // a chip's name is semibold
+            // a chip's name is semibold (--pk-weight-strong)
             const label = page.locator('[data-zone="rows"] .pk-chip .pk-chip-label').first();
-            expect((await look(label)).fontWeight, "a chip's name: weight").toBe("550");
+            expect((await look(label)).fontWeight, "a chip's name: weight").toBe("600");
             // a row's expand arrow is a muted icon button
             await expectIconButton(page.locator(".pk-toggle").first(), "a row's expand arrow");
-            // the field list folded to its rail: "Fields" in the text colour, weight 650
+            // the field list folded to its rail: "Fields" in the text colour, semibold as every title (--pk-weight-strong)
             await page.getByTestId("collapse-fields").click();
             const rail = page.getByTestId("expand-fields");
             await away(page);
             const r = await look(rail);
             expect(r.color, "the Fields rail: colour").toBe(r.text);
-            expect(r.fontWeight, "the Fields rail: weight").toBe("650");
+            expect(r.fontWeight, "the Fields rail: weight").toBe("600");
             // More choices of a date's quick choices: a muted disclosure at the small size, readable as text
             await openView(page, "weather", DATES, theme);
             await chipMenu(page, "Date by month", "filter");
@@ -255,4 +255,20 @@ test("inputs and selects keep the report's font family, size and text colour in 
             .map((p) => `${el.tagName.toLowerCase()}[${el.getAttribute("data-testid") ?? el.name}] ${p}: ${own.getPropertyValue(p)} vs ${parent.getPropertyValue(p)}`);
     }));
     expect(mismatches).toEqual([]);
+});
+
+test("a host's font weight tokens reach the chips, the titles, the headers and the grand total (#201)", async ({ page }) => {
+    await openView(page, "sales", VALUE_RULE);
+    const weight = (locator) => locator.evaluate((el) => getComputedStyle(el).fontWeight);
+    const label = page.locator('[data-zone="rows"] .pk-chip .pk-chip-label').first();
+    const title = page.locator(".pk-zone-title").first();
+    const header = page.locator(".pk-table thead th").first();
+    const grand = page.locator('[data-testid="pivot-table"] :is(td, th).pk-grand').first();
+    const cell = page.locator('[data-testid="pivot-table"] tbody td').first();
+    // the defaults: semibold chips, titles and headers, a bold grand total, regular cells
+    expect([await weight(label), await weight(title), await weight(header), await weight(grand), await weight(cell)]).toEqual(["600", "600", "600", "700", "400"]);
+    // a brand font that looks heavy: the host sets the scale's steps and every part follows
+    await page.addStyleTag({ content: ".pk-root { --pk-weight-normal: 300; --pk-weight-strong: 500; --pk-weight-bold: 650; }" });
+    await expect.poll(() => weight(label)).toBe("500");
+    expect([await weight(title), await weight(header), await weight(grand), await weight(cell)]).toEqual(["500", "500", "650", "300"]);
 });

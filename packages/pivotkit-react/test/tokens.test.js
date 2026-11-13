@@ -3,7 +3,7 @@
 // Literals are allowed only in the token blocks, :where(.pk-root) and its dark theme.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
@@ -43,7 +43,13 @@ function declarations(text) {
     for (let i = 0; i < source.length; i++) {
         const ch = source[i];
         if (ch === '"' || ch === "'") {
-            i = source.indexOf(ch, i + 1);
+            // to the closing quote, past escaped characters (content: "\"")
+            let end = i + 1;
+            while (end < source.length && source[end] !== ch) {
+                end += source[end] === "\\" ? 2 : 1;
+            }
+            assert.ok(end < source.length, `a string that never closes, line ${lineAt(i)}`);
+            i = end;
             continue;
         }
         if (ch === "{") {
@@ -73,12 +79,14 @@ function declarations(text) {
 function literals(text) {
     const found = [];
     for (const { selector, prop, value, line } of declarations(text)) {
-        if (TOKEN_BLOCKS.has(selector)) {
+        // a token block declares the tokens' defaults; any other property there is checked as anywhere
+        if (TOKEN_BLOCKS.has(selector) && prop.startsWith("--")) {
             continue;
         }
-        // names of custom properties hold words such as "--pk-total", and strings are text, never colours
-        const bare = value.replace(/--[\w-]+/g, "").replace(/"[^"]*"|'[^']*'/g, "");
-        const words = bare.toLowerCase().match(/[a-z]+/g) ?? [];
+        // names of custom properties hold words such as "--pk-total", and strings are text, never colours;
+        // a hyphenated name (an animation's "snow-fall") is one word
+        const bare = value.replace(/--[\w-]+/g, "").replace(/"(\\.|[^"\\])*"|'(\\.|[^'\\])*'/g, "");
+        const words = bare.toLowerCase().match(/[a-z][a-z-]*/g) ?? [];
         const colour = /#[0-9a-f]{3,8}\b/i.test(bare) || /\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/i.test(bare) || words.some((w) => NAMED_COLOURS.has(w));
         const weight =
             (prop === "font-weight" && !/^var\(--pk-weight-[a-z]+\)$/.test(value)) ||
@@ -92,10 +100,12 @@ function literals(text) {
 
 test("the check finds literals outside the token blocks and nothing inside them", () => {
     const sample = `
-        :where(.pk-root) { --pk-accent: #2b5fd9; --pk-weight-strong: 600; }
+        :where(.pk-root) { --pk-accent: #2b5fd9; --pk-weight-strong: 600; color-scheme: light; }
+        :where(.pk-root) { color: #123; }
         @media (prefers-reduced-motion: reduce) { :where(.pk-root[data-pk-theme="dark"]) { --pk-text: white; } }
         .a { color: var(--pk-text); font-weight: var(--pk-weight-strong); background: color-mix(in srgb, var(--pk-danger) 5%, transparent); }
         .b { content: "red; }"; border: 1px solid CanvasText; white-space: nowrap; font: inherit; }
+        .b2 { content: "\\"" ; animation-name: snow-fall; }
         .c { font-weight: 600; }
         .d { color: #fff; }
         @media (min-width: 1px) { .e { box-shadow: 0 1px 2px rgb(0 0 0 / 0.1); } }
@@ -106,6 +116,7 @@ test("the check finds literals outside the token blocks and nothing inside them"
     assert.deepEqual(
         literals(sample).map((f) => f.replace(/^\d+: /, "")),
         [
+            ":where(.pk-root) { color: #123 }",
             ".c { font-weight: 600 }",
             ".d { color: #fff }",
             ".e { box-shadow: 0 1px 2px rgb(0 0 0 / 0.1) }",
@@ -115,6 +126,10 @@ test("the check finds literals outside the token blocks and nothing inside them"
             ".i { font-weight: bold }"
         ]
     );
+});
+
+test("a string that never closes fails the check instead of hanging it", () => {
+    assert.throws(() => literals('.a { content: "abc; }'), /never closes/);
 });
 
 test("styles.css: colours and font weights only from --pk-* tokens outside the token blocks", () => {
@@ -129,4 +144,21 @@ test("styles.css: every --pk-weight-* a rule uses is declared in the token block
     for (const name of used) {
         assert.ok(declared.has(name), `${name} is used but has no default in :where(.pk-root)`);
     }
+});
+
+test("styles set from code take colours and font weights from tokens too (the chart's tooltip, the table's probe)", () => {
+    const found = [];
+    for (const dir of ["../src/", "../../pivotkit-element/src/"]) {
+        const url = new URL(dir, import.meta.url);
+        for (const name of readdirSync(url).filter((n) => /\.jsx?$/.test(n))) {
+            // without comments: they name issues (#136) and colours in words
+            const code = readFileSync(new URL(name, url), "utf8").replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " ")).replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+            code.split("\n").forEach((line, i) => {
+                if (/fontWeight\s*[:=]\s*["'`]?(\d|bold|bolder|lighter)/.test(line) || /font-weight:\s*\d/.test(line) || /["'`][^"'`]*(#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\()/.test(line)) {
+                    found.push(`${dir}${name}:${i + 1}: ${line.trim()}`);
+                }
+            });
+        }
+    }
+    assert.deepEqual(found, [], `use a --pk-* token (var(--pk-...) or theme.js) instead of:\n${found.join("\n")}`);
 });

@@ -30,6 +30,7 @@ test("the chart theme comes from the --pk-* tokens", () => {
     // the chart's title and group labels take --pk-weight-strong; a keyword or no token leaves the core's default
     assert.equal(chartThemeFrom({ getPropertyValue: (n) => ({ ...tokens, "--pk-weight-strong": " 520" })[n] ?? "" }).strongWeight, 520);
     assert.equal(chartThemeFrom({ getPropertyValue: (n) => ({ ...tokens, "--pk-weight-strong": "bold" })[n] ?? "" }).strongWeight, undefined);
+    assert.equal(chartThemeFrom({ getPropertyValue: (n) => ({ ...tokens, "--pk-weight-strong": "5000" })[n] ?? "" }).strongWeight, undefined);
     assert.equal(theme.strongWeight, undefined);
 });
 
