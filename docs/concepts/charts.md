@@ -43,22 +43,22 @@ A view without them gets the defaults; an unknown value falls back to its defaul
 `normalize()` ([Views](views.md)). "Percent" and "Value and percent" are a pie's and a donut's; another
 type writes the value.
 
-The chart's colours, its title's size and weight and the corners of its bars, slices and tooltip come
-from the report's `--pk-*` tokens, so a corporate theme reaches the chart too
-([Theming](../reference/theming.md#chart-colours)).
+The chart's colours, its title's size and weight, the size of its other text (at least 14 px) and the
+corners of its bars, slices and tooltip come from the report's `--pk-*` tokens, so a corporate theme
+reaches the chart too ([Theming](../reference/theming.md#chart-colours)). The labels are laid out for
+the text's size, so set sizes there rather than in `chartOptions`.
 
 ## `chartOptions` (for developers)
 
 `chartOptions` is a plain JSON object merged over the [Apache ECharts](https://echarts.apache.org/en/option.html)
-option the report builds, for what the menus do not offer: a font size, axis names, margins, a
+option the report builds, for what the menus and the tokens do not offer: axis names, margins, a
 colour. It is a prop of pivotkit-react and a property of `<pivot-report>`.
 
 ```jsx
 <PivotReport
     data={rows}
     chartOptions={{
-        textStyle: { fontSize: 13 },
-        title: { textStyle: { fontSize: 18 } },
+        title: { left: "left" },
         xAxis: { name: "Region", nameLocation: "middle", nameGap: 32 },
         series: { barMaxWidth: 24 },
         grid: { left: 48 }
@@ -67,13 +67,13 @@ colour. It is a prop of pivotkit-react and a property of `<pivot-report>`.
 ```
 
 ```js
-document.querySelector("pivot-report").chartOptions = { legend: { textStyle: { fontSize: 14 } } };
+document.querySelector("pivot-report").chartOptions = { legend: { itemGap: 16 } };
 ```
 
 How it is merged:
 
-- objects key by key, so `{ title: { textStyle: { fontSize: 18 } } }` changes the font size and keeps
-  the view's title text;
+- objects key by key, so `{ title: { left: "left" } }` moves the title and keeps the view's title
+  text;
 - a list entry by entry (`series: [{ ... }, { ... }]`), and an object given for a list into every
   entry of it: `{ series: { barMaxWidth: 24 } }` sets every series;
 - any other value replaces the report's.

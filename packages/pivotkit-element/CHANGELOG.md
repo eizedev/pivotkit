@@ -22,6 +22,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- pivotkit-react's `--pk-chart-text-size` (the chart's text, at least 14 px) and the HTML report's
+  font size tokens (`--pk-report-title-size`, `--pk-print-size`, `--pk-print-small`), set on the
+  element like every `--pk-*` token ([#220](https://github.com/eizedev/pivotkit/issues/220), [#221](https://github.com/eizedev/pivotkit/issues/221)).
 - pivotkit-react's tokens for corners, the code font, the focus ring and the chart's title and marks
   ([#216](https://github.com/eizedev/pivotkit/issues/216)): `--pk-radius-xs`, `--pk-radius-mark`, `--pk-radius-icon`, `--pk-radius-card`,
   `--pk-radius-chart`, `--pk-font-mono`, `--pk-chart-title-size`, `--pk-focus-width`,

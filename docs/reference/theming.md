@@ -86,7 +86,7 @@ through the element.
 | `--pk-radius-xs`<br>`--pk-radius-mark`<br>`--pk-radius-icon` | Smaller corners, in step with `--pk-radius-sm` (set that one and these follow): links, a list's options, a column's sort button and keys; small parts inside a chip, a cell or a list (a field's grip, a badge, a filter's value, the fold button of a group in the table); a field's type icon | `calc(var(--pk-radius-sm) * 4 / 7)` (4 px)<br>`calc(var(--pk-radius-sm) * 5 / 7)` (5 px)<br>`calc(var(--pk-radius-sm) * 6 / 7)` (6 px) | as light |
 | `--pk-radius-card`<br>`--pk-radius-chart` | The chart's tooltip and the HTML report's chart card; the chart's bars and pie slices (a heatmap's cells three quarters of it) | `8px`<br>`var(--pk-radius-xs)` (4 px) | as light |
 | `--pk-font-mono` | The code font of the text field a view's JSON is pasted into | `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` | as light |
-| `--pk-chart-title-size` | The chart's title ([below](#chart-colours)) | `max(16px, var(--pk-font-size))` | as light |
+| `--pk-chart-title-size`<br>`--pk-chart-text-size` | The chart's title; its other text: the axes, the legend and the labels on the marks ([below](#chart-colours)) | `max(16px, var(--pk-font-size))`<br>`var(--pk-small)` | as light |
 | `--pk-focus-width`<br>`--pk-focus-offset`<br>`--pk-glow-width`<br>`--pk-ring-width` | The focus ring's width and its gap to the control (in a list, a cell or a segmented button it sits inside the control, as wide); the soft ring around a focused text field and a zone a field is dragged over; the inset ring of a zone a field is dropped on to remove it (a clickable cell's hover ring is three quarters of it, a file drop's one and a half) | `2px`<br>`2px`<br>`3px`<br>`2px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
@@ -147,14 +147,14 @@ follows, the chart's title and group labels too (the chart reads `--pk-weight-st
 
 The same declarations go on `pivot-report` for the web component. The HTML report and print
 (Export) take the report's weights along, in either theme, with the light theme's colours (also from a
-dark report, as the [Excel export](#the-excel-export) does), the chart card's corner and the chart's
-title size. A weight the font has no face for
+dark report, as the [Excel export](#the-excel-export) does), the chart card's corner, the chart's
+sizes and the [font sizes](#report-font-sizes). A weight the font has no face for
 is drawn with another face: above 500 the browser takes the next heavier one, so with a font of only
 400 and 700 a weight of 550 is drawn at 700. Pick weights the font has, or use a variable font.
 
 ## Sizes and motion
 
-- Text is never smaller than 14 px, whatever the page's font size (`--pk-font-size`, `--pk-small`).
+- Text is never smaller than 14 px, whatever the page's font size (`--pk-font-size`, `--pk-small`), the chart's too (`--pk-chart-text-size`).
 - Every control is at least 24 x 24 px (`--pk-target`); on a touch screen the small ones at least 44 x 44 px (`--pk-target-touch`). In the field list the grip, the "i" and the menu keep their size and get a hit area `--pk-target-touch` high instead (a layer over them; the grip's as wide too), with the gap between rows grown to hold it, so the rows stay compact.
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
 
@@ -162,10 +162,13 @@ is drawn with another face: above 500 the browser takes the next heavier one, so
 
 The chart reads `--pk-chart-1` to `--pk-chart-8` for its series, in this order, and
 `--pk-heat-low`/`--pk-heat-high` for the heatmap, in the current theme. Its title is
-`--pk-chart-title-size` large and `--pk-weight-strong` bold; its bars and pie slices have
-`--pk-radius-chart` corners, its tooltip `--pk-radius-card` ones. The report resolves the title's
-size and the marks' corners to px where it is, so `1.25em` or `calc(var(--pk-font-size) * 1.2)` work
-as well as `20px`.
+`--pk-chart-title-size` large and `--pk-weight-strong` bold, its other text (the axes, the legend,
+the labels on bars, slices and cells, the heatmap's scale) `--pk-chart-text-size` (the secondary
+text's size, at least 14 px); its bars and pie slices have `--pk-radius-chart` corners, its tooltip
+`--pk-radius-card` ones. The report resolves these sizes and corners to px where it is, so `1.25em`
+or `calc(var(--pk-font-size) * 1.2)` work as well as `20px`. The chart lays its labels out for their
+size: a larger text slants the category names sooner, writes every n-th one, or leaves the numbers
+out of cells and rings too small for them (the tooltip has every one).
 
 ```css
 /* a brand with square corners and a larger chart title */
@@ -174,14 +177,33 @@ as well as `20px`.
     --pk-radius-sm: 0px;      /* --pk-radius-xs, -mark, -icon and the chart's marks follow */
     --pk-radius-card: 2px;
     --pk-chart-title-size: 1.25em;
+    --pk-chart-text-size: 15px;
     --pk-font-mono: "JetBrains Mono", monospace;
     --pk-focus-width: 3px;
 }
 ```
 
-With pivotkit-core alone, pass the colours and the title's size (`titleSize`, px) as `theme` to
-[`toEChartsOption`](core.md#output); pivotkit-report takes the tokens as `tokens`, the title's size
+With pivotkit-core alone, pass the colours and the sizes (`titleSize`, `textSize`, px) as `theme` to
+[`toEChartsOption`](core.md#output); pivotkit-report takes the tokens as `tokens`, the chart's sizes
 and the marks' corners in px.
+
+## The HTML report's font sizes { #report-font-sizes }
+
+The HTML report of the Export menu (and of [pivotkit-report](report.md)) takes its font sizes from
+tokens too. The Export menu passes the report's `--pk-font-size` and `--pk-small` as the screen shows
+them, in px, so the file's text is as large as the report's; three tokens only the HTML report uses
+take effect when you set them on the report (or on `pivot-report`):
+
+| Token | What | Default |
+| --- | --- | --- |
+| `--pk-font-size` | The report's text | the screen's; `14px` from pivotkit-report alone |
+| `--pk-small` | The details below the table (rows, filters, when it was made) | the screen's; `max(14px, 0.93em)` |
+| `--pk-report-title-size` | The report's title | `calc(var(--pk-font-size) * 10 / 7)` (20 px at 14 px) |
+| `--pk-print-size`<br>`--pk-print-small` | The text on paper; that of a table of more than 16 columns | `10pt`<br>`7pt` |
+
+```css
+.pk-root { --pk-report-title-size: 1.75em; --pk-print-size: 9pt; }
+```
 
 ## The Excel export
 

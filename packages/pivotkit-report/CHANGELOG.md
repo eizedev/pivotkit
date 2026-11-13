@@ -10,6 +10,11 @@ First release.
 
 ### Added
 
+- `SIZE_TOKENS`: the HTML report's font sizes as tokens, `--pk-font-size` (14 px), `--pk-small`
+  (the details, at least 14 px, were 12 px), `--pk-report-title-size` (20 px at 14 px),
+  `--pk-print-size` (10 pt) and `--pk-print-small` (7 pt); a host's `tokens` change them, and the
+  chart's text with `--pk-chart-text-size` in px (default 14 px, was ECharts' 12 px). A token's value
+  may hold a `calc()`'s `*`, never a comment ([#220](https://github.com/eizedev/pivotkit/issues/220), [#221](https://github.com/eizedev/pivotkit/issues/221)).
 - `SHAPE_TOKENS`: the corner of the HTML report's chart card, `--pk-radius-card` (8 px, pivotkit-react's
   value); a host's `tokens` change it, as the chart's title size (`--pk-chart-title-size`) and its marks'
   corners (`--pk-radius-chart`) in px ([#216](https://github.com/eizedev/pivotkit/issues/216)).

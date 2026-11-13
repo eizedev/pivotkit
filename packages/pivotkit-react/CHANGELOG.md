@@ -8,6 +8,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The chart's axes, legend and labels are 14 px or more (`--pk-chart-text-size`, by default
+  `var(--pk-small)`), not ECharts' 12 px; the labels are laid out for that size ([#221](https://github.com/eizedev/pivotkit/issues/221)).
+- Export → HTML report takes the report's font size (`--pk-font-size` and `--pk-small` in px, so a
+  report on a 16 px page writes a 16 px file) and a host's `--pk-report-title-size`,
+  `--pk-print-size` and `--pk-print-small` ([#220](https://github.com/eizedev/pivotkit/issues/220)).
 - A colour scale in the theme's colours runs from light to strong blue (`--pk-scale-low` and
   `--pk-scale-high` are `var(--pk-heat-low)` and `var(--pk-heat-high)`, the heatmap's colours), not
   from red over yellow to green: it says "more", not "good" or "bad". `--pk-scale-mid` is no longer
@@ -53,6 +58,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- The token `--pk-chart-text-size`: the chart's text but the title, resolved to px like
+  `--pk-chart-title-size`; it reaches the PNG, the SVG and the HTML report too ([#221](https://github.com/eizedev/pivotkit/issues/221)).
 - Corners, the code font, the focus ring and the chart's title and marks as tokens ([#216](https://github.com/eizedev/pivotkit/issues/216)):
   `--pk-radius-xs`, `--pk-radius-mark` and `--pk-radius-icon` (4, 5 and 6 px, four, five and six
   sevenths of `--pk-radius-sm`, so a host that sets `--pk-radius-sm` changes them too),

@@ -1,14 +1,14 @@
 // A host matches every visual value to its design through --pk-* tokens (docs/reference/theming.md):
-// corners, the code font, the focus ring and the chart's title and marks (#216); and the files a
-// person exports (workbook, HTML report) take the host's light colours, from a dark report too, in
-// React and inside pivotkit-element (#217).
+// corners, the code font, the focus ring and the chart's title, text and marks (#216, #221); and the
+// files a person exports (workbook, HTML report) take the host's light colours and font sizes, from a
+// dark report too, in React and inside pivotkit-element (#217, #220).
 import { readFile } from "node:fs/promises";
 import { strFromU8, unzipSync } from "fflate";
 import { TRACE_IN_PRINT_FRAME, chipMenu, expect, test, toolbar } from "./fixtures.js";
 
 /** A host's theme keyed on the theme the report shows: light colours, and dark ones for the dark theme. */
 const HOST_THEME = (selector) => `
-${selector} { --pk-heat-low: #fff5e6; --pk-heat-high: #b34700; --pk-scale-mid: #ffcc00; --pk-chart-1: #6b2fa0; --pk-weight-strong: 550; }
+${selector} { --pk-heat-low: #fff5e6; --pk-heat-high: #b34700; --pk-scale-mid: #ffcc00; --pk-chart-1: #6b2fa0; --pk-weight-strong: 550; --pk-font-size: 15px; --pk-report-title-size: 1.6em; }
 ${selector}[data-pk-theme="dark"] { --pk-heat-low: #331a00; --pk-heat-high: #ff9933; --pk-scale-mid: #553300; --pk-chart-1: #c58cf2; }`;
 
 /** The colour scale's and the data bars' colours of a downloaded workbook, as #rrggbb, low to high. */
@@ -75,7 +75,7 @@ test.describe("a host's tokens for corners, the code font, the focus ring and th
         expect(await focusRing(page, browserName)).toBe("4px");
     });
 
-    test("the chart's title size and the corners of its marks and tooltip come from the tokens, an em one resolved", async ({ page }) => {
+    test("the chart's title and text size and the corners of its marks and tooltip come from the tokens, an em one resolved", async ({ page }) => {
         await page.goto("pages/host.html");
         await page.evaluate(async () => {
             const React = await import("react");
@@ -94,22 +94,26 @@ test.describe("a host's tokens for corners, the code font, the focus ring and th
             chart.evaluate(async (el) => {
                 const { getInstanceByDom } = await import("echarts/core");
                 const option = getInstanceByDom(el).getOption();
-                return { title: option.title[0].textStyle.fontSize, bar: option.series[0].itemStyle.borderRadius, tooltip: /border-radius: ([^;]+);/.exec(option.tooltip[0].extraCssText)?.[1] };
+                const text = [option.xAxis[0].axisLabel.fontSize, option.yAxis[0].axisLabel.fontSize, option.textStyle.fontSize];
+                // to a tenth of a px: WebKit resolves lengths in 64ths of a px (14.875 for 14.88)
+                return { title: option.title[0].textStyle.fontSize, text: text.every((t) => t === text[0]) ? Math.round(text[0] * 10) / 10 : text, bar: option.series[0].itemStyle.borderRadius, tooltip: /border-radius: ([^;]+);/.exec(option.tooltip[0].extraCssText)?.[1] };
             });
-        // the default: 16 px at the page's 16 px font, 4 px bars, an 8 px tooltip
-        await expect.poll(drawn).toEqual({ title: 16, bar: [4, 4, 0, 0], tooltip: "8px" });
-        // a brand: a title of 1.5em (of the report's font), square bars, a 2 px tooltip; the chart draws again with the theme
-        await page.addStyleTag({ content: ".brand { --pk-chart-title-size: 1.5em; --pk-radius-chart: 0px; --pk-radius-card: 2px; }" });
+        // the default: a 16 px title and text of --pk-small (0.93em, at least 14 px) at the page's 16 px
+        // font on both axes, 4 px bars, an 8 px tooltip
+        await expect.poll(drawn).toEqual({ title: 16, text: 14.9, bar: [4, 4, 0, 0], tooltip: "8px" });
+        // a brand: a title of 1.5em and text of 1em (of the report's font), square bars, a 2 px tooltip;
+        // the chart draws again with the theme
+        await page.addStyleTag({ content: ".brand { --pk-chart-title-size: 1.5em; --pk-chart-text-size: 1em; --pk-radius-chart: 0px; --pk-radius-card: 2px; }" });
         await page.evaluate(() => {
             document.querySelector("#brand-chart .pk-root").style.setProperty("font-size", "18px");
             window.dispatchEvent(new Event("resize"));
         });
         await chart.evaluate((el) => (el.style.width = `${el.clientWidth - 20}px`));
-        await expect.poll(drawn).toEqual({ title: 27, bar: [0, 0, 0, 0], tooltip: "2px" });
+        await expect.poll(drawn).toEqual({ title: 27, text: 18, bar: [0, 0, 0, 0], tooltip: "2px" });
         // a corner that is no length keeps the default instead of becoming square
         await page.addStyleTag({ content: ".brand { --pk-radius-chart: rounded; }" });
         await chart.evaluate((el) => (el.style.width = `${el.clientWidth - 20}px`));
-        await expect.poll(drawn).toEqual({ title: 27, bar: [4, 4, 0, 0], tooltip: "2px" });
+        await expect.poll(drawn).toEqual({ title: 27, text: 18, bar: [4, 4, 0, 0], tooltip: "2px" });
     });
 });
 
@@ -149,6 +153,13 @@ test.describe("exports from a dark report carry the host's light colours (#217)"
         expect(tokens).toContain("--pk-scale-mid:#ffcc00");
         expect(tokens).toContain("--pk-weight-strong:550");
         expect(tokens).toContain("--pk-surface:#ffffff");
+        // the host's font sizes in px, as the report resolves them: its text, the secondary text
+        // (0.93em of 15 px, at least 14 px), its title size for the HTML report (1.6em of 15 px) and the
+        // chart's text (--pk-small)
+        expect(tokens).toContain("--pk-font-size:15px");
+        expect(tokens).toContain("--pk-small:14px");
+        expect(tokens).toContain("--pk-report-title-size:24px");
+        expect(tokens).toContain("--pk-chart-text-size:14px");
         expect(html).not.toMatch(/#331a00|#ff9933|#553300|#c58cf2/);
         // the table's cells in the report: the lowest value the host's low colour, the highest its high one
         // (a colour scale of three, so a value in the middle is the host's middle colour)
@@ -187,6 +198,8 @@ test.describe("exports from a dark report carry the host's light colours (#217)"
         const tokens = rootRule(html);
         expect(tokens).toContain("--pk-heat-low:#fff5e6");
         expect(tokens).toContain("--pk-scale-mid:#ffcc00");
+        expect(tokens).toContain("--pk-font-size:15px");
+        expect(tokens).toContain("--pk-report-title-size:24px");
         expect(html).not.toMatch(/#331a00|#ff9933|#553300|#c58cf2/);
 
         expect(await tickets.getAttribute("data-pk-theme")).toBe("dark");

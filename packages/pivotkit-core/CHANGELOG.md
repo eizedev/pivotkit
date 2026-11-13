@@ -8,6 +8,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- The chart writes its axes, legend and labels at 14 px (`DEFAULT_THEME.textSize`), the 14 px
+  minimum, instead of ECharts' 12 px, and its layout measures them at that size, so labels slant,
+  thin out or leave a small cell or ring a little sooner ([#221](https://github.com/eizedev/pivotkit/issues/221)). A host that wants the
+  old size passes `theme: { textSize: 12 }`.
 - `DEFAULT_THEME` holds pivotkit-react's light theme colours: the colour scale runs from light blue to
   blue (`["#eaf1fb", "#2a78d6"]`, was Excel's red, yellow, green, which said "low is bad" for a
   temperature or a cost), data bars `"#2a78d6"` (was `"#638ec6"`) ([#212](https://github.com/eizedev/pivotkit/issues/212)). A view's own
@@ -52,6 +56,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `ChartTheme.textSize` and `DEFAULT_THEME.textSize` (14): the font size of a chart's text but the
+  title, written on every axis label, the legend and the labels; `chartThemeFrom` reads it from
+  `--pk-chart-text-size` in px. The layout functions of `pivotkit-core/chart` take the size as
+  `fontSize`, and `categoryLabelWidth(names, fontSize)` is exported ([#221](https://github.com/eizedev/pivotkit/issues/221)).
 - `chartThemeFrom` reads the chart title's size (`--pk-chart-title-size` in px, `ChartTheme.titleSize`,
   default `DEFAULT_THEME.titleSize` 16) and a workbook's colours (`colorScale` from `--pk-scale-low`,
   `--pk-scale-mid` and `--pk-scale-high`, `dataBar` from `--pk-chart-1`), so its result also serves

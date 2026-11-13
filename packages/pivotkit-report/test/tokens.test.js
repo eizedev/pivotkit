@@ -87,6 +87,10 @@ test("a host's tokens go into the report only as --pk-* names with plain values"
     const r = await render(view, SALES, { format: "html", tokens: { "--pk-total": "#abcdef", "--pk-text": "red}body{display:none", color: "blue", "--pk-border": "url(https://x)" } });
     assert.match(r.text, /--pk-total:#abcdef/);
     assert.ok(!r.text.includes("red}body") && !r.text.includes("url(") && !r.text.includes("color:blue"));
+    // a calc()'s * and / are kept; a comment, which could hide the rules after it, is not
+    const sized = await render(view, SALES, { format: "html", tokens: { "--pk-report-title-size": "calc(var(--pk-font-size) * 2)", "--pk-print-size": "10pt /* x", "--pk-print-small": "x */ 7pt" } });
+    assert.match(sized.text, /--pk-report-title-size:calc\(var\(--pk-font-size\) \* 2\)/);
+    assert.ok(!sized.text.includes("/* x") && !sized.text.includes("x */"), "no comment");
 });
 
 test("a token calls no function that loads something: url(), image-set() and the like are left out", async () => {
