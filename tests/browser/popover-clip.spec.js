@@ -182,8 +182,35 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
                 await page.waitForTimeout(300);
                 await expect(tip, `after step ${i} of 5`).toBeVisible();
             }
+            // still the hover tip, whole and on top
+            await expect(tip).toHaveAttribute("role", "tooltip");
+            await expect.poll(() => wholeOnTop(tip)).toEqual({ inside: true, hidden: [] });
         });
     }
+
+    test("options: a pointer that came to rest beside the i, on the way to its tip, closes the tip after a while", async ({ page }) => {
+        await page.goto("?data=tickets");
+        await toolbar(page, "options");
+        const button = page.getByTestId("setting-info-rowSubtotals");
+        await button.hover();
+        const tip = page.locator(".pk-info-pop");
+        await expect.poll(() => wholeOnTop(tip)).toEqual({ inside: true, hidden: [] });
+        const b = await button.boundingBox();
+        const t = await tip.boundingBox();
+        // a fifth of the way from the i's centre to the tip's: beside the i, on neither
+        const at = { x: b.x + b.width / 2 + (t.x + t.width / 2 - b.x - b.width / 2) / 5, y: b.y + b.height / 2 + (t.y + t.height / 2 - b.y - b.height / 2) / 5 };
+        const where = await page.evaluate(({ x, y }) => {
+            const hit = document.elementFromPoint(x, y);
+            return hit?.closest(".pk-info-pop") ? "tip" : hit?.closest(".pk-info") ? "i" : "neither";
+        }, at);
+        expect(where).toBe("neither");
+        await page.mouse.move(at.x, at.y);
+        await page.waitForTimeout(800);
+        await expect(tip).toBeVisible();
+        // resting there is no way anywhere: it closes within about two seconds, the menu stays
+        await expect(tip).toHaveCount(0, { timeout: 3000 });
+        await expect(page.locator(".pk-popover").first()).toBeVisible();
+    });
 
     test("the web component, light and dark: Export's Copy table i above the menu", async ({ page }) => {
         await page.goto("pages/element-two.html");

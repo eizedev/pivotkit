@@ -17,6 +17,13 @@ import { Popover } from "./popover.jsx";
 const LEAVE_DELAY = 250;
 
 /**
+ * How long (ms) after the pointer left its button a hover popover stays for a pointer on its way to it
+ * (place.js onTheWay): a slow move gets there, a pointer that came to rest beside the button does not
+ * keep it for good.
+ */
+const WAY_TIME = 1500;
+
+/**
  * The description and its link.
  * @param {{ info: { description: string, href?: string }, labels: import("./labels.js").UiLabels, link?: boolean, className?: string }} props
  */
@@ -66,18 +73,21 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
     // it from the button. And a pointer on its way (beside the i towards a tip moved aside to stay in
     // the window, or in the gap between them) is not leaving, however slowly it moves: CI's WebKit on
     // Linux moves it in steps of about 280 ms, longer than the leave delay (#213)
-    const hovered = () => {
+    const hovered = (/** @type {boolean} */ onItsWay) => {
         const button = ref.current;
         const root = /** @type {Document | ShadowRoot | null} */ (button?.getRootNode() ?? null);
         const pop = root && "getElementById" in root ? root.getElementById(id) : null;
         return Boolean(
-            button?.matches(":hover") || pop?.matches(":hover") || (button && pop && onTheWay(button.getBoundingClientRect(), pop.getBoundingClientRect(), pointer.current))
+            button?.matches(":hover") ||
+                pop?.matches(":hover") ||
+                (onItsWay && button && pop && onTheWay(button.getBoundingClientRect(), pop.getBoundingClientRect(), pointer.current))
         );
     };
     const leaveSoon = () => {
         stay();
+        const left = Date.now();
         const check = () => {
-            if (hovered()) {
+            if (hovered(Date.now() - left < WAY_TIME)) {
                 leaving.current = setTimeout(check, LEAVE_DELAY);
                 return;
             }

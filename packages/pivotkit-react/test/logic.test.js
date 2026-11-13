@@ -173,7 +173,12 @@ test("popover placement: the way from an i to its tip, moved aside to stay in th
     const above = { top: 230, bottom: 309, left: 952, right: 1272 };
     assert.equal(onTheWay(i, above, { x: 1100, y: 312 }), true);
     assert.equal(onTheWay(i, above, { x: 1100, y: 335 }), false);
+    // over its i: the hull of both, true where the page's :hover would say so anyway
     assert.equal(onTheWay(i, { top: 300, bottom: 400, left: 952, right: 1272 }, { x: 1226, y: 327 }), true);
+    // boxes not laid out (0 × 0 at the origin): nowhere
+    const none = { top: 0, bottom: 0, left: 0, right: 0 };
+    assert.equal(onTheWay(none, none, { x: 0, y: 0 }), false);
+    assert.equal(onTheWay(none, none, { x: 500, y: 300 }), false);
 });
 
 test("drill-down: the host's rows, or rows rebuilt from encoded data, limited", () => {

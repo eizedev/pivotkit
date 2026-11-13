@@ -131,6 +131,10 @@ export function onTheWay(anchor, popover, point) {
         return out;
     };
     const hull = [...half(corners), ...half([...corners].reverse())];
+    // two boxes without an area on one line (not laid out): no way between them
+    if (hull.length < 3) {
+        return false;
+    }
     // inside (or on the edge): on the same side of every edge
     const p = [point.x, point.y];
     return hull.every((a, k) => cross(a, hull[(k + 1) % hull.length], p) >= 0);
