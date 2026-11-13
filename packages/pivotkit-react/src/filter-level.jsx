@@ -959,13 +959,18 @@ function TotalRule({ rule, ctx, apply, first }) {
     );
 }
 
-/** A rule on the item's name: "The name [contains] [an]"; the text applies a moment after the typing stops. */
-function NameRule({ rule, ctx, apply, first }) {
+/**
+ * A rule on the item's name: "The name [contains] [an]"; the text applies a moment after the typing
+ * stops. A text emptied (or only spaces) takes the rule off and leaves the row for a new text (#159).
+ */
+function NameRule({ rule, ctx, apply, unset, first }) {
     const { field, labels } = ctx;
     const [op, setOp] = useState(rule ? ruleOp(rule) : "contains");
     const send = (o, value) => {
-        if (value !== "") {
+        if (value.trim() !== "") {
             apply({ ...textRule(field, { op: o, value, on: ctx.textOn }), ...(rule ? { blanks: rule.blanks } : {}) });
+        } else if (rule) {
+            unset();
         }
     };
     const text = useAppliedText(rule?.value ?? "", (value) => send(op, value));
@@ -1034,6 +1039,11 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     const { explain } = useContext(HelpContext);
     const lang = { lang: labels.lang, locale };
     const [draft, setDraft] = useState(/** @type {"item" | "total" | "name" | null} */ (null));
+    // rules whose value was emptied: out of the view, each row kept in its place (`at`, its index among
+    // the rows) with the focus, what is typed and the rule's blanks, until a new value applies it again
+    // before the rule that followed it, its × removes the row, or a change from elsewhere draws the
+    // rows again
+    const [held, setHeld] = useState(/** @type {Array<{ at: number, kind: "item" | "total" | "name", blanks?: string }>} */ ([]));
     const blanksName = useFormName();
     const [info, setInfo] = useState(/** @type {number | null} */ (null));
     // rows are keyed by their place; a change the rows did not make (a quick choice, Remove, Undo)
@@ -1048,6 +1058,7 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
         if (rulesKey !== own) {
             setGen(gen + 1);
             setDraft(null);
+            setHeld([]);
         }
     }
     const box = useRef(/** @type {HTMLFieldSetElement | null} */ (null));
@@ -1076,7 +1087,7 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
         }
     }, [draft]);
     const kinds = /** @type {Array<"item" | "total" | "name">} */ (["item", "total", "name"]).filter((k) => (k === "item" ? Boolean(fk.item) : k === "name" ? Boolean(nameKind) : true));
-    const count = rules.length + (draft ? 1 : 0);
+    const count = rules.length + (draft ? 1 : 0) + held.length;
     const full = count >= RULES_MAX || view.filters.length >= LIMITS.filters;
     const addText = { item: fill(labels.addRuleItem, { field: fieldLabel(field, labels.core) }), total: labels.addRuleTotal, name: labels.addRuleName };
     /** The "i" of a rule: what it compares, with an example; the total's with its scope. */
@@ -1091,25 +1102,50 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
         }
         return fill(labels.ruleInfo[fk.item === "group" ? (fk.cyclic ? "cyclic" : "group") : fk.item ?? "group"], { noun: one });
     };
-    const row = (rule, kind, i) => {
+    /** A change the rows make: the rows stay as they are (no new generation). */
+    const commitOwn = (next) => {
+        setOwn(rulesKeyOf(filtersOf(next, field, RULE_TYPES).filter((f) => !ctx.quickFilters.includes(f))));
+        commit(next, note);
+    };
+    const row = (rule, kind, i, isHeld = false) => {
         const Row = ROWS[kind];
         const apply = (entry) => {
             // a new rule on the items keeps the blanks as the others do
-            const own = !rule && ctx.keepBlanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: "include" } : entry;
-            const next = setRule(view, field, rule, own);
-            setOwn(rulesKeyOf(filtersOf(next, field, RULE_TYPES).filter((f) => !ctx.quickFilters.includes(f))));
-            if (!rule) {
+            // an emptied rule typed again keeps its blanks
+            const was = isHeld ? held.find((h) => h.at === i) : undefined;
+            const own = was?.blanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: was.blanks } : !rule && ctx.keepBlanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: "include" } : entry;
+            if (isHeld) {
+                setHeld(held.filter((h) => h.at !== i));
+            } else if (!rule) {
                 setDraft(null);
             }
-            commit(next, note);
+            // in its place: before the next row's rule
+            const before = isHeld ? (rows.slice(i + 1).find((x) => x.rule)?.rule ?? null) : null;
+            commitOwn(setRule(view, field, rule, own, before));
+        };
+        // the value emptied: the rule leaves the view, its row stays (the sections stay as they are)
+        const unset = () => {
+            if (rule) {
+                setHeld([...held, { at: i, kind, blanks: rule.blanks }].sort((a, b) => a.at - b.at));
+                ctx.keepSections();
+                commitOwn(setRule(view, field, rule, null));
+            }
         };
         const remove = () => {
             focusAdd.current = true;
             if (rule) {
                 commit(setRule(view, field, rule, null), note);
             } else {
-                setDraft(null);
+                if (isHeld) {
+                    setHeld(held.filter((h) => h.at !== i));
+                } else {
+                    setDraft(null);
+                }
                 setGen(gen + 1);
+                // the last row gone: the sections as the rules decide (no rule: Pick items open)
+                if (rows.length === 1) {
+                    ctx.releaseSections();
+                }
             }
         };
         const result = rule ? results.get(rule) : null;
@@ -1119,7 +1155,7 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
             <li key={`${gen}:${i}`} className="pk-rule" data-testid="rule" data-kind={kind}>
                 {i > 0 || quickLine ? <span className="pk-rule-and">{labels.ruleAnd}</span> : null}
                 <span className="pk-rule-body">
-                    <Row rule={rule} ctx={ctx} apply={apply} first={(focusFirst && i === 0) || (!rule && draft !== null)} />
+                    <Row rule={rule} ctx={ctx} apply={apply} unset={unset} first={(focusFirst && i === 0) || (!rule && !isHeld && draft !== null)} />
                 </span>
                 <span className="pk-rule-tools">
                     {explain ? (
@@ -1142,6 +1178,14 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
             </li>
         );
     };
+    // the rules, an emptied one's row in its place (so it keeps its key and the focus), the new one last
+    const rows = rules.map((r) => ({ rule: r, kind: rowKind(r), isHeld: false }));
+    for (const h of held) {
+        rows.splice(h.at, 0, { rule: null, kind: h.kind, isHeld: true });
+    }
+    if (draft) {
+        rows.push({ rule: null, kind: draft, isHeld: false });
+    }
     return (
         <fieldset ref={box} className="pk-condition pk-rules" data-testid="rules">
             <legend className="pk-sr">{labels.rulesTitle}</legend>
@@ -1157,7 +1201,7 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
                         </li>
                     ) : null}
                     {/* one list, so a new rule keeps its row (and the focus) once it applies */}
-                    {[...rules.map((r, i) => row(r, rowKind(r), i)), ...(draft ? [row(null, draft, rules.length)] : [])]}
+                    {rows.map((x, i) => row(x.rule, x.kind, i, x.isHeld))}
                 </ul>
             ) : null}
             {blanks ? (
@@ -1405,7 +1449,21 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
         });
     };
     const keepBlanks = keepsBlanks(view, field);
-    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks };
+    // a rule emptied in its row: the sections stay as they are when it was the last one (its row stays open)
+    const keepSections = () => {
+        if (rules.length === 1 && !quick.filters.length) {
+            byHand.current = true;
+            setOpenPicks(openPicks ?? !anyRule);
+            setOpenRules(openRules ?? anyRule);
+        }
+    };
+    // an emptied rule's row removed when no rule is left: the sections as the rules decide again
+    const releaseSections = () => {
+        setOpenPicks(null);
+        setOpenRules(null);
+        lost.current = true;
+    };
+    const ctx = { view, field, types, labels, locale, commit, note, back, fk, nameKind, say, textOn: textOn(encoded, field), timeZone, hint, items: info.items, noun, scope, quickFilters: quick.filters, focusQuick, act, keepBlanks, keepSections, releaseSections };
     // "Also keep items without a value": for a field with blank items and a rule on its items (the quick choice among them)
     const blankRows = info.items.find((i) => i.value === null)?.count ?? 0;
     const blanks = blankRows > 0 && (itemRules.length > 0 || quick.filters.length > 0) ? { rows: blankRows, on: keepBlanks } : null;

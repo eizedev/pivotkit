@@ -6,6 +6,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- A rule on the name whose text is emptied (select all and delete, the field's ×, or only spaces)
+  no longer keeps filtering by its last text while the field looks empty: the rule leaves the view
+  a moment later, its row stays as a rule not yet complete, and a new text applies it again in its
+  place among the rules, with its blank items kept as before ([#159](https://github.com/eizedev/pivotkit/issues/159)).
+
 ## [0.5.0] - 2026-11-13
 
 ### Upgrading from 0.4

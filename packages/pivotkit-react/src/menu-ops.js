@@ -92,19 +92,26 @@ function replaceFilters(view, field, types, entries) {
 
 /**
  * Replaces one filter of a field, `previous` (a filter of the view, matched by its content), with
- * `entry`, or removes it when `entry` is null; without `previous` the entry is added after the field's
- * other filters. The field's other filters, also others of the same type, stay as they are.
+ * `entry`, or removes it when `entry` is null; without `previous` the entry is added before `before`
+ * (a filter of the view, matched by its content) or, without it, after the field's other filters.
+ * The field's other filters, also others of the same type, stay as they are.
+ * @param {any} view
+ * @param {string} field
+ * @param {object | null} previous
+ * @param {object | null} entry
+ * @param {object | null} [before]
  */
-function replaceFilter(view, field, previous, entry) {
+function replaceFilter(view, field, previous, entry, before = null) {
     const next = clone(view);
-    const key = previous ? JSON.stringify(previous) : null;
-    const at = key === null ? -1 : next.filters.findIndex((f) => same(f.field, field) && JSON.stringify(f) === key);
+    const indexOf = (f) => (f ? next.filters.findIndex((g) => same(g.field, field) && JSON.stringify(g) === JSON.stringify(f)) : -1);
+    const at = indexOf(previous);
     if (at === -1) {
         if (!entry) {
             return next;
         }
+        const ahead = indexOf(before);
         const last = next.filters.map((f) => same(f.field, field)).lastIndexOf(true);
-        next.filters.splice(last + 1, 0, entry);
+        next.filters.splice(ahead === -1 ? last + 1 : ahead, 0, entry);
         return next;
     }
     if (entry) {
@@ -210,14 +217,16 @@ export const RULES_MAX = 10;
 
 /**
  * Replaces one rule of a field, `previous` (the view's own entry, matched by its content), with
- * `entry` (a filter of RULE_TYPES), removes it when `entry` is null, or adds `entry` after the field's
- * other filters without `previous`.
+ * `entry` (a filter of RULE_TYPES), removes it when `entry` is null, or adds `entry` without
+ * `previous`: before the rule `before` (a rule emptied and typed again keeps its place among the
+ * others), else after the field's other filters.
  * @param {any} view
  * @param {string} field
  * @param {object | null} previous
  * @param {object | null} entry
+ * @param {object | null} [before]
  */
-export const setRule = (view, field, previous, entry) => replaceFilter(view, field, previous, entry);
+export const setRule = (view, field, previous, entry, before = null) => replaceFilter(view, field, previous, entry, before);
 
 /** Date groupings by which "Last N months" says nothing the years do not: a year, its quarters. */
 const COARSE = Object.freeze(["year", "yearQuarter"]);

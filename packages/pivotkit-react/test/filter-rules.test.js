@@ -155,6 +155,11 @@ test("rules: added, replaced and removed one at a time; Remove the rules keeps t
     const edited = setRule(v, YEAR, rule, { ...rule, op: "<", value: 2025 });
     assert.deepEqual(filtersOf(edited, YEAR, ["compare"]), [{ ...rule, op: "<", value: 2025 }]);
     assert.deepEqual(filtersOf(setRule(v, YEAR, rule, null), YEAR, RULE_TYPES).map((f) => f.type), ["value"]);
+    // a rule emptied and typed again goes back before the rule that followed it (#159), not last
+    const total = filtersOf(v, YEAR, ["value"])[0];
+    const again = setRule(setRule(v, YEAR, rule, null), YEAR, null, { ...rule, value: 2020 }, total);
+    assert.deepEqual(filtersOf(again, YEAR, RULE_TYPES).map((f) => f.type), ["compare", "value"]);
+    assert.equal(filtersOf(again, YEAR, ["compare"])[0].value, 2020);
     // all rules apply together: the years from 2022 with rows
     const r = computePivot(data, { ...v, values: [{ agg: "count" }] });
     assert.deepEqual(r.rowRoot.children.map((n) => n.key), [2022, 2025]);

@@ -6,6 +6,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Fixed
+
+- The element bundles pivotkit-react's fix of a rule on the name whose text is emptied: the rule
+  stops filtering ([#159](https://github.com/eizedev/pivotkit/issues/159)).
+
 ## [0.5.0] - 2026-11-13
 
 ### Upgrading from 0.4

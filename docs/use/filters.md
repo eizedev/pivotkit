@@ -197,8 +197,11 @@ example, and a line under it with what it keeps by itself: "Keeps 7 of 12 months
 "The name [does not begin with] [Service]": the comparisons are **is**, **is not**, **contains**,
 **does not contain**, **begins with**, **does not begin with**, **ends with** and **does not end
 with**. The text applies a moment after you stop typing. Case and runs of spaces do not matter:
-"SERVER" matches "Server", a no-break space matches a space. A text field compares its value, any
-other field the name the table writes ("Mar 2025", "1,000").
+"SERVER" matches "Server", a no-break space matches a space, and a space at the start or end of the
+text is left out. Emptying the text (or its **×**), or a text of spaces only, takes the rule off a
+moment later; its row stays, says "Applies once it is complete." and applies again with the next
+text, in its place among the rules and with its **Also keep items without a value**.
+A text field compares its value, any other field the name the table writes ("Mar 2025", "1,000").
 
 ### Items without a value
 
