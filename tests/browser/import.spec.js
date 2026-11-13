@@ -274,15 +274,28 @@ test("a file that cannot be read says why with the reader's message; the data st
     await expect(page.getByTestId("import-dialog")).toHaveCount(0);
 });
 
-test("a large file shows its progress and Cancel stops it; the data stays", async ({ page }) => {
+test("a paused file read shows its progress and Cancel stops it; the data stays", async ({ page }) => {
+    // Hold the real worker at the file read instead of racing a 30 MB parse against the
+    // assertions. Progress stays observable regardless of the machine's speed or load (#140).
+    await page.route("**/import-worker.js", async (route) => {
+        const response = await route.fetch();
+        await route.fulfill({ response, body: `
+            const originalRead = Blob.prototype.arrayBuffer;
+            Blob.prototype.arrayBuffer = function () {
+                if (this instanceof File && this.name === "big.csv") return new Promise(() => {});
+                return originalRead.call(this);
+            };
+            ${await response.text()}
+        ` });
+    });
     await page.goto("?data=sales&import");
     await expect(page.getByTestId("pivot-table")).toBeVisible();
     const before = await fieldNames(page);
-    // about 30 MB of CSV: long enough to show the progress and to cancel it
+    // A small real CSV held at arrayBuffer by the worker route above.
     const dt = await page.evaluateHandle(() => {
         const line = "2026-11-10T08:30:00;Network;Open;1234.5;some longer description text of a ticket\n";
         const t = new DataTransfer();
-        t.items.add(new File(["When;Team;State;Hours;Text\n", line.repeat(400_000)], "big.csv", { type: "text/csv" }));
+        t.items.add(new File(["When;Team;State;Hours;Text\n", line.repeat(4)], "big.csv", { type: "text/csv" }));
         return t;
     });
     const table = page.getByTestId("pivot-table");

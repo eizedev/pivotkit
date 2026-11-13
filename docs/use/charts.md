@@ -70,8 +70,8 @@ them.
 | Group labels under the axis | Automatic, On, Off (with two or more fields in Rows) | Automatic: shown while the chart has room for them |
 
 ??? info "Pie and donut labels"
-    **Outside** writes each slice's name with what is chosen, on a line to the slice. **Inside**
-    writes only the number on the slice (the share for Automatic), in a colour that reads on it; the
+    **Outside** writes each slice's name with what is chosen, on a line to the slice; on a narrow
+    chart, long labels are shortened to fit. **Inside** writes only the number on the slice (the share for Automatic), in a colour that reads on it; the
     legend names the slices, and a slice narrower than 12 degrees gets no label. When the ring of a
     donut is too thin for the numbers (a low or narrow chart), they are written outside, on a line to
     their slice. A pie's share is written as your language writes percentages ("35.7%", "35,7 %").

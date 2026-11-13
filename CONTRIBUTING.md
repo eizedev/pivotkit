@@ -36,6 +36,10 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
 
 ## Dependencies
 
+The root override pins ESLint's development-only `minimatch` to 11.0.1 to avoid the
+globparts-amplification advisory (#76). Remove it when ESLint and its config-array
+dependency require a patched version themselves; lint must still pass unchanged.
+
 Every package of a third party is pinned to an exact version with the lock file; a package of this
 repository that another one depends on takes a caret range on its current version (`pivotkit-react`
 depends on `^<version of pivotkit-core>`); `tests/ci.test.js` checks both. In 0.x a caret range
