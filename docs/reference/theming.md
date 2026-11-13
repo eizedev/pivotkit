@@ -68,6 +68,7 @@ through the element.
 | `--pk-input-border` | The edge of a text field, a search and a select in a menu (3:1 against the surfaces) | `#7d8592` | `#737b88` |
 | `--pk-accent`<br>`--pk-accent-text`<br>`--pk-accent-soft` | Primary buttons, selection, the text actions of the menus (Back, Reset filter, Clear, Select all, Swap rows and columns), text on the accent, soft highlight | `#2b5fd9`<br>`#ffffff`<br>`#e9effc` | `#84a3ff`<br>`#0d1426`<br>`#232d48` |
 | `--pk-drop`<br>`--pk-drop-border` | A zone while something is dragged over it; the dashed edge of a zone (3:1) | `#dfe8fd`<br>`#868e9a` | `#263a6b`<br>`#6f7785` |
+| `--pk-rule` | The rule between the groups of a menu (3:1 against the menu: More's groups have no titles) | `#868e9a` | `#6f7785` |
 | `--pk-note` | Notes and hints above the result | `#eef3fd` | `#1e2638` |
 | `--pk-scale-low`<br>`--pk-scale-mid`<br>`--pk-scale-high` | A colour scale whose view names no colours | `#f8696b`<br>`#ffeb84`<br>`#63be7b` | `#c2413f`<br>`#b39a2e`<br>`#3f9a5c` |
 | `--pk-small`<br>`--pk-target`<br>`--pk-target-touch` | Secondary text, never below 14 px; the smallest hit area of a control; that of a small control (×, "i", a field's menu and grip, a tip's x) on a touch screen (`pointer: coarse`) | `max(14px, 0.93em)`<br>`24px`<br>`44px` | as light |

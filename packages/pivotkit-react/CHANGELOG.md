@@ -73,6 +73,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- The rule between a menu's groups had 1.3:1 contrast in the light theme and 1.2:1 in the dark one,
+  and in More, whose groups have no titles, it is the only thing that tells them apart. It is drawn
+  in the new token `--pk-rule`, 3:1 against the menu in both themes
+  ([#128](https://github.com/eizedev/pivotkit/issues/128)).
 - The menus' text actions drew as plain text in the text colour, so they did not look clickable:
   **Back**, **Reset filter**, **Clear**, **Remove**, **change it above**, **Select all**, **Select
   none**, **Only** and **Swap rows and columns** are in the accent colour and semibold (Back at the

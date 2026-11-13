@@ -36,7 +36,9 @@ const TEXT = [
 ];
 const UI = [["--pk-focus", "--pk-surface"], ["--pk-focus", "--pk-surface-2"], ["--pk-drop-border", "--pk-surface-2"], ["--pk-drop-border", "--pk-surface"], ["--pk-type-number", "--pk-surface"], ["--pk-type-string", "--pk-surface"], ["--pk-type-date", "--pk-surface"], ["--pk-type-boolean", "--pk-surface"],
     // the edge of a menu's text fields and selects
-    ["--pk-input-border", "--pk-surface"], ["--pk-input-border", "--pk-surface-raised"], ["--pk-input-border", "--pk-surface-2"]];
+    ["--pk-input-border", "--pk-surface"], ["--pk-input-border", "--pk-surface-raised"], ["--pk-input-border", "--pk-surface-2"],
+    // the rule between a menu's groups: More's groups have no titles, the rule is all that tells them apart (#128)
+    ["--pk-rule", "--pk-surface-raised"], ["--pk-rule", "--pk-surface"], ["--pk-rule", "--pk-surface-2"]];
 
 for (const [name, theme] of [["light", light], ["dark", dark]]) {
     test(`${name} theme: text 4.5:1 and interface colours 3:1`, () => {
