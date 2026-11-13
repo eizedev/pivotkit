@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: pivotkit is a pivot report builder for the web - drag-and-drop fields, table and chart, filters, drill-down, views as JSON files and native Excel export - as a JavaScript engine, a React component and a web component.
+description: pivotkit is a pivot report builder for the web - drag-and-drop fields, table and chart, filters, drill-down, views as JSON files and native Excel export - as a JavaScript engine, a React component, a web component and a command line.
 hide:
   - navigation
   - toc
@@ -8,15 +8,15 @@ hide:
 
 <div class="hero" markdown>
 
-<p class="hero-kicker">Pivot tables · React · Web component · Excel export</p>
+<p class="hero-kicker">Pivot tables · React · Web component · CLI · Excel export</p>
 
 # pivotkit
 
 <p class="hero-lead">A pivot report builder for the web, with Excel's PivotTable as the reference: people drag fields into rows, columns and values, filter, drill into the rows behind a number, switch to a chart and export to Excel - and the whole report is a small JSON object you can save, share as a link or a file and load again.</p>
 
-MIT · Excel-like pivot in the browser · views as [safe](security.md) JSON · native .xlsx · React, web component, Node
+MIT · Excel-like pivot in the browser · views as [safe](security.md) JSON · native .xlsx · React, web component, Node, command line
 
-[Security](security.md) · [Performance (measured)](concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison](compare.md)
+[Security](security.md) · [Performance (measured)](concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison](compare.md) · [Reports without a browser (CLI)](reference/cli.md)
 
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: fields, filters, charts, export" }
 [I embed pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine" }
