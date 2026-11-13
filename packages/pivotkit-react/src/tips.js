@@ -130,6 +130,14 @@ export const TIPS = Object.freeze([
         }
     },
     {
+        // column subtotals with two or more fields in Columns: what a Total column next to the
+        // others adds up (people read "1 Critical Total" as one more status)
+        id: "colSubtotals",
+        icon: "sigma",
+        action: "colSubtotalsOff",
+        when: (ctx) => (table(ctx) && ctx.view.values.length > 0 && ctx.view.totals.colSubtotals && ctx.view.cols.length >= 2 ? {} : null)
+    },
+    {
         // a type the user chose for data over time: lines show it (automatic draws them)
         id: "chartOverTime",
         icon: "line",

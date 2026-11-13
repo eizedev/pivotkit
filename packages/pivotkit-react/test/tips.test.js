@@ -107,6 +107,28 @@ test("tips: an ungrouped date with many columns, many columns, from their thresh
     assert.ok(!holding(contextOf(square, { rows: ["R"], cols: ["C"], values: [{ field: "V", agg: "sum" }] })).includes("manyColumns"), "as many rows: swapping does not help");
 });
 
+test("tips: column subtotals with two fields in Columns say what a Total column adds up (#156)", () => {
+    const rows = [
+        { Severity: "1 Critical", Status: "Open", Team: "A", N: 1 },
+        { Severity: "1 Critical", Status: "Closed", Team: "A", N: 2 },
+        { Severity: "2 High", Status: "Open", Team: "B", N: 3 },
+        { Severity: "2 High", Status: "Closed", Team: "B", N: 4 }
+    ];
+    const view = { rows: ["Team"], cols: ["Severity", "Status"], values: [{ field: "N", agg: "sum" }] };
+    // off by default: no tip
+    assert.ok(!holding(contextOf(rows, view)).includes("colSubtotals"));
+    const on = contextOf(rows, { ...view, totals: { colSubtotals: true } });
+    const tip = activeTips(on, { allowed: "on", dismissed: [], limit: TIPS.length }).find((t) => t.id === "colSubtotals");
+    assert.ok(tip);
+    assert.equal(tipText(tip.id, tip.params, en, "en-US"), "A Total column adds up the columns of the group before it; it is not an item of its own.");
+    assert.equal(tipActionText(tip.entry, tip.params, en), "Hide column subtotals");
+    assert.equal(tipActionText(tip.entry, tip.params, LABELS.de), "Teilergebnisse der Spalten ausblenden");
+    // one field in Columns, no values or the chart: no Total column to explain
+    assert.ok(!holding(contextOf(rows, { ...view, cols: ["Severity"], totals: { colSubtotals: true } })).includes("colSubtotals"));
+    assert.ok(!holding(contextOf(rows, { ...view, values: [], totals: { colSubtotals: true } })).includes("colSubtotals"));
+    assert.ok(!holding(contextOf(rows, { ...view, display: "chart", totals: { colSubtotals: true } })).includes("colSubtotals"));
+});
+
 test("tips: charts with many series, dates on Columns, capped categories, and the table", () => {
     const rows = [];
     for (let c = 0; c < MANY_SERIES + 2; c++) rows.push({ R: "r", C: `c${c}`, V: c, D: `2026-01-${String(c + 1).padStart(2, "0")}` });

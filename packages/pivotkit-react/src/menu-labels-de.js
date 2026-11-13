@@ -10,8 +10,8 @@ export const de = {
     settingInfo: {
         grandTotalRow: "Eine letzte Zeile mit der Summe jeder Spalte.",
         grandTotalColumn: "Eine letzte Spalte mit der Summe jeder Zeile.",
-        rowSubtotals: "Mit zwei oder mehr Feldern in Zeilen: eine Summenzeile unter jeder Gruppe des äußeren Felds.",
-        colSubtotals: "Mit zwei oder mehr Feldern in Spalten: eine Summenspalte nach jeder Gruppe des äußeren Felds.",
+        rowSubtotals: "Mit zwei oder mehr Feldern in Zeilen: eine Zeile mit dem Teilergebnis („Nord gesamt“) unter jeder Gruppe des äußeren Felds, die mehr als einen Eintrag hat.",
+        colSubtotals: "Mit zwei oder mehr Feldern in Spalten: eine Spalte mit dem Teilergebnis („Nord gesamt“) nach jeder Gruppe des äußeren Felds, die mehr als einen Eintrag hat.",
         along: "Die Richtung der Berechnung: Zeilen geht die Zeilen jeder Spalte hinunter, Spalten über die Spalten jeder Zeile. Eine laufende Summe addiert entlang, eine Differenz vergleicht mit dem Eintrag davor.",
         showAs: "Zeigt jeden Wert als Anteil, Differenz, laufende Summe oder Rang statt der Zahl selbst. Bei Prozenten sagt ein Tipp über dem Ergebnis, was 100 % ist.",
         exportXlsx: "Jede Zahl mit allen Nachkommastellen, Formate bleiben, bereit zum Rechnen.",
@@ -354,6 +354,7 @@ export const de = {
     needsColField: "Braucht ein Feld in Spalten.",
     needsRowFields: "Braucht zwei oder mehr Felder in Zeilen.",
     needsColFields: "Braucht zwei oder mehr Felder in Spalten.",
+    needsValue: "Braucht ein Feld in Werten.",
     expandNothing: "Nichts ist zugeklappt.",
     collapseNeedsRows: "Braucht zwei oder mehr Felder in Zeilen.",
     collapseAllDone: "Alle Gruppen sind schon zugeklappt.",

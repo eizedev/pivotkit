@@ -53,7 +53,7 @@
     --pk-accent-text: #ffffff;
     --pk-accent-soft: #e9effc;
     --pk-drop: #dfe8fd;
-    --pk-total: #f4f6f9;
+    --pk-total: #eef1f5;
     --pk-total-strong: #e9edf3;
     --pk-danger: #b42318;
     --pk-danger-soft: #fdecea;
@@ -98,7 +98,7 @@
     --pk-accent-text: #0d1426;
     --pk-accent-soft: #232d48;
     --pk-drop: #263a6b;
-    --pk-total: #1d2128;
+    --pk-total: #21252d;
     --pk-total-strong: #252a33;
     --pk-danger: #ff8b80;
     --pk-danger-soft: #3a1f1d;
@@ -2725,6 +2725,11 @@
 .pk-table :is(td, th).pk-sub {
     background: var(--pk-total);
     font-weight: 600;
+}
+
+/* a subtotal column is set apart from the group it adds up: an edge before it */
+.pk-table :is(td, th).pk-sub-start {
+    border-left: 1px solid var(--pk-border-strong);
 }
 
 .pk-table :is(td, th).pk-grand {

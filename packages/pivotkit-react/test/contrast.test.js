@@ -32,7 +32,9 @@ const TEXT = [
     ["--pk-accent-text", "--pk-accent"], ["--pk-accent", "--pk-accent-soft"], ["--pk-accent", "--pk-surface"], ["--pk-danger", "--pk-surface"],
     ["--pk-surface", "--pk-text"], ["--pk-text", "--pk-note"], ["--pk-muted", "--pk-surface-raised"], ["--pk-accent", "--pk-note"], ["--pk-danger", "--pk-surface-raised"], ["--pk-danger", "--pk-danger-soft"], ["--pk-text", "--pk-danger-soft"], ["--pk-warn", "--pk-surface"], ["--pk-warn", "--pk-surface-3"],
     // the "Learn more" link of a description, the "i" while hovered, the x of a tip
-    ["--pk-accent", "--pk-surface-raised"], ["--pk-accent", "--pk-surface-3"], ["--pk-muted", "--pk-note"]
+    ["--pk-accent", "--pk-surface-raised"], ["--pk-accent", "--pk-surface-3"], ["--pk-muted", "--pk-note"],
+    // a subtotal's label and value, and a subtotal column's header (muted, as every header)
+    ["--pk-text", "--pk-total"], ["--pk-muted", "--pk-total"], ["--pk-muted", "--pk-total-strong"]
 ];
 const UI = [["--pk-focus", "--pk-surface"], ["--pk-focus", "--pk-surface-2"], ["--pk-drop-border", "--pk-surface-2"], ["--pk-drop-border", "--pk-surface"], ["--pk-type-number", "--pk-surface"], ["--pk-type-string", "--pk-surface"], ["--pk-type-date", "--pk-surface"], ["--pk-type-boolean", "--pk-surface"],
     // the edge of a menu's text fields and selects

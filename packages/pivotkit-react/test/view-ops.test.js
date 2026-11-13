@@ -442,7 +442,10 @@ test("a total that would change nothing in the view is named with the reason", (
     assert.deepEqual(TOTALS.map((k) => totalNoEffect(one, k)), [null, null, "needsRowFields", "needsColFields"]);
     const two = norm({ rows: ["Region", "Product"], cols: ["Product"], values: [{ field: "Units", agg: "sum" }] });
     assert.equal(totalNoEffect(two, "rowSubtotals"), null);
-    for (const key of ["needsRowField", "needsColField", "needsRowFields", "needsColFields"]) {
+    // without values the table draws no totals: every switch whose axis is there needs a value (#156)
+    const labelsOnly = norm({ rows: ["Region", "Product"] });
+    assert.deepEqual(TOTALS.map((k) => totalNoEffect(labelsOnly, k)), ["needsValue", "needsColField", "needsValue", "needsColFields"]);
+    for (const key of ["needsRowField", "needsColField", "needsRowFields", "needsColFields", "needsValue"]) {
         assert.equal(typeof MENU.en[key], "string");
         assert.equal(typeof MENU.de[key], "string");
     }
