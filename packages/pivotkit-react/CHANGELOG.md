@@ -8,6 +8,10 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The chart's plan, its colours from the tokens and its marks are pivotkit-core's (`chartPlan`,
+  `chartThemeFrom`, `pivotkit-core/chart`), so an SVG and a printed report of pivotkit-report draw
+  the same chart; the report looks the same. A host page with an import map adds
+  `pivotkit-core/chart` next to `pivotkit-core/export` ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
   the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`

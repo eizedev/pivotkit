@@ -151,7 +151,8 @@ All props are listed in the [pivotkit-react reference](../reference/react.md).
 `pivotkit-core/import` (with [`allowImport`](../reference/react.md#prop-allowimport), on the first
 use of loading data), `@dnd-kit/core` and `@dnd-kit/sortable`. On the first chart it loads
 `./echarts.js` next to it, which imports `echarts/core`, `echarts/charts`, `echarts/components` and
-`echarts/renderers` by name, so a bundler keeps only the four chart types the report draws. Any
+`echarts/renderers` by name, so a bundler keeps only the four chart types the report draws, and
+`pivotkit-core/chart` (the chart's marks and label layout). Any
 bundler that understands ES modules resolves them. A page without a bundler maps each bare name to a
 file with an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap);
 the browser tests load the package that way.

@@ -9,9 +9,11 @@
  * - A file that cannot be read (pivotkit-core/import and reader plugins) throws INVALID_FILE, with
  *   `details.reason` (WRONG_TYPE, UNCLOSED_QUOTE, ENCRYPTED, ...) and `details.file`; a file over a
  *   limit throws LIMIT_EXCEEDED with `details.file`.
+ * - A print template that puts a placeholder where filled-in text could become markup, a link or code
+ *   (pivotkit-report) throws INVALID_TEMPLATE, with `details.reason` and the placeholder.
  */
 
-/** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "LIMIT_EXCEEDED" | "INVALID_FILE"} PivotkitErrorCode */
+/** @typedef {"INVALID_ARGUMENT" | "INVALID_OPTION" | "LIMIT_EXCEEDED" | "INVALID_FILE" | "INVALID_TEMPLATE"} PivotkitErrorCode */
 
 export class PivotkitError extends Error {
     /**

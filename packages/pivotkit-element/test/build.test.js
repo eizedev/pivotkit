@@ -155,8 +155,8 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     const menus = closure("menus.js");
     const chart = closure("echarts.js");
     // the menus' view changes and the filter's summary, sharing (copy, download, load a view), the
-    // drill-down's table; the chart's label layout comes with ECharts
-    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-layout.js", chart, "chart"]]) {
+    // drill-down's table; the chart's marks (with pivotkit-core/chart's label layout) come with ECharts
+    for (const [mod, group, name] of [["src/menu-ops.js", menus, "menus"], ["src/share-actions.js", menus, "menus"], ["src/drill-table.js", menus, "menus"], ["src/chart-decorate.js", chart, "chart"]]) {
         assert.ok(group.has(mod), `${mod} is not in the ${name}`);
         assert.ok(!first.has(mod), `${mod} is in the first load`);
     }
@@ -167,6 +167,11 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     for (const words of ["Nothing is collapsed.", "{count} groups expanded", "Needs a field in Rows.", "Keep the {noun} for which all of these are true:", "Link copied", "View copied as JSON"]) {
         assert.ok(text(groups.menus).includes(words), `"${words}" is not in the menus`);
         assert.ok(!text(groups.initial).includes(words), `"${words}" is in the first load`);
+    }
+    // pivotkit-core/chart (the chart's marks and label layout) loads with the chart, never first
+    for (const name of ["pivotkit-core/src/chart-style.js", "pivotkit-core/src/chart-layout.js"]) {
+        assert.ok(inputsOf(groups.chart).some((i) => i.includes(name)), `${name} is not in the chart group`);
+        assert.ok(!inputsOf(groups.initial).some((i) => i.includes(name)), `${name} is in the first load`);
     }
     // what stays first: the header sort's texts and its aria-sort (table.jsx renders it)
     assert.ok(text(groups.initial).includes("Sort by {value}: largest first"));

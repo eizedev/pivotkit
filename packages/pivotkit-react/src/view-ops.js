@@ -16,7 +16,7 @@
  * pickFilter().
  */
 
-import { LIMITS, aggregatorsFor, foldText, isFormat } from "pivotkit-core";
+import { LIMITS, aggregatorsFor, foldText, isFormat, swapAxes } from "pivotkit-core";
 import { CHART_TYPES } from "./chart-types.js";
 
 /** @typedef {"rows" | "cols" | "values" | "filters"} Zone */
@@ -645,27 +645,8 @@ export function setChartDisplay(view, patch) {
     return next;
 }
 
-/**
- * Swaps the fields of Rows and Columns, with their collapsed groups; a calculation along an axis
- * ("running total along Rows") goes along the other one, so it still runs along the same fields.
- */
-export function swapAxes(view) {
-    const next = clone(view);
-    [next.rows, next.cols] = [next.cols, next.rows];
-    next.collapsed = { rows: next.collapsed.cols, cols: next.collapsed.rows };
-    for (const v of next.values) {
-        if (v.showAs && v.showAs.axis) {
-            v.showAs = { ...v.showAs, axis: v.showAs.axis === "rows" ? "cols" : "rows" };
-        }
-    }
-    const swapped = { percentOfRowTotal: "percentOfColumnTotal", percentOfColumnTotal: "percentOfRowTotal", percentOfParentRow: "percentOfParentColumn", percentOfParentColumn: "percentOfParentRow" };
-    for (const v of next.values) {
-        if (v.showAs && Object.hasOwn(swapped, v.showAs.type)) {
-            v.showAs = { ...v.showAs, type: swapped[v.showAs.type] };
-        }
-    }
-    return next;
-}
+/** Rows and Columns swapped (pivotkit-core's swapAxes): the chart's swap, the zones' Swap button. */
+export { swapAxes };
 
 /** True when nothing is placed: the UI shows its first steps. */
 export function isEmptyView(view) {

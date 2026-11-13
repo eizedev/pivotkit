@@ -1,8 +1,8 @@
 /*
  * How a chart lays out its labels for its size: the room of a pie's labels, whether a donut's numbers
  * fit its ring, a heatmap's column and row names and cell numbers, the category axis of bars, lines and
- * areas, the group labels. Only chart-decorate.js uses it, so it loads with ECharts (dist/echarts.js),
- * not with the first load.
+ * areas, the group labels. chart-style.js uses it and exports it ("pivotkit-core/chart"), so it loads
+ * with a drawn chart, not with a report's first load.
  */
 
 /**

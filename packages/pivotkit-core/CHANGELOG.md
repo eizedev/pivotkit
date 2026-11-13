@@ -41,6 +41,19 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `chartPlan(view, data)`, `swapAxes(view)` and `chartThemeFrom(style)`: what a chart draws for a
+  view (an automatic chart's type, rows and columns swapped for dates on Columns), a view with Rows
+  and Columns swapped, and a chart's colours from the `--pk-*` tokens of any style. They were
+  pivotkit-react's; pivotkit-report draws the same chart in an SVG and a printed report
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- `pivotkit-core/chart`: `decorateOption` (a report's marks on the chart's option: theme colours,
+  rounded bars, the axis labels laid out for the chart's size) and the label layout functions, moved
+  from pivotkit-react, which adds its DOM tooltip
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- `scaleColor` in `pivotkit-core/export`: the colour of a colour scale at a point, as the grid
+  computes it ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+- The error code `INVALID_TEMPLATE` for a print template pivotkit-report refuses
+  ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - Relative date ranges ([#165](https://github.com/eizedev/pivotkit/issues/165)): `direction` (`last`,
   `next`, `this`, `before`), `calendar` (whole units, or rolling from now), `includeCurrent`, the
   units `hour`, `week` and `quarter` besides `day`, `month` and `year`, and `anchor` `"first"` or a

@@ -8,17 +8,21 @@ import * as exporters from "pivotkit-core/export";
 import * as links from "pivotkit-core/link";
 import * as templates from "pivotkit-core/templates";
 import * as importer from "pivotkit-core/import";
+import * as charts from "pivotkit-core/chart";
 import { CATALOG, aggregatorsFor, encode, validate } from "pivotkit-core";
 
 const src = fileURLToPath(new URL("../src/", import.meta.url));
 
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
-        "CATALOG", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "ISSUE_CAP", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
-        "cellRows", "computePivot", "createHistory", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
-        "migrate", "normalize", "outsideLimits", "relativeDateRange", "suggestDateUnit", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "withLinkFragment"
+        "CATALOG", "CHART_COLORS", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "ISSUE_CAP", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
+        "cellRows", "chartPlan", "chartThemeFrom", "computePivot", "createHistory", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
+        "migrate", "normalize", "outsideLimits", "relativeDateRange", "suggestDateUnit", "swapAxes", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "withLinkFragment"
     ]);
-    assert.deepEqual(Object.keys(exporters).sort(), ["rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
+    assert.deepEqual(Object.keys(exporters).sort(), ["rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "scaleColor", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
+    assert.deepEqual(Object.keys(charts).sort(), [
+        "BOTTOM_LEGEND_ROOM", "CATEGORY_LABEL_WIDTH", "GROUP_LABEL_ROOM", "RIGHT_LEGEND_MIN_WIDTH", "SLANTED_LABEL_WIDTH", "categoryLabelLayout", "columnLabelLayout", "decorateOption", "groupLabelsFit", "heatmapCellLabels", "pieLabelRoom", "ringLabelsFit", "rowLabelInterval"
+    ]);
     assert.deepEqual(Object.keys(links).sort(), ["LINK_ISSUE_CODES", "LINK_LIMITS", "decodeViewLink", "encodeViewLink", "linkFragment", "linkParam", "readViewLink", "withLinkFragment"]);
     assert.deepEqual(Object.keys(templates).sort(), ["TEMPLATES_EXTENSION", "TEMPLATE_LIMITS", "parseTemplates", "templatesFromSchema"]);
     assert.deepEqual(Object.keys(importer).sort(), [
@@ -26,7 +30,7 @@ test("the package exports its documented entry points and nothing else", () => {
         "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "validatePlugin"
     ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./import", "./link", "./templates", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./chart", "./import", "./link", "./templates", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
 });
 
 /** Every module the file imports, transitively, as paths relative to src/, and the bare imports. */
@@ -51,6 +55,12 @@ test("the main entry does not load fflate; only the export and link entries do",
     assert.deepEqual([...importGraph("export.js").bare], ["fflate"]);
     assert.deepEqual([...importGraph("link.js").bare], ["fflate"]);
     assert.ok(!importGraph("index.js").seen.has("xlsx.js"));
+});
+
+test("the chart entry (a report's marks on the chart) loads no dependency and no export module", () => {
+    const { seen, bare } = importGraph("chart-style.js");
+    assert.deepEqual([...bare], []);
+    assert.ok(!seen.has("xlsx.js") && !seen.has("csv.js"));
 });
 
 test("the import entry loads no dependency and no reader until a file is read", () => {
