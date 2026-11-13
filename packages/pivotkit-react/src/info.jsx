@@ -10,7 +10,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Icon } from "./icons.jsx";
 import { fill } from "./labels.js";
-import { inGap } from "./place.js";
+import { onTheWay } from "./place.js";
 import { Popover } from "./popover.jsx";
 
 /** How long (ms) a hover popover waits after the pointer left its button, so the pointer can reach it. */
@@ -60,17 +60,18 @@ export function InfoButton({ info, name, labels, className, testId = "field-info
             leaving.current = null;
         }
     };
-    // the pointer on the button, on its popover or in the gap between them (on its way from the one
-    // to the other): there the popover stays. Asked of the page (:hover), not only of pointerenter: in
-    // WebKit on Linux the popover in the top layer (an "i" inside a menu) got no pointerenter when the
-    // pointer moved onto it from the button; and a pointer that rests in the gap for longer than the
-    // leave delay (a slow machine's steps, a slow hand) is still on its way (#213)
+    // the pointer on the button, on its popover or on its way from the one to the other: there the
+    // popover stays. Asked of the page (:hover), not only of pointerenter: in WebKit on Linux the
+    // popover in the top layer (an "i" inside a menu) got no pointerenter when the pointer moved onto
+    // it from the button. And a pointer on its way (beside the i towards a tip moved aside to stay in
+    // the window, or in the gap between them) is not leaving, however slowly it moves: CI's WebKit on
+    // Linux moves it in steps of about 280 ms, longer than the leave delay (#213)
     const hovered = () => {
         const button = ref.current;
         const root = /** @type {Document | ShadowRoot | null} */ (button?.getRootNode() ?? null);
         const pop = root && "getElementById" in root ? root.getElementById(id) : null;
         return Boolean(
-            button?.matches(":hover") || pop?.matches(":hover") || (button && pop && inGap(button.getBoundingClientRect(), pop.getBoundingClientRect(), pointer.current))
+            button?.matches(":hover") || pop?.matches(":hover") || (button && pop && onTheWay(button.getBoundingClientRect(), pop.getBoundingClientRect(), pointer.current))
         );
     };
     const leaveSoon = () => {

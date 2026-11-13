@@ -544,8 +544,7 @@ type menu and the Export menus are flat lists in titled groups (`role="group"` w
 
 An "i" next to a setting explains it on hover, focus or tap: the totals, Show as, Excel and CSV
 in the export menu, Labels and Group labels of the chart. Shown on hover, the description stays while
-the pointer moves from the "i" onto it, also when it pauses in the gap between them, so its "Learn
-more" link can be reached. It is the same button as a field's "i"; its
+the pointer moves from the "i" onto it, however slowly, so its "Learn more" link can be reached. It is the same button as a field's "i"; its
 name is "About <setting>". A menu row stays one line. Next to an item of a menu in levels (the
 totals) the "i" is for the pointer: the item carries its text as its description, so the arrow keys
 stay on the items. Options, Help, "Show explanations" (or

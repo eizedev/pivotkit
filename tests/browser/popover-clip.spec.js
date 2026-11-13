@@ -154,6 +154,37 @@ test.describe("an i inside a menu: its explanation above the menu, in the window
         });
     }
 
+    // the way CI's WebKit on Linux moves the pointer: a straight line from the i to the tip's centre in
+    // steps about 280 ms apart. Next to the window's edge the tip is moved left, so the first steps run
+    // beside the i through its row, on neither the i nor the tip. At 1600 px Options opens from its own
+    // toolbar button, not from More: where CI's narrower fonts put it at 1280 px, its tip reaching out
+    // of the menu on the right
+    for (const [width, menu, info] of [1280, 1600].flatMap((w) => [
+        [w, "export", "setting-info-copyTable"],
+        [w, "options", "setting-info-rowSubtotals"]
+    ])) {
+        test(`${menu} at ${width} px: the pointer moving slowly from ${info} onto its tip keeps the tip`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto("?data=tickets");
+            await toolbar(page, menu);
+            const button = page.getByTestId(info);
+            await button.hover();
+            const tip = page.locator(".pk-info-pop");
+            await expect(tip).toBeVisible();
+            // the tip has its final place (it grows in from its anchor)
+            await expect.poll(() => wholeOnTop(tip)).toEqual({ inside: true, hidden: [] });
+            const b = await button.boundingBox();
+            const t = await tip.boundingBox();
+            const from = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+            const to = { x: t.x + t.width / 2, y: t.y + t.height / 2 };
+            for (let i = 1; i <= 5; i++) {
+                await page.mouse.move(from.x + ((to.x - from.x) * i) / 5, from.y + ((to.y - from.y) * i) / 5);
+                await page.waitForTimeout(300);
+                await expect(tip, `after step ${i} of 5`).toBeVisible();
+            }
+        });
+    }
+
     test("the web component, light and dark: Export's Copy table i above the menu", async ({ page }) => {
         await page.goto("pages/element-two.html");
         for (const id of ["sales", "tickets"]) {

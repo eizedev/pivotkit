@@ -95,19 +95,43 @@ export function fromOrigin(place, origin) {
 }
 
 /**
- * Whether a point is in the gap between an anchor and its popover placed below or above it (GAP
- * pixels), across both their widths: the way of a pointer moving from the one to the other. A hover
- * tip stays while the pointer is there (info.jsx), whatever time the move takes.
+ * Whether a point is on the way from an anchor to its popover: inside the smallest convex shape that
+ * holds both boxes (their convex hull). A pointer moving in a straight line from anywhere on the one
+ * to anywhere on the other stays inside it, also where the popover is moved aside to stay in the
+ * window and the way runs beside the anchor first, and in the gap between them. A hover tip stays
+ * while the pointer is there (info.jsx), whatever time the move takes.
  * @param {{ top: number, bottom: number, left: number, right: number }} anchor  getBoundingClientRect()
  * @param {{ top: number, bottom: number, left: number, right: number }} popover  getBoundingClientRect()
  * @param {{ x: number, y: number } | null} point  client coordinates
  */
-export function inGap(anchor, popover, point) {
+export function onTheWay(anchor, popover, point) {
     if (!point) {
         return false;
     }
-    const [top, bottom] = popover.top >= anchor.bottom ? [anchor.bottom, popover.top] : [popover.bottom, anchor.top];
-    // a popover over its anchor (top > bottom) leaves no gap
-    const across = point.x >= Math.min(anchor.left, popover.left) && point.x <= Math.max(anchor.right, popover.right);
-    return top <= bottom && point.y >= top && point.y <= bottom && across;
+    const corners = [anchor, popover]
+        .flatMap((r) => [
+            [r.left, r.top],
+            [r.right, r.top],
+            [r.right, r.bottom],
+            [r.left, r.bottom]
+        ])
+        .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    // the hull by Andrew's monotone chain: its lower and upper half, every corner turning the same
+    // way (cross > 0), so a point inside is on that side of every edge
+    const half = (points) => {
+        const out = [];
+        for (const p of points) {
+            while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) {
+                out.pop();
+            }
+            out.push(p);
+        }
+        out.pop();
+        return out;
+    };
+    const hull = [...half(corners), ...half([...corners].reverse())];
+    // inside (or on the edge): on the same side of every edge
+    const p = [point.x, point.y];
+    return hull.every((a, k) => cross(a, hull[(k + 1) % hull.length], p) >= 0);
 }
