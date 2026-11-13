@@ -77,6 +77,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   and in More, whose groups have no titles, it is the only thing that tells them apart. It is drawn
   in the new token `--pk-rule`, 3:1 against the menu in both themes
   ([#128](https://github.com/eizedev/pivotkit/issues/128)).
+- A delayed popover autofocus frame no longer steals focus from a control already in use
+  ([#139](https://github.com/eizedev/pivotkit/issues/139)).
 - Outside pie and donut labels appear on the first draw, including their chosen values
   ([#103](https://github.com/eizedev/pivotkit/issues/103)).
 - The menus' text actions drew as plain text in the text colour, so they did not look clickable:
