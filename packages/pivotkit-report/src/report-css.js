@@ -6,7 +6,7 @@
  * wide table and a smaller font (never below 7 pt) for a very wide one.
  */
 
-import { DARK_TOKENS, LIGHT_TOKENS, REPORT_FONT, WEIGHT_TOKENS, declarations } from "./tokens.js";
+import { DARK_TOKENS, LIGHT_TOKENS, REPORT_FONT, SHAPE_TOKENS, WEIGHT_TOKENS, declarations } from "./tokens.js";
 
 /** Columns from which a printed table is turned to landscape, and from which its font gets smaller. */
 export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
@@ -17,7 +17,7 @@ export const PRINT_WIDE = Object.freeze({ landscape: 8, small: 16 });
  */
 export function reportCss({ columns, tokens = {}, extra = "" }) {
     const font = tokens["font-family"] ?? REPORT_FONT;
-    const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...tokens });
+    const light = declarations({ ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, ...tokens });
     // the chart is drawn in the light colours (the host's), on a screen in dark mode too: its card keeps
     // the light surface the chart's image is drawn on
     const chartSurface = { ...LIGHT_TOKENS, ...tokens }["--pk-surface"];
@@ -30,7 +30,7 @@ body{margin:0;background:var(--pk-surface);color:var(--pk-text);font:14px/1.45 $
 .pk-report h1{font-size:20px;font-weight:var(--pk-weight-bold);line-height:1.3;margin:0 0 4px}
 .pk-report-description{margin:0 0 12px;color:var(--pk-muted)}
 .pk-report-description:empty{display:none}
-.pk-report-chart{margin:12px 0 16px;padding:8px;background:${chartSurface};border:1px solid var(--pk-border);border-radius:8px;break-inside:avoid;width:max-content;max-width:100%}
+.pk-report-chart{margin:12px 0 16px;padding:8px;background:${chartSurface};border:1px solid var(--pk-border);border-radius:var(--pk-radius-card);break-inside:avoid;width:max-content;max-width:100%}
 .pk-report-chart img,.pk-report-chart svg{display:block;max-width:100%;height:auto}
 .pk-table{border-collapse:collapse;font-variant-numeric:tabular-nums;margin:12px 0 0}
 .pk-table th,.pk-table td{border:1px solid var(--pk-border);padding:4px 8px;vertical-align:top}

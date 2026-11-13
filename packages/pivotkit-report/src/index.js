@@ -21,4 +21,4 @@ export { render, RENDER_FORMATS, REPORT_LIMITS, REPORT_ISSUE_CODES, CHART_SIZE }
 export { cleanSvg } from "./svg.js";
 export { DEFAULT_TEMPLATE, REPORT_CSP } from "./default-template.js";
 export { REPORT_TEXTS } from "./texts.js";
-export { LIGHT_TOKENS, DARK_TOKENS, WEIGHT_TOKENS } from "./tokens.js";
+export { LIGHT_TOKENS, DARK_TOKENS, WEIGHT_TOKENS, SHAPE_TOKENS } from "./tokens.js";

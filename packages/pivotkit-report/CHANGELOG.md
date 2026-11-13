@@ -10,6 +10,9 @@ First release.
 
 ### Added
 
+- `SHAPE_TOKENS`: the corner of the HTML report's chart card, `--pk-radius-card` (8 px, pivotkit-react's
+  value); a host's `tokens` change it, as the chart's title size (`--pk-chart-title-size`) and its marks'
+  corners (`--pk-radius-chart`) in px ([#216](https://github.com/eizedev/pivotkit/issues/216)).
 - A colour scale or data bars without colours of the view's own take the host's `tokens` in the HTML
   report's table and in the workbook (`--pk-scale-low`, `--pk-scale-mid`, `--pk-scale-high`,
   `--pk-chart-1`), as the report on screen does; by default the light theme's heat colours, light

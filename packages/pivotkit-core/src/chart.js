@@ -100,6 +100,9 @@ export function toSeries(result, options) {
  * @property {string} [backgroundColor]   default transparent
  * @property {string} [fontFamily]
  * @property {number} [strongWeight]    font weight of the title and the group labels, default 600
+ * @property {number} [titleSize]       font size of the title in px, default 16
+ * @property {string[]} [colorScale]     a colour scale whose view names none (low, an optional middle, high), for toXlsx
+ * @property {string} [dataBar]          data bars whose view names no colour, for toXlsx
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
  * @property {[string, string]} [pieRadius]       inner and outer radius of a pie, default a circle (0%, 70%)
  * @property {[string, string]} [donutRadius]     inner and outer radius of a donut, default a ring (42%, 70%)
@@ -252,7 +255,7 @@ export function toEChartsOption(result, options) {
     };
     const valueFormatter = (v) => (typeof v === "number" ? fmt(v) : "");
     // the title over the chart, and the legend where the view puts it, with the room they take
-    const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: 16, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
+    const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: theme.titleSize ?? DEFAULT_THEME.titleSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
     const titleRoom = title.title ? TITLE_ROOM : 0;
     const { legend, room } = legendOf(chart.legend, SLICE_CHART_TYPES.includes(chart.type) || s.series.length > 1, titleRoom, textStyle);
     const legendPart = legend ? { legend } : {};

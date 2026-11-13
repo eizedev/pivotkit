@@ -6,6 +6,7 @@
  * chart needs it, so a report's first load does not.
  */
 
+import { DEFAULT_THEME, pxOf } from "./defaults.js";
 import { BOTTOM_LEGEND_ROOM, CATEGORY_LABEL_WIDTH, RIGHT_LEGEND_MIN_WIDTH, categoryLabelLayout, columnLabelLayout, groupLabelsFit, heatmapCellLabels, pieLabelRoom, ringLabelsFit, rowLabelInterval } from "./chart-layout.js";
 
 export * from "./chart-layout.js";
@@ -45,19 +46,23 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
     }
     // without the stylesheet the tokens are empty and ECharts keeps its own colours
     const surface = v("--pk-surface") || undefined;
+    // the marks' corners (--pk-radius-chart in px; pivotkit-react resolves it), a heatmap's cells three
+    // quarters of it; the tooltip's, a DOM node in the report, as CSS (--pk-radius-card)
+    const r = pxOf(v("--pk-radius-chart")) ?? DEFAULT_THEME.markRadius;
+    const cell = Math.round(r * 0.75 * 100) / 100;
     const tooltip = {
         ...option.tooltip,
         backgroundColor: v("--pk-surface-raised") || surface,
         borderColor: v("--pk-border") || undefined,
         textStyle: { color: v("--pk-text") || undefined, fontFamily: style.getPropertyValue("font-family") || undefined },
-        extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: 8px;`,
+        extraCssText: `box-shadow: ${v("--pk-shadow") || "none"}; border-radius: ${v("--pk-radius-card") || `${DEFAULT_THEME.cardRadius}px`};`,
         ...(tooltipFormatter ? { formatter: tooltipFormatter({ valueFormatter: option.tooltip?.valueFormatter, xNames: first(option.xAxis)?.data, yNames: first(option.yAxis)?.data, categoryNames: extra.categoryNames }) } : {})
     };
     const series = (option.series || []).map((s) => {
         if (s.type === "bar") {
             const horizontal = first(option.yAxis)?.type === "category";
-            const r = horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0];
-            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : r, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "series" } };
+            const corners = horizontal ? [0, r, r, 0] : [r, r, 0, 0];
+            return { ...s, barMaxWidth: 48, itemStyle: { borderRadius: s.stack ? 0 : corners, borderColor: s.stack ? surface : undefined, borderWidth: s.stack ? 1 : 0 }, emphasis: { focus: "series" } };
         }
         if (s.type === "line") {
             return { ...s, lineStyle: { width: 2 }, symbolSize: 7, smooth: Boolean(s.smooth), areaStyle: s.areaStyle ? { opacity: 0.18 } : undefined, emphasis: { focus: "series" } };
@@ -82,13 +87,13 @@ export function decorateOption(option, style, { height = 480, width = 800, categ
                     line = { show: true };
                 }
             }
-            return { ...s, top, bottom, labelLine: line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 4 }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
+            return { ...s, top, bottom, labelLine: line, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: r }, label: { ...label, color: label?.position === "inside" ? undefined : v("--pk-text") || undefined } };
         }
         if (s.type === "heatmap") {
             // numbers only in cells large enough for them (heatmapCellLabels); the tooltip has every one
             const texts = typeof s.label?.formatter === "function" ? s.data.map((/** @type {any} */ d) => s.label.formatter({ value: d })) : [];
             const fits = heatmapCellLabels(option.xAxis?.data?.length ?? 1, option.yAxis?.data?.length ?? 1, width, height, texts);
-            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: 3 }, label: { ...s.label, show: Boolean(s.label?.show) && fits, color: v("--pk-text") || undefined } };
+            return { ...s, itemStyle: { borderColor: surface, borderWidth: 2, borderRadius: cell }, label: { ...s.label, show: Boolean(s.label?.show) && fits, color: v("--pk-text") || undefined } };
         }
         return s;
     });

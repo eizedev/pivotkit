@@ -205,7 +205,7 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * closest() hints: first load 170.7 on a Mac (CI about 171.2), budget 172; menus 43.8; report 20.2.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 172, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21 };
+export const SIZE_BUDGET_KIB = { initial: 172.5, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

@@ -2,14 +2,15 @@
 title: Theming
 hide:
   - toc
-description: Style a pivotkit report with the --pk-* CSS custom properties - colours, sizes, fonts, font weights, chart colours - in light and dark, for the React component and the web component.
+description: Style a pivotkit report with the --pk-* CSS custom properties - colours, sizes, fonts, font weights, corners, focus rings, chart colours - in light and dark, for the React component, the web component and the files it exports.
 ---
 
 # Theming
 
-Every colour, font weight, size and duration of the report is a CSS custom property whose name
-starts with `--pk-`. Set the ones you want to change; the rest keep their defaults. There is no other styling
-interface: no class names to target, no `::part()` names.
+Every colour, font, font weight, size, corner, focus ring and duration of the report is a CSS custom
+property whose name starts with `--pk-`. Set the ones you want to change; the rest keep their
+defaults. There is no other styling interface: no class names to target, no `::part()` names. The
+chart, the HTML report, print and the Excel export take the same tokens.
 
 ## Light and dark
 
@@ -18,6 +19,11 @@ nearest `data-theme="light"` or `data-theme="dark"` above it (on `<html>`, or on
 then the system's `prefers-color-scheme`, and changes with them. The theme the report shows is
 `data-pk-theme="light|dark"` on its root (`.pk-root` in React, the element itself for
 `<pivot-report>`): read it or style with it, do not set it.
+
+Write your dark colours for `[data-pk-theme="dark"]`, as in the examples below, not for an attribute
+of the page such as `html[data-theme="dark"]`: the exports read the light theme
+([below](#the-excel-export)) by showing it on the report for that moment, so rules on the page's
+attribute would put your dark colours into a workbook or an HTML report.
 
 ## In React
 
@@ -30,7 +36,7 @@ pass as `className`, overrides them:
     --pk-accent: var(--host-primary);
     --pk-radius: 4px;
 }
-html[data-theme="dark"] .pk-root {
+.pk-root[data-pk-theme="dark"] {
     --pk-surface: #101418;
     --pk-text: #e6e6e6;
 }
@@ -76,7 +82,12 @@ through the element.
 | `--pk-shadow-sm`<br>`--pk-scrim`<br>`--pk-scrim-light`<br>`--pk-knob` | Chip shadow; behind sheets and the drawer; behind the drill-down; the knob of a switch | see `styles.css` | see `styles.css` |
 | `--pk-total`<br>`--pk-total-strong` | Subtotal and grand total rows and columns | `#eef1f5`<br>`#e9edf3` | `#21252d`<br>`#252a33` |
 | `--pk-danger`<br>`--pk-danger-soft`<br>`--pk-warn`<br>`--pk-focus` | Remove and errors; the card of a filter that shows nothing; a warning in a line of text (the days of a range without data); the focus ring | `#b42318`<br>`#fdecea`<br>`#8a5a00`<br>`#2b5fd9` | `#ff8b80`<br>`#3a1f1d`<br>`#f3c56b`<br>`#84a3ff` |
-| `--pk-radius`<br>`--pk-radius-sm` | Corners of panels, of buttons and chips | `10px`<br>`7px` | as light |
+| `--pk-radius`<br>`--pk-radius-sm` | Corners of panels and popovers; of buttons, chips and fields | `10px`<br>`7px` | as light |
+| `--pk-radius-xs`<br>`--pk-radius-mark`<br>`--pk-radius-icon` | Smaller corners, in step with `--pk-radius-sm` (set that one and these follow): links, a list's options, a column's sort button and keys; small parts inside a chip, a cell or a list (a field's grip, a badge, a filter's value, the fold button of a group in the table); a field's type icon | `calc(var(--pk-radius-sm) * 4 / 7)` (4 px)<br>`calc(var(--pk-radius-sm) * 5 / 7)` (5 px)<br>`calc(var(--pk-radius-sm) * 6 / 7)` (6 px) | as light |
+| `--pk-radius-card`<br>`--pk-radius-chart` | The chart's tooltip and the HTML report's chart card; the chart's bars and pie slices (a heatmap's cells three quarters of it) | `8px`<br>`var(--pk-radius-xs)` (4 px) | as light |
+| `--pk-font-mono` | The code font of the text field a view's JSON is pasted into | `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` | as light |
+| `--pk-chart-title-size` | The chart's title ([below](#chart-colours-and-sizes)) | `max(16px, var(--pk-font-size))` | as light |
+| `--pk-focus-width`<br>`--pk-focus-offset`<br>`--pk-glow-width`<br>`--pk-ring-width` | The focus ring's width and its gap to the control (in a list, a cell or a segmented button it sits inside the control, as wide); the soft ring around a focused text field and a zone a field is dragged over; the inset ring of a zone a field is dropped on to remove it (a clickable cell's hover ring is three quarters of it, a file drop's one and a half) | `2px`<br>`2px`<br>`3px`<br>`2px` | as light |
 | `--pk-shadow`<br>`--pk-shadow-lg` | Chips and buttons; popovers, drawer, drag preview | see `styles.css` | see `styles.css` |
 | `--pk-row-h` | Height of a table row | `2.45em` | as light |
 | `--pk-panel-w` | Width of the field list; at most 284 px in the medium layout | `288px` | as light |
@@ -135,7 +146,9 @@ follows, the chart's title and group labels too (the chart reads `--pk-weight-st
 ```
 
 The same declarations go on `pivot-report` for the web component. The HTML report and print
-(Export) take the report's weights along, in either theme. A weight the font has no face for
+(Export) take the report's weights along, in either theme, with the light theme's colours (also from a
+dark report, as the [Excel export](#the-excel-export) does), the chart card's corner and the chart's
+title size. A weight the font has no face for
 is drawn with another face: above 500 the browser takes the next heavier one, so with a font of only
 400 and 700 a weight of 550 is drawn at 700. Pick weights the font has, or use a variable font.
 
@@ -145,11 +158,30 @@ is drawn with another face: above 500 the browser takes the next heavier one, so
 - Every control is at least 24 x 24 px (`--pk-target`); on a touch screen the small ones at least 44 x 44 px (`--pk-target-touch`). In the field list the grip, the "i" and the menu keep their size and get a hit area `--pk-target-touch` high instead (a layer over them; the grip's as wide too), with the gap between rows grown to hold it, so the rows stay compact.
 - Animations run through `--pk-duration`, which is `0ms` when the system asks for reduced motion.
 
-## Chart colours
+## Chart colours and sizes
 
 The chart reads `--pk-chart-1` to `--pk-chart-8` for its series, in this order, and
-`--pk-heat-low`/`--pk-heat-high` for the heatmap, in the current theme. With pivotkit-core alone, pass
-the colours as `theme` to [`toEChartsOption`](core.md#output).
+`--pk-heat-low`/`--pk-heat-high` for the heatmap, in the current theme. Its title is
+`--pk-chart-title-size` large and `--pk-weight-strong` bold; its bars and pie slices have
+`--pk-radius-chart` corners, its tooltip `--pk-radius-card` ones. The report resolves the title's
+size and the marks' corners to px where it is, so `1.25em` or `calc(var(--pk-font-size) * 1.2)` work
+as well as `20px`.
+
+```css
+/* a brand with square corners and a larger chart title */
+.pk-root {
+    --pk-radius: 2px;
+    --pk-radius-sm: 0px;      /* --pk-radius-xs, -mark, -icon and the chart's marks follow */
+    --pk-radius-card: 2px;
+    --pk-chart-title-size: 1.25em;
+    --pk-font-mono: "JetBrains Mono", monospace;
+    --pk-focus-width: 3px;
+}
+```
+
+With pivotkit-core alone, pass the colours and the title's size (`titleSize`, px) as `theme` to
+[`toEChartsOption`](core.md#output); pivotkit-report takes the tokens as `tokens`, the title's size
+and the marks' corners in px.
 
 ## The Excel export
 
@@ -159,10 +191,12 @@ and `--pk-scale-high`, low first, and the data bars from `--pk-chart-1`. A theme
 carries over into the workbook that way. A view's own colours are written as they are.
 
 The workbook always gets the light theme's colours, since a spreadsheet shows them behind black
-text: a report shown in the dark theme writes pivotkit-core's defaults, which are the light theme's
-(`DEFAULT_THEME`, light blue to blue, and blue bars), so a theme of your own does not reach a
-workbook exported from the dark theme. A token that the browser cannot write as an
-sRGB colour (`oklch()` outside sRGB, say) keeps that default too. The report itself shows a colour
+text: from a report shown in the dark theme it gets the colours your light theme sets. The report
+shows its light theme for the moment it reads them, in the same task, so nothing is drawn and no
+transition starts (on `pivot-report` too, where the element shows it). Your dark rules stay out when
+they are written for `[data-pk-theme="dark"]` ([above](#light-and-dark)). A token that the browser
+cannot write as an sRGB colour (`oklch()` outside sRGB, say) keeps pivotkit-core's default
+(`DEFAULT_THEME`, the default light theme's: light blue to blue, and blue bars). The report itself shows a colour
 scale lighter than the workbook (mixed with the background, so the numbers stay readable); the
 workbook has Excel's full colours. With pivotkit-core alone, pass the colours as `theme` to
 [`toXlsx`](core.md#output).

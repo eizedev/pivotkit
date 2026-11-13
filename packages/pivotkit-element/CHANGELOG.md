@@ -22,6 +22,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- pivotkit-react's tokens for corners, the code font, the focus ring and the chart's title and marks
+  ([#216](https://github.com/eizedev/pivotkit/issues/216)): `--pk-radius-xs`, `--pk-radius-mark`, `--pk-radius-icon`, `--pk-radius-card`,
+  `--pk-radius-chart`, `--pk-font-mono`, `--pk-chart-title-size`, `--pk-focus-width`,
+  `--pk-focus-offset`, `--pk-glow-width` and `--pk-ring-width`, set on the element like every `--pk-*`
+  token. The first load grows by about 0.5 KiB gzip (171.4 KiB measured on a Mac, CI about 0.6
+  more), its budget to 172.5.
 - pivotkit-react's font weight tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)): `--pk-weight-normal`, `--pk-weight-medium`,
   `--pk-weight-strong` and `--pk-weight-bold`, set on the element like every `--pk-*` token.
 - Export → HTML report, Chart image (.svg) and Print or save as PDF (pivotkit-react), loaded as the
@@ -35,6 +41,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- A workbook and an HTML report exported while the element shows the dark theme carry the tokens set
+  on the element for the light theme, `--pk-scale-mid` too ([#217](https://github.com/eizedev/pivotkit/issues/217)).
 - The element bundles pivotkit-react's fixes: the Excel export in the report's theme colours, the
   default colour scale from light to strong blue, a group's label at the top of its rows in the
   workbook ([#212](https://github.com/eizedev/pivotkit/issues/212)), and an "i" inside a menu explained above the menu ([#213](https://github.com/eizedev/pivotkit/issues/213)).

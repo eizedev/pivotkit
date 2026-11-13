@@ -53,6 +53,18 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Corners, the code font, the focus ring and the chart's title and marks as tokens ([#216](https://github.com/eizedev/pivotkit/issues/216)):
+  `--pk-radius-xs`, `--pk-radius-mark` and `--pk-radius-icon` (4, 5 and 6 px, four, five and six
+  sevenths of `--pk-radius-sm`, so a host that sets `--pk-radius-sm` changes them too),
+  `--pk-radius-card` (8 px, the chart's tooltip), `--pk-radius-chart` (the chart's bars and slices,
+  `var(--pk-radius-xs)`), `--pk-font-mono` (the JSON text field), `--pk-chart-title-size`
+  (`max(16px, var(--pk-font-size))`: 16 px as before up to a 16 px font, as large as the report's text
+  above it), `--pk-focus-width` and `--pk-focus-offset` (2 px), `--pk-glow-width` (3 px, the soft ring
+  of a focused text field and of a zone a field is dragged over) and `--pk-ring-width` (2 px, the
+  inset rings). The report looks the same with the defaults. The chart resolves its title size and
+  corners to px, so a host may write them in `em` or `calc()`. A test fails on a corner radius, a
+  font family or a ring width written outside the token blocks, and on a radius or a title size set
+  from code.
 - Font weights as tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)):
   `--pk-weight-normal` (400), `--pk-weight-medium` (500), `--pk-weight-strong` (600) and
   `--pk-weight-bold` (700), documented in Theming. Every rule uses them, the chart's tooltip, title
@@ -108,6 +120,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A workbook and an HTML report exported from the dark theme carry the host's light colours
+  (`--pk-scale-*`, `--pk-heat-*`, `--pk-chart-1` and the rest of the light theme): the report reads
+  its light theme for the export, without a transition or a frame in between, also inside
+  pivotkit-element. Before, they got pivotkit-core's and pivotkit-report's defaults. The HTML report
+  takes a host's `--pk-scale-mid` too ([#217](https://github.com/eizedev/pivotkit/issues/217)).
 - The Excel export writes a colour scale and data bars in the theme's colours the report resolves
   from its tokens (`--pk-scale-low`, `--pk-scale-mid`, `--pk-scale-high`, `--pk-chart-1`), so a
   theme of the host's carries over; a dark report writes the light theme's colours. Before, the

@@ -43,6 +43,10 @@ A view without them gets the defaults; an unknown value falls back to its defaul
 `normalize()` ([Views](views.md)). "Percent" and "Value and percent" are a pie's and a donut's; another
 type writes the value.
 
+The chart's colours, its title's size and weight and the corners of its bars, slices and tooltip come
+from the report's `--pk-*` tokens, so a corporate theme reaches the chart too
+([Theming](../reference/theming.md#chart-colours-and-sizes)).
+
 ## `chartOptions` (for developers)
 
 `chartOptions` is a plain JSON object merged over the [Apache ECharts](https://echarts.apache.org/en/option.html)

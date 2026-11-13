@@ -231,7 +231,7 @@ line, area, pie, donut and heatmap. ECharts itself is not imported.
 | Option | Of | What |
 | --- | --- | --- |
 | `chart` | `toEChartsOption` | `{ type, stacked, horizontal, valueLabels, legend, title, smooth, axisLabels, groupLabels, labelPosition }`, over the view's chart ([Charts](../concepts/charts.md)). |
-| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `heatmapColors` (low, high), `pieRadius` (inner, outer of a pie; default a whole circle, `0%`, `70%`), `donutRadius` (of a donut; default a ring, `42%`, `70%`). |
+| `theme` | `toEChartsOption` | `ChartTheme`: `colors`, `textColor`, `axisColor`, `gridColor`, `backgroundColor` (default transparent), `fontFamily`, `strongWeight` (the font weight of the title and the group labels, default 600), `titleSize` (the title's font size in px, default 16), `heatmapColors` (low, high), `pieRadius` (inner, outer of a pie; default a whole circle, `0%`, `70%`), `donutRadius` (of a donut; default a ring, `42%`, `70%`). |
 | `locale` | `toEChartsOption` | Used when the view names none; default the pivot's locale. |
 | `labels`, `limits` | both | Texts; `cells` caps the data points. |
 | `separator` | both | Between the parts of a multi-level label, default `" / "`. |
@@ -257,14 +257,20 @@ pivot of `swapAxes(view)`, so the dates run along the axis), else bars. `swapAxe
 normalized view with Rows and Columns swapped, their collapsed groups with them and a "show values
 as" that names an axis turned to the other one, so every number stays what it was. `chartThemeFrom`
 reads the chart's theme (`colors` from `--pk-chart-1` to `--pk-chart-8`, text, axis and grid colours,
-the heatmap's ends, the font, `strongWeight` from `--pk-weight-strong` when it is a number from 1 to 1000) from any
-object with `getPropertyValue`: a report's computed style, or a map of tokens; `CHART_COLORS` is 8.
+the heatmap's ends, the font, `strongWeight` from `--pk-weight-strong` when it is a number from 1 to 1000,
+`titleSize` from `--pk-chart-title-size` when it is in px) and a workbook's colours (`colorScale` from
+`--pk-scale-low`, `--pk-scale-mid` when set and `--pk-scale-high`, `dataBar` from `--pk-chart-1`, as
+CSS writes them: make them `#rrggbb` for `toXlsx`) from any object with `getPropertyValue`: a report's
+computed style, or a map of tokens; a token missing or not readable keeps `DEFAULT_THEME`'s value.
+`CHART_COLORS` is 8.
 
 ### The chart's marks: `pivotkit-core/chart` { #chart-marks }
 
 `decorateOption(option, style, { width, height, categoryNames, axisLabels, tooltipFormatter })` puts
 a report's marks on `toEChartsOption`'s option: the theme's colours from the `--pk-*` tokens of
-`style`, rounded bars, 2 px lines, the room around a pie, a legend moved below a narrow chart, and the
+`style`, bars and pie slices with `--pk-radius-chart` corners in px (a heatmap's cells three quarters
+of it; default `DEFAULT_THEME.markRadius`, 4), a tooltip with `--pk-radius-card` corners (default
+8 px), 2 px lines, the room around a pie, a legend moved below a narrow chart, and the
 category axis laid out for the chart's size (`categoryLabelLayout`: straight, slanted or every n-th,
 `chart.axisLabels`); the option's `axisEvery` says when every n-th label is written. pivotkit-react
 adds its DOM tooltip through `tooltipFormatter`; [pivotkit-report](report.md) draws the SVG with it.
@@ -351,7 +357,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | `closest(name, candidates)` | "Did you mean": the name of `candidates` closest to `name` as `foldText` folds both, within an edit distance of a third of its length (at least 1, at most 3; a swap of two neighbours is one edit), else `null`. Bounded by `HINT_LIMITS` (`{ candidates: 1000, length: 64, distance: 3 }`), so a hint costs a few thousand steps per name at most. The view's hints, pivotkit-report's template check and pivotkit-cli's options use it. |
 | `DEFAULT_LABELS` | The texts the engine writes (blank, totals, value names, aggregator names, "show as" names), to override per call with `labels`. |
 | `fieldLabel(field, labels)` | A field's display name from `labels.fields` (matched case-insensitively), else the name. With `labels.fields` the grid's corner headers, the value names, the exports and the chart show display names; the view keeps the field names. |
-| `DEFAULT_THEME` | Default colours for colour scales and data bars, those of pivotkit-react's light theme (`colorScale` `["#eaf1fb", "#2a78d6"]`, light for low and strong for high; `dataBar` `"#2a78d6"`), the font weight of a chart's title and group labels, and the radius of a pie and of a donut. |
+| `DEFAULT_THEME` | Default colours for colour scales and data bars, those of pivotkit-react's light theme (`colorScale` `["#eaf1fb", "#2a78d6"]`, light for low and strong for high; `dataBar` `"#2a78d6"`), the font weight (`strongWeight`, 600) and size (`titleSize`, 16 px) of a chart's title, the corners of its marks (`markRadius`, 4 px) and tooltip (`cardRadius`, 8 px), and the radius of a pie and of a donut. |
 | `LIMITS` | The [limits](../concepts/limits.md#limits). |
 | `ISSUE_CAP` | `{ perCode: 100, total: 1000 }`: the most issues of one code and in all that `normalize` and `validate` list for one view; the rest are counted in the warning `tooManyIssues` ([Views from outside](../concepts/limits.md#views-from-outside)). |
 | `OUTSIDE_LIMITS`, `outsideLimits(limits)` | The tighter limits of a view from outside (a link, pasted JSON, an API, an LLM): `{ filters: 50, json: 1000000 }`, and the host's limits with each of them at most its preset value, to pass as `normalize`'s `limits` ([Views from outside](../concepts/limits.md#views-from-outside)). |

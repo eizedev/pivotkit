@@ -68,6 +68,14 @@ export const WEIGHT_TOKENS = Object.freeze({
 });
 
 /**
+ * The corners the report draws, the same in both themes: the chart's card, as pivotkit-react's tooltip
+ * (test/tokens.test.js compares them).
+ */
+export const SHAPE_TOKENS = Object.freeze({
+    "--pk-radius-card": "8px"
+});
+
+/**
  * The report's font: the system's, as the screen's report inherits from most hosts. Without quotes
  * (names of several words are valid unquoted): ECharts 6.1 writes a font into an SVG's style attribute
  * without escaping its quotes, which would end the attribute.
@@ -94,7 +102,7 @@ function safeValue(value) {
  * @returns {{ getPropertyValue(name: string): string }}
  */
 export function tokenStyle(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
+    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, ...SHAPE_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
     // the chart's font without quotes (see REPORT_FONT)
     all["font-family"] = all["font-family"].replace(/["']/g, "");
     return { getPropertyValue: (name) => (Object.hasOwn(all, name) ? all[name] : "") };

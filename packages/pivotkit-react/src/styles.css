@@ -1,11 +1,12 @@
 /*
- * pivotkit-react styles. Every colour, font weight, size and duration is a --pk-* custom property;
- * rules use the tokens, never a literal colour or weight (test/tokens.test.js). The defaults sit in
+ * pivotkit-react styles. Every colour, font weight and family, size, corner radius, focus-ring width
+ * and duration is a --pk-* custom property; rules use the tokens, never a literal colour, weight,
+ * radius, font family or ring width (test/tokens.test.js). The defaults sit in
  * :where() rules with zero specificity, so a host overrides any token with a plain rule on .pk-root
  * (or on its className), for example:
  *
  *   .pk-root { --pk-accent: #0a7d5a; --pk-radius: 4px; }
- *   html[data-theme="dark"] .pk-root { --pk-surface: #101418; }
+ *   .pk-root[data-pk-theme="dark"] { --pk-surface: #101418; }
  */
 
 /* ---- tokens ---- */
@@ -25,8 +26,34 @@
     --pk-weight-medium: 500;
     --pk-weight-strong: 600;
     --pk-weight-bold: 700;
+    /* corners: panels and popovers; buttons, chips and fields */
     --pk-radius: 10px;
     --pk-radius-sm: 7px;
+    /* smaller corners, in step with --pk-radius-sm (4, 5 and 6 px by default): links, a picker's
+       options, a column's sort button and keys; small parts inside a chip, a cell or a list (a field's
+       grip, a badge, a filter's value, a group's fold button); a field's type icon */
+    --pk-radius-xs: calc(var(--pk-radius-sm) * 4 / 7);
+    --pk-radius-mark: calc(var(--pk-radius-sm) * 5 / 7);
+    --pk-radius-icon: calc(var(--pk-radius-sm) * 6 / 7);
+    /* the chart's tooltip and the HTML report's chart card; the chart's bars and slices (a heatmap's
+       cells three quarters of it), which the chart reads as a length in px (chart-decorate.js
+       resolves it) */
+    --pk-radius-card: 8px;
+    --pk-radius-chart: var(--pk-radius-xs);
+    /* the code font of the JSON text field (a view or a template pasted) */
+    --pk-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* the chart's title: as large as the report's text, at least 16 px (chart-decorate.js resolves it
+       to px) */
+    --pk-chart-title-size: max(16px, var(--pk-font-size));
+    /* the focus ring: its width and its gap to the control (inside a list, a cell or a segmented
+       button it sits inside the control, as wide); the soft ring around a focused text field and a zone
+       a field is dragged over */
+    --pk-focus-width: 2px;
+    --pk-focus-offset: 2px;
+    --pk-glow-width: 3px;
+    /* the inset ring of a zone a field is dropped on to remove it; a clickable cell's hover ring and a
+       file drop's ring are three quarters and one and a half of it */
+    --pk-ring-width: 2px;
     --pk-row-h: 2.45em;
     /* the field list: room for a name of about 16 characters next to its grip, type, zone mark and menu */
     --pk-panel-w: 288px;
@@ -198,8 +225,8 @@
 }
 
 .pk-root :focus-visible {
-    outline: 2px solid var(--pk-focus);
-    outline-offset: 2px;
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: var(--pk-focus-offset);
     border-radius: var(--pk-radius-sm);
 }
 
@@ -351,7 +378,7 @@
     color: var(--pk-accent);
     font-weight: var(--pk-weight-strong);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--pk-radius-xs);
 }
 
 .pk-link:hover {
@@ -519,7 +546,7 @@
 
 .pk-search:focus-within {
     border-color: var(--pk-accent);
-    box-shadow: 0 0 0 3px var(--pk-accent-soft);
+    box-shadow: 0 0 0 var(--pk-glow-width) var(--pk-accent-soft);
 }
 
 .pk-search input {
@@ -576,7 +603,7 @@
     color: var(--pk-muted);
     opacity: 0.8;
     cursor: grab;
-    border-radius: 5px;
+    border-radius: var(--pk-radius-mark);
     touch-action: none;
 }
 
@@ -592,7 +619,7 @@
     width: 1.55em;
     height: 1.55em;
     flex: none;
-    border-radius: 6px;
+    border-radius: var(--pk-radius-icon);
     background: color-mix(in srgb, currentColor 13%, transparent);
 }
 
@@ -660,7 +687,7 @@
     place-items: center;
     width: 1.45em;
     height: 1.45em;
-    border-radius: 5px;
+    border-radius: var(--pk-radius-mark);
     background: var(--pk-accent-soft);
     color: var(--pk-accent);
 }
@@ -681,7 +708,7 @@
 
 .pk-panel.pk-over {
     background: color-mix(in srgb, var(--pk-danger) 12%, var(--pk-surface-2));
-    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pk-danger) 50%, transparent);
+    box-shadow: inset 0 0 0 var(--pk-ring-width) color-mix(in srgb, var(--pk-danger) 50%, transparent);
 }
 
 .pk-remove-hint {
@@ -868,7 +895,7 @@
     border-style: solid;
     border-color: var(--pk-accent);
     background: var(--pk-drop);
-    box-shadow: 0 0 0 3px var(--pk-accent-soft);
+    box-shadow: 0 0 0 var(--pk-glow-width) var(--pk-accent-soft);
 }
 
 .pk-zone.pk-flash {
@@ -1312,7 +1339,7 @@
 .pk-option:hover:not(:disabled),
 .pk-option:focus-visible {
     background: var(--pk-surface-3);
-    outline-offset: -2px;
+    outline-offset: calc(-1 * var(--pk-focus-width));
 }
 
 .pk-option:disabled {
@@ -1384,7 +1411,7 @@
 .pk-condition :is(select, input):focus {
     outline: none;
     border-color: var(--pk-accent);
-    box-shadow: 0 0 0 3px var(--pk-accent-soft);
+    box-shadow: 0 0 0 var(--pk-glow-width) var(--pk-accent-soft);
 }
 
 .pk-field-label {
@@ -1547,8 +1574,8 @@
 }
 
 .pk-topic-seg .pk-segmented > button:focus-visible {
-    outline: 2px solid var(--pk-focus);
-    outline-offset: -2px;
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: calc(-1 * var(--pk-focus-width));
 }
 
 /* a choice's example or hint: on its right */
@@ -2088,7 +2115,7 @@
     min-height: 2em;
     padding: 0 0.5em;
     align-items: center;
-    border-radius: 4px;
+    border-radius: var(--pk-radius-xs);
     cursor: pointer;
 }
 
@@ -2226,8 +2253,8 @@
 }
 
 .pk-switch input:focus-visible + .pk-switch-track {
-    outline: 2px solid var(--pk-focus);
-    outline-offset: 2px;
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: var(--pk-focus-offset);
 }
 
 /* filter */
@@ -2241,10 +2268,10 @@
     padding: 6px 2px;
 }
 
-/* room for the focus ring (2px outline, 2px offset) inside the scrolling middle; the rest lines up */
+/* room for the focus ring (its width and offset) inside the scrolling middle; the rest lines up */
 .pk-filter > * {
     flex: none;
-    margin-inline: 4px;
+    margin-inline: calc(var(--pk-focus-width) + var(--pk-focus-offset));
 }
 
 .pk-filter > .pk-filter-body {
@@ -2254,7 +2281,7 @@
     gap: 8px;
     min-height: 0;
     margin-inline: 0;
-    padding: 4px;
+    padding: calc(var(--pk-focus-width) + var(--pk-focus-offset));
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -2300,7 +2327,7 @@
 .pk-value {
     display: flex;
     align-items: center;
-    border-radius: 5px;
+    border-radius: var(--pk-radius-mark);
 }
 
 .pk-value:hover {
@@ -2689,7 +2716,7 @@
     min-height: var(--pk-target);
     padding: 0;
     border: 0;
-    border-radius: 4px;
+    border-radius: var(--pk-radius-xs);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -2741,12 +2768,12 @@
 }
 
 .pk-clickable:hover {
-    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pk-accent) 60%, transparent);
+    box-shadow: inset 0 0 0 calc(var(--pk-ring-width) * 0.75) color-mix(in srgb, var(--pk-accent) 60%, transparent);
 }
 
 .pk-clickable:focus-visible {
-    outline: 2px solid var(--pk-focus);
-    outline-offset: -2px;
+    outline: var(--pk-focus-width) solid var(--pk-focus);
+    outline-offset: calc(-1 * var(--pk-focus-width));
     border-radius: 0;
 }
 
@@ -2793,7 +2820,7 @@
     margin-left: -0.45em;
     padding: 0;
     border: 0;
-    border-radius: 5px;
+    border-radius: var(--pk-radius-mark);
     background: transparent;
     color: var(--pk-muted);
     cursor: pointer;
@@ -3247,7 +3274,7 @@
 .pk-shortcut kbd {
     padding: 0 0.35em;
     border: 1px solid var(--pk-border);
-    border-radius: 4px;
+    border-radius: var(--pk-radius-xs);
     background: var(--pk-surface-2);
     font: inherit;
 }
@@ -3422,7 +3449,7 @@
     background: var(--pk-surface);
     color: var(--pk-text);
     font: inherit;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--pk-font-mono);
     font-size: var(--pk-small);
     resize: vertical;
 }
@@ -3430,7 +3457,7 @@
 .pk-clear-input > textarea:focus {
     outline: none;
     border-color: var(--pk-accent);
-    box-shadow: 0 0 0 3px var(--pk-accent-soft);
+    box-shadow: 0 0 0 var(--pk-glow-width) var(--pk-accent-soft);
 }
 
 /* the browser's own clear button of a search field: the report has its own */
@@ -3865,7 +3892,7 @@
     border: 0;
     border-radius: var(--pk-radius);
     background: var(--pk-scrim);
-    box-shadow: inset 0 0 0 3px var(--pk-accent);
+    box-shadow: inset 0 0 0 calc(var(--pk-ring-width) * 1.5) var(--pk-accent);
     pointer-events: none;
 }
 

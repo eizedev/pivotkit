@@ -7,26 +7,15 @@
 
 import { use as register } from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { LIGHT_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
+import { LIGHT_TOKENS, SHAPE_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
 
 register([SVGRenderer]);
 
 export { render };
 
 /**
- * The report's own tokens for a file, from the report's computed style: its font weights in either
- * theme, and in the light theme the --pk-* colours a printed report uses (a host's brand colours go
- * along); no colours in the dark theme, whose colours are not made for paper (pivotkit-report's
- * light ones are used).
- * @param {HTMLElement | null} root
- * @returns {Record<string, string> | undefined}
+ * The tokens of an HTML report and an SVG, as the report's light theme resolves them (export-run.js):
+ * pivotkit-report's colours, font weights and corners, and a host's middle colour of a colour scale.
+ * The chart's lengths in px come from the chart's module (LENGTH_TOKENS).
  */
-export function reportTokensOf(root) {
-    if (!root) {
-        return undefined;
-    }
-    const names = [...Object.keys(WEIGHT_TOKENS), ...(root.getAttribute("data-pk-theme") === "dark" ? [] : Object.keys(LIGHT_TOKENS))];
-    const style = getComputedStyle(root);
-    const tokens = Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]).filter(([, value]) => value));
-    return Object.keys(tokens).length ? tokens : undefined;
-}
+export const REPORT_TOKENS = Object.freeze([...Object.keys(WEIGHT_TOKENS), ...Object.keys(SHAPE_TOKENS), ...Object.keys(LIGHT_TOKENS), "--pk-scale-mid"]);

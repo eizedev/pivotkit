@@ -2,7 +2,7 @@
 // screen (pivotkit-react) and a file (pivotkit-report); decorateOption's marks from a map of tokens.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chartPlan, chartThemeFrom, computePivot, encode, normalize, swapAxes, toEChartsOption } from "pivotkit-core";
+import { DEFAULT_THEME, chartPlan, chartThemeFrom, computePivot, encode, normalize, swapAxes, toEChartsOption } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
 import { SALES } from "./fixtures.js";
 
@@ -48,4 +48,37 @@ test("chartThemeFrom reads the --pk-* tokens of any style; decorateOption marks 
     // the weight of the title and the group labels: --pk-weight-strong as a number, else DEFAULT_THEME's
     const weightOf = (value) => chartThemeFrom({ getPropertyValue: (n) => (n === "--pk-weight-strong" ? value : "") }).strongWeight;
     assert.deepEqual([weightOf("500"), weightOf("bold"), weightOf(""), weightOf("5000")], [500, undefined, undefined, undefined]);
+});
+
+test("chartThemeFrom: the title's size in px, else DEFAULT_THEME's; toEChartsOption writes it", () => {
+    const sizeOf = (value) => chartThemeFrom({ getPropertyValue: (n) => (n === "--pk-chart-title-size" ? value : "") }).titleSize;
+    assert.deepEqual([sizeOf("20px"), sizeOf(" 18.5px "), sizeOf("22"), sizeOf("1.2em"), sizeOf("max(16px, 1em)"), sizeOf(""), sizeOf("0px")], [20, 18.5, 22, undefined, undefined, undefined, undefined]);
+    const result = computePivot(data, { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar", title: "Units" } });
+    assert.equal(toEChartsOption(result, { theme: { titleSize: 21 } }).title.textStyle.fontSize, 21);
+    assert.equal(toEChartsOption(result).title.textStyle.fontSize, DEFAULT_THEME.titleSize);
+});
+
+test("chartThemeFrom: a workbook's colour scale (a middle colour when set) and data bars from the scale tokens and --pk-chart-1", () => {
+    const theme = (tokens) => {
+        const t = chartThemeFrom({ getPropertyValue: (n) => tokens[n] ?? "" });
+        return { colorScale: t.colorScale, dataBar: t.dataBar };
+    };
+    assert.deepEqual(theme({ "--pk-scale-low": "#eeeeee", "--pk-scale-high": "#222222", "--pk-chart-1": "#123456" }), { colorScale: ["#eeeeee", "#222222"], dataBar: "#123456" });
+    assert.deepEqual(theme({ "--pk-scale-low": "#eeeeee", "--pk-scale-mid": "#888888", "--pk-scale-high": "#222222" }), { colorScale: ["#eeeeee", "#888888", "#222222"], dataBar: undefined });
+    assert.deepEqual(theme({ "--pk-scale-low": "#eeeeee" }), { colorScale: undefined, dataBar: undefined }, "low without high keeps the default");
+});
+
+test("decorateOption: the marks' corners from --pk-radius-chart in px (a heatmap's cells three quarters), the tooltip's from --pk-radius-card", () => {
+    const marks = (tokens, type) => {
+        const result = computePivot(data, { rows: ["Region"], ...(type === "heatmap" ? { cols: ["Product"] } : {}), values: [{ field: "Units", agg: "sum" }], chart: { type } });
+        return decorateOption(toEChartsOption(result), { getPropertyValue: (n) => tokens[n] ?? "" }, { width: 600, height: 300 });
+    };
+    assert.deepEqual(marks({}, "bar").series[0].itemStyle.borderRadius, [DEFAULT_THEME.markRadius, DEFAULT_THEME.markRadius, 0, 0]);
+    assert.deepEqual(marks({ "--pk-radius-chart": "0px" }, "bar").series[0].itemStyle.borderRadius, [0, 0, 0, 0]);
+    assert.deepEqual(marks({ "--pk-radius-chart": "8px" }, "bar").series[0].itemStyle.borderRadius, [8, 8, 0, 0]);
+    assert.equal(marks({ "--pk-radius-chart": "6px" }, "pie").series[0].itemStyle.borderRadius, 6);
+    assert.equal(marks({ "--pk-radius-chart": "8px" }, "heatmap").series[0].itemStyle.borderRadius, 6);
+    assert.equal(marks({}, "heatmap").series[0].itemStyle.borderRadius, 3);
+    assert.match(marks({}, "bar").tooltip.extraCssText, /border-radius: 8px;/);
+    assert.match(marks({ "--pk-radius-card": "2px" }, "bar").tooltip.extraCssText, /border-radius: 2px;/);
 });

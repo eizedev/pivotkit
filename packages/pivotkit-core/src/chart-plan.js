@@ -8,6 +8,7 @@
  */
 
 import { autoChartType } from "./chart.js";
+import { pxOf } from "./defaults.js";
 
 /**
  * The chart settings to draw a view with.
@@ -55,8 +56,10 @@ export function swapAxes(view) {
 export const CHART_COLORS = 8;
 
 /**
- * The ECharts theme of toEChartsOption from the --pk-* tokens of a report: the computed style of a
+ * The theme of toEChartsOption and toXlsx from the --pk-* tokens of a report: the computed style of a
  * report's root, or any object with getPropertyValue (a map of tokens, as pivotkit-report passes).
+ * A token missing, or not what the chart can read (a weight as a keyword, a title size not in px),
+ * keeps DEFAULT_THEME's value. pivotkit-react resolves the title size to px first (chart-decorate.js, chartStyle).
  * @param {{ getPropertyValue(name: string): string }} style
  * @returns {import("./chart.js").ChartTheme}
  */
@@ -83,10 +86,23 @@ export function chartThemeFrom(style) {
     if (strong >= 1 && strong <= 1000) {
         theme.strongWeight = strong;
     }
+    const title = pxOf(v("--pk-chart-title-size"));
+    if (title !== null && title >= 1) {
+        theme.titleSize = title;
+    }
     const low = v("--pk-heat-low");
     const high = v("--pk-heat-high");
     if (low && high) {
         theme.heatmapColors = [low, high];
+    }
+    // the colours of a workbook's colour scale and data bars whose view names none (toXlsx), as CSS
+    // writes them: a caller that writes a workbook makes them #rrggbb first
+    const [scaleLow, scaleMid, scaleHigh, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map(v);
+    if (scaleLow && scaleHigh) {
+        theme.colorScale = scaleMid ? [scaleLow, scaleMid, scaleHigh] : [scaleLow, scaleHigh];
+    }
+    if (bar) {
+        theme.dataBar = bar;
     }
     return theme;
 }

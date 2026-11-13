@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DEFAULT_THEME } from "pivotkit-core";
-import { DARK_TOKENS, LIGHT_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
+import { DARK_TOKENS, LIGHT_TOKENS, SHAPE_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
 import { SALES } from "./fixtures.js";
 
 const css = readFileSync(new URL("../../pivotkit-react/src/styles.css", import.meta.url), "utf8");
@@ -28,6 +28,39 @@ test("the light and the dark tokens are pivotkit-react's, name for name", () => 
     // the font weights: every step of the scale, the same values
     const weights = Object.fromEntries(Object.entries(light).filter(([name]) => name.startsWith("--pk-weight-")));
     assert.deepEqual(WEIGHT_TOKENS, weights);
+    // the corners the report draws
+    for (const [name, value] of Object.entries(SHAPE_TOKENS)) assert.equal(value, light[name], `shape ${name}`);
+});
+
+/**
+ * A length token of the light block in px at a 16 px font: its var()s followed, calc(), max() and px
+ * worked out (only what styles.css writes for the sizes DEFAULT_THEME keeps).
+ */
+function px(name, light, depth = 0) {
+    assert.ok(depth < 5 && name in light, `${name} is declared`);
+    const text = light[name]
+        .replace(/var\((--pk-[a-z0-9-]+)\)/g, (_, ref) => `(${px(ref, light, depth + 1)})`)
+        .replace(/(\d*\.?\d+)px/g, "$1")
+        .replace(/(\d*\.?\d+)em/g, (_, n) => `(${n} * 16)`)
+        .replace(/calc\(/g, "(")
+        .replace(/max\(/g, "Math.max(");
+    assert.match(text, /^[\d\s.()*/+,-]*$|Math\.max/, `${name}: ${light[name]}`);
+    return Function(`return ${text}`)();
+}
+
+test("DEFAULT_THEME's chart sizes are the light tokens' at a 16 px font", () => {
+    const light = tokensOf(":where(.pk-root)");
+    assert.equal(DEFAULT_THEME.titleSize, px("--pk-chart-title-size", light));
+    assert.equal(DEFAULT_THEME.markRadius, px("--pk-radius-chart", light));
+    assert.equal(DEFAULT_THEME.cardRadius, px("--pk-radius-card", light));
+});
+
+test("the HTML report draws its chart card with the corner token, and a host's corner reaches it", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], chart: { type: "bar" } };
+    const r = await render(view, SALES, { format: "html", tokens: { "--pk-radius-card": "2px" } });
+    const style = r.text.slice(r.text.indexOf("<style>"), r.text.indexOf("</style>"));
+    assert.match(style, /\.pk-report-chart\{[^}]*border-radius:var\(--pk-radius-card\)/);
+    assert.match(style, /--pk-radius-card:2px/);
 });
 
 test("the report's stylesheet takes its font weights from the tokens, and a host's weights reach it", async () => {

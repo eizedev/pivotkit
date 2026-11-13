@@ -9,9 +9,10 @@
  * first and may take it over by returning false. use-export.js calls it.
  */
 
-import { toGrid } from "pivotkit-core";
+import { chartThemeFrom, toGrid } from "pivotkit-core";
 import { copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
 import { printHtml } from "./print-frame.js";
+import { lightTokens } from "./light-tokens.js";
 import { fill, messageOf } from "./labels.js";
 import { menuLabels } from "./menu-labels.js";
 
@@ -113,16 +114,23 @@ export function hexColor(text, ctx, supports = isColor) {
     return /^#[0-9a-f]{6}$/.test(hex) ? hex : null;
 }
 
+/** The tokens of a workbook's colours: its colour scale (--pk-scale-mid only when a host sets it) and data bars. */
+export const XLSX_TOKENS = Object.freeze(["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"]);
+
 /**
  * The colours of the theme the workbook gets for a conditional format whose view names none, as the
- * report resolves its tokens: the colour scale (--pk-scale-low, the host's --pk-scale-mid, -high) and
- * the data bars (--pk-chart-1). Each one missing or not a colour stays pivotkit-core's default.
- * @param {{ getPropertyValue(name: string): string }} style  getComputedStyle of the report's root
+ * report resolves its tokens (pivotkit-core's chartThemeFrom): the colour scale (--pk-scale-low, the
+ * host's --pk-scale-mid, -high) and the data bars (--pk-chart-1). Each one missing or not a colour
+ * stays pivotkit-core's default; a middle colour that is none is left out.
+ * @param {{ getPropertyValue(name: string): string }} style  the report's light tokens
  * @param {(text: string) => string | null} toHex
  * @returns {{ colorScale?: string[], dataBar?: string }}
  */
 export function xlsxThemeOf(style, toHex) {
-    const [low, mid, high, bar] = ["--pk-scale-low", "--pk-scale-mid", "--pk-scale-high", "--pk-chart-1"].map((name) => toHex(style.getPropertyValue(name).trim()));
+    const { colorScale = [], dataBar = "" } = chartThemeFrom(style);
+    const scale = colorScale.map(toHex);
+    const [low, high, mid] = [scale[0], scale.at(-1), scale.length === 3 ? scale[1] : null];
+    const bar = toHex(dataBar);
     return {
         ...(low && high ? { colorScale: mid ? [low, mid, high] : [low, high] } : {}),
         ...(bar ? { dataBar: bar } : {})
@@ -130,17 +138,33 @@ export function xlsxThemeOf(style, toHex) {
 }
 
 /**
- * The theme of the workbook from the report's root. A dark report gives none: a workbook is light,
- * with Excel's black text, so it keeps pivotkit-core's defaults (the light theme's colours).
+ * The theme of the workbook from the report's root: the light theme's tokens in either theme (a
+ * workbook is light, with Excel's black text), so a host's theme reaches it from a dark report too.
  * @param {HTMLElement | null} root
  */
 function xlsxTheme(root) {
-    const view = root?.ownerDocument.defaultView;
-    if (!root || !view || root.getAttribute("data-pk-theme") === "dark") {
+    if (!root) {
         return undefined;
     }
+    const tokens = lightTokens(root, XLSX_TOKENS);
     const ctx = root.ownerDocument.createElement("canvas").getContext("2d");
-    return xlsxThemeOf(view.getComputedStyle(root), (text) => hexColor(text, ctx));
+    return xlsxThemeOf({ getPropertyValue: (name) => tokens[name] ?? "" }, (text) => hexColor(text, ctx));
+}
+
+/**
+ * The tokens of an HTML report and an SVG from the report's root: the light theme's (report-run.js's
+ * REPORT_TOKENS) in either theme, and the chart's lengths in px (the chart's module).
+ * @param {HTMLElement | null} root
+ * @param {readonly string[]} names
+ * @param {{ LENGTH_TOKENS: readonly string[], tokenLengths: (root: HTMLElement, names: readonly string[]) => Record<string, string> }} chart
+ * @returns {Record<string, string> | undefined}
+ */
+function reportTokens(root, names, chart) {
+    if (!root) {
+        return undefined;
+    }
+    const tokens = { ...lightTokens(root, names), ...chart.tokenLengths(root, chart.LENGTH_TOKENS) };
+    return Object.keys(tokens).length ? tokens : undefined;
 }
 
 /**
@@ -194,7 +218,7 @@ export async function runExport(kind, { fileName, result, locale, labels, limits
                 ...(title ? { title } : {}),
                 ...(source ? { source } : {}),
                 ...(size ? { size } : {}),
-                tokens: report.reportTokensOf(root.current),
+                tokens: reportTokens(root.current, report.REPORT_TOKENS, echarts),
                 chartEmbed: kind === "print" ? "inline" : "image"
             });
             const file = `${base}.${kind === "svg" ? "svg" : "html"}`;

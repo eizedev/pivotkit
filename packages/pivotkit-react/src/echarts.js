@@ -18,4 +18,4 @@ register([BarChart, LineChart, PieChart, HeatmapChart, GridComponent, TooltipCom
 
 export { init };
 export { cleanChartOptions, mergeChartOptions } from "./chart-options.js";
-export { decorate } from "./chart-decorate.js";
+export { LENGTH_TOKENS, chartStyle, decorate, tokenLengths } from "./chart-decorate.js";

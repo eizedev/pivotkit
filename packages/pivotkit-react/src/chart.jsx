@@ -108,7 +108,8 @@ export function PivotChart({ result, series, labels, locale, themeName, root, on
         if (!ready || !chart.current || !root.current) {
             return;
         }
-        const style = getComputedStyle(root.current);
+        // the tokens with the lengths the chart reads in px resolved (the title's size, the marks' corners)
+        const style = lib.current.chartStyle(root.current);
         // the series of the summary and the hints, not computed a second time
         const option = toEChartsOption(result, { theme: chartThemeFrom(style), locale, labels: labels.core, maxCategories: MAX_CATEGORIES, ...(series ? { series } : {}), ...(drawAs ? { chart: drawAs } : {}) });
         const { axisEvery, ...drawn } = lib.current.decorate(option, style, chart.current.getHeight(), root.current.ownerDocument, chart.current.getWidth(), { categoryNames: series?.categories, axisLabels: result.view.chart.axisLabels });

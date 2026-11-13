@@ -52,6 +52,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `chartThemeFrom` reads the chart title's size (`--pk-chart-title-size` in px, `ChartTheme.titleSize`,
+  default `DEFAULT_THEME.titleSize` 16) and a workbook's colours (`colorScale` from `--pk-scale-low`,
+  `--pk-scale-mid` and `--pk-scale-high`, `dataBar` from `--pk-chart-1`), so its result also serves
+  `toXlsx`. `decorateOption` takes the corners of bars and pie slices from `--pk-radius-chart` in px
+  (a heatmap's cells three quarters of it; default `DEFAULT_THEME.markRadius` 4) and the tooltip's
+  from `--pk-radius-card` (default `DEFAULT_THEME.cardRadius` 8) ([#216](https://github.com/eizedev/pivotkit/issues/216)).
 - `ChartTheme.strongWeight` ([#201](https://github.com/eizedev/pivotkit/issues/201)): the font weight of a chart's title and group labels
   (default 600, `DEFAULT_THEME.strongWeight`); `chartThemeFrom` reads it from `--pk-weight-strong`, so
   a host's font weight reaches the chart.
