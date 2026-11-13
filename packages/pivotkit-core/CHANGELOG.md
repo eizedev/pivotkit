@@ -8,6 +8,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Changed
 
+- The npm description names views as JSON files and the JSON export, as the README does ([#191](https://github.com/eizedev/pivotkit/issues/191)).
 - The message of a file over a limit (`limitError`, `checkFileLimit`) ends "or a host can raise this
   limit" instead of naming the key a second time, so it fits a UI that reads files with limits of its
   own; the key stays in brackets: `"big.csv" has more than 1,000 rows (limits.rows): load a smaller
