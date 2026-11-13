@@ -8,6 +8,7 @@
 
 import { PivotkitError, chartPlan, chartThemeFrom, computePivot, swapAxes, toEChartsOption, toSeries } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
+import { BIDI_CONTROLS } from "./texts.js";
 import { LIGHT_TOKENS } from "./tokens.js";
 
 /** Presentation attributes a `style` attribute's declarations become (other declarations are dropped). */
@@ -55,7 +56,7 @@ export function cleanSvg(svg) {
         if (/[<>]/.test(text) || /&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(text)) {
             throw unsafe("text that is not escaped");
         }
-        out.push(text.replace(CONTROL, "").replace(/&#(x[0-9a-fA-F]+|\d+);/g, (entity, number) => (xmlChar(number[0] === "x" ? parseInt(number.slice(1), 16) : Number(number)) ? entity : "")));
+        out.push(text.replace(CONTROL, "").replace(BIDI_CONTROLS, "").replace(/&#(x[0-9a-fA-F]+|\d+);/g, (entity, number) => (xmlChar(number[0] === "x" ? parseInt(number.slice(1), 16) : Number(number)) ? entity : "")));
         if (lt === -1) {
             break;
         }

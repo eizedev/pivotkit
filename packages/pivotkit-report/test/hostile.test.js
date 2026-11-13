@@ -69,3 +69,14 @@ test("cleanSvg refuses what a chart never draws, and turns style attributes into
     // a numeric reference to a character XML does not allow would make the SVG unreadable: left out
     assert.equal(cleanSvg(svg("<text>a&#0;b&#x1F;c&#xD800;d&#65;&#x20AC;&#10;</text>")), svg("<text>abcd&#65;&#x20AC;&#10;</text>"));
 });
+
+test("bidi controls in cells and the title are left out of every text format, as the import leaves them out", async () => {
+    const rows = [{ Region: "invoice\u202Etxt.exe", Units: 1 }, { Region: "\u2066=1+1\u2069", Units: 2 }];
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart", chart: { type: "bar" } };
+    const bidi = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+    for (const format of ["html", "svg", "csv"]) {
+        const r = await render(view, rows, { format, echarts, title: "Q\u202E4", chartEmbed: "inline", ...FIXED });
+        assert.ok(!bidi.test(r.text), `${format}: ${JSON.stringify(r.text.match(/.{0,20}[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069].{0,20}/)?.[0])}`);
+        assert.ok(r.text.includes("invoicetxt.exe"), format);
+    }
+});

@@ -24,6 +24,13 @@ import { DEFAULT_LOCALE, MS_PER_DAY, pad, optionsOf } from "./util.js";
 // separators of the locales (. , ' ’ and the spaces), a percent sign after an optional space
 const NUMBER = String.raw`[+\-\u2212]?\p{Sc}?\d[\d.,'\u2019\u00a0\u202f ]*(?:[\u00a0\u202f ]?(?:%|\p{Sc}))?`;
 const PLAIN_NUMBER = new RegExp(`^${NUMBER}$`, "u");
+// the characters that change the direction of text, left out of every exported text as the import
+// leaves them out (import-table.js): "invoice\u202Etxt.exe" would read as another name, and one before
+// "=" would hide a formula from neutralizeFormula
+const BIDI_CONTROLS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+
+/** Text of a cell as an export writes it: bidi controls left out, a formula guarded. */
+const exportText = (text) => neutralizeFormula(text.replace(BIDI_CONTROLS, ""));
 const NUMBER_RANGE = new RegExp(`^${NUMBER}\\s\u2013\\s${NUMBER}$`, "u");
 
 /**
@@ -152,7 +159,7 @@ export function csvText(grid, options) {
     const separator = options.separator ?? csvSeparator(locale);
     const mark = decimalMark(locale);
     const quote = (text) => {
-        const safe = neutralizeFormula(text);
+        const safe = exportText(text);
         return /["\r\n]/.test(safe) || safe.includes(separator) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
     const lines = filledCells(grid, options.repeatLabels !== false).map((row) =>
@@ -174,14 +181,14 @@ export function csvText(grid, options) {
 
 /**
  * Display texts as tab-separated text for the clipboard: what a spreadsheet takes as columns when it
- * is pasted. Each cell is guarded like a CSV cell (a leading ' on text a spreadsheet would run as a
- * formula) and quoted when it holds a tab, a line break or a quote.
+ * is pasted. Each cell is guarded like a CSV cell (bidi controls left out, a leading ' on text a
+ * spreadsheet would run as a formula) and quoted when it holds a tab, a line break or a quote.
  * @param {string[][]} rows
  * @returns {string}
  */
 export function tsvText(rows) {
     const quote = (text) => {
-        const safe = neutralizeFormula(String(text ?? ""));
+        const safe = exportText(String(text ?? ""));
         return /["\t\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
     return rows.map((row) => row.map(quote).join("\t")).join("\r\n") + "\r\n";
