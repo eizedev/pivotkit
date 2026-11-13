@@ -64,8 +64,10 @@ function look(locator) {
         let opacity = 1;
         for (let n = el; n; n = n.parentElement) opacity *= Number(getComputedStyle(n).opacity);
         const ink = parse(style.color);
-        const fg = over([ink[0], ink[1], ink[2], ink[3] * opacity], behind);
-        const [hi, lo] = [lum(fg), lum(behind)].sort((a, b) => b - a);
+        const ratio = (alpha) => {
+            const [hi, lo] = [lum(over([ink[0], ink[1], ink[2], alpha], behind)), lum(behind)].sort((a, b) => b - a);
+            return (hi + 0.05) / (lo + 0.05);
+        };
         const root = el.closest(".pk-root") ?? document.querySelector(".pk-root");
         const token = (name, prop) => {
             const probe = document.createElement("span");
@@ -85,7 +87,9 @@ function look(locator) {
             text: token("--pk-text", "color"),
             danger: token("--pk-danger", "color"),
             small: token("--pk-small", "font-size"),
-            contrast: (hi + 0.05) / (lo + 0.05)
+            contrast: ratio(ink[3] * opacity),
+            // the colour itself, without the opacity that fades it (a disabled action's)
+            solidContrast: ratio(ink[3])
         };
     });
 }
@@ -102,12 +106,17 @@ async function expectTextAction(locator, what, { small = true } = {}) {
     expect(l.contrast, `${what}: contrast`).toBeGreaterThanOrEqual(4.5);
 }
 
-/** A disabled text action: muted, and still readable (4.5:1 before its opacity, 3:1 after). */
+/**
+ * A disabled text action: muted, and still readable (4.5:1 before its opacity, 3:1 after). WCAG
+ * exempts a disabled control from contrast; the 3:1 keeps it legible as a greyed-out action.
+ */
 async function expectDisabledAction(locator, what) {
     await expect(locator).toBeDisabled();
     const l = await look(locator);
     expect(l.color, `${what}: colour`).toBe(l.muted);
     expect(l.fontWeight, `${what}: weight`).toBe("600");
+    expect(l.solidContrast, `${what}: contrast before its opacity`).toBeGreaterThanOrEqual(4.5);
+    expect(l.contrast, `${what}: contrast after its opacity`).toBeGreaterThanOrEqual(3);
 }
 
 /** An icon button: muted until hovered, at least 3:1 (a UI component) against its background. */
@@ -179,6 +188,40 @@ for (const theme of ["light", "dark"]) {
                 const l = await look(x);
                 return l.color === l.danger;
             }).toBe(true);
+        });
+
+        test("the skip link, a chip's name, the Fields rail, More choices and a row's expand arrow draw as their classes say", async ({ page }) => {
+            await openView(page, "sales", VALUE_RULE, theme);
+            await away(page);
+            // the skip link past the field list: accent and semibold once the keyboard reaches it
+            const skip = page.getByTestId("skip-to-toolbar");
+            await skip.focus();
+            await expect(skip).toBeFocused();
+            const s = await look(skip);
+            expect(s.color, "skip link: colour").toBe(s.accent);
+            expect(s.fontWeight, "skip link: weight").toBe("600");
+            expect(s.contrast, "skip link: contrast").toBeGreaterThanOrEqual(4.5);
+            // a chip's name is semibold
+            const label = page.locator('[data-zone="rows"] .pk-chip .pk-chip-label').first();
+            expect((await look(label)).fontWeight, "a chip's name: weight").toBe("550");
+            // a row's expand arrow is a muted icon button
+            await expectIconButton(page.locator(".pk-toggle").first(), "a row's expand arrow");
+            // the field list folded to its rail: "Fields" in the text colour, weight 650
+            await page.getByTestId("collapse-fields").click();
+            const rail = page.getByTestId("expand-fields");
+            await away(page);
+            const r = await look(rail);
+            expect(r.color, "the Fields rail: colour").toBe(r.text);
+            expect(r.fontWeight, "the Fields rail: weight").toBe("650");
+            // More choices of a date's quick choices: a muted disclosure at the small size, readable as text
+            await openView(page, "weather", DATES, theme);
+            await chipMenu(page, "Date by month", "filter");
+            const more = page.locator(".pk-chip-menu").getByTestId("quick-more");
+            await away(page);
+            const m = await look(more);
+            expect(m.color, "More choices: colour").toBe(m.muted);
+            expect(m.fontSize, "More choices: size").toBe(m.small);
+            expect(m.contrast, "More choices: contrast").toBeGreaterThanOrEqual(4.5);
         });
 
         test("Undo in a toast stays readable on the toast", async ({ page }) => {

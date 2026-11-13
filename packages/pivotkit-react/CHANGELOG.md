@@ -75,7 +75,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   colour had outranked these styles; it no longer does, so the other controls look as designed too:
   the icon buttons (×, "i", a field's menu, a tip's ×, a table row's expand arrow) and the folding
   lines of the Filter level (More choices, the items left out by the rules) are muted until hovered,
-  a chip's name is semibold and the folded layout line is at the small size. A field's menu button is
+  a chip's name is semibold, the folded field list's **Fields** button is bold, the link **Skip to
+  the toolbar** (shown only while it has the keyboard focus) is in the accent colour and semibold,
+  and the folded layout line is at the small size. A field's menu button is
   no longer faded on top of that, so it keeps 3:1. Text fields and selects keep the report's font
   ([#193](https://github.com/eizedev/pivotkit/issues/193)).
 - The Filter level's **Count back from the latest record (…) instead** looked like a note, not like
