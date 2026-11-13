@@ -108,8 +108,13 @@ const SAFE_VALUE = /^(?![\s\S]*(\/\*|\*\/))[#\w\s.,%()/*+-]*$/;
  */
 const SAFE_FUNCTIONS = new Set(["rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch", "color", "color-mix", "light-dark", "calc", "min", "max", "clamp", "var"]);
 
-/** Whether a value (its quoted strings left out) is plain and calls only SAFE_FUNCTIONS. */
+/**
+ * Whether a value (its quoted strings left out) is plain and calls only SAFE_FUNCTIONS. A line break
+ * (LF, CR, FF) is refused before the strings are left out: inside a CSS string it ends the string, so
+ * what follows would be read as CSS; and url( is refused anywhere, also inside a string.
+ */
 function safeValue(value) {
+    if (/[\n\r\f]|url\(/i.test(value)) return false;
     const plain = value.replace(/"[^"\\<>{};]*"/g, "");
     return SAFE_VALUE.test(plain) && [...plain.matchAll(/([\w-]*)\(/g)].every((m) => SAFE_FUNCTIONS.has(m[1].toLowerCase()));
 }
