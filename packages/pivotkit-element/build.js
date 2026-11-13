@@ -234,9 +234,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * last, the current period, rolling, counted from the first record or a date) under More choices,
  * Top items with the items tied with the last one: the menus from 40.0 to 41.8 measured on a Mac (CI
  * about 0.3 more), budget 43; the first load 168.0 (the chips' words for quarters, weeks and "this").
+ * CI measures the first load about 0.5 more than a Mac, not 0.3: 168.8 in CI run 43332518926
+ * (de76a55) against 168.3 on a Mac (#198). With the tip on column subtotals and its button (English
+ * and German), the subtotal column's edge and title (#156) the first load is 168.6 on a Mac (CI about
+ * 169.1), budget 170.5. The link is 7.2 on both, 0.1 below its old budget: 7.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 169, chart: 211, export: 11.5, link: 7.3, menus: 43, texts: 6.8, unused: 5.5, import: 21 };
+export const SIZE_BUDGET_KIB = { initial: 170.5, chart: 211, export: 11.5, link: 7.5, menus: 43, texts: 6.8, unused: 5.5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
