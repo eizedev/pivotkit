@@ -70,6 +70,17 @@ export const REPORT_FONT = "system-ui, -apple-system, Segoe UI, Roboto, Helvetic
 
 /** A token value is written into CSS only when it holds no character that could end the rule. */
 const SAFE_VALUE = /^[#\w\s.,%()/+-]*$/;
+/**
+ * The CSS functions a token may call: colours, a shadow's lengths and other tokens. Any other, url(),
+ * image-set() or src() among them, could load a resource where a report loads none.
+ */
+const SAFE_FUNCTIONS = new Set(["rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch", "color", "color-mix", "light-dark", "calc", "min", "max", "clamp", "var"]);
+
+/** Whether a value (its quoted strings left out) is plain and calls only SAFE_FUNCTIONS. */
+function safeValue(value) {
+    const plain = value.replace(/"[^"\\<>{};]*"/g, "");
+    return SAFE_VALUE.test(plain) && [...plain.matchAll(/([\w-]*)\(/g)].every((m) => SAFE_FUNCTIONS.has(m[1].toLowerCase()));
+}
 
 /**
  * The tokens as a style the chart's code reads (getPropertyValue), the host's over the light ones.
@@ -84,14 +95,15 @@ export function tokenStyle(tokens = {}) {
 }
 
 /**
- * The host's tokens that may go into CSS: --pk-* names (and font-family) with plain values; others are left out.
+ * The host's tokens that may go into CSS: --pk-* names (and font-family) with plain values that call
+ * no function but SAFE_FUNCTIONS; others are left out.
  * @param {Record<string, string>} tokens
  */
 export function cleanTokens(tokens) {
     /** @type {Record<string, string>} */
     const out = {};
     for (const [name, value] of Object.entries(tokens ?? {})) {
-        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= 200 && SAFE_VALUE.test(value.replace(/"[^"\\<>{};]*"/g, ""))) {
+        if ((/^--pk-[a-z0-9-]+$/.test(name) || name === "font-family") && typeof value === "string" && value.length <= 200 && safeValue(value)) {
             out[name] = value.trim();
         }
     }

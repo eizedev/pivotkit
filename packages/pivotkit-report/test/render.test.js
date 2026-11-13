@@ -206,6 +206,8 @@ test("HTML with the chart: an image of the SVG when the view shows the chart, a 
     const without = await render(view, SALES, { format: "html", ...FIXED });
     assert.deepEqual(without.issues.map((i) => i.code), ["chartUnavailable"]);
     assert.ok(without.text.includes("<table"));
+    // asked for by name, a chart without ECharts is a wrong option, not a warning
+    await assert.rejects(render(view, SALES, { format: "html", chart: true, ...FIXED }), (e) => e instanceof PivotkitError && e.code === "INVALID_OPTION" && e.details.option === "echarts");
 });
 
 test("a chart over REPORT_LIMITS.categories categories draws the first ones and says so", async () => {

@@ -18,6 +18,9 @@ const ELEMENTS = new Set(["svg", "g", "rect", "path", "text", "tspan", "circle",
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
+/** Whether XML 1.0 allows a character (Char): a numeric reference to any other makes the SVG unreadable. */
+const xmlChar = (code) => code === 0x9 || code === 0xa || code === 0xd || (code >= 0x20 && code <= 0xd7ff && code !== 0x7f) || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff);
+
 const decode = (text) => text.replace(/&(quot|#39|apos|lt|gt|amp);/g, (_, e) => ({ quot: '"', "#39": "'", apos: "'", lt: "<", gt: ">", amp: "&" })[e]);
 const encode = (text) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -29,7 +32,7 @@ const unsafe = (reason) => new PivotkitError("INVALID_ARGUMENT", `the chart's SV
  * only the elements an ECharts chart draws, no event handler attribute, no link but to a fragment or
  * a data: image, no text that is not escaped; every `style` attribute becomes presentation attributes
  * (a policy without 'unsafe-inline' blocks style attributes, not those) and a <style> element (ECharts'
- * hover states) and control characters XML does not allow are left out. Throws INVALID_ARGUMENT
+ * hover states) and characters XML does not allow, also as numeric references, are left out. Throws INVALID_ARGUMENT
  * (`details.reason`) for anything else.
  * @param {string} svg
  * @returns {string}
@@ -46,7 +49,7 @@ export function cleanSvg(svg) {
         if (/[<>]/.test(text) || /&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(text)) {
             throw unsafe("text that is not escaped");
         }
-        out.push(text.replace(CONTROL, ""));
+        out.push(text.replace(CONTROL, "").replace(/&#(x[0-9a-fA-F]+|\d+);/g, (entity, number) => (xmlChar(number[0] === "x" ? parseInt(number.slice(1), 16) : Number(number)) ? entity : "")));
         if (lt === -1) {
             break;
         }

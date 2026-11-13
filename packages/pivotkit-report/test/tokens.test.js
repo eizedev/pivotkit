@@ -29,6 +29,15 @@ test("a host's tokens go into the report only as --pk-* names with plain values"
     assert.ok(!r.text.includes("red}body") && !r.text.includes("url(") && !r.text.includes("color:blue"));
 });
 
+test("a token calls no function that loads something: url(), image-set() and the like are left out", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    const loading = { "--pk-surface": 'url("https://example.invalid/p.png")', "--pk-header-bg": "url(//example.invalid/p.png)", "--pk-border": 'image-set("a.png" 1x)', "--pk-total": 'src("a.png")', "--pk-text": "URL(x)", "--pk-muted": "rgb(1 2 3) url( 'x')" };
+    const kept = { "--pk-accent": "rgb(10 20 30 / 50%)", "--pk-chart-1": "color-mix(in srgb, #123456 40%, white)", "--pk-shadow": "0 1px 2px rgba(0, 0, 0, 0.2)", "font-family": '"Segoe UI", sans-serif' };
+    const r = await render(view, SALES, { format: "html", tokens: { ...loading, ...kept } });
+    assert.ok(!/url\(|image-set|src\(/i.test(r.text), "no loading function");
+    for (const [name, value] of Object.entries(kept)) if (name.startsWith("--pk-")) assert.ok(r.text.includes(`${name}:${value}`), name);
+});
+
 test("print: landscape from more than 8 columns, a smaller font from more than 16", async () => {
     const wide = (n) => Array.from({ length: n }, (_, i) => ({ Region: "North", Month: `M${String(i).padStart(2, "0")}`, Units: i }));
     const view = { rows: ["Region"], cols: ["Month"], values: [{ field: "Units", agg: "sum" }] };

@@ -60,6 +60,7 @@ export { fieldItems } from "./items.js";
 export { suggestDateUnit } from "./derive.js";
 export { relativeDateRange } from "./filters.js";
 export { foldText, MATCH_DEFAULTS } from "./text-match.js";
+export { closest, HINT_LIMITS } from "./hints.js";
 export { toGrid } from "./grid.js";
 export { autoChartType, toSeries, toEChartsOption } from "./chart.js";
 export { chartPlan, swapAxes, chartThemeFrom, CHART_COLORS } from "./chart-plan.js";

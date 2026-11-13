@@ -6,7 +6,7 @@
  * template throw PivotkitError.
  */
 
-import { PivotkitError, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, toGrid } from "pivotkit-core";
+import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, toGrid } from "pivotkit-core";
 import { toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
 import { DEFAULT_TEMPLATE } from "./default-template.js";
 import { htmlTable } from "./html-table.js";
@@ -64,7 +64,11 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {{ init: Function }} [echarts]  the ECharts module (with its SVG renderer): svg, and html with a chart
  * @property {{ width?: number, height?: number }} [size]  of the chart in px, default 800 x 480
  * @property {number} [tableCells]  html: cells of the table at most, default REPORT_LIMITS.tableCells
+ * @property {boolean} [bom]  csv: start with a byte order mark, so Excel reads it as UTF-8 (default true)
  */
+
+/** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom"]);
 
 /**
  * @typedef {object} RenderResult
@@ -129,6 +133,12 @@ export async function render(view, data, options = {}) {
     if (options === null || typeof options !== "object" || Array.isArray(options)) {
         throw badOption("options", "options must be an object");
     }
+    for (const key of Object.keys(options)) {
+        if (!OPTION_KEYS.includes(key)) {
+            const near = closest(key, OPTION_KEYS);
+            throw badOption(key, `unknown option ${JSON.stringify(key.slice(0, 40))}${near ? `; did you mean ${JSON.stringify(near)}?` : ""}`);
+        }
+    }
     const format = options.format ?? "html";
     if (!Object.hasOwn(RENDER_FORMATS, format)) {
         throw badOption("format", `unknown format ${JSON.stringify(String(format)).slice(0, 40)}; one of ${Object.keys(RENDER_FORMATS).join(", ")}`);
@@ -138,8 +148,8 @@ export async function render(view, data, options = {}) {
     // a template is checked before any work
     const template = format === "html" ? parseTemplate(options.template ?? DEFAULT_TEMPLATE) : null;
     const size = format === "svg" || format === "html" ? sizeOf(options.size) : null;
-    if (format === "svg" && typeof options.echarts?.init !== "function") {
-        throw badOption("echarts", "an SVG needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts");
+    if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
+        throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
     }
     if (options.now !== undefined) {
         // checked here, so a wrong one is named as an option before any work
@@ -191,7 +201,7 @@ export async function render(view, data, options = {}) {
     if (format === "json") {
         body = new TextEncoder().encode(toJson(grid));
     } else if (format === "csv") {
-        body = toCsvBytes(grid, { bom: true });
+        body = toCsvBytes(grid, { bom: options.bom !== false });
     } else if (format === "xlsx") {
         body = toXlsx(grid, { sheetName: title });
     } else if (format === "svg") {

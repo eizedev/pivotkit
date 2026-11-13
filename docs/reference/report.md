@@ -26,7 +26,7 @@ import { render } from "pivotkit-report";
 
 const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart" };
 const result = await render(view, rows, { format: "html", echarts, now: "2026-11-13", locale: "de-DE" });
-if (!result.ok) console.warn(result.issues);   // a bad view never throws
+if (!result.ok) throw new Error(result.issues.map((i) => i.message).join("; "));   // a bad view never throws
 await writeFile("report.html", result.body);   // Uint8Array, the whole file
 ```
 
@@ -61,13 +61,17 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `strict` | `false` | No body when the view has an error. Without it the normalized view is rendered, as the report on screen does. |
 | `labels`, `texts` | | pivotkit-core's texts (totals, value names) and the report's words around the table (`REPORT_TEXTS`, English and German). |
 | `title`, `description`, `source` | the view file's name and description | The report's heading, its line below, and the data's name in the details. |
-| `tokens` | the light theme | `--pk-*` colours (names and plain values only) over [`LIGHT_TOKENS`](theming.md). |
+| `tokens` | the light theme | `--pk-*` colours over [`LIGHT_TOKENS`](theming.md): names and plain values only, and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). |
 | `template` | `DEFAULT_TEMPLATE` | `html`: a [print template](print-template.md). |
 | `chart` | `"auto"` | `html`: the chart above the table: `"auto"` when the view shows the chart, `true`, `false`. |
 | `chartEmbed` | `"image"` | `html`: the chart as a `data:` image, or `"inline"` SVG. |
 | `echarts` | | The ECharts module with its SVG renderer: `svg`, and `html` with a chart. |
 | `size` | `{ width: 800, height: 480 }` | The chart's size in px, 100 to 8,000. |
 | `tableCells` | 200,000 | `html`: the cells of the table at most; a larger one is cut after the last whole row and says so. |
+| `bom` | `true` | `csv`: start with a byte order mark, so Excel reads the file as UTF-8. `false` for a program that reads the first header cell by its name. |
+
+Any other option name is refused (`INVALID_OPTION`, with the closest name), so a misspelt one is not
+ignored.
 
 ### Library and command line
 
@@ -82,10 +86,11 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 
 A bad view never throws: its issues come back. `PivotkitError` is thrown for a wrong argument
 (`INVALID_ARGUMENT`), a wrong option (`INVALID_OPTION` with `details.option`: an unknown `format`, a
-`size` out of range, an SVG without `echarts`, a `now` that is no date), a limit (`LIMIT_EXCEEDED`) and
+`size` out of range, an unknown option, an SVG or `chart: true` without `echarts`, a `now` that is no date), a limit (`LIMIT_EXCEEDED`) and
 a refused template (`INVALID_TEMPLATE`, see [print template](print-template.md)). The report's own
-issues are warnings: `chartUnavailable` (an HTML report wanted its chart without `echarts`: the table
-is there), `tableCut`, `chartCut` (the first `REPORT_LIMITS.categories` categories, 50) and `viewFile`
+issues are warnings: `chartUnavailable` (a view that shows the chart, rendered as HTML with `chart`
+`"auto"` and without `echarts`: the table is there, the chart is not; pass `strict` and check `ok`, or
+pass `chart: true`, when the chart must be there), `tableCut`, `chartCut` (the first `REPORT_LIMITS.categories` categories, 50) and `viewFile`
 (an error: the input is no view).
 
 ## The formats

@@ -45,6 +45,23 @@ test("refused: every place where filled-in text could become markup, a link or c
     refused("<p>\u0000</p>", "nul");
 });
 
+test("an element ends where a browser ends it: HTML whitespace only, a script's comment states, <plaintext>", () => {
+    // a no-break space is no HTML whitespace: "</script\u00A0>" does not end the script, the
+    // placeholder after it is still inside (in Chromium this template ran the filled-in title)
+    refused("<script>/*</script\u00A0>{{title}}*/</script>", "rawText");
+    refused("<style>a{}</style\u00A0>{{title}}</style>", "rawText");
+    // "<!--<script>" moves a script's end past the next "</script>": nothing after such a script
+    refused("<script><!--<script></script>{{title}}</script>", "scriptComment");
+    refused("<script><!-- x --></script><p>{{title}}</p>", "scriptComment");
+    refused("<plaintext></plaintext>{{title}}", "rawText");
+    // a no-break space is part of a tag's name, so is what follows it up to ">"
+    refused('<p\u00A0title="{{title}}">', "tagName");
+    // HTML whitespace and "/" end an element: the placeholder after it is text
+    for (const end of ["</script>", "</script >", "</script\t>", "</script\n>", "</script\f>", "</script/>", "</SCRIPT>"]) {
+        assert.deepEqual(parseTemplate(`<script>1</script${end.slice(8)}<p>{{title}}</p>`).names, ["title"], JSON.stringify(end));
+    }
+});
+
 test("an unknown placeholder names the closest one; spaces inside the braces are fine", () => {
     assert.throws(() => parseTemplate("<p>{{titel}}</p>"), (e) => e.details.reason === "unknownPlaceholder" && e.details.suggestion === "title" && /did you mean \{\{title\}\}\?/.test(e.message));
     assert.throws(() => parseTemplate("<p>{{xyzzy}}</p>"), (e) => e.details.reason === "unknownPlaceholder" && e.details.suggestion === undefined);

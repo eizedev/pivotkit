@@ -11,7 +11,9 @@
  *   <meta name="description">.
  *
  * Anything else is refused with PivotkitError INVALID_TEMPLATE, `details.reason` and the placeholder:
- * a placeholder in a comment or a doctype, right after "<" or "</" (where a tag's name starts), in raw text (<script>, <style>, ...), in an attribute's name,
+ * a placeholder in a comment or a doctype, right after "<" or "</" (where a tag's name starts), in raw text (<script>, <style>, ...;
+ * an element ends at its end tag as HTML reads it: "</script" then HTML whitespace, "/" or ">"), anywhere
+ * after a <script> that holds "<!--" or after <plaintext>, in an attribute's name,
  * an unquoted value or any other attribute (href, src, style, on..., srcdoc, ...), an unknown name
  * (with a "did you mean"), a "{{" without "}}", a NUL character, or a template over TEMPLATE_LIMIT
  * characters (LIMIT_EXCEEDED).
@@ -19,7 +21,7 @@
  *   import { parseTemplate, fillTemplate } from "pivotkit-report/template";
  */
 
-import { PivotkitError } from "pivotkit-core";
+import { PivotkitError, closest } from "pivotkit-core";
 
 /** Characters a template may have. */
 export const TEMPLATE_LIMIT = 262_144;
@@ -53,6 +55,18 @@ const RAW_TEXT = new Set(["script", "style", "xmp", "iframe", "noembed", "nofram
 const RCDATA = new Set(["title", "textarea"]);
 
 /**
+ * HTML's whitespace (tab, line feed, form feed, carriage return, space): where a tag's name, an
+ * attribute and an end tag stop. Not JavaScript's `\s`, which also matches a no-break space and other
+ * characters a browser reads as part of a name: "</script\u00A0>" ends no script.
+ */
+const WS = "\\t\\n\\f\\r ";
+const TAG_NAME = new RegExp(`^<(/?)([a-zA-Z][^${WS}/>]*)`);
+const WS_OR_SLASH = new RegExp(`[${WS}/]`);
+const ATTRIBUTE_NAME = new RegExp(`^[^${WS}/>=]+`);
+const SPACES = new RegExp(`^[${WS}]*`);
+const UNQUOTED_VALUE = new RegExp(`^[^${WS}>]*`);
+
+/**
  * @typedef {{ name: string, kind: "text" | "markup" }} Slot
  * @typedef {{ parts: Array<string | Slot>, names: string[] }} Template  the template's text cut at its placeholders
  */
@@ -60,35 +74,6 @@ const RCDATA = new Set(["title", "textarea"]);
 /** Escapes text for HTML text content and quoted attribute values. */
 export function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-}
-
-/** The edit distance of two short names, for "did you mean". */
-function distance(a, b) {
-    const row = Array.from({ length: b.length + 1 }, (_, j) => j);
-    for (let i = 1; i <= a.length; i++) {
-        let prev = row[0];
-        row[0] = i;
-        for (let j = 1; j <= b.length; j++) {
-            const keep = row[j];
-            row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
-            prev = keep;
-        }
-    }
-    return row[b.length];
-}
-
-/** The closest placeholder name, when it is close (at most half of its letters differ). */
-function closestName(name) {
-    let best = null;
-    let bestDistance = Infinity;
-    for (const known of Object.keys(PLACEHOLDERS)) {
-        const d = distance(name.toLowerCase(), known);
-        if (d < bestDistance) {
-            best = known;
-            bestDistance = d;
-        }
-    }
-    return best !== null && bestDistance <= Math.max(1, Math.floor(best.length / 2)) ? best : null;
 }
 
 /**
@@ -141,7 +126,7 @@ export function parseTemplate(source) {
         }
         const name = source.slice(at + 2, end).trim();
         if (!Object.hasOwn(PLACEHOLDERS, name)) {
-            const near = /^[\w-]{1,64}$/.test(name) ? closestName(name) : null;
+            const near = /^[\w-]{1,64}$/.test(name) ? closest(name, Object.keys(PLACEHOLDERS)) : null;
             throw refuse("unknownPlaceholder", `unknown placeholder {{${name.slice(0, 64)}}} (line ${lineOf(source, at)})${near ? `; did you mean {{${near}}}?` : ""}`, { placeholder: name.slice(0, 64), line: lineOf(source, at), ...(near ? { suggestion: near } : {}) });
         }
         const kind = PLACEHOLDERS[name];
@@ -192,7 +177,7 @@ export function parseTemplate(source) {
             i = end;
             continue;
         }
-        const tag = /^<(\/?)([a-zA-Z][^\s/>]*)/.exec(source.slice(i, i + 256));
+        const tag = TAG_NAME.exec(source.slice(i, i + 256));
         if (!tag) {
             // a "<" that starts no tag is text
             text += source[i++];
@@ -211,22 +196,22 @@ export function parseTemplate(source) {
         /** @type {Array<{ attr: string, start: number, end: number, quote: string }>} */
         const valueRanges = [];
         while (i < n && source[i] !== ">") {
-            if (/\s|\//.test(source[i])) {
+            if (WS_OR_SLASH.test(source[i])) {
                 text += source[i++];
                 continue;
             }
-            const attr = /^[^\s/>=]+/.exec(source.slice(i, i + 1024))?.[0] ?? source[i];
+            const attr = ATTRIBUTE_NAME.exec(source.slice(i, i + 1024))?.[0] ?? source[i];
             noSlot(i, i + attr.length, "attributeName", "in an attribute's name");
             text += attr;
             i += attr.length;
-            let ws = /^\s*/.exec(source.slice(i))?.[0] ?? "";
+            let ws = SPACES.exec(source.slice(i))?.[0] ?? "";
             if (source[i + ws.length] !== "=") {
                 attrs.push({ name: attr.toLowerCase(), value: null });
                 continue;
             }
             text += ws + "=";
             i += ws.length + 1;
-            ws = /^\s*/.exec(source.slice(i))?.[0] ?? "";
+            ws = SPACES.exec(source.slice(i))?.[0] ?? "";
             text += ws;
             i += ws.length;
             const quote = source[i];
@@ -240,7 +225,7 @@ export function parseTemplate(source) {
                 text += "\u0000" + (valueRanges.length - 1) + "\u0000";
                 continue;
             }
-            const value = /^[^\s>]*/.exec(source.slice(i))?.[0] ?? "";
+            const value = UNQUOTED_VALUE.exec(source.slice(i))?.[0] ?? "";
             noSlot(i, i + value.length, "unquoted", `in an unquoted attribute value (${attr})`);
             attrs.push({ name: attr.toLowerCase(), value });
             text += value;
@@ -282,10 +267,16 @@ export function parseTemplate(source) {
         }
         if (!closing && (RAW_TEXT.has(name) || RCDATA.has(name))) {
             // the element's content up to its end tag
-            const endTag = new RegExp(`</${name}[\\s/>]`, "i");
+            const endTag = new RegExp(`</${name}[${WS}/>]`, "i");
             const rest = source.slice(i);
             const found = endTag.exec(rest);
-            const end = found ? i + found.index : n;
+            // <plaintext> has no end: the rest of the document is its text
+            const end = found && name !== "plaintext" ? i + found.index : n;
+            if (name === "script" && source.slice(i, end).includes("<!--")) {
+                // "<!--" in a script starts the "escaped" states, in which a "<script" inside it moves
+                // the script's end past the next "</script>": not modelled here, so nothing after it
+                noSlot(i, n, "scriptComment", 'after a <script> that holds "<!--"');
+            }
             if (RAW_TEXT.has(name)) {
                 noSlot(i, end, "rawText", `inside <${name}>`);
                 text += source.slice(i, end);
