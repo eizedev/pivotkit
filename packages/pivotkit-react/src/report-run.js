@@ -7,24 +7,26 @@
 
 import { use as register } from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
-import { LIGHT_TOKENS, render } from "pivotkit-report";
+import { LIGHT_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
 
 register([SVGRenderer]);
 
 export { render };
 
 /**
- * The report's own colours for a file, when it shows the light theme: the --pk-* tokens a printed
- * report uses, from the report's computed style (a host's brand colours go along); none in the dark
- * theme, whose colours are not made for paper (pivotkit-report's light ones are used).
+ * The report's own tokens for a file, from the report's computed style: its font weights in either
+ * theme, and in the light theme the --pk-* colours a printed report uses (a host's brand colours go
+ * along); no colours in the dark theme, whose colours are not made for paper (pivotkit-report's
+ * light ones are used).
  * @param {HTMLElement | null} root
  * @returns {Record<string, string> | undefined}
  */
-export function lightTokensOf(root) {
-    if (!root || root.getAttribute("data-pk-theme") === "dark") {
+export function reportTokensOf(root) {
+    if (!root) {
         return undefined;
     }
+    const names = [...Object.keys(WEIGHT_TOKENS), ...(root.getAttribute("data-pk-theme") === "dark" ? [] : Object.keys(LIGHT_TOKENS))];
     const style = getComputedStyle(root);
-    const tokens = Object.fromEntries(Object.keys(LIGHT_TOKENS).map((name) => [name, style.getPropertyValue(name).trim()]).filter(([, value]) => value));
+    const tokens = Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]).filter(([, value]) => value));
     return Object.keys(tokens).length ? tokens : undefined;
 }

@@ -59,6 +59,14 @@ export const DARK_TOKENS = Object.freeze({
     "--pk-chart-8": "#e66767"
 });
 
+/** The font weights, the same in both themes: pivotkit-react's scale (test/tokens.test.js compares them). */
+export const WEIGHT_TOKENS = Object.freeze({
+    "--pk-weight-normal": "400",
+    "--pk-weight-medium": "500",
+    "--pk-weight-strong": "600",
+    "--pk-weight-bold": "700"
+});
+
 /**
  * The report's font: the system's, as the screen's report inherits from most hosts. Without quotes
  * (names of several words are valid unquoted): ECharts 6.1 writes a font into an SVG's style attribute
@@ -86,7 +94,7 @@ function safeValue(value) {
  * @returns {{ getPropertyValue(name: string): string }}
  */
 export function tokenStyle(tokens = {}) {
-    const all = { ...LIGHT_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
+    const all = { ...LIGHT_TOKENS, ...WEIGHT_TOKENS, "font-family": REPORT_FONT, ...cleanTokens(tokens) };
     // the chart's font without quotes (see REPORT_FONT)
     all["font-family"] = all["font-family"].replace(/["']/g, "");
     return { getPropertyValue: (name) => (Object.hasOwn(all, name) ? all[name] : "") };

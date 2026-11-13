@@ -2,13 +2,13 @@
 title: Theming
 hide:
   - toc
-description: Style a pivotkit report with the --pk-* CSS custom properties - colours, sizes, fonts, chart colours - in light and dark, for the React component and the web component.
+description: Style a pivotkit report with the --pk-* CSS custom properties - colours, sizes, fonts, font weights, chart colours - in light and dark, for the React component and the web component.
 ---
 
 # Theming
 
-Every colour, size and duration of the report is a CSS custom property whose name starts with
-`--pk-`. Set the ones you want to change; the rest keep their defaults. There is no other styling
+Every colour, font weight, size and duration of the report is a CSS custom property whose name
+starts with `--pk-`. Set the ones you want to change; the rest keep their defaults. There is no other styling
 interface: no class names to target, no `::part()` names.
 
 ## Light and dark
@@ -62,6 +62,7 @@ through the element.
 | --- | --- | --- | --- |
 | `--pk-font` | Font family; unset, the report inherits the page's font. | the page's | the page's |
 | `--pk-font-size` | Body text: the host's size, at least 14 px. Other sizes are relative to it. | `max(14px, 1em)` | as light |
+| `--pk-weight-normal`<br>`--pk-weight-medium`<br>`--pk-weight-strong`<br>`--pk-weight-bold` | Font weights, the only ones the report uses: plain text inside a bolder part (hints, table cells); a light emphasis (row labels, the Table/Chart switch); titles, field chips and emphasis (buttons, links, chosen options, subtotals, the chart's title and group labels); grand totals and step numbers ([below](#font-weights)) | `400`<br>`500`<br>`600`<br>`700` | as light |
 | `--pk-surface`<br>`--pk-surface-2`<br>`--pk-surface-3`<br>`--pk-surface-raised` | Background, panels and zones, hover, popovers | `#ffffff`<br>`#f6f7f9`<br>`#eceff3`<br>`#ffffff` | `#16181d`<br>`#1c1f25`<br>`#262a32`<br>`#22262d` |
 | `--pk-text`<br>`--pk-muted` | Text; secondary text, the icon buttons until hovered (×, "i", a field's menu) and an action that would change nothing | `#1a1d23`<br>`#5a6270` | `#e8eaef`<br>`#a3aab7` |
 | `--pk-border`<br>`--pk-border-strong`<br>`--pk-grid` | Borders, table lines (`--pk-border-strong` also the line before a subtotal column) | `#dde1e7`<br>`#c3c9d2`<br>`#edf0f3` | `#2f343e`<br>`#454c58`<br>`#23272e` |
@@ -116,6 +117,27 @@ pivot-report { --pk-layer-z: 1300; }   /* the web component */
 
 It lifts the layer only as far as the report's stacking context reaches: an ancestor of the report
 with a `z-index`, a `transform` or an `opacity` below 1 keeps it inside.
+
+## Font weights
+
+A brand font can look heavier or lighter than the system font at the same weight. The four weight
+tokens are a scale: set the steps your font needs, and every part of the report that uses a step
+follows, the chart's title and group labels too (the chart reads `--pk-weight-strong` as a number from 1 to
+1000; a keyword such as `bold` leaves the chart at 600).
+
+```css
+/* a brand font whose semibold looks too heavy */
+.pk-root {
+    --pk-font: "Brand Sans", sans-serif;
+    --pk-weight-strong: 550;
+    --pk-weight-bold: 650;
+}
+```
+
+The same declarations go on `pivot-report` for the web component. The HTML report and print
+(Export) take the report's weights along, in either theme. A weight the font has no face for
+is drawn with another face: above 500 the browser takes the next heavier one, so with a font of only
+400 and 700 a weight of 550 is drawn at 700. Pick weights the font has, or use a variable font.
 
 ## Sizes and motion
 

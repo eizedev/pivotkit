@@ -53,7 +53,7 @@ function labelWidths(grid, table) {
     content.append(probe);
     try {
         const widthOf = (/** @type {{ text: string, total: boolean }} */ l) => {
-            probe.style.fontWeight = l.total ? "700" : "";
+            probe.style.fontWeight = l.total ? "var(--pk-weight-bold)" : "";
             probe.textContent = l.text;
             return probe.getBoundingClientRect().width;
         };

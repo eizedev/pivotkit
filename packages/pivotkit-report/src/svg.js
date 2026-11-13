@@ -8,6 +8,7 @@
 
 import { PivotkitError, chartPlan, chartThemeFrom, computePivot, swapAxes, toEChartsOption, toSeries } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
+import { LIGHT_TOKENS } from "./tokens.js";
 
 /** Presentation attributes a `style` attribute's declarations become (other declarations are dropped). */
 const PRESENTATION = new Set(["fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-opacity", "stroke-dasharray", "stroke-dashoffset", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit", "opacity", "font-size", "font-family", "font-weight", "font-style", "text-anchor", "dominant-baseline", "paint-order", "visibility"]);
@@ -149,7 +150,7 @@ export function chartSvg(result, { echarts, style, width, height, locale, labels
     const series = toSeries(drawn, { labels, limits, maxCategories });
     const option = toEChartsOption(drawn, { theme: chartThemeFrom(style), locale, labels, limits, maxCategories, series, chart: plan.chart });
     const decorated = decorateOption(option, style, { width, height, categoryNames: series.categories, axisLabels: view.chart.axisLabels });
-    const surface = style.getPropertyValue("--pk-surface").trim() || "#ffffff";
+    const surface = style.getPropertyValue("--pk-surface").trim() || LIGHT_TOKENS["--pk-surface"];
     const chart = echarts.init(null, null, { renderer: "svg", ssr: true, width, height });
     let svg;
     try {

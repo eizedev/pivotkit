@@ -99,6 +99,7 @@ export function toSeries(result, options) {
  * @property {string} [gridColor]         split lines
  * @property {string} [backgroundColor]   default transparent
  * @property {string} [fontFamily]
+ * @property {number} [strongWeight]    font weight of the title and the group labels, default 600
  * @property {[string, string]} [heatmapColors]  low and high end of the heatmap scale
  * @property {[string, string]} [pieRadius]       inner and outer radius of a pie, default a circle (0%, 70%)
  * @property {[string, string]} [donutRadius]     inner and outer radius of a donut, default a ring (42%, 70%)
@@ -175,7 +176,7 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
             axisLine: { show: false },
             // the separators: from this axis to the main one, at the first category of each group
             axisTick: { show: true, inside: true, length: GROUP_AXIS_OFFSET, interval: (i) => i > 0 && starts[i] === true, lineStyle: axisLine.lineStyle },
-            axisLabel: { color: theme.textColor, fontWeight: 600, interval: (i) => middles.has(i) },
+            axisLabel: { color: theme.textColor, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight, interval: (i) => middles.has(i) },
             axisPointer: { show: false },
             splitLine: { show: false },
             groups: true,
@@ -251,7 +252,7 @@ export function toEChartsOption(result, options) {
     };
     const valueFormatter = (v) => (typeof v === "number" ? fmt(v) : "");
     // the title over the chart, and the legend where the view puts it, with the room they take
-    const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: 16, fontWeight: 600 } } } : {};
+    const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: 16, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
     const titleRoom = title.title ? TITLE_ROOM : 0;
     const { legend, room } = legendOf(chart.legend, SLICE_CHART_TYPES.includes(chart.type) || s.series.length > 1, titleRoom, textStyle);
     const legendPart = legend ? { legend } : {};

@@ -1,7 +1,8 @@
 /*
- * pivotkit-react styles. Every colour, size and duration is a --pk-* custom property. The defaults
- * sit in :where() rules with zero specificity, so a host overrides any token with a plain rule on
- * .pk-root (or on its className), for example:
+ * pivotkit-react styles. Every colour, font weight, size and duration is a --pk-* custom property;
+ * rules use the tokens, never a literal colour or weight (test/tokens.test.js). The defaults sit in
+ * :where() rules with zero specificity, so a host overrides any token with a plain rule on .pk-root
+ * (or on its className), for example:
  *
  *   .pk-root { --pk-accent: #0a7d5a; --pk-radius: 4px; }
  *   html[data-theme="dark"] .pk-root { --pk-surface: #101418; }
@@ -17,6 +18,13 @@
     --pk-target: 24px;
     /* the smallest hit area of a small control on a touch screen (a coarse pointer) */
     --pk-target-touch: 44px;
+    /* font weights, the only ones the rules use: plain text inside a bolder part (hints, table
+       cells); a light emphasis (row labels, segmented buttons); titles, field chips and emphasis
+       (buttons, links, chosen options, subtotals); grand totals and step numbers */
+    --pk-weight-normal: 400;
+    --pk-weight-medium: 500;
+    --pk-weight-strong: 600;
+    --pk-weight-bold: 700;
     --pk-radius: 10px;
     --pk-radius-sm: 7px;
     --pk-row-h: 2.45em;
@@ -239,7 +247,7 @@
     border-radius: var(--pk-radius-sm);
     background: var(--pk-surface-raised);
     color: var(--pk-accent);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
     cursor: pointer;
 }
 
@@ -302,7 +310,7 @@
     background: var(--pk-accent);
     border-color: var(--pk-accent);
     color: var(--pk-accent-text);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-btn.pk-primary:hover:not(:disabled) {
@@ -341,7 +349,7 @@
     border: 0;
     background: none;
     color: var(--pk-accent);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
     cursor: pointer;
     border-radius: 4px;
 }
@@ -370,7 +378,7 @@
     background: transparent;
     color: var(--pk-muted);
     cursor: pointer;
-    font-weight: 500;
+    font-weight: var(--pk-weight-medium);
     transition: background var(--pk-duration), color var(--pk-duration), box-shadow var(--pk-duration);
 }
 
@@ -436,7 +444,7 @@
     background: none;
     color: var(--pk-text);
     font: inherit;
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
     cursor: pointer;
 }
 
@@ -489,7 +497,7 @@
 
 .pk-panel-title {
     font-size: 1.07em;
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-panel > .pk-hint {
@@ -639,7 +647,7 @@
 }
 
 .pk-placed .pk-field-name {
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-badges {
@@ -688,7 +696,7 @@
     border-radius: var(--pk-radius-sm);
     background: var(--pk-surface);
     color: var(--pk-danger);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
     animation: pk-rise var(--pk-duration) var(--pk-ease);
 }
 
@@ -836,7 +844,7 @@
 
 .pk-zones-summary-zone {
     color: var(--pk-muted);
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-zone {
@@ -916,7 +924,7 @@
     gap: 0.4em;
     color: var(--pk-muted);
     font-size: var(--pk-small);
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
     letter-spacing: 0.02em;
     text-transform: uppercase;
 }
@@ -988,7 +996,7 @@
     border-radius: 999px;
     background: transparent;
     cursor: pointer;
-    font-weight: 550;
+    font-weight: var(--pk-weight-strong);
     white-space: nowrap;
 }
 
@@ -1070,7 +1078,7 @@
     box-shadow: var(--pk-shadow-lg);
     cursor: grabbing;
     transform: rotate(-2deg);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
     animation: none;
 }
 
@@ -1172,7 +1180,7 @@
     background: var(--pk-accent-soft);
     color: var(--pk-accent);
     font-size: var(--pk-small);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 /* the filter: a column like a chip menu's, its middle (the values and the condition) scrolls when the
@@ -1253,7 +1261,7 @@
     padding: 2px 8px 4px;
     color: var(--pk-muted);
     font-size: var(--pk-small);
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 /* the dot of a setting that is not the default (a row of a menu in levels) */
@@ -1321,7 +1329,7 @@
 }
 
 .pk-option.pk-checked {
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-option.pk-checked .pk-option-icon {
@@ -1345,7 +1353,7 @@
 .pk-option-hint {
     color: var(--pk-muted);
     font-size: var(--pk-small);
-    font-weight: 400;
+    font-weight: var(--pk-weight-normal);
 }
 
 .pk-inline-form {
@@ -1458,7 +1466,7 @@
     margin: 0;
     overflow-wrap: anywhere;
     font-size: 1em;
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-level-head {
@@ -1513,7 +1521,7 @@
     gap: 0.3em;
     min-width: 0;
     color: var(--pk-muted);
-    font-weight: 400;
+    font-weight: var(--pk-weight-normal);
 }
 
 .pk-topic-chevron {
@@ -1549,7 +1557,7 @@
     padding-left: 1em;
     color: var(--pk-muted);
     font-size: var(--pk-small);
-    font-weight: 400;
+    font-weight: var(--pk-weight-normal);
     white-space: nowrap;
 }
 
@@ -1595,7 +1603,7 @@
 
 .pk-summary-head {
     grid-column: 1;
-    font-weight: 700;
+    font-weight: var(--pk-weight-bold);
 }
 
 .pk-summary-why {
@@ -1656,7 +1664,7 @@
 }
 
 .pk-fsection-title {
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-fsection-state {
@@ -1746,13 +1754,13 @@
 .pk-rule-body > .pk-by,
 .pk-rule-body > .pk-by-pick {
     flex-basis: 100%;
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 /* "Region items whose" leads into the value's name: the sentence's start, not a heading */
 .pk-rule-body > .pk-rule-lead {
     color: var(--pk-muted);
-    font-weight: 400;
+    font-weight: var(--pk-weight-normal);
 }
 
 .pk-rule-body .pk-narrow-input {
@@ -2085,7 +2093,7 @@
 }
 
 .pk-picker-option[aria-selected="true"] {
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-picker-active {
@@ -2109,7 +2117,7 @@
     background: transparent;
     color: var(--pk-accent);
     font-size: var(--pk-small);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
     cursor: pointer;
     transition: background var(--pk-duration), color var(--pk-duration);
 }
@@ -2270,7 +2278,7 @@
 
 .pk-popover-head h3 {
     font-size: 1em;
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-filter-actions {
@@ -2358,7 +2366,7 @@
     margin-bottom: 4px;
     color: var(--pk-muted);
     font-size: var(--pk-small);
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-popover-foot {
@@ -2389,7 +2397,7 @@
 
 .pk-issues summary {
     padding: 0.15em 0;
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
     cursor: pointer;
 }
 
@@ -2535,7 +2543,7 @@
     border-bottom: 1px solid var(--pk-grid);
     white-space: nowrap;
     text-align: left;
-    font-weight: 400;
+    font-weight: var(--pk-weight-normal);
 }
 
 .pk-table thead th {
@@ -2545,7 +2553,7 @@
     border-bottom-color: var(--pk-border);
     color: var(--pk-muted);
     font-size: var(--pk-small);
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-table thead th.pk-colHeader {
@@ -2571,7 +2579,7 @@
 .pk-table tbody th {
     z-index: 1;
     background: var(--pk-surface);
-    font-weight: 500;
+    font-weight: var(--pk-weight-medium);
     vertical-align: middle;
     border-right: 1px solid var(--pk-grid);
 }
@@ -2744,7 +2752,7 @@
 
 .pk-table :is(td, th).pk-sub {
     background: var(--pk-total);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 /* a subtotal column is set apart from the group it adds up: an edge before it */
@@ -2754,7 +2762,7 @@
 
 .pk-table :is(td, th).pk-grand {
     background: var(--pk-total-strong);
-    font-weight: 700;
+    font-weight: var(--pk-weight-bold);
 }
 
 .pk-table tbody tr.pk-grand > :is(td, th) {
@@ -2864,7 +2872,7 @@
 
 .pk-empty h2 {
     font-size: 1.25em;
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-empty-art {
@@ -2932,7 +2940,7 @@
     background: var(--pk-accent);
     color: var(--pk-accent-text);
     font-size: var(--pk-small);
-    font-weight: 700;
+    font-weight: var(--pk-weight-bold);
 }
 
 .pk-empty-actions {
@@ -2996,12 +3004,12 @@
 
 .pk-drill-head h2 {
     font-size: 1.07em;
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-drill-path {
     margin-top: 2px !important;
-    font-weight: 550;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-drill-body {
@@ -3031,7 +3039,7 @@
     top: 0;
     background: var(--pk-surface-2);
     color: var(--pk-muted);
-    font-weight: 650;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-drill-table .pk-num {
@@ -3213,7 +3221,7 @@
 
 .pk-learn-more {
     color: var(--pk-accent);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 /* the keyboard shortcuts in Options */
@@ -3273,12 +3281,12 @@
 .pk-btn.pk-danger-btn {
     border-color: var(--pk-danger);
     color: var(--pk-danger);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-confirm-text {
     flex: 1 1 100%;
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 /* a question before a change: in place of the field (Save as onto a name that is taken) or in a level of its own */
@@ -3470,7 +3478,7 @@
 .pk-option.pk-accent,
 .pk-option.pk-accent .pk-option-icon {
     color: var(--pk-accent);
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-menu-hint {
@@ -3745,7 +3753,7 @@
     display: flex;
     align-items: center;
     gap: 0.4em;
-    font-weight: 600;
+    font-weight: var(--pk-weight-strong);
 }
 
 .pk-load-check-title .pk-icon {

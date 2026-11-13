@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DEFAULT_THEME } from "pivotkit-core";
-import { DARK_TOKENS, LIGHT_TOKENS, render } from "pivotkit-report";
+import { DARK_TOKENS, LIGHT_TOKENS, WEIGHT_TOKENS, render } from "pivotkit-report";
 import { SALES } from "./fixtures.js";
 
 const css = readFileSync(new URL("../../pivotkit-react/src/styles.css", import.meta.url), "utf8");
@@ -25,6 +25,18 @@ test("the light and the dark tokens are pivotkit-react's, name for name", () => 
     for (const [name, value] of Object.entries(DARK_TOKENS)) assert.equal(value, inherited.has(name) ? light[name] : dark[name], `dark ${name}`);
     for (const name of inherited) assert.equal(dark[name], undefined, `${name} is not declared again for dark`);
     assert.deepEqual(Object.keys(DARK_TOKENS), Object.keys(LIGHT_TOKENS));
+    // the font weights: every step of the scale, the same values
+    const weights = Object.fromEntries(Object.entries(light).filter(([name]) => name.startsWith("--pk-weight-")));
+    assert.deepEqual(WEIGHT_TOKENS, weights);
+});
+
+test("the report's stylesheet takes its font weights from the tokens, and a host's weights reach it", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    const r = await render(view, SALES, { format: "html", tokens: { "--pk-weight-strong": "500" } });
+    const style = r.text.slice(r.text.indexOf("<style>"), r.text.indexOf("</style>"));
+    assert.deepEqual(style.match(/font-weight:\s*[^;}]+/g)?.filter((d) => !/var\(--pk-weight-[a-z]+\)$/.test(d)) ?? [], [], "no literal weight");
+    assert.match(style, /--pk-weight-strong:500/);
+    assert.match(style, /--pk-weight-bold:700/);
 });
 
 // pivotkit-core's DEFAULT_THEME is the light theme's colours, for a workbook or a report without tokens (#212)

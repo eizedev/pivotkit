@@ -35,6 +35,24 @@ test.describe("Export menu: HTML report, SVG and print", () => {
         await report.close();
     });
 
+    test("HTML report: a host's font weights go along, in the dark theme too (#201)", async ({ page, context }) => {
+        await page.goto("?data=tickets&theme=dark");
+        await page.addStyleTag({ content: ".pk-root { --pk-weight-strong: 500; --pk-weight-bold: 800; }" });
+        await toolbar(page, "export");
+        const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-html").click()]);
+        const html = await readFile(await download.path(), "utf8");
+        expect(html).toContain("--pk-weight-bold:800");
+        // the dark theme's colours stay out: a report on paper takes the light ones
+        expect(html).toContain("<style>:root{--pk-surface:#ffffff;");
+        const report = await context.newPage();
+        await report.setContent(html);
+        const grand = report.locator("th", { hasText: /^Grand Total$/ }).first();
+        await expect(grand).toBeVisible();
+        expect(await grand.evaluate((el) => getComputedStyle(el).fontWeight)).toBe("800");
+        expect(await report.locator("thead th").first().evaluate((el) => getComputedStyle(el).fontWeight)).toBe("500");
+        await report.close();
+    });
+
     test("Chart image (.svg): off while the table is shown, with the reason; with the chart an SVG that draws", async ({ page, context }) => {
         await page.goto("?data=tickets");
         await toolbar(page, "export");

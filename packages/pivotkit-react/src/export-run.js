@@ -194,7 +194,7 @@ export async function runExport(kind, { fileName, result, locale, labels, limits
                 ...(title ? { title } : {}),
                 ...(source ? { source } : {}),
                 ...(size ? { size } : {}),
-                tokens: report.lightTokensOf(root.current),
+                tokens: report.reportTokensOf(root.current),
                 chartEmbed: kind === "print" ? "inline" : "image"
             });
             const file = `${base}.${kind === "svg" ? "svg" : "html"}`;

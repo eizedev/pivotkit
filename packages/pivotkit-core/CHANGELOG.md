@@ -52,6 +52,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `ChartTheme.strongWeight` ([#201](https://github.com/eizedev/pivotkit/issues/201)): the font weight of a chart's title and group labels
+  (default 600, `DEFAULT_THEME.strongWeight`); `chartThemeFrom` reads it from `--pk-weight-strong`, so
+  a host's font weight reaches the chart.
 - `chartPlan(view, data)`, `swapAxes(view)` and `chartThemeFrom(style)`: what a chart draws for a
   view (an automatic chart's type, rows and columns swapped for dates on Columns), a view with Rows
   and Columns swapped, and a chart's colours from the `--pk-*` tokens of any style. They were

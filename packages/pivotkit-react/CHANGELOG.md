@@ -53,6 +53,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Font weights as tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)):
+  `--pk-weight-normal` (400), `--pk-weight-medium` (500), `--pk-weight-strong` (600) and
+  `--pk-weight-bold` (700), documented in Theming. Every rule uses them, the chart's tooltip, title
+  and group labels too, so a host whose font looks too heavy or too light sets four tokens instead of
+  overriding selectors. The weights 550 (field chips, the drill-down's path) and 650 (titles, table
+  headers) are now 600, to keep the scale at four steps; a font without those faces drew them as 600
+  or 700 anyway. The HTML report and print take the report's weights along, in the dark theme too
+  (its colours only in the light theme, as before). A test fails on a colour or font weight written
+  outside the token blocks.
 - Export → "HTML report (.html)", "Chart image (.svg)" and a group "Print" with "Print or save as
   PDF…": the table as it is shown (and the chart when it is shown) as a page that opens anywhere and
   prints well, the chart as SVG, and the same report in the browser's print dialog, from a sandboxed

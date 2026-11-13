@@ -61,7 +61,7 @@ The whole body is built in memory; the [limits](../concepts/limits.md) keep it b
 | `strict` | `false` | No body when the view has an error. Without it the normalized view is rendered, as the report on screen does. |
 | `labels`, `texts` | | pivotkit-core's texts (totals, value names) and the report's words around the table (`REPORT_TEXTS`, English and German). |
 | `title`, `description`, `source` | the view file's name and description | The report's heading, its line below, and the data's name in the details. |
-| `tokens` | the light theme | `--pk-*` colours over [`LIGHT_TOKENS`](theming.md): names and plain values only, and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. |
+| `tokens` | the light theme | `--pk-*` colours and font weights over [`LIGHT_TOKENS`](theming.md) and `WEIGHT_TOKENS` (`--pk-weight-normal` to `--pk-weight-bold`, the chart's title and group labels too): names and plain values only, and no function but colours, `calc()`, `min()`, `max()`, `clamp()` and `var()`, so a token loads nothing (`url()` and `image-set()` are left out). A colour scale or data bars whose view names no colours take `--pk-scale-low`, `--pk-scale-mid` (when set) and `--pk-scale-high` (by default the heat tokens) and `--pk-chart-1` in the HTML report's table and in the workbook, when they are `#rgb` or `#rrggbb`. |
 | `template` | `DEFAULT_TEMPLATE` | `html`: a [print template](print-template.md). |
 | `chart` | `"auto"` | `html`: the chart above the table: `"auto"` when the view shows the chart, `true`, `false`. |
 | `chartEmbed` | `"image"` | `html`: the chart as a `data:` image, or `"inline"` SVG. |
@@ -133,6 +133,6 @@ also shows under a strict Content-Security-Policy). Anything else is refused wit
 
 `render`, `RENDER_FORMATS`, `REPORT_LIMITS` (`template`, `chartWidth`, `chartHeight`, `tableCells`,
 `categories`), `REPORT_ISSUE_CODES`, `CHART_SIZE`, `cleanSvg`, `DEFAULT_TEMPLATE`, `REPORT_CSP`,
-`REPORT_TEXTS`, `LIGHT_TOKENS`, `DARK_TOKENS`; `pivotkit-report/template`: `parseTemplate`,
+`REPORT_TEXTS`, `LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`; `pivotkit-report/template`: `parseTemplate`,
 `fillTemplate`, `escapeHtml`, `PLACEHOLDERS`, `ATTRIBUTES`, `TEMPLATE_LIMIT`
 ([print template](print-template.md)).

@@ -45,4 +45,7 @@ test("chartThemeFrom reads the --pk-* tokens of any style; decorateOption marks 
     assert.equal(option.tooltip.formatter, undefined, "no tooltip formatter unless one is given");
     assert.equal(typeof decorateOption(toEChartsOption(result, { theme }), style, { tooltipFormatter: () => () => "x" }).tooltip.formatter, "function");
     assert.equal(option.axisEvery, 1);
+    // the weight of the title and the group labels: --pk-weight-strong as a number, else DEFAULT_THEME's
+    const weightOf = (value) => chartThemeFrom({ getPropertyValue: (n) => (n === "--pk-weight-strong" ? value : "") }).strongWeight;
+    assert.deepEqual([weightOf("500"), weightOf("bold"), weightOf(""), weightOf("5000")], [500, undefined, undefined, undefined]);
 });

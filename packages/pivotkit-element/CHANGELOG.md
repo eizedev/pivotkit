@@ -22,6 +22,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- pivotkit-react's font weight tokens ([#201](https://github.com/eizedev/pivotkit/issues/201)): `--pk-weight-normal`, `--pk-weight-medium`,
+  `--pk-weight-strong` and `--pk-weight-bold`, set on the element like every `--pk-*` token.
 - Export → HTML report, Chart image (.svg) and Print or save as PDF (pivotkit-react), loaded as the
   chunk group "report" on first use (19.9 KiB gzip); `pivot-export` has the kinds `html`, `svg` and
   `print` ([#165](https://github.com/eizedev/pivotkit/issues/165)). ECharts' SVG renderer comes with
