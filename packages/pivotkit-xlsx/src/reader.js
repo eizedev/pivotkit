@@ -7,9 +7,10 @@
  *    the ZIP directory: parts (limits.archiveEntries) and unpacked size (limits.unpackedBytes), so a
  *    ZIP bomb is refused before it is unpacked; no vbaProject.bin; no <!DOCTYPE or <!ENTITY in the
  *    XML parts it reads.
- * 2. It unpacks only the parts the chosen sheet needs, each into a buffer of the size the directory
- *    states, and leaves out the sheet's rows without a value (the used range of formatted empty
- *    cells, xml.js).
+ * 2. It unpacks only the parts the chosen sheet needs, streaming, never beyond the size the directory
+ *    states; it leaves out the sheet's rows without a value (the used range of formatted empty cells)
+ *    and what follows them, cuts long runs of whitespace and refuses a text or tag over 1 MiB, which
+ *    read-excel-file would parse in quadratic time (xml.js).
  * 3. read-excel-file (MIT) parses those parts: shared strings, styles (a date is a number with a date
  *    format), the values Excel saved (never a formula). It gets them as a ZIP without compression,
  *    so it unpacks nothing itself and starts no worker: no `blob:` worker, which a strict
@@ -20,7 +21,7 @@
 
 import { bytesOf, cleanText, createTable, fileError, fileName, readOptions } from "pivotkit-core/import";
 import { readSheet } from "read-excel-file/universal";
-import { checkXml, createSheetFilter, createXmlCheck } from "./xml.js";
+import { checkXml, createSheetFilter, createXmlCheck, createXmlGuard } from "./xml.js";
 import { createStoredZip, readDirectory, unpack, unpackStream } from "./zip.js";
 import { sharedParts, worksheets } from "./workbook.js";
 
@@ -154,28 +155,37 @@ export async function read(file, options) {
     const { entries, parts, sheets: list, shared } = await open(bytes, name, o.limits, between);
     const sheet = pickSheet(list, o.sheet, name);
 
-    for (const path of [shared.sharedStrings, shared.styles]) {
-        const entry = entries.get(path);
-        if (entry && !parts.has(path)) {
-            const data = await unpack(bytes, entry, name, between);
-            checkXml(data, name, path);
-            parts.set(path, data);
-        }
-    }
     const entry = entries.get(sheet.path);
     if (!entry) throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is missing; open the workbook in Excel and save it again.`);
-    // read-excel-file reads the parts from a ZIP: one without compression, of only these parts, with
-    // the sheet's rows without a value left out while it streams in
-    // sized for the whole sheet: the buffer never grows (no copy); what the filter leaves out is never
-    // written, and transfer() below gives the unused end back
-    let room = entry.size + 22;
+    // shared strings and styles stream from the workbook into the ZIP below, never held whole
+    const streamed = [shared.sharedStrings, shared.styles].filter((path, k, all) => entries.has(path) && !parts.has(path) && all.indexOf(path) === k && path !== sheet.path);
+    // read-excel-file reads the parts from a ZIP: one without compression, of only these parts, each
+    // passed through createXmlGuard, with the sheet's rows without a value left out while it streams in
+    // sized for the parts as the directory states them: the buffer never grows (no copy); what the
+    // filter and the guard leave out is never written, and transfer() below gives the unused end back
+    let room = entry.size + 22 + 2 * (76 + sheet.path.length);
     for (const [path, data] of parts) room += data.length + 2 * (76 + path.length);
-    const zip = createStoredZip(room + 2 * (76 + sheet.path.length));
-    for (const [path, data] of parts) zip.add(path, data);
+    for (const path of streamed) room += /** @type {import("./zip.js").ZipEntry} */ (entries.get(path)).size + 2 * (76 + path.length);
+    const zip = createStoredZip(room);
+    for (const [path, data] of parts) {
+        const part = zip.begin(path);
+        createXmlGuard(part, name, path).write(data);
+        part.end();
+    }
     parts.clear();
+    for (const path of streamed) {
+        const part = zip.begin(path);
+        const guard = createXmlGuard(part, name, path);
+        const check = createXmlCheck(name, path);
+        await unpackStream(bytes, /** @type {import("./zip.js").ZipEntry} */ (entries.get(path)), name, (chunk) => {
+            check(chunk);
+            guard.write(chunk);
+        }, between);
+        part.end();
+    }
     const sheetPart = zip.begin(sheet.path);
     // a title block above the header may hold a few rows more than the table
-    const filter = createSheetFilter(sheetPart, { file: name, maxRow: o.limits.rows + 1_000, maxColumn: o.limits.columns, maxCells: o.limits.importCells + o.limits.columns * 1_000 });
+    const filter = createSheetFilter(createXmlGuard(sheetPart, name, sheet.path), { file: name, part: sheet.path, maxRow: o.limits.rows + 1_000, maxColumn: o.limits.columns, maxCells: o.limits.importCells + o.limits.columns * 1_000 });
     const check = createXmlCheck(name, sheet.path);
     let unpacked = 0;
     await unpackStream(bytes, entry, name, (chunk) => {

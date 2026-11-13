@@ -191,7 +191,7 @@ step it guards, so a file that is too large costs no memory first:
 | `importCells` | 10,000,000 | Rows x columns, counted as they are read. |
 | `textLength` | 32,767 | Characters of one value (Excel's cell limit); longer text is cut, with a note. |
 | `archiveEntries` | 10,000 | Parts of an archive (an `.xlsx` is a ZIP), from its directory, before anything is unpacked. |
-| `unpackedBytes` | 500 MiB | What the parts unpack to, from the directory, before anything is unpacked. |
+| `unpackedBytes` | 500 MiB | What the parts unpack to, from the directory, before anything is unpacked (a ZIP bomb). |
 
 A file over a limit throws `PivotkitError` `LIMIT_EXCEEDED` with `details` `{ limit, value, max,
 file }` and a message that names the file, the limit and what to change: `"tickets.csv" has more than
@@ -220,8 +220,7 @@ A file that cannot be read throws `PivotkitError` with the code `INVALID_FILE`, 
 | `ENCRYPTED` | A password-protected workbook. |
 | `MACROS` | A workbook with macros (`.xlsm`, `vbaProject.bin`). |
 | `XML_DECLARATION` | A part of a workbook declares a document type or entities, which a workbook never needs. |
-| `LIMIT` | A workbook's directory names more parts or more unpacked bytes than the limits allow (a ZIP bomb); `details.limit`. |
-| `DAMAGED` | A workbook is damaged, cut off, or a part unpacks to more than its directory states. |
+| `DAMAGED` | A workbook is damaged, cut off, a part unpacks to more than its directory states, or an XML part holds a text or tag of more than 1 MiB (an Excel cell holds at most 32,767 characters). |
 
 ## Progress, cancel and workers
 

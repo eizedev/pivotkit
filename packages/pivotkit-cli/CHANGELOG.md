@@ -10,6 +10,10 @@ First release.
 
 ### Added
 
+- A workbook over `archiveEntries` or `unpackedBytes` is a `limit` error with the code
+  `LIMIT_EXCEEDED` (pivotkit-xlsx [#208](https://github.com/eizedev/pivotkit/issues/208)); the docs
+  give the measured time and memory of untrusted workbooks at the default limits and recommend
+  `--limit unpackedBytes=...` and a time limit for them.
 - `pivotkit render`, `validate`, `describe`, `completion` (bash, zsh, fish, PowerShell) and `help`,
   with exit codes 0, 1 (findings) and 2 (usage, file, limit, template) and `--json`
   ([#165](https://github.com/eizedev/pivotkit/issues/165)).

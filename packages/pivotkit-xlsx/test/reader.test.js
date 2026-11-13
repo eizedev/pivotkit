@@ -141,7 +141,8 @@ test("a ZIP bomb: the unpacked size from the directory is refused before anythin
     const bytes = makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], extra: { "xl/media/padding.xml": big } });
     assert.ok(bytes.length < 2_000_000, `${bytes.length} bytes`);
     const started = performance.now();
-    await rejects(read(fileOf(bytes), { limits: { unpackedBytes: 100 * 1024 * 1024 } }), "LIMIT", (e) => e.details.limit === "unpackedBytes" && /ZIP bomb/.test(e.message));
+    // LIMIT_EXCEEDED as for every other limit (#208), with the limit, the values and the file
+    await assert.rejects(read(fileOf(bytes), { limits: { unpackedBytes: 100 * 1024 * 1024 } }), (e) => e instanceof PivotkitError && e.code === "LIMIT_EXCEEDED" && e.details.limit === "unpackedBytes" && e.details.max === 100 * 1024 * 1024 && e.details.value > e.details.max && e.details.file === "book.xlsx" && /ZIP bomb/.test(e.message) && /limits\.unpackedBytes/.test(e.message));
     assert.ok(performance.now() - started < 1_000, "refused without unpacking");
     // a forged directory that understates a part: unpacking stops at the stated size
     const small = makeXlsx({ sheets: [{ name: "S", rows: Array.from({ length: 20_000 }, (_, i) => [i]) }] });
@@ -151,7 +152,7 @@ test("a ZIP bomb: the unpacked size from the directory is refused before anythin
 
 test("too many parts in the directory are refused", async () => {
     const bytes = tickets(3);
-    await rejects(read(fileOf(bytes), { limits: { archiveEntries: 5 } }), "LIMIT", (e) => e.details.limit === "archiveEntries" && e.details.value === 9);
+    await assert.rejects(read(fileOf(bytes), { limits: { archiveEntries: 5 } }), (e) => e instanceof PivotkitError && e.code === "LIMIT_EXCEEDED" && e.details.limit === "archiveEntries" && e.details.value === 9 && e.details.max === 5 && e.details.file === "book.xlsx");
 });
 
 test("a document type or entity declaration in an XML part is refused", async () => {
@@ -310,10 +311,14 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         '<row r="3"><c r="A3" s="3"/><c r="B3" s="3"/></row>',
         '<row r="4"><c r="C4" t="e"><v>#N/A</v></c><c r="D4"><f>A1</f><v>2</v></c></row>',
         '<row r="9" spans="1:3"><c r="A9" s="1"/></row>',
-        '</sheetData><pageMargins left="0.7"/></worksheet>'
+        '</sheetData><pageMargins left="0.7"/><mergeCells count="1"><mergeCell ref="A1:B1"/></mergeCells></worksheet>\n'
     ].join("");
     const expected = xml
+        // what follows the sheet's data is left out, but for the root's end tag
+        .replace('<pageMargins left="0.7"/><mergeCells count="1"><mergeCell ref="A1:B1"/></mergeCells></worksheet>\n', "</worksheet>")
         .replace('<row r="2" s="3" customFormat="1"/>', "")
+        // so is anything between rows that is no row
+        .replace("<!-- a comment between rows -->", "")
         .replace('<row r="3"><c r="A3" s="3"/><c r="B3" s="3"/></row>', "")
         .replace('<row r="9" spans="1:3"><c r="A9" s="1"/></row>', "")
         // whitespace between rows goes with the rows
@@ -333,6 +338,38 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         assert.equal(out, expected, `pieces of ${size} bytes`);
         assert.deepEqual(stats, { lastRow: 9, lastValueRow: 4, dropped: 3, errors: 1 }, `pieces of ${size} bytes`);
     }
+    // the guard: whitespace runs cut, over-long tokens refused, the same however the XML is split
+    const { createXmlGuard, SPACE_RUN, MAX_TOKEN } = await import("../src/xml.js");
+    const through = (text, size) => {
+        const input = strToU8(text);
+        const parts = [];
+        const guard = createXmlGuard({ write: (b, from = 0, to = b.length) => parts.push(b.slice(from, to)) }, "s.xlsx", "sheet");
+        for (let at = 0; at < input.length; at += size) guard.write(input.subarray(at, at + size));
+        let n = 0;
+        for (const p of parts) n += p.length;
+        const out = new Uint8Array(n);
+        n = 0;
+        for (const p of parts) out.set(p, (n += p.length) - p.length);
+        return new TextDecoder().decode(out);
+    };
+    const run = (n, c = " ") => c.repeat(n);
+    const cases = [
+        // short whitespace and markup stay as they are
+        [xml, xml],
+        // a run in text and between attributes is cut; in a quoted value it is not
+        [`<a>${run(SPACE_RUN + 5)}<b x="1"${run(SPACE_RUN + 3, "\n")}y="${run(SPACE_RUN + 2)}"/>\t${run(SPACE_RUN)}</a>`, `<a>${run(SPACE_RUN)}<b x="1"${run(SPACE_RUN, "\n")}y="${run(SPACE_RUN + 2)}"/>\t${run(SPACE_RUN - 1)}</a>`],
+        // a comment, a CDATA section and a processing instruction pass, ">" and quotes in them too
+        ['<?pi a="?>"?><a><!-- x > " y --><![CDATA[ <b> ]] > ]]><!--></a>', '<?pi a="?>"?><a><!-- x > " y --><![CDATA[ <b> ]] > ]]><!--></a>']
+    ];
+    for (const [input, output] of cases) {
+        for (const size of [1, 2, 3, 7, 4096, input.length]) assert.equal(through(input, size), output, `pieces of ${size} bytes`);
+    }
+    for (const big of [`<a>${run(MAX_TOKEN + 1, "x")}</a>`, `<a x="${run(MAX_TOKEN, ">")}"/>`, `<a><!--${run(MAX_TOKEN, "->")}--></a>`, `<?${run(MAX_TOKEN, ">")}?>`, `<![CDATA[${run(MAX_TOKEN, "]>")}]]>`]) {
+        for (const size of [3, 65_536]) assert.throws(() => through(big, size), (e) => e.details?.reason === "DAMAGED" && /1 MiB/.test(e.message), `${big.slice(0, 12)} in pieces of ${size} bytes`);
+    }
+    // up to MAX_TOKEN passes
+    assert.equal(through(`<a>${run(MAX_TOKEN, "x")}</a>`, 65_536).length, MAX_TOKEN + 7);
+
     // a declaration split over two pieces is still found
     const evil = strToU8('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]><worksheet/>');
     for (const size of [1, 3, 5]) {
@@ -365,8 +402,11 @@ test("a list of sheets with <sheet repeated and never closed is read in linear t
 });
 
 test("a row that never ends is refused once it passes 64 MiB, not held whole", async () => {
-    const open = `<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>`;
-    const body = new Uint8Array(65 * 1024 * 1024).fill(0x61);
+    const open = `<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">`;
+    // short cells (no token over 1 MiB, nothing to squeeze) and no </row>
+    const cell = strToU8('<c r="A1" t="inlineStr"><is><t>aaaaaaaaaaaaaaaa</t></is></c>');
+    const body = new Uint8Array(65 * 1024 * 1024);
+    for (let at = 0; at < body.length; at += cell.length) body.set(cell.subarray(0, Math.min(cell.length, body.length - at)), at);
     const xml = new Uint8Array(open.length + body.length);
     xml.set(strToU8(open));
     xml.set(body, open.length);
@@ -391,4 +431,53 @@ test("a sheet name from the file is cleaned in notes and messages", async () => 
     const t = await read(fileOf(makeXlsx({ sheets: [{ name: "Q\u{202E}4 data", rows: [["A"], [1]] }] })));
     assert.equal(t.notes[0].params.sheet, "Q4 data");
     assert.equal(t.notes[0].message, 'Read sheet "Q4 data".');
+});
+
+// a workbook a few dozen kilobytes large whose XML is padded with whitespace: under every default
+// limit, it unpacks to tens of megabytes that read-excel-file parsed in quadratic time and with a
+// stack frame per piece (a minute, up to a gigabyte, then "Maximum call stack size exceeded"); the
+// 24 MiB inside a tag did that on their own, the rest cost memory in proportion to its size
+test("a sheet padded with whitespace is read in linear time and memory, with its values", async () => {
+    const MiB = 1024 * 1024;
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const pad = (n) => " ".repeat(n);
+    const sheetXml =
+        `<?xml version="1.0"?>\n<worksheet ${NS}>${pad(2 * MiB)}<dimension ref="A1:B3"/><sheetData>` +
+        '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>n</t></is></c></row>' +
+        `<row r="2"><c r="A2" t="s"><v>1</v></c>${pad(4 * MiB)}<c r="B2"${pad(24 * MiB)}><v>1</v></c></row>` +
+        '<row r="3"><c r="A3" t="inlineStr"><is><t xml:space="preserve">  y </t></is></c><c r="B3"><v>2</v></c></row>' +
+        `</sheetData>${pad(16 * MiB)}<mergeCells count="1"><mergeCell ref="A1:B1"/></mergeCells></worksheet>`;
+    const sst = `<?xml version="1.0"?>\n<sst ${NS} count="2" uniqueCount="2"><si><t>name</t></si>${pad(4 * MiB)}<si><t>x</t></si></sst>`;
+    const bytes = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/worksheets/sheet1.xml": strToU8(sheetXml), "xl/sharedStrings.xml": strToU8(sst) });
+    assert.ok(bytes.length < 200_000, `${bytes.length} bytes`);
+    const rss = process.memoryUsage().rss;
+    let peak = rss;
+    const timer = setInterval(() => (peak = Math.max(peak, process.memoryUsage().rss)), 2);
+    const started = performance.now();
+    try {
+        const t = await read(fileOf(bytes), { onProgress: () => (peak = Math.max(peak, process.memoryUsage().rss)) });
+        assert.deepEqual(t.columns, ["name", "n"]);
+        assert.deepEqual(col(t, "name"), ["x", "y"]);
+        assert.deepEqual(col(t, "n"), [1, 2]);
+    } finally {
+        clearInterval(timer);
+    }
+    const ms = performance.now() - started;
+    peak = Math.max(peak, process.memoryUsage().rss);
+    // 50 MiB unpacked: the reader never holds the padding as text, nor all of it at once
+    // about 0.5 s on a laptop, a few seconds under coverage on a busy runner; before the fix minutes
+    assert.ok(ms < 20_000, `${Math.round(ms)} ms`);
+    assert.ok(peak - rss < 300 * MiB, `${Math.round((peak - rss) / MiB)} MiB more resident memory`);
+});
+
+test("a text or tag of more than 1 MiB in a sheet is refused at once, however it is padded", async () => {
+    const MiB = 1024 * 1024;
+    const sheet = (body) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">${body}</row></sheetData></worksheet>`);
+    const started = performance.now();
+    // an Excel cell holds at most 32,767 characters
+    await rejects(read(fileOf(sheet(`<c r="A1" t="inlineStr"><is><t>${"a".repeat(2 * MiB)}</t></is></c>`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
+    // a quoted attribute value of ">" is one tag to an XML parser
+    await rejects(read(fileOf(sheet(`<c r="A1" x="${">".repeat(2 * MiB)}"><v>1</v></c>`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
+    await rejects(read(fileOf(sheet(`<c r="A1"><v>1</v></c><!--${"->".repeat(MiB)}-->`))), "DAMAGED", (e) => /1 MiB/.test(e.message));
+    assert.ok(performance.now() - started < 5_000, `${Math.round(performance.now() - started)} ms`);
 });

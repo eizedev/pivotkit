@@ -186,7 +186,9 @@ Measured in Node 26 on arm64; other engines and machines differ.
 - `archiveEntries`, `unpackedBytes`: a workbook has a few dozen parts; 94,000 rows x 20 columns
   unpack to about 100 MB. 500 MiB leaves room for a used range of formatted empty cells (a sheet
   formatted to row 900,000 unpacks to about 300 MB) and refuses a ZIP bomb, which unpacks to
-  gigabytes, before anything is unpacked.
+  gigabytes, before anything is unpacked. It bounds what is unpacked, not the memory: what the
+  reader keeps costs a few times its size ([measured](../security.md#untrusted-workbooks)), so lower
+  it for files from people you do not trust.
 
 In the UI, a layout over a limit shows a message in place of the result that says which limit and
 what to change, for example "This layout makes more than 500,000 groups of rows and columns. Remove a

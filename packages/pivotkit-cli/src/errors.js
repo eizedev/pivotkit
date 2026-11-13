@@ -50,7 +50,8 @@ export function asCliError(error, path) {
     const name = path ? shortName(path) : "";
     if (error instanceof PivotkitError) {
         const code = /** @type {string} */ (error.code);
-        // a reader that refuses a file over a limit says so in details (pivotkit-xlsx: INVALID_FILE, reason LIMIT)
+        // a reader over a limit throws LIMIT_EXCEEDED; pivotkit-xlsx 0.1.0 threw INVALID_FILE with reason
+        // LIMIT and details.limit, which the CLI's caret range still allows
         const overLimit = code === "LIMIT_EXCEEDED" || (code === "INVALID_FILE" && (error.details?.reason === "LIMIT" || typeof error.details?.limit === "string"));
         const kind = overLimit ? "limit" : code === "INVALID_TEMPLATE" ? "template" : code === "INVALID_FILE" ? "io" : code === "INVALID_OPTION" ? "usage" : "internal";
         const reason = typeof error.details?.reason === "string" ? error.details.reason : code;

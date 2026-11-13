@@ -9,6 +9,24 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 ### Changed
 
 - npm keyword `pivot-table` ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+- A workbook over `limits.archiveEntries` or `limits.unpackedBytes` throws `LIMIT_EXCEEDED` with
+  `details` `{ limit, value, max, file }`, as every other limit does, not `INVALID_FILE` with the
+  reason `LIMIT` ([#208](https://github.com/eizedev/pivotkit/issues/208)).
+- Markup between a sheet's rows that is no row (a comment) and what follows its `</sheetData>`
+  (merged cells, conditional formats, print settings) are no longer handed to read-excel-file, which
+  reads nothing there; shared strings and styles stream into the archive it gets instead of being
+  unpacked whole first.
+
+### Fixed
+
+- A workbook a few dozen kilobytes small whose XML is padded with whitespace (tens of megabytes
+  unpacked, under every default limit) took about a minute and a gigabyte of memory and then failed
+  with `DAMAGED` ("Maximum call stack size exceeded"): read-excel-file parses a sheet in pieces and
+  reads an unfinished text or tag again from its start with every piece. Runs of whitespace in text
+  and between attributes are now cut to 128 KiB before it parses a part, and a text, tag, comment,
+  CDATA section or processing instruction of more than 1 MiB is refused as `DAMAGED` at once (an Excel
+  cell holds at most 32,767 characters). Such a workbook of 50 MiB unpacked is read in about half a
+  second with about 200 MB of memory.
 
 ## [0.1.0] - 2026-11-11
 

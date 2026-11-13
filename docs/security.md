@@ -108,9 +108,10 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
 
 - **Limits before the expensive step**: the file's size before a byte is read; rows, columns and
   values while they are read; for a workbook, the number of ZIP parts and the size they unpack to,
-  from the ZIP's directory, before anything is unpacked. Each part is unpacked into a buffer of the
-  size the directory states and stops when it would grow beyond it, so a ZIP bomb or a forged
-  directory cannot take more memory than the limits allow. A sheet's values are checked against
+  from the ZIP's directory, before anything is unpacked. Each part is unpacked as a stream that stops
+  when it would grow beyond the size the directory states, so a ZIP bomb or a forged directory cannot
+  unpack more than the limits allow. `unpackedBytes` bounds what is unpacked, not the memory a read
+  takes: see [Untrusted workbooks](#untrusted-workbooks). A sheet's values are checked against
   `rows`, `columns` and `importCells` by the row and column they stand in, while the sheet streams
   in and before it is parsed: a file of a few hundred bytes with a value in row 300,000 and column
   XFD would otherwise become a dense array of billions of cells in the parser. Leaving out rows
@@ -140,6 +141,28 @@ uploaded, and a hostile file affects only that person's tab. Its readers treat i
   views are kept or shared: the source id of a saved view, a view file or a link names the file
   (up to 120 characters and a hash), and a view file lists the fields it uses. Undo keeps at most three data sets, so loading one
   file after another does not keep every one in memory.
+
+### Untrusted workbooks
+
+`unpackedBytes` (500 MiB) bounds how much of a workbook is unpacked; the memory a read takes depends
+on what of it is kept. Before read-excel-file parses a part, pivotkit-xlsx leaves out what it never
+reads (rows without a value, anything between rows that is no row, what follows `</sheetData>`), cuts
+runs of whitespace to 128 KiB and refuses a text or tag of more than 1 MiB as `DAMAGED`, so a small
+file padded to hundreds of megabytes costs time in proportion to its unpacked size and little memory.
+What is kept costs a few times its size, as for any workbook that large. Measured with Node 26 on an
+Apple M4, peak memory of the whole process (approximate; machines differ):
+
+| Workbook | Unpacked | Time | Memory |
+| --- | --- | --- | --- |
+| 54 KB, sheet XML padded with whitespace | 50 MiB | 0.4 s | about 200 MB |
+| 105 KB, whitespace before, in and after the rows, in a tag, in shared strings | 100 MiB | 0.4 to 0.8 s | about 190 to 310 MB |
+| 257 KB, 6 million one-letter shared strings | 100 MiB | 2.4 s | about 660 MB |
+
+At the default 500 MiB, content of the last kind would take several gigabytes (extrapolated, not
+measured). For workbooks from people you do not trust, lower `unpackedBytes` to what your workbooks
+need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
+[command line](reference/cli.md#files)) and run a server-side read with a time and memory limit of
+its own (a worker or a container).
 
 ## The command line
 

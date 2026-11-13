@@ -13,7 +13,7 @@
  */
 
 import { Inflate } from "fflate";
-import { fileError } from "pivotkit-core/import";
+import { fileError, limitError } from "pivotkit-core/import";
 
 const EOCD = 0x06054b50;
 const EOCD64_LOCATOR = 0x07064b50;
@@ -64,7 +64,7 @@ export function readDirectory(bytes, file, limits) {
         offset = u64(bytes, at + 48);
     }
     if (count > limits.archiveEntries) {
-        throw fileError("LIMIT", file, `the workbook has ${count.toLocaleString("en-US")} parts, more than ${limits.archiveEntries.toLocaleString("en-US")} (limits.archiveEntries).`, { limit: "archiveEntries", value: count, max: limits.archiveEntries });
+        throw limitError("archiveEntries", count, limits.archiveEntries, file, "parts in its ZIP directory");
     }
     if (offset + size > bytes.length) throw broken("directory outside the file");
     /** @type {ZipEntry[]} */
@@ -105,7 +105,7 @@ export function readDirectory(bytes, file, limits) {
         }
         total += unpacked;
         if (total > limits.unpackedBytes) {
-            throw fileError("LIMIT", file, `the workbook unpacks to more than ${limits.unpackedBytes.toLocaleString("en-US")} bytes (limits.unpackedBytes): a ZIP bomb, or a workbook too large to load.`, { limit: "unpackedBytes", value: total, max: limits.unpackedBytes });
+            throw limitError("unpackedBytes", total, limits.unpackedBytes, file, "bytes unpacked, by its ZIP directory (a ZIP bomb, or a workbook too large to load)");
         }
         entries.push({ name, method, compressedSize, size: unpacked, localOffset });
         p = extraEnd + commentLength;
