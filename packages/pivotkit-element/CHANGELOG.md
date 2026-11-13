@@ -8,13 +8,15 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Changed
 
+- The element bundles pivotkit-core's and pivotkit-react's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals
+  off by default, no empty column or total rows without values, no subtotal for a group of one item,
+  the tip on column subtotals. Size budgets ([#198](https://github.com/eizedev/pivotkit/issues/198)): the first load to 170.5 KiB (168.6 measured on
+  a Mac, CI about 0.5 more), the link to 7.5 (7.2 measured, 0.1 below its old budget).
 - npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The element bundles pivotkit-core with view version 2 and pivotkit-react's filters for it
   ([#165](https://github.com/eizedev/pivotkit/issues/165)): views of version 1 load with the same
   result. The first load grows by about 7.5 KiB (gzip), its budget to 169; the plain words of a
   view's unused parts to 5.5.
-- The budget of the first load is 170 KiB (gzip) and that of a shared link 7.6: both were 0.2 and
-  0.1 KiB above what CI measures, too little for the next change ([#198](https://github.com/eizedev/pivotkit/issues/198)).
 
 ### Added
 

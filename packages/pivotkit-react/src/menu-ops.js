@@ -523,25 +523,29 @@ export function removeRules(view, field, keep = []) {
 /** The four totals of Options, in their order. */
 export const TOTALS = Object.freeze(["grandTotalRow", "grandTotalColumn", "rowSubtotals", "colSubtotals"]);
 
+/** What each total needs on its axis, and the text that says so. */
+const AXIS_NEEDS = Object.freeze({
+    grandTotalRow: { zone: "rows", fields: 1, why: "needsRowField" },
+    grandTotalColumn: { zone: "cols", fields: 1, why: "needsColField" },
+    rowSubtotals: { zone: "rows", fields: 2, why: "needsRowFields" },
+    colSubtotals: { zone: "cols", fields: 2, why: "needsColFields" }
+});
+
 /**
  * Why a total of Options would change nothing in this view, or null when it changes something: a
  * grand total row needs a field in Rows (without one the only row is the total), a grand total column
- * one in Columns, subtotals two or more fields on their axis. The key names the text (labels).
+ * one in Columns, subtotals two or more fields on their axis, and every total a value (without one a
+ * total has no number, and the table draws none). The key names the text (labels).
  * @param {any} view
  * @param {string} key  one of TOTALS
  * @returns {string | null}
  */
 export function totalNoEffect(view, key) {
-    if (key === "grandTotalRow") {
-        return view.rows.length >= 1 ? null : "needsRowField";
+    const axis = AXIS_NEEDS[key];
+    if (view[axis.zone].length < axis.fields) {
+        return axis.why;
     }
-    if (key === "grandTotalColumn") {
-        return view.cols.length >= 1 ? null : "needsColField";
-    }
-    if (key === "rowSubtotals") {
-        return view.rows.length >= 2 ? null : "needsRowFields";
-    }
-    return view.cols.length >= 2 ? null : "needsColFields";
+    return view.values.length > 0 ? null : "needsValue";
 }
 
 /**

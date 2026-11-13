@@ -129,7 +129,7 @@ test.describe("screen readers", () => {
             - menuitemcheckbox "Grand total row" [checked]
             - menuitemcheckbox "Grand total column" [checked]
             - menuitemcheckbox "Row subtotals" [checked]
-            - menuitemcheckbox /Column subtotals/ [checked] [disabled]
+            - menuitemcheckbox /Column subtotals/ [disabled]
         `);
         // a switch applies at once and the menu stays open with the focus on it
         const row = page.getByTestId("total-rowSubtotals");
@@ -143,7 +143,8 @@ test.describe("screen readers", () => {
         await expect(page.getByTestId("total-colSubtotals")).toBeFocused();
         await expect(page.getByTestId("total-colSubtotals")).toHaveAccessibleDescription(/Needs two or more fields in Columns/);
         await page.keyboard.press("Enter");
-        await expect(page.getByTestId("total-colSubtotals")).toHaveAttribute("aria-checked", "true");
+        // it changes nothing and shows no tick, though the view keeps it (#156)
+        await expect(page.getByTestId("total-colSubtotals")).toHaveAttribute("aria-checked", "false");
         // its explanation is read with the item
         await expect(page.getByTestId("total-grandTotalRow")).toHaveAccessibleDescription("A last row with the total of every column.");
     });

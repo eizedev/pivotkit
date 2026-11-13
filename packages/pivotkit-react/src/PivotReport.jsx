@@ -1298,6 +1298,8 @@ function Report(props) {
             commit(setChart(view, "auto"), { step: "chart", type: "auto" });
         } else if (action === "saveTemplate") {
             setViewsRequest((n) => n + 1);
+        } else if (action === "colSubtotalsOff") {
+            commit(setTotal(view, "colSubtotals", false), { step: "totals" });
         }
     };
 

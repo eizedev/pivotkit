@@ -243,6 +243,7 @@ export const en = {
             percentRunningTotal: "100% is the total along the axis: the running total ends at 100%.",
             percentDifferenceFromPrevious: "The previous item is 100%: each value says how much it grew or shrank from it."
         },
+        colSubtotals: "A Total column adds up the columns of the group before it; it is not an item of its own.",
         chartOverTime: "{field} is a date: lines show how the values change over time.",
         pieSlices: "A pie works for up to about {max} parts; this one has {count}. Bars compare them more easily.",
         pieColumns: "A pie draws one slice per row and adds up the columns ({fields}). Bars show the columns side by side.",
@@ -264,7 +265,8 @@ export const en = {
         groupDate: "Group by {unit}",
         saveTemplate: "Save view",
         bars: "Switch to Bars",
-        auto: "Show as lines over time"
+        auto: "Show as lines over time",
+        colSubtotalsOff: "Hide column subtotals"
     },
     dismissTip: "Dismiss tip",
     tipsTitle: "Tips",
@@ -593,6 +595,7 @@ export const de = {
         chartOverTime: "{field} ist ein Datum: Linien zeigen, wie sich die Werte über die Zeit ändern.",
         pieSlices: "Ein Kreis eignet sich für bis zu etwa {max} Teile; dieser hat {count}. Balken lassen sich leichter vergleichen.",
         pieColumns: "Ein Kreis zeigt ein Stück je Zeile und addiert dafür die Spalten ({fields}). Balken zeigen die Spalten nebeneinander.",
+        colSubtotals: "Eine Spalte „… gesamt“ addiert die Spalten der Gruppe davor; sie ist kein eigener Eintrag.",
         chartDates: "Die Daten liegen in Spalten, so wird jedes Datum eine eigene Linie. Zeilen und Spalten tauschen, um die Daten entlang der Achse zu zeichnen.",
         chartTrend: "Linien verbinden Punkte zu einem Verlauf. Für Kategorien wie Länder passen Balken besser.",
         chartSeries: "{count} Reihen sind schwer zu unterscheiden. Zeilen und Spalten tauschen oder Spalten auf weniger Einträge filtern.",
@@ -611,7 +614,8 @@ export const de = {
         groupDate: "Nach {unit} gruppieren",
         saveTemplate: "Ansicht speichern",
         bars: "Zu Balken wechseln",
-        auto: "Als Linien über die Zeit zeigen"
+        auto: "Als Linien über die Zeit zeigen",
+        colSubtotalsOff: "Teilergebnisse der Spalten ausblenden"
     },
     dismissTip: "Tipp ausblenden",
     tipsTitle: "Tipps",

@@ -402,7 +402,7 @@ export function valueTopics({ view, index, types, labels, locale, defaultsOf, ea
 
 /**
  * The topics of the Options menu: the totals (each a switch; one that would change nothing in this
- * view is off, with the reason), Expand all and Collapse all (each only when it changes something,
+ * view is disabled and unticked, with the reason), Expand all and Collapse all (each only when it changes something,
  * else with the reason), and help: Show tips, Show explanations, Show dismissed tips again, and the
  * keyboard shortcuts (a level). What each does is the report's (`act`).
  * @param {{ view: any, labels: any, folding: { canExpand: boolean, canCollapse: boolean, why: { expand?: string | null, collapse?: string | null } },
@@ -433,7 +433,8 @@ export function optionTopics({ view, labels, folding, tips, explanations, act })
                 {
                     choices: TOTALS.map((key) => {
                         const why = totalNoEffect(view, key);
-                        return { id: `total-${key}`, text: labels[key], checkbox: true, checked: view.totals[key], disabled: why !== null, reason: why ? labels[why] : undefined, info: key, run: () => act.total(key, !view.totals[key]) };
+                        // a switch that changes nothing shows no tick: the table has no such total
+                        return { id: `total-${key}`, text: labels[key], checkbox: true, checked: why === null && view.totals[key], disabled: why !== null, reason: why ? labels[why] : undefined, info: key, run: () => act.total(key, !view.totals[key]) };
                     })
                 }
             ]

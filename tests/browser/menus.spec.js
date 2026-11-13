@@ -615,9 +615,9 @@ test.describe("menus in levels", () => {
         // the i next to a menu's item shows its text to the pointer; a screen reader reads the text
         // with the item (the arrow keys stay on the items)
         const info = page.getByTestId("setting-info-rowSubtotals");
-        await expect(page.getByTestId("total-rowSubtotals")).toHaveAccessibleDescription(/a total row under each group/);
+        await expect(page.getByTestId("total-rowSubtotals")).toHaveAccessibleDescription(/a subtotal row \(“North Total”\) under each group/);
         await info.hover();
-        await expect(page.locator(".pk-info-pop")).toContainText("a total row under each group");
+        await expect(page.locator(".pk-info-pop")).toContainText("a subtotal row (“North Total”) under each group");
         // Show explanations off: no i anywhere, the reason stays (it is state)
         const show = page.getByTestId("show-explanations");
         await show.focus();

@@ -1,6 +1,7 @@
 /*
  * The pivot table from pivotkit-core's grid: sticky header rows and row labels, groups that expand
- * and collapse, subtotal and total rows, colour scales and data bars, a click (or Enter) on a value
+ * and collapse, subtotal and total rows, subtotal columns with an edge before them and a title that
+ * says what they add up, colour scales and data bars, a click (or Enter) on a value
  * for its rows (a cell with no rows behind it is not clickable; the arrow keys still stop on it). Header cells with a field name or a value name can be dragged into a zone with the
  * mouse; the same moves are in the chips' menus. From VIRTUAL_FROM body rows on only the visible rows
  * are rendered (virtual.js). The table keeps the focus where it was when a group is expanded or
@@ -396,11 +397,16 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         };
     };
 
+    // the first column of a subtotal column's values: an edge before it sets it apart from its group
+    const subStart = (col) => {
+        const data = grid.dataColumns[col - grid.rowHeaderColumns];
+        return data && data.total === 1 && data.valueIndex <= 0 ? " pk-sub-start" : "";
+    };
     const stickyStyle = (col, extra) => (col < grid.rowHeaderColumns && lefts[col] !== undefined ? { left: lefts[col], ...extra } : extra);
     const headerCell = (cell, r, c) => {
         const top = { top: tops[r] ?? r * rowHeight };
         const sticky = c < grid.rowHeaderColumns;
-        const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${sticky ? " pk-sticky" : ""}`;
+        const className = `pk-th pk-${cell.kind}${totalClass(cell.total)}${subStart(c)}${sticky ? " pk-sticky" : ""}`;
         const target = onSort && r === grid.headerRows - 1 ? headerSortTarget(view, cell, typeOf) : null;
         const sorting = target ? sortButton(cell, target) : null;
         const content = (
@@ -430,8 +436,10 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                 </DraggableHeader>
             );
         }
+        // a subtotal column's label says what it adds up (the same text as the tip)
+        const title = cell.kind === "colHeader" && cell.total === 1 && r < grid.headerRows - 1 ? labels.tips.colSubtotals : undefined;
         return (
-            <th key={c} {...props}>
+            <th key={c} {...props} title={title}>
                 {content}
             </th>
         );
@@ -455,7 +463,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
         return (
             <td
                 key={col}
-                className={`pk-td${totalClass(cell.total)}${clickable ? " pk-clickable" : ""}${cell.valueType === "text" ? " pk-text" : ""}${cond ? (cell.style.bar !== undefined ? " pk-has-bar" : " pk-has-scale") : ""}`}
+                className={`pk-td${totalClass(cell.total)}${subStart(col)}${clickable ? " pk-clickable" : ""}${cell.valueType === "text" ? " pk-text" : ""}${cond ? (cell.style.bar !== undefined ? " pk-has-bar" : " pk-has-scale") : ""}`}
                 style={cond}
                 data-r={r}
                 data-c={col}
@@ -479,7 +487,7 @@ export function PivotTable({ grid, view, labels, onToggle: toggleGroup, onCell, 
                 </span>
             ) : null}
             {/* --pk-row-cols: the row label columns share at most 40 % of the width (styles.css) */}
-            <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
+            <table ref={table} className={`pk-table${virtual ? " pk-virtual" : ""}${grid.columnCount === grid.rowHeaderColumns ? " pk-labels-only" : ""}`} style={/** @type {any} */ ({ "--pk-row-cols": grid.rowHeaderColumns })} onKeyDown={onKeyDown} aria-rowcount={grid.rows.length} aria-label={labels.tableName} aria-describedby={hintId}>
                 <thead>
                     {grid.rows.slice(0, grid.headerRows).map((row, r) => (
                         <tr key={r}>{row.map((cell, c) => (cell ? headerCell(cell, r, c) : null))}</tr>

@@ -158,9 +158,26 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         if (ro && el) {
             ro.observe(el);
         }
+        // the anchor can move or change size while the popover is open (the zones' open animation, a
+        // transition of the host page, a move at once with reduced motion): its box is compared once a
+        // frame and the popover placed again when it changed. A sheet does not follow an anchor.
+        let frame = 0;
+        let rect = anchor.current?.getBoundingClientRect();
+        const follow = () => {
+            const next = anchor.current?.getBoundingClientRect();
+            if (next && rect && (next.x !== rect.x || next.y !== rect.y || next.width !== rect.width || next.height !== rect.height)) {
+                place();
+            }
+            rect = next;
+            frame = requestAnimationFrame(follow);
+        };
+        if (!sheet) {
+            frame = requestAnimationFrame(follow);
+        }
         window.addEventListener("resize", place);
         window.addEventListener("scroll", place, true);
         return () => {
+            cancelAnimationFrame(frame);
             ro?.disconnect();
             window.removeEventListener("resize", place);
             window.removeEventListener("scroll", place, true);

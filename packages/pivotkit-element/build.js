@@ -234,16 +234,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * last, the current period, rolling, counted from the first record or a date) under More choices,
  * Top items with the items tied with the last one: the menus from 40.0 to 41.8 measured on a Mac (CI
  * about 0.3 more), budget 43; the first load 168.0 (the chips' words for quarters, weeks and "this").
- * Room before 0.5.0 (#198), measured on 2026-11-13: the first load 168.3 on a Mac (Node 26) and 168.8
- * in CI (Node 24, run 43387310635), 0.2 under its budget of 169; the link 7.2 in both, 0.1 under 7.3.
- * Neither had grown: both budgets had been set right at a measurement, so the next small change of
- * the first load would fail CI. The first load's budget goes to 170 (1.2 above CI, the room the
- * earlier raises left), the link's to 7.6 (5 per cent above CI, as for the other groups loaded
- * later); the menus 42.3 (CI 42.4) stay within 43. The field list's one "Add to Filters" and the
- * menus' rule token (#157, #128) left the first load at 168.3 (Mac).
+ * CI measures the first load about 0.5 more than a Mac, not 0.3: 168.8 in CI run 43332518926
+ * (de76a55) against 168.3 on a Mac (#198). With the tip on column subtotals and its button (English
+ * and German), the subtotal column's edge and title (#156) the first load is 168.6 on a Mac (CI about
+ * 169.1), budget 170.5. The link is 7.2 on both, 0.1 below its old budget: 7.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 170, chart: 211, export: 11.5, link: 7.6, menus: 43, texts: 6.8, unused: 5.5, import: 21 };
+export const SIZE_BUDGET_KIB = { initial: 170.5, chart: 211, export: 11.5, link: 7.5, menus: 43, texts: 6.8, unused: 5.5, import: 21 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
