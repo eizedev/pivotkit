@@ -73,6 +73,7 @@ const VENDOR = {
     "pivotkit-core": "pivotkit-core",
     "pivotkit-core/export": "pivotkit-core-export",
     "pivotkit-core/chart": "pivotkit-core-chart",
+    "pivotkit-report": "pivotkit-report",
     "pivotkit-core/link": "pivotkit-core-link",
     "pivotkit-core/import": "pivotkit-core-import",
     "pivotkit-core/templates": "pivotkit-core-templates",

@@ -178,6 +178,16 @@ test("what runs only after a click in a menu, or on a drawn chart, is not in the
     assert.ok(text(groups.initial).includes('"aria-sort"'));
 });
 
+test("the HTML report, the SVG and printing load on first use: pivotkit-report is no part of the first load or the menus", () => {
+    const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
+    for (const name of ["pivotkit-report/src/render.js", "pivotkit-report/src/template.js", "pivotkit-report/src/svg.js", "pivotkit-react/dist/chunks/report-run"]) {
+        assert.ok(inputsOf(groups.report).some((i) => i.includes(name)), `${name} is not in the report group`);
+        for (const other of ["initial", "menus"]) {
+            assert.ok(!inputsOf(groups[other]).some((i) => i.includes(name)), `${name} is in ${other}`);
+        }
+    }
+});
+
 test("loading data (allow-import) loads on first use: the import UI, its texts and the readers are no part of the first load or the menus", () => {
     const groups = Object.fromEntries(loadGroups(built.metafile).map((g) => [g.group, g.files]));
     const text = (files) => files.map((f) => built.outputFiles.find((o) => o.path.endsWith(f))?.text ?? "").join("");

@@ -16,6 +16,11 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Added
 
+- Export → HTML report, Chart image (.svg) and Print or save as PDF (pivotkit-react), loaded as the
+  chunk group "report" on first use (19.9 KiB gzip); `pivot-export` has the kinds `html`, `svg` and
+  `print` ([#165](https://github.com/eizedev/pivotkit/issues/165)). ECharts' SVG renderer comes with
+  the chart chunks (215.8 KiB, budget 222.5) and pivotkit-core's describe module with the first load
+  (170.0 KiB, budget 171.5): esbuild puts a module where any importer of its barrel loads it.
 - The property `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)), as
   pivotkit-react's prop: the limits of a file loaded with `allow-import`, merged key by key over
   `limits`; the page's data keeps `limits`. A property only, as `limits`.

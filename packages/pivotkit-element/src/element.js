@@ -69,9 +69,10 @@ export { EVENTS };
 /**
  * @typedef {object} ExportFile  the detail of pivot-export: a file before its download, or a text
  *   before it goes on the clipboard
- * @property {"xlsx" | "csv" | "png" | "json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
- *   "json": the view file (Views, "Download view"); "copy-table", "copy-json": Export → Copy table,
- *   Copy data as JSON; "drill-*": the drill-down panel's Export menu
+ * @property {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "json" | "copy-table" | "copy-json" | "drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} kind
+ *   "html": the HTML report; "svg": the chart as SVG; "print": the HTML report before it is printed
+ *   (respondWith(false) prints nothing); "json": the view file (Views, "Download view"); "copy-table",
+ *   "copy-json": Export → Copy table, Copy data as JSON; "drill-*": the drill-down panel's Export menu
  * @property {string} fileName  with the extension ("pivot.xlsx"); for a copy the name it would have as a file
  * @property {Blob} blob
  * @property {string} [text]  a copy's text

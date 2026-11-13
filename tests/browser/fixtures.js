@@ -1,11 +1,19 @@
 // Shared setup: every test fails when the page logs an error or a warning, or throws.
 import { test as base, expect } from "@playwright/test";
 
+/**
+ * Playwright's trace recording (trace: "retain-on-failure") injects its snapshot script into every
+ * frame; Chromium refuses it in the report's print frame, which is sandboxed without scripts, and logs
+ * this. The page itself runs no script there: without tracing the message is not logged (checked with
+ * --trace off and with a plain browser), so it is the harness's, not the report's.
+ */
+export const TRACE_IN_PRINT_FRAME = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
+
 export const test = base.extend({
     page: async ({ page }, use) => {
         const problems = [];
         page.on("console", (m) => {
-            if (m.type() === "error" || m.type() === "warning") problems.push(`${m.type()}: ${m.text()}`);
+            if ((m.type() === "error" || m.type() === "warning") && !TRACE_IN_PRINT_FRAME.test(m.text())) problems.push(`${m.type()}: ${m.text()}`);
         });
         page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
         await use(page);
@@ -155,4 +163,42 @@ export async function pickItem(page, scope, testId, label) {
     await page.getByTestId("picker-search").fill(label);
     await expect(page.getByTestId("picker-option").first()).toHaveText(new RegExp(`^${label}`));
     await page.getByTestId("picker-search").press("Enter");
+}
+
+/**
+ * Call after page.goto. The print frame's window.print replaced by a stub that keeps what it would print in window.__printed:
+ * its markup, its stylesheets (adopted, never a <style>), its language and the frame's sandbox.
+ */
+export async function capturePrint(page) {
+    // installed in the page after it loaded, not as an init script: Playwright runs init scripts in
+    // every frame, and the sandboxed print frame (no scripts) would log that it blocked one
+    await page.evaluate(() => {
+        const w = /** @type {any} */ (window);
+        const own = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, "contentWindow");
+        Object.defineProperty(HTMLIFrameElement.prototype, "contentWindow", {
+            configurable: true,
+            get() {
+                const win = own.get.call(this);
+                if (win && this.classList.contains("pk-print-frame")) {
+                    win.print = () => {
+                        const d = this.contentDocument;
+                        w.__printed = {
+                            body: d.body.innerHTML,
+                            title: d.title,
+                            lang: d.documentElement.lang,
+                            sheets: d.adoptedStyleSheets.length,
+                            css: [...d.adoptedStyleSheets].flatMap((s) => [...s.cssRules].map((r) => r.cssText)).join("\n"),
+                            styleElements: d.querySelectorAll("style, script, meta[http-equiv]").length,
+                            sandbox: this.getAttribute("sandbox"),
+                            grand: (() => {
+                                const cell = [...d.querySelectorAll("th")].find((th) => th.textContent === "Grand Total");
+                                return cell ? getComputedStyle(cell).fontWeight : null;
+                            })()
+                        };
+                    };
+                }
+                return win;
+            }
+        });
+    });
 }

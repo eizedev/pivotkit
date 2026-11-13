@@ -32,6 +32,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- Export → "HTML report (.html)", "Chart image (.svg)" and a group "Print" with "Print or save as
+  PDF…": the table as it is shown (and the chart when it is shown) as a page that opens anywhere and
+  prints well, the chart as SVG, and the same report in the browser's print dialog, from a sandboxed
+  frame a strict Content-Security-Policy allows. `onExport` gets the kinds `html`, `svg` and `print`
+  (with the report's HTML; `false` prints nothing). pivotkit-report is a new dependency, loaded on the
+  first of these exports ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
   loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data
   keeps `limits`, so a host can keep uploads small (`importLimits={{ rows: 1000 }}`) without capping
