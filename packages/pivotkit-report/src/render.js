@@ -193,7 +193,8 @@ export async function render(view, data, options = {}) {
         chartSvg(result, {
             echarts: /** @type {any} */ (options.echarts),
             style: tokenStyle(options.tokens),
-            ...size,
+            // set for the formats that draw a chart (svg, html), the only callers of chartOf
+            .../** @type {{ width: number, height: number }} */ (size),
             locale: grid.locale,
             labels: options.labels,
             limits: options.limits,
