@@ -129,6 +129,20 @@ test("tips: column subtotals with two fields in Columns say what a Total column 
     assert.ok(!holding(contextOf(rows, { ...view, display: "chart", totals: { colSubtotals: true } })).includes("colSubtotals"));
 });
 
+test("tips: no column subtotals tip when no group draws a Total column (#156)", () => {
+    const view = { rows: ["Team"], cols: ["Severity", "Status"], values: [{ field: "N", agg: "sum" }], totals: { colSubtotals: true } };
+    // every severity has a single status: a group with one child has no subtotal
+    const single = [
+        { Severity: "1 Critical", Status: "Open", Team: "A", N: 1 },
+        { Severity: "2 High", Status: "Closed", Team: "B", N: 3 }
+    ];
+    assert.ok(!holding(contextOf(single, view)).includes("colSubtotals"));
+    // one group of two: the tip shows; collapsed, the group shows only its total, no Total column beside others
+    const mixed = [...single, { Severity: "2 High", Status: "Open", Team: "A", N: 2 }];
+    assert.ok(holding(contextOf(mixed, view)).includes("colSubtotals"));
+    assert.ok(!holding(contextOf(mixed, { ...view, collapsed: { rows: [], cols: [["2 High"]] } })).includes("colSubtotals"));
+});
+
 test("tips: charts with many series, dates on Columns, capped categories, and the table", () => {
     const rows = [];
     for (let c = 0; c < MANY_SERIES + 2; c++) rows.push({ R: "r", C: `c${c}`, V: c, D: `2026-01-${String(c + 1).padStart(2, "0")}` });

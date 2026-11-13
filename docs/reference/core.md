@@ -219,7 +219,8 @@ A `GridCell` has `text` (formatted), `value` (raw), `kind` (`"corner"`, `"colHea
 header cell over all of its columns, as in Excel.
 
 The view's `totals` decide the total rows and columns, with two rules of their own: without values
-there are none (a total would have no number), and a group with a single child has no subtotal (it
+there are none (a total would have no number; with fields in Columns alone the one body row has no
+label), and a group with a single child has no subtotal (it
 would repeat the child; the group keeps its toggle).
 
 ### `toSeries(result, options?)` and `toEChartsOption(result, options?)`

@@ -46,6 +46,8 @@ const PERCENT_SHOW_AS = Object.freeze(["percentOfGrandTotal", "percentOfRowTotal
  * @property {Record<string, string>} [fields]  display names (labels.core.fields)
  * @property {number} rowLeaves  rows of the innermost row field (1 without row fields)
  * @property {number} colLeaves  columns of the innermost column field (1 without column fields)
+ * @property {boolean} colSubtotalShown  a column group with more than one child is expanded, so a
+ *   column subtotal shows when column subtotals are on (core's layout.js draws none for one child)
  * @property {number} matched  source rows left after the filters
  * @property {number} dataRows  source rows of the data
  * @property {{ series: any[], categories: any[], categoryCount: number } | null} series  the chart's series, when the chart shows
@@ -135,7 +137,7 @@ export const TIPS = Object.freeze([
         id: "colSubtotals",
         icon: "sigma",
         action: "colSubtotalsOff",
-        when: (ctx) => (table(ctx) && ctx.view.values.length > 0 && ctx.view.totals.colSubtotals && ctx.view.cols.length >= 2 ? {} : null)
+        when: (ctx) => (table(ctx) && ctx.view.values.length > 0 && ctx.view.totals.colSubtotals && ctx.view.cols.length >= 2 && ctx.colSubtotalShown ? {} : null)
     },
     {
         // a type the user chose for data over time: lines show it (automatic draws them)
@@ -334,6 +336,19 @@ export const SHORTCUTS = Object.freeze([
 ]);
 
 /**
+ * Whether an outer group of an axis has more than one child and is open (it and every group around
+ * it not collapsed): the groups that get a subtotal line.
+ * @param {any[]} nodes  the axis' nodes (result.colNodes)
+ * @param {number} depth  fields on the axis
+ * @param {any[][]} collapsed  the axis' collapsed paths
+ */
+function expandedGroup(nodes, depth, collapsed) {
+    const shut = new Set(collapsed.map((path) => JSON.stringify(path)));
+    const open = (path) => path.every((_, i) => !shut.has(JSON.stringify(path.slice(0, i + 1))));
+    return nodes.some((node) => node.depth > 0 && node.depth < depth && node.children.length > 1 && open(node.path));
+}
+
+/**
  * What the conditions read, from the report's state. Pure.
  * @param {{ view: any, result: import("pivotkit-core").PivotResult | null, encoded: import("pivotkit-core").Encoded,
  *   failed: boolean, empty: boolean, typeOf: (field: string) => string, fields?: Record<string, string>,
@@ -352,6 +367,7 @@ export function tipContext({ view, result, encoded, failed, empty, typeOf, field
         fields,
         rowLeaves: result ? leaves(result.rowNodes, result.rowFields.length) : 0,
         colLeaves: result ? leaves(result.colNodes, result.colFields.length) : 0,
+        colSubtotalShown: result ? expandedGroup(result.colNodes, result.colFields.length, view.collapsed?.cols ?? []) : false,
         matched: result ? result.rows.length : 0,
         dataRows: encoded.length,
         series,

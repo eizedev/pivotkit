@@ -317,9 +317,11 @@ function bodyRows(g, rowLines) {
     return rowLines.map((line) => {
         const { node, kind } = line;
         const row = new Array(width).fill(null);
+        // without row fields the only body row is the grand total, but only when it has a number
+        const grand = view.values.length > 0;
         for (let level = 0; level < k; level++) {
             row[level] = view.rows.length === 0
-                ? { text: view.values.length > 0 || view.cols.length > 0 ? g.labels.grandTotal : "", value: null, kind: "rowHeader", total: 2, rowPath: [] }
+                ? { text: grand ? g.labels.grandTotal : "", value: null, kind: "rowHeader", total: grand ? 2 : 0, rowPath: [] }
                 : labelCell(g, "rows", line, level);
         }
         g.dataColumns.forEach(({ line: col, vi }, j) => {

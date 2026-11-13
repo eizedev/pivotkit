@@ -40,8 +40,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
-- The tip `colSubtotals`: with column subtotals on, two or more fields in Columns and a value, it says
-  that a Total column adds up the group before it, with the button **Hide column subtotals** ([#156](https://github.com/eizedev/pivotkit/issues/156)).
+- The tip `colSubtotals`: while a Total column shows (column subtotals on, two or more fields in
+  Columns, a value, an open column group of two or more items), it says that a Total column adds up the group before it, with the button **Hide column subtotals** ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 
 - The prop `importLimits` ([#169](https://github.com/eizedev/pivotkit/issues/169)): the limits a file
   loaded with `allowImport` is read and shown with, merged key by key over `limits`. The host's data

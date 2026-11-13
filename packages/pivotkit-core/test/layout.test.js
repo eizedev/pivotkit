@@ -142,6 +142,17 @@ test("columns without values: the column labels stay, without total columns (#15
     assert.equal(g.columnCount, 1 + g.dataColumns.length);
 });
 
+test("columns without rows and values: the only body row is no Grand Total (#156)", () => {
+    const g = toGrid(computePivot(data, { cols: ["Product"] }), { locale: "en-US" });
+    const body = g.rows.slice(g.headerRows);
+    assert.equal(body.length, 1);
+    assert.ok(!body.flat().some((c) => c && /Total/.test(c.text)), body.flat().map((c) => c && c.text).join("|"));
+    assert.ok(body[0].every((c) => c.total === 0));
+    // with a value the same row is the grand total
+    const withValue = toGrid(computePivot(data, { cols: ["Product"], values: [{ field: "Units", agg: "sum" }] }), { locale: "en-US" });
+    assert.equal(withValue.rows[withValue.headerRows][0].text, "Grand Total");
+});
+
 test("a group with a single child has no subtotal, on rows and on columns (#156)", () => {
     const d = encode([
         { a: "x", b: "1", c: "x", e: "1", n: 1 },

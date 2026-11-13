@@ -132,8 +132,8 @@ The menu of a value is on [Values and formats](values.md#the-menu-of-a-value).
 - A subtotal (“North Total”) adds up a group of the outer field. A group with a single item has
   none, since it would repeat that item; its arrow still collapses it.
 - With column subtotals on, a subtotal column has a line before it and a darker background, and its
-  header's tooltip says what it adds up. While two or more fields are in Columns, a tip says the same,
-  with **Hide column subtotals**.
+  header's tooltip says what it adds up. While a Total column shows, a tip says the same, with **Hide
+  column subtotals**; on a phone, where there is no tooltip, the tip is where you read it.
 
     ![Tickets per team by priority and channel with column subtotals: a line before each Total column, and the tip that says what it adds up](../assets/screenshots/column-subtotals-light.png#only-light)
     ![Tickets per team by priority and channel with column subtotals: a line before each Total column, and the tip that says what it adds up](../assets/screenshots/column-subtotals-dark.png#only-dark)
