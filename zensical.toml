@@ -35,6 +35,7 @@ nav = [
     { "Getting started: React" = "getting-started/react.md" },
     { "Getting started: web component" = "getting-started/web-component.md" },
     { "Getting started: engine only" = "getting-started/engine.md" },
+    { "Upgrading from 0.4" = "getting-started/upgrading.md" },
     { "Recipes" = "embed/recipes.md" },
     { "Concepts" = [
       { "Views and saved views" = "concepts/views.md" },

@@ -6,6 +6,26 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Upgrading from 0.4
+
+What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/) has the details.
+
+- **Breaking:** views, view files and links are written in format version 2; pivotkit 0.4 refuses
+  them as newer. Version 1 loads with the same result.
+- **Breaking:** dark colours of a host go on `.pk-root[data-pk-theme="dark"]`, not on an attribute of
+  the page (`html[data-theme="dark"] .pk-root`): the Excel export and the HTML report read the light
+  theme by showing it on the report for a moment, and a rule on the page's attribute would put the
+  dark colours into the file.
+- **Breaking:** a page with an import map maps `pivotkit-report` and `pivotkit-core/chart`.
+- The colour scale's default is blue; red, yellow, green come back with `--pk-scale-low: #f8696b`,
+  `--pk-scale-mid: #ffeb84`, `--pk-scale-high: #63be7b` (dark: `#c2413f`, `#b39a2e`, `#3f9a5c`).
+  `--pk-scale-mid` is no longer set.
+- The label key `filter` is removed (a host's text for it is ignored).
+- The font weights 550 and 650 are 600 (`--pk-weight-strong`).
+- The chart's text is 14 px, not 12 px.
+- Column subtotals are off by default: a start view or template without `totals.colSubtotals` adds
+  `totals: { colSubtotals: true }` to keep them.
+
 ### Changed
 
 - The chart's axes, legend and labels are 14 px or more (`--pk-chart-text-size`, by default

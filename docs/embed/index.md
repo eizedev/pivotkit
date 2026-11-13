@@ -25,6 +25,9 @@ few lines, then follow the getting-started page of that package step by step.
 
 </div>
 
+Coming from 0.4? [Upgrading from 0.4](../getting-started/upgrading.md) lists what a host checks.
+
+
 ## A first report
 
 === "React"
