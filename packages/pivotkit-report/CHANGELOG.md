@@ -33,7 +33,11 @@ First release.
   generated), print rules (the header on every page, rows not split, landscape for a wide table) and
   a Content-Security-Policy that loads and runs nothing.
 - The print template (`pivotkit-report/template`): `{{placeholders}}` from a fixed table, allowed in
-  text and a few attributes only, checked before anything is rendered (`INVALID_TEMPLATE`).
+  text and a few attributes only, checked before anything is rendered (`INVALID_TEMPLATE`); the
+  `content` of a `<meta>` takes one only for `name="description"` without `http-equiv`.
+- A host's `tokens` are left out when a value holds a line break or `url(` (also in a quoted string,
+  which a line break would end), a comment or a function that is not a colour, `calc()`, `min()`,
+  `max()`, `clamp()` or `var()`. The HTML report and the SVG leave out bidi controls, as the CSV does (in the SVG also as numeric references).
 - The chart as SVG through ECharts' server-side renderer, checked and cleaned (`cleanSvg`): no
   script, event attribute, link or style attribute; attribute names plain names, namespaces only
   SVG's and xlink's.

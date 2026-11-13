@@ -8,6 +8,7 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ### Changed
 
+- npm keywords `pivot-grid` and `pivottable`, as the repository's topics.
 - npm keyword `pivot-table` ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - A workbook over `limits.archiveEntries` or `limits.unpackedBytes` throws `LIMIT_EXCEEDED` with
   `details` `{ limit, value, max, file }`, as every other limit does, not `INVALID_FILE` with the

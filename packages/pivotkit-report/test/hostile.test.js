@@ -2,8 +2,10 @@
 // and an SVG that holds anything a chart does not draw is refused (cleanSvg).
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { PivotkitError } from "pivotkit-core";
 import { cleanSvg, render } from "pivotkit-report";
+import { BIDI_CONTROLS } from "../src/texts.js";
 import { FIXED, HOSTILE, HOSTILE_ROWS, bodyCells, echarts, startTags, svgTexts } from "./fixtures.js";
 
 const VIEW = { rows: ["Region"], values: [{ field: HOSTILE[1], agg: "sum" }, { field: "Units", agg: "sum" }], display: "chart", chart: { type: "bar" } };
@@ -68,4 +70,28 @@ test("cleanSvg refuses what a chart never draws, and turns style attributes into
     assert.equal(clean, '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><text x="1" font-size="12px" font-family="Arial">a &amp; b</text><rect fill="url(#g1)"></rect></svg>'.replace("<rect fill=\"url(#g1)\"></rect>", '<rect fill="url(#g1)"/>'));
     // a numeric reference to a character XML does not allow would make the SVG unreadable: left out
     assert.equal(cleanSvg(svg("<text>a&#0;b&#x1F;c&#xD800;d&#65;&#x20AC;&#10;</text>")), svg("<text>abcd&#65;&#x20AC;&#10;</text>"));
+});
+
+test("bidi controls in cells and the title are left out of every text format, as the import leaves them out", async () => {
+    const rows = [{ Region: "invoice\u202Etxt.exe", Units: 1 }, { Region: "\u2066=1+1\u2069", Units: 2 }];
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart", chart: { type: "bar" } };
+    const bidi = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+    for (const format of ["html", "svg", "csv"]) {
+        const r = await render(view, rows, { format, echarts, title: "Q\u202E4", chartEmbed: "inline", ...FIXED });
+        assert.ok(!bidi.test(r.text), `${format}: ${JSON.stringify(r.text.match(/.{0,20}[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069].{0,20}/)?.[0])}`);
+        assert.ok(r.text.includes("invoicetxt.exe"), format);
+    }
+});
+
+test("cleanSvg leaves out bidi controls written as numeric references, in text and attribute values", () => {
+    const svg = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">${inner}</svg>`;
+    const clean = cleanSvg(svg('<text font-family="a\u202Eb\u2066c">x&#x202E;y&#8238;z&#x2067;w\u202Ev</text>'));
+    assert.equal(clean, svg('<text font-family="abc">xyzwv</text>'));
+});
+
+test("pivotkit-report's bidi controls are pivotkit-core's export set", () => {
+    const core = readFileSync(new URL("../../pivotkit-core/src/csv.js", import.meta.url), "utf8");
+    const set = /const BIDI_CONTROLS = (\/\[[^\]]+\]\/g);/.exec(core)?.[1];
+    assert.ok(set, "BIDI_CONTROLS in pivotkit-core/src/csv.js");
+    assert.equal(String(BIDI_CONTROLS), set);
 });

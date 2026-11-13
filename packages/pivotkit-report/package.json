@@ -19,7 +19,10 @@
     "print",
     "svg",
     "echarts",
-    "excel-export"
+    "excel-export",
+    "pivot-grid",
+    "pivottable",
+    "excel"
   ],
   "type": "module",
   "sideEffects": false,

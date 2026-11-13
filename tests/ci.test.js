@@ -2,7 +2,9 @@
 // to one Playwright version, which must be the version of @playwright/test the tests are run with.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { releaseProblems, unreleasedEntries } from "../scripts/check-release.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -68,7 +70,7 @@ test("caretSatisfies reads caret ranges as npm does", () => {
     assert.equal(caretSatisfies("^1.2.0", "1.1.9"), false);
 });
 
-// publish order core, react, element: a range of an own package must take the version in this
+// publish order (CONTRIBUTING.md, "Releasing"): a range of an own package must take the version in this
 // repository, else npm would fetch another one from the registry instead of linking the workspace
 test("every caret range on an own package is satisfied by the workspace version", () => {
     for (const name of OWN) {
@@ -82,12 +84,76 @@ test("every caret range on an own package is satisfied by the workspace version"
     }
 });
 
-test("the own packages' caret ranges take the version of the package in this repository", () => {
-    const core = JSON.parse(readFileSync(new URL("packages/pivotkit-core/package.json", root), "utf8"));
-    const react = JSON.parse(readFileSync(new URL("packages/pivotkit-react/package.json", root), "utf8"));
-    assert.equal(react.dependencies["pivotkit-core"], `^${core.version}`);
-    const xlsx = JSON.parse(readFileSync(new URL("packages/pivotkit-xlsx/package.json", root), "utf8"));
-    assert.equal(xlsx.dependencies["pivotkit-core"], `^${core.version}`);
+/**
+ * How the packages of this repository name each other, against their versions in this repository: a
+ * run-time range (dependencies, peerDependencies) is exactly `^<version>`, a devDependency (bundled or
+ * used by a test) exactly `<version>`. A range whose lowest version is older than the repository's
+ * would let npm install a published version that lacks what the package imports (#206): a release
+ * that raises pivotkit-core must raise every range on it in the same pull request.
+ * @param {Record<string, any>} manifests  package.json of every workspace, by name
+ * @returns {string[]}
+ */
+function ownRangeProblems(manifests) {
+    const problems = [];
+    for (const [name, pkg] of Object.entries(manifests)) {
+        for (const section of ["dependencies", "peerDependencies", "devDependencies"]) {
+            for (const [dep, range] of Object.entries(pkg[section] ?? {})) {
+                if (!Object.hasOwn(manifests, dep)) continue;
+                const wanted = section === "devDependencies" ? manifests[dep].version : `^${manifests[dep].version}`;
+                if (range !== wanted) problems.push(`${name} ${section}.${dep} is "${range}", the repository has ${dep} ${manifests[dep].version}: write "${wanted}"`);
+            }
+        }
+    }
+    return problems;
+}
+
+test("ownRangeProblems finds a range or a devDependency left behind by a release", () => {
+    const at = (version, deps = {}, devDeps = {}) => ({ version, dependencies: deps, devDependencies: devDeps });
+    const consistent = { "pivotkit-core": at("0.5.0"), "pivotkit-react": at("0.5.0", { "pivotkit-core": "^0.5.0" }), "pivotkit-element": at("0.5.0", {}, { "pivotkit-core": "0.5.0" }) };
+    assert.deepEqual(ownRangeProblems(consistent), []);
+    // core raised to 0.5.0, react still on ^0.4.0: npm would install the published 0.4.x
+    assert.equal(ownRangeProblems({ ...consistent, "pivotkit-react": at("0.5.0", { "pivotkit-core": "^0.4.0" }) }).length, 1);
+    // core raised to a patch, the range still admits the older patch that lacks the fix
+    assert.equal(ownRangeProblems({ ...consistent, "pivotkit-core": at("0.5.1") }).length, 2);
+    // a bundled devDependency on the old version: npm would fetch it from the registry
+    assert.equal(ownRangeProblems({ ...consistent, "pivotkit-element": at("0.5.0", {}, { "pivotkit-core": "0.4.0" }) }).length, 1);
+    // a third-party dependency is not checked here
+    assert.deepEqual(ownRangeProblems({ ...consistent, "pivotkit-react": at("0.5.0", { "pivotkit-core": "^0.5.0", fflate: "0.8.3" }) }), []);
+});
+
+// examples outside the workspaces that take pivotkit-core from npm, as a host does
+const EXAMPLES_FROM_NPM = ["examples/reader-plugin/package.json"];
+
+test("every package of this repository, and every example that takes it from npm, names the others at their version in this repository", () => {
+    const manifests = Object.fromEntries([...OWN].map((name) => [name, JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, root), "utf8"))]));
+    assert.deepEqual(ownRangeProblems(manifests), []);
+    for (const file of EXAMPLES_FROM_NPM) {
+        const example = JSON.parse(readFileSync(new URL(file, root), "utf8"));
+        assert.deepEqual(ownRangeProblems({ ...manifests, [file]: example }), [], file);
+    }
+});
+
+test("check-release refuses a package whose own dependency has unreleased changes", () => {
+    const files = {
+        "package.json": JSON.stringify({ workspaces: ["packages/pivotkit-core", "packages/pivotkit-react", "packages/pivotkit-element"] }),
+        "packages/pivotkit-react/package.json": JSON.stringify({ dependencies: { "pivotkit-core": "^0.5.0", fflate: "0.8.3" } }),
+        "packages/pivotkit-element/package.json": JSON.stringify({ devDependencies: { "pivotkit-core": "0.5.0" } }),
+        "packages/pivotkit-core/CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- `chartPlan`\n\n## [0.4.0] - 2026-10-01\n\n- old\n"
+    };
+    const read = (file) => files[file];
+    assert.equal(releaseProblems("pivotkit-react", read).length, 1);
+    // pivotkit-element bundles core: a devDependency does not count
+    assert.deepEqual(releaseProblems("pivotkit-element", read), []);
+    files["packages/pivotkit-core/CHANGELOG.md"] = "# Changelog\n\n## [Unreleased]\n\n## [0.5.0] - 2026-11-20\n\n- `chartPlan`\n";
+    assert.deepEqual(releaseProblems("pivotkit-react", read), []);
+    assert.deepEqual(unreleasedEntries("## [Unreleased]\n\nFirst release.\n\n### Added\n\n- a\n- b\n"), ["- a", "- b"]);
+});
+
+test("the release workflow runs check-release for the tagged package before it packs", () => {
+    const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
+    const check = release.indexOf("node scripts/check-release.js");
+    assert.ok(check !== -1, "release.yml does not run scripts/check-release.js");
+    assert.ok(check < release.indexOf("npm pack --workspace"), "check-release runs after the pack");
 });
 
 test("every package of this repository is checked, packed and released", () => {
@@ -100,6 +166,10 @@ test("every package of this repository is checked, packed and released", () => {
         const accepted = /^\s*((?:pivotkit-[a-z]+\|?)+)\) ;;$/m.exec(release)?.[1].split("|") ?? [];
         assert.ok(accepted.includes(name), `release.yml does not accept a ${name} tag`);
     }
+    // the docs site may be published by hand from a release tag of any package
+    const docs = readFileSync(new URL(".github/workflows/docs.yml", root), "utf8");
+    const tagPattern = new RegExp(/\^pivotkit-\([a-z|]+\)@[^\s"]+/.exec(docs)?.[0].replace(/\\\\/g, "\\") ?? "^$");
+    for (const name of OWN) assert.ok(tagPattern.test(`${name}@1.2.3`), `docs.yml does not accept the tag ${name}@1.2.3`);
 });
 
 // pivotkit-element bundles its own packages: they are build-time devDependencies, pinned to the
@@ -166,5 +236,38 @@ test("the release workflow publishes the tarball by a path npm reads as a file",
     assert.ok(publishes.length > 0, "no npm publish in release.yml");
     for (const target of publishes) {
         assert.match(target, /^(\.\/|\/)/, `npm publish ${target}: start the path with ./`);
+    }
+});
+
+// Docs and READMEs name no version of pivotkit as a fact about the present, so a release cannot leave
+// one behind: no caret range of a pivotkit package. The statements that must name the current version
+// are listed here, each with the package whose version it names, and in CONTRIBUTING.md's release steps.
+const VERSION_STATEMENTS = [
+    { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
+    { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" }
+];
+const minorOf = (version) => version.split(".").slice(0, 2).join(".");
+
+/** The Markdown files a reader takes as the current state: READMEs, AGENTS.md, CONTRIBUTING.md, SECURITY.md, docs/. */
+function docFiles() {
+    const files = ["README.md", "AGENTS.md", "CONTRIBUTING.md", "SECURITY.md", ...WORKSPACES.map((w) => `${w}/README.md`)];
+    for (const entry of readdirSync(new URL("docs/", root), { recursive: true, withFileTypes: true })) {
+        const path = `${entry.parentPath ?? entry.path}/${entry.name}`.slice(fileURLToPath(new URL("docs/", root)).length);
+        if (entry.isFile() && entry.name.endsWith(".md") && !path.startsWith("playground")) files.push(`docs/${path}`);
+    }
+    return files;
+}
+
+test("docs and READMEs write no caret range of a pivotkit package; the version statements name the current minor", () => {
+    for (const file of docFiles()) {
+        const text = readFileSync(new URL(file, root), "utf8");
+        const range = /"?pivotkit-[a-z]+"?:? *"?\^\d+\.\d+\.\d+|\^0\.[1-9]\d*\.\d+/.exec(text);
+        assert.equal(range, null, `${file} writes the range ${range?.[0]}: write it without a version (\`^<version of pivotkit-core>\`, \`^0.y.z\`)`);
+    }
+    for (const { file, pattern, pkg } of VERSION_STATEMENTS) {
+        const found = pattern.exec(readFileSync(new URL(file, root), "utf8"))?.[1];
+        assert.ok(found, `${file}: the version statement is gone; update VERSION_STATEMENTS`);
+        const { version } = JSON.parse(readFileSync(new URL(`packages/${pkg}/package.json`, root), "utf8"));
+        assert.equal(minorOf(found), minorOf(version), `${file} names ${pkg} ${found}, the repository has ${version}: update it in the release pull request`);
     }
 });

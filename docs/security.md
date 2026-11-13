@@ -84,14 +84,17 @@ reference depth and the number of schema objects it reads.
 ## Exports
 
 - **CSV**: text that a spreadsheet would run as a formula gets a leading `'`: text starting with a tab
-  or a carriage return, text whose first visible character (after spaces, line breaks and control
-  characters) is `=` or `@`, and text starting with `+` or `-` unless it is a number as a locale writes it (`-5%`, `-1.234,5`, `-1’234.5`, `-5,3 %`, `-€1.50`) or a
-  number range such as the bin label `-10 – 0`.
+  or a carriage return, text whose first visible character (after spaces, line breaks, control
+  characters and invisible ones such as a zero-width space) is `=` or `@`, and text starting with `+` or `-` unless it is a number as a locale writes it (`-5%`, `-1.234,5`, `-1’234.5`, `-5,3 %`, `-€1.50`) or a
+  number range such as the bin label `-10 – 0`. Characters that change the direction of text
+  (U+061C, U+200E, U+200F, U+202A to U+202E, U+2066 to U+2069) are left out, as the import leaves them
+  out, so a name cannot read as another one and no formula hides behind one.
 - **Copies** (Copy table, the drill-down's Copy): the same guard on every cell, since a spreadsheet
   runs a pasted formula too. Copy as JSON writes values, never markup or code.
-- **XLSX**: text is written as inline strings, never as formulas. The XML is written by pivotkit-core
+- **XLSX**: text is written as inline strings, never as formulas, without bidi controls, as in the CSV. The XML is written by pivotkit-core
   itself; no spreadsheet library is involved. Excel's sheet limits are checked before writing.
-- **HTML report and SVG** ([pivotkit-report](reference/report.md)): every text is escaped; a
+- **HTML report and SVG** ([pivotkit-report](reference/report.md)): every text is escaped and loses
+  its bidi controls, as in the CSV (in the SVG also when written as a numeric reference); a
   [print template](reference/print-template.md) may hold placeholders in text and a few attributes
   only, checked before anything is rendered; the report's Content-Security-Policy loads and runs
   nothing, its chart is an image; the SVG is checked element by element (no script, event attribute,

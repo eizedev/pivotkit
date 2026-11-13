@@ -102,6 +102,16 @@ test("a token calls no function that loads something: url(), image-set() and the
     for (const [name, value] of Object.entries(kept)) if (name.startsWith("--pk-")) assert.ok(r.text.includes(`${name}:${value}`), name);
 });
 
+test("a token value with a line break in a string, or url( anywhere, is left out", async () => {
+    const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
+    // a raw line break ends a CSS string (a bad-string token), so what follows it is CSS again
+    const hostile = { "font-family": '"a\nurl(http://evil.example/x)"', "--pk-text": '"a\rb" red', "--pk-muted": '"a\fb"', "--pk-accent": '"url(http://e)"' };
+    const r = await render(view, SALES, { format: "html", tokens: hostile, chart: false });
+    assert.ok(!/url\(/i.test(r.text), "no url( in the report");
+    assert.ok(!r.text.includes("evil.example"));
+    for (const name of Object.keys(hostile)) assert.ok(!r.text.includes(`${name}:"`), name);
+});
+
 test("print: landscape from more than 8 columns, a smaller font from more than 16", async () => {
     const wide = (n) => Array.from({ length: n }, (_, i) => ({ Region: "North", Month: `M${String(i).padStart(2, "0")}`, Units: i }));
     const view = { rows: ["Region"], cols: ["Month"], values: [{ field: "Units", agg: "sum" }] };

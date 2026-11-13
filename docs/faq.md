@@ -13,7 +13,7 @@ description: Common questions about pivotkit - which package to use, data size, 
 
 ## How many rows can it handle?
 
-Measured up to 1,000,000 rows in Chromium, Firefox and WebKit on one Mac: the first table took
+Measured up to 1,000,000 rows in Chromium, Firefox and WebKit on one Mac (Apple M4, 16 GB): the first table took
 about 0.15 s at 100,000 rows and 1 to 2.5 s at a million, with the page frozen while it is built;
 after that a filter, a field or the chart took about 0.15 s at most
 ([measured in the browser](concepts/limits.md#measured-in-the-browser), which also says what was not

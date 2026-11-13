@@ -32,6 +32,9 @@ test("refused: every place where filled-in text could become markup, a link or c
     }
     refused('<meta name="keywords" content="{{title}}">', "attribute");
     refused('<meta http-equiv="refresh" content="0;url={{source}}">', "attribute");
+    // a description that is also an http-equiv: its content would be the refresh's target
+    refused('<meta name="description" http-equiv="refresh" content="0;url={{title}}">', "attribute");
+    refused('<meta http-equiv="refresh" name="description" content="{{title}}">', "attribute");
     refused("<p title={{title}}>", "unquoted");
     refused("<p {{title}}>", "attributeName");
     refused('<p data-{{title}}="x">', "attributeName");

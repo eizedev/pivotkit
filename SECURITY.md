@@ -2,9 +2,12 @@
 
 ## Scope
 
-The packages in this repository (`pivotkit-core`, `pivotkit-react`, `pivotkit-element`). A view
-(report template) and the data can come from users; anything that lets a view run code, read data it
-should not, or makes an exported CSV or XLSX file dangerous to open is in scope.
+The packages in this repository (`pivotkit-core`, `pivotkit-react`, `pivotkit-element`,
+`pivotkit-xlsx`, `pivotkit-report`, `pivotkit-cli`). A view (report template), the data, a loaded file
+(CSV, JSON, a workbook read by pivotkit-xlsx), a print template and a host's theme tokens can come
+from users; anything that lets them run code, load or read something they should not (a file outside
+the directories `pivotkit-cli --allow-dir` names, a resource from an HTML report), or makes an
+exported CSV, XLSX, HTML report or SVG dangerous to open is in scope.
 
 A view cannot run code, but it decides how much work the engine does. The limits in `LIMITS`
 ([Limits](https://pivotkit.eize.dev/concepts/limits/#limits) on the documentation site) bound it: the size of a view (fields per axis, values), the rows

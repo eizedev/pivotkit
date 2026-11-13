@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { readSheet } from "read-excel-file/node";
 import { DEFAULT_THEME, computePivot, encode, toGrid } from "../src/index.js";
-import { toCsv, toCsvBytes, toJson, toXlsx } from "../src/export.js";
+import { toCsv, toCsvBytes, toJson, toTsv, toXlsx } from "../src/export.js";
 import { csvSeparator, neutralizeFormula } from "../src/csv.js";
 import { SALES } from "./fixtures.js";
 
@@ -79,6 +79,10 @@ test("text never becomes a formula in XLSX and control characters are removed", 
     assert.ok(!sheet.includes("<f>"));
     assert.ok(sheet.includes("ab&lt;&amp;&gt;"));
     assert.ok(sheet.includes('t="inlineStr"'));
+    // bidi controls are left out, as in the CSV: no name reads as another one in Excel
+    const bidi = unzipSync(toXlsx(toGrid(computePivot(encode([{ k: "invoice\u202Etxt.exe", v: 1 }]), { rows: ["k"], values: [{ field: "v", agg: "sum" }] })), { sheetName: "Q\u20664" }));
+    assert.ok(!/[\u202a-\u202e\u2066-\u2069]/.test(strFromU8(bidi["xl/worksheets/sheet1.xml"]) + strFromU8(bidi["xl/workbook.xml"])));
+    assert.ok(strFromU8(bidi["xl/worksheets/sheet1.xml"]).includes("invoicetxt.exe"));
 });
 
 test("CSV: separator by locale, quoting, repeated row labels", () => {
@@ -128,6 +132,27 @@ test("CSV formula injection: formulas get a leading quote, numbers and number ra
     const csv = toCsv(toGrid(computePivot(d, { rows: ["k"], values: [{ field: "v", agg: "sum" }] }), { locale: "en-US" }));
     assert.ok(csv.includes("'=cmd|' /C calc'!A0,-5"), csv);
     assert.ok(csv.includes("'@x,1"), csv);
+});
+
+test("CSV and TSV leave out bidi controls, as the import does: no text reads as another, no formula hides behind one", () => {
+    const d = encode([{ k: "invoice\u202Etxt.exe", v: 1 }, { k: "\u2066=1+1\u2069", v: 2 }, { k: "a\u200Fb\u061Cc\u202Ad\u202Ce", v: 3 }]);
+    const g = toGrid(computePivot(d, { rows: ["k"], values: [{ field: "v", agg: "sum" }] }), { locale: "en-US" });
+    const bidi = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+    for (const text of [toCsv(g), toTsv(g), toTsv([["\u202E=2+2", "x\u2067y"]])]) {
+        assert.ok(!bidi.test(text), JSON.stringify(text));
+    }
+    const csv = toCsv(g);
+    assert.ok(csv.includes("invoicetxt.exe,1"), csv);
+    assert.ok(csv.includes("'=1+1,2"), csv);
+    assert.ok(csv.includes("abcde,3"), csv);
+    assert.ok(toTsv([["\u202E=2+2"]]).startsWith("'=2+2"));
+});
+
+test("CSV formula guard looks past invisible characters to the first visible one", () => {
+    for (const s of ["\u200b=1", "\u2060=1", "\u00ad=1", "\u206a=1", "\u180e=1", "\u0085=1", "\ufeff@x", "\u200b-2+3"]) {
+        assert.equal(neutralizeFormula(s), `'${s}`, JSON.stringify(s));
+    }
+    assert.equal(neutralizeFormula("\u200b-5"), "\u200b-5");
 });
 
 test("CSV bytes start with a byte order mark unless switched off", () => {

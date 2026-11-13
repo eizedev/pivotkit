@@ -9,11 +9,12 @@ Pivot report builder for the web: drag-and-drop fields, table and chart (Apache 
 JSON files, native Excel export; as a JavaScript core, a React component and a web component.
 Free under MIT, it computes in the browser on the rows the host passes and fetches no data; a saved
 view is plain JSON that cannot run code, and the Excel export is a real .xlsx with the pivot layout
-kept.
+kept. It runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
+([browser support](docs/browser-support.md)); the engine, the reports and the CLI in Node 22 or later.
 
-[Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
+[Live demo](https://pivotkit.eize.dev/demo/) · [Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
 
-![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
+![The pivot report: average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
 <sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
 

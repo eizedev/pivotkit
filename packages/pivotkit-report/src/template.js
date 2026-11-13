@@ -22,6 +22,7 @@
  */
 
 import { PivotkitError, closest } from "pivotkit-core";
+import { BIDI_CONTROLS } from "./texts.js";
 
 /** Characters a template may have. */
 export const TEMPLATE_LIMIT = 262_144;
@@ -71,9 +72,11 @@ const UNQUOTED_VALUE = new RegExp(`^[^${WS}>]*`);
  * @typedef {{ parts: Array<string | Slot>, names: string[] }} Template  the template's text cut at its placeholders
  */
 
-/** Escapes text for HTML text content and quoted attribute values. */
+/** Escapes text for HTML text content and quoted attribute values; bidi controls are left out. */
 export function escapeHtml(text) {
-    return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    return String(text)
+        .replace(BIDI_CONTROLS, "")
+        .replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
 /**
@@ -232,7 +235,9 @@ export function parseTemplate(source) {
             i += value.length;
         }
         // the quoted values, now that every attribute of the tag is known
-        const metaDescription = name === "meta" && attrs.some((a) => a.name === "name" && (a.value ?? "").trim().toLowerCase() === "description");
+        // a <meta> with http-equiv (a refresh, a cookie) reads its content as an instruction, not text
+        const metaDescription =
+            name === "meta" && attrs.some((a) => a.name === "name" && (a.value ?? "").trim().toLowerCase() === "description") && !attrs.some((a) => a.name === "http-equiv");
         const pending = text;
         text = "";
         // eslint-disable-next-line no-control-regex
@@ -245,7 +250,7 @@ export function parseTemplate(source) {
             const range = valueRanges[Number(m[1])];
             const allowed = ATTRIBUTES.includes(range.attr) || (metaDescription && range.attr === "content");
             if (!allowed) {
-                noSlot(range.start, range.end, "attribute", `in the attribute "${range.attr}" (only ${ATTRIBUTES.join(", ")} and the content of <meta name="description">)`);
+                noSlot(range.start, range.end, "attribute", `in the attribute "${range.attr}" (only ${ATTRIBUTES.join(", ")} and the content of <meta name="description"> without http-equiv)`);
             }
             text += range.quote;
             let j = range.start;

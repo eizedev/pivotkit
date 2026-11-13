@@ -120,8 +120,8 @@ cli) in the root `package.json`: `npm run types` and the builds depend on it.
   io, limit, template; `--json` on stdout), `src/commands.js` (the one table of commands and options
   that the parser, the help and the completions are made from), `src/help.js` (help and bash, zsh,
   fish and PowerShell completions), `src/safe-files.js` (read a regular file once with its size checked
-  first, write through a temporary file, `--allow-dir` by real path; the MCP server of step 3 reuses
-  it), `src/errors.js` (`CliError` with a kind; no file content in a message, `printable` cleans
+  first, write through a temporary file, `--allow-dir` by real path; internal, not an export of the
+  package, until the open points of #209 are settled), `src/errors.js` (`CliError` with a kind; no file content in a message, `printable` cleans
   names). `test/` spawns the CLI as a user runs it.
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,
@@ -237,10 +237,14 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   ECharts.
 - Every third-party package is pinned to an exact version with the lock file; CI installs with
   `npm ci --ignore-scripts`. Exception: a package of this repository that another one depends on
-  takes a caret range on its current version (`"pivotkit-core": "^0.4.0"` in pivotkit-react); the lock
-  file still pins it in development. In 0.x a caret range spans patch versions only (`^0.4.0` is
-  0.4.x), so a host that also uses pivotkit-core directly must use a version inside the range;
-  npm shares one copy only when the ranges overlap. Chart wrapper packages have been hijacked on npm
+  takes a caret range on its current version (`"pivotkit-core": "^<version of pivotkit-core>"` in
+  pivotkit-react; a devDependency on one, as pivotkit-element's, the exact version), checked by
+  `tests/ci.test.js`; the lock file still pins it in development. In 0.x a caret range spans patch
+  versions only (`^0.y.z` is 0.y.z and later 0.y patches), so a host that also uses pivotkit-core
+  directly must use a version inside the range; npm shares one copy only when the ranges overlap.
+  Docs and READMEs name no version of their own; the few statements that must (`docs/compare.md`, the
+  example of `docs/reference/view-file.md`) are in CONTRIBUTING.md's release steps and checked by
+  `tests/ci.test.js`. Chart wrapper packages have been hijacked on npm
   before: prefer a small own wrapper over a wrapper package.
 - A loaded file is user input like a view: every reader counts what a file can make grow against
   `LIMITS` before the step it guards (the size before reading, an archive's directory before
@@ -250,9 +254,11 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   format. A reader starts no worker of its own (a strict CSP blocks `blob:` workers). Errors are
   `INVALID_FILE` with `details.reason`, or `LIMIT_EXCEEDED` with `details.file`.
 - Exports must be safe to open: CSV text that a spreadsheet would run as a formula gets a leading `'`
-  (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace and control
-  characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
-  inline strings, never as formulas.
+  (the rule is in `src/csv.js`: tab or CR first, or `=` `@` after leading whitespace, control and
+  invisible characters, or `+` `-` unless the text is a number as a locale writes it or a number range; the same guard for the clipboard copies); XLSX writes text as
+  inline strings, never as formulas. CSV, TSV, XLSX, the HTML report and the SVG leave out bidi
+  controls (`BIDI_CONTROLS` in `src/csv.js`; pivotkit-report's copy in `texts.js` is compared with it
+  by a test).
 - Measured up to 1,000,000 rows in three browsers (`npm run bench:browser`, `docs/concepts/limits.md`
   "Measured in the browser"): typed arrays, no per-row objects in hot loops. Run the
   benchmark before and after engine changes and compare with the baseline in `docs/reference/core.md`

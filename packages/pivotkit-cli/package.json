@@ -18,7 +18,10 @@
     "reporting",
     "report",
     "csv",
-    "excel"
+    "excel",
+    "pivot-grid",
+    "pivottable",
+    "excel-export"
   ],
   "type": "module",
   "bin": {
@@ -28,10 +31,6 @@
     ".": {
       "types": "./types/cli.d.ts",
       "default": "./src/cli.js"
-    },
-    "./safe-files": {
-      "types": "./types/safe-files.d.ts",
-      "default": "./src/safe-files.js"
     },
     "./package.json": "./package.json"
   },

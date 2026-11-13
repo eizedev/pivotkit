@@ -26,7 +26,7 @@ npm install pivotkit-react react react-dom echarts
 
 TypeScript declarations are included. pivotkit-core (a caret range) and @dnd-kit come with the
 package. In 0.x a caret range spans patch
-versions only (`^0.4.0` is 0.4.x): an app that also imports pivotkit-core itself must use a version
+versions only (`^0.y.z` is 0.y.z and later 0.y patches): an app that also imports pivotkit-core itself must use a version
 inside that range, since npm shares one copy only when the ranges overlap.
 
 ## Example

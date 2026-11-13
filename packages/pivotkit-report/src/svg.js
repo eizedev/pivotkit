@@ -8,6 +8,7 @@
 
 import { PivotkitError, chartPlan, chartThemeFrom, computePivot, swapAxes, toEChartsOption, toSeries } from "pivotkit-core";
 import { decorateOption } from "pivotkit-core/chart";
+import { BIDI_CONTROLS } from "./texts.js";
 import { LIGHT_TOKENS } from "./tokens.js";
 
 /** Presentation attributes a `style` attribute's declarations become (other declarations are dropped). */
@@ -21,6 +22,9 @@ const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
 /** Whether XML 1.0 allows a character (Char): a numeric reference to any other makes the SVG unreadable. */
 const xmlChar = (code) => code === 0x9 || code === 0xa || code === 0xd || (code >= 0x20 && code <= 0xd7ff && code !== 0x7f) || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff);
+
+/** Whether a numeric reference stays: a character XML allows that is no bidi control. */
+const keptReference = (code) => xmlChar(code) && !Number.isNaN(code) && !String.fromCodePoint(code).match(BIDI_CONTROLS);
 
 /** An attribute name as XML writes one: a quote, "=" or "<" in a name would break the SVG as XML. */
 const ATTRIBUTE_NAME = /^[A-Za-z_][\w:.-]*$/;
@@ -55,7 +59,7 @@ export function cleanSvg(svg) {
         if (/[<>]/.test(text) || /&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(text)) {
             throw unsafe("text that is not escaped");
         }
-        out.push(text.replace(CONTROL, "").replace(/&#(x[0-9a-fA-F]+|\d+);/g, (entity, number) => (xmlChar(number[0] === "x" ? parseInt(number.slice(1), 16) : Number(number)) ? entity : "")));
+        out.push(text.replace(CONTROL, "").replace(BIDI_CONTROLS, "").replace(/&#(x[0-9a-fA-F]+|\d+);/g, (entity, number) => (keptReference(number[0] === "x" ? parseInt(number.slice(1), 16) : Number(number)) ? entity : "")));
         if (lt === -1) {
             break;
         }
@@ -86,7 +90,7 @@ export function cleanSvg(svg) {
         let written = `<${closing}${name}`;
         const presentation = new Map();
         for (const [, attrName, double, single] of attrs.matchAll(attribute)) {
-            const value = decode(double ?? single ?? "").replace(CONTROL, "");
+            const value = decode(double ?? single ?? "").replace(CONTROL, "").replace(BIDI_CONTROLS, "");
             const lower = attrName.toLowerCase();
             if (!ATTRIBUTE_NAME.test(attrName)) {
                 throw unsafe("an attribute name that is not a plain name");

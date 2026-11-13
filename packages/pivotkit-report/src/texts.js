@@ -3,6 +3,12 @@
  * locale picks them, English stands in for any other; a host passes its own as `texts`.
  */
 
+/**
+ * The characters that change the direction of text, as pivotkit-core's import leaves them out: a report
+ * writes none of them (HTML, SVG), so no name reads as another one ("invoice\u202Etxt.exe").
+ */
+export const BIDI_CONTROLS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+
 export const REPORT_TEXTS = Object.freeze({
     en: Object.freeze({
         untitled: "Report",

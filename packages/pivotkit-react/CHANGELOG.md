@@ -6,6 +6,26 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Upgrading from 0.4
+
+What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/) has the details.
+
+- **Breaking:** views, view files and links are written in format version 2; pivotkit 0.4 refuses
+  them as newer. Version 1 loads with the same result.
+- **Breaking:** dark colours of a host go on `.pk-root[data-pk-theme="dark"]`, not on an attribute of
+  the page (`html[data-theme="dark"] .pk-root`): the Excel export and the HTML report read the light
+  theme by showing it on the report for a moment, and a rule on the page's attribute would put the
+  dark colours into the file.
+- **Breaking:** a page with an import map maps `pivotkit-report` and `pivotkit-core/chart`.
+- The colour scale's default is blue; red, yellow, green come back with `--pk-scale-low: #f8696b`,
+  `--pk-scale-mid: #ffeb84`, `--pk-scale-high: #63be7b` (dark: `#c2413f`, `#b39a2e`, `#3f9a5c`).
+  `--pk-scale-mid` is no longer set.
+- The label key `filter` is removed (a host's text for it is ignored).
+- The font weights 550 and 650 are 600 (`--pk-weight-strong`).
+- The chart's text is 14 px, not 12 px.
+- Column subtotals are off by default: a start view or template without `totals.colSubtotals` adds
+  `totals: { colSubtotals: true }` to keep them.
+
 ### Changed
 
 - The chart's axes, legend and labels are 14 px or more (`--pk-chart-text-size`, by default
@@ -20,7 +40,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 - The chart's plan, its colours from the tokens and its marks are pivotkit-core's (`chartPlan`,
   `chartThemeFrom`, `pivotkit-core/chart`), so an SVG and a printed report of pivotkit-report draw
   the same chart; the report looks the same. A host page with an import map adds
-  `pivotkit-core/chart` next to `pivotkit-core/export` ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+  `pivotkit-core/chart` next to `pivotkit-core/export`, and `pivotkit-report` (a dependency, loaded on
+  the first HTML report, SVG or print of the Export menu) ([#165](https://github.com/eizedev/pivotkit/issues/165)).
 - The table follows pivotkit-core's totals ([#155](https://github.com/eizedev/pivotkit/issues/155), [#156](https://github.com/eizedev/pivotkit/issues/156)): column subtotals off in a new report,
   no empty column and no total rows for fields in Rows without a value, no subtotal for a group of
   one item (its arrow stays). Labels without a value column next to them take up to 85 % of the
@@ -33,7 +54,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   "subtotal", name a subtotal's label ("North Total") and say that a group of one item has none ([#156](https://github.com/eizedev/pivotkit/issues/156)).
 - The npm description names views as JSON files, as the README and the docs do, instead of templates
   ([#191](https://github.com/eizedev/pivotkit/issues/191)).
-- npm keywords `pivot-grid` and `pivottable`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
+- npm keywords `pivot-grid`, `pivottable` and `excel-export`, the terms people search for ([#172](https://github.com/eizedev/pivotkit/issues/172)).
 - The report reads and writes pivotkit-core's view version 2 ([#165](https://github.com/eizedev/pivotkit/issues/165)):
   the picks of a field are an `in` filter with `not: true` and `blanks`, a rule on the names a `text`
   filter (case and runs of whitespace ignored, `on: "label"` for a field that is not text), "is not",
