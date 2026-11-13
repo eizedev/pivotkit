@@ -370,6 +370,7 @@ polite live region. In the order they are shown, and when:
 | `top` | notice | A field on Rows or Columns shows its top or bottom N: totals and percentages cover those items only. | |
 | `chartCapped` | notice | The chart draws the first 50 of more categories. | |
 | `showAs` | tip | A value is shown as a percentage: what 100 % is for that calculation. | |
+| `colSubtotals` | tip | A table with column subtotals on, two or more fields in Columns and a value: a Total column adds up the group before it. The header of each subtotal column has the same text as its tooltip. | Hide column subtotals |
 | `chartOverTime` | tip | A chart type the user chose (not lines, areas or a heatmap) with a date or a grouping of one along the time line on Rows or Columns (where Automatic would draw lines). | Show as lines over time (the automatic type) |
 | `pieSlices` | tip | A pie or donut of more than 7 slices. | Switch to Bars |
 | `pieColumns` | tip | A pie or donut with a field on Columns: it draws one slice per row and adds up the columns. | Switch to Bars |
@@ -550,7 +551,7 @@ stay on the items. Options, Help, "Show explanations" (or
 `aria-disabled`, so the arrow keys still reach it), and a short line under it says why, only while it
 is disabled: the grand total row needs a field in Rows, the grand total
 column one in Columns, row subtotals two or more fields in Rows, column subtotals two or more in
-Columns; Expand all and Collapse all; the chart image "Switch to Chart first."; a pie's Labels while
+Columns, every total a value (a disabled total shows no tick); Expand all and Collapse all; the chart image "Switch to Chart first."; a pie's Labels while
 value labels are off. The export menu is a dialog, so Tab reaches each format's "i".
 
 ## Form fields

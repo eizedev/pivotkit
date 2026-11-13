@@ -206,7 +206,7 @@ size, counted before anything is allocated).
 | `rows` | `GridCell[][]`, header rows first; `null` is a cell covered by a merge. |
 | `headerRows`, `rowHeaderColumns`, `columnCount` | The layout. |
 | `merges` | `{ row, col, rowSpan, colSpan }[]`. |
-| `dataColumns`, `bodyRows` | Per value column its `colPath`, `valueIndex` and `total`; per body row its `rowPath`, `total` and `collapsed`. |
+| `dataColumns`, `bodyRows` | Per value column its `colPath`, `valueIndex` and `total`; per body row its `rowPath`, `total` and `collapsed`. Without values there is one column per column line (`valueIndex` -1, empty cells under the labels), and none without column fields either. |
 | `formats`, `valueNames`, `conditional` | Per value. |
 | `showAs` | Per value its "show values as" type, or `null`. |
 | `locale`, `timeZone` | What the texts are formatted in; the exports use them too. |
@@ -217,6 +217,10 @@ A `GridCell` has `text` (formatted), `value` (raw), `kind` (`"corner"`, `"colHea
 `style` (`{ scale, bar, color }` for colour scales and data bars) and, on value cells, `hasRows`
 (`false`: no source row behind the cell, nothing to drill into). With one value, its name is a single
 header cell over all of its columns, as in Excel.
+
+The view's `totals` decide the total rows and columns, with two rules of their own: without values
+there are none (a total would have no number), and a group with a single child has no subtotal (it
+would repeat the child; the group keeps its toggle).
 
 ### `toSeries(result, options?)` and `toEChartsOption(result, options?)`
 
