@@ -101,7 +101,7 @@ export const REPORT_FONT = "system-ui, -apple-system, Segoe UI, Roboto, Helvetic
  * A token value is written into CSS only when it holds no character that could end the rule, and no
  * comment (a calc()'s * and / are kept apart from each other).
  */
-const SAFE_VALUE = /^(?!.*(\/\*|\*\/))[#\w\s.,%()/*+-]*$/;
+const SAFE_VALUE = /^(?![\s\S]*(\/\*|\*\/))[#\w\s.,%()/*+-]*$/;
 /**
  * The CSS functions a token may call: colours, a shadow's lengths and other tokens. Any other, url(),
  * image-set() or src() among them, could load a resource where a report loads none.

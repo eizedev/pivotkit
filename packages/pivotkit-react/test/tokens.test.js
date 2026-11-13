@@ -253,7 +253,7 @@ function codeLiteral(line) {
         /font-weight:\s*\d/.test(line) ||
         /["'`][^"'`]*(#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\()/.test(line) ||
         /(borderRadius\s*[:=]|border-radius:)\s*[[("'`]*\s*(?!0\b|50%|999px)\d/.test(line) ||
-        /fontSize\s*[:=]\s*["'`]?\d/.test(line) ||
+        /fontSize\s*[:=]\s*["'`]?\d|fontSize\s*([:=][^,;]*)?(\?\?|\|\|)\s*\d/.test(line) ||
         /(font-size|\bfont):\s*\d/.test(line) ||
         /String\([^)]*\)\.length\s*\*\s*\d|\b\d+\s*\*\s*(0\.55|CHAR_WIDTH)\b/.test(line) ||
         /setProperty\(\s*["'`](border(-[a-z]+)*-radius|font-size|font-family|outline(-width|-offset)?)["'`]\s*,\s*["'`][\w"']/.test(line) ||
@@ -274,6 +274,8 @@ test("the code check finds colours, weights, radii, font sizes and font families
         "body{font-size:10pt}",
         "const labelWidth = (text) => String(text).length * 7;",
         "const longest = names.length * 12 * 0.55;",
+        "axisLabel: { fontSize: theme.textSize ?? 12 }",
+        "const size = fontSize || 12;",
         'textStyle: { fontSize: "16px" }',
         'el.style.setProperty("border-radius", "8px")',
         'css: "font-family: Menlo, monospace"',
@@ -283,7 +285,7 @@ test("the code check finds colours, weights, radii, font sizes and font families
     const good = [
         'marker.style.borderRadius = "50%"', "borderRadius: s.stack ? 0 : r", "fontSize: theme.titleSize", 'css: "font-family: var(--pk-font-mono)"', "border-radius:var(--pk-radius-card)",
         "function columnLabelLayout(names, width, fontSize = DEFAULT_THEME.textSize) {", ".pk-report h1{font-size:var(--pk-report-title-size)}", "body{font:var(--pk-font-size)/1.45 ${font}}",
-        "const longest = names.length * fontSize * CHAR_WIDTH;", "const bits = bytes.length * 8;"
+        "const longest = names.length * fontSize * CHAR_WIDTH;", "const bits = bytes.length * 8;", "fontSize: theme.textSize ?? DEFAULT_THEME.textSize"
     ];
     assert.deepEqual(bad.filter((l) => !codeLiteral(l)), []);
     assert.deepEqual(good.filter(codeLiteral), []);

@@ -111,3 +111,15 @@ test("chartThemeFrom: the text's size in px, else DEFAULT_THEME's; toEChartsOpti
     // four regions ("(blank)" the longest, 7 characters) in 80 + 4 * 60 px: straight at 12 px, slanted at 20 px
     assert.deepEqual([rotateAt(12, 320), rotateAt(20, 320)], [0, 45]);
 });
+
+test("the room of the title, the legend and the group labels grows with the text sizes", () => {
+    // two values: two series, so a legend above the chart
+    const result = computePivot(data, { rows: ["Region", "Product"], values: [{ field: "Units", agg: "sum" }, { field: "Price", agg: "sum" }], chart: { type: "bar", groupLabels: "on", title: "Units" } });
+    const at = (theme) => {
+        const o = toEChartsOption(result, { theme });
+        return { gridTop: o.grid.top, legendTop: o.legend.top, groupOffset: o.xAxis[1].offset };
+    };
+    // 16 px title, 14 px text: 32 px for the title, 24 for the legend line, 26 to the group labels
+    assert.deepEqual(at({}), { gridTop: 16 + 32 + 24, legendTop: 32, groupOffset: 26 });
+    assert.deepEqual(at({ titleSize: 24, textSize: 20 }), { gridTop: 16 + 40 + 30, legendTop: 40, groupOffset: 32 });
+});

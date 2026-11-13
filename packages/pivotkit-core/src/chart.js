@@ -109,10 +109,13 @@ export function toSeries(result, options) {
  * @property {[string, string]} [donutRadius]     inner and outer radius of a donut, default a ring (42%, 70%)
  */
 
-/** Room (px) the title takes above the chart. */
-const TITLE_ROOM = 32;
-/** Room (px) a legend takes on its side: one line at the top or bottom, a column on the right. */
-const LEGEND_ROOM = { top: 24, bottom: 32, right: 160 };
+/** Room (px) the title takes above the chart: its line and 16 px below it (32 px at 16 px). */
+const roomOfTitle = (titleSize) => titleSize + 16;
+/**
+ * Room (px) a legend takes on its side for text `textSize` px high: one line at the top or bottom (at
+ * least 24 and 32 px, what a 14 px line takes), a column on the right.
+ */
+const legendRoom = (textSize) => ({ top: Math.max(24, textSize + 10), bottom: Math.max(32, textSize + 18), right: 160 });
 
 /**
  * Where the legend of a chart goes and the room it takes, from `chart.legend`: "auto" above the
@@ -120,25 +123,30 @@ const LEGEND_ROOM = { top: 24, bottom: 32, right: 160 };
  * @param {string | undefined} setting
  * @param {boolean} auto
  * @param {number} top  the room above the legend (the title)
- * @param {object} textStyle
+ * @param {{ fontSize: number }} textStyle
  * @returns {{ legend: object | null, room: { top: number, bottom: number, right: number } }}
  */
 function legendOf(setting, auto, top, textStyle) {
+    const room = legendRoom(textStyle.fontSize);
     const where = setting === "bottom" || setting === "right" || setting === "off" ? setting : auto ? "top" : "off";
     if (where === "off") {
         return { legend: null, room: { top: 0, bottom: 0, right: 0 } };
     }
     if (where === "right") {
-        return { legend: { type: "scroll", orient: "vertical", right: 0, top: top + 8, bottom: 8, textStyle }, room: { top: 0, bottom: 0, right: LEGEND_ROOM.right } };
+        return { legend: { type: "scroll", orient: "vertical", right: 0, top: top + 8, bottom: 8, textStyle }, room: { top: 0, bottom: 0, right: room.right } };
     }
     if (where === "bottom") {
-        return { legend: { type: "scroll", bottom: 0, textStyle }, room: { top: 0, bottom: LEGEND_ROOM.bottom, right: 0 } };
+        return { legend: { type: "scroll", bottom: 0, textStyle }, room: { top: 0, bottom: room.bottom, right: 0 } };
     }
-    return { legend: { type: "scroll", top, textStyle }, room: { top: LEGEND_ROOM.top, bottom: 0, right: 0 } };
+    return { legend: { type: "scroll", top, textStyle }, room: { top: room.top, bottom: 0, right: 0 } };
 }
 
-/** Room (px) between the category axis and the group labels under it (or left of it), before the layout of the UI. */
-export const GROUP_AXIS_OFFSET = 24;
+/**
+ * Room (px) between the category axis and the group labels under it (or left of it), before the
+ * layout of the UI: a line of category labels `textSize` px high and the room around it (as
+ * decorateOption's straight labels).
+ */
+const groupAxisOffset = (textSize) => textSize + 12;
 
 /**
  * The group labels of a category axis with two or more row fields (`chart.groupLabels` "auto" or
@@ -176,10 +184,10 @@ function groupAxisOf(s, rowFields, chart, { separator, axisLine, theme }) {
             type: "category",
             data: outer,
             position: chart.horizontal ? "left" : "bottom",
-            offset: GROUP_AXIS_OFFSET,
+            offset: groupAxisOffset(theme.textSize ?? DEFAULT_THEME.textSize),
             axisLine: { show: false },
             // the separators: from this axis to the main one, at the first category of each group
-            axisTick: { show: true, inside: true, length: GROUP_AXIS_OFFSET, interval: (i) => i > 0 && starts[i] === true, lineStyle: axisLine.lineStyle },
+            axisTick: { show: true, inside: true, length: groupAxisOffset(theme.textSize ?? DEFAULT_THEME.textSize), interval: (i) => i > 0 && starts[i] === true, lineStyle: axisLine.lineStyle },
             axisLabel: { color: theme.textColor, fontSize: theme.textSize ?? DEFAULT_THEME.textSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight, interval: (i) => middles.has(i) },
             axisPointer: { show: false },
             splitLine: { show: false },
@@ -260,7 +268,7 @@ export function toEChartsOption(result, options) {
     const valueFormatter = (v) => (typeof v === "number" ? fmt(v) : "");
     // the title over the chart, and the legend where the view puts it, with the room they take
     const title = typeof chart.title === "string" && chart.title.trim() ? { title: { text: chart.title.trim(), left: "center", top: 0, textStyle: { ...textStyle, fontSize: theme.titleSize ?? DEFAULT_THEME.titleSize, fontWeight: theme.strongWeight ?? DEFAULT_THEME.strongWeight } } } : {};
-    const titleRoom = title.title ? TITLE_ROOM : 0;
+    const titleRoom = title.title ? roomOfTitle(theme.titleSize ?? DEFAULT_THEME.titleSize) : 0;
     const { legend, room } = legendOf(chart.legend, SLICE_CHART_TYPES.includes(chart.type) || s.series.length > 1, titleRoom, textStyle);
     const legendPart = legend ? { legend } : {};
     // what is written next to the marks: "percent" and "both" are a pie's; the other types write the value

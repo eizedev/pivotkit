@@ -163,11 +163,11 @@ is drawn with another face: above 500 the browser takes the next heavier one, so
 The chart reads `--pk-chart-1` to `--pk-chart-8` for its series, in this order, and
 `--pk-heat-low`/`--pk-heat-high` for the heatmap, in the current theme. Its title is
 `--pk-chart-title-size` large and `--pk-weight-strong` bold, its other text (the axes, the legend,
-the labels on bars, slices and cells, the heatmap's scale) `--pk-chart-text-size` (the secondary
-text's size, at least 14 px); its bars and pie slices have `--pk-radius-chart` corners, its tooltip
+the labels on bars, slices and cells, the heatmap's scale) `--pk-chart-text-size` (by default the
+secondary text's size, at least 14 px; a host's own size is taken as it is, so keep it at 14 px or more); its bars and pie slices have `--pk-radius-chart` corners, its tooltip
 `--pk-radius-card` ones. The report resolves these sizes and corners to px where it is, so `1.25em`
 or `calc(var(--pk-font-size) * 1.2)` work as well as `20px`. The chart lays its labels out for their
-size: a larger text slants the category names sooner, writes every n-th one, or leaves the numbers
+size, and the room of its title and legend grows with them: a larger text slants the category names sooner, writes every n-th one, or leaves the numbers
 out of cells and rings too small for them (the tooltip has every one).
 
 ```css
