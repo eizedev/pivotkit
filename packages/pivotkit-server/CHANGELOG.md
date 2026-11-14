@@ -6,6 +6,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- `output.maxAgeDays` also removes the temporary files of writes the server was killed in
+  (`.<name>.<pid>-<random>.tmp`, older than an hour); they counted toward `output.maxFiles` and
+  stayed for good ([#209](https://github.com/eizedev/pivotkit/issues/209)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.

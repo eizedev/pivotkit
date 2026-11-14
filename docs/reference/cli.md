@@ -401,7 +401,8 @@ for a report that is the same on every run.
 - **Output** goes to a new temporary file next to the target, then replaces it: no half-written
   file. A link, a directory or another non-regular file at the target is never replaced; for stdout
   leave out `-o` (`-o /dev/stdout` is a device). The directory is not created. A run killed between
-  the two steps leaves the temporary file (`.<name>.<pid>-<random>.tmp`).
+  the two steps leaves the temporary file (`.<name>.<pid>-<random>.tmp`); the CLI does not remove it
+  later, delete it by hand.
 - A file that has more bytes when it is read than its size said (it grew, or a `/proc` file that
   says 0) is refused, never cut.
 - **`--allow-dir`** is a hard limit: every file read or written must lie inside one of the

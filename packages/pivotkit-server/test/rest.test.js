@@ -272,10 +272,14 @@ test("output.maxAgeDays: old reports and drafts go at start (and hourly); other 
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);
-    for (const name of ["old.xlsx", "old.report.json", "notes.txt", "recent.xlsx"]) {
+    // a write's temporary file left by a server that was killed during the write: it goes after an
+    // hour, not after maxAgeDays; one of a write still running (recent) stays
+    const hours = new Date(Date.now() - 2 * 3_600_000);
+    const ages = { "old.xlsx": old, "old.report.json": old, "notes.txt": old, ".a1b2-sales.xlsx.4242-k3j9x0qz.tmp": hours, ".a1b2-sales.csv.4243-p0o9i8u7.tmp": null, ".hidden.tmp": hours, "recent.xlsx": null };
+    for (const [name, time] of Object.entries(ages)) {
         writeFileSync(join(dir, "out", name), name);
-        if (name !== "recent.xlsx") {
-            utimesSync(join(dir, "out", name), old, old);
+        if (time) {
+            utimesSync(join(dir, "out", name), time, time);
         }
     }
     mkdirSync(join(dir, "out", "keep"));
@@ -283,7 +287,7 @@ test("output.maxAgeDays: old reports and drafts go at start (and hourly); other 
     utimesSync(join(dir, "out", "keep", "old.csv"), old, old);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
     try {
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["keep", "notes.txt", "recent.xlsx"]);
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [".a1b2-sales.csv.4243-p0o9i8u7.tmp", ".hidden.tmp", "keep", "notes.txt", "recent.xlsx"]);
         assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.csv"]);
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(res.status, 200);

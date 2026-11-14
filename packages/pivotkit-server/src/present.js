@@ -13,7 +13,7 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { writeNew } from "pivotkit-cli/files";
+import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
 import { OPERATIONS, OperationError, findingText } from "pivotkit-report/operations";
 import { exposeFindings, exposeSource, levelOf, touchesClosed } from "./policy.js";
 
@@ -166,9 +166,13 @@ const pruned = new Map();
 /** What the output directory holds of pivotkit's: reports and schedule drafts, by their extension. */
 const OUTPUT_FILE_NAME = /\.(xlsx|html|csv|json|svg)$/i;
 
+/** A write's temporary file older than this was left by a server killed during the write. */
+const TEMP_MAX_AGE_MS = 3_600_000;
+
 /**
  * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
- * level; a file of another kind and a subdirectory stay), at most once an hour.
+ * level; a file of another kind and a subdirectory stay), and the temporary files of writes older
+ * than an hour, at most once an hour.
  * @param {any} context
  */
 export async function prune(context) {
@@ -178,9 +182,10 @@ export async function prune(context) {
         return;
     }
     pruned.set(dir, Date.now());
-    const before = Date.now() - days * 86_400_000;
+    const now = Date.now();
     for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-        if (entry.isFile() && OUTPUT_FILE_NAME.test(entry.name)) {
+        const before = !entry.isFile() ? null : TEMP_FILE_NAME.test(entry.name) ? now - TEMP_MAX_AGE_MS : OUTPUT_FILE_NAME.test(entry.name) ? now - days * 86_400_000 : null;
+        if (before !== null) {
             const path = join(dir, entry.name);
             const info = await stat(path).catch(() => null);
             if (info && info.mtimeMs < before) {
