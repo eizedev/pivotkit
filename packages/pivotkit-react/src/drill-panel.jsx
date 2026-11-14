@@ -12,6 +12,7 @@
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useModal } from "./dom.js";
 import { exportDrill } from "./drill-export.js";
+import { dataExportFor } from "./export-scope.js";
 import { drillOf } from "./drill-table.js";
 import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
@@ -25,9 +26,13 @@ import { prepareExporters } from "./export-run.js";
 /**
  * @param {{ drill: import("./drill-table.js").DrillSource | null, onClose: () => void, labels: import("./labels.js").UiLabels, locale: string,
  *   exportContext?: { encoded: import("pivotkit-core").Encoded, onExport?: (file: import("./export-run.js").ExportFile) => unknown,
- *     announce: (text: string, extra?: { tone?: "error" }) => void, root: React.RefObject<HTMLElement | null> } }} props
+ *     announce: (text: string, extra?: { tone?: "error" }) => void, root: React.RefObject<HTMLElement | null>, exportData?: unknown } }} props
+ *   `exportContext`: the panel's exports; the host's exportData `{ columns }` keeps them to those (#259)
  */
-export function DrillPanel({ drill: source, onClose, labels, locale, exportContext }) {
+export function DrillPanel({ drill: source, onClose, labels, locale, exportContext: context }) {
+    // the host's columns: only those in every export; none left, no Export menu (#259)
+    const columns = context ? dataExportFor(context.exportData, context.encoded).columns : undefined;
+    const exportContext = context && columns?.length !== 0 ? context : undefined;
     const id = useId();
     // the rows as the table shows them, the title from the cell's labels (drill-table.js)
     const drill = useMemo(() => (source ? drillOf(source, labels) : null), [source, labels]);
@@ -51,7 +56,7 @@ export function DrillPanel({ drill: source, onClose, labels, locale, exportConte
     const run = (kind, close) => () => {
         close();
         if (exportContext) {
-            void exportDrill(kind, { drill, labels, ...exportContext, root: exportContext.root.current });
+            void exportDrill(kind, { drill, labels, ...exportContext, columns, root: exportContext.root.current });
         }
     };
     return (

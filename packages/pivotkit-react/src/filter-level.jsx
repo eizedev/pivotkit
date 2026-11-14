@@ -18,6 +18,7 @@
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter, relativeDateRange } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
+import { useIsoLayoutEffect } from "./iso.js";
 import { activeIn, useFormName } from "./dom.js";
 import { FILTER_LIST_MAX, keyOf, ValueList } from "./filter.jsx";
 import { HelpContext } from "./help.js";
@@ -54,7 +55,6 @@ import {
 } from "./menu-ops.js";
 
 const twin = (op) => op === "between" || op === "notBetween";
-/** The first letter as a sentence starts: "last {count} years" in a list of choices is "Last …". */
 /**
  * What a row's waiting value applies through: the row's latest `rule`, `apply` and `unset`, so a value
  * that applies later (a moment after the typing, or when its field is left after another rule was
@@ -81,6 +81,7 @@ const emptied = (patch) =>
         const v = patch[k];
         return typeof v === "string" && v.trim() === "";
     });
+/** The first letter as a sentence starts: "last {count} years" in a list of choices is "Last …". */
 const capital = (text, locale) => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
 /** Rules as a text that does not depend on the order of their keys (normalize() writes its own order). */
 const rulesKeyOf = (rules) => JSON.stringify(rules, (_k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
@@ -1101,6 +1102,17 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     const box = useRef(/** @type {HTMLFieldSetElement | null} */ (null));
     // after a removal the focus goes to the first button that adds a rule; a new rule takes it
     const focusAdd = useRef(false);
+    // the rows whose × was clicked: what still waits in them (a value typed a moment ago, applied
+    // when the row goes) applies nothing (#320)
+    const removed = useRef(/** @type {Set<string>} */ (new Set()));
+    // the view and the rows' generation shown now: a value that waits in a row applies to that view,
+    // also when it applies as its row goes after a change above it (another rule's ×), so the row's
+    // older view does not bring back what that change took away; a row of an older generation leaves
+    // the held rows and the new one alone, since the rows were drawn again without them (#320)
+    const now = useRef({ view, gen });
+    useIsoLayoutEffect(() => {
+        now.current = { view, gen };
+    });
     useEffect(() => {
         if (focusAdd.current) {
             focusAdd.current = false;
@@ -1158,29 +1170,37 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     };
     const row = (rule, kind, i, isHeld = false) => {
         const Row = ROWS[kind];
+        const key = `${gen}:${i}`;
         const apply = (entry) => {
+            if (removed.current.has(key)) {
+                return;
+            }
             // a new rule on the items keeps the blanks as the others do
             // an emptied rule typed again keeps its blanks
             const was = isHeld ? held.find((h) => h.at === i) : undefined;
             const own = was?.blanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: was.blanks } : !rule && ctx.keepBlanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: "include" } : entry;
-            if (isHeld) {
+            const current = now.current.gen === gen;
+            if (isHeld && current) {
                 setHeld(held.filter((h) => h.at !== i));
-            } else if (!rule) {
+            } else if (!rule && current) {
                 setDraft(null);
             }
             // in its place: before the next row's rule
             const before = isHeld ? (rows.slice(i + 1).find((x) => x.rule)?.rule ?? null) : null;
-            commitOwn(setRule(view, field, rule, own, before));
+            commitOwn(setRule(now.current.view, field, rule, own, before));
         };
         // the value emptied: the rule leaves the view, its row stays (the sections stay as they are)
         const unset = () => {
-            if (rule) {
-                setHeld([...held, { at: i, kind, blanks: rule.blanks }].sort((a, b) => a.at - b.at));
-                ctx.keepSections();
-                commitOwn(setRule(view, field, rule, null));
+            if (rule && !removed.current.has(key)) {
+                if (now.current.gen === gen) {
+                    setHeld([...held, { at: i, kind, blanks: rule.blanks }].sort((a, b) => a.at - b.at));
+                    ctx.keepSections();
+                }
+                commitOwn(setRule(now.current.view, field, rule, null));
             }
         };
         const remove = () => {
+            removed.current.add(key);
             focusAdd.current = true;
             if (rule) {
                 commit(setRule(view, field, rule, null), note);
@@ -1201,7 +1221,7 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
         const open = info === i;
         const infoId = `${gen}-${i}`;
         return (
-            <li key={`${gen}:${i}`} className="pk-rule" data-testid="rule" data-kind={kind}>
+            <li key={key} className="pk-rule" data-testid="rule" data-kind={kind}>
                 {i > 0 || quickLine ? <span className="pk-rule-and">{labels.ruleAnd}</span> : null}
                 <span className="pk-rule-body">
                     <Row rule={rule} ctx={ctx} apply={apply} unset={unset} first={(focusFirst && i === 0) || (!rule && !isHeld && draft !== null)} />
@@ -1212,7 +1232,9 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
                             <Icon name="info" size={14} />
                         </button>
                     ) : null}
-                    <button type="button" className="pk-icon-btn pk-rule-remove" onClick={remove} aria-label={labels.removeRule} title={labels.removeRule} data-testid="rule-remove">
+                    {/* the field being typed in keeps the focus until the click: its blur would apply what
+                        waits, and the menu, changed above the ×, would move it from under the pointer */}
+                    <button type="button" className="pk-icon-btn pk-rule-remove" onMouseDown={(e) => e.preventDefault()} onClick={remove} aria-label={labels.removeRule} title={labels.removeRule} data-testid="rule-remove">
                         <Icon name="x" size={14} />
                     </button>
                 </span>
@@ -1235,6 +1257,15 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     if (draft) {
         rows.push({ rule: null, kind: draft, isHeld: false });
     }
+    // a removed row is gone once this commit is done (what waited in it was dropped as it unmounted,
+    // before this effect): its key is free again for a row that takes its place later
+    useEffect(() => {
+        for (const key of removed.current) {
+            if (!rows.some((_r, i) => key === `${gen}:${i}`)) {
+                removed.current.delete(key);
+            }
+        }
+    });
     return (
         <fieldset ref={box} className="pk-condition pk-rules" data-testid="rules">
             <legend className="pk-sr">{labels.rulesTitle}</legend>

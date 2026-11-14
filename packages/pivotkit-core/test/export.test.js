@@ -335,3 +335,13 @@ test("CSV writes a percent and a show-as value as the table shows them; other nu
     // a fraction times 100 keeps 15 significant digits, without binary noise
     assert.equal(toCsv(gridOf([{ k: "a", v: 7 }, { k: "b", v: 93 }], { rows: ["k"], values: [{ field: "v", agg: "sum", showAs: "percentOfGrandTotal" }] })).split("\r\n")[1], "a,7%");
 });
+
+test("a date value before year 0 or after 9999 is written in its signed ISO form, guarded in the CSV", () => {
+    const r = computePivot(encode([{ D: "-000001-01-11" }, { D: "+010000-02-29" }]), { values: [{ field: "D", agg: "min" }, { field: "D", agg: "max" }] });
+    const g = toGrid(r);
+    assert.equal(toCsv(g).split(/\r?\n/)[1], "Grand Total,'-000001-01-11,'+010000-02-29");
+    assert.deepEqual(JSON.parse(toJson(g)).rows[0].values, ["-000001-01-11", "+010000-02-29"]);
+    // years 0 to 9999 as before, a time with the day
+    const plain = computePivot(encode([{ D: "0002-01-08T10:30" }]), { values: [{ field: "D", agg: "max" }] });
+    assert.equal(toCsv(toGrid(plain)).split(/\r?\n/)[1], "Grand Total,0002-01-08 10:30:00");
+});

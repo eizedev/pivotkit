@@ -1484,7 +1484,7 @@ function Report(props) {
                                 templateActions={templateActions}
                                 onExport={doExport}
                                 prepareExport={prepareExporters}
-                                dataExport={exportData}
+                                dataExport={{ exportData, encoded }}
                                 chartReady={view.display === "chart" && chartReady}
                                 empty={empty}
                                 onShowFields={() => setDrawer(true)}
@@ -1623,7 +1623,7 @@ function Report(props) {
                             </div>
                         </div>
                         {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
-                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root } }} /> : null}
+                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root, exportData } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}

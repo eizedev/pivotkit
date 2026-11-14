@@ -123,6 +123,9 @@ await writeFile(`${out}hydrate.html`, page("pivotkit rendered on a server and hy
 // the web component as it ships, the example next to it, and the element's test pages
 const playground = `${root}examples/playground/dist/`;
 await cp(`${root}packages/pivotkit-element/dist/`, `${playground}packages/pivotkit-element/dist/`, { recursive: true });
+// the element's import worker at a path of the app's own, as an app under a base href serves it (#194)
+await mkdir(`${out}app-assets/`, { recursive: true });
+await copyFile(`${root}packages/pivotkit-element/dist/import-worker.js`, `${out}app-assets/pk-import-worker.js`);
 // a second copy at another URL, as a page that loads the package twice (element-twice.html) has it
 await cp(`${root}packages/pivotkit-element/dist/`, `${out}element-copy/`, { recursive: true });
 await mkdir(`${playground}examples/element/`, { recursive: true });

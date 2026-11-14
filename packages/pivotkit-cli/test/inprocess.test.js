@@ -90,6 +90,31 @@ test("TEMP_FILE_NAME matches the temporary files writeSafe makes, not the files 
     assert.match(tempFileName(long), /^\.r{22}-Q.*\.pivotkit-out\.report\.json\.\d+-[0-9a-z]+\.tmp$/);
 });
 
+test("Windows' device names, with an extension or trailing dots and spaces, are devices; names that start with one are not", async () => {
+    const { isWindowsDevice } = await import("../src/safe-files.js");
+    for (const name of ["NUL", "nul", "CON", "con.csv", "nul.tar.gz", "COM1", "com9.xlsx", "LPT3.txt", "AUX", "PRN.", "NUL .", "COM\u00b9"]) {
+        assert.equal(isWindowsDevice(name), true, name);
+    }
+    for (const name of ["null", "console.csv", "COM10", "LPT", ".nul.csv.4242-a1b2.tmp", "a.NUL", "auxiliary.csv", "Sales.csv"]) {
+        assert.equal(isWindowsDevice(name), false, name);
+    }
+});
+
+test("writeNew on Windows takes a device's name as taken: a report named con is con-2", async () => {
+    const { writeNew } = await import("../src/safe-files.js");
+    const dir = tempDir();
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32" });
+    try {
+        assert.equal(await writeNew(dir, "con", "csv", new TextEncoder().encode("a")), "con-2.csv");
+        assert.equal(await writeNew(dir, "NUL", "pivotkit-out.xlsx", new TextEncoder().encode("b")), "NUL-2.pivotkit-out.xlsx");
+        assert.equal(await writeNew(dir, "Sales", "csv", new TextEncoder().encode("c")), "Sales.csv");
+    } finally {
+        Object.defineProperty(process, "platform", /** @type {PropertyDescriptor} */ (platform));
+    }
+    assert.deepEqual(readdirSync(dir).sort(), ["NUL-2.pivotkit-out.xlsx", "Sales.csv", "con-2.csv"]);
+});
+
 test("readSafe with hardLinks: false refuses a file with a second name; the default reads it", { skip: process.platform === "win32" ? "hard links differ on Windows" : false }, async () => {
     const { readSafe } = await import("pivotkit-cli/files");
     const dir = tempDir();
