@@ -19,6 +19,9 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 - A comment, CDATA section or processing instruction inside a row with `</row>` in it no longer ends
   the row early: the filter skips it as the parser does. Such a CDATA section made a readable sheet
   fail with `DAMAGED` ([#238](https://github.com/eizedev/pivotkit/issues/238)).
+- A quoted `>` or `/>` in an attribute of a row tag no longer ends the tag in the sheet filter, which
+  then left the row out as empty; the row is read and checked as any other
+  ([#324](https://github.com/eizedev/pivotkit/issues/324)).
 - A workbook whose relationships name the sheet itself as its shared strings or styles is refused as
   `DAMAGED` ([#237](https://github.com/eizedev/pivotkit/issues/237)).
 

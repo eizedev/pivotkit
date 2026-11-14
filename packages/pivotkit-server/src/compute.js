@@ -10,6 +10,7 @@ import { Worker } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
 import { codeData } from "./data.js";
+import { draftingOf } from "./policy.js";
 
 /**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
@@ -179,6 +180,7 @@ export function createComputer(options = {}) {
             link: async () => job.link ?? null,
             template: async () => job.template,
             limits: job.spec.limits,
+            drafting: draftingOf(job.spec.levels),
             ...(job.locale ? { locale: job.locale } : {}),
             ...(job.timeZone ? { timeZone: job.timeZone } : {}),
             ...(job.now !== undefined ? { now: job.now } : {}),

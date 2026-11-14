@@ -224,7 +224,8 @@ may try to steer it:
   of fields marked `hide`, which are dropped when the data is read. A view that touches a field whose
   values are not shown has its result written to a file, and its row count, size and content are
   withheld from the model. Findings that would tell whether an item exists are left out for such
-  fields.
+  fields. A draft (`suggest_view`, a layout) reads no counts or span of a field that is not shown, nor
+  counts where `counts` is false: a date field there is grouped by quarter, whatever its span.
 - **The policy is not confidentiality.** A model can still learn from what it may see (results over
   `show` fields, counts), every number in a report is real (a small group can identify a person), and
   field names are data too. Leave out of the data, or `hide`, what the model must not learn about.

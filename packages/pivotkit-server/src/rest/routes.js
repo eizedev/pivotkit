@@ -40,7 +40,7 @@ const WORDS = {
     },
     suggest_view: {
         summary: "Suggest a draft view",
-        description: "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span, values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
+        description: "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span (by quarter where the date is not shown), values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
         example: {
             input: { source: "sales", layout: { values: [{ field: "Sales", agg: "average" }] } },
             output: {
