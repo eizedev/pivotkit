@@ -169,7 +169,7 @@ export function suggestLayout(description, options) {
         picks.push({ part: "values", code: "countRows", agg: "count", others: [], text: "count of rows: the data has no number field that is no identifier" });
     }
     /** @type {LayoutNote[]} */
-    const notes = layout.rows.length === 0 ? [{ code: "noSuggestion", message: fields.length ? "no field to group by: no text field with 2 to 50 values that repeat, and no date" : "the data has no fields" }] : [];
+    const notes = layout.rows.length === 0 ? [{ code: "noSuggestion", message: fields.length ? "no text field with 2 to 50 values that repeat, and no date" : "the data has no fields" }] : [];
     if (!layout.groups.length) {
         delete layout.groups;
     }

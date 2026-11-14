@@ -8,6 +8,11 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ### Added
 
+- Operations: `suggest_view` (a draft view file from a source's fields, with its `picks`), and a
+  `layout` (a view by field names) instead of a `view` for `render_view` and `validate_view`, with the
+  `view` it made in the result; `viewOfLayout` and `LAYOUT_NOTE_SEVERITY`, the one way the operations
+  and the command line make a view from a layout ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+
 - `pivotkit-report/operations`: the one table of operations the command line, the MCP server and a
   REST service share (`OPERATIONS`: list_sources, describe_source, get_view_guide, validate_view,
   describe_view, render_view, create_link, draft_schedule), each with its description, input and

@@ -128,6 +128,31 @@ should mark them as such.
 | `describeSource(data, { items })` | `{ rows, fields, text }` | Per field: `name`, `type`, the `aggregators` and filter types (`filters`) that work on it, and with encoded data `distinct`, `blanks`, the first `items` (at most `DESCRIBE_LIMITS.items`, 20, each cut at 80 characters) and `min`/`max` of numbers and dates (dates as ISO days). A schema `{ fields }` or a fields array gives the types only (`rows: null`). Rows that are not encoded throw `INVALID_ARGUMENT`: `encode()` them first. Field names in the `text`s are cut at 80 characters, as items are. |
 | `describeView(view, schema, { limits })` | object | The view as `normalize` reads it, in parts: `rows`, `cols`, `values` (with their names), `filters` (each normalized filter with its `text`: `Region is one of "North", "South" (blanks dropped)`), `derived`, `sort`, `display`; `valid`, `errors` and `warnings` of `validate`; and `text`, the whole view in one sentence. A part with an error is left out of the parts; the `text` of an invalid view starts with `(invalid: n errors, the parts they name are left out)`. |
 
+### A view from field names { #view-from-field-names }
+
+A view by field names instead of a view: what the command line's layout flags and `describe
+--suggest` and the operations' `layout` and `suggest_view` build with. Two pure functions over a
+[description](#describing-data-and-views) of the data; the view they return is raw, so `normalize()` or
+`validate()` it against the data like any view from outside.
+
+```js
+import { describeSource, encode, suggestLayout, validate, viewFromLayout } from "pivotkit-core";
+const data = encode(rows);
+const description = describeSource(data);
+const { layout, picks } = suggestLayout(description);          // a first layout and why each part
+const { view, name, notes } = viewFromLayout({ ...layout, values: [{ field: "Revenue", agg: "average" }] }, description);
+const { valid, errors } = validate(view, data);
+```
+
+| Function | Returns | What |
+| --- | --- | --- |
+| `viewFromLayout(layout, description, { locale })` | `{ view, name, notes }` | `layout`: `{ rows, cols, values: [{ field, agg }], groups: [{ field, by, size }], filters, chart, map }`, every key optional. Names match the description case-insensitively and are written in its spelling; a grouping takes its field's place on the axes and is named as the report names one (`Date by month`, German `Date nach Monat`: `GROUPING_NAMES`); a date on an axis without a grouping is grouped by its span (`dateUnitFor`, note `dateGrouped`); a value without `agg` is summed when its field is a number that is no identifier (`isIdentifierName`), else counted; `chart` shows that chart type; `map` renames fields first (`renameFields`). An unknown field, aggregator or unit passes through, so `normalize` names it with "did you mean". `name` says what the view shows (`Sum of Revenue by Region and Date by month`). A layout of another shape throws `INVALID_ARGUMENT`, one beyond `LAYOUT_LIMITS` (64 entries per list, 1,024 characters per name) `LIMIT_EXCEEDED`. `notes`: `dateGrouped`, `unusedGroup` (a grouping on no axis and in no filter), `unusedMap`. |
+| `suggestLayout(description, { locale })` | `{ layout, picks, notes }` | A first layout: rows the first text field that is a category (no identifier's name; with counts, 2 to 50 values that repeat), columns the first date grouped by its span or, without a date, the next category of up to 12 values (`SUGGEST_LIMITS`), values the first number that is no identifier, summed (none: the count of rows). Without a category the date goes to rows. `picks`: per part its `code` (`category`, `date`, `secondCategory`, `firstNumber`, `countRows`), the field, and `others`, the fields it could have taken. Nothing to group by: the note `noSuggestion`. The rules read types and counts, not meaning: a temperature is summed like revenue. |
+| `renameFields(view, map)` | `{ view, unused }` | Every reference to a data field renamed (rows, columns, values, filters and their measures, sort and its measure, the groupings' source fields), all at once, case-insensitively; a grouping's own name stays. Two old names onto one new name throw `INVALID_ARGUMENT`. |
+| `dateUnitFor(min, max)` | unit or `null` | The grouping for a span of dates (ms): up to 62 days `day`, up to two years `yearMonth`, up to six `yearQuarter`, longer `year`; what `suggestDateUnit` returns for a field. |
+| `isIdentifierName(name)` | boolean | A name whose last word is ID, Nr, No, Number, Key or `#` (`CustomerId`, `Order No`, `Serial#`): such a number field is counted, not summed, in the report's field list and in a layout. |
+| `groupingName(field, unit, { locale, size })` | text | A grouping's name as the report gives it, from `GROUPING_NAMES` (`en`, `de`). |
+
 ### View files
 
 A view with its name, the data it was made for and the fields it uses, as one JSON document: what
@@ -326,7 +351,9 @@ its menus). See [Templates and shared views](../concepts/templates.md).
 `readFile(file, { plugins })` reads CSV, TSV, text and JSON, and other formats with reader plugins,
 into a table that is `encode`'s columnar input; `retype` changes column types without reading the file
 again; the plugin contract (`validatePlugin`, `readerFor`, `loadReader`) and the helpers a plugin
-builds its table with. A separate entry point whose readers load on demand. See
+builds its table with; `sourceIdOf(name, columns)`, the id a loaded file's views name it by
+([how a loaded file is named](import.md#how-a-loaded-file-is-named)). A separate entry point whose
+readers load on demand. See
 [Loading files](import.md), [Plugins](plugins.md) and [Write a plugin](write-a-plugin.md).
 
 ### Export: `pivotkit-core/export`

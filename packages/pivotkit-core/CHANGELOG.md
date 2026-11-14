@@ -15,6 +15,16 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `viewFromLayout(layout, description)`: a view from field names (rows, columns, values, groupings,
+  filters, chart type, renamed fields) over describeSource's description, named as the report names
+  groupings; `suggestLayout(description)`: a first layout with what each part took and why;
+  `renameFields(view, map)`; `dateUnitFor(min, max)`, the unit `suggestDateUnit` takes for a span;
+  `isIdentifierName`, `GROUPING_NAMES` and `groupingName`, which pivotkit-react's field list and
+  labels now take from here ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+- `pivotkit-core/import`: `sourceIdOf(name, columns)`, `shownName` and `SHOWN_MAX`, the id a loaded
+  file's views name it by (moved from pivotkit-react), so the command line names a file as the
+  report does ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+
 - `REPORT_LABELS` and `reportLabels(locale)`: the report's own words per language (English and
   German), as pivotkit-react's report shows them; pivotkit-report writes them for its locale.
 - `dataToCsv`, `dataToCsvBytes` and `dataToJson` in `pivotkit-core/export`: the data itself as a file

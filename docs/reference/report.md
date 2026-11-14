@@ -141,10 +141,11 @@ it needs from its front end (`needs`), annotations, and `run(input, env)`:
 | --- | --- | --- | --- |
 | `list_sources` | - | `GET /sources` | The sources the caller may use (`env.sources`) |
 | `describe_source` | `describe <data>` | `POST /sources/describe` | describeSource with example views; values only with `items` |
+| `suggest_view` | `describe <data> --suggest` | `POST /views/suggest` | A draft view file from the source's fields (suggestLayout, `viewOfLayout`), marked `Draft:`, with its `picks`; a `layout` replaces the parts it gives |
 | `get_view_guide` | - | `GET /views/guide` | `VIEW_GUIDE`: a view's format, its vocabulary from `CATALOG`, examples |
-| `validate_view` | `validate` | `POST /views/validate` | Findings and the fields the view uses |
+| `validate_view` | `validate` | `POST /views/validate` | Findings and the fields the view uses; with a `layout` instead of a `view`, also the `view` it makes |
 | `describe_view` | `describe <view>` | `POST /views/describe` | describeView in parts, with findings |
-| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere |
+| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere; a `layout` instead of a `view` (the CLI's layout flags), with the `view` it made in the result |
 | `create_link` | - | `POST /views/link` | A link into the source's page (`env.link`) |
 | `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
 
@@ -153,6 +154,15 @@ import { OPERATIONS } from "pivotkit-report/operations";
 const env = { data: async (source) => ({ data: encode(rows), name: source }) };
 const { result, file } = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, env);
 ```
+
+A `layout` is a view by field names, pivotkit-core's [`viewFromLayout`](core.md#view-from-field-names)
+input: `{ rows, cols, values: [{ field, agg }], groups: [{ field, by, size }], filters, chart, map }`,
+checked by its JSON Schema (no other keys, at most 64 entries per list). `viewOfLayout(description,
+layout, { suggest, locale })` is the one way the operations and the command line turn it into a view:
+with `suggest`, suggestLayout's picks first and the layout's parts over them. Its notes become
+findings by `LAYOUT_NOTE_SEVERITY`: `noSuggestion` (nothing to group by) an error, `dateGrouped` an
+`info`, `unusedGroup` and `unusedMap` warnings. A request with both a `view` and a `layout`, or
+neither, is `INVALID_INPUT`.
 
 `env` gives what the operations need: `data(source)` (encoded data, or only `{ name, type }` fields
 for validate and describe), `sources()`, `link(source)`, `template(source)`, `echarts`, `limits`,

@@ -13,7 +13,8 @@ report by dragging fields, and take it to Excel; the same report renders again i
 - Excel with the layout kept, and the rows behind the report as CSV or JSON
   ([export](https://pivotkit.eize.dev/use/export/)).
 - Safe JSON views and reports without a browser: a view cannot run code; `pivotkit render`
-  makes the same report from the downloaded view and data ([command line](https://pivotkit.eize.dev/getting-started/cli/)).
+  makes the same report from the downloaded view and data, and `pivotkit describe sales.xlsx
+  --suggest` a first view from a file's fields ([command line](https://pivotkit.eize.dev/getting-started/cli/)).
 
 [Live demo](https://pivotkit.eize.dev/playground/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) ([policy](SECURITY.md))
 
@@ -91,6 +92,7 @@ The command line, on example files it writes itself:
 ```bash
 npx pivotkit-cli example                 # sales.csv and two views
 npx pivotkit-cli render sales.pivotkit.json --data sales.csv -o sales.html
+npx pivotkit-cli render sales.csv --rows Region --values sum:Revenue -o by-region.html   # no view file
 ```
 
 The view passed to `computePivot` is plain JSON: the same object is the saved template, the undo

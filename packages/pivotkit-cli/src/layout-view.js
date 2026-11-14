@@ -8,7 +8,7 @@
  * workbook's sheet, so the browser opens it as a view of that file.
  */
 
-import { describeSource, encode, normalize, toViewFile } from "pivotkit-core";
+import { describeSource, encode, isIdentifierName, normalize, toViewFile } from "pivotkit-core";
 import { sourceIdOf } from "pivotkit-core/import";
 import { LAYOUT_NOTE_SEVERITY, OperationError, viewOfLayout } from "pivotkit-report/operations";
 import { CliError, printable, shortName } from "./errors.js";
@@ -113,26 +113,26 @@ export async function layoutView(data, values, ctx, where) {
 export const quoteArg = (word) => (/^[\w.,:/@%+-]+$/.test(word) ? word : `"${String(word).replace(/(["\\$`])/g, "\\$1")}"`);
 
 /**
- * What --suggest picked, in lines for stderr: the parts, the other fields a part could take, and a
- * line to paste that changes one part.
- * @param {any[]} picks
+ * What the draft shows, in lines for stderr: its parts (as --suggest picked them and the flags given
+ * changed them), the other fields a part could take, and a line to paste that changes one part.
  * @param {Record<string, any>} view  the view made
  * @param {string} command  how to run it again ("pivotkit describe sales.csv --suggest")
  * @param {Array<{ name: string, type: string }>} fields
  */
-export function pickLines(picks, view, command, fields) {
+export function pickLines(view, command, fields) {
     const part = (name) => (view[name]?.length ? view[name].join(", ") : null);
     const value = view.values.map((v) => (v.field ? `${v.agg === "count" ? "Count" : v.agg[0].toUpperCase() + v.agg.slice(1)} of ${v.field}` : "Count of rows")).join(", ");
     const parts = [part("rows") && `rows ${part("rows")}`, part("cols") && `columns ${part("cols")}`, `values ${value}`].filter(Boolean);
     const lines = [`draft: ${printable(parts.join("; "))}`];
     const texts = fields.filter((f) => f.type === "string").map((f) => f.name);
-    const numbers = picks.find((p) => p.part === "values")?.others ?? [];
-    const shown = new Set([...(view.rows ?? []), ...(view.cols ?? [])].map((n) => n.toLowerCase()));
+    const measured = new Set(view.values.map((v) => String(v.field ?? "").toLowerCase()));
+    const numbers = fields.filter((f) => f.type === "number" && !isIdentifierName(f.name) && !measured.has(f.name.toLowerCase())).map((f) => f.name);
+    const shown = new Set([...(view.rows ?? []), ...(view.cols ?? []), ...(view.derived ?? []).map((d) => d.field)].map((n) => n.toLowerCase()));
     const otherTexts = texts.filter((t) => !shown.has(t.toLowerCase()));
     if (otherTexts.length) lines.push(`  other text fields: ${printable(otherTexts.join(", "))}`);
     if (numbers.length) lines.push(`  other numbers: ${printable(numbers.join(", "))}`);
-    const measured = view.values.find((v) => v.field)?.field;
-    if (measured) lines.push(`  to change a part: ${printable(`${command} --values ${quoteArg(`average:${measured}`)}`)} (or --rows, --cols, --group <field>:<unit>)`);
+    const first = view.values.find((v) => v.field)?.field;
+    if (first) lines.push(`  to change a part: ${printable(`${command} --values ${quoteArg(`average:${first}`)}`)} (or --rows, --cols, --group <field>:<unit>)`);
     return lines;
 }
 

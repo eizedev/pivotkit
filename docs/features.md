@@ -144,7 +144,10 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   in Node and the browser, the same table and chart as on the screen
   ([reports in code](getting-started/report.md), [pivotkit-report](reference/report.md),
   [print template](reference/print-template.md)).
-- `pivotkit-cli`: `pivotkit example`, `render`, `validate` and `describe`, with exit codes, `--json`,
+- `pivotkit-cli`: `pivotkit example`, `render`, `validate` and `describe`; a draft view from a file's
+  fields (`describe --suggest`) and a report without a view file from layout flags (`render --rows
+  ... --values ...`), `--map` for a renamed column, `--save-view`
+  ([a view from the data's fields](reference/cli.md#a-view-from-the-datas-fields)); with exit codes, `--json`,
   messages that say what to fix, the sheet of a workbook a view names (`describe` lists a workbook's
   sheets), shell completion and safe file handling; offline
   ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)).
@@ -153,7 +156,7 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 
 ## AI clients (MCP) { #mcp }
 
-- `pivotkit-mcp`: tools to list and describe sources, write, validate and describe views, render
+- `pivotkit-mcp`: tools to list and describe sources, suggest a draft view, write (or lay out by field names), validate and describe views, render
   reports into files, make links and draft schedules; the model sees per field names and counts,
   values or nothing (exposure policy) and never the data itself; stdio and Streamable HTTP with a
   token or OAuth 2.1; a skill that teaches the workflow

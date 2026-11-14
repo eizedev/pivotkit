@@ -850,7 +850,7 @@ async function viewFromData(positionals, values, ctx, command) {
     const name = draft ? `Draft: ${built.name}` : built.name;
     const description = draft ? `A draft suggested by ${tool} from the fields of ${data.name}: check what it shows, then change it in the report or with the layout flags.` : "";
     const fields = data.table.columns.map((c, i) => ({ name: String(c), type: data.table.types[i] }));
-    const lines = draft ? pickLines(built.picks, built.view, `pivotkit ${command} ${quoteArg(shortName(input))} --suggest`, fields) : [];
+    const lines = draft ? pickLines(built.view, `pivotkit ${command} ${quoteArg(shortName(input))} --suggest`, fields) : [];
     const file = { format: VIEW_FILE_FORMAT, formatVersion: 2, name, ...(description ? { description } : {}), view: built.view };
     return { data, built, findings: built.findings, picks: built.picks, lines, name, description, read: { view: JSON.stringify(file), name, source: "layout", sheet: data.sheet } };
 }

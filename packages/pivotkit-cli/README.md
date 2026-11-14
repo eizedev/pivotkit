@@ -1,8 +1,9 @@
 # pivotkit-cli
 
 The [pivotkit](https://pivotkit.eize.dev/) command line, `pivotkit`: run a view over a CSV, JSON or
-Excel file and write an HTML report, CSV, JSON, XLSX or the chart as SVG; validate and describe views
-in CI with stable exit codes and `--json`. No network, no browser; with `--now` the output is the same
+Excel file and write an HTML report, CSV, JSON, XLSX or the chart as SVG; get a draft view from a
+file's fields, or render from layout flags without a view file; validate and describe views in CI
+with stable exit codes and `--json`. No network, no browser; with `--now` the output is the same
 on every run. Files are read and written only as regular files, and `--allow-dir` limits them to the
 directories you name.
 
@@ -24,6 +25,8 @@ pivotkit example            # sales.csv, sales.pivotkit.json and sales-chart.piv
 pivotkit render sales.pivotkit.json --data sales.csv -o sales.html --now 2026-11-13
 pivotkit validate sales.pivotkit.json --data sales.csv --strict --json
 pivotkit describe sales.csv
+pivotkit describe sales.csv --suggest -o draft.pivotkit.json      # a draft view from the fields
+pivotkit render sales.csv --rows Region --cols Channel --values sum:Revenue -o by-region.html
 ```
 
 Exit codes: 0 done, 1 findings (an error in the view, or a warning with `--strict`), 2 a usage, file,
@@ -35,6 +38,7 @@ limit or template error.
 | --- | --- |
 | Getting started: install, the example files, your own report, CI, PowerShell | [Getting started with the command line](https://pivotkit.eize.dev/getting-started/cli/) |
 | Commands, options, exit codes, `--json`, completion, file safety | [pivotkit-cli reference](https://pivotkit.eize.dev/reference/cli/) |
+| `--suggest`, layout flags, `--map`, `--save-view` | [A view from the data's fields](https://pivotkit.eize.dev/reference/cli/#a-view-from-the-datas-fields) |
 | The print template of `--template` | [Print template](https://pivotkit.eize.dev/reference/print-template/) |
 | The library it runs on | [pivotkit-report reference](https://pivotkit.eize.dev/reference/report/) |
 | Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-cli/CHANGELOG.md) |

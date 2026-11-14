@@ -20,6 +20,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Changed
 
+- The identifier rule of the field list (`isIdentifierName`), the names of groupings and a loaded
+  file's source id come from pivotkit-core; nothing changes in the report ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+
 - Export → **CSV file (.csv)** is called **Table as CSV (.csv)** (German **Tabelle als CSV (.csv)**),
   and its "i" says it is the table, not the rows behind it; its `kind` stays `"csv"`.
 

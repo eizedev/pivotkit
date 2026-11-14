@@ -29,10 +29,11 @@ pivotkit-cli's file handling, pivotkit-xlsx, ECharts 6.1.0 and jose (for OAuth).
 | --- | --- | --- |
 | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields | - |
+| `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`); a `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
-| `validate_view` | Errors and warnings of a view against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
+| `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
-| `render_view` | The report as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
+| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
 | `create_link` | A link that opens the view in the source's report page (only for sources with `link`) | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing | a new file |
 
