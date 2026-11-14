@@ -102,6 +102,7 @@ export function findingOf(issue) {
  * @property {string} [timeZone]
  * @property {Date | number | string} [now]
  * @property {Record<string, unknown>} [renderOptions]  a front end's own render options (the CLI's template, bom, size)
+ * @property {(description: { rows: number | null, fields: any[] }) => { rows: number | null, fields: any[] }} [drafting]  what a draft (suggest_view, a layout) may read of the data's description: a front end with an exposure policy takes out the counts and spans it does not show
  */
 
 /**
@@ -249,7 +250,7 @@ const noteFinding = (note) => ({ severity: /** @type {"error" | "warning" | "inf
  * first and the layout's parts replace them (a suggested grouping stays only while its field stays
  * where the suggestion put it); nothing to group by (noSuggestion) counts only while the layout places
  * no field itself. A layout of another shape is INVALID_INPUT, one too large LIMIT_EXCEEDED.
- * @param {ReturnType<typeof describeSource>} description
+ * @param {{ rows: number | null, fields: any[] }} description  describeSource's, or env.drafting's narrowing of it
  * @param {import("pivotkit-core").Layout} layout
  * @param {{ suggest?: boolean, locale?: string }} [options]
  * @returns {{ view: Record<string, any>, name: string, picks: import("pivotkit-core").LayoutPick[], notes: import("pivotkit-core").LayoutNote[] }}
@@ -290,6 +291,17 @@ function checkViewOrLayout(input) {
 }
 
 /**
+ * The description of a source a draft reads: describeSource's, narrowed by the front end's
+ * env.drafting where it has one.
+ * @param {{ data: any }} source
+ * @param {OperationEnv} env
+ */
+function describedFor(source, env) {
+    const described = describeSource(source.data, { items: 0 });
+    return env.drafting ? env.drafting(described) : described;
+}
+
+/**
  * The view of an input that gives a view or a layout (exactly one): the layout's view as a view file
  * with its name, and its notes as findings.
  * @param {{ view?: unknown, layout?: any }} input
@@ -301,7 +313,7 @@ function viewOrLayout(input, source, env) {
     if (input.view !== undefined) {
         return { view: input.view, notes: [], fromLayout: false };
     }
-    const built = viewOfLayout(describeSource(source.data, { items: 0 }), input.layout, env.locale ? { locale: env.locale } : {});
+    const built = viewOfLayout(describedFor(source, env), input.layout, env.locale ? { locale: env.locale } : {});
     return { view: { format: "pivotkit-view", formatVersion: 2, name: built.name, view: built.view }, notes: built.notes.map(noteFinding), fromLayout: true };
 }
 
@@ -501,7 +513,7 @@ export const OPERATIONS = Object.freeze({
     suggest_view: {
         name: "suggest_view",
         title: "Suggest a draft view",
-        description: "Makes a draft view from a source's fields, marked as a draft: rows the first text field with few values, columns a date grouped by its span (or the next such text field), values the first number that is no identifier, summed. A layout replaces the parts it gives (values: [{ field, agg: \"average\" }]). The rules read types and counts, not meaning: check the draft with the user before render_view.",
+        description: "Makes a draft view from a source's fields, marked as a draft: rows the first text field with few values, columns a date grouped by its span (by quarter where the server does not show the date; or the next such text field), values the first number that is no identifier, summed. A layout replaces the parts it gives (values: [{ field, agg: \"average\" }]). The rules read types and counts, not meaning: check the draft with the user before render_view.",
         cli: "describe",
         http: { method: "POST", path: "/views/suggest" },
         needs: ["data"],
@@ -528,7 +540,7 @@ export const OPERATIONS = Object.freeze({
         ),
         run: async (input, env) => {
             const source = await sourceData(env, input.source);
-            const built = viewOfLayout(describeSource(source.data, { items: 0 }), input.layout ?? {}, { suggest: true, ...(env.locale ? { locale: env.locale } : {}) });
+            const built = viewOfLayout(describedFor(source, env), input.layout ?? {}, { suggest: true, ...(env.locale ? { locale: env.locale } : {}) });
             const limits = { limits: viewLimits(env) };
             const { errors, warnings } = validate(built.view, source.data, limits);
             const findings = [...(source.notes ?? []), ...built.notes.map(noteFinding), ...errors.map(findingOf), ...warnings.map(findingOf)];

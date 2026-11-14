@@ -30,7 +30,7 @@ export const POLICY_LEVELS = Object.freeze(/** @type {const} */ (["show", "summa
 export const NAME_TEXT = 80;
 
 /** Findings whose text or suggestion comes from the data's values, not from the view or the schema. */
-const DATA_FINDINGS = new Set(["itemCase", "filterEmpty", "chartCut", "tableCut"]);
+const DATA_FINDINGS = new Set(["itemCase", "filterEmpty", "noRowsKept", "chartCut", "tableCut"]);
 
 /**
  * @typedef {object} Policy
@@ -119,6 +119,32 @@ export function levelOf(policy, name) {
         return "hide";
     }
     return policy.default;
+}
+
+/** The grouping a draft gives a date field whose span is not shown: the same for every span. */
+export const CLOSED_DATE_GROUPING = "yearQuarter";
+
+/**
+ * What a draft (suggest_view, a layout) may read of a source's description under a policy's levels:
+ * what describe_source shows. A field that is not "show" loses its smallest and largest value (a
+ * date gets CLOSED_DATE_GROUPING instead of a grouping by its span) and keeps its counts, which
+ * describe_source reports at every level; counts go where `counts` is false, the row count where
+ * `rows` is false. A shown date keeps its span.
+ * @param {{ default: string, fields: Record<string, string>, counts?: boolean, rows?: boolean }} levels
+ */
+export function draftingOf(levels) {
+    const policy = { default: levels.default, fields: new Map(Object.entries(levels.fields)) };
+    return (description) => ({
+        rows: levels.rows === false ? null : description.rows,
+        fields: description.fields.map((f) => {
+            const { distinct, blanks, min, max, ...rest } = f;
+            const counts = levels.counts === false ? {} : { distinct, blanks };
+            if (levelOf(policy, f.name) !== "show") {
+                return { ...rest, ...counts, ...(f.type === "date" ? { by: CLOSED_DATE_GROUPING } : {}) };
+            }
+            return { ...rest, ...counts, min, max };
+        })
+    });
 }
 
 /** The names of a table's columns the policy hides (dropped before anything else sees the data). */

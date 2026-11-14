@@ -56,7 +56,8 @@ import { renameFields } from "./view-file.js";
  *
  * @typedef {{ code: "noSuggestion" | "dateGrouped" | "unusedGroup" | "unusedMap", message: string, field?: string }} LayoutNote
  *
- * @typedef {{ name: string, type: string, distinct?: number, blanks?: number, min?: string | number, max?: string | number }} DescribedField
+ * @typedef {{ name: string, type: string, distinct?: number, blanks?: number, min?: string | number, max?: string | number, by?: string }} DescribedField
+ *   by: a date field's grouping when its span is not to be read (a front end that keeps the span back)
  * @typedef {{ rows?: number | null, fields: DescribedField[] } | DescribedField[] | null | undefined} LayoutDescription  describeSource's
  *   result (or its fields): counts and spans where it has them
  */
@@ -154,7 +155,7 @@ export function suggestLayout(description, options) {
     };
     const categories = fields.filter((f) => isCategory(f, SUGGEST_LIMITS.rows));
     const numbers = fields.filter((f) => f.type === "number" && !isIdentifierName(f.name));
-    const dates = fields.map((f) => ({ f, by: f.type === "date" ? dateUnitFor(dateMs(f.min), dateMs(f.max)) : null })).filter((d) => d.by);
+    const dates = fields.map((f) => ({ f, by: f.type === "date" ? (f.by ?? dateUnitFor(dateMs(f.min), dateMs(f.max))) : null })).filter((d) => d.by);
     const names = (list, but) => list.filter((f) => f !== but).map((f) => f.name);
 
     /** @type {Layout & { rows: string[], cols: string[], groups: any[] }} */
@@ -171,7 +172,7 @@ export function suggestLayout(description, options) {
         const part = first ? "cols" : "rows";
         layout[part].push(date.f.name);
         layout.groups.push({ field: date.f.name, by: date.by });
-        picks.push({ part, code: "date", field: date.f.name, by: date.by, others: dates.slice(1).map((d) => d.f.name), text: `${groupingName(date.f.name, date.by, options)}: the first date, grouped by its span` });
+        picks.push({ part, code: "date", field: date.f.name, by: date.by, others: dates.slice(1).map((d) => d.f.name), text: `${groupingName(date.f.name, date.by, options)}: the first date${date.f.by ? "" : ", grouped by its span"}` });
     } else if (first) {
         const second = categories.find((f) => f !== first && isCategory(f, SUGGEST_LIMITS.cols));
         if (second) {
@@ -350,11 +351,11 @@ export function viewFromLayout(layout, description, options) {
                 return groups;
             }
             const f = byName.get(name.toLowerCase());
-            const by = f && f.type === "date" ? dateUnitFor(dateMs(f.min), dateMs(f.max)) : null;
+            const by = f && f.type === "date" ? (f.by ?? dateUnitFor(dateMs(f.min), dateMs(f.max))) : null;
             if (by) {
                 const group = addGroup(name, by, undefined);
                 used.add(group);
-                notes.push({ code: "dateGrouped", field: name, message: `${name} is grouped by its span: ${group}` });
+                notes.push({ code: "dateGrouped", field: name, message: `${name} is grouped${f.by ? "" : " by its span"}: ${group}` });
                 return [group];
             }
             return [name];

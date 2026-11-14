@@ -74,8 +74,8 @@ server's `policy`; field names are matched without regard to case.
 
 | Level | describe_source shows | Findings | Results |
 | --- | --- | --- | --- |
-| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values (a misspelt item gets the item meant) | csv and json come back inline when they fit `inline` |
-| `summary` (default) | name, type, counts | names; no check of an item against the data | written to a file only; rows, columns and size withheld |
+| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values: an item in another case or with other spaces gets the data's spelling (`itemCase`), and a render whose filters keep no rows says so (`noRowsKept`); another misspelling gets no suggestion, only the empty result | csv and json come back inline when they fit `inline` |
+| `summary` (default) | name, type, counts | names; no check of an item against the data, and no word when a filter keeps no rows (it would tell whether an item exists): a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
 | `hide` | not listed; `hiddenFields` counts them | never named | the column is dropped when the data is read |
 
 | Key | Default | What it does |
@@ -83,7 +83,7 @@ server's `policy`; field names are matched without regard to case.
 | `default` | `"summary"` | The level of a field without its own |
 | `fields` | `{}` | Levels by field name: `{ "Region": "show", "Customer": "hide" }` |
 | `items` | `20` | Values listed per `show` field |
-| `rows` | `true` | Show the number of rows |
+| `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
 | `counts` | `true` | Show distinct and blank counts per field |
 | `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
@@ -99,9 +99,11 @@ date grouping's source field) has its result **withheld**: `render_view` writes 
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
 
-`suggest_view` reads only what is not hidden. Its draft and `picks` name fields, never values or
-counts; the one thing they tell about a field's values is the date grouping its span gives (a span
-of up to two years is grouped by month), as a `layout` with a date on an axis does.
+`suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
+or counts; the one thing they tell about a shown field's values is the date grouping its span gives
+(a span of up to two years is grouped by month), as a `layout` with a date on an axis does. A date
+field that is not shown is grouped by quarter whatever its span, and with `counts: false` the draft
+does not read counts (a shown date's grouping still follows its span).
 
 !!! warning "summary is not confidentiality"
     `summary` keeps values out of what the model reads directly. A model that writes filters over
@@ -261,11 +263,12 @@ seconds for its headers and 30 for its request. `http.maxConnectionsPerAddress` 
 bound) caps the connections of one address; set it where clients reach the port directly with
 addresses of their own. Behind NAT, a published port or a proxy every client has one address, so
 leave it off there. An IPv6 address counts as it is, not by its network. Refused connections are
-logged at most once a minute (the first at once, the rest when the minute ends), with the bound that
-refused them (`total`, `loopbackReserve`, `perAddress`), the last address and the counts. Behind a proxy (`http.trustProxy`)
-the protection comes from the proxy: its header and body timeouts, its limits per client, and the
-server's port reachable from the proxy only. A request target must be a path (or the absolute form `http://host/path`, read by its
-path): `OPTIONS *` answers 400. On SIGTERM the server
+logged at most once a minute (the first at once, the rest when the minute ends), with every bound
+that refused one since the last line (`total`, `loopbackReserve`, `perAddress`), the last address
+and the counts. Behind a proxy (`http.trustProxy`) the protection comes from the proxy: its header
+and body timeouts, its limits per client, and the server's port reachable from the proxy only. A
+request target must be a path (or the absolute form `http://host/path`, read by its path):
+`OPTIONS *` answers 400. On SIGTERM the server
 takes no new connection and lets running requests finish for up to `http.graceMs`.
 
 Without authentication: `/healthz` (`{ "ok": true }`, for a supervisor or a proxy), the OAuth

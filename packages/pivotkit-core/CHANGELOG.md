@@ -13,6 +13,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   issue ([#321](https://github.com/eizedev/pivotkit/issues/321)).
 - `limitError`'s `details` have `what`, what was counted (`"rows"`, `"shared strings and formats"`),
   so a UI can tell two counts of one limit apart ([#325](https://github.com/eizedev/pivotkit/issues/325)).
+- `suggestLayout` and `viewFromLayout` take a date field's own `by` from the description instead of
+  the grouping its span would give, for a front end that keeps the span back
+  ([#296](https://github.com/eizedev/pivotkit/issues/296)).
 - `MAX_DATE_MS` and `isDateMs(ms)`: the range a `Date` holds, exported once for hosts and the other
   packages ([#226](https://github.com/eizedev/pivotkit/issues/226)).
 - `encode`'s `issues` have a `code` and `params`: `columnCase`, `columnCaseValue` (a row with two

@@ -24,6 +24,26 @@ export const tagFor = (tag, sourceId) => (tag && tag.sourceId === sourceId ? tag
 export const HISTORY_LIMIT = 100;
 
 /**
+ * The views told to a controlled host (onViewChange) that it has not passed back yet, with `view`
+ * added: at most HISTORY_LIMIT, the newest kept, so a host that never passes them back does not make
+ * the list grow with every change (#204).
+ * @param {string[]} pending
+ * @param {string} view
+ */
+export const told = (pending, view) => [...pending, view].slice(-HISTORY_LIMIT);
+
+/**
+ * What still waits once the host passes `view`: the views told after it (a host that answers late,
+ * #141), or none when it was not told (a change of the host's own).
+ * @param {string[]} pending
+ * @param {string} view
+ */
+export function answered(pending, view) {
+    const index = pending.indexOf(view);
+    return index < 0 ? [] : pending.slice(index + 1);
+}
+
+/**
  * @typedef {object} HistoryState
  * @property {string} schema   the schema the views were normalized against
  * @property {string} start    the start view, the target of reset
