@@ -26,8 +26,9 @@ pivotkit-xlsx, ECharts 6.1.0 and jose (for OAuth); not the MCP SDK.
 
 ## Routes { #routes }
 
-Every route is under `/api/v1` and answers JSON. The routes are RPC-style (`POST /views/validate`),
-one per operation of the [operation table](report.md#operations):
+Every route is under `/api/v1` and answers JSON (a `GET` route answers `HEAD` too, without the
+body). The routes are RPC-style (`POST /views/validate`), one per operation of the
+[operation table](report.md#operations):
 
 | Route | Operation | What it does |
 | --- | --- | --- |
@@ -184,9 +185,10 @@ The output directory holds at most `output.maxFiles` files and `output.maxMb` me
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them: any
 token that may render can push other callers' older reports out, and a link to one of them
 (`output.baseUrl`) then answers 404. Schedule drafts are never deleted this way; they may take at
-most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT` while reports keep
-working, so give `draft_schedule` a scope of its own too and set `output.maxAgeDays`. A file you
-name with `.pivotkit-out.` yourself counts as pivotkit's and may be deleted. A quota per caller
+most half of `output.maxFiles` (none at 1), and a draft over that answers 409 `NO_OUTPUT` while
+reports keep working, so give `draft_schedule` a scope of its own too and set
+`output.maxAgeDays`. A file you name with `.pivotkit-out.` yourself counts as pivotkit's and may be
+deleted. A quota per caller
 was the other choice; it was not taken because a caller is no stable owner (with auth `none` every
 caller is the same, files written before a restart have none) and the directory would still need a
 total that, once reached, refuses everyone again. So set `output.maxFiles` well above what your
@@ -241,8 +243,9 @@ client id, or `local` without sign-in):
 | `rest.concurrency` | 4 | Requests of one caller at once |
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
 
-Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The counts live in the memory of
-one process: two instances behind a load balancer count on their own. The address is the socket's,
+Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The MCP endpoint has the same
+limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp.md#configuration)).
+A token is checked once per request. The counts live in the memory of one process: two instances behind a load balancer count on their own. The address is the socket's,
 or with `http.trustProxy` the last one in `X-Forwarded-For`.
 
 ## Errors { #errors }
@@ -320,7 +323,8 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise. An output directory the
+loaded, workers up, the output directory writable) and 503 otherwise; both answer `HEAD` too. An
+output directory the
 server's user cannot write is also a warning at start, a problem in `check-config`, and 409
 `NO_OUTPUT` for a report. On SIGTERM the server takes no
 new connection and lets running requests finish for up to `http.graceMs` (25 seconds by default).
@@ -355,9 +359,11 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
 ```
 
 Without containers, on Windows next to PowerShell
-Universal, `pivotkit-server serve` from a global npm install runs as a service with a service
-manager of your choice; its file checks are measured on Linux and macOS
-([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).
+Universal, `pivotkit-server serve` runs as a service with a service manager of your choice:
+[PowerShell Universal](../getting-started/mcp.md#psu) has the steps (an account of its own, its file
+rights, the token from a PSU secret, a rotated log, IIS with ARR in front). Its file checks are
+measured on Linux and macOS ([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions
+and hard links on Windows).
 
 ## Logging { #logging }
 
@@ -421,7 +427,8 @@ A PowerShell Universal script, endpoint or app calls the REST service with `Invo
 instead of running Node on the PSU server: keep the token in a PSU secret, call
 `POST /api/v1/views/render/file` with a token whose profile has `results: true` and hand the file to
 the user, or `POST /api/v1/views/render` to save it in the service's output directory. See
-[Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell.
+[Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell,
+and [Getting started: MCP server](../getting-started/mcp.md#psu) for running the service next to PSU.
 The links of the PSU module's reports open as before.
 
 ## Security { #security }

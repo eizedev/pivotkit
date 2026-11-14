@@ -20,4 +20,4 @@ export { openApiDocument } from "./openapi.js";
  */
 export { REST_ROUTES, REST_BASE } from "./routes.js";
 export { REST_ERRORS, PROBLEM_CODES } from "./problem.js";
-export { REST_LIMITS } from "./limits.js";
+export { REQUEST_LIMITS as REST_LIMITS } from "../limits.js";

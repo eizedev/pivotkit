@@ -266,8 +266,9 @@ function outputError(e) {
  * that renders without pause shortens how long the reports stay, but never stops the others from
  * rendering. Schedule drafts count but are never deleted to make room (a person has yet to approve
  * them): when only drafts are left, it refuses. Drafts may take at most half of output.maxFiles
- * (draftCap), so callers who may draft cannot fill the directory and stop every render. A directory that holds the operator's own files
- * (output.cleanUp false) is never cleaned: a full one refuses.
+ * (draftCap), so callers who may draft cannot fill the directory and stop every render. A
+ * directory that holds the operator's own files (output.cleanUp false) is never cleaned: a full one
+ * refuses.
  * @returns {Promise<number>}  the files deleted
  */
 async function makeRoom(context, dir, bytes, draft) {
@@ -279,7 +280,7 @@ async function makeRoom(context, dir, bytes, draft) {
     const files = await reportsIn(dir);
     const drafts = files.filter((f) => f.draft).length;
     if (draft && drafts + 1 > draftCap(maxFiles)) {
-        throw new OperationError("NO_OUTPUT", `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first`);
+        throw new OperationError("NO_OUTPUT", draftCap(maxFiles) === 0 ? "output.maxFiles 1 leaves no room for drafts; the operator raises it" : `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles or sets output.maxAgeDays`);
     }
     let count = files.length;
     let total = files.reduce((sum, f) => sum + f.size, 0);
@@ -300,8 +301,11 @@ async function makeRoom(context, dir, bytes, draft) {
     return deleted;
 }
 
-/** The most schedule drafts the output directory may hold: half of output.maxFiles, at least 1. */
-export const draftCap = (maxFiles) => Math.max(1, Math.floor(maxFiles / 2));
+/**
+ * The most schedule drafts the output directory may hold: half of output.maxFiles, rounded down
+ * (none at 1, so a draft never takes the one place a render needs).
+ */
+export const draftCap = (maxFiles) => Math.floor(maxFiles / 2);
 
 /**
  * Writes a file an operation made into the output directory; its name, path and address.

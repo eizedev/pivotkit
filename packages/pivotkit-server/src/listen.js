@@ -12,6 +12,29 @@ import { HOST_SYNTAX } from "./checks.js";
 /** Whether an address is loopback. */
 export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || host === "localhost" || /^127\./.test(host);
 
+/**
+ * Where a front end's precheck keeps a request's sign-in in the `info` object serveFetch hands to
+ * precheck and then to fetch, so a token is checked once; a symbol, so a host's own info cannot
+ * carry one by accident. Taken out when read.
+ */
+export const SIGNED_IN = Symbol("pivotkit.signedIn");
+
+/**
+ * The sign-in a precheck kept for this request, taken out of `info`, or undefined.
+ * @param {Record<string | symbol, any>} info
+ */
+export function takeSignIn(info) {
+    if (!Object.hasOwn(info, SIGNED_IN)) {
+        return undefined;
+    }
+    const kept = info[SIGNED_IN];
+    delete info[SIGNED_IN];
+    return kept;
+}
+
+/** The most bytes of a request body, REST's and MCP's. */
+export const BODY_BYTES = 2_097_152;
+
 /** How long close() waits for running requests by default. */
 export const GRACE_MS = 25_000;
 
@@ -34,6 +57,23 @@ export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 0, loop
  */
 export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerAddress ? { perAddress: options.http.maxConnectionsPerAddress } : {});
 
+/**
+ * What serveFetch's onRefused is told: the last refused connection's address, every bound that
+ * refused one since the last report (`total`: every slot taken; `loopbackReserve`: the network's slots taken, the rest kept
+ * for loopback; `perAddress`: http.maxConnectionsPerAddress), the connections open then in all and
+ * from that address, and how many were refused since the last report.
+ * @typedef {{ address: string, limits: Array<"total" | "loopbackReserve" | "perAddress">, open: number, fromAddress: number, refused: number }} RefusedConnections
+ */
+
+/**
+ * The log line for refused connections: which bound refused them.
+ * @param {RefusedConnections} entry
+ */
+export function refusedText(entry) {
+    const why = { total: "every connection the server may hold was open", loopbackReserve: "the network held every slot not kept for loopback", perAddress: "an address held as many as http.maxConnectionsPerAddress allows" };
+    return `connections refused since the last report: ${entry.limits.map((l) => why[l]).join("; ")}`;
+}
+
 /** A socket's address as a loopback check reads it ("::ffff:127.0.0.1" is 127.0.0.1). */
 const plainAddress = (address) => String(address ?? "").replace(/^::ffff:/i, "");
 
@@ -49,14 +89,24 @@ export function connectionGate(limits) {
     let open = 0;
     let network = 0;
     return {
-        /** Takes a slot for a new connection from `address`, or returns false. */
+        /** Which bound refused the last connection: "total", "loopbackReserve" or "perAddress". */
+        refusedBy: /** @type {"total" | "loopbackReserve" | "perAddress" | null} */ (null),
+        /** Takes a slot for a new connection from `address`, or returns false (refusedBy says why). */
         admit(address) {
             const plain = plainAddress(address);
             if (isLoopback(plain)) {
                 if (open >= limits.total) {
+                    this.refusedBy = "total";
                     return false;
                 }
-            } else if (open >= limits.total || network >= limits.total - limits.loopback || (limits.perAddress > 0 && (byAddress.get(plain) ?? 0) >= limits.perAddress)) {
+            } else if (open >= limits.total) {
+                this.refusedBy = "total";
+                return false;
+            } else if (network >= limits.total - limits.loopback) {
+                this.refusedBy = "loopbackReserve";
+                return false;
+            } else if (limits.perAddress > 0 && (byAddress.get(plain) ?? 0) >= limits.perAddress) {
+                this.refusedBy = "perAddress";
                 return false;
             } else {
                 network++;
@@ -152,7 +202,7 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
 /**
  * Serves a fetch handler on node:http.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: { address: string, open: number, fromAddress: number, refused: number }) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections, at most once a minute (with how many since)
+ * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
 export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused }) {
@@ -209,7 +259,10 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await handler.fetch(request, info);
             res.writeHead(response.status, Object.fromEntries(response.headers));
-            if (response.body && req.method !== "HEAD") {
+            if (response.body && req.method === "HEAD") {
+                // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
+                await response.body.cancel().catch(() => undefined);
+            } else if (response.body) {
                 // a client that leaves stops the stream; a full socket is waited for
                 abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
                 for await (const chunk of response.body) {
@@ -255,18 +308,35 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     });
     server.keepAliveTimeout = 5_000;
     // a bound on open connections, in all and per address, with slots kept for loopback
-    // refused connections are told at most once a minute, so a flood does not flood the log too
-    let refused = 0;
+    // refused connections are told at most once a minute, so a flood does not flood the log too: the
+    // first at once, those of the rest of the minute when it ends (or at close)
+    /** @type {RefusedConnections | null} */
+    let pending = null;
     let toldAt = 0;
+    /** @type {NodeJS.Timeout | null} */
+    let flush = null;
+    const tell = () => {
+        if (flush) {
+            clearTimeout(flush);
+            flush = null;
+        }
+        if (pending && onRefused) {
+            toldAt = Date.now();
+            onRefused(pending);
+        }
+        pending = null;
+    };
     server.on("connection", (socket) => {
         const address = socket.remoteAddress;
         if (!gate.admit(address)) {
             socket.destroy();
-            refused++;
-            if (onRefused && Date.now() - toldAt >= 60_000) {
-                toldAt = Date.now();
-                onRefused({ address: String(address ?? ""), ...gate.counts(address), refused });
-                refused = 0;
+            const bounds = new Set([...(pending?.limits ?? []), /** @type {any} */ (gate.refusedBy)]);
+            pending = { address: String(address ?? ""), limits: [...bounds], ...gate.counts(address), refused: (pending?.refused ?? 0) + 1 };
+            if (Date.now() - toldAt >= 60_000) {
+                tell();
+            } else if (!flush) {
+                flush = setTimeout(tell, 60_000 - (Date.now() - toldAt));
+                flush.unref();
             }
             return;
         }
@@ -281,6 +351,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         port: typeof address === "object" && address ? address.port : port,
         server,
         async close() {
+            tell();
             const closed = new Promise((resolve) => server.close(() => resolve(undefined)));
             // no new connections; idle ones go now, running requests get graceMs to finish
             server.closeIdleConnections();
