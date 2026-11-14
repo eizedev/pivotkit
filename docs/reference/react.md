@@ -24,9 +24,9 @@ Installation and a first example are in [Getting started with React](../getting-
 | `defaultView` | view | empty | Uncontrolled: the start view. |
 | `onViewChange` | `(view) => void` |  | Every change, as a normalized view. |
 | `templates` | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu, in two groups by `scope`: "Shared views" (`"shared"`) and "My views" (`"user"`); without `scope` a `deletable` entry is the user's own, every other one shared. [More](#prop-templates) |
-| `onSaveTemplate` | `(name, view, { scope }) => unknown` |  | Save as and Save of the user's own views; gets the name (an existing one to replace), the view and `{ scope: "user" }`. [More](#prop-onsavetemplate) |
+| `onSaveTemplate` | `(name, view, { scope, source }) => unknown` |  | Save as and Save of the user's own views; gets the name (an existing one to replace), the view and `{ scope: "user", source }` (the data shown). [More](#prop-onsavetemplate) |
 | `onDeleteTemplate` | `(name, { scope }) => unknown` |  | Deletes a template marked `deletable`, after the user confirmed in the menu; `scope` is the entry's group. [More](#prop-ondeletetemplate) |
-| `onPublishTemplate` | `(name, view) => unknown` |  | With `canPublish`: "Publish as shared view" on the user's views and Save on a shared view, asked in place. [More](#prop-onpublishtemplate) |
+| `onPublishTemplate` | `(name, view, { source }) => unknown` |  | With `canPublish`: "Publish as shared view" on the user's views and Save on a shared view, asked in place. [More](#prop-onpublishtemplate) |
 | `canPublish` | `boolean` | `false` | The user may publish views for everyone (an admin, as the host decides). [More](#prop-canpublish) |
 | `templateStore` | `"browser"` | off | `"browser"`: the report keeps the user's own views (My views) in `localStorage` under `pivotkit:views:<storageKey>` (`pivotkit:views` without one), as view files that name their data (`source`). [More](#prop-templatestore) |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
@@ -334,7 +334,7 @@ The data shown changed, with what it is now:
 
 | Key | What |
 | --- | --- |
-| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone; `"restore"`: the report was mounted again and shows the file it had ([`allowImport`](#prop-allowimport)). |
+| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays), also another sheet of the workbook shown that a saved view opened (refused, the view is not opened and a note says so); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone; `"restore"`: the report was mounted again and shows the file it had ([`allowImport`](#prop-allowimport)). |
 | `source` | `{ id, name }` of the data shown: the file's, or the host's `source` (`null` without one). |
 | `file` | `{ name, size, type }` of the file shown, or `null` for the host's data. |
 | `sheet` | The sheet of a workbook, else `null`. |

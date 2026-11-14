@@ -58,8 +58,12 @@ You keep the templates where you keep other data (a database, a settings service
 `{ id, name, params }` - your `source`, or a file the user loaded in the report (`allowImport`), whose
 `params.sheet` is the sheet of a workbook; `null` without a source id. To have a view of a workbook's
 sheet open on that sheet again, keep `source` with the view and pass it back as a view file:
-`{ name, file: toViewFile(view, { name, source }) }` in `templates` (an entry `{ name, view }` names no
-data and opens on the data shown). Views you kept without it work as before.
+`{ name, scope: "user", deletable: true, file: toViewFile(view, { name, source }) }` in `templates`
+(an entry `{ name, view }` names no data and opens on the data shown). Views you kept without it work
+as before, on the sheet shown; the sheet they were made on is not known, so they get it only when
+the user saves them again on that sheet, or by hand ([view file](../reference/view-file.md#the-sheet-of-a-workbook)).
+Your `templates` are listed whatever data is shown: filter them by `source` yourself where that
+matters.
 
 Each callback may return a promise (the element: `event.detail.respondWith(promise)`): the report
 says "saved", "deleted" or "published" when it resolves, and the error's message when it rejects.

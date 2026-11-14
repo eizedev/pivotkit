@@ -269,7 +269,8 @@ Every exported file before its download and every copy before it goes on the cli
 `detail`: `{ cause, source, file, sheet, rows, columns, notes }`.
 
 `cause` is `"load"` for a file, sent before it is shown: `preventDefault()` refuses it and the data
-stays (cancelable for `"load"` only); `"original"` when "Back to original data" shows the page's
+stays (cancelable for `"load"` only); also for another sheet of the workbook shown that a saved view
+opened (refused, the view is not opened and a note says so); `"original"` when "Back to original data" shows the page's
 data; `"undo"` and `"redo"` when one of those steps is undone or redone; `"restore"` when an element
 with `storage-key` put back into the page shows the file it had. `source` is `{ id, name }` of
 the data shown now (the file's, or the element's `source-id` and `source-name`), `file` its
