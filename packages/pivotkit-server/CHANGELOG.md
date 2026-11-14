@@ -16,6 +16,8 @@ What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-st
   counted nor deleted: remove them from the output directory by hand once.
 - `output.maxMb` (default 1024) is new: a full directory deletes its oldest reports. Drafts may take
   at most half of `output.maxFiles` (none at 1).
+- A missing `output.dir` is made at start instead of failing it; `output.create: false` keeps the
+  error.
 - The MCP endpoint over HTTP has request limits (`mcp.rateLimit`, `mcp.concurrency`; 429 over them);
   `http.maxConnectionsPerAddress` is new; a client has 5 seconds for its headers.
 - A static token with characters a bearer token cannot carry, and an output directory the server

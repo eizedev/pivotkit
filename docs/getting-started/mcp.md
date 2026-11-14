@@ -63,8 +63,8 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
     { "mcpServers": { "pivotkit": { "command": "npx", "args": ["-y", "pivotkit-mcp", "--config", "/path/to/pivotkit-mcp.json"] } } }
     ```
 
-Use absolute paths: a client may start the server in another directory, and create the output
-directory first (the server does not). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
+Use absolute paths: a client may start the server in another directory (a missing output
+directory is made at start). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
 under "Other clients". Pin a version for a setup others rely on (`pivotkit-mcp@<version>`): `npx`
 without one takes the newest at each start.
 

@@ -17,7 +17,7 @@ endpoint has request limits. Each package's `CHANGELOG.md` has the full list.
 | Change | Applies to you when | Action |
 | --- | --- | --- |
 | [Versions move together](#versions-0-6-1) | you also install pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the same release |
-| [Output files of the services](#output-0-6-1) | you run pivotkit-server or pivotkit-mcp with an output directory | remove the reports of 0.6.0 by hand once; check `output.maxMb` and `output.maxFiles` |
+| [Output files of the services](#output-0-6-1) | you run pivotkit-server or pivotkit-mcp with an output directory | remove the reports of 0.6.0 by hand once; check `output.maxMb` and `output.maxFiles`; a missing directory is now made |
 | [Request limits of the MCP endpoint](#mcp-limits-0-6-1) | clients use pivotkit-mcp or pivotkit-server's `/mcp` over HTTP | raise `mcp.rateLimit` or `mcp.concurrency` for busy clients |
 | [Checks at start](#checks-0-6-1) | you run `check-config` in a pipeline or start the service from scripts | fix what it now names |
 | [Years before 1 AD](#bce-0-6-1) | your data has dates before 1 AD or after 9999, and tests or screenshots show them | take the new labels |
@@ -43,6 +43,10 @@ remove them by hand once.
   at 1); a draft over that answers 409 `NO_OUTPUT`.
 - An output directory the server cannot write is a problem in `check-config` (exit 1), a warning at
   start, and 409 `NO_OUTPUT` for a report, instead of 500 `INTERNAL`.
+- A missing output directory is made at start, with its parents (mode 0700, or 0755 narrowed by the
+  umask when `output.baseUrl` is set), with a warning in the log; before, the start failed. A setup
+  that relies on that error (a directory on a volume that must be mounted first) sets
+  `output.create: false`.
 
 See [the REST service's options](../reference/rest.md#running).
 

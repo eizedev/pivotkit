@@ -15,7 +15,9 @@ What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-st
 - Over HTTP, each caller is limited (`mcp.rateLimit`: 120 per minute, burst 30; `mcp.concurrency`: 4);
   over a limit the answer is 429 with `Retry-After`. A method other than `POST` on `/mcp` is 405.
 - Reports and drafts are named `<name>.pivotkit-out.<format>`; reports written by 0.1.0 are neither
-  counted nor deleted: remove them by hand once. `output.maxMb` (default 1024) is new.
+  counted nor deleted: remove them by hand once. `output.maxMb` (default 1024) is new. A missing
+  `--output` directory is made at start instead of failing it; `output.create: false` keeps the
+  error.
 - A static token with characters a bearer token cannot carry is refused at start.
 
 ### Added
