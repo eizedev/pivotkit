@@ -8,8 +8,8 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Changed
 
-- The output directory and `--check-config` follow pivotkit-server's: a full directory deletes its
-  oldest reports, `output.maxMb`, `NO_OUTPUT` with a hint for a directory the server
+- The output directory and `--check-config` follow pivotkit-server's: reports and drafts are named
+  `<name>.pivotkit-out.<format>`, a full directory deletes its oldest reports (never drafts), `output.maxMb`, `NO_OUTPUT` with a hint for a directory the server
   cannot write, and a warning for a policy rule that names no column
   ([#269](https://github.com/eizedev/pivotkit/issues/269), [#288](https://github.com/eizedev/pivotkit/issues/288),
   [#297](https://github.com/eizedev/pivotkit/issues/297), [#298](https://github.com/eizedev/pivotkit/issues/298)).

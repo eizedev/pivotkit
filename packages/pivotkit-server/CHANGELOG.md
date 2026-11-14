@@ -16,11 +16,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
-- A full output directory (`output.maxFiles`, `output.maxMb`) deletes its oldest reports and drafts
-  to make room instead of refusing every caller, so one token can no longer stop rendering for
-  everyone; nothing is deleted where the directory holds the configuration or a source, template or
-  token file. Only pivotkit's reports and drafts at its top level count
-  ([#288](https://github.com/eizedev/pivotkit/issues/288)).
+- Reports and schedule drafts are named `<name>.pivotkit-out.<format>` (`sales.pivotkit-out.xlsx`),
+  so the server knows its own files: only those are counted, cleaned up by `output.maxAgeDays` and
+  deleted to make room; the operator's files, and reports written by an earlier version, are not
+  (remove those by hand once) ([#288](https://github.com/eizedev/pivotkit/issues/288)).
+- A full output directory (`output.maxFiles`, `output.maxMb`) deletes its oldest reports to make room
+  instead of refusing every caller, so one token can no longer stop rendering for everyone; any token
+  that may render can push other callers' older reports out. Schedule drafts awaiting approval are
+  never deleted this way, and nothing is deleted where the directory holds the configuration or a
+  source, template or token file ([#288](https://github.com/eizedev/pivotkit/issues/288)).
 
 ### Fixed
 

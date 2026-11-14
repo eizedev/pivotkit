@@ -163,19 +163,27 @@ const outputDir = (context) => context.output?.dir ?? null;
 /** When the output directory was last cleaned up (output.maxAgeDays), per directory. */
 const pruned = new Map();
 
-/** What the output directory holds of pivotkit's: reports and schedule drafts, by their extension. */
-const OUTPUT_FILE_NAME = /\.(xlsx|html|csv|json|svg)$/i;
+/**
+ * The part of a written file's name that marks it as pivotkit's: "Sales by region.pivotkit-out.xlsx",
+ * "Weekly.pivotkit-out.report.json" (a schedule draft; ".pivotkit.json" is a view file), with output.baseUrl after 22 random characters.
+ * Only such files are counted, cleaned up and deleted to make room; an operator's own files are not.
+ */
+export const OUTPUT_MARK = "pivotkit-out";
+
+/** A report pivotkit wrote; a schedule draft it wrote. */
+const REPORT_NAME = new RegExp(`\\.${OUTPUT_MARK}\\.(xlsx|html|csv|json|svg)$`, "i");
+const DRAFT_NAME = new RegExp(`\\.${OUTPUT_MARK}\\.report\\.json$`, "i");
 
 /**
- * The reports and drafts in the output directory (its top level; a file of another kind and a
- * subdirectory are not pivotkit's), oldest first.
+ * The reports and drafts pivotkit wrote into the output directory (its top level, by their names'
+ * mark; other files and subdirectories are not pivotkit's), oldest first.
  * @param {string} dir
- * @returns {Promise<Array<{ path: string, size: number, mtimeMs: number }>>}
+ * @returns {Promise<Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>>}
  */
 async function reportsIn(dir) {
-    const entries = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((e) => e.isFile() && OUTPUT_FILE_NAME.test(e.name));
-    const files = await Promise.all(entries.map((e) => stat(join(dir, e.name)).then((info) => ({ path: join(dir, e.name), size: info.size, mtimeMs: info.mtimeMs }), () => null)));
-    return /** @type {Array<{ path: string, size: number, mtimeMs: number }>} */ (files.filter(Boolean)).sort((a, b) => a.mtimeMs - b.mtimeMs);
+    const entries = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((e) => e.isFile() && (REPORT_NAME.test(e.name) || DRAFT_NAME.test(e.name)));
+    const files = await Promise.all(entries.map((e) => stat(join(dir, e.name)).then((info) => ({ path: join(dir, e.name), size: info.size, mtimeMs: info.mtimeMs, draft: DRAFT_NAME.test(e.name) }), () => null)));
+    return /** @type {Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>} */ (files.filter(Boolean)).sort((a, b) => a.mtimeMs - b.mtimeMs);
 }
 
 /**
@@ -229,10 +237,11 @@ function outputError(e) {
 
 /**
  * Makes room for a new file of `bytes`: while the directory would hold more than output.maxFiles
- * reports or output.maxMb, its oldest reports and drafts are deleted, whoever made them; so a caller
+ * of pivotkit's files or output.maxMb, its oldest reports are deleted, whoever made them; so a caller
  * that renders without pause shortens how long the reports stay, but never stops the others from
- * rendering. A directory that holds the operator's own files (output.cleanUp false) is never cleaned:
- * a full one refuses.
+ * rendering. Schedule drafts count but are never deleted to make room (a person has yet to approve
+ * them): when only drafts are left, it refuses. A directory that holds the operator's own files
+ * (output.cleanUp false) is never cleaned: a full one refuses.
  * @returns {Promise<number>}  the files deleted
  */
 async function makeRoom(context, dir, bytes) {
@@ -242,16 +251,19 @@ async function makeRoom(context, dir, bytes) {
         throw new OperationError("NO_OUTPUT", `the report is larger than the output directory may hold (output.maxMb: ${maxMb})`);
     }
     const files = await reportsIn(dir);
+    let count = files.length;
     let total = files.reduce((sum, f) => sum + f.size, 0);
+    const reports = files.filter((f) => !f.draft);
     let deleted = 0;
-    while (files.length + 1 > maxFiles || total + bytes > maxBytes) {
-        const oldest = files.shift();
-        if (!oldest || !cleanUp) {
-            const count = files.length + (oldest ? 1 : 0);
-            const over = count + 1 > maxFiles ? `holds ${count} reports, the most it may (output.maxFiles: ${maxFiles})` : `is full (output.maxMb: ${maxMb})`;
-            throw new OperationError("NO_OUTPUT", `the output directory ${over}${cleanUp ? "" : " and holds the operator's own files, so the server deletes none there"}; the operator must clean it up`);
+    while (count + 1 > maxFiles || total + bytes > maxBytes) {
+        const oldest = cleanUp ? reports.shift() : undefined;
+        if (!oldest) {
+            const over = count + 1 > maxFiles ? `holds ${count} files, the most it may (output.maxFiles: ${maxFiles})` : `is full (output.maxMb: ${maxMb})`;
+            const why = !cleanUp ? " and holds the operator's own files, so the server deletes none there" : " and what is left are schedule drafts awaiting approval, which are not deleted";
+            throw new OperationError("NO_OUTPUT", `the output directory ${over}${why}; the operator must clean it up`);
         }
         await unlink(oldest.path).catch((e) => (e?.code === "ENOENT" ? undefined : Promise.reject(outputError(e))));
+        count--;
         total -= oldest.size;
         deleted++;
     }
@@ -272,7 +284,7 @@ async function writeOutput(context, file) {
         if (deleted) {
             context.log.info("output directory full: the oldest reports deleted", { deleted });
         }
-        return writeNew(dir, file.name, file.extension, file.bytes, { prefix }).catch((e) => Promise.reject(outputError(e)));
+        return writeNew(dir, file.name, `${OUTPUT_MARK}.${file.extension}`, file.bytes, { prefix }).catch((e) => Promise.reject(outputError(e)));
     });
     return {
         name,

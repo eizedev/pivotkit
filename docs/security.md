@@ -227,8 +227,12 @@ may try to steer it:
 - **Output** goes only to the operator's output directory, as new files that never replace one,
   with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
   gets names that start with 22 random characters; protect that server as you would the data. The
-  directory holds at most `output.maxFiles` reports and `output.maxMb` megabytes: a new report
-  deletes the oldest, so one caller cannot fill it for everyone.
+  directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's (its
+  reports and drafts carry `.pivotkit-out.` in their names; other files are neither counted nor
+  deleted). When it is full, a new report deletes the oldest reports, so one caller cannot stop
+  rendering for everyone, but any token that may render can push other callers' reports out (a link
+  to one then answers 404); drafts awaiting approval are never deleted this way. Set `maxFiles`
+  high, give `render_view` its own scope and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
