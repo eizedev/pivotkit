@@ -92,7 +92,7 @@ jobs:
       - name: Browser test
         run: npx playwright test -c examples/angular/playwright.config.js
       - name: Test report
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-angular
@@ -112,7 +112,7 @@ jobs:
     # checks that and this matrix.
     name: browser (${{ matrix.target.browser }} ${{ matrix.target.shard }}/${{ matrix.target.of }}, React ${{ matrix.react }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -148,7 +148,13 @@ jobs:
         # tests/browser against the build, in the job's engine and shard only
         env:
           PIVOTKIT_REACT: ${{ matrix.react }}
-        run: npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
+        # DO NOT MERGE: the flaky tests of #11, #96, #102, #140, #222, #262, #278 and #210, 20 times each, no retry
+        run: >-
+          npx playwright test --project=${{ matrix.target.browser }} --shard=${{ matrix.target.shard }}/${{ matrix.target.of }}
+          --repeat-each=20 --retries=0 --workers=4
+          tests/browser/access.spec.js:94 tests/browser/usability.spec.js:5 tests/browser/review.spec.js:139
+          tests/browser/save-views.spec.js:366 tests/browser/field-rail.spec.js:42 tests/browser/header-sort.spec.js:112
+          tests/browser/filter-choices.spec.js:130 tests/browser/report-export.spec.js:80 tests/browser/table-scroll.spec.js:64
       - name: Playground build
         # the static files the tests opened, to try the playground without building it
         if: success() && matrix.react == '18' && matrix.target.browser == 'chromium'
@@ -158,7 +164,7 @@ jobs:
           path: examples/playground/dist/
           retention-days: 14
       - name: Test report
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ matrix.target.browser }}-${{ matrix.target.shard }}-of-${{ matrix.target.of }}-react-${{ matrix.react }}
