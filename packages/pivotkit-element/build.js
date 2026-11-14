@@ -214,7 +214,7 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * CI about 173.5), budget 174. The layout code itself stays out (its constants are marked pure).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 21.5, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 22, report: 22 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

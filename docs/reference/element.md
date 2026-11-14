@@ -410,7 +410,7 @@ numbers):
 | Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 139 KiB | 45 KiB |
 | With the menus, for a German report only (the menus' German texts) | 1 | 20 KiB | 7 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
-| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 50 KiB | 20 KiB |
+| With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 6 | 53 KiB | 21.4 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |
 
 ECharts is bundled, not left to the page: a page without a bundler or an import map would have no

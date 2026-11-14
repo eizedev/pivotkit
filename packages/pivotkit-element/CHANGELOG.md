@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The import group grows by about 0.2 KiB gzip with pivotkit-core's check of a plugin's table
+  (21.4 KiB measured on a Mac, CI 21.6); its budget to 22
+  ([#130](https://github.com/eizedev/pivotkit/issues/130)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
