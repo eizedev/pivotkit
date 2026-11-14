@@ -6,10 +6,21 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
+### Upgrading from 0.5
+
+What a page checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-5) has the details.
+
+- Export → **CSV file (.csv)** is called **Table as CSV (.csv)**; the `pivot-export` kind `"csv"`
+  stays. Tests or screenshots that look for the old text take the new one.
+- `export-data` (Export → Source data) is new and off by default.
+
 ### Added
 
 - `pivot-template-save` and `pivot-template-publish` carry `source` in `detail`: the data shown, with
-  a loaded workbook's sheet in `params.sheet` ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+  a loaded workbook's sheet in `params.sheet`; Publish of a view file or of a view of the browser
+  store made for other data gives that data ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - `export-data` (boolean attribute) and the `exportData` property: pivotkit-react's Export → Source
   data, every row of the data as a CSV or JSON file; `pivot-export` kinds `"data-csv"`, `"data-json"`.
   Off by default.
@@ -17,11 +28,10 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 ### Changed
 
 - Export → **CSV file (.csv)** is called **Table as CSV (.csv)**, as in pivotkit-react.
+- Bundles pivotkit-core 0.6.0, pivotkit-react 0.6.0 and pivotkit-report 0.2.0.
 
 ### Fixed
 
-- The element bundles pivotkit-react's fix: `pivot-template-publish` carries the data shown as `source` for a host's view, which names no data of its own,
-  as `pivot-template-save` does; it carried `null`.
 - The element bundles pivotkit-react's fix of views made on a workbook's sheet other than the first:
   they open on that sheet again after the workbook is loaded anew ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - The element bundles pivotkit-react's fix of a rule on the name whose text is emptied: the rule
@@ -31,7 +41,7 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Upgrading from 0.4
 
-What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/) has the details.
+What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-4) has the details.
 
 - **Breaking:** views, view files and links are written in format version 2; pivotkit 0.4 refuses
   them as newer. Version 1 loads with the same result.
@@ -338,7 +348,8 @@ First release.
   thousands separators, CSV percentages and calculations as the table shows them, heatmaps without
   grey empty cells.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.5.0...pivotkit-element@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.4.0...pivotkit-element@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.3.0...pivotkit-element@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-element@0.2.0...pivotkit-element@0.3.0

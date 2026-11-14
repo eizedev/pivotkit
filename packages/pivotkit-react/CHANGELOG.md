@@ -6,11 +6,24 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
+### Upgrading from 0.5
+
+What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-5) has the details.
+
+- Export → **CSV file (.csv)** is called **Table as CSV (.csv)** (German **Tabelle als CSV (.csv)**);
+  its label key `exportCsv` and its `onExport` kind `"csv"` stay. Tests or screenshots that look for
+  the old text take the new one.
+- `exportData` (Export → Source data) is new and off by default.
+- pivotkit-core moves to `^0.6.0` with it.
+
 ### Added
 
 - `onSaveTemplate(name, view, { scope, source })` and `onPublishTemplate(name, view, { source })`
   get the data shown as a view file names it (`{ id, name, params }`, `null` without a source id),
-  so a host that keeps views can keep a workbook's sheet with them ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+  so a host that keeps views can keep a workbook's sheet with them; Publish of a view file or of a
+  view of the browser store made for other data gives that data ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - `exportData` (default `false`): the Export menu's last group **Source data** with **All rows as CSV
   (.csv)** and **All rows as JSON (.json)**: every row of the data shown, every column except derived
   fields, under the fields' own names, values not formatted (`<fileName>-data.csv`,
@@ -22,14 +35,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - The identifier rule of the field list (`isIdentifierName`), the names of groupings and a loaded
   file's source id come from pivotkit-core; nothing changes in the report ([#253](https://github.com/eizedev/pivotkit/issues/253)).
-
 - Export → **CSV file (.csv)** is called **Table as CSV (.csv)** (German **Tabelle als CSV (.csv)**),
   and its "i" says it is the table, not the rows behind it; its `kind` stays `"csv"`.
+- Depends on `pivotkit-core` `^0.6.0` (was `^0.5.0`) and `pivotkit-report` `^0.2.0` (was `^0.1.0`): a host
+  that also lists pivotkit-core updates both together, or it gets two copies.
 
 ### Fixed
 
-- `onPublishTemplate` carries the data shown as `source` for a host's view, which names no data of its own,
-  as `onSaveTemplate` does; it carried `null`.
 - A view made on a sheet of a loaded workbook other than the first opens on that sheet again after
   the same workbook is loaded anew: views saved, downloaded and linked from a workbook's sheet name it
   in `source.params.sheet`; while a workbook is shown, Views lists the views of its other sheets with
@@ -45,7 +57,7 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Upgrading from 0.4
 
-What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/) has the details.
+What a host checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-4) has the details.
 
 - **Breaking:** views, view files and links are written in format version 2; pivotkit 0.4 refuses
   them as newer. Version 1 loads with the same result.
@@ -970,7 +982,8 @@ First release.
   weather (Open-Meteo), countries (World Bank), earthquakes (USGS), Nobel laureates and the release
   cycles of software products (endoflife.date).
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.5.0...pivotkit-react@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.4.0...pivotkit-react@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.3.0...pivotkit-react@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-react@0.2.0...pivotkit-react@0.3.0
