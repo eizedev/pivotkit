@@ -11,7 +11,7 @@ import { OPERATIONS } from "pivotkit-report/operations";
 export { REST_BASE } from "../config.js";
 
 const VIEW = { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] };
-const FINDING = { severity: "error", code: "fieldMissing", path: "rows.0", message: 'no field "Regoin"', suggestion: "Region" };
+const FINDING = { severity: "error", code: "unknownField", path: "rows[0]", message: 'unknown field "Regoin"', suggestion: "Region" };
 
 /** Per operation: a neutral summary and one example of input and output. */
 const WORDS = {

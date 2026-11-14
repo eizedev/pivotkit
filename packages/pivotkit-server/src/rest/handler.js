@@ -204,7 +204,7 @@ export async function createRestHandler(context, runtime = {}) {
             input = { source: id };
         }
         if (input === null || typeof input !== "object" || Array.isArray(input)) {
-            throw new OperationError("INVALID_INPUT", "the body is a JSON object");
+            throw new OperationError("INVALID_INPUT", "the body must be a JSON object");
         }
         entry.source = typeof input.source === "string" ? input.source.slice(0, 80) : undefined;
         // before the schema's pattern says the same in fewer words

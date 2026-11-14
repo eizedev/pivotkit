@@ -59,10 +59,10 @@ export function bearerOf(request) {
     const header = request.headers.get("authorization");
     // Headers joins repeated headers with ", ": two Authorization headers are refused
     if (!header || header.includes(",")) {
-        return { refused: header ? "one Authorization header" : "no token" };
+        return { refused: header ? "send one Authorization header, not two" : "no token; send Authorization: Bearer <token>" };
     }
     const m = /^Bearer[ ]+([A-Za-z0-9\-._~+/]+=*)$/i.exec(header.trim());
-    return m ? { token: m[1] } : { refused: "not a bearer token" };
+    return m ? { token: m[1] } : { refused: "not a bearer token; send Authorization: Bearer <token>" };
 }
 
 /**
@@ -190,7 +190,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             async check(request) {
                 const bearer = /** @type {{ token?: string, refused?: string }} */ (bearerOf(request));
                 if (!bearer.token) {
-                    throw new AuthRefusal(401, "invalid_token", bearer.refused ?? "no token");
+                    throw new AuthRefusal(401, "invalid_token", bearer.refused ?? "no token; send Authorization: Bearer <token>");
                 }
                 const given = digest(bearer.token);
                 let match = null;
@@ -202,7 +202,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                     }
                 }
                 if (!match) {
-                    throw new AuthRefusal(401, "invalid_token", "unknown token");
+                    throw new AuthRefusal(401, "invalid_token", "unknown token; check the token the operator gave you");
                 }
                 return { token: "", clientId: match.name, scopes: match.scopes ?? [], expiresAt: Math.floor(Date.now() / 1000) + 3600, extra: { allScopes: match.scopes === null, profile: match.profile } };
             },

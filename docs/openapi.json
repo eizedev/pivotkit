@@ -328,9 +328,9 @@
                   "findings": [
                     {
                       "severity": "error",
-                      "code": "fieldMissing",
-                      "path": "rows.0",
-                      "message": "no field \"Regoin\"",
+                      "code": "unknownField",
+                      "path": "rows[0]",
+                      "message": "unknown field \"Regoin\"",
                       "suggestion": "Region"
                     }
                   ],
@@ -911,15 +911,6 @@
           "404": {
             "$ref": "#/components/responses/Problem404"
           },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "413": {
-            "$ref": "#/components/responses/Problem413"
-          },
-          "415": {
-            "$ref": "#/components/responses/Problem415"
-          },
           "422": {
             "$ref": "#/components/responses/Problem422"
           },
@@ -984,36 +975,11 @@
               }
             },
             "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string",
-                  "contentMediaType": "application/json"
-                }
-              },
-              "text/csv": {
-                "schema": {
-                  "type": "string",
-                  "contentMediaType": "text/csv"
-                }
-              },
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
-                "schema": {
-                  "type": "string",
-                  "contentMediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                }
-              },
-              "image/svg+xml": {
-                "schema": {
-                  "type": "string",
-                  "contentMediaType": "image/svg+xml"
-                }
-              },
-              "text/html": {
-                "schema": {
-                  "type": "string",
-                  "contentMediaType": "text/html"
-                }
-              }
+              "application/json": {},
+              "text/csv": {},
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {},
+              "image/svg+xml": {},
+              "text/html": {}
             }
           },
           "400": {
@@ -1078,37 +1044,8 @@
             "type": "integer"
           },
           "code": {
-            "enum": [
-              "INVALID_INPUT",
-              "FILES_NOT_ALLOWED",
-              "NOT_ALLOWED",
-              "SOURCE_NOT_FOUND",
-              "FILE_NOT_AVAILABLE",
-              "NO_OUTPUT",
-              "NO_LINK",
-              "NOT_SCHEDULABLE",
-              "LIMIT_EXCEEDED",
-              "UNSUPPORTED_FORMAT",
-              "INVALID_FILE",
-              "NOT_REGULAR_FILE",
-              "HARD_LINK",
-              "INVALID_TEMPLATE",
-              "BUSY",
-              "NOT_READY",
-              "TIMEOUT",
-              "INTERNAL",
-              "INVALID_TOKEN",
-              "INSUFFICIENT_SCOPE",
-              "FORBIDDEN_HOST",
-              "FORBIDDEN_ORIGIN",
-              "NOT_FOUND",
-              "METHOD_NOT_ALLOWED",
-              "BODY_TOO_LARGE",
-              "UNSUPPORTED_MEDIA_TYPE",
-              "VIEW_HAS_ERRORS",
-              "RATE_LIMITED",
-              "AUTH_NOT_READY"
-            ]
+            "type": "string",
+            "description": "A stable code; new ones may come. Today: INVALID_INPUT, FILES_NOT_ALLOWED, NOT_ALLOWED, SOURCE_NOT_FOUND, FILE_NOT_AVAILABLE, NO_OUTPUT, NO_LINK, NOT_SCHEDULABLE, LIMIT_EXCEEDED, UNSUPPORTED_FORMAT, INVALID_FILE, NOT_REGULAR_FILE, HARD_LINK, INVALID_TEMPLATE, BUSY, NOT_READY, TIMEOUT, INTERNAL, INVALID_TOKEN, INSUFFICIENT_SCOPE, FORBIDDEN_HOST, FORBIDDEN_ORIGIN, NOT_FOUND, METHOD_NOT_ALLOWED, BODY_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, VIEW_HAS_ERRORS, RATE_LIMITED, AUTH_NOT_READY."
           },
           "detail": {
             "type": "string",

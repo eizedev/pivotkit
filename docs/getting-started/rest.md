@@ -91,8 +91,9 @@ With the name fixed, render the report into the output folder:
     Get-ChildItem reports
     ```
 
-The answer's `message` says where the file is. It also says `withheld`: Region and Revenue are
-`summary` fields, so the numbers stay in the file and are not part of the answer.
+The answer's `message` says where the file is. Check `ok` in a script: a view with errors also
+answers 200, with `ok: false`, its `findings` and no file. The answer also says `withheld`: Region
+and Revenue are `summary` fields, so the numbers stay in the file and are not part of the answer.
 
 ## 5. Tokens, a profile and downloads { #policy }
 
@@ -136,9 +137,9 @@ set), a call without a token is now 401, and only the export token may download 
 === "curl"
 
     ```bash
-    curl -s http://127.0.0.1:3333/api/v1/sources                 # 401
+    curl -s -w ' %{http_code}\n' http://127.0.0.1:3333/api/v1/sources            # 401
     VIEW='{"source":"sales","view":{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]},"format":"xlsx"}'
-    curl -s -H "Authorization: Bearer $SCRIPTS_TOKEN" -H "Content-Type: application/json" -d "$VIEW" \
+    curl -s -w ' %{http_code}\n' -H "Authorization: Bearer $SCRIPTS_TOKEN" -H "Content-Type: application/json" -d "$VIEW" \
       http://127.0.0.1:3333/api/v1/views/render/file               # 403 NOT_ALLOWED
     curl -s -o revenue.xlsx -H "Authorization: Bearer $EXPORT_TOKEN" -H "Content-Type: application/json" -d "$VIEW" \
       http://127.0.0.1:3333/api/v1/views/render/file

@@ -58,15 +58,27 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 { "ok": true, "findings": [], "uses": ["Region", "Sales"], "format": "xlsx",
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "withheld": ["rows", "columns", "bytes", "content"],
-  "output": { "name": "Sum of Sales by Region.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as Sum of Sales by Region.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales." }
+  "output": { "name": "sales.xlsx", "format": "xlsx", "mediaType": "..." },
+  "message": "The report is saved as sales.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales." }
 ```
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where
-(`output.name`, and `output.url` when `output.baseUrl` is set); the caller fetches it from there or
-uses the [file route](#downloads). A csv or json result comes back inline (`inline.text`) only when
-the operator sets `rest.inline: true` and every field the view uses is shown. `withheld` lists what is
-left out of the answer because the view uses a field whose values the policy does not show.
+(`output.name`, and `output.url` when `output.baseUrl` is set). The file's name is `name` from the
+input, else `title`, else the view's name, else the source's; a name that is taken gets `-2`, `-3`
+and so on, since no file is ever replaced. Check `ok` in the answer: a view with errors answers 200
+with `ok: false` and `output: null`. The caller fetches the file from there or
+uses the [file route](#downloads). The field names in these examples are made up: the fields of your
+source and views built from them are in `GET /sources/{id}` (`fields`, `examples`).
+
+A csv result is the report's layout, as the HTML report and the workbook show it: a header row per
+column field, a row of labels, then a row per group with a total row and column; it starts with a
+UTF-8 byte order mark, so a spreadsheet opens it as UTF-8.
+
+A csv or json result comes back inline (`inline.text`) only when the operator sets
+`rest.inline: true` and every field the view uses is shown. `withheld` lists what is left out of the
+answer because the view uses a field whose values the policy does not show. For such a view, the
+findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing)
+are left out too: a filter on an item that does not exist validates and renders an empty report.
 
 ## Exposure policy and profiles { #profiles }
 
@@ -217,7 +229,7 @@ carry `Retry-After`.
 
 | Status | Code | When |
 | --- | --- | --- |
-| 400 | <a id="error-invalid-input"></a>`INVALID_INPUT` | The body is no JSON object, or the input does not fit the route's schema (an unknown key, a wrong type, nested too deeply) |
+| 400 | <a id="error-invalid-input"></a>`INVALID_INPUT` | The body is not valid JSON, is no JSON object, or does not fit the route's schema (an unknown key, a wrong type, nested too deeply) |
 | 401 | <a id="error-invalid-token"></a>`INVALID_TOKEN` | No token, an unknown or expired one, another scheme, a token in the address |
 | 403 | <a id="error-insufficient-scope"></a>`INSUFFICIENT_SCOPE` | The token lacks a scope the service or the operation needs |
 | 403 | <a id="error-not-allowed"></a>`NOT_ALLOWED` | The file route without `results: true` |
@@ -231,7 +243,7 @@ carry `Retry-After`.
 | 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, or the directory is full |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
 | 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB; a file, a view or the work over a limit |
-| 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A body that is not JSON; a source file in no data format |
+| 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form); a source file in no data format |
 | 422 | <a id="error-invalid-file"></a>`INVALID_FILE`, <a id="error-not-regular-file"></a>`NOT_REGULAR_FILE`, <a id="error-hard-link"></a>`HARD_LINK`, <a id="error-invalid-template"></a>`INVALID_TEMPLATE` | The source's file or print template cannot be used |
 | 422 | <a id="error-view-has-errors"></a>`VIEW_HAS_ERRORS` | The file route for a view with errors (with `findings`) |
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |

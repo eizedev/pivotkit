@@ -120,7 +120,7 @@ export function openApiDocument(options = {}) {
                 type: { type: "string", format: "uri", description: "The address that names the error's code." },
                 title: { type: "string" },
                 status: { type: "integer" },
-                code: { enum: PROBLEM_CODES },
+                code: { type: "string", description: `A stable code; new ones may come. Today: ${PROBLEM_CODES.join(", ")}.` },
                 detail: { type: "string", description: "What went wrong and what to do; never file content." },
                 findings: { type: "array", items: { type: "object" }, description: "The view's findings (422 of the file route)." }
             }
@@ -141,10 +141,10 @@ export function openApiDocument(options = {}) {
     const paths = {};
     for (const route of REST_ROUTES) {
         const op = OPERATIONS[route.operation];
-        const errors = route.method === "GET" && !route.path.includes("{") ? [401, 403, 429, 503] : [400, 401, 403, 404, 409, 413, 415, 422, 429, 503, 504];
+        const errors = route.method === "GET" ? (route.path.includes("{") ? [400, 401, 403, 404, 422, 429, 503, 504] : [401, 403, 429, 503]) : [400, 401, 403, 404, 409, 413, 415, 422, 429, 503, 504];
         const okContent =
             route.answer === "file"
-                ? Object.fromEntries(Object.values(RENDER_FORMATS).map((f) => [f.mediaType.split(";")[0], { schema: { type: "string", contentMediaType: f.mediaType.split(";")[0] } }]))
+                ? Object.fromEntries(Object.values(RENDER_FORMATS).map((f) => [f.mediaType.split(";")[0], {}]))
                 : { "application/json": { schema: { $ref: `#/components/schemas/${pascal(route.operation)}Output` }, example: route.example.output } };
         paths[`${REST_BASE}${route.path}`] ??= {};
         paths[`${REST_BASE}${route.path}`][route.method.toLowerCase()] = {
