@@ -82,7 +82,7 @@ const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limit
  * @property {string} [text]  the body as text, for json, csv, svg and html
  * @property {import("pivotkit-core").Issue[]} issues  the view's issues, then the report's (REPORT_ISSUE_CODES)
  * @property {boolean} ok  no issue of severity "error"
- * @property {{ rows: number, columns: number, sourceRows: number, truncated: boolean } | null} summary  the table's body rows and columns, the data's rows, whether a part was cut
+ * @property {{ rows: number, columns: number, sourceRows: number, keptRows: number, truncated: boolean } | null} summary  the table's body rows and columns, the data's rows, the rows its filters keep, whether a part was cut
  * @property {import("pivotkit-core").View | null} view  the normalized view that was rendered
  */
 
@@ -187,7 +187,7 @@ export async function render(view, data, options = {}) {
     }
     // the report's own words in the language of its locale (pivotkit-core's REPORT_LABELS, as the report on a page shows them), unless given
     const grid = toGrid(result, { labels: options.labels ?? reportLabels(result.locale ?? pivotOptions.locale), ...(options.limits ? { limits: options.limits } : {}) });
-    const summary = { rows: grid.bodyRows.length, columns: grid.columnCount, sourceRows: data2.length, truncated: false };
+    const summary = { rows: grid.bodyRows.length, columns: grid.columnCount, sourceRows: data2.length, keptRows: result.rows.length, truncated: false };
     const texts = textsFor(grid.locale, options.texts);
     const title = (options.title ?? (read.name || normalized.view.chart.title || texts.untitled)).trim() || texts.untitled;
     const chartOf = () =>
@@ -258,7 +258,7 @@ export async function render(view, data, options = {}) {
             style: `<style>${reportCss({ columns: grid.columnCount, tokens: cleanTokens(options.tokens ?? {}), extra: table.css })}</style>`,
             chart: chartHtml,
             table: table.html + tableNote,
-            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.rows, values.rows)}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
+            details: `<dl class="pk-report-details">${detail(texts.source, values.source)}${detail(texts.rows, number.format(data2.length))}${detail(texts.filters, values.filters)}${detail(texts.generated, values.generated)}</dl>`
         };
         body = new TextEncoder().encode(fillTemplate(/** @type {any} */ (template), { ...values, ...markup }));
     }

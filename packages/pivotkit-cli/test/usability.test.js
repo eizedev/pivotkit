@@ -26,7 +26,8 @@ test("the table's own CSV as --data: one error first, the view's fields and the 
     const lines = r.stderr.trimEnd().split("\n");
     assert.match(lines[0], /^error dataMismatch: pivotkit-weather\.csv does not have the fields the view uses$/);
     assert.match(r.stderr, /^ {2}the view uses: City, Date, Mean °C$/m);
-    assert.match(r.stderr, /^ {2}the data has: Date by month of year, Jan, Feb, .*Grand Total$/m);
+    // a wide table's names are cut after 12
+    assert.match(r.stderr, /^ {2}the data has: Date by month of year, Jan, Feb, .*, Nov and 2 more$/m);
     assert.match(r.stderr, /looks like an exported pivot result \("Grand Total", "Average of Mean °C"\), not the rows the report was made from/);
     assert.match(r.stderr, /^ {2}in the report, take Export → Source data → All rows as CSV, and give that file to --data$/m);
     // the errors that follow from it are counted, not repeated
@@ -76,7 +77,7 @@ test("--lenient is no remedy in the message; when it writes despite errors it sa
     assert.doesNotMatch(strict.stderr, /--lenient/);
     const lenient = await run(["render", "v.json", "--data", "d.csv", "-o", "out.html", "--lenient"], { cwd: dir });
     assert.equal(lenient.code, 1);
-    assert.match(lenient.stderr, /^wrote out\.html despite 1 error \(--lenient\)$/m);
+    assert.match(lenient.stderr, /^wrote out\.html despite 2 errors \(--lenient\): the data lacks the view's fields, so the report shows none of them$/m);
     assert.ok(existsSync(join(dir, "out.html")));
 });
 
@@ -213,4 +214,43 @@ test("data from stdin on a terminal: a hint that the CLI waits for it", async ()
     const code = await main(["describe", "-", "--data-format", "csv"], { stdin, stdout: { write: (c) => out.push(c) }, stderr: { write: (c) => err.push(c) }, env: {}, cwd: tempDir() });
     assert.equal(code, 0);
     assert.match(err.join(""), /reading the data from stdin: type or paste it, then Ctrl-D \(Ctrl-Z, Enter on Windows\)/);
+});
+
+test("filters that keep no row: a warning, not a silent table of zeros", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "d.csv"), "Day,Units\n2026-01-05,3\n2026-02-01,4\n");
+    writeFileSync(join(dir, "v.json"), JSON.stringify({ rows: ["Day"], values: [{ field: "Units", agg: "sum" }], filters: [{ field: "Day", type: "relative", direction: "last", unit: "month", count: 1 }] }));
+    const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv", "--now", "2024-01-01"], { cwd: dir });
+    assert.equal(r.code, 0);
+    assert.match(r.stderr, /^warning noRowsKept: the filters keep none of the 2 rows of d\.csv \(a date filter counts from --now or today\)$/m);
+    assert.equal((await run(["render", "v.json", "--data", "d.csv", "-f", "csv", "--now", "2024-01-01", "--strict"], { cwd: dir })).code, 1);
+});
+
+test("a field of the view file missing, one new field of its type in the data: renamed?", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "d.csv"), "Region,Turnover\nNorth,3\n");
+    writeFileSync(join(dir, "v.json"), JSON.stringify({ format: "pivotkit-view", formatVersion: 2, name: "R", source: { fields: [{ name: "Region", type: "string" }, { name: "Revenue", type: "number" }] }, view: { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }] } }));
+    const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /^ {2}missing: "Revenue" \(number\); the data has a new number field "Turnover": renamed\?$/m);
+});
+
+test("--lenient over a data mismatch: every error counted, and that the report cannot show the data", async () => {
+    const dir = await ownerDir();
+    const r = await run(["render", "weather.pivotkit.json", "--data", "pivotkit-weather.csv", "-o", "out.html", "--lenient"], { cwd: dir });
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /^wrote out\.html despite 4 errors \(--lenient\): the data lacks the view's fields, so the report shows none of them$/m);
+    // the way back to the data, also when the file is at hand
+    assert.match(r.stderr, /^ {2}or give --data the file the report was made from, if you have it$/m);
+});
+
+test("an HTML report on the terminal: a hint to save it", async () => {
+    const out = [];
+    const err = [];
+    const dir = tempDir();
+    writeFileSync(join(dir, "d.csv"), "Region,Units\nNorth,3\n");
+    const stdin = Object.assign((async function* () {})(), { isTTY: false });
+    const code = await main(["render", '{"rows":["Region"],"values":[{"field":"Units","agg":"sum"}]}', "--data", "d.csv"], { stdin, stdout: { write: (c) => out.push(c), isTTY: true }, stderr: { write: (c) => err.push(c) }, env: {}, cwd: dir });
+    assert.equal(code, 0);
+    assert.match(err.join(""), /an HTML report was written to the terminal: add -o report\.html to save it/);
 });

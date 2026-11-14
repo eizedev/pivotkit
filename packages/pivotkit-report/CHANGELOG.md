@@ -6,8 +6,14 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `summary.keptRows`: the rows the view's filters keep (the CLI warns when it is 0).
+
 ### Changed
 
+- The HTML report's details give the data's rows as a number ("Rows: 8"; it said "Rows: 8 rows",
+  "Zeilen: 8 Zeilen"); the template's `{{rows}}` stays "8 rows".
 - Without `labels`, `render()` writes the report's words in the language of its locale
   (pivotkit-core's `reportLabels`): German for a German locale ("Gesamtergebnis", "Summe von Units",
   where it wrote "Grand Total" next to German numbers), and in English the words the report on a page

@@ -43,7 +43,7 @@ text. `data` is rows, columnar data (`{ columns, types, data }`, what
 | `text` | The body as text, for `json`, `csv`, `svg` and `html`. |
 | `issues` | The view's issues ([`VIEW_ISSUES`](core.md)), then the report's own (`REPORT_ISSUE_CODES`). |
 | `ok` | `false` when an issue has the severity `error`. |
-| `summary` | `{ rows, columns, sourceRows, truncated }`: the table's body rows and columns, the data's rows, whether a part was cut. |
+| `summary` | `{ rows, columns, sourceRows, keptRows, truncated }`: the table's body rows and columns, the data's rows, the rows its filters keep, whether a part was cut. |
 | `view` | The normalized view that was rendered. |
 
 The whole body is built in memory; the [limits](../concepts/limits.md) keep it bounded.

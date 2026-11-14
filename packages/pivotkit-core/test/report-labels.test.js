@@ -24,3 +24,14 @@ test("toGrid with the German report labels: German totals and value names", () =
     assert.ok(texts.includes("Summe von U"));
     assert.ok(texts.includes("Gesamtergebnis"));
 });
+
+test("an aggregator named as other tools name it is not accepted, but hinted: avg, mean, cnt", async () => {
+    const { normalize } = await import("../src/index.js");
+    const data = encode([{ R: "a", U: 1 }]);
+    for (const [given, hint] of [["avg", "average"], ["Mean", "average"], ["cnt", "count"]]) {
+        const { issues, view } = normalize({ rows: ["R"], values: [{ field: "U", agg: given }] }, data);
+        const issue = issues.find((i) => i.code === "unknownAggregator");
+        assert.equal(issue?.params.suggestion, hint, given);
+        assert.equal(view.values.length, 0, given);
+    }
+});

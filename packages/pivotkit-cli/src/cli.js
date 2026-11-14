@@ -405,7 +405,7 @@ function withViewTypes(data, fields) {
 }
 
 /** At most this many of the data's field names in a message, then "and n more". */
-const LISTED_FIELDS = 20;
+const LISTED_FIELDS = 12;
 
 /** Field names as a message lists them. */
 const nameList = (names) => (names.length > LISTED_FIELDS ? `${names.slice(0, LISTED_FIELDS).join(", ")} and ${names.length - LISTED_FIELDS} more` : names.join(", "));
@@ -474,13 +474,25 @@ function explain(findings, viewText, data) {
     }
     const signs = pivotResultSigns(data.table);
     const followers = out.filter((f) => f.severity === "error" && FOLLOW_ON.has(f.code));
-    const hints = missing.map((name) => ({ name, near: closest(String(name), columns) })).filter((m) => m.near);
+    // a field of the view file missing, and exactly one field of its type the view file does not name: renamed?
+    const typeOf = new Map((read.source?.fields ?? []).map((f) => [String(f.name).toLowerCase(), f.type]));
+    const wantedKeys = new Set(wanted.map((w) => String(w).toLowerCase()));
+    const newOfType = (type) => columns.filter((c, i) => data.table.types[i] === type && !wantedKeys.has(c.toLowerCase()));
+    const hints = missing
+        .map((name) => {
+            const near = closest(String(name), columns);
+            if (near) return `missing: "${name}" (did you mean "${near}"?)`;
+            const type = typeOf.get(String(name).toLowerCase());
+            const fresh = type ? newOfType(type) : [];
+            return fresh.length === 1 ? `missing: "${name}" (${type}); the data has a new ${type} field "${fresh[0]}": renamed?` : null;
+        })
+        .filter(Boolean);
     const details = [
         `the view uses: ${nameList(wanted)}`,
         `the data has: ${nameList(columns)}`,
-        ...hints.map((m) => `missing: "${m.name}" (did you mean "${m.near}"?)`),
+        ...hints,
         ...(signs.length
-            ? [`it looks like an exported pivot result (${signs.map((s) => JSON.stringify(s)).join(", ")}), not the rows the report was made from:`, "in the report, take Export → Source data → All rows as CSV, and give that file to --data"]
+            ? [`it looks like an exported pivot result (${signs.map((s) => JSON.stringify(s)).join(", ")}), not the rows the report was made from:`, "in the report, take Export → Source data → All rows as CSV, and give that file to --data", "or give --data the file the report was made from, if you have it"]
             : []),
         ...(followers.length ? [`and ${followers.length} more error${followers.length === 1 ? "" : "s"} from the missing fields (--json lists them)`] : [])
     ].map(printable);
@@ -573,8 +585,15 @@ async function renderCommand(positionals, values, ctx) {
         throw asCliError(e, values.template);
     }
     findings.push(...withJsonPosition(explain(result.issues.map(findingOf), view.view, data), view.view));
+    const errors = findings.filter((f) => f.severity === "error").length;
+    const mismatch = findings.some((f) => f.code === "dataMismatch");
+    // filters that keep no row give a table of zeros: said, not left for the reader to wonder
+    const s = result.summary;
+    if (s && s.sourceRows > 0 && s.keptRows === 0 && errors === 0) {
+        const dated = (result.view?.filters ?? []).some((f) => f.type === "relative");
+        findings.push({ severity: "warning", code: "noRowsKept", path: "", message: printable(`the filters keep none of the ${s.sourceRows.toLocaleString("en-US")} rows of ${data.name}${dated ? " (a date filter counts from --now or today)" : ""}`) });
+    }
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
-    const errors = findings.filter((f) => f.severity === "error" && !f.followsFrom).length;
     /** @type {any} */
     const extra = { summary: result.summary };
     if (result.body && !(failed && !values.lenient)) {
@@ -589,6 +608,9 @@ async function renderCommand(positionals, values, ctx) {
             extra.output = { file: shortName(values.output), format, mediaType: result.mediaType, bytes: result.body.length };
         } else {
             ctx.io.stdout.write(result.body);
+            if (format === "html" && ctx.io.stdout.isTTY && !values.quiet) {
+                ctx.io.stderr.write("an HTML report was written to the terminal: add -o report.html to save it\n");
+            }
         }
     } else {
         extra.output = null;
@@ -601,7 +623,7 @@ async function renderCommand(positionals, values, ctx) {
     }
     const file = extra.output.file;
     if (failed) {
-        return { findings, extra, note: `wrote ${file} despite ${errors} error${errors === 1 ? "" : "s"} (--lenient)` };
+        return { findings, extra, note: `wrote ${file} despite ${errors} error${errors === 1 ? "" : "s"} (--lenient)${mismatch ? ": the data lacks the view's fields, so the report shows none of them" : ""}` };
     }
     const summary = result.summary;
     return { findings, extra, note: `wrote ${file}: ${FORMAT_NAMES[format]}${summary ? `, ${summary.rows} rows x ${summary.columns} columns, from ${summary.sourceRows.toLocaleString("en-US")} rows of ${data.name}` : ""}` };

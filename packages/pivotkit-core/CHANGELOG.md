@@ -6,6 +6,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- An unknown aggregator named as other tools name it gets ours as the hint: `avg` and `mean`
+  ("did you mean average?"), `cnt` (count), `total` (sum), `distinct` (countUnique), `stddev`
+  (stdev); they are still refused. `describeSource` counts in the singular for one row or field
+  ("1 row, 1 field").
+
 ### Added
 
 - `REPORT_LABELS` and `reportLabels(locale)`: the report's own words per language (English and

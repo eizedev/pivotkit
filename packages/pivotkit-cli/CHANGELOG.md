@@ -23,6 +23,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- A view file's field that the data lacks, with exactly one new field of its type in the data, is
+  named as a rename; filters that keep no row give the warning `noRowsKept`; an HTML report written
+  to the terminal says how to save it; `--lenient` counts every error and says when the report cannot
+  show the data.
 - When the data lacks fields the view uses, one error leads (`dataMismatch`): the view's fields, the
   data's, the missing ones with "did you mean", and, for the table's own CSV given as `--data` (a
   "Grand Total" column, "Average of …" in its header), that it is a pivot result and to take Export →

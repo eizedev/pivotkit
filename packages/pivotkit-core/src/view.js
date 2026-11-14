@@ -643,6 +643,15 @@ function suggest(name, candidates) {
     return suggestion === null ? {} : { suggestion };
 }
 
+/** Names of aggregators in other tools, hinted as ours ("avg": did you mean "average"?); never accepted. */
+const AGGREGATOR_ALIASES = Object.freeze({ avg: "average", mean: "average", cnt: "count", total: "sum", distinct: "countUnique", stddev: "stdev" });
+
+/** The hint for an unknown aggregator: its alias, else the closest name. */
+function suggestAggregator(agg) {
+    const alias = typeof agg === "string" && Object.hasOwn(AGGREGATOR_ALIASES, agg.trim().toLowerCase()) ? AGGREGATOR_ALIASES[agg.trim().toLowerCase()] : null;
+    return alias ? { suggestion: alias } : suggest(agg, AGGREGATOR_NAMES);
+}
+
 /** The most distinct items of a text field the item hints (itemCase) look through. */
 const HINT_ITEMS = 100_000;
 
@@ -724,7 +733,7 @@ function context(schema, limits, add, strict) {
             const fieldName = get(ref, "field");
             const f = fieldName === null || fieldName === undefined ? null : ctx.resolve(fieldName);
             if (!aggregatorOf(agg)) {
-                ctx.issue(path, `unknown aggregator ${JSON.stringify(agg)}`, "unknownAggregator", { value: shown(agg), ...suggest(agg, AGGREGATOR_NAMES) });
+                ctx.issue(path, `unknown aggregator ${JSON.stringify(agg)}`, "unknownAggregator", { value: shown(agg), ...suggestAggregator(agg) });
                 return null;
             }
             if (f === undefined) {

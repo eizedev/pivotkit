@@ -97,9 +97,9 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--json` | all | One JSON object on stdout (render: needs `-o`). |
 | `-q, --quiet` | all | No warnings and no line saying what was written on stderr; errors still. |
 | `--verbose` | render, validate, describe | Also how the data was read: encoding, separator, sheet (the reader's `info` notes) on stderr. |
-| `--locale <tag>` | render (checked by all) | Default `en-US`; environment `PIVOTKIT_LOCALE`. The locale also picks the CSV separator (`;` where the decimal mark is a comma) and the report's words: German ones ("Gesamtergebnis", "Summe von Units") for a German locale, as the report on a page writes them, English for any other. |
+| `--locale <tag>` | render (taken and checked by all) | Default `en-US`; environment `PIVOTKIT_LOCALE`. The locale also picks the CSV separator (`;` where the decimal mark is a comma) and the report's words: German ones ("Gesamtergebnis", "Summe von Units") for a German locale, as the report on a page writes them, English for any other. |
 | `--time-zone <zone>` | all | The data's dates; default `UTC`; environment `PIVOTKIT_TIME_ZONE`. |
-| `--now <date>` | render (checked by all) | "Today" of relative filters and the generated time; environment `PIVOTKIT_NOW`. |
+| `--now <date>` | render (taken and checked by all) | "Today" of relative filters and the generated time; environment `PIVOTKIT_NOW`. |
 | `--limit key=n` | all | One of pivotkit-core's [limits](../concepts/limits.md) (`--limit rows=200000`); repeatable. |
 | `--allow-dir <dir>` | all | Read and write only inside this directory; repeatable. |
 
@@ -111,9 +111,12 @@ CLI writes no colours.
 
 ## What it says
 
-Every command says on stderr what it did, so a run in a terminal is never silent; `-q` keeps it to
-errors, `--json` puts it all into the JSON object. Commands accept every common option, and `pivotkit
-help <command>` lists the ones that act in it.
+stdout carries only a command's output: the rendered report or file without `-o`, the `--json`
+object, `pivotkit example --list`, what `describe` describes, help and completion scripts. Everything
+said to a person goes to stderr: the findings, and a line that says what was written or checked, so a
+run in a terminal is never silent and a pipe gets the output alone; `-q` keeps stderr to errors.
+`pivotkit example` writes files, so all it says is on stderr. Commands accept every common option,
+and `pivotkit help <command>` lists the ones that act in it.
 
 | When | stderr |
 | --- | --- |
@@ -124,6 +127,8 @@ help <command>` lists the ones that act in it.
 | a usage error | `pivotkit: ...; see "pivotkit help render"` |
 | `-o` into a directory that does not exist | `the directory "out" does not exist: create it first (mkdir -p out)` |
 | `-o report.html -f csv` | a usage error: the name says HTML, `-f` CSV (an extension that is no format of pivotkit's, `-o out.txt -f csv`, is written as asked) |
+| an HTML report to the terminal (no `-o`) | the report on stdout, and `an HTML report was written to the terminal: add -o report.html to save it` |
+| the filters keep no row | `warning noRowsKept: the filters keep none of the 2,000 rows of sales.csv (a date filter counts from --now or today)` (a table of zeros otherwise; with `--strict` a finding) |
 | data or a view from stdin on a terminal | `reading the data from stdin: type or paste it, then Ctrl-D (Ctrl-Z, Enter on Windows)` |
 | a view that is not JSON | `not a view: not valid JSON at line 2, column 30` |
 
@@ -136,24 +141,29 @@ there and listed in `--json`:
 ```text
 error dataMismatch: pivotkit-weather.csv does not have the fields the view uses
   the view uses: City, Date, Mean °C
-  the data has: Date by month of year, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Grand Total
+  the data has: Date by month of year, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov and 2 more
   it looks like an exported pivot result ("Grand Total", "Average of Mean °C"), not the rows the report was made from:
   in the report, take Export → Source data → All rows as CSV, and give that file to --data
+  or give --data the file the report was made from, if you have it
   and 3 more errors from the missing fields (--json lists them)
 nothing written: the view has errors.
 ```
 
 That is the table's own CSV (Export, **Table as CSV**): the result of a view, not the data a view
 applies to ([Try it](#try-it)). A field the data has under a near name is named
-(`missing: "Mean °C" (did you mean "Mean C"?)`); an unknown field lists the fields the data has; a
+(`missing: "Mean °C" (did you mean "Mean C"?)`); a field the view file lists with its type that the
+data has as the one new field of that type is named as a rename (`missing: "Revenue" (number); the
+data has a new number field "Turnover": renamed?`); an unknown field lists the fields the data has; a
 value refused on a text field names the value and row that made it text (`its value "n/a" in row 2 is
-no number`).
+no number`); an aggregator as other tools name it gets ours as the hint (`avg`: did you mean
+`average`?). `--lenient` writes the report all the same and says how many errors it has, and when the
+data lacks the view's fields that the report shows none of them.
 
 ## Exit codes
 
 | Code | Means |
 | --- | --- |
-| 0 | Done. Warnings (and with `render`, the reader's notes) may be on stderr. |
+| 0 | Done. Warnings and the line that says what was written are on stderr (with `--verbose` also the reader's notes on how the data was read). |
 | 1 | Findings: an error in the view, or a warning with `--strict`. `render` writes nothing unless `--lenient`. |
 | 2 | A usage error, a file that cannot be read or written, a limit, or a refused template. Nothing is written. |
 
