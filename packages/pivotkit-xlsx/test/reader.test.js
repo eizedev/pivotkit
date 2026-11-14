@@ -641,6 +641,31 @@ test("shared strings with a prefix count, markup in them does not, and a value n
     const two = `<sst ${NS}><si><t>n</t></si><si><t>v</t></si></sst>`;
     assert.deepEqual(col(await read(fileOf(book(sheetOf("<v>0</v>", "<v >1</v>"), two))), "n"), ["v"]);
     assert.deepEqual((await read(fileOf(book(sheetOf("<v>0</v>", "<v><![CDATA[1]]></v>"), two)))).columns, ["n"]);
+    // strings cut after the one a cell names end with the root's own end tag, prefix and all
+    const pfxRoot = `<x:sst ${XNS}><x:si><x:t>hello</x:t></x:si><x:si><x:t>w</x:t></x:si><x:si><x:t>z</x:t></x:si></x:sst>`;
+    const named = book(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>5</v></c></row></sheetData></worksheet>`, pfxRoot);
+    assert.deepEqual(col(await read(fileOf(named)), "hello"), [5]);
+});
+
+// the parser ends a name at any of 0x09-0x0D (form feed and vertical tab too), as at a space
+test("a form feed or vertical tab after a name counts as whitespace: entries, cells and rows are checked", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const limits = { importCells: 1_000, columns: 10 };
+    const styled = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], level: 0 }), { "xl/styles.xml": strToU8(`<styleSheet ${NS}><cellXfs>${"<xf\f/>".repeat(12_000)}</cellXfs></styleSheet>`) });
+    await assert.rejects(read(fileOf(styled), { limits }), (e) => e.details?.limit === "importCells" && /shared strings and formats/.test(e.message));
+    const strings = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), {
+        "xl/worksheets/sheet1.xml": strToU8(`<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s"><v>11999</v></c></row></sheetData></worksheet>`),
+        "xl/sharedStrings.xml": strToU8(`<sst ${NS}>${"<si\v/>".repeat(12_000)}</sst>`)
+    });
+    await assert.rejects(read(fileOf(strings), { limits }), (e) => e.details?.limit === "importCells");
+    const sheet = (rows) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1"><v>1</v></c></row>${rows}</sheetData></worksheet>`);
+    await assert.rejects(read(fileOf(sheet('<row r="2"><c\fr="XFD2"><v>1</v></c></row>'))), (e) => e.details?.limit === "columns");
+    await assert.rejects(read(fileOf(sheet('<row\vr="999999999"><c><v>1</v></c></row>'))), (e) => e.details?.limit === "rows");
+    // the guard cuts a run of them as of other whitespace
+    const { createXmlGuard, SPACE_RUN } = await import("../src/xml.js");
+    const parts = [];
+    createXmlGuard({ write: (b, from = 0, to = b.length) => parts.push(b.slice(from, to)) }, "s.xlsx", "sheet").write(strToU8(`<a${"\f".repeat(SPACE_RUN + 9)}b="1">${"\v".repeat(SPACE_RUN + 9)}</a>`));
+    assert.equal(parts.reduce((n, p) => n + p.length, 0), `<ab="1"></a>`.length + 2 * SPACE_RUN);
 });
 
 test("a sheet named as the shared strings or the styles of its workbook is refused", async () => {

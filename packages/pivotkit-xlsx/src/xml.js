@@ -129,7 +129,9 @@ const OPENING = 2; // after "<", until it is clear whether a comment, a CDATA se
 const MARKUP = 3; // a comment, a CDATA section or a processing instruction: ends at `ending`
 const CDATA_HEAD = ascii("![CDATA[");
 const COMMENT_HEAD = ascii("!--");
-const isSpace = (b) => b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d;
+// whitespace as read-excel-file's parser (saxen) reads it: a space, and tab to carriage return
+// (0x09-0x0D, form feed and vertical tab too), which ends a tag's name as a space does
+const isSpace = (b) => b === 0x20 || (b > 0x08 && b < 0x0e);
 
 /**
  * Passes an XML part on to `out`, piece by piece, with every run of whitespace in its text and
@@ -203,7 +205,7 @@ export function createXmlGuard(out, file, part) {
                         // a run may pass the cut: byte by byte
                         while (i < stop) {
                             const b = bytes[i];
-                            if (b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d) {
+                            if (isSpace(b)) {
                                 if (sp === SPACE_RUN) {
                                     // past the cut: the rest of the run is left out
                                     if (start < i) out.write(bytes, start, i);
@@ -247,7 +249,7 @@ export function createXmlGuard(out, file, part) {
                             if (b === q) q = 0;
                         } else if (b === 0x3e) {
                             break;
-                        } else if (b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d) {
+                        } else if (isSpace(b)) {
                             if (sp === SPACE_RUN) {
                                 if (start < i) out.write(bytes, start, i);
                                 while (i < to && isSpace(bytes[i])) i++;
@@ -442,12 +444,15 @@ function cellExtent(buf, from, to) {
     return { column, row, shared };
 }
 
+/** What ends the comment, CDATA section, processing instruction or other markup starting at buf[at]. */
+const markupClose = (buf, at) => (buf[at + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, at, at + 4) === at ? COMMENT_END : indexOf(buf, CDATA_START, at, at + 9) === at ? CDATA_END : GT);
+
 /**
  * Where the comment, CDATA section, processing instruction or other markup starting at buf[at] ("<")
  * ends, where the parser ends it (just after its "-->", "]]>", "?>" or ">"), or -1 if not in `buf`.
  */
 function markupEnd(buf, at) {
-    const close = buf[at + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, at, at + 4) === at ? COMMENT_END : indexOf(buf, CDATA_START, at, at + 9) === at ? CDATA_END : GT;
+    const close = markupClose(buf, at);
     const end = indexOf(buf, close, at + 1);
     return end === -1 ? -1 : end + close.length;
 }
@@ -654,7 +659,6 @@ export function createSheetFilter(out, limits = {}) {
 }
 
 const ENTRY_NAMES = ["si", "xf", "numFmt"].map(ascii);
-const SST_END = ascii("</sst>");
 /** Whether a byte ends a tag's name. */
 const endsName = (b) => b === 0x3e || b === 0x2f || b === LT || isSpace(b);
 
@@ -665,7 +669,8 @@ const endsName = (b) => b === 0x3e || b === 0x2f || b === LT || isSpace(b);
  * processing instructions are skipped as the parser skips them. More than `max` in all the parts
  * counted with one `total` stop the read with LIMIT_EXCEEDED, before the parser makes millions of
  * entries from a small file. Of the string items only the first `keep` go on (the strings the sheet's
- * cells name; Infinity for the styles): the rest is left out and `</sst>` ends the part.
+ * cells name; Infinity for the styles): the rest is left out and the root's end tag (`</sst>`,
+ * `</x:sst>`) ends the part.
  * @param {{ write: (bytes: Uint8Array, from?: number, to?: number) => void }} out
  * @param {{ file: string, part: string, keep: number, max: number, total: { count: number } }} options
  */
@@ -675,6 +680,8 @@ export function createEntryCount(out, { file, part, keep, max, total }) {
     let close = null; // in a comment, CDATA section or processing instruction: its end
     let items = 0;
     let cut = false;
+    /** @type {Uint8Array | null} */
+    let root = null; // the root element's name as written (`sst`, `x:sst`): the end tag after a cut
     /** Passes buf on up to where it must wait for more (returned), or up to the cut (-1). */
     const scan = (buf, final) => {
         let i = 0;
@@ -690,7 +697,7 @@ export function createEntryCount(out, { file, part, keep, max, total }) {
             if (lt === -1) return buf.length;
             if (buf[lt + 1] === BANG || buf[lt + 1] === 0x3f) {
                 if (!final && lt + 9 > buf.length) return lt;
-                close = buf[lt + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, lt, lt + 4) === lt ? COMMENT_END : indexOf(buf, CDATA_START, lt, lt + 9) === lt ? CDATA_END : GT;
+                close = markupClose(buf, lt);
                 i = lt + 1;
                 continue;
             }
@@ -698,10 +705,12 @@ export function createEntryCount(out, { file, part, keep, max, total }) {
             let j = lt + 1;
             let local = j;
             while (j < buf.length && !endsName(buf[j])) {
-                if (buf[j++] === 0x3a) local = j;
+                // the prefix ends at the first ":", as the parser reads it
+                if (buf[j++] === 0x3a && local === lt + 1) local = j;
             }
             if (j - lt > MAX_TAG) throw fileError("DAMAGED", file, `the part "${part}" holds a tag of more than 256 KiB; the workbook is refused.`, { part });
             if (j === buf.length && !final) return lt;
+            if (!root && buf[lt + 1] !== 0x2f) root = buf.slice(lt + 1, j);
             const name = ENTRY_NAMES.find((n) => n.length === j - local && n.every((b, k) => buf[local + k] === b));
             if (name && buf[j] !== LT) {
                 if (++total.count > max) throw limitError("importCells", total.count, max, file, "shared strings and formats");
@@ -728,7 +737,7 @@ export function createEntryCount(out, { file, part, keep, max, total }) {
         /** Passes the held bytes on, or ends the part after the cut. */
         end() {
             push(new Uint8Array(0), true);
-            if (cut) out.write(SST_END);
+            if (cut && root) out.write(concat(concat(ascii("</"), root), GT));
         }
     };
 }
