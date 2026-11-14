@@ -184,6 +184,18 @@ test("a workbook over the archive limits of pivotkit-xlsx is said in the report'
     }
 });
 
+test("importCells of a workbook names its shared strings and formats too, which count against it there (issue #325)", () => {
+    const en_ = { lang: "en", locale: "en-US" };
+    const de_ = { lang: "de", locale: "de-DE" };
+    // as pivotkit-xlsx throws it for a workbook's shared strings and formats (or its sheet's extent)
+    const strings = limitError("importCells", 11_000_001, 11_000_000, "book.xlsx", "shared strings and formats");
+    assert.equal(errorText(strings, "book.xlsx", en, en_), "it has more than 11,000,000 values (rows x columns) or shared strings and formats (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(strings, "book.xlsx", de, de_), "sie hat mehr als 11.000.000 Werte (Zeilen x Spalten) oder gemeinsame Texte und Formate (limits.importCells): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    // a CSV or JSON file has no shared strings: rows x columns only
+    const cells = limitError("importCells", 6, 5, "cells.csv", "values (rows x columns)");
+    assert.equal(errorText(cells, "cells.csv", en, en_), "it has more than 5 values (rows x columns) (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+});
+
 test("a host's texts for loading data (labels.dataImport) win over the defaults, of the right kind only", () => {
     const labels = resolveLabels("de-DE", { dataImport: { loadFile: "Datei öffnen…", rows: { one: "{count} Datensatz", other: "{count} Datensätze" }, cancel: 3 } });
     const t = importLabels(labels);

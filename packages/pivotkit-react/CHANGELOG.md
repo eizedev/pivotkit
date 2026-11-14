@@ -6,6 +6,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- A workbook over `limits.importCells` is said as "more than … values (rows x columns) or shared
+  strings and formats" (`labels.dataImport.workbookCells`), since its shared strings and formats
+  count against that limit too; CSV and JSON keep "values (rows x columns)" ([#325](https://github.com/eizedev/pivotkit/issues/325)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
