@@ -36,8 +36,8 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
 | `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
-| `create_link` | A link that opens the view in the source's report page (only for sources with `link`) | - |
-| `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing | a new file |
+| `create_link` | A link that opens the view in the source's report page (only for sources with `link`); a view only, a `layout` is refused with the way to make one (`validate_view`) | - |
+| `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing; a view only, as `create_link` | a new file |
 
 Every tool has an input and an output JSON Schema (draft 2020-12) and returns its result as
 structured content and as one text block: a short sentence with counts and ids (never a name or value
@@ -281,7 +281,8 @@ every request gets a fresh server from the shared context. Behind a reverse prox
 on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
 `/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
 `--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
-header: client addresses are in the proxy's log. For nginx:
+header: client addresses are in the proxy's log. For IIS with ARR, see
+[PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
 
 ```nginx
 location ~ ^/(mcp|\.well-known/|healthz$|$) {

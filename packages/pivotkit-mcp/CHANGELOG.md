@@ -25,6 +25,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
+- `create_link` and `draft_schedule` given a `layout` answer with one short error that says to make
+  the view with `validate_view` first, instead of the input schema's list of what is missing;
+  `draft_schedule` with a `layout` that also lacks schedule fields still lists those fields first
+  ([#303](https://github.com/eizedev/pivotkit/issues/303)).
 - The HTTP server's connection limits, request targets, start-time token checks and issuer
   metadata refresh follow pivotkit-server's ([#289](https://github.com/eizedev/pivotkit/issues/289),
   [#299](https://github.com/eizedev/pivotkit/issues/299), [#271](https://github.com/eizedev/pivotkit/issues/271)).

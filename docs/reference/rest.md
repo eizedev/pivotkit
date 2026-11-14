@@ -359,9 +359,11 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
 ```
 
 Without containers, on Windows next to PowerShell
-Universal, `pivotkit-server serve` from a global npm install runs as a service with a service
-manager of your choice; its file checks are measured on Linux and macOS
-([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).
+Universal, `pivotkit-server serve` runs as a service with a service manager of your choice:
+[PowerShell Universal](../getting-started/mcp.md#psu) has the steps (an account of its own, its file
+rights, the token from a PSU secret, a rotated log, IIS with ARR in front). Its file checks are
+measured on Linux and macOS ([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions
+and hard links on Windows).
 
 ## Logging { #logging }
 
@@ -425,7 +427,8 @@ A PowerShell Universal script, endpoint or app calls the REST service with `Invo
 instead of running Node on the PSU server: keep the token in a PSU secret, call
 `POST /api/v1/views/render/file` with a token whose profile has `results: true` and hand the file to
 the user, or `POST /api/v1/views/render` to save it in the service's output directory. See
-[Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell.
+[Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell,
+and [Getting started: MCP server](../getting-started/mcp.md#psu) for running the service next to PSU.
 The links of the PSU module's reports open as before.
 
 ## Security { #security }

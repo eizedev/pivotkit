@@ -137,9 +137,11 @@ only the keys a file should have differently:
 <PivotReport data={rows} allowImport limits={{ cells: 500_000 }} importLimits={{ rows: 1_000, fileBytes: 5_000_000 }} />
 ```
 
-The host's rows are capped only by the default `rows` (1,000,000); a file has at most 1,000 rows and
-5,000,000 bytes, and both have at most 500,000 cells in a grid. A file over a limit is refused with the
-limit named (`… has more than 1,000 rows (limits.rows) …`) and the data shown stays. pivotkit-core's
+With these `importLimits`, the host's rows are capped only by the default `rows` (1,000,000), a file
+has at most 1,000 rows and 5,000,000 bytes (without `importLimits` a file gets the host's `limits`,
+here the default 1,000,000 rows and 100 MiB), and both have at most 500,000 cells in a grid. A file
+over a limit is refused with the limit named (`… has more than 1,000 rows (limits.rows) …`) and the
+data shown stays. pivotkit-core's
 [`readFile`](../reference/import.md#limits) has one `limits` option: a caller with its own data and
 files merges the import limits over its limits itself (`{ ...limits, ...importLimits }`).
 

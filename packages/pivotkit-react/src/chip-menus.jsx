@@ -18,7 +18,7 @@ import { HelpContext } from "./help.js";
 import { InfoButton } from "./info.jsx";
 import { fill, plural } from "./labels.js";
 import { LevelMenu, MenuItem, useAppliedText, useLater } from "./levels.jsx";
-import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
+import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
 import { numberText } from "./numbers.js";
 import { groupingName, valueLabel } from "./names.js";
 import { TOP_COUNTS, axisTopics, filterZoneTopics, valueTopics } from "./menu-topics.js";
@@ -58,7 +58,7 @@ function TopLevel({ view, field, types, labels, locale, commit, back, encoded })
     const tiesName = useFormName();
     const radio = (id, text, checked, onPick) => (
         <label className="pk-radio">
-            <input type="radio" name={groupName} checked={checked} onClick={(e) => e.currentTarget.focus()} onChange={onPick} data-autofocus={checked ? "" : undefined} data-testid={`top-${id}`} />
+            <Radio name={groupName} checked={checked} onChange={onPick} data-autofocus={checked ? "" : undefined} data-testid={`top-${id}`} />
             <span>{text}</span>
         </label>
     );
