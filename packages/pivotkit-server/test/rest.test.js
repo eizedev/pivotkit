@@ -264,19 +264,26 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
     }
 });
 
-test("output.maxAgeDays: writing a report deletes the files older than that, and keeps the others", async () => {
+test("output.maxAgeDays: old reports and drafts go at start (and hourly); other files, newer ones and subdirectories stay", async () => {
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
-    writeFileSync(join(dir, "out", "old.xlsx"), "old");
-    writeFileSync(join(dir, "out", "recent.xlsx"), "recent");
     const old = new Date(Date.now() - 3 * 86_400_000);
-    utimesSync(join(dir, "out", "old.xlsx"), old, old);
+    for (const name of ["old.xlsx", "old.report.json", "notes.txt", "recent.xlsx"]) {
+        writeFileSync(join(dir, "out", name), name);
+        if (name !== "recent.xlsx") {
+            utimesSync(join(dir, "out", name), old, old);
+        }
+    }
+    mkdirSync(join(dir, "out", "keep"));
+    writeFileSync(join(dir, "out", "keep", "old.csv"), "x");
+    utimesSync(join(dir, "out", "keep", "old.csv"), old, old);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
     try {
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["old.xlsx", "recent.xlsx"], "nothing is deleted before a report is written");
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["keep", "notes.txt", "recent.xlsx"]);
+        assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.csv"]);
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(res.status, 200);
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [res.data.output.name, "recent.xlsx"].sort());
+        assert.ok(readdirSync(join(dir, "out")).includes(res.data.output.name));
     } finally {
         await server.close();
     }

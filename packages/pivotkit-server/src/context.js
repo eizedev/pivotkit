@@ -16,6 +16,7 @@ import { createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { createAuthCore, profileOf } from "./auth.js";
+import { prune } from "./present.js";
 
 /** The variable of the one static token when auth.tokens is empty. */
 export const TOKEN_ENV = "PIVOTKIT_TOKEN";
@@ -71,7 +72,9 @@ export async function createContext(options, runtime = {}) {
     const computer = createComputer(options.compute);
     /** @type {Promise<any> | null} */
     let auth = null;
-    return {
+    /** @type {any} */
+    let pruning = null;
+    const context = {
         options,
         registry,
         computer,
@@ -104,12 +107,22 @@ export async function createContext(options, runtime = {}) {
         },
 
         async close() {
+            if (pruning) {
+                clearInterval(pruning);
+            }
             if (auth) {
                 (await auth.catch(() => null))?.close();
             }
             await computer.close();
         }
     };
+    if (output?.maxAgeDays) {
+        // old reports go at start and every hour, also while nobody renders
+        await prune(context);
+        pruning = setInterval(() => prune(context).catch(() => undefined), 3_600_000);
+        pruning.unref();
+    }
+    return context;
 }
 
 /**

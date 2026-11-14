@@ -139,3 +139,35 @@ test("profiles in the configuration: an unknown profile name and a default of hi
     assert.throws(() => validateOptions({ auth: { scopeProfiles: { "pivotkit:x": "nope" } } }), /auth\.scopeProfiles\.pivotkit:x: no profile "nope"/);
     assert.throws(() => validateOptions({ sources: { s: { file: "x.csv", policy: { profiles: {} } } } }), /unknown key "profiles"/);
 });
+
+test("hide holds for a repeated header the reader renamed and for a name in another Unicode form, also under a profile that shows by default", async () => {
+    const nfd = "Größe";
+    const dir = workspace({ "hr.csv": `Name,Email,Region,email ,${nfd}\nAnn,a@example.invalid,North,a2@example.invalid,180\nBen,b@example.invalid,South,b2@example.invalid,170\n` });
+    const server = await restServer(
+        { sources: { hr: { file: "data/hr.csv", policy: { fields: { Email: "hide", "Größe": "hide" } } } }, policy: { profiles: { open: { default: "show", results: true } } }, auth: { mode: "token", tokens: [{ name: "open", env: "T", profile: "open" }] }, baseDir: dir },
+        { env: { T: TOKEN } }
+    );
+    try {
+        const described = await call(`${server.api}/sources/hr`, { token: TOKEN });
+        assert.deepEqual(described.data.fields.map((f) => f.name), ["Name", "Region"]);
+        assert.equal(described.data.hiddenFields, 3);
+        const file = await call(`${server.api}/views/render/file`, { token: TOKEN, body: { source: "hr", view: { rows: ["Name", "Region"], values: [{ agg: "count" }] }, format: "csv" } });
+        assert.equal(file.status, 200);
+        assert.ok(!new TextDecoder().decode(file.data).includes("example.invalid"));
+    } finally {
+        await server.close();
+    }
+});
+
+test("rows: false keeps the source's row count out of a render's summary too", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", rows: false } } }, rest: { inline: true }, baseDir: dir });
+    try {
+        const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(res.status, 200);
+        assert.equal(res.data.summary.sourceRows, undefined);
+        assert.equal((await call(`${server.api}/sources/sales`)).data.rows, null);
+    } finally {
+        await server.close();
+    }
+});

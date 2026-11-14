@@ -215,7 +215,8 @@ export async function createRestHandler(context, runtime = {}) {
         if (input === null || typeof input !== "object" || Array.isArray(input)) {
             throw new OperationError("INVALID_INPUT", "the body must be a JSON object");
         }
-        entry.source = typeof input.source === "string" ? input.source.slice(0, 80) : undefined;
+        // the log names a configured source; anything else a caller typed (a name, a path) is not kept
+        entry.source = typeof input.source !== "string" ? undefined : context.registry.ids().includes(input.source) ? input.source : "unknown";
         // before the schema's pattern says the same in fewer words
         if (typeof input.source === "string" && input.source.startsWith("file:")) {
             throw new OperationError("FILES_NOT_ALLOWED", "this service reads no files by path: use a source id from GET /sources");
@@ -337,10 +338,12 @@ export async function createRestHandler(context, runtime = {}) {
         async precheck(request, info = {}) {
             const refusedHost = hostRefusal(request, hosts);
             if (refusedHost) {
+                context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
                 return problem("FORBIDDEN_HOST", refusedHost);
             }
             const origin = request.headers.get("origin");
             if (origin && !origins.has(origin)) {
+                context.log.refused({ status: 403, origin: origin.slice(0, 100) });
                 return problem("FORBIDDEN_ORIGIN", "this origin may not call the service (rest.cors.origins)");
             }
             if (Number(request.headers.get("content-length") ?? 0) > REST_BODY_BYTES) {

@@ -65,6 +65,7 @@ export async function createServerHandler(options, runtime) {
             }
             const refused = hostRefusal(request, hosts);
             if (refused) {
+                context.log.refused({ status: 403, host: String(request.headers.get("host") ?? "").slice(0, 100) });
                 return problem("FORBIDDEN_HOST", refused);
             }
             if (path === "/healthz") {
@@ -140,6 +141,15 @@ export async function serve(options, runtime) {
         throw e;
     }
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}`;
+    // what would fail on the first call is said now: a source file that is not there, a test issuer
+    for (const s of await handler.context.registry.check()) {
+        if (!s.exists) {
+            handler.context.log.warn(`the source ${s.id} names a file that is not there; its calls answer FILE_NOT_AVAILABLE`);
+        }
+    }
+    if (options.auth?.mode === "oauth" && options.auth.allowInsecureIssuer) {
+        handler.context.log.warn("auth.allowInsecureIssuer: an http:// issuer is accepted; for a test issuer on this machine only");
+    }
     handler.context.log.info("started", { version: VERSION, transport: "http", url, serves: handler.enable, auth: options.auth?.mode ?? "none", sources: handler.context.registry.ids().length, output: Boolean(handler.context.output) });
     return {
         port: listening.port,

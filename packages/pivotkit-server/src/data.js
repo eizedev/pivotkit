@@ -11,6 +11,7 @@ import { basename, extname } from "node:path";
 import { PivotkitError, encode } from "pivotkit-core";
 import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
+import { fieldKey, levelOf } from "./policy.js";
 
 /**
  * What a worker or the main thread needs to read a source.
@@ -38,19 +39,22 @@ const cache = new Map();
 const FORMATS = new Set(["csv", "tsv", "txt", "json", "xlsx"]);
 
 /** The names of the columns the levels hide, in lower case. */
-const hiddenOf = (levels, columns) => columns.map((c) => String(c).toLowerCase()).filter((c) => (Object.hasOwn(levels.fields, c) ? levels.fields[c] : levels.default) === "hide");
+const hiddenOf = (levels, columns) => {
+    const policy = { default: levels.default, fields: new Map(Object.entries(levels.fields)) };
+    return columns.filter((c) => levelOf(policy, c) === "hide").map(fieldKey);
+};
 
 /** Columnar data without the hidden columns. */
 function withoutHidden(table, hide) {
     if (!hide.length) {
         return { columns: table.columns, types: table.types, data: table.data };
     }
-    const keep = table.columns.map((c, i) => (hide.includes(String(c).toLowerCase()) ? -1 : i)).filter((i) => i >= 0);
+    const keep = table.columns.map((c, i) => (hide.includes(fieldKey(c)) ? -1 : i)).filter((i) => i >= 0);
     return { columns: keep.map((i) => table.columns[i]), types: keep.map((i) => table.types[i]), data: keep.map((i) => table.data[i]) };
 }
 
 /** Reader notes without those about a hidden column: nothing about it reaches the model. */
-const cleanNotes = (notes, hide) => notes.filter((n) => !hide.some((h) => n.message.toLowerCase().includes(h)));
+const cleanNotes = (notes, hide) => notes.filter((n) => !hide.some((h) => fieldKey(n.message).includes(h)));
 
 /** Keeps a data set, the oldest going first. */
 function remember(key, value) {
@@ -154,7 +158,7 @@ export async function codeData(spec, source) {
             }
         }
         hide = hiddenOf(spec.levels, [...keys]);
-        const rows = hide.length ? columnar.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([k]) => !hide.includes(k.toLowerCase())))) : columnar;
+        const rows = hide.length ? columnar.map((r) => Object.fromEntries(Object.entries(r ?? {}).filter(([k]) => !hide.includes(fieldKey(k))))) : columnar;
         data = encode(rows, { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
     } else {
         hide = hiddenOf(spec.levels, columnar.columns ?? []);

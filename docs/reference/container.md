@@ -53,7 +53,10 @@ docker run -d --name pivotkit \
 | `/tmp` | A tmpfs: the root file system stays read-only |
 
 Keep tokens in files (secrets), not in environment variables: `docker inspect` shows a container's
-environment. A token file is read on every request, so a new token works without a restart.
+environment. A secret file is mounted with its owner and mode from the host, so it must be readable
+by the user 10001 (`chmod 0644`, or owned by 10001); `check-config` and the start say so when it is
+not. Set the port with `PIVOTKIT_PORT`, not `http.port` in the file: the health check asks
+`$PIVOTKIT_PORT`. A token file is read on every request, so a new token works without a restart.
 
 [docker/compose.example.yml](https://github.com/eizedev/pivotkit/blob/main/docker/compose.example.yml)
 and [docker/pivotkit.example.json](https://github.com/eizedev/pivotkit/blob/main/docker/pivotkit.example.json)
@@ -87,7 +90,10 @@ reports finish for up to 25 seconds (`http.graceMs`); give the container more th
 ## Behind a proxy, with OAuth { #oauth }
 
 Set `http.publicUrl` to the address clients use and keep the proxy's `Host` header (or add its name
-to `http.allowHosts`); the server answers no other host name. With OAuth the MCP endpoint and the
+to `http.allowHosts`); the server answers no other host name. With a proxy or a published port in
+front, every client comes from one address: set `http.trustProxy` with a proxy that writes
+`X-Forwarded-For` ([the nginx example](rest.md#running)), or refused tokens from one client lock out
+the others. With OAuth the MCP endpoint and the
 REST service are two resources with their own audiences:
 
 ```json
@@ -106,7 +112,9 @@ REST service are two resources with their own audiences:
 The provider must put `https://reports.example.com/api/v1` into the `aud` of tokens for the REST
 service (an audience mapper in Keycloak, the application ID URI in Entra ID; see
 [MCP: OAuth](mcp.md#oauth) for provider examples), and the image must reach the issuer over HTTPS.
-Until it has loaded the issuer's keys, `/readyz` is 503.
+Until it has loaded the issuer's keys, `/readyz` is 503. It tries again after 2, 4, 8 seconds and so
+on, at most every minute, so after a long outage of the issuer it can take up to a minute to be
+ready again.
 
 ## Kubernetes { #kubernetes }
 

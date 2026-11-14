@@ -4,7 +4,10 @@
  */
 
 import { stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { pathOf, restResourceOf } from "./config.js";
+import { TOKEN_MIN } from "./auth.js";
+import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
 import { resolvePolicy } from "./policy.js";
 
@@ -13,8 +16,9 @@ import { resolvePolicy } from "./policy.js";
  * @param {{ http: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean }} runtime  name: the runner's; rest: the REST service is served too
  * @returns {Promise<{ text: string, problems: number }>}  problems: what would keep the server from starting or a source from working
  */
-export async function checkConfig(options, { http, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false }) {
+export async function checkConfig(options, { http, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false }) {
     let problems = 0;
+    let other = 0;
     const registry = await createRegistry(options);
     const lines = [`${name}: the configuration is valid.`, ""];
     const sources = await registry.check();
@@ -36,15 +40,26 @@ export async function checkConfig(options, { http, name = "pivotkit-mcp", tokenE
     const mode = auth.mode ?? "none";
     lines.push(`HTTP${http ? "" : " (with --http)"}: ${options.http?.host ?? "127.0.0.1"}:${options.http?.port ?? 3333}; quick-start page ${options.http?.page === false ? "off" : "on"}`);
     lines.push(`Auth: ${mode}${mode === "none" && auth.allowUnauthenticated ? " (also off loopback)" : ""}`);
+    if (http && mode === "none" && !auth.allowUnauthenticated && !isLoopback(options.http?.host ?? "127.0.0.1")) {
+        other += 1;
+        lines.push(`  PROBLEM: ${options.http?.host} is not loopback: the server will not start without auth token or oauth (or auth.allowUnauthenticated)`);
+    }
     if (mode === "token") {
         for (const t of auth.tokens?.length ? auth.tokens : [{ name: "token", env: tokenEnv }]) {
             lines.push(`  token ${t.name} from ${t.env ? `$${t.env}` : t.file}: scopes ${t.scopes ? t.scopes.join(" ") || "none" : "all"}${t.profile ? `, profile ${t.profile}` : ""}`);
+            if (http) {
+                const why = await tokenProblem(t, env, options);
+                if (why) {
+                    other += 1;
+                    lines.push(`  PROBLEM: the token ${t.name} ${why}`);
+                }
+            }
         }
     }
     if (mode === "oauth") {
         lines.push(`  issuer ${auth.issuer}, resource ${auth.resource}, audience ${(auth.audience ?? [auth.resource]).join(" ")}, required scopes ${(auth.requiredScopes ?? []).join(" ") || "none (any token for this audience)"}`);
         if (String(auth.issuer).startsWith("http:") && !auth.allowInsecureIssuer) {
-            problems += 1;
+            other += 1;
             lines.push("  PROBLEM: the issuer must be https:// (auth.allowInsecureIssuer is for tests only)");
         }
     }
@@ -73,9 +88,22 @@ export async function checkConfig(options, { http, name = "pivotkit-mcp", tokenE
             }
         }
     }
-    if (problems) {
-        lines.push("", `${problems} problem${problems === 1 ? "" : "s"}: see NOT FOUND above.`);
+    const total = problems + other;
+    if (total) {
+        lines.push("", `${total} problem${total === 1 ? "" : "s"}: see ${[problems ? "NOT FOUND" : "", other ? "PROBLEM" : ""].filter(Boolean).join(" and ")} above.`);
     }
-    lines[0] = problems ? `${name}: the configuration is valid, but not everything it names is there.` : lines[0];
-    return { text: `${lines.join("\n")}\n`, problems };
+    lines[0] = other ? `${name}: the configuration is valid, but the server would not start with it as it is.` : problems ? `${name}: the configuration is valid, but not everything it names is there.` : lines[0];
+    return { text: `${lines.join("\n")}\n`, problems: total };
+}
+
+/** Why a static token would keep the server from starting, or null. */
+async function tokenProblem(token, env, options) {
+    if (token.env) {
+        return (env[token.env] ?? "").length >= TOKEN_MIN ? null : `($${token.env}) is not set or shorter than ${TOKEN_MIN} characters`;
+    }
+    try {
+        return (await readFile(pathOf(options, token.file), "utf8")).trim().length >= TOKEN_MIN ? null : `(${token.file}) is shorter than ${TOKEN_MIN} characters`;
+    } catch (e) {
+        return `(${token.file}) cannot be read: ${e?.code === "ENOENT" ? "no such file" : e?.code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : "unreadable"}`;
+    }
 }

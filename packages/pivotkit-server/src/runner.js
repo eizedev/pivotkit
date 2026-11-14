@@ -9,7 +9,7 @@
  *   pivotkit-server healthcheck [url]      exit 0 when the server answers /healthz (the image's HEALTHCHECK)
  */
 
-import { ConfigError } from "./config.js";
+import { ConfigError, loadConfig } from "./config.js";
 import { VERSION } from "./context.js";
 import { SERVER_FLAGS, flagLines, optionsFrom } from "./flags.js";
 import { DEFAULT_PORT, TOKEN_ENV, loadMcp } from "./serve.js";
@@ -87,7 +87,9 @@ export async function run(argv, io) {
             return runMcp(rest, io);
         }
         if (command === "healthcheck") {
-            const port = io.env.PIVOTKIT_PORT ?? String(DEFAULT_PORT);
+            // the port serve listens on: $PIVOTKIT_PORT, else the configuration file's, else the default
+            const configured = io.env[CONFIG_ENV] ? await loadConfig(io.env[CONFIG_ENV]).then((o) => o.http?.port, () => undefined) : undefined;
+            const port = io.env.PIVOTKIT_PORT ?? String(configured ?? DEFAULT_PORT);
             return healthcheck(rest[0] ?? `http://127.0.0.1:${port}/healthz`, io);
         }
         if (command !== "serve" && command !== "check-config") {
@@ -103,13 +105,14 @@ export async function run(argv, io) {
         }
         if (command === "check-config" || values["check-config"]) {
             const { checkConfig } = await import("./check.js");
-            const { text, problems } = await checkConfig(options, { http: true, name: "pivotkit-server", tokenEnv: TOKEN_ENV, rest: (options.http?.enable ?? ["rest"]).includes("rest") });
+            const { text, problems } = await checkConfig(options, { http: true, env: io.env, name: "pivotkit-server", tokenEnv: TOKEN_ENV, rest: (options.http?.enable ?? ["rest"]).includes("rest") });
             io.stdout.write(text);
             return problems ? 1 : 0;
         }
         const { serve } = await import("./serve.js");
         const server = await serve(options, { env: io.env, stderr: io.stderr });
         const stop = async () => {
+            server.context.log.info("stopping: running requests may finish", { graceMs: options.http?.graceMs ?? 25_000 });
             try {
                 await server.close();
             } finally {

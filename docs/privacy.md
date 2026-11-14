@@ -33,7 +33,15 @@ the data is read. Leaving a column out of the data file is safer still.
   can answer "is this person in the data?". The policy withholds a result's shape when a view uses a
   field that is not shown, but every number in a report is real. Filter out or merge small groups in
   the data itself when that matters; pivotkit does not suppress small cells.
-- **Links and drafts** carry a view (field names, filter items) to whoever opens them.
+- **Links and drafts** carry a view (field names, filter items) to whoever opens them. The report
+  page a link opens, and a scheduled report once a person approves the draft, are not limited by
+  this policy: whoever may open them sees the values. Keep those pages behind your own sign-in.
+- **Downloads**: a caller whose policy has `results: true` may read every value of every field that
+  is not hidden, in a file, whatever level the field has.
+- **Names match** without regard to case or Unicode form; a column the reader renamed because its
+  header repeats a hidden one ("Email (2)") is hidden too. Other columns the reader names itself
+  ("Column 8" for cells without a header) take the default level: for a source of personal data,
+  start from `"default": "hide"` and list the fields to show.
 
 ## Recipients { #recipients }
 
@@ -45,9 +53,13 @@ request), and keep OAuth access tokens short-lived, since a token stays valid un
 ## Logs and retention { #retention }
 
 The log holds the operation, the source id, the client (a token's name or an OAuth client id, never a
-person's id), the status and the time; never a view, a value or a token, and no client address unless
+person's id), the status and the time (a source id only when it is a configured source); at the
+default level never a view, a value or a token, and no client address unless
 `http.trustProxy` is set. Reports and drafts stay in the output directory until you remove them:
-`output.maxAgeDays` deletes older files, or clean it up on a schedule of your own. Decide how long the
+`output.maxAgeDays` deletes older reports and drafts (drafts waiting for approval too) at start and
+every hour, or clean it up on a schedule of your own; give the output directory to pivotkit alone.
+Reports are written with mode 0644 (less the umask), readable for other local users: restrict the directory
+itself where that matters. Decide how long the
 log and the reports are kept, and who can read the output directory (a web server that serves it,
 `output.baseUrl`, makes every file reachable by its name).
 

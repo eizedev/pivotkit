@@ -78,6 +78,12 @@ async function staticTokens(auth, env, options, tokenEnv) {
     for (const t of list) {
         const read = t.env ? async () => env[t.env] ?? "" : async () => (await readFile(pathOf(options, /** @type {string} */ (t.file)), "utf8").catch(() => "")).trim();
         const value = await read();
+        if (t.file && value.length < TOKEN_MIN) {
+            const why = await readFile(pathOf(options, t.file), "utf8").then(() => null, (e) => e?.code);
+            if (why === "EACCES") {
+                throw new ConfigError(`auth: the token "${t.name}" (${t.file}) cannot be read: permission denied for the user ${process.getuid?.() ?? ""} the server runs as (in the container image: 10001)`);
+            }
+        }
         if (value.length < TOKEN_MIN) {
             throw new ConfigError(`auth: the token "${t.name}" (${t.env ? `$${t.env}` : "its file"}) is missing or shorter than ${TOKEN_MIN} characters; make one with: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`);
         }

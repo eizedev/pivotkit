@@ -116,7 +116,8 @@ policy:
 ```
 
 Here the dashboard sees every value of `sales` except `Customer`; the nightly export may download
-files; the scripts get the default. Profiles apply to the MCP endpoint too (a model's token with the
+files; the scripts get the default. `results: true` means: this caller may read every value of every
+field that is not hidden, in a file, whatever level the field has; give it only to callers that may. Profiles apply to the MCP endpoint too (a model's token with the
 `analyst` profile sees values), except `results`, which only the file route reads.
 
 | Key | Default | What it is |
@@ -296,12 +297,29 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
-| `output.maxAgeDays` | none | Delete files older than this from the output directory (checked at most once an hour, when a file is written) |
+| `output.maxAgeDays` | none | Delete reports and drafts (`.xlsx`, `.html`, `.csv`, `.json`, `.svg`) older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`
 (with MCP also `/mcp`, `/.well-known/` and `/`), keep the `Host` header (or add the proxy's name to
-`http.allowHosts`), and set `http.publicUrl`. Without containers, on Windows next to PowerShell
+`http.allowHosts`), and set `http.publicUrl`. Set `http.trustProxy` when the proxy adds the client's
+address to `X-Forwarded-For`: otherwise every client has the proxy's address, and 30 refused tokens a
+minute from anyone lock out every caller (the [limit](#limits) per address). Only with a proxy in front:
+a client that reaches the server directly can write any `X-Forwarded-For`. With it, the log names the
+client's address. Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB). For nginx:
+
+```nginx
+location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
+    proxy_pass http://127.0.0.1:3333;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_buffering off;
+    proxy_read_timeout 60s;
+    client_max_body_size 2m;
+}
+```
+
+Without containers, on Windows next to PowerShell
 Universal, `pivotkit-server serve` from a global npm install runs as a service with a service
 manager of your choice; its file checks are measured on Linux and macOS
 ([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).

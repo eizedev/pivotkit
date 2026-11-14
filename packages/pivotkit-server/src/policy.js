@@ -60,7 +60,7 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined) {
     const fields = new Map();
     for (const part of [server?.fields, source?.fields]) {
         for (const [name, level] of Object.entries(part ?? {})) {
-            fields.set(name.toLowerCase(), level);
+            fields.set(fieldKey(name), level);
         }
     }
     let level = source?.default ?? server?.default ?? POLICY_DEFAULTS.default;
@@ -75,7 +75,7 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined) {
             level = level === "hide" ? "hide" : profile.default;
         }
         for (const [name, l] of Object.entries(profile.fields ?? {})) {
-            const key = name.toLowerCase();
+            const key = fieldKey(name);
             fields.set(key, levelOf(base, key) === "hide" ? "hide" : l);
         }
     }
@@ -84,7 +84,31 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined) {
 }
 
 /** A field's level. */
-export const levelOf = (policy, name) => policy.fields.get(String(name).trim().toLowerCase()) ?? policy.default;
+/** A field name as the policy matches it: Unicode NFC (a file from macOS may write "ö" as two code points), trimmed, lower case. */
+export const fieldKey = (name) => String(name).normalize("NFC").trim().toLowerCase();
+
+/** A reader's name for a repeated header ("Email (2)", "email (3)"): the part before it is the first one's name. */
+const REPEATED = /^(.*\S) \(\d+\)$/;
+
+/**
+ * A field's level: its own, else the default. A column the reader renamed because its header repeats
+ * a hidden one ("Email (2)" next to "Email") is hidden too, unless the policy names it.
+ * @param {{ default: string, fields: Map<string, string> }} policy
+ * @param {string} name
+ * @returns {any}
+ */
+export function levelOf(policy, name) {
+    const key = fieldKey(name);
+    const own = policy.fields.get(key);
+    if (own) {
+        return own;
+    }
+    const base = REPEATED.exec(key)?.[1];
+    if (base !== undefined && (policy.fields.get(base) ?? policy.default) === "hide") {
+        return "hide";
+    }
+    return policy.default;
+}
 
 /** The names of a table's columns the policy hides (dropped before anything else sees the data). */
 export const hiddenColumns = (policy, columns) => columns.filter((c) => levelOf(policy, c) === "hide");
@@ -154,10 +178,10 @@ export const touchesClosed = (policy, uses) => (uses ?? []).some((f) => levelOf(
  */
 export function exposeFindings(findings, policy, uses, hidden = []) {
     const closed = touchesClosed(policy, uses);
-    const lower = hidden.map((h) => h.toLowerCase()).filter(Boolean);
+    const lower = hidden.map(fieldKey).filter(Boolean);
     return findings
         // a reader's note of how it read the file (its encoding, its separator) is no help to the model
         .filter((f) => f.severity !== "info")
         .filter((f) => !(closed && DATA_FINDINGS.has(f.code)))
-        .map((f) => (lower.some((h) => f.message.toLowerCase().includes(h) || f.suggestion?.toLowerCase().includes(h)) ? { severity: f.severity, code: f.code, path: "", message: f.code } : f));
+        .map((f) => (lower.some((h) => fieldKey(f.message).includes(h) || (f.suggestion !== undefined && fieldKey(f.suggestion).includes(h))) ? { severity: f.severity, code: f.code, path: "", message: f.code } : f));
 }

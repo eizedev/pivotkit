@@ -103,17 +103,24 @@ const outputDir = (context) => context.output?.dir ?? null;
 /** When the output directory was last cleaned up (output.maxAgeDays), per directory. */
 const pruned = new Map();
 
-/** Removes files older than output.maxAgeDays from the output directory, at most once an hour. */
-async function prune(context) {
+/** What the output directory holds of pivotkit's: reports and schedule drafts, by their extension. */
+const OUTPUT_FILE_NAME = /\.(xlsx|html|csv|json|svg)$/i;
+
+/**
+ * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
+ * level; a file of another kind and a subdirectory stay), at most once an hour.
+ * @param {any} context
+ */
+export async function prune(context) {
     const days = context.output?.maxAgeDays;
     const dir = outputDir(context);
-    if (!days || !dir || Date.now() - (pruned.get(dir) ?? 0) < 3_600_000) {
+    if (!days || !dir || Date.now() - (pruned.get(dir) ?? 0) < 3_590_000) {
         return;
     }
     pruned.set(dir, Date.now());
     const before = Date.now() - days * 86_400_000;
     for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-        if (entry.isFile()) {
+        if (entry.isFile() && OUTPUT_FILE_NAME.test(entry.name)) {
             const path = join(dir, entry.name);
             const info = await stat(path).catch(() => null);
             if (info && info.mtimeMs < before) {
@@ -217,7 +224,8 @@ const STEPS = {
         if (closed) {
             out.withheld = ["rows", "columns", "bytes", "content"];
         } else {
-            out.summary = result.summary;
+            // the row count of the whole source is the operator's to show (policy.rows)
+            out.summary = result.summary && !policy.rows ? { ...result.summary, sourceRows: undefined } : result.summary;
         }
         if (!file) {
             out.output = null;
