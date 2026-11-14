@@ -408,12 +408,7 @@ test("web component: Publish and Save over a shared view hand over the view in t
         el.sourceId = "sales";
         el.sourceName = "Sales";
         // a user's view of the host without a sort of its own: Publish sends it as the report shows it
-        el.templates = [
-            ...el.templates,
-            { name: "Plain", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" },
-            // a view file the host lists that was made for other data
-            { file: { format: "pivotkit-view", formatVersion: 2, name: "Of other data", source: { id: "archive" }, view: { rows: ["Region"] } }, scope: "user" }
-        ];
+        el.templates = [...el.templates, { name: "Plain", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" }];
     });
     await elementViews(report);
     await report.getByTestId("publish-view-Plain").click();
@@ -434,13 +429,24 @@ test("web component: Publish and Save over a shared view hand over the view in t
     // a host's view names no data of its own: both carry the data shown, as pivot-template-save does
     expect(published.detail.source).toEqual({ id: "sales", name: "Sales" });
     expect(saved.detail.source).toEqual({ id: "sales", name: "Sales" });
-    // a view file keeps the data it names, not the data shown
+});
+
+test("web component: Publish of a host's view file made for other data hands over the data the file names", async ({ page }) => {
+    await page.goto("pages/element-views.html");
+    const report = page.locator("#views");
+    await report.locator('[data-testid="pivot-table"]').waitFor();
+    await page.evaluate(() => {
+        const el = document.getElementById("views");
+        el.sourceId = "sales";
+        el.sourceName = "Sales";
+        el.templates = [...el.templates, { file: { format: "pivotkit-view", formatVersion: 2, name: "Of other data", source: { id: "archive" }, view: { rows: ["Region"] } }, scope: "user" }];
+    });
     await elementViews(report);
     await report.getByTestId("publish-view-Of other data").click();
     await report.getByTestId("confirm-publish").click();
-    await expect.poll(() => page.evaluate(() => window.__events.filter((e) => e.type === "pivot-template-publish").length)).toBe(3);
-    const other = (await page.evaluate(() => window.__events)).filter((e) => e.type === "pivot-template-publish")[2];
-    expect(other.detail.source).toEqual({ id: "archive" });
+    await expect.poll(() => page.evaluate(() => window.__events.filter((e) => e.type === "pivot-template-publish").length)).toBe(1);
+    const [published] = (await page.evaluate(() => window.__events)).filter((e) => e.type === "pivot-template-publish");
+    expect(published.detail.source).toEqual({ id: "archive" });
 });
 
 test("the view's name is a button of the toolbar: Tab reaches it, Enter opens Views", async ({ page, browserName }) => {
