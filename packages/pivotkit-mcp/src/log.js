@@ -23,6 +23,8 @@ export function createLog(level, stream) {
         refused: (entry) => write({ event: "refused", ...entry }),
         info: (message, extra = {}) => write({ event: "info", message, ...extra }),
         warn: (message, extra = {}) => write({ event: "warning", message, ...extra }),
+        /** Only with --log debug: details an operator needs to set up (why a token was refused). */
+        debug: (message, extra = {}) => level === "debug" && write({ event: "debug", message, ...extra }),
         /** An unexpected error: its name and message only with --log debug, its stack never. */
         error: (error, extra = {}) => write({ event: "error", ...extra, ...(level === "debug" ? { error: String(error?.message ?? error).slice(0, 500) } : { error: error?.name ?? "Error" }) })
     };

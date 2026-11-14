@@ -52,6 +52,11 @@ allows files, **`file:`** and a path inside the allowed directories (`file:q3.cs
 `file:/srv/reports/q3.csv`). A relative path is looked up in each allowed directory in turn. Formats:
 CSV, TSV, TXT, JSON and XLSX, read as the [command line](cli.md#files) reads them.
 
+A `file:` path to the file of a configured source is that source: its scopes and its policy hold.
+The output directory may not lie inside an allowed directory (nor hold one), so the model cannot read
+back a report it was not shown. Put only data files into an allowed directory: the first line of any
+CSV, TSV, TXT or JSON file there becomes field names, which the model sees at every level.
+
 A file named by `file:` is checked on its real path (symbolic links and `..` resolved) against the
 allowed directories, then opened once without following a link at its end and checked again on the
 open file. A file with a second name (a hard link) is refused unless `files.hardLinks` is true. A
@@ -146,12 +151,27 @@ error that names the key and the one probably meant.
 }
 ```
 
-As a library: `createMcpContext(options)` checks the options (`validateOptions`), resolves the
+As a library (the SDK's stdio entry is `serveStdio` from `@modelcontextprotocol/server/stdio`):
+
+```js
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
+import { createMcpContext, listen } from "pivotkit-mcp";
+
+const context = await createMcpContext({ sources: { sales: { load: async () => rows, version: () => rowsVersion } }, output: { dir: "/srv/reports" } });
+serveStdio((ctx) => context.server(ctx));                               // stdio
+// or HTTP with every check of this page, on node:http:
+const server = await listen({ sources: { sales: { file: "/srv/data/sales.csv" } }, http: { port: 3333 } }, { env: process.env, stderr: process.stderr });
+```
+
+`createMcpContext(options)` checks the options (`validateOptions`), resolves the
 directories and starts the workers; `context.server(ctx)` builds a fresh McpServer for the SDK's
 `serveStdio` or `createMcpHandler`; `createHttpHandler(context)` returns `{ fetch, close }` with every
 check of this page; `loadConfig(file)` reads a configuration file into options. A library host may
 give a source `load: async () => rows` (rows or columnar data) and `version: () => key` instead of
-`file`; such sources run in the host's thread, not in a worker.
+`file`; such sources run in the host's thread, not in a worker. `createHttpHandler(context, { env })`
+reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure
+policy (`resolvePolicy`, `levelOf`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another
+front end over the same sources.
 
 ## Limits and errors { #errors }
 
@@ -160,7 +180,8 @@ data with its [limits](../concepts/limits.md); the server's own default for file
 (`fileBytes`, `unpackedBytes`). A call's input may hold at most 10,000 array elements and object
 members; an HTTP body at most 2 MiB.
 
-A tool error is a result with `isError` and the text `CODE: message`; the message names a file by its
+A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
+refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its
 base name only and holds no file content.
 
 | Code | When |
@@ -197,18 +218,32 @@ checks in order:
    is in `--allow-origin`; a client that sends none (every non-browser client) passes.
 3. **Authentication** for `/mcp` ([below](#auth)).
 
+Host, Origin, the declared size and the token are checked from the headers before the body is
+read; at most 256 connections are open at once, and a request has 30 seconds.
+
 Without authentication: `/healthz` (`{ "ok": true }`, for a supervisor or a proxy), the OAuth
 discovery documents, and the **quick-start page** at `/`: what the server is, its endpoint, client
 configurations to copy, the auth mode and the tools. A browser that opens `/mcp` is sent there. The
-page lists source ids only when `http.page.sources` is true (default only with auth `none`), never
-paths, fields or data; it loads nothing from elsewhere and has no script
+page lists source ids only when `http.page.sources` is true (default only with auth `none`), and only
+sources without scopes, never paths, fields or data; it loads nothing from elsewhere and has no script
 (`Content-Security-Policy: default-src 'none'`).
 
 The server listens on 127.0.0.1 unless `--host` says otherwise, and refuses another address without
 authentication unless `--allow-unauthenticated` says the network is trusted. There are no sessions:
-every request gets a fresh server from the shared context. Behind a reverse proxy: terminate TLS
-there, forward `/mcp`, `/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with
-`--allow-host`), set `--public-url`, and turn response buffering off for `/mcp`.
+every request gets a fresh server from the shared context. Behind a reverse proxy: keep the server
+on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
+`/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
+`--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
+header: client addresses are in the proxy's log. For nginx:
+
+```nginx
+location ~ ^/(mcp|\.well-known/|healthz$|$) {
+    proxy_pass http://127.0.0.1:3333;
+    proxy_set_header Host $host;
+    proxy_buffering off;
+    proxy_read_timeout 60s;
+}
+```
 
 ## Authentication { #auth }
 
@@ -270,6 +305,14 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.jwksUri` | the issuer's | Another place for the keys |
 | `auth.requireTyp` | none | Require a token type, e.g. `at+jwt` (rejects ID tokens where the provider marks access tokens) |
 | `auth.clockTolerance` | 30 | Seconds of clock difference |
+| `auth.allowInsecureIssuer` | false | Accept an `http://` issuer: for a test issuer on this machine only |
+
+A token stays valid until it expires: keep the provider's access token lifetime short (minutes), so
+taking a person's access away takes effect soon. Set `requiredScopes`, so not every token the provider
+issues for this audience works, and `requireTyp: "at+jwt"` where the provider marks its access tokens
+so (RFC 9068), so an ID token is refused. Why a token was refused is logged with `--log debug`
+(jose's reason and the claim, never the token); the client is the token's `azp` or `client_id`
+(`client` when it has neither).
 
 Opaque tokens (checked by introspection) are not supported: the provider must issue JWT access
 tokens. How a client registers (Client ID Metadata Documents, a pre-registered client or Dynamic

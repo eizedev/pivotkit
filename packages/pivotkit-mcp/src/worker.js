@@ -23,8 +23,13 @@ parentPort?.on("message", async (job) => {
         if (op === "render_view" && (input.format === "svg" || input.format === "html")) {
             echarts ??= await import("echarts");
         }
+        let hidden = 0;
         const env = {
-            data: async () => fileData(spec),
+            data: async () => {
+                const data = await fileData(spec);
+                hidden = /** @type {any} */ (data).hidden ?? 0;
+                return data;
+            },
             link: async () => link ?? null,
             template: async () => template,
             ...(echarts ? { echarts } : {}),
@@ -34,9 +39,12 @@ parentPort?.on("message", async (job) => {
             ...(now !== undefined ? { now } : {})
         };
         const outcome = await OPERATIONS[op].run(input, env);
-        const data = await fileData(spec).catch(() => null);
+        // a file's bytes go over as a buffer of their own (transferred, not copied)
+        if (outcome.file) {
+            outcome.file.bytes = outcome.file.bytes.slice();
+        }
         const transfer = /** @type {any[]} */ (outcome.file ? [outcome.file.bytes.buffer] : []);
-        parentPort.postMessage({ id, outcome, hidden: data?.hidden ?? 0 }, transfer);
+        parentPort.postMessage({ id, outcome, hidden }, transfer);
     } catch (e) {
         const error = asOperationError(e, spec?.path);
         parentPort.postMessage({ id, error: { code: error.code, message: error.message } });

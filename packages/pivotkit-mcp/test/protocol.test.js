@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES, VIEW_GUIDE } from "pivotkit-report/operations";
-import { BY_REGION, call, httpClient, httpServer, stdioClient, workspace } from "./helpers.js";
+import { BY_REGION, SALES_CSV, call, httpClient, httpServer, stdioClient, workspace } from "./helpers.js";
 
 /** The tools in the table's order: a new tool is a change of this list, seen in review. */
 const TOOL_NAMES = ["list_sources", "describe_source", "get_view_guide", "validate_view", "describe_view", "render_view", "create_link", "draft_schedule"];
@@ -105,7 +105,7 @@ test("render_view never replaces a file: the same name twice gives -2; a served 
 });
 
 test("draft_schedule writes a draft for approval and runs nothing; a file handed in cannot be scheduled", async () => {
-    const dir = workspace();
+    const dir = workspace({ "sales.csv": SALES_CSV, "handed-in.csv": SALES_CSV });
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "out" }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
@@ -115,7 +115,7 @@ test("draft_schedule writes a draft for approval and runs nothing; a file handed
         assert.equal(draft.data.output.name, "Weekly sales.report.json");
         assert.match(draft.data.message, /Nothing runs until a person approves it/);
         assert.ok(existsSync(join(dir, "out", "Weekly sales.report.json")));
-        const fromFile = await call(client, "draft_schedule", { ...input, source: "file:sales.csv" });
+        const fromFile = await call(client, "draft_schedule", { ...input, source: "file:handed-in.csv" });
         assert.equal(fromFile.isError, true);
         assert.match(fromFile.text, /^NOT_SCHEDULABLE/);
         const address = await call(client, "draft_schedule", { ...input, recipients: ["boss@example.com"] });

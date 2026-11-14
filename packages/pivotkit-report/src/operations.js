@@ -13,7 +13,7 @@
  * with errors is no error: `ok: false` with its findings.
  */
 
-import { CATALOG, OUTSIDE_LIMITS, describeSource, describeView, fromViewFile, outsideLimits, toViewFile, validate, viewFileFields, withLinkFragment } from "pivotkit-core";
+import { CATALOG, OUTSIDE_LIMITS, describeSource, describeView, fromViewFile, normalize, outsideLimits, toViewFile, validate, viewFileFields, withLinkFragment } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { encodeViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "./render.js";
@@ -211,16 +211,33 @@ const fileNotes = (read) => read.issues.map((i) => ({ severity: /** @type {const
 /** The limits for a view from outside, over the env's. */
 const viewLimits = (env) => outsideLimits(env.limits);
 
+/**
+ * The data's fields a view uses, as the data spells them: the view normalized against the data first,
+ * so " Email" and "email" are "Email", and a name the data does not have is no use of anything.
+ */
+const usesOf = (view, data, env) => viewFileFields(normalize(view, data, { limits: viewLimits(env) }).view);
+
 /** Whether a source's data is encoded (rows) rather than a field list. */
 const isEncoded = (data) => Boolean(data && typeof data === "object" && !Array.isArray(data) && typeof (/** @type {any} */ (data).column) === "function");
 
 /**
- * Two or three views built from a data set's own fields, for a model or a person to start from.
+ * Whether a number field's name says it is an identifier (an order number, a key), which is counted,
+ * not summed: its last word is ID, Nr, No, Number, Key or "#". The short form of pivotkit-react's
+ * `isIdentifierName` (field-info.js), which also reads "CustomerId" and "Serial#".
+ */
+const isIdentifier = (name) => {
+    const words = String(name).replace(/(\s*\([^()]*\))+\s*$/, "").replace(/\s*\d+$/, "");
+    return /(^|[\s_.\-/:])(id|nr|no|number|key)$/i.test(words) || /[a-z](Id|ID|Nr|NR|No|NO|Number|Key)$/.test(words) || /#$/.test(words);
+};
+
+/**
+ * Two or three views built from a data set's own fields, for a model or a person to start from: a
+ * measure is a number field that is no identifier.
  * @param {Array<{ name: string, type: string }>} fields
  */
 export function exampleViews(fields) {
     const text = fields.filter((f) => f.type === "string");
-    const number = fields.filter((f) => f.type === "number");
+    const number = fields.filter((f) => f.type === "number" && !isIdentifier(f.name));
     const date = fields.filter((f) => f.type === "date");
     const out = [];
     const value = number[0] ? { field: number[0].name, agg: "sum" } : { agg: "count" };
@@ -270,6 +287,60 @@ export const VIEW_GUIDE = Object.freeze({
         { title: "Share of each Region in the total", view: { version: 2, rows: ["Region"], values: [{ field: "Sales", agg: "sum", showAs: { type: "percentOfGrandTotal" } }] } }
     ])
 });
+
+/**
+ * Checks an input against an operation's input schema, for the JSON Schema keywords the table uses
+ * (type, enum, required, properties, additionalProperties: false, items, min/max length, items and
+ * value, pattern, uniqueItems). Every `run` calls it first, so a front end without a validator of its
+ * own (a REST service, a script) gets INVALID_INPUT naming the place, never a TypeError.
+ * @param {Record<string, unknown>} schema
+ * @param {unknown} value
+ * @param {string} [path]
+ */
+export function checkInput(schema, value, path = "input") {
+    const fail = (what) => {
+        throw new OperationError("INVALID_INPUT", `${path} ${what}`);
+    };
+    const s = /** @type {any} */ (schema);
+    const typeOf = (v) => (v === null ? "null" : Array.isArray(v) ? "array" : Number.isInteger(v) ? "integer" : typeof v);
+    if (s.type !== undefined) {
+        const types = Array.isArray(s.type) ? s.type : [s.type];
+        const t = typeOf(value);
+        if (!types.includes(t) && !(t === "integer" && types.includes("number"))) {
+            fail(`must be ${types.join(" or ")}`);
+        }
+    }
+    if (s.enum && !s.enum.includes(value)) {
+        fail(`must be one of ${s.enum.join(", ")}`);
+    }
+    if (typeof value === "string") {
+        if (s.minLength !== undefined && value.length < s.minLength) fail(`must have at least ${s.minLength} characters`);
+        if (s.maxLength !== undefined && value.length > s.maxLength) fail(`must have at most ${s.maxLength} characters`);
+        if (s.pattern !== undefined && !new RegExp(s.pattern).test(value)) fail("is not in the expected form");
+    }
+    if (typeof value === "number") {
+        if (s.minimum !== undefined && value < s.minimum) fail(`must be at least ${s.minimum}`);
+        if (s.maximum !== undefined && value > s.maximum) fail(`must be at most ${s.maximum}`);
+    }
+    if (Array.isArray(value)) {
+        if (s.minItems !== undefined && value.length < s.minItems) fail(`must have at least ${s.minItems} items`);
+        if (s.maxItems !== undefined && value.length > s.maxItems) fail(`must have at most ${s.maxItems} items`);
+        if (s.uniqueItems && new Set(value.map((v) => JSON.stringify(v))).size !== value.length) fail("must not repeat an item");
+        if (s.items) value.forEach((v, i) => checkInput(s.items, v, `${path}[${i}]`));
+    }
+    if (s.properties && value && typeof value === "object" && !Array.isArray(value)) {
+        for (const key of s.required ?? []) {
+            if (!Object.hasOwn(value, key) || value[key] === undefined) fail(`needs ${key}`);
+        }
+        for (const [key, v] of Object.entries(value)) {
+            if (Object.hasOwn(s.properties, key)) {
+                if (v !== undefined) checkInput(s.properties[key], v, `${path}.${key}`);
+            } else if (s.additionalProperties === false) {
+                fail(`has no key ${JSON.stringify(key.slice(0, 40))}`);
+            }
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------------------------
 // The table
@@ -378,7 +449,7 @@ export const OPERATIONS = Object.freeze({
                 return { result: { valid: false, findings: [...(source.notes ?? []), unreadable(read)], uses: [] } };
             }
             const { errors, warnings, valid } = validate(read.view, source.data, { limits: viewLimits(env) });
-            return { result: { valid, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)], uses: viewFileFields(read.view) } };
+            return { result: { valid, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)], uses: usesOf(read.view, source.data, env) } };
         }
     },
 
@@ -403,7 +474,7 @@ export const OPERATIONS = Object.freeze({
             const { errors, warnings, ...parts } = described;
             const valid = described.valid;
             return {
-                result: { valid, name: findingText(read.name), description: { ...parts, text: findingText(described.text) }, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)], uses: viewFileFields(read.view) }
+                result: { valid, name: findingText(read.name), description: { ...parts, text: findingText(described.text) }, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)], uses: usesOf(read.view, source.data, env) }
             };
         }
     },
@@ -488,7 +559,7 @@ export const OPERATIONS = Object.freeze({
         run: async (input, env) => {
             const target = env.link ? await env.link(input.source) : null;
             if (!target) {
-                throw new OperationError("NO_LINK", "this source has no report page to link to (its link is not set)");
+                throw new OperationError("NO_LINK", "this source has no report page to link to: the operator sets one (link) for it; render the report to a file instead");
             }
             const read = readView(input.view);
             const source = await sourceData(env, input.source);
@@ -498,7 +569,7 @@ export const OPERATIONS = Object.freeze({
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
             const findings = [...errors.map(findingOf), ...warnings.map(findingOf)];
             if (errors.length) {
-                return { result: { ok: false, findings, uses: viewFileFields(read.view) } };
+                return { result: { ok: false, findings, uses: usesOf(read.view, source.data, env) } };
             }
             let text;
             try {
@@ -506,7 +577,7 @@ export const OPERATIONS = Object.freeze({
             } catch {
                 throw new OperationError("LIMIT_EXCEEDED", "the view is too large for a link; render it to a file instead");
             }
-            return { result: { ok: true, url: withLinkFragment(target.url, target.key ?? null, text), findings, uses: viewFileFields(read.view) } };
+            return { result: { ok: true, url: withLinkFragment(target.url, target.key ?? null, text), findings, uses: usesOf(read.view, source.data, env) } };
         }
     },
 
@@ -566,7 +637,7 @@ export const OPERATIONS = Object.freeze({
             const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
             const findings = [...errors.map(findingOf), ...warnings.map(findingOf)];
             if (errors.length) {
-                return { result: { ok: false, findings, uses: viewFileFields(read.view), draft: null } };
+                return { result: { ok: false, findings, uses: usesOf(read.view, source.data, env), draft: null } };
             }
             const draft = {
                 format: "pivotkit-report-draft",
@@ -582,12 +653,23 @@ export const OPERATIONS = Object.freeze({
                 created: new Date(env.now ?? Date.now()).toISOString()
             };
             return {
-                result: { ok: true, findings, uses: viewFileFields(read.view), draft },
+                result: { ok: true, findings, uses: usesOf(read.view, source.data, env), draft },
                 file: { bytes: new TextEncoder().encode(`${JSON.stringify(draft, null, 2)}\n`), mediaType: "application/json", extension: "report.json", name: input.name }
             };
         }
     }
 });
+
+// every run checks its input first (checkInput), whoever calls it
+for (const op of Object.values(OPERATIONS)) {
+    const run = op.run;
+    // the table is frozen at the top only, so the entries can take the check here, before they are frozen
+    op.run = async (input, env) => {
+        checkInput(op.input, input);
+        return run(input, env);
+    };
+    Object.freeze(op);
+}
 
 /** The operations' names, in the table's order. */
 export const OPERATION_NAMES = Object.freeze(Object.keys(OPERATIONS));

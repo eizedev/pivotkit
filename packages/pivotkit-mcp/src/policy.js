@@ -22,7 +22,7 @@ export const POLICY_LEVELS = Object.freeze(["show", "summary", "hide"]);
 export const NAME_TEXT = 80;
 
 /** Findings whose text or suggestion comes from the data's values, not from the view or the schema. */
-const DATA_FINDINGS = new Set(["itemCase", "filterEmpty"]);
+const DATA_FINDINGS = new Set(["itemCase", "filterEmpty", "chartCut", "tableCut"]);
 
 /**
  * @typedef {object} Policy
@@ -56,7 +56,7 @@ export function resolvePolicy(server = {}, source = {}) {
 }
 
 /** A field's level. */
-export const levelOf = (policy, name) => policy.fields.get(String(name).toLowerCase()) ?? policy.default;
+export const levelOf = (policy, name) => policy.fields.get(String(name).trim().toLowerCase()) ?? policy.default;
 
 /** The names of a table's columns the policy hides (dropped before anything else sees the data). */
 export const hiddenColumns = (policy, columns) => columns.filter((c) => levelOf(policy, c) === "hide");
@@ -85,7 +85,8 @@ export function exposeSource(result, policy, hidden) {
             out.blanks = f.blanks;
         }
         if (level === "show") {
-            if (f.items) {
+            // a date's first values say little: its smallest and largest stand for it
+            if (f.items && f.type !== "date") {
                 out.items = f.items.slice(0, policy.items).map((v) => (typeof v === "string" ? nameText(v) : v));
             }
             if (f.min !== undefined) {

@@ -23,4 +23,6 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   tokens checked against the issuer's keys, scopes per tool and source).
 - The skill `pivotkit-reports`, served as MCP skills, the prompt `pivotkit_report` and the server's
   instructions, and installable as a Claude Code plugin.
-- `--check-config` prints what the server would expose.
+- `--check-config` prints what the server would expose (sources, fields by level, files, output,
+  auth, token scopes no source names) and exits 1 when a file or directory it names is missing.
+- `pivotkit-mcp/policy`: the exposure policy for another front end over the same sources.

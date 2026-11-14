@@ -31,6 +31,10 @@
       "types": "./types/index.d.ts",
       "default": "./src/index.js"
     },
+    "./policy": {
+      "types": "./types/policy.d.ts",
+      "default": "./src/policy.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

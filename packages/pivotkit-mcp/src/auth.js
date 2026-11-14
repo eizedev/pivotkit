@@ -76,11 +76,18 @@ async function fetchJson(url) {
     if (!response.ok) {
         throw new Error(`${response.status} from ${url}`);
     }
-    const text = await response.text();
-    if (text.length > METADATA_BYTES) {
-        throw new Error(`the document at ${url} is larger than ${METADATA_BYTES} bytes`);
+    // read while it streams, never more than the cap
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of /** @type {any} */ (response.body ?? [])) {
+        size += chunk.length;
+        if (size > METADATA_BYTES) {
+            await response.body?.cancel().catch(() => undefined);
+            throw new Error(`the document at ${url} is larger than ${METADATA_BYTES} bytes`);
+        }
+        chunks.push(chunk);
     }
-    return JSON.parse(text);
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
 /**
@@ -101,7 +108,7 @@ export async function discover(issuer) {
             }
             return doc;
         } catch (e) {
-            errors.push(String(e?.message ?? e));
+            errors.push(`${String(e?.message ?? e)}${e?.cause?.code ? ` (${e.cause.code})` : ""}`);
         }
     }
     throw new Error(errors.join("; "));
@@ -191,8 +198,12 @@ export async function createAuth(options, { env, log, loopback }) {
     }
     let delay = 2000;
     let timer = null;
+    let closed = false;
     const attempt = () =>
         load().catch((e) => {
+            if (closed) {
+                return;
+            }
             log.warn(`oauth: the issuer's metadata could not be loaded, trying again in ${delay / 1000} s: ${String(e?.message ?? e).slice(0, 300)}`);
             timer = setTimeout(attempt, delay);
             timer.unref?.();
@@ -206,12 +217,16 @@ export async function createAuth(options, { env, log, loopback }) {
             try {
                 const { payload } = await jwtVerify(token, state.jwks, { issuer, audience, algorithms, clockTolerance: auth.clockTolerance ?? 30, ...(auth.requireTyp ? { typ: auth.requireTyp } : {}), requiredClaims: ["exp"] });
                 return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: {} };
-            } catch {
-                // why a token failed stays here: a message would help someone who tries tokens
+            } catch (e) {
+                // why a token failed stays here (a message would help someone who tries tokens); the
+                // operator sees it with --log debug: jose's code and the claim, never the token
+                log.debug("oauth: token refused", { reason: String(e?.code ?? e?.name ?? "invalid").slice(0, 60), ...(e?.claim ? { claim: String(e.claim).slice(0, 40) } : {}), expected: { issuer, audience } });
                 throw new OAuthError("invalid_token", "the access token is not valid for this server");
             }
         }
     };
+    // the audience is checked by jwtVerify (resource or a configured audience); the verifier then
+    // reports the canonical resource, so the SDK's own resource check agrees with it
     const gateOf = requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl, expectedResource: resource });
     return {
         mode,
@@ -241,6 +256,7 @@ export async function createAuth(options, { env, log, loopback }) {
             });
         },
         close() {
+            closed = true;
             if (timer) {
                 clearTimeout(timer);
             }

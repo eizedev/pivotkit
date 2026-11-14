@@ -53,7 +53,7 @@ function isBrowser(request) {
  * The fetch handler of a context.
  * @param {any} context  createMcpContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]
- * @returns {Promise<{ fetch(request: Request): Promise<Response>, close(): Promise<void>, auth: any }>}
+ * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, close(): Promise<void>, auth: any }>}
  */
 export async function createHttpHandler(context, runtime = {}) {
     const http = context.options.http ?? {};
@@ -61,7 +61,8 @@ export async function createHttpHandler(context, runtime = {}) {
     const hosts = [...localhostAllowedHostnames(), ...(publicUrl ? [publicUrl.hostname] : []), ...(http.allowHosts ?? [])];
     const origins = http.allowOrigins ?? [];
     const auth = await createAuth(context.options, { env: runtime.env ?? process.env, log: context.log, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
-    const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => context.log.error(e, { where: "http" }) });
+    // the SDK reports requests it refused (no JSON, a wrong protocol header) here: a client's mistake, a warning
+    const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => context.log.warn(`request refused by the protocol layer: ${String(e?.message ?? e).slice(0, 200)}`) });
     const page = http.page === false ? null : { sources: typeof http.page === "object" && http.page.sources !== undefined ? http.page.sources : auth.mode === "none" };
 
     async function route(request) {
@@ -101,6 +102,29 @@ export async function createHttpHandler(context, runtime = {}) {
 
     return {
         auth,
+        /**
+         * The checks a request's headers allow, before its body is read: Host, Origin, the declared
+         * size, and the token for /mcp. A Response to send, or null to go on.
+         * @param {Request} request  without its body
+         */
+        async precheck(request) {
+            const refused = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins);
+            if (refused) {
+                context.log.refused({ status: refused.status, host: String(request.headers.get("host") ?? "").slice(0, 100), origin: String(request.headers.get("origin") ?? "").slice(0, 100) });
+                return withSafeHeaders(refused);
+            }
+            if (Number(request.headers.get("content-length") ?? 0) > BODY_BYTES) {
+                return withSafeHeaders(Response.json({ jsonrpc: "2.0", error: { code: -32600, message: "request body too large" }, id: null }, { status: 413 }));
+            }
+            if (new URL(request.url).pathname === ENDPOINT && request.method === "POST") {
+                const authInfo = await auth.gate(request);
+                if (authInfo instanceof Response) {
+                    context.log.refused({ status: authInfo.status, path: ENDPOINT });
+                    return withSafeHeaders(authInfo);
+                }
+            }
+            return null;
+        },
         async fetch(request) {
             try {
                 return withSafeHeaders(await route(request));
@@ -160,12 +184,17 @@ export async function listen(options, runtime) {
         throw new ConfigError(`--host ${host}: an address other than loopback needs --auth token or oauth (or --allow-unauthenticated for a network you trust)`);
     }
     const context = await createMcpContext(options, { showPaths: false, stderr: runtime.stderr });
-    const handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
-    const server = createServer({ maxHeaderSize: 16_384, requestTimeout: 120_000, headersTimeout: 15_000 }, async (req, res) => {
+    let handler;
+    try {
+        handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
+    } catch (e) {
+        await context.close();
+        throw e;
+    }
+    const server = createServer({ maxHeaderSize: 16_384, requestTimeout: 30_000, headersTimeout: 15_000 }, async (req, res) => {
         const abort = new AbortController();
         res.on("close", () => abort.abort());
         try {
-            const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, BODY_BYTES);
             const headers = new Headers();
             for (const [k, v] of Object.entries(req.headers)) {
                 if (v !== undefined) {
@@ -173,16 +202,35 @@ export async function listen(options, runtime) {
                 }
             }
             // the address as the client asked for it; the Host check decides whether it is allowed
-            const request = new Request(`http://${req.headers.host ?? "localhost"}${req.url ?? "/"}`, { method: req.method, headers, body, signal: abort.signal });
+            const url = `http://${req.headers.host ?? "localhost"}${req.url ?? "/"}`;
+            // what the headers tell is checked before a byte of the body is read
+            const early = await handler.precheck(new Request(url, { method: req.method, headers }));
+            if (early) {
+                res.writeHead(early.status, { ...Object.fromEntries(early.headers), connection: "close" });
+                res.end(Buffer.from(await early.arrayBuffer()));
+                req.resume();
+                return;
+            }
+            const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, BODY_BYTES);
+            const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await handler.fetch(request);
             res.writeHead(response.status, Object.fromEntries(response.headers));
             if (response.body) {
+                // a client that leaves stops the stream; a full socket is waited for
+                abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
                 for await (const chunk of response.body) {
-                    res.write(chunk);
+                    if (!res.write(chunk)) {
+                        await new Promise((resolve) => res.once("drain", resolve));
+                    }
                 }
             }
             res.end();
         } catch (e) {
+            if (res.headersSent) {
+                // a part of the answer is out: end the connection rather than add to it
+                res.destroy();
+                return;
+            }
             if (!res.headersSent) {
                 res.writeHead(e?.status === 413 ? 413 : 400, { "content-type": "application/json", connection: "close" });
             }
@@ -190,10 +238,18 @@ export async function listen(options, runtime) {
         }
     });
     server.keepAliveTimeout = 5_000;
-    await new Promise((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(port, host, () => resolve(undefined));
-    });
+    // a bound on open connections: slow clients cannot hold every socket
+    server.maxConnections = 256;
+    try {
+        await new Promise((resolve, reject) => {
+            server.once("error", reject);
+            server.listen(port, host, () => resolve(undefined));
+        });
+    } catch (e) {
+        await handler.close();
+        await context.close();
+        throw e;
+    }
     const address = server.address();
     const actual = typeof address === "object" && address ? address.port : port;
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${actual}${ENDPOINT}`;

@@ -62,7 +62,10 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
     { "mcpServers": { "pivotkit": { "command": "npx", "args": ["-y", "pivotkit-mcp", "--config", "/path/to/pivotkit-mcp.json"] } } }
     ```
 
-Use absolute paths: a client may start the server in another directory. Pin a version for a setup
+Use absolute paths: a client may start the server in another directory, and create the output
+directory first (the server does not). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
+under "Other clients".
+ Pin a version for a setup
 others rely on (`pivotkit-mcp@0.1.0`): `npx` without one takes the newest at each start.
 
 Then ask: "Which sources does pivotkit have?", "Make an Excel report of sales by region per quarter",
@@ -106,7 +109,9 @@ npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
 The server listens on `http://127.0.0.1:3333/mcp`; open `http://127.0.0.1:3333/` in a browser for
 the quick-start page with the configurations to copy. For other machines, put it behind a reverse
 proxy with TLS and give `--public-url https://reports.example.com` (and `--host 0.0.0.0` or the
-proxy's network). Clients connect with:
+proxy's network). The reports are written on the server: for people on other machines, serve the
+output directory (behind the same sign-in) and set `output.baseUrl`, so results carry a link
+instead of a path on the server. Clients connect with:
 
 ```bash
 claude mcp add --transport http pivotkit https://reports.example.com/mcp --header "Authorization: Bearer <token>"

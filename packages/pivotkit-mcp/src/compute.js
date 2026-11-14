@@ -26,8 +26,18 @@ export function createComputer(options = {}) {
     const spawn = () => {
         const worker = new Worker(new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) } });
         worker.unref();
+        const slot = { worker, busy: false, exited: false, ready: /** @type {Promise<unknown>} */ (Promise.resolve()) };
+        // an error without a listener would end the process: a worker that dies between runs (or while
+        // it starts) is only replaced; a run's own listener says what happened to that run
+        worker.on("error", () => undefined);
+        worker.on("exit", () => {
+            slot.exited = true;
+            if (!slot.busy) {
+                replace(slot);
+            }
+        });
         // a run's time starts when its worker has loaded its modules, not while a new one starts
-        const ready = new Promise((resolve) => {
+        slot.ready = new Promise((resolve) => {
             const onReady = (msg) => {
                 if (msg?.ready) {
                     worker.off("message", onReady);
@@ -37,7 +47,7 @@ export function createComputer(options = {}) {
             worker.on("message", onReady);
             worker.once("exit", () => resolve(undefined));
         });
-        return { worker, busy: false, ready };
+        return slot;
     };
     for (let i = 0; i < size; i++) {
         pool.push(spawn());
@@ -77,13 +87,13 @@ export function createComputer(options = {}) {
     };
 
     /** Replaces a worker that was terminated or died. */
-    const replace = (slot) => {
+    function replace(slot) {
         const i = pool.indexOf(slot);
         if (i >= 0 && !closed) {
             pool[i] = spawn();
             waiting[0]?.();
         }
-    };
+    }
 
     /**
      * Runs an operation in a worker.
@@ -95,6 +105,12 @@ export function createComputer(options = {}) {
         }
         const slot = await acquire();
         await slot.ready;
+        if (slot.exited) {
+            // it died while it started: replaced, and this call fails rather than waiting for its time
+            slot.busy = false;
+            replace(slot);
+            throw new OperationError("INTERNAL", "internal error");
+        }
         const id = next++;
         return new Promise((resolve, reject) => {
             const { worker } = slot;
@@ -114,7 +130,7 @@ export function createComputer(options = {}) {
                     reject(new OperationError(msg.error.code, msg.error.message));
                 } else {
                     if (msg.outcome.file) {
-                        msg.outcome.file.bytes = new Uint8Array(msg.outcome.file.bytes);
+                        msg.outcome.file.bytes = msg.outcome.file.bytes instanceof Uint8Array ? msg.outcome.file.bytes : new Uint8Array(msg.outcome.file.bytes);
                     }
                     resolve({ outcome: msg.outcome, hidden: msg.hidden });
                 }
@@ -145,8 +161,13 @@ export function createComputer(options = {}) {
 
     /** Runs an operation over a code source in this thread. */
     async function inThread(op, input, job, source) {
+        let hidden = 0;
         const env = {
-            data: async () => codeData(job.spec, source),
+            data: async () => {
+                const data = await codeData(job.spec, source);
+                hidden = data.hidden;
+                return data;
+            },
             link: async () => job.link ?? null,
             template: async () => job.template,
             limits: job.spec.limits,
@@ -156,7 +177,7 @@ export function createComputer(options = {}) {
             ...(op === "render_view" && (input.format === "svg" || input.format === "html") ? { echarts: await import("echarts") } : {})
         };
         const outcome = await OPERATIONS[op].run(input, env);
-        return { outcome, hidden: 0 };
+        return { outcome, hidden };
     }
 
     return {

@@ -220,7 +220,10 @@ may try to steer it:
   inside those directories, checked by real path on the path and again on the open file; a hard link
   is refused; a file missing, outside or replaced gets one answer, so paths outside cannot be probed.
   Not a sandbox (see [the command line](#the-command-line)): run the server as a user that can only
-  read what it should. Configured sources are the operator's paths and need no allowed directory.
+  read what it should. Configured sources are the operator's paths and need no allowed directory; a
+  `file:` path to one of them is that source, with its scopes and policy. The output directory may
+  not lie inside an allowed directory. Every file in an allowed directory can be read: its first line
+  becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
   with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
   gets names that start with 22 random characters; protect that server as you would the data.

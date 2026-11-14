@@ -44,6 +44,16 @@ export async function createRegistry(options) {
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
     const sources = new Map(Object.entries(options.sources ?? {}));
     const filePolicy = resolvePolicy(options.policy, files.policy);
+    // the operator's sources by their files' real paths: a file: path to one of them is that source
+    const sourceFiles = new Map();
+    for (const [id, source] of sources) {
+        if (source.file) {
+            const real = await realpath(pathOf(options, source.file)).catch(() => null);
+            if (real) {
+                sourceFiles.set(real, id);
+            }
+        }
+    }
 
     /** The source of an id for a caller, or SOURCE_NOT_FOUND (also for one it may not use). */
     function sourceOf(id, caller) {
@@ -93,6 +103,14 @@ export async function createRegistry(options) {
                 }
                 const real = await filePath(ref.slice(FILE_PREFIX.length));
                 const name = real.split(sep).pop() ?? "file";
+                if (sourceFiles.has(real)) {
+                    const id = sourceFiles.get(real);
+                    // its scopes and its policy hold: a caller without them gets what a missing file gets
+                    if (!holds(caller, sources.get(id)?.scopes)) {
+                        throw new OperationError("FILE_NOT_AVAILABLE", `${name.slice(0, 80)}: not available (no such file in the allowed directories)`);
+                    }
+                    return this.resolve(id, caller);
+                }
                 return {
                     policy: filePolicy,
                     source: null,

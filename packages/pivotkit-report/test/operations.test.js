@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Validator } from "@cfworker/json-schema";
 import { encode } from "pivotkit-core";
-import { OPERATIONS, OPERATION_ERRORS, OPERATION_NAMES, OperationError, VIEW_GUIDE, exampleViews, findingOf } from "pivotkit-report/operations";
+import { OPERATIONS, OPERATION_ERRORS, OPERATION_NAMES, OperationError, VIEW_GUIDE, checkInput, exampleViews, findingOf } from "pivotkit-report/operations";
 import { FIXED, HOSTILE, SALES, echarts } from "./fixtures.js";
 
 const ORDERS = SALES.map((r) => ({ ...r, Sales: r.Units * r.Price, OrderDate: r.Date }));
@@ -46,6 +46,11 @@ test("the view guide's examples and the examples built from a source's fields ar
         assert.equal(result.valid, true, title);
     }
     assert.ok(exampleViews(encoded.schema.fields).length >= 3);
+    // an identifier is counted, never summed: the examples take another number field, or count
+    const ids = exampleViews([{ name: "Region", type: "string" }, { name: "OrderID", type: "number" }, { name: "Order No", type: "number" }, { name: "Sales", type: "number" }]);
+    assert.deepEqual(ids[0].view.values, [{ field: "Sales", agg: "sum" }]);
+    assert.deepEqual(exampleViews([{ name: "Region", type: "string" }, { name: "customer_id", type: "number" }])[0].view.values, [{ agg: "count" }]);
+    assert.deepEqual(exampleViews([{ name: "Region", type: "string" }, { name: "Paid", type: "number" }])[0].view.values, [{ field: "Paid", agg: "sum" }]);
     assert.deepEqual(exampleViews([]), []);
     // the guide names every filter type and grouping the engine knows
     for (const word of [...VIEW_GUIDE.catalog.filterTypes, "yearQuarter", "latest"]) {
@@ -58,7 +63,8 @@ test("validate_view: a misspelt field is an error with the name meant; the field
     conforms("validate_view", result);
     assert.equal(result.valid, false);
     assert.deepEqual(result.findings.map((f) => [f.code, f.path, f.suggestion]), [["unknownField", "rows[0]", "Region"]]);
-    assert.deepEqual(result.uses, ["Regoin", "Sales"]);
+    // the fields as the data spells them: a name the data does not have is no use
+    assert.deepEqual(result.uses, ["Sales"]);
     const broken = await OPERATIONS.validate_view.run({ source: "sales", view: "{ not json" }, env);
     assert.deepEqual(broken.result.findings.map((f) => f.code), ["viewFile"]);
     await assert.rejects(OPERATIONS.validate_view.run({ source: "sales", view: { rows: ["x".repeat(1_000_001)] } }, env), (e) => e instanceof OperationError && e.code === "LIMIT_EXCEEDED" && e.status === 413);
@@ -147,4 +153,25 @@ test("findings carry no control or direction characters and are capped; every er
         assert.ok(Number.isInteger(status) && status >= 400 && status < 600, code);
         assert.equal(new OperationError(/** @type {any} */ (code), "m").status, status);
     }
+});
+
+test("every run checks its input against its schema first: a front end without a validator gets INVALID_INPUT with the place, never a TypeError", async () => {
+    const draft = { source: "sales", view: VIEW_GUIDE.examples[0].view, name: "x", formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Team"] };
+    const cases = [
+        ["draft_schedule", { ...draft, recipients: undefined }, /input needs recipients/],
+        ["draft_schedule", { ...draft, recipients: [] }, /input.recipients must have at least 1 items/],
+        ["draft_schedule", { ...draft, every: { unit: "day", at: "7am" } }, /input.every.at is not in the expected form/],
+        ["draft_schedule", { ...draft, formats: ["xlsx", "xlsx"] }, /input.formats must not repeat/],
+        ["render_view", { source: "sales", view: {}, format: "pdf" }, /input.format must be one of/],
+        ["render_view", { source: "sales", view: {}, path: "/etc/passwd" }, /input has no key "path"/],
+        ["validate_view", { view: {} }, /input needs source/],
+        ["validate_view", { source: "", view: {} }, /input.source must have at least 1 characters/],
+        ["describe_source", { source: "sales", items: 1.5 }, /input.items must be integer/],
+        ["validate_view", null, /input must be object/]
+    ];
+    for (const [name, input, message] of cases) {
+        await assert.rejects(OPERATIONS[name].run(/** @type {any} */ (input), env), (e) => e instanceof OperationError && e.code === "INVALID_INPUT" && message.test(e.message), `${name} ${message}`);
+    }
+    assert.ok(Object.isFrozen(OPERATIONS.render_view));
+    assert.doesNotThrow(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv" }));
 });

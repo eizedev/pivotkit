@@ -496,7 +496,7 @@ async function validateCommand(positionals, values, ctx) {
     if (!data && fields === null) {
         throw new CliError("usage", "MISSING_DATA", "validate needs data (--data) or a view file that lists its fields (source.fields)");
     }
-    const { result } = await runOperation("validate_view", { source: data?.name ?? "", view: view.view }, operationEnv(ctx, data, fields));
+    const { result } = await runOperation("validate_view", { source: data?.name || "view file", view: view.view }, operationEnv(ctx, data, fields));
     const { findings, ...extra } = result;
     return { findings, extra };
 }
@@ -539,7 +539,7 @@ async function describeCommand(positionals, values, ctx) {
         if (!data && fields === null) {
             throw new CliError("usage", "MISSING_DATA", "describing a view needs its data (--data) or a view file that lists its fields (source.fields)");
         }
-        const { result } = await runOperation("describe_view", { source: data?.name ?? "", view }, operationEnv(ctx, data, fields));
+        const { result } = await runOperation("describe_view", { source: data?.name || "view file", view }, operationEnv(ctx, data, fields));
         const { findings, ...extra } = result;
         if (!values.json && result.description) {
             ctx.io.stdout.write(`${printable(result.name || "view")}: ${printable(result.description.text)}\n`);

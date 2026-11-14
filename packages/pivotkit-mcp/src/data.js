@@ -49,8 +49,8 @@ function withoutHidden(table, hide) {
     return { columns: keep.map((i) => table.columns[i]), types: keep.map((i) => table.types[i]), data: keep.map((i) => table.data[i]) };
 }
 
-/** Reader notes without a hidden column's name: such a note keeps its code only. */
-const cleanNotes = (notes, hide) => notes.map((n) => (hide.some((h) => n.message.toLowerCase().includes(h)) ? { severity: n.severity, code: n.code, path: "", message: n.code } : n));
+/** Reader notes without those about a hidden column: nothing about it reaches the model. */
+const cleanNotes = (notes, hide) => notes.filter((n) => !hide.some((h) => n.message.toLowerCase().includes(h)));
 
 /** Keeps a data set, the oldest going first. */
 function remember(key, value) {
@@ -69,6 +69,11 @@ export function asOperationError(error, name) {
     }
     if (error instanceof PivotkitError) {
         const code = error.code === "LIMIT_EXCEEDED" ? "LIMIT_EXCEEDED" : error.code === "INVALID_FILE" ? "INVALID_FILE" : error.code === "INVALID_TEMPLATE" ? "INVALID_TEMPLATE" : "INTERNAL";
+        if (code === "INVALID_FILE") {
+            // a reader's message can quote the file (a JSON parser's snippet): the reason's code only
+            const reason = typeof error.details?.reason === "string" ? error.details.reason : "INVALID_FILE";
+            return new OperationError(code, `${basename(String(name ?? "file"))}: cannot be read (${reason})`);
+        }
         return new OperationError(code, code === "INTERNAL" ? "internal error" : String(error.message).slice(0, 300));
     }
     const cli = asCliError(error, name);
@@ -85,13 +90,15 @@ export function asOperationError(error, name) {
  * @returns {Promise<import("pivotkit-report/operations").SourceData>}
  */
 export async function fileData(spec) {
+    // an operator's source is named by its id or title, never by its file: the path is the operator's
+    const label = spec.kind === "source" ? spec.name : basename(spec.path ?? "");
     const format = extname(spec.path ?? "").slice(1).toLowerCase();
     if (!FORMATS.has(format)) {
-        throw new OperationError("UNSUPPORTED_FORMAT", `${basename(spec.path ?? "")}: pivotkit reads csv, tsv, txt, json and xlsx files`);
+        throw new OperationError("UNSUPPORTED_FORMAT", `${label}: pivotkit reads csv, tsv, txt, json and xlsx files`);
     }
     try {
         const info = await stat(/** @type {string} */ (spec.path));
-        const key = JSON.stringify([spec.path, info.dev, info.ino, info.size, info.mtimeMs, spec.sheet ?? null, spec.levels, spec.timeZone ?? null, spec.limits]);
+        const key = JSON.stringify([spec.path, info.dev, info.ino, info.size, info.mtimeMs, spec.sheet ?? null, spec.levels, spec.timeZone ?? null, spec.limits, spec.hardLinks ?? true]);
         // the cache keeps what the file gives; what the source says about it (its name, whether it may be
         // scheduled) is added on every call, since one file can be a source and a file: at once
         const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
@@ -99,12 +106,17 @@ export async function fileData(spec) {
             return of(remember(key, cache.get(key)));
         }
         const bytes = await readSafe(/** @type {string} */ (spec.path), { cwd: "/", allow: spec.allow ?? [], maxBytes: spec.limits.fileBytes ?? 52_428_800, hardLinks: spec.hardLinks ?? true });
-        const { table, notes } = await readTable(bytes, basename(/** @type {string} */ (spec.path)), { ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
+        const { table, notes } = await readTable(bytes, label, { format, ...(spec.sheet ? { sheet: spec.sheet } : {}), ...(spec.timeZone ? { timeZone: spec.timeZone } : {}), limits: spec.limits });
         const hide = hiddenOf(spec.levels, table.columns);
         const data = encode(withoutHidden(table, hide), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
         return of(remember(key, { data, notes: cleanNotes(notes, hide), hidden: hide.length }));
     } catch (e) {
-        throw asOperationError(e, spec.path);
+        const error = asOperationError(e, spec.path);
+        if (spec.kind !== "source") {
+            throw error;
+        }
+        // the operator's file name stays on the server: the message names the source
+        throw error.code === "FILE_NOT_AVAILABLE" ? new OperationError("FILE_NOT_AVAILABLE", `the source ${spec.name} is not available now; tell the operator`) : new OperationError(/** @type {any} */ (error.code), error.message.split(basename(spec.path ?? "")).join(spec.name));
     }
 }
 
@@ -115,7 +127,7 @@ export async function fileData(spec) {
  */
 export async function codeData(spec, source) {
     const version = source.version ? source.version() : null;
-    const key = version === null ? null : JSON.stringify(["code", spec.id, version, spec.levels, spec.timeZone ?? null]);
+    const key = version === null ? null : JSON.stringify(["code", spec.id, version, spec.levels, spec.timeZone ?? null, spec.limits]);
     const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
     if (key && cache.has(key)) {
         return of(remember(key, cache.get(key)));

@@ -25,7 +25,7 @@ export const FLAGS = Object.freeze({
     "allow-host": { type: "string", multiple: true, value: "name", text: "HTTP: a host name clients use (besides localhost and the public URL's)." },
     "allow-origin": { type: "string", multiple: true, value: "name", text: "HTTP: a browser origin's host name allowed to call (none by default)." },
     log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
-    "check-config": { type: "boolean", text: "Print what the server would expose and exit." },
+    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing)." },
     version: { type: "boolean", short: "v", text: "Print the version and exit." },
     help: { type: "boolean", short: "h", text: "Print this help and exit." }
 });
@@ -108,21 +108,29 @@ export async function run(argv, io) {
         const { options, values } = await optionsFrom(argv, io.env);
         if (values["check-config"]) {
             const { checkConfig } = await import("./check.js");
-            io.stdout.write(await checkConfig(options, { http: Boolean(values.http), env: io.env }));
-            return 0;
+            const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env });
+            io.stdout.write(text);
+            return problems ? 1 : 0;
         }
         if (values.http) {
             const { listen } = await import("./http.js");
             const server = await listen(options, { env: io.env, stderr: io.stderr });
             const stop = async () => {
-                await server.close();
-                process.exit(0);
+                try {
+                    await server.close();
+                } finally {
+                    process.exit(0);
+                }
             };
             process.once("SIGINT", stop);
             process.once("SIGTERM", stop);
             return null;
         }
         const context = await createMcpContext(options, { showPaths: true, stderr: io.stderr });
+        if ((options.auth?.mode ?? "none") !== "none" || options.http?.host || options.http?.port) {
+            // stdio takes no credentials and listens nowhere (the authorization spec: from the environment)
+            context.log.warn("auth and http settings do nothing over stdio; add --http to serve HTTP");
+        }
         const { serveStdio } = await import("@modelcontextprotocol/server/stdio");
         context.log.info("started", { version: VERSION, transport: "stdio", sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output) });
         serveStdio((ctx) => context.server(ctx), { legacy: "serve", onerror: (e) => context.log.error(e, { where: "stdio" }) });

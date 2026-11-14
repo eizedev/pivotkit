@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import { realpath, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
+import { isInside } from "pivotkit-cli/files";
 import { ConfigError, pathOf, validateOptions } from "./config.js";
 import { createComputer } from "./compute.js";
 import { createLog } from "./log.js";
@@ -52,6 +53,10 @@ export async function createMcpContext(options, runtime = {}) {
         const dir = await realpath(pathOf(options, options.output.dir)).catch(() => null);
         if (!dir || !(await stat(dir)).isDirectory()) {
             throw new ConfigError("output.dir: not found or not a directory (create it first)");
+        }
+        // a directory the model may read files from must not hold what it may not see: the results
+        if (registry.allow.some((allowed) => isInside(dir, allowed) || isInside(allowed, dir))) {
+            throw new ConfigError("output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them");
         }
         output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? 1000, showPath: runtime.showPaths ?? false };
     }
@@ -102,8 +107,12 @@ export async function createMcpContext(options, runtime = {}) {
  * @returns {import("./registry.js").Caller}
  */
 export function callerOf(mode, authInfo) {
-    if (mode === "none" || !authInfo) {
+    if (mode === "none") {
         return { scopes: null, client: "local" };
+    }
+    if (!authInfo) {
+        // a request that reached a tool without a verified token holds no scope: closed, not open
+        return { scopes: new Set(), client: "unknown" };
     }
     if (authInfo.extra?.allScopes) {
         return { scopes: null, client: String(authInfo.clientId ?? "token") };

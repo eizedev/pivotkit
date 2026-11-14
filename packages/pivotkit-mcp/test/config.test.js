@@ -38,12 +38,19 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     const options = await loadConfig(join(dir, "pivotkit-mcp.json"));
     assert.equal(options.baseDir, dir);
     const other = workspace();
-    const check = runner(["--config", join(dir, "pivotkit-mcp.json"), "--source", "more=data/sales.csv", "--allow-dir", "data", "--check-config"], other);
-    assert.equal(check.status, 0, check.stderr);
+    const check = runner(["--config", join(dir, "pivotkit-mcp.json"), "--source", "more=data/none.csv", "--allow-dir", "data", "--check-config"], other);
+    assert.equal(check.status, 1, "a missing file is a problem: exit 1");
+    assert.match(check.stdout, /1 problem: see NOT FOUND above/);
     assert.match(check.stdout, /sales: .*data\/sales\.csv\n {4}fields: summary by default; region show, customer hide/);
-    assert.match(check.stdout, /more: .*sales\.csv {2}\(NOT FOUND\)|more: .*sales\.csv\n/);
+    assert.match(check.stdout, /more: .*none\.csv {2}\(NOT FOUND\)/);
     assert.match(check.stdout, /Files by path: allowed in .*data/);
-    assert.match(check.stdout, /Output: out/);
+    assert.match(check.stdout, /Output: out\n/);
+    const ok = runner(["--config", join(dir, "pivotkit-mcp.json"), "--check-config"], other);
+    assert.equal(ok.status, 0, ok.stdout);
+    writeFileSync(join(dir, "bad-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope" } }));
+    const noOut = runner(["--config", join(dir, "bad-out.json"), "--check-config"], other);
+    assert.equal(noOut.status, 1);
+    assert.match(noOut.stdout, /Output: nope {2}\(NOT FOUND: create the directory first\)/);
 });
 
 test("the runner's usage errors exit 2 with a hint; --help and --version exit 0", () => {
