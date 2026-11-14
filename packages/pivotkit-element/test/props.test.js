@@ -37,6 +37,11 @@ test("drill-down is on unless it says false; save-templates is a boolean attribu
     assert.equal(fromAttribute(def("drill-down"), "FALSE"), false);
     assert.equal(toAttribute(def("drill-down"), false), "false");
     assert.equal(toAttribute(def("drill-down"), true), null);
+    // the source data in the Export menu: off unless the page sets the boolean attribute
+    assert.equal(fromAttribute(def("export-data"), null), false);
+    assert.equal(fromAttribute(def("export-data"), ""), true);
+    assert.equal(toAttribute(def("export-data"), true), "");
+    assert.equal(toAttribute(def("export-data"), false), null);
     assert.equal(fromAttribute(def("save-templates"), ""), true);
     assert.equal(fromAttribute(def("save-templates"), null), false);
     assert.equal(toAttribute(def("save-templates"), true), "");

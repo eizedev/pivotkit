@@ -6,6 +6,16 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- `export-data` (boolean attribute) and the `exportData` property: pivotkit-react's Export → Source
+  data, every row of the data as a CSV or JSON file; `pivot-export` kinds `"data-csv"`, `"data-json"`.
+  Off by default.
+
+### Changed
+
+- Export → **CSV file (.csv)** is called **Table as CSV (.csv)**, as in pivotkit-react.
+
 ### Fixed
 
 - The element bundles pivotkit-react's fix of a rule on the name whose text is emptied: the rule

@@ -216,6 +216,33 @@ test.describe("two elements on one page", () => {
         await expect(tickets.getByTestId("saved-view-name")).toHaveCount(0);
     });
 
+    test("export-data: off by default; set, the Export menu's Source data goes through pivot-export with every row", async ({ page }) => {
+        await page.goto("pages/element-two.html");
+        const sales = page.locator("#sales");
+        await sales.getByTestId("export").click();
+        await expect(sales.getByTestId("export-xlsx")).toBeVisible();
+        await expect(sales.getByTestId("export-data-csv")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        // the boolean attribute, as a page writes it
+        await page.evaluate(() => document.getElementById("sales").setAttribute("export-data", ""));
+        expect(await sales.evaluate((el) => el.exportData)).toBe(true);
+        await sales.getByTestId("export").click();
+        const [download] = await Promise.all([page.waitForEvent("download"), sales.getByTestId("export-data-csv").click()]);
+        expect(download.suggestedFilename()).toBe("pivot-data.csv");
+        const event = (await events(page, "pivot-export")).at(-1);
+        expect(event.detail.kind).toBe("data-csv");
+        const text = await readFile(await download.path(), "utf8");
+        // a byte order mark, the fields' own names, the 2,000 rows of the page's data
+        expect(text.slice(0, 1)).toBe("\uFEFF");
+        expect(text.split("\r\n")[0].slice(1)).toBe("Region,Country,Product,Category,Channel,Month,Units,Revenue,Discount");
+        expect(text.trimEnd().split("\r\n")).toHaveLength(2001);
+        // the property off again: the group goes
+        await page.evaluate(() => (document.getElementById("sales").exportData = false));
+        await sales.getByTestId("export").click();
+        await expect(sales.getByTestId("export-xlsx")).toBeVisible();
+        await expect(sales.getByTestId("export-data-csv")).toHaveCount(0);
+    });
+
     test("export: the page sees every file; preventDefault() keeps it from the download", async ({ page }) => {
         await page.goto("pages/element-two.html");
         const sales = page.locator("#sales");

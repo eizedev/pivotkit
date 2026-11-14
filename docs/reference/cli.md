@@ -11,11 +11,54 @@ views in a pipeline before they go live, and describes views and data. It needs 
 
 ```bash
 npm install --global pivotkit-cli     # or: npx pivotkit-cli <command>
-pivotkit render sales.pivot.json --data sales.csv -o sales.html --now 2026-11-13
+pivotkit example                      # writes sales.csv and two views into this directory
+pivotkit render sales.pivotkit.json --data sales.csv -o sales.html --now 2026-11-13
 ```
 
 Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-xlsx and ECharts
 6.1.0.
+
+## Try it { #try-it }
+
+`pivotkit example` writes the default example, `sales`, into the current directory, says what each
+file is and what to run next; `pivotkit example weather` writes the other one, `pivotkit example
+--list` names them all and writes nothing. It never writes over a file: when one of its files is
+there, it writes nothing (exit 2, `EXISTS`); each file is linked into place, so one that appears
+while it writes is not replaced either.
+
+```text
+$ pivotkit example
+Wrote 3 files into this directory:
+  sales.csv                  the data: 2,000 rows of generated sales, as the report's Export → Source data writes it
+  sales.pivotkit.json        a view: Revenue by region and category (a table)
+  sales-chart.pivotkit.json  a view: Monthly revenue trend (a line chart)
+Next:
+  pivotkit render sales.pivotkit.json --data sales.csv -o sales.html    (an HTML report: open it in a browser)
+  pivotkit validate sales-chart.pivotkit.json --data sales.csv --strict
+  pivotkit describe sales.csv
+Other examples: pivotkit example weather
+```
+
+
+| Example | Files | What |
+| --- | --- | --- |
+| `sales` | `sales.csv`, `sales.pivotkit.json`, `sales-chart.pivotkit.json` | Generated sales, 2,000 rows: revenue by region and category, and a monthly chart. |
+| `weather` | `weather.csv`, `weather.pivotkit.json`, `weather-SOURCE.txt` | Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month, the playground's start. Weather data by [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0: `weather-SOURCE.txt` holds the attribution and the changes made; keep it with the data. |
+
+The same files are on this site: [sales.csv](../assets/examples/sales.csv),
+[sales.pivotkit.json](../assets/examples/sales.pivotkit.json),
+[sales-chart.pivotkit.json](../assets/examples/sales-chart.pivotkit.json),
+[weather.csv](../assets/examples/weather.csv),
+[weather.pivotkit.json](../assets/examples/weather.pivotkit.json),
+[weather-SOURCE.txt](../assets/examples/weather-SOURCE.txt). They are the playground's data and
+its start views as the report downloads them, so the HTML report shows what the
+[playground](../demo.md) shows.
+
+Your own report: in the report, **Views**, **Download view** gives the view file, and **Export**,
+**Source data**, **All rows as CSV** the data it was made on (where the application turns it on; the
+playground does). `pivotkit render <name>.pivotkit.json --data <name>-data.csv -o report.html` makes
+the report again. The table's own CSV (**Export**, **Table as CSV**) is the result, not the data: a
+view does not apply to it.
 
 ## Commands
 
@@ -24,6 +67,7 @@ Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotki
 | `pivotkit render <view> --data <file> [-o <file>]` | Runs the view over the data and writes an HTML report, CSV, JSON, XLSX or SVG. |
 | `pivotkit validate <view> [--data <file>]` | Checks the view against the data, or against the fields its view file lists (`source.fields`). |
 | `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields. |
+| `pivotkit example [name] [--list]` | Writes an example's data and views into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
 | `pivotkit help [command]`, `-h`, `--version` | Help; the versions of pivotkit-cli, pivotkit-report and pivotkit-core. |
 
@@ -100,6 +144,20 @@ pipeline log or a language model reading it needs the names and types more often
 For a view: one sentence of what it shows and filters, and its findings; it needs the data (or a view
 file with `source.fields`) to check the fields.
 
+## Types from the view file { #types-from-the-view-file }
+
+A CSV says nothing about types: the reader infers them ([what is read](import.md)), so a column of
+text such as `1e3`, `12` or `true` is read as a number or a boolean. A view file written by the report
+lists the fields it uses with their types (`source.fields`); `render`, `validate` and `describe` read
+such a column as that type, and say so in `--json` (an `info` finding `typeFromView`). A type that a
+value of the column does not fit is not applied (a view file made for other data never blanks a
+column): the column stays as read, with the warning `typeFromViewFailed` naming the value and its row
+(a finding with `--strict`). What a CSV cannot carry stays different from the data the view was made
+on: a row without any value is skipped, text is trimmed and its line breaks read as spaces, and text
+a spreadsheet would run as a formula carries the leading `'` the report wrote; the JSON of Source data
+keeps all of it. The files hold wall-clock dates without a time zone: give `--time-zone` and `--now`
+for a report that is the same on every run.
+
 ## Files
 
 - A file is opened once, as a **regular file** only (a FIFO, a directory or a device is refused, and
@@ -129,6 +187,8 @@ file with `source.fields`) to check the fields.
   a container, where that matters.
 - **Messages** name a file by its base name and never print a file's content; names and messages
   from a view or the data are cleaned of control characters and cut at 200 characters.
+- **`pivotkit example`** writes its files the same way, in the current directory, after checking that
+  none of them is there yet (one that is: nothing is written, exit 2, `EXISTS`); `--allow-dir` holds.
 - Templates and file paths come only from the person running the command; a server built on the
   same code (MCP, REST) never takes them from a caller.
 

@@ -117,6 +117,24 @@ test("Export → Copy table and Copy data as JSON go to the host's onExport firs
     assert.deepEqual(refused, [[en.toastCopyBlocked, { tone: "error" }]]);
 });
 
+test("Export → Source data: only with exportData; then every row through onExport as <fileName>-data", async () => {
+    await loadExporters();
+    const files = [];
+    const said = [];
+    const base = { fileName: "sales", result, encoded, locale: "en-US", labels: LABELS.en, limits: undefined, root: { current: null }, chartRef: { current: null }, announce: (t) => said.push(t), onExport: (f) => (files.push(f), false) };
+    // off (the default): nothing is built, onExport is not called, nothing is said
+    await runExport("data-csv", base);
+    await runExport("data-json", { ...base, exportData: false });
+    assert.deepEqual(files, []);
+    assert.deepEqual(said, []);
+    await runExport("data-csv", { ...base, exportData: true });
+    await runExport("data-json", { ...base, exportData: true });
+    assert.deepEqual(files.map((f) => [f.kind, f.fileName]), [["data-csv", "sales-data.csv"], ["data-json", "sales-data.json"]]);
+    const csv = new TextDecoder("utf-8", { ignoreBOM: true }).decode(await files[0].blob.arrayBuffer());
+    assert.equal(csv, "\uFEFFRegion,Month,Units,Note,Paid\r\nCentral,2026-07-01,1234.5,'=cmd(),true\r\nCentral,2026-07-01,2,plain,false\r\nNorth,2026-08-01,3,,true\r\n");
+    assert.equal(JSON.parse(await files[1].blob.text()).length, 3);
+});
+
 test("the menus' export texts exist in English and German, distinct from the view's copy", () => {
     for (const labels of [en, de]) {
         for (const key of ["copyTable", "copyDataJson", "drillCopy", "drillJson", "drillCsv", "drillXlsx", "drillPart", "drillCopied", "drillCopiedJson", "drillExported", "drillExportNote", "exportDownload", "exportCopy"]) {

@@ -1,0 +1,15 @@
+weather.csv: daily weather of 14 cities, 2023-01-01 to 2025-12-31, fetched on 2026-11-07.
+
+Source: Open-Meteo Historical Weather API, https://open-meteo.com/ ("best match": ECMWF IFS, ERA5, ERA5-Land)
+Licence: CC BY 4.0, https://creativecommons.org/licenses/by/4.0/
+Attribution: Weather data by Open-Meteo.com. Contains modified Copernicus Climate Change Service
+information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data. Neither the European Commission
+nor ECMWF is responsible for any use that may be made of the Copernicus information or data it
+contains.
+
+Changes made: the five daily variables of 14 cities in each city's time zone; sunshine converted from
+seconds to hours (one decimal); added: city, country, continent, the meteorological season (swapped
+south of the equator) and "Rain day" (1 for at least 1 mm of rain).
+
+How it was fetched and mapped: https://github.com/eizedev/pivotkit/blob/main/examples/playground/data/SOURCES.md
+Share the data with this attribution and licence.

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://pivotkit.eize.dev/schema/view-file-2.json",
+  "format": "pivotkit-view",
+  "formatVersion": 2,
+  "name": "How warm is each city, month by month?",
+  "description": "Weather data by Open-Meteo.com (https://open-meteo.com/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data.",
+  "source": {
+    "id": "weather",
+    "name": "Weather of 14 cities, 2023-2025",
+    "fields": [
+      {
+        "name": "City",
+        "type": "string"
+      },
+      {
+        "name": "Date",
+        "type": "date"
+      },
+      {
+        "name": "Mean °C",
+        "type": "number"
+      }
+    ]
+  },
+  "extensions": {},
+  "view": {
+    "version": 2,
+    "rows": [
+      "City"
+    ],
+    "cols": [
+      "Date by month of year"
+    ],
+    "values": [
+      {
+        "field": "Mean °C",
+        "agg": "average",
+        "format": "number:1",
+        "label": null,
+        "showAs": null,
+        "conditional": {
+          "type": "colorScale",
+          "colors": [
+            "#5a8dee",
+            "#f4f4f4",
+            "#e8554e"
+          ]
+        }
+      }
+    ],
+    "filters": [],
+    "derived": [
+      {
+        "name": "Date by month of year",
+        "field": "Date",
+        "by": "month"
+      }
+    ],
+    "sort": [],
+    "totals": {
+      "grandTotalRow": false,
+      "grandTotalColumn": true,
+      "rowSubtotals": true,
+      "colSubtotals": false
+    },
+    "collapsed": {
+      "rows": [],
+      "cols": []
+    },
+    "display": "table",
+    "chart": {
+      "type": "auto",
+      "stacked": false,
+      "horizontal": false,
+      "valueLabels": "auto",
+      "legend": "auto",
+      "title": null,
+      "smooth": false,
+      "axisLabels": "auto",
+      "groupLabels": "auto",
+      "labelPosition": "outside"
+    },
+    "formatting": {
+      "locale": null,
+      "timeZone": null,
+      "weekStart": 1
+    }
+  }
+}

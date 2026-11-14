@@ -640,7 +640,7 @@ test.describe("menus in levels", () => {
         await expect(page.locator(".pk-popover")).toHaveCount(0);
         await page.getByTestId("export").click();
         await expect(page.getByTestId("setting-info-exportCsv")).toBeVisible();
-        await expect(page.getByTestId("export-csv")).toHaveText("CSV file (.csv)");
+        await expect(page.getByTestId("export-csv")).toHaveText("Table as CSV (.csv)");
         // the image needs the chart: disabled, with the reason
         await expect(page.getByTestId("export-png")).toBeDisabled();
         await expect(page.getByTestId("export-png")).toContainText("Switch to Chart first.");

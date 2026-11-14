@@ -6,6 +6,20 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- `exportData` (default `false`): the Export menu's last group **Source data** with **All rows as CSV
+  (.csv)** and **All rows as JSON (.json)**: every row of the data shown, every column except derived
+  fields, under the fields' own names, values not formatted (`<fileName>-data.csv`,
+  `<fileName>-data.json`; `onExport` kinds `"data-csv"`, `"data-json"`). With the view file of
+  Download view, `pivotkit render` makes the report again. It holds what the report holds, also
+  columns no view places, so it is off unless the host turns it on (docs/security.md, "Source data").
+
+### Changed
+
+- Export → **CSV file (.csv)** is called **Table as CSV (.csv)** (German **Tabelle als CSV (.csv)**),
+  and its "i" says it is the table, not the rows behind it; its `kind` stays `"csv"`.
+
 ### Fixed
 
 - A rule on the name whose text is emptied (select all and delete, the field's ×, or only spaces)

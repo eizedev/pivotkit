@@ -27,6 +27,22 @@ memory, not who sees them.
 - A shared view holds the values chosen in its filters, so a view can show a value to someone who
   could not see the rows ([Privacy](reference/view-file.md#privacy)).
 
+### Source data { #source-data }
+
+Export → **Source data** (`exportData`, `export-data`; off by default) downloads every row and every
+column of the data the report holds, as CSV or JSON: also the columns no view places, the rows the
+report's filters leave out, and a field the host only relabels or describes (`fieldDefaults` changes
+how a field is shown, not whether it is there). It makes one click of what the browser's developer
+tools already reach, so turn it on only where the viewer may take every row home, and keep rows
+the viewer must not have off the page (aggregate on your server). The drill-down hands out rows too:
+up to `drillDownLimit` rows behind a value (the grand total's are every row), with every column, in
+its panel, its exports and `onCellClick`; turn it off with `drillDown={false}` where rows must stay
+in. `onExport` (the element's `pivot-export`) sees the file first (`kind` `"data-csv"` or
+`"data-json"`) and can log it, upload it or refuse it (`false`); it is a hook for your own code, not a
+barrier against a person with developer tools. Nothing is stored or sent: the file is made in the
+browser. Its size counts against `limits.cells` (rows times fields, default 2,000,000), checked before
+the file is built; the browser holds a few times the file's size while it is made.
+
 ## Views are untrusted input
 
 - A view holds **names only**, and in its filters the values chosen there (plain values of the data,
@@ -89,6 +105,10 @@ reference depth and the number of schema objects it reads.
   number range such as the bin label `-10 – 0`. Characters that change the direction of text
   (U+061C, U+200E, U+200F, U+202A to U+202E, U+2066 to U+2069) are left out, as the import leaves them
   out, so a name cannot read as another one and no formula hides behind one.
+- **Source data as CSV**: the same guard on every value and on the field names of its header, so
+  a field named `=x` is written `'=x` and a script reading the file gets that name; **as JSON**:
+  every text and name as it is (no guard, no bidi controls removed: JSON is read by programs,
+  not run by a spreadsheet; a program that turns it into CSV applies its own guard).
 - **Copies** (Copy table, the drill-down's Copy): the same guard on every cell, since a spreadsheet
   runs a pasted formula too. Copy as JSON writes values, never markup or code.
 - **XLSX**: text is written as inline strings, never as formulas, without bidi controls, as in the CSV. The XML is written by pivotkit-core
