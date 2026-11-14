@@ -181,7 +181,7 @@ export async function createRegistry(options) {
 
     /** The policy's levels as plain data for a worker (data.js drops the hidden columns). */
     function levelsOf(policy) {
-        return { default: policy.default, fields: Object.fromEntries(policy.fields) };
+        return { default: policy.default, fields: Object.fromEntries(policy.fields), counts: policy.counts, rows: policy.rows };
     }
 
     /** An operator's template file, read the safe way. */

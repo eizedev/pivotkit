@@ -29,6 +29,15 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- A render whose filters keep no rows has the warning `noRowsKept` when the view uses shown fields
+  only, as the command line has; for a view that touches a field whose values are not shown it stays
+  out, since it would tell whether an item exists ([#302](https://github.com/eizedev/pivotkit/issues/302),
+  [#290](https://github.com/eizedev/pivotkit/issues/290)).
+- `suggest_view` and a layout no longer read the counts or the span of a field that is not shown,
+  nor counts where the policy keeps them back: a date field there is grouped by quarter whatever its
+  span ([#296](https://github.com/eizedev/pivotkit/issues/296)).
+- The docs said a misspelt item of a shown field gets the item meant; only an item in another case
+  or with other spaces does ([#283](https://github.com/eizedev/pivotkit/issues/283)).
 - The file count of the output directory holds when many reports are written at once: writes into
   it run one at a time ([#269](https://github.com/eizedev/pivotkit/issues/269)).
 - An output directory the server cannot write is a problem in `check-config` and a warning at start,

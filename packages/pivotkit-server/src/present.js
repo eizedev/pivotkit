@@ -307,6 +307,23 @@ async function writeOutput(context, file, draft = false) {
     };
 }
 
+/**
+ * A render's findings with "the filters keep no rows" added where the data kept none, so a caller
+ * can tell why the report is empty (the command line says the same). Only for a view whose fields
+ * are all shown: for one that touches a field whose values are not shown it would tell whether an
+ * item of the filter exists, so it stays out (as itemCase and filterEmpty do).
+ * @param {any[]} findings
+ * @param {any} result  render_view's result
+ * @param {boolean} closed
+ */
+function withEmptyFilter(findings, result, closed) {
+    const s = result.summary;
+    if (closed || !s || !(s.sourceRows > 0) || s.keptRows !== 0 || findings.some((f) => f.severity === "error")) {
+        return findings;
+    }
+    return [...findings, { severity: "warning", code: "noRowsKept", path: "", message: "the filters keep none of the source's rows: check their items against the values the source describes" }];
+}
+
 /** Where the user finds a written file, in words. */
 const whereText = (output) => (output.url ? output.url : output.path ? output.path : `${output.name} in the output directory`);
 
@@ -373,7 +390,7 @@ const STEPS = {
         const { outcome } = await compute(context, "render_view", { ...args, format }, resolved);
         const { result, file } = outcome;
         const closed = touchesClosed(policy, result.uses);
-        const findings = exposeFindings(result.findings, policy, result.uses);
+        const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, closed);
         /** @type {Record<string, unknown>} */
         const out = { ok: result.ok, findings, uses: result.uses, ...(result.view ? { view: result.view } : {}), format: result.format, mediaType: result.mediaType };
         if (closed) {
@@ -458,6 +475,6 @@ export async function renderFile(context, input, caller) {
     const format = input.format ?? "xlsx";
     const { outcome } = await compute(context, "render_view", { ...input, format }, resolved);
     const { result, file } = outcome;
-    const findings = exposeFindings(result.findings, resolved.policy, result.uses);
+    const findings = withEmptyFilter(exposeFindings(result.findings, resolved.policy, result.uses), result, touchesClosed(resolved.policy, result.uses));
     return { result: { ok: result.ok, findings, uses: result.uses, format: result.format, mediaType: result.mediaType }, file: file ?? null };
 }

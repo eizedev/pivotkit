@@ -14,6 +14,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   ([#269](https://github.com/eizedev/pivotkit/issues/269), [#288](https://github.com/eizedev/pivotkit/issues/288),
   [#297](https://github.com/eizedev/pivotkit/issues/297), [#298](https://github.com/eizedev/pivotkit/issues/298)).
 
+### Fixed
+
+- `render_view` says `noRowsKept` when the filters of a view of shown fields keep no rows, and
+  `suggest_view` reads no counts or span the policy keeps back (pivotkit-server's,
+  [#302](https://github.com/eizedev/pivotkit/issues/302), [#296](https://github.com/eizedev/pivotkit/issues/296)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.

@@ -82,8 +82,10 @@ UTF-8 byte order mark, so a spreadsheet opens it as UTF-8.
 A csv or json result comes back inline (`inline.text`) only when the operator sets
 `rest.inline: true` and every field the view uses is shown. `withheld` lists what is left out of the
 answer because the view uses a field whose values the policy does not show. For such a view, the
-findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing)
-are left out too: a filter on an item that does not exist validates and renders an empty report.
+findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing,
+`noRowsKept`) are left out too: a filter on an item that does not exist validates and renders an
+empty report, and nothing says why, since saying so would tell that the item does not exist. For a
+view of shown fields only, a render whose filters keep no rows has the warning `noRowsKept`.
 
 ## Exposure policy and profiles { #profiles }
 

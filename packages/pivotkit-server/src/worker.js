@@ -10,6 +10,7 @@ import { parentPort } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
 import { readTable } from "pivotkit-cli/files";
 import { asOperationError, fileData } from "./data.js";
+import { draftingOf } from "./policy.js";
 
 /** ECharts, loaded on the first SVG or HTML report. */
 let echarts = null;
@@ -34,6 +35,7 @@ parentPort?.on("message", async (job) => {
             template: async () => template,
             ...(echarts ? { echarts } : {}),
             limits: spec.limits,
+            drafting: draftingOf(spec.levels),
             ...(locale ? { locale } : {}),
             ...(timeZone ? { timeZone } : {}),
             ...(now !== undefined ? { now } : {})

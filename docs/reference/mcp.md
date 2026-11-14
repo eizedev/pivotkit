@@ -74,8 +74,8 @@ server's `policy`; field names are matched without regard to case.
 
 | Level | describe_source shows | Findings | Results |
 | --- | --- | --- | --- |
-| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values (a misspelt item gets the item meant) | csv and json come back inline when they fit `inline` |
-| `summary` (default) | name, type, counts | names; no check of an item against the data | written to a file only; rows, columns and size withheld |
+| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values: an item in another case or with other spaces gets the data's spelling (`itemCase`), and a render whose filters keep no rows says so (`noRowsKept`); another misspelling gets no suggestion, only the empty result | csv and json come back inline when they fit `inline` |
+| `summary` (default) | name, type, counts | names; no check of an item against the data, and no word when a filter keeps no rows (it would tell whether an item exists): a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
 | `hide` | not listed; `hiddenFields` counts them | never named | the column is dropped when the data is read |
 
 | Key | Default | What it does |

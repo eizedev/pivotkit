@@ -30,7 +30,7 @@ export const POLICY_LEVELS = Object.freeze(/** @type {const} */ (["show", "summa
 export const NAME_TEXT = 80;
 
 /** Findings whose text or suggestion comes from the data's values, not from the view or the schema. */
-const DATA_FINDINGS = new Set(["itemCase", "filterEmpty", "chartCut", "tableCut"]);
+const DATA_FINDINGS = new Set(["itemCase", "filterEmpty", "noRowsKept", "chartCut", "tableCut"]);
 
 /**
  * @typedef {object} Policy
@@ -119,6 +119,29 @@ export function levelOf(policy, name) {
         return "hide";
     }
     return policy.default;
+}
+
+/** The grouping a draft gives a date field whose span is not shown: the same for every span. */
+export const CLOSED_DATE_GROUPING = "yearQuarter";
+
+/**
+ * What a draft (suggest_view, a layout) may read of a source's description under a policy's levels:
+ * a field that is not "show" keeps its name and type only (a date gets CLOSED_DATE_GROUPING instead
+ * of a grouping by its span), counts go where the policy keeps them back, the row count too.
+ * @param {{ default: string, fields: Record<string, string>, counts?: boolean, rows?: boolean }} levels
+ */
+export function draftingOf(levels) {
+    const policy = { default: levels.default, fields: new Map(Object.entries(levels.fields)) };
+    return (description) => ({
+        rows: levels.rows === false ? null : description.rows,
+        fields: description.fields.map((f) => {
+            if (levelOf(policy, f.name) !== "show") {
+                return { name: f.name, type: f.type, ...(f.type === "date" ? { by: CLOSED_DATE_GROUPING } : {}) };
+            }
+            const { distinct, blanks, ...rest } = f;
+            return levels.counts === false ? rest : { ...rest, distinct, blanks };
+        })
+    });
 }
 
 /** The names of a table's columns the policy hides (dropped before anything else sees the data). */
