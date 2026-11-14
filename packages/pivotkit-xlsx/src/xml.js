@@ -571,10 +571,16 @@ export function createSheetFilter(out, limits = {}) {
                 i = end;
                 continue;
             }
-            const tagEnd = buf.indexOf(0x3e, lt);
-            if (tagEnd === -1) {
+            // the row tag's end: its ">" outside quoted values (a quoted ">" or "/>" ends no tag)
+            const tagEnd = tagEndAt(buf, lt + 4, buf.length);
+            if (tagEnd === buf.length) {
                 i = lt;
                 break;
+            }
+            if (buf[tagEnd] === LT) {
+                // a "<" in a tag: no row the parser reads; left out
+                i = tagEnd;
+                continue;
             }
             const number = rowNumber(buf, lt, tagEnd);
             if (buf[tagEnd - 1] === 0x2f) {
