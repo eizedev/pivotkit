@@ -10,7 +10,9 @@
  * 2. It unpacks only the parts the chosen sheet needs, streaming, never beyond the size the directory
  *    states; it leaves out the sheet's rows without a value (the used range of formatted empty cells)
  *    and what follows them, cuts long runs of whitespace and refuses a text over 1 MiB or a tag over 256 KiB, which
- *    read-excel-file would parse in quadratic time (xml.js).
+ *    read-excel-file would parse in quadratic time; of the shared strings it keeps those up to the
+ *    highest one the sheet's cells name, and counts them and the formats against limits.importCells,
+ *    since the parser keeps an entry for each (xml.js).
  * 3. read-excel-file (MIT) parses those parts: shared strings, styles (a date is a number with a date
  *    format), the values Excel saved (never a formula). It gets them as a ZIP without compression,
  *    so it unpacks nothing itself and starts no worker: no `blob:` worker, which a strict
@@ -21,7 +23,7 @@
 
 import { bytesOf, cleanText, createTable, fileError, fileName, readOptions } from "pivotkit-core/import";
 import { readSheet } from "read-excel-file/universal";
-import { checkXml, createSheetFilter, createXmlCheck, createXmlGuard } from "./xml.js";
+import { checkXml, createEntryCount, createSheetFilter, createXmlCheck, createXmlGuard } from "./xml.js";
 import { createStoredZip, readDirectory, unpack, unpackStream } from "./zip.js";
 import { sharedParts, worksheets } from "./workbook.js";
 
@@ -157,8 +159,11 @@ export async function read(file, options) {
 
     const entry = entries.get(sheet.path);
     if (!entry) throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is missing; open the workbook in Excel and save it again.`);
+    if (sheet.path === shared.sharedStrings || sheet.path === shared.styles) {
+        throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is also named as the workbook's shared strings or styles; the workbook is refused.`);
+    }
     // shared strings and styles stream from the workbook into the ZIP below, never held whole
-    const streamed = [shared.sharedStrings, shared.styles].filter((path, k, all) => entries.has(path) && !parts.has(path) && all.indexOf(path) === k && path !== sheet.path);
+    const streamed = [shared.sharedStrings, shared.styles].filter((path, k, all) => entries.has(path) && !parts.has(path) && all.indexOf(path) === k);
     // read-excel-file reads the parts from a ZIP: one without compression, of only these parts, each
     // passed through createXmlGuard, with the sheet's rows without a value left out while it streams in
     // sized for the parts as the directory states them: the buffer never grows (no copy); what the
@@ -167,25 +172,11 @@ export async function read(file, options) {
     for (const [path, data] of parts) room += data.length + 2 * (76 + path.length);
     for (const path of streamed) room += /** @type {import("./zip.js").ZipEntry} */ (entries.get(path)).size + 2 * (76 + path.length);
     const zip = createStoredZip(room);
-    for (const [path, data] of parts) {
-        const part = zip.begin(path);
-        createXmlGuard(part, name, path).write(data);
-        part.end();
-    }
-    parts.clear();
-    for (const path of streamed) {
-        const part = zip.begin(path);
-        const guard = createXmlGuard(part, name, path);
-        const check = createXmlCheck(name, path);
-        await unpackStream(bytes, /** @type {import("./zip.js").ZipEntry} */ (entries.get(path)), name, (chunk) => {
-            check(chunk);
-            guard.write(chunk);
-        }, between);
-        part.end();
-    }
+    // the sheet first: the strings its cells name decide how many of the shared strings are kept
     const sheetPart = zip.begin(sheet.path);
     // a title block above the header may hold a few rows more than the table
-    const filter = createSheetFilter(createXmlGuard(sheetPart, name, sheet.path), { file: name, part: sheet.path, maxRow: o.limits.rows + 1_000, maxColumn: o.limits.columns, maxCells: o.limits.importCells + o.limits.columns * 1_000 });
+    const maxCells = o.limits.importCells + o.limits.columns * 1_000;
+    const filter = createSheetFilter(createXmlGuard(sheetPart, name, sheet.path), { file: name, part: sheet.path, maxRow: o.limits.rows + 1_000, maxColumn: o.limits.columns, maxCells });
     const check = createXmlCheck(name, sheet.path);
     let unpacked = 0;
     await unpackStream(bytes, entry, name, (chunk) => {
@@ -198,6 +189,31 @@ export async function read(file, options) {
     });
     const trimmed = filter.end();
     sheetPart.end();
+    // read-excel-file keeps an entry per string item and per format: counted against the cells a table
+    // may have, and only the strings up to the highest one a cell names go on
+    const counted = (path, out) =>
+        path === shared.sharedStrings || path === shared.styles
+            ? createEntryCount(out, { file: name, sharedStrings: path === shared.sharedStrings, styles: path === shared.styles, keep: trimmed.shared + 1, max: maxCells })
+            : { write: (/** @type {Uint8Array} */ data) => out.write(data), end() {} };
+    for (const [path, data] of parts) {
+        const part = zip.begin(path);
+        const out = counted(path, createXmlGuard(part, name, path));
+        out.write(data);
+        out.end();
+        part.end();
+    }
+    parts.clear();
+    for (const path of streamed) {
+        const part = zip.begin(path);
+        const out = counted(path, createXmlGuard(part, name, path));
+        const checkPart = createXmlCheck(name, path);
+        await unpackStream(bytes, /** @type {import("./zip.js").ZipEntry} */ (entries.get(path)), name, (chunk) => {
+            checkPart(chunk);
+            out.write(chunk);
+        }, between);
+        out.end();
+        part.end();
+    }
     let stored = zip.finish();
     signal?.throwIfAborted();
     o.onProgress?.({ phase: "parse", done: 0, total: trimmed.lastValueRow });

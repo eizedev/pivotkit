@@ -91,7 +91,10 @@ root `package.json`: `npm run types` and the builds depend on it.
   (imports nothing), `src/reader.js` the reader (`read`, `sheets`): its own checks before parsing
   (`zip.js`: the ZIP directory against `archiveEntries` and `unpackedBytes`, parts unpacked as a
   stream, never beyond their stated size; `xml.js`: no `<!DOCTYPE`/`<!ENTITY`, the sheet's rows
-  without a value and what follows `</sheetData>` left out while it streams, and `createXmlGuard` on
+  without a value and what follows `</sheetData>` left out while it streams (a comment, CDATA section
+  or processing instruction in a row skipped as the parser skips it), `createEntryCount`: the shared
+  strings past the highest one the sheet names left out, strings and formats counted against
+  `importCells` (the parser keeps an entry for each), and `createXmlGuard` on
   every part read-excel-file gets: whitespace runs cut to `SPACE_RUN`, a tag over `MAX_TAG` or
   another token over `MAX_TOKEN` refused, since read-excel-file re-reads an unfinished token with every piece it parses (quadratic
   time, a stack frame per piece); `workbook.js`: the sheets and their parts), then read-excel-file's

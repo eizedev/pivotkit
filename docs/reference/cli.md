@@ -379,9 +379,10 @@ for a report that is the same on every run.
   it is read; a view file has at most 4 MB, a template 1 MB.
 - **Workbooks you did not make**: by default a workbook may unpack to 500 MiB (`unpackedBytes`).
   Whitespace padding costs little (a 54 KB file padded to 50 MiB reads in about 0.4 s with about
-  200 MB), but content that is kept costs a few times its size: 100 MiB of shared strings took about
-  2.4 s and 660 MB (Node 26, Apple M4; approximate), 500 MiB would take gigabytes. For untrusted files
-  lower the limit to what your workbooks need and give the run a time limit:
+  200 MB), but content that is kept costs a few times its size: the shared strings and formats kept
+  count against `importCells`, and 11 million of them, under the defaults, took about 1 to 1.3 GB
+  (Node 26, Apple M4; approximate). For untrusted files lower the limits to what your workbooks need
+  and give the run a time limit:
   `timeout 60 pivotkit describe upload.xlsx --limit unpackedBytes=104857600` (`timeout` is GNU
   coreutils; `gtimeout` on macOS with Homebrew's coreutils). See
   [Untrusted workbooks](../security.md#untrusted-workbooks).

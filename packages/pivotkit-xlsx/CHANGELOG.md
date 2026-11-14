@@ -6,6 +6,21 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- A workbook of a few hundred kilobytes with millions of shared strings or cell formats made
+  read-excel-file keep an entry for each, bounded only by `limits.unpackedBytes`: 100 MiB of
+  one-letter shared strings took 2.4 s and about 570 MB, 100 MiB of `<xf/>` about 2.2 GB. Only the
+  shared strings up to the highest one a cell of the sheet names are now handed to the parser, and
+  the strings and formats kept count against `limits.importCells` (plus 1,000 rows for a title
+  block), refused with `LIMIT_EXCEEDED` while they are unpacked; the first case now takes 0.3 s and
+  about 120 MB ([#237](https://github.com/eizedev/pivotkit/issues/237)).
+- A comment, CDATA section or processing instruction inside a row with `</row>` in it no longer ends
+  the row early: the filter skips it as the parser does. Such a CDATA section made a readable sheet
+  fail with `DAMAGED` ([#238](https://github.com/eizedev/pivotkit/issues/238)).
+- A workbook whose relationships name the sheet itself as its shared strings or styles is refused as
+  `DAMAGED`.
+
 ## [0.3.0] - 2026-11-14
 
 ### Changed

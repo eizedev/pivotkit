@@ -13,6 +13,8 @@
  *   for the root's end tag, is left out too: read-excel-file reads nothing there.
  * - `createXmlGuard`: whitespace runs cut and over-long tokens refused, so read-excel-file's parser
  *   gets no token that costs it quadratic time.
+ * - `createEntryCount`: the shared strings and formats counted, and the shared strings the sheet does
+ *   not name left out, so a small file cannot make the parser keep millions of entries.
  *
  * Not part of the public API.
  */
@@ -322,16 +324,17 @@ export function createXmlGuard(out, file, part) {
 }
 
 /**
- * Where the value of the attribute `r` of the tag in buf[from, stop) starts, or -1: after whitespace,
- * with whitespace around "=" and either quote, as an XML parser reads it; quoted values are skipped.
+ * Where the value of the attribute `name` (one letter: `r`, `t`) of the tag in buf[from, stop) starts,
+ * or -1: after whitespace, with whitespace around "=" and either quote, as an XML parser reads it;
+ * quoted values are skipped.
  */
-function refAt(buf, from, stop) {
+function attrAt(buf, from, stop, name) {
     for (let k = from; k < stop; k++) {
         const b = buf[k];
         if (b === 0x22 || b === 0x27) {
             k++;
             while (k < stop && buf[k] !== b) k++;
-        } else if (isSpace(b) && buf[k + 1] === 0x72) {
+        } else if (isSpace(b) && buf[k + 1] === name) {
             let q = k + 2;
             while (q < stop && isSpace(buf[q])) q++;
             if (q < stop && buf[q] === 0x3d) {
@@ -364,7 +367,7 @@ function tagEndAt(buf, from, to) {
 
 /** The row number of a `<row ...>` tag (its `r` attribute), or 0. */
 function rowNumber(buf, from, to) {
-    const at = refAt(buf, from + 4, to);
+    const at = attrAt(buf, from + 4, to, 0x72);
     let n = 0;
     if (at !== -1) for (let k = at; k < to && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
     return n;
@@ -395,15 +398,42 @@ function squeeze(buf, file, part) {
     return out;
 }
 
-/** The highest column (1 for A) and row of the cells' `r` attributes in buf[from, to). */
+const VALUE = ascii("<v>");
+
+/**
+ * The highest column (1 for A) and row of the cells' `r` attributes in buf[from, to), and the highest
+ * shared string a cell names (`t="s"` and its `<v>`, -1 for none).
+ */
 function cellExtent(buf, from, to) {
     let column = 0;
     let row = 0;
+    let shared = -1;
+    let open = -1; // where the tag of the last shared-string cell ended, until its <v> is looked for
+    let v = -1; // the "<v>" found last; searched again only once a cell lies past it, so linear
+    /** The value of that cell, when its <v> comes before `next` (the next cell's tag). */
+    const value = (next) => {
+        if (open === -1) return;
+        if (v < open) {
+            v = indexOf(buf, VALUE, open, to);
+            if (v === -1) v = to;
+        }
+        if (v < next) {
+            let n = 0;
+            let k = v + 3;
+            while (k < to && isSpace(buf[k])) k++;
+            for (; k < to && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
+            shared = Math.max(shared, n);
+        }
+        open = -1;
+    };
     for (let i = indexOf(buf, CELL, from, to); i !== -1; i = indexOf(buf, CELL, i + 2, to)) {
         if (!isSpace(buf[i + 2])) continue; // <col>, <cfRule>
+        value(i);
         // each tag is scanned once, up to its end: the time stays linear in the row's length
         const stop = tagEndAt(buf, i + 1, to);
-        let q = refAt(buf, i + 2, stop);
+        const t = attrAt(buf, i + 2, stop, 0x74);
+        if (t !== -1 && buf[t] === 0x73 && (buf[t + 1] === 0x22 || buf[t + 1] === 0x27)) open = stop;
+        let q = attrAt(buf, i + 2, stop, 0x72);
         if (q === -1) continue;
         let c = 0;
         for (; q < stop && ((buf[q] | 0x20) >= 0x61 && (buf[q] | 0x20) <= 0x7a) && c <= 1e7; q++) c = c * 26 + ((buf[q] | 0x20) - 0x60);
@@ -412,13 +442,52 @@ function cellExtent(buf, from, to) {
         column = Math.max(column, c);
         row = Math.max(row, r);
     }
-    return { column, row };
+    value(to);
+    return { column, row, shared };
+}
+
+/** Index of the next "<" followed by `second` ("!", "?") in buf[from, to), or -1: searched by that rarer byte. */
+function markupAt(buf, from, to, second) {
+    const view = buf.subarray(0, to);
+    for (let i = view.indexOf(second, from + 1); i !== -1; i = view.indexOf(second, i + 1)) {
+        if (buf[i - 1] === LT) return i - 1;
+    }
+    return -1;
+}
+
+/**
+ * Where the row whose content starts at buf[from] ends (its `</row>`), or -1 while it does not end in
+ * `buf`. A comment, CDATA section or processing instruction in the row is skipped as the parser
+ * skips it, so a `</row>` inside one does not end the row (Excel writes none of them).
+ */
+function rowEndAt(buf, from) {
+    let end = indexOf(buf, ROW_END, from);
+    // the next "<!" and "<?" before `end` (-1: none, -2: not searched yet), each searched again only
+    // once passed, so the time stays linear
+    let bang = -2;
+    let pi = -2;
+    for (let k = from; end !== -1; ) {
+        if (bang !== -1 && bang < k) bang = markupAt(buf, k, end, BANG);
+        if (pi !== -1 && pi < k) pi = markupAt(buf, k, end, 0x3f);
+        const at = bang === -1 ? pi : pi === -1 ? bang : Math.min(bang, pi);
+        if (at === -1) return end;
+        const close = at === pi ? PI_END : indexOf(buf, COMMENT_START, at, at + 4) === at ? COMMENT_END : indexOf(buf, CDATA_START, at, at + 9) === at ? CDATA_END : GT;
+        const stop = indexOf(buf, close, at + 1);
+        if (stop === -1) return -1;
+        k = stop + close.length;
+        if (k > end) {
+            end = indexOf(buf, ROW_END, k);
+            bang = pi = -2;
+        }
+    }
+    return -1;
 }
 
 /**
  * Streams a sheet's XML and leaves out its rows without a value and everything after `</sheetData>`
  * but the last end tag (the root's): read-excel-file reads nothing there. Feed pieces with `push`; the
- * XML kept goes to `out.write`; `end()` gives the row numbers seen.
+ * XML kept goes to `out.write`; `end()` gives the row numbers seen and the highest shared string a
+ * kept cell names (-1 for none).
  *
  * It also checks where the values are against the limits, before read-excel-file sees them: the
  * parser makes a dense array of the sheet's extent (every row up to the last row with a value, each
@@ -439,6 +508,7 @@ export function createSheetFilter(out, limits = {}) {
     let lastRow = 0;
     let dropped = 0;
     let errors = 0;
+    let shared = -1;
     /** After the sheet's data: the last end tag seen. */
     let closing = new Uint8Array(0);
 
@@ -520,7 +590,7 @@ export function createSheetFilter(out, limits = {}) {
                 i = tagEnd + 1;
                 continue;
             }
-            const end = indexOf(buf, ROW_END, tagEnd);
+            const end = rowEndAt(buf, tagEnd);
             if (end === -1) {
                 i = lt;
                 break;
@@ -531,6 +601,7 @@ export function createSheetFilter(out, limits = {}) {
                 const extent = cellExtent(buf, tagEnd, end);
                 const at = Math.max(number, extent.row);
                 widest = Math.max(widest, extent.column);
+                shared = Math.max(shared, extent.shared);
                 if (limits.maxRow !== undefined && at > limits.maxRow) throw limitError("rows", at, limits.maxRow, file, "rows");
                 if (limits.maxColumn !== undefined && widest > limits.maxColumn) throw limitError("columns", widest, limits.maxColumn, file, "columns");
                 if (limits.maxCells !== undefined && at * widest > limits.maxCells) throw limitError("importCells", at * widest, limits.maxCells, file, "values (rows x columns)");
@@ -580,14 +651,80 @@ export function createSheetFilter(out, limits = {}) {
             size = pending.length;
             need = pending.length * 2;
         },
-        /** @returns {{ lastRow: number, lastValueRow: number, dropped: number, errors: number }} */
+        /** @returns {{ lastRow: number, lastValueRow: number, dropped: number, errors: number, shared: number }} */
         end() {
             pending = size ? gather() : new Uint8Array(0);
             waiting = [];
             run(true);
             if (pending.length) out.write(pending);
             if (closing.length) out.write(closing);
-            return { lastRow, lastValueRow, dropped, errors };
+            return { lastRow, lastValueRow, dropped, errors, shared };
+        }
+    };
+}
+
+const STRING_ITEM = ascii("<si");
+const STYLE_NAMES = [ascii("<xf"), ascii("<numFmt")];
+const SST_END = ascii("</sst>");
+const HOLD = 8; // the longest name above and the byte after it
+
+/**
+ * Passes the shared strings or the styles of a workbook (or a part that is both) on to `out` and
+ * counts what read-excel-file keeps one entry of each for: string items (`<si>`), cell formats
+ * (`<xf>`) and number formats (`<numFmt>`). More than `max` stop the read with LIMIT_EXCEEDED, before
+ * the parser makes millions of entries from a small file. Of the string items only the first `keep`
+ * go on (the strings the sheet's cells name): the rest is left out and `</sst>` ends the part.
+ * @param {{ write: (bytes: Uint8Array, from?: number, to?: number) => void }} out
+ * @param {{ file: string, sharedStrings: boolean, styles: boolean, keep: number, max: number }} options
+ */
+export function createEntryCount(out, { file, sharedStrings, styles, keep, max }) {
+    const names = [...(sharedStrings ? [STRING_ITEM] : []), ...(styles ? STYLE_NAMES : [])];
+    const what = sharedStrings ? (styles ? "shared strings and cell formats" : "shared strings") : "cell formats";
+    let carry = new Uint8Array(0); // the last bytes, held back: a name may go on in the next piece
+    let items = 0;
+    let count = 0;
+    let cut = false;
+    /** At a "<" at buf[i]: whether the bytes there are the string item past `keep` (the place to cut). */
+    const at = (buf, i) => {
+        for (const name of names) {
+            let k = 1;
+            while (k < name.length && buf[i + k] === name[k]) k++;
+            const b = buf[i + k];
+            if (k === name.length && (b === 0x3e || b === 0x2f || isSpace(b))) {
+                if (++count > max) throw limitError("importCells", count, max, file, what);
+                return name === STRING_ITEM && ++items > keep;
+            }
+        }
+        return false;
+    };
+    /** Looks at every "<" of buf[0, to) and passes those bytes on, or those up to the cut: true there. */
+    const scan = (buf, to) => {
+        for (let i = buf.indexOf(LT); i !== -1 && i < to; i = buf.indexOf(LT, i + 1)) {
+            if (at(buf, i)) {
+                out.write(buf, 0, i);
+                return (cut = true);
+            }
+        }
+        if (to > 0) out.write(buf, 0, to);
+        return false;
+    };
+    return {
+        /** @param {Uint8Array} chunk */
+        write(chunk) {
+            if (cut) return;
+            if (carry.length && chunk.length >= HOLD) {
+                // the held bytes, each with enough of this piece after it to tell a name
+                if (scan(concat(carry, chunk.subarray(0, HOLD)), carry.length)) return;
+            } else if (carry.length) {
+                chunk = concat(carry, chunk);
+            }
+            const pass = Math.max(0, chunk.length - HOLD);
+            if (!scan(chunk, pass)) carry = chunk.slice(pass);
+        },
+        /** Passes the held bytes on, or ends the part after the cut. */
+        end() {
+            if (!cut) scan(carry, carry.length);
+            if (cut) out.write(SST_END);
         }
     };
 }
