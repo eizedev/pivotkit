@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, readdirSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { prune } from "../src/present.js";
 import { BIN, BY_REGION, call, restServer, workspace } from "./helpers.js";
@@ -260,6 +260,20 @@ test("output.create: false keeps a missing directory an error; one that cannot b
             chmodSync(join(dir, "data"), 0o755);
         }
     }
+});
+
+test("a symbolic link to nothing as output.dir is a problem in check-config and refused at start; a refused start makes no directory", async () => {
+    const dir = workspace();
+    symlinkSync(join(dir, "gone"), join(dir, "dangling"));
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" } }));
+    const check = run(["check-config", "--config", config]);
+    assert.equal(check.status, 1, check.stdout);
+    assert.match(check.stdout, /Output: dangling {2}\(NOT FOUND: a symbolic link to nothing\)/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" }, baseDir: dir }), /output\.dir: a symbolic link to nothing/);
+    // inside an allowed directory: refused before anything is made
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/new/out" }, baseDir: dir }), /files\.allowDirs/);
+    assert.ok(!existsSync(join(dir, "data", "new")), "no directory left behind");
 });
 
 test("check-config says whether the output directory exists, will be created, or cannot be", () => {

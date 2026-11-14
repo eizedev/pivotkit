@@ -4,7 +4,7 @@
  * column is a typo), never to show a value.
  */
 
-import { readFile, realpath, stat } from "node:fs/promises";
+import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import { basename } from "node:path";
 import { closest } from "pivotkit-core";
 import { readSafe, readTable } from "pivotkit-cli/files";
@@ -79,8 +79,9 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     const outputInfo = outputDir ? await stat(outputDir).catch(() => null) : null;
     const outputFound = outputDir ? Boolean(outputInfo?.isDirectory()) : true;
     // a missing directory is made at start (output.create), when its nearest existing parent lets it be
-    const notMade = outputDir && !outputInfo ? (options.output?.create === false ? "off" : await cannotCreate(outputDir)) : null;
-    const outputState = outputFound ? "" : outputInfo ? "  (NOT FOUND: not a directory)" : notMade === "off" ? "  (NOT FOUND: create the directory first, or leave output.create on)" : notMade ? `  (NOT FOUND: cannot be created: ${whyNot(notMade)})` : "  (missing: created at start)";
+    const dangling = Boolean(outputDir && !outputInfo && (await lstat(outputDir).catch(() => null)));
+    const notMade = outputDir && !outputInfo ? (dangling ? "dangling" : options.output?.create === false ? "off" : await cannotCreate(outputDir)) : null;
+    const outputState = outputFound ? "" : outputInfo ? "  (NOT FOUND: not a directory)" : notMade === "dangling" ? "  (NOT FOUND: a symbolic link to nothing)" : notMade === "off" ? "  (NOT FOUND: create the directory first, or leave output.create on)" : notMade ? `  (NOT FOUND: cannot be created: ${whyNot(notMade)})` : "  (missing: created at start)";
     const outputWritable = outputDir && outputFound ? await writable(outputDir) : true;
     problems += outputFound || (!outputInfo && !notMade) ? 0 : 1;
     unwritable += outputWritable ? 0 : 1;

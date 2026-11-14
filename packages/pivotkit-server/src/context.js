@@ -9,8 +9,8 @@
  */
 
 import { createRequire } from "node:module";
-import { access, constants, mkdir, realpath, stat } from "node:fs/promises";
-import { dirname } from "node:path";
+import { access, constants, lstat, mkdir, realpath, stat } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, OUTPUT_DEFAULTS, pathOf, validateOptions } from "./config.js";
 import { createComputer } from "./compute.js";
@@ -61,25 +61,33 @@ export async function createContext(options, runtime = {}) {
     let output = null;
     if (options.output?.dir) {
         const wanted = pathOf(options, options.output.dir);
-        if (!(await stat(wanted).catch(() => null))) {
-            if (options.output.create === false) {
-                throw new ConfigError("output.dir: not found (create it first, or leave output.create on)");
-            }
+        const missing = !(await stat(wanted).catch(() => null));
+        if (missing && (await lstat(wanted).catch(() => null))) {
+            throw new ConfigError("output.dir: a symbolic link to nothing (its target does not exist)");
+        }
+        if (missing && options.output.create === false) {
+            throw new ConfigError("output.dir: not found (create it first, or leave output.create on)");
+        }
+        // where the directory is or will be, checked before anything is made, so a refused start
+        // leaves nothing behind
+        const planned = missing ? await plannedPath(wanted) : await realpath(wanted).catch(() => null);
+        if (!planned || (!missing && !(await stat(planned)).isDirectory())) {
+            throw new ConfigError("output.dir: not a directory");
+        }
+        // a directory the model may read files from must not hold what it may not see: the results
+        if (registry.allow.some((allowed) => isInside(planned, allowed) || isInside(allowed, planned))) {
+            throw new ConfigError("output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them");
+        }
+        if (missing) {
             // reports may hold what a model may not see: only the server's user reads them, unless a
-            // web server serves the directory (output.baseUrl), where the umask decides as for any
+            // web server serves the directory (output.baseUrl), where the umask decides as for any.
+            // The log names no path (it never does): the operator knows output.dir
             await mkdir(wanted, { recursive: true, mode: options.output.baseUrl ? 0o777 : 0o700 }).catch((e) => {
                 throw new ConfigError(`output.dir: cannot be created: ${whyNot(e?.code)}`);
             });
             log.info(`the output directory did not exist and was created (${options.output.baseUrl ? "mode by the umask: output.baseUrl is served" : "mode 0700"})`);
         }
-        const dir = await realpath(wanted).catch(() => null);
-        if (!dir || !(await stat(dir)).isDirectory()) {
-            throw new ConfigError("output.dir: not a directory");
-        }
-        // a directory the model may read files from must not hold what it may not see: the results
-        if (registry.allow.some((allowed) => isInside(dir, allowed) || isInside(allowed, dir))) {
-            throw new ConfigError("output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them");
-        }
+        const dir = await realpath(wanted);
         // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
         // own files lie, which have such names too
         const shared = (await ownFileDirs(options)).includes(dir);
@@ -174,7 +182,7 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
 }
 
 /** Why a directory cannot be made or read, in words, from a file system error's code. */
-export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "ENOTDIR" || code === "EEXIST" ? "a part of the path is a file" : code === "EROFS" ? "the file system is read-only" : String(code ?? "unknown error"));
+export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "ENOTDIR" || code === "EEXIST" ? "a part of the path is a file" : code === "EROFS" ? "the file system is read-only" : code === "ENOENT" ? "a symbolic link in the path points to nothing" : String(code ?? "unknown error"));
 
 /**
  * Whether a missing directory can be made with mkdir -p: the code that keeps it from being made
@@ -192,6 +200,27 @@ export async function cannotCreate(path) {
         if (up === dir) {
             return "ENOENT";
         }
+        dir = up;
+    }
+}
+
+/**
+ * Where a missing directory will be once made: the real path of its nearest existing ancestor with
+ * the rest of the path after it.
+ * @param {string} path
+ */
+async function plannedPath(path) {
+    const rest = [];
+    for (let dir = path; ; ) {
+        const real = await realpath(dir).catch(() => null);
+        if (real) {
+            return join(real, ...rest.reverse());
+        }
+        const up = dirname(dir);
+        if (up === dir) {
+            return path;
+        }
+        rest.push(basename(dir));
         dir = up;
     }
 }
