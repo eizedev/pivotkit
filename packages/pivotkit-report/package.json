@@ -35,6 +35,10 @@
       "types": "./types/template.d.ts",
       "default": "./src/template.js"
     },
+    "./operations": {
+      "types": "./types/operations.d.ts",
+      "default": "./src/operations.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

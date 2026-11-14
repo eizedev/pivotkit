@@ -7,6 +7,7 @@
 import { basename } from "node:path";
 import { PivotkitError } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
+import { OperationError } from "pivotkit-report/operations";
 
 /** @typedef {"usage" | "io" | "limit" | "template" | "internal"} ErrorKind */
 
@@ -56,6 +57,11 @@ export function asCliError(error, path) {
         const kind = overLimit ? "limit" : code === "INVALID_TEMPLATE" ? "template" : code === "INVALID_FILE" ? "io" : code === "INVALID_OPTION" ? "usage" : "internal";
         const reason = typeof error.details?.reason === "string" ? error.details.reason : code;
         return new CliError(kind, reason, printable(name && !error.message.includes(name) ? `${name}: ${error.message}` : error.message));
+    }
+    if (error instanceof OperationError) {
+        // an operation of pivotkit-report's table: its code, the CLI's kind for it
+        const kind = error.code === "LIMIT_EXCEEDED" ? "limit" : error.code === "INVALID_INPUT" ? "usage" : error.code === "INTERNAL" ? "internal" : "io";
+        return new CliError(kind, error.code, printable(error.message));
     }
     const e = /** @type {NodeJS.ErrnoException} */ (error);
     const fileErrors = { ENOENT: "not found", EACCES: "not allowed to read or write", EPERM: "not allowed to read or write", EISDIR: "is a directory", ENOTDIR: "a part of the path is not a directory", ELOOP: "is a symbolic link", EEXIST: "exists", ENOSPC: "no space left on the disk", EROFS: "the file system is read-only" };
