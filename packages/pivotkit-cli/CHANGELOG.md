@@ -6,6 +6,30 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Changed
+
+- `describe --data <file>` without an argument describes the data, as the options table says
+  (`describe --data - --data-format csv` reads stdin); a view given that way is a usage error that
+  says how to describe it ([#301](https://github.com/eizedev/pivotkit/issues/301)).
+
+### Fixed
+
+- `--sheet` for data that is no workbook is a warning `ignoredOption`, as other options without
+  effect ([#275](https://github.com/eizedev/pivotkit/issues/275)).
+- `render -o` naming the data file or the view file, and `--save-view` naming the data file, are a
+  usage error instead of replacing the input, also under another name of the same file (a link to its
+  directory, another case of its name); `render -o -` is a usage error instead of a file named
+  `-` ([#280](https://github.com/eizedev/pivotkit/issues/280)).
+- `describe <view file> --suggest`, and `render <view file>` with layout flags, say that the data is
+  needed instead of reading the view as data ([#285](https://github.com/eizedev/pivotkit/issues/285)).
+- A hint line with `!` in a value quotes it with single quotes, so an interactive bash does not expand
+  it from its history ([#286](https://github.com/eizedev/pivotkit/issues/286)).
+- Messages that lead better ([#301](https://github.com/eizedev/pivotkit/issues/301)): a data file given where the view belongs says to give
+  it with `--data`; a view that is no file says what the argument is read as; the unknown field that
+  follows from a grouping the view cannot make (`--group Region:yearMonth` on a text field) is counted
+  on the grouping's error (`followsFrom` in `--json`); `describe --suggest` with a field the data lacks
+  is a `dataMismatch` that lists the data's fields, as in `render`.
+
 ## [0.2.0] - 2026-11-14
 
 ### Upgrading from 0.1
