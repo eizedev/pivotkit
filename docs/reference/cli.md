@@ -203,8 +203,8 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   `errors` and `warnings`, which are the `findings`, plus `valid`, `name` and `uses`; or
   [`describeSource`](core.md)'s `rows`, `fields` and `text`).
 - `validate`, `describe` and `render` are operations of pivotkit-report's
-  [operation table](report.md#operations), which the [MCP server](mcp.md) shares: the same findings
-  and the same output there.
+  [operation table](report.md#operations), which the [MCP server](mcp.md) and the
+  [REST service](rest.md) share: the same findings and the same output there.
 - `render`, `validate` and `describe`: `sheet`, the sheet of a workbook read (`null` for other data or
   without data). `describe` of a workbook also gives `sheets`: `[{ name, index, visible }]` in the
   workbook's order.

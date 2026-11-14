@@ -3,10 +3,10 @@
 pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference) as npm
 packages in this repository with npm workspaces: the engine `pivotkit-core`, the React UI
 `pivotkit-react`, the web component `pivotkit-element`, the reader plugin `pivotkit-xlsx`, the
-renderer without a browser `pivotkit-report`, the command line `pivotkit-cli` and the MCP server
-`pivotkit-mcp`; see [README.md](README.md). The workspaces are listed in build order (core, react,
-element, xlsx, report, cli, mcp) in the root `package.json`: `npm run types` and the builds depend on
-it.
+renderer without a browser `pivotkit-report`, the command line `pivotkit-cli`, the REST service with
+the shared server core `pivotkit-server` and the MCP server `pivotkit-mcp`; see [README.md](README.md).
+The workspaces are listed in build order (core, react, element, xlsx, report, cli, server, mcp) in the
+root `package.json`: `npm run types` and the builds depend on it.
 
 ## Layout
 
@@ -141,26 +141,56 @@ it.
   data gzipped (`*.csv.gz`, build output of `npm run build -w pivotkit-cli`, also in prepack and the
   CLI's `npm test`). `test/` spawns the CLI as a user runs it; `test/examples.test.js` runs every
   shipped example through validate and render.
+- `packages/pivotkit-server/` - what the MCP server and the REST service share, and the REST service
+  (Node only, no MCP SDK): `src/config.js` (`OPTION_KEYS`, the one table of options for both, `rest.*`
+  included; `validateOptions` with "did you mean"; `loadConfig`), `src/flags.js` (`optionsFrom`, the
+  runners' flags into options; `SERVER_FLAGS`), `src/context.js` (`createContext(options)`: registry,
+  workers, output, log, the sign-in both front ends share, `ready()`; `callerOf`), `src/policy.js`
+  (show, summary, hide; profiles laid over a source's policy, `results`; `exposeSource`,
+  `exposeFindings`, `touchesClosed`), `src/registry.js` (source ids and `file:` paths, scopes, "not
+  found" for a source the caller may not use; `files: false` for REST), `src/data.js`,
+  `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
+  structured clone cannot copy is `INVALID_INPUT` and frees the worker), `src/present.js` (`present()`:
+  run an operation for a caller and apply the policy, output files, inline results and the one
+  sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
+  made from; `renderFile` for the download route), `src/auth.js` (`createAuthCore`: static tokens, the
+  OAuth issuer and jose JWT checks per audience, `AuthRefusal`; `profileOf`), `src/checks.js` (Host
+  check, client address), `src/listen.js` (`serveFetch`: a fetch handler on node:http, headers checked
+  before the body, every value of a repeated header, a graceful stop), `src/check.js` (`--check-config`
+  of both runners), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
+  `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck).
+  `src/rest/` is `pivotkit-server/rest`: `handler.js` (`createRestHandler`: Host, CORS, routes,
+  sign-in with the REST resource's audience, limits, operation scopes, the JSON body, `present()` or
+  the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
+  `http`, plus `GET /sources/{id}` and `POST /views/render/file`; neutral words and an example per
+  operation), `openapi.js` (`openApiDocument`, pure, the view schema bundled), `problem.js` (RFC 9457
+  problems, `REST_ERRORS`), `limits.js` (rate and concurrency limits in one process). A new operation
+  gets its words and example in `routes.js`; `node scripts/openapi.js` writes `docs/openapi.json`
+  again, which `test/openapi.test.js` compares. `test/` drives the service over HTTP: hostile inputs,
+  tokens and a local OAuth issuer, profiles, CORS, the OpenAPI document against the OpenAPI 3.1
+  schema (`test/fixtures/`), MCP and REST answering alike (`conformance.test.js`), the command.
 - `packages/pivotkit-mcp/` - the MCP server (Node only), on the official MCP TypeScript SDK v2
-  (`@modelcontextprotocol/server`, protocol 2026-07-28 and the 2025 era): `src/context.js`
-  (`createMcpContext(options)`: what requests share, `context.server(ctx)` a fresh McpServer per HTTP
-  request or stdio connection, the instructions, the prompt, the skill), `src/tools.js` (one tool per
-  operation of pivotkit-report's table, `TOOLS`: what the server adds after `run`: policy, output
-  files, inline results, one text sentence with counts and ids only), `src/policy.js` (the exposure
-  policy: show, summary, hide; `exposeSource`, `exposeFindings`, `touchesClosed`), `src/registry.js`
-  (source ids and `file:` paths in the allowed directories; scopes; "not found" for a source the
-  caller may not use), `src/data.js` (read, drop hidden columns, encode, cache by file identity),
-  `src/compute.js` and `src/worker.js` (worker threads with memory and time limits, BUSY, TIMEOUT),
-  `src/config.js` (`OPTION_KEYS`, the one table of options; `validateOptions` with "did you mean";
-  `loadConfig`), `src/runner.js` (`FLAGS`, the runner's flags; stdio or `--http`; `--check-config`
-  with `src/check.js`), `src/http.js` (the fetch handler: Host, Origin, `/healthz`, discovery
-  documents, the quick-start page of `src/page.js`, auth, the SDK's `createMcpHandler`; `listen()`
-  on node:http), `src/auth.js` (none, static tokens, OAuth 2.1 resource server: discovery, jose JWT
-  checks, the SDK's `requireBearerAuth` and `oauthMetadataResponse`), `src/log.js` (JSON lines on
-  stderr, no values). `skills/pivotkit-reports/SKILL.md` is the skill (shipped; the package folder is
+  (`@modelcontextprotocol/server`, protocol 2026-07-28 and the 2025 era) and pivotkit-server:
+  `src/context.js` (`createMcpContext(options)`: pivotkit-server's context plus `context.server(ctx)`,
+  a fresh McpServer per HTTP request or stdio connection, the instructions, the prompt, the skill),
+  `src/tools.js` (one tool per operation of pivotkit-report's table, `TOOLS`: the words a model reads,
+  the annotations, the scope challenge; the work is pivotkit-server's `present()`), `src/runner.js`
+  (`FLAGS`, the runner's flags; stdio or `--http`; `--check-config`), `src/http.js` (the fetch
+  handler: Host, Origin, `/healthz`, discovery documents, the quick-start page of `src/page.js`, auth,
+  the SDK's `createMcpHandler`; `listen()` on pivotkit-server's `serveFetch`), `src/auth.js` (the
+  shared sign-in answered as MCP clients expect: the SDK's `requireBearerAuth` and
+  `oauthMetadataResponse`), `src/policy.js` (`pivotkit-mcp/policy`, pivotkit-server's).
+  `skills/pivotkit-reports/SKILL.md` is the skill (shipped; the package folder is
   also a Claude Code plugin, `.claude-plugin/`, listed in the repository's
   `.claude-plugin/marketplace.json`). `test/` drives the server with the SDK's client over stdio and
   HTTP in both eras, a local OAuth issuer, hostile files and inputs.
+- `docker/` - the container image: `Dockerfile` (built from the repository root at a release tag:
+  `npm ci --omit=dev --ignore-scripts` of pivotkit-server, pivotkit-mcp and pivotkit-cli from the root
+  lock file, the CLI's example files, onto a distroless Node 22 image by digest, user 10001,
+  `HEALTHCHECK`), `pivotkit.example.json` and `compose.example.yml` (the docs' example, also the CI's
+  smoke test); `.github/workflows/image.yml` builds and runs it on pull requests and publishes it to
+  GHCR on `pivotkit-server@*` tags (multi-arch, provenance, SBOM, cosign).
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,
   `allow-import` with the element's `dist/import-worker.js` copied as an asset (`angular.json`). Its
@@ -195,6 +225,9 @@ it.
   `scripts/docs-demo.js`, `docs/assets/examples/` (build output, the site's stable addresses).
   `tests/examples.test.js` fails until the committed view files and `examples.json` are what it
   builds: run `node scripts/examples.js` after a change of the view file format or of a preset.
+- `scripts/openapi.js` - writes `docs/openapi.json`, the REST service's OpenAPI document as
+  pivotkit-server generates it (committed; served by the site; pivotkit-server's `test/openapi.test.js`
+  fails until it is what the script writes).
 - `scripts/schemas.js` - builds pivotkit-core's JSON Schemas (`schema/view-2.json`,
   `schema/view-file-2.json`) from the engine's tables: `node scripts/schemas.js` after a change of
   `FILTERS`, an enum table or `LIMITS` (`tests/schemas.test.js` fails until the files are rebuilt).
@@ -243,6 +276,10 @@ npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
 npx pivotkit-cli render view.json --data data.csv -o out.html   # the CLI of this repository (packages/pivotkit-cli; the package name, as outside it)
 npx pivotkit-mcp --source sales=data.csv --output out --check-config   # the MCP server of this repository: what it would expose
 npm test -w pivotkit-mcp            # the MCP server through the SDK's client: stdio, HTTP, OAuth, policy, hostile inputs
+npm test -w pivotkit-server         # the REST service over HTTP: hostile inputs, tokens, OAuth, profiles, CORS, OpenAPI, MCP and REST alike
+npx pivotkit-server serve --source sales=data.csv --output out   # REST (and MCP) of this repository on 127.0.0.1:3333
+node scripts/openapi.js             # write docs/openapi.json again after a change of the operations or routes
+docker build -f docker/Dockerfile -t pivotkit .   # the container image (CI: .github/workflows/image.yml)
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report   # rebuild pivotkit-report's golden files after a wanted change
 npm run bench:browser               # the report in Chromium, Firefox and WebKit, 100k to 1M rows (-- --runs 3 --sizes 100000 --browsers chromium)
 node scripts/schemas.js             # rebuild pivotkit-core's JSON Schemas from the engine's tables

@@ -132,9 +132,9 @@ also shows under a strict Content-Security-Policy). Anything else is refused wit
 ## Operations { #operations }
 
 `pivotkit-report/operations` is the one table of what pivotkit's front ends without a browser offer:
-the [command line](cli.md), the [MCP server](mcp.md) and a REST service (planned). Each entry of
+the [command line](cli.md), the [MCP server](mcp.md) and the [REST service](rest.md). Each entry of
 `OPERATIONS` has its `name`, `title` and `description`, its input and output as JSON Schema (draft
-2020-12, no `$schema` key), the HTTP route it would have (`http`), the CLI command it is (`cli`), what
+2020-12, no `$schema` key), its HTTP route under the REST service's `/api/v1` (`http`), the CLI command it is (`cli`), what
 it needs from its front end (`needs`), annotations, and `run(input, env)`:
 
 | Operation | CLI | HTTP | What it does |

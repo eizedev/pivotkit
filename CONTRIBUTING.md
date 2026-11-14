@@ -153,13 +153,13 @@ its first release.
    documentation, "Generating provenance statements").
 2. Publish the first version of each package by hand, in the publish order below (`pivotkit-core`,
    `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`,
-   `pivotkit-mcp`), from
+   `pivotkit-server`, `pivotkit-mcp`), from
    tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`, `npm pack -w <package>`),
    with an npm account that has two-factor authentication: `npm publish <tarball> --access public`.
    Provenance is not in `publishConfig`: the workflow asks for it with `--provenance`, which needs
    the CI's OIDC token.
 3. Configure trusted publishing for each package on npm (`pivotkit-core`, `pivotkit-xlsx`,
-   `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-mcp`): owner `eizedev`,
+   `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp`): owner `eizedev`,
    repository `pivotkit`, workflow file `release.yml`, environment `npm`. No npm token is stored in
    GitHub. A new trusted
    publisher must publish once within two days, or it expires (npm's documentation, "Trusted
@@ -177,10 +177,13 @@ its first release.
 The publish order follows the run-time dependencies in each `package.json`: `pivotkit-core` (no own
 dependency), `pivotkit-xlsx` (core), `pivotkit-report` (core), `pivotkit-react` (core, report),
 `pivotkit-element` (bundles core, react and report: devDependencies only, no registry dependency),
-`pivotkit-cli` (core, report, xlsx), `pivotkit-mcp` (core, report, cli, xlsx; it imports
+`pivotkit-cli` (core, report, xlsx), `pivotkit-server` (core, report, cli, xlsx; it imports
 `pivotkit-report/operations` and `pivotkit-cli/files`, so both are released before it when they
-changed). `pivotkit-mcp` is not on npm yet: its first release needs steps 2 and 3 above (a manual
-first publish, then its trusted publisher). A package that depends on pivotkit-core takes `^<its version>`,
+changed), `pivotkit-mcp` (report, server: released after pivotkit-server whenever that changed).
+pivotkit-server loads pivotkit-mcp by name when it is installed beside it and does not depend on it,
+so there is no cycle. `pivotkit-server` and `pivotkit-mcp` are not on npm yet: the first release of
+each needs steps 2 and 3 above (a manual first publish, then its trusted publisher), pivotkit-server
+first. A package that depends on pivotkit-core takes `^<its version>`,
 which in 0.x admits that minor only: when core's minor moves (0.4 to 0.5), pivotkit-xlsx,
 pivotkit-report, pivotkit-react, pivotkit-cli and pivotkit-mcp are released too, even without a change of their
 own, or their published ranges keep the old core and a host gets two copies (`tests/ci.test.js`
@@ -222,6 +225,27 @@ No check compares what a package imports from pivotkit-core with the exports of 
 its range admits: that needs the published tarball. The exact ranges and `check-release.js` cover it
 instead: a range is the version in this repository, and that version is released before the package
 that depends on it.
+
+### The container image
+
+`.github/workflows/image.yml` builds the image `ghcr.io/eizedev/pivotkit` on each tag
+`pivotkit-server@<version>` from that commit (pivotkit-server, pivotkit-mcp and pivotkit-cli of the
+same commit, from the lock file), for linux/amd64 and linux/arm64, pushes it as `<version>` and
+`<major>.<minor>`, attaches a provenance and an SBOM attestation and signs it with cosign (keyless).
+Pull requests that touch it build and smoke-test it without pushing. It was set up once with:
+
+1. The package on GHCR: the first publishing run creates `ghcr.io/eizedev/pivotkit` with the
+   workflow's token (GitHub links a package published that way to the repository; check GitHub's
+   documentation, "Publishing and installing a package with GitHub Actions", for the current rule).
+   Then, in the package's settings, make it public and check that this repository has write access
+   under "Manage Actions access". If an older package of that name exists, link it to this
+   repository and give it that access first.
+2. The repository variable `IMAGE_RELEASE_ENABLED` set to `true`; until then the publishing job is
+   skipped and only the test job runs.
+
+Tag pivotkit-server after its npm release (the image's packages are the commit's, not npm's, but the
+docs name the image by pivotkit-server's version). A new base image: update the two digests in
+`docker/Dockerfile` (`docker buildx imagetools inspect <image>:<tag>` shows the index digest).
 
 `npm run pack:check` shows locally what would be published (LICENSE, README, CHANGELOG, `src/` or
 `dist/`, `types/`, and for pivotkit-element and pivotkit-xlsx `dist/THIRD_PARTY_LICENSES.txt`); it fails while a

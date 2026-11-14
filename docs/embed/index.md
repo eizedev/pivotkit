@@ -1,12 +1,12 @@
 ---
 title: Embed pivotkit
-description: For developers and the people who run applications with pivotkit - which of the six pivotkit packages fits, a first report in a few lines for React, the web component, the engine, reports in code and the command line, what a host switches on or off, and where to go next.
+description: For developers and the people who run applications with pivotkit - which of the pivotkit packages fits, a first report in a few lines for React, the web component, the engine, reports in code and the command line, what a host switches on or off, and where to go next.
 ---
 
 # Embed pivotkit
 
-pivotkit comes as six npm packages: three to show the report, one plugin to read Excel files, two to
-make reports without a browser. Pick the one that fits, put a first report on it in a few lines,
+pivotkit comes as eight npm packages: three to show the report, one plugin to read Excel files, two to
+make reports without a browser, and two services that offer them to programs and AI clients. Pick the one that fits, put a first report on it in a few lines,
 then follow its getting-started page step by step.
 
 ## Which package
@@ -19,6 +19,8 @@ then follow its getting-started page step by step.
 | [`pivotkit-xlsx`](../reference/plugins.md#pivotkit-xlsx) | A reader plugin for Excel workbooks (.xlsx), checked before it is parsed. | People load Excel files into the report (`allowImport`), or your code reads them. |
 | [`pivotkit-report`](../reference/report.md) | A view over rows as a file without a browser: HTML report, CSV, JSON, XLSX, SVG. | A script, a job or a server makes report files. |
 | [`pivotkit-cli`](../reference/cli.md) | The command line `pivotkit`: render, validate and describe views. | Reports and view checks in a terminal or CI, without code. |
+| [`pivotkit-server`](../reference/rest.md) | A REST service with an OpenAPI document over the same operations, sign-in and per-caller policy; also a [container image](../reference/container.md). | Programs (scripts, PowerShell, schedulers, other apps) ask for reports over HTTP. |
+| [`pivotkit-mcp`](../reference/mcp.md) | An MCP server: an AI client builds reports without reading the data. | People ask an AI client (Claude, VS Code) for reports. |
 
 <div class="cards" markdown>
 
@@ -28,6 +30,8 @@ then follow its getting-started page step by step.
 - [**Engine only**](../getting-started/engine.md)<br>`pivotkit-core`: pivot tables, grids, chart options and XLSX/CSV export in plain JavaScript, in the browser or in Node.
 - [**Reports in code**](../getting-started/report.md)<br>`pivotkit-report`: a view and rows to an HTML report, CSV or Excel in Node.
 - [**Command line**](../getting-started/cli.md)<br>`pivotkit-cli`: `pivotkit example`, then `pivotkit render` and `validate` in a terminal or CI.
+- [**REST service**](../getting-started/rest.md)<br>`pivotkit-server`: list sources, check and render views over HTTP, with curl or PowerShell; or as a container.
+- [**MCP server**](../getting-started/mcp.md)<br>`pivotkit-mcp`: an AI client describes the data, writes a view and has the report made.
 
 </div>
 

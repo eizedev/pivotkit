@@ -121,6 +121,11 @@ For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID
 OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which
 source and may use which tool.
 
+To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json` (with
+`pivotkit-mcp` installed beside it) instead: the same `/mcp` endpoint and the
+[REST service](rest.md) at `/api/v1` on one port, also as a [container image](../reference/container.md).
+Its one static token is `$PIVOTKIT_TOKEN`.
+
 ## PowerShell Universal { #psu }
 
 PowerShell Universal runs scripts and apps but is no MCP client; it can host the server and its data:

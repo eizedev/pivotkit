@@ -151,6 +151,18 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - For programs and reviews: `validate` with "did you mean" hints, `describeSource` and `describeView`
   in plain words ([views](concepts/views.md)).
 
+## REST service and container { #rest }
+
+- `pivotkit-server`: the same operations for programs over HTTP under `/api/v1` (list and describe
+  sources, validate, describe and render views, links, schedule drafts), an OpenAPI 3.1 document made
+  from the same table, errors as problem documents; sign-in with tokens or OAuth 2.1; policy
+  profiles per token or OAuth client (more values, downloads); CORS off by default; limits per caller
+  ([getting started](getting-started/rest.md), [pivotkit-server](reference/rest.md),
+  [security](security.md#rest), [privacy](privacy.md)).
+- One container image for the REST service, the MCP server and the command line: distroless Node 22,
+  non-root, read-only, health checks, signed with provenance and an SBOM
+  ([container image](reference/container.md)).
+
 ## AI clients (MCP) { #mcp }
 
 - `pivotkit-mcp`: tools to list and describe sources, write, validate and describe views, render
@@ -181,8 +193,9 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - `pivotkit-react` (`<PivotReport>`, React 18 and 19), `pivotkit-element` (`<pivot-report>` with its
   own React, for Angular, PHP and plain HTML; attributes, properties, `pivot-*` events with
   `respondWith()`), `pivotkit-core` (the engine, browser and Node), `pivotkit-xlsx`,
-  `pivotkit-report`, `pivotkit-cli`, `pivotkit-mcp` ([Embed pivotkit](embed/index.md), [pivotkit-element](reference/element.md)).
-- AI clients through MCP, with what the model may see set per field ([MCP server](getting-started/mcp.md)).
+  `pivotkit-report`, `pivotkit-cli`, `pivotkit-server`, `pivotkit-mcp` ([Embed pivotkit](embed/index.md), [pivotkit-element](reference/element.md)).
+- Programs over REST and AI clients through MCP, with what a caller may see set per field
+  ([REST service](getting-started/rest.md), [MCP server](getting-started/mcp.md)).
 - Bundlers and import maps, several reports on one page, PowerShell Universal on the React it
   provides and as the module `New-UDPivotReport` ([recipes](embed/recipes.md),
   [PowerShell Universal](getting-started/react.md#powershell-universal)).

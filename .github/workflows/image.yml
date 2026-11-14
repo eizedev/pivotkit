@@ -1,0 +1,168 @@
+name: Container image
+
+# The container image ghcr.io/eizedev/pivotkit (docker/Dockerfile): the REST service, the MCP server
+# and the command line. Every pull request that touches what goes into it builds it for linux/amd64
+# and runs it as an operator would (read-only, non-root, no capabilities, a token from a secret file);
+# nothing is pushed. A tag pivotkit-server@<version> builds it for linux/amd64 and linux/arm64, pushes
+# it as <version> and <major>.<minor> with a provenance and an SBOM attestation, and signs it with
+# cosign (keyless, the workflow's OIDC identity), but only after the maintainer has
+#   1. created the package ghcr.io/eizedev/pivotkit (a first push) and linked it to this repository
+#      with "Actions access" for it, set to public,
+#   2. set the repository variable IMAGE_RELEASE_ENABLED to "true".
+# See CONTRIBUTING.md, "Releasing".
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "docker/**"
+      - ".dockerignore"
+      - "packages/**"
+      - "package-lock.json"
+      - "scripts/examples.js"
+      - "examples/playground/data/**"
+      - ".github/workflows/image.yml"
+  push:
+    tags: ["pivotkit-server@*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/eizedev/pivotkit
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build (linux/amd64, not pushed)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: pivotkit:test
+      - name: Run it as an operator would
+        # read-only root, /tmp in memory, no capabilities, no new privileges, the image's own user,
+        # the token from a secret file, data read-only, reports in a volume
+        run: |
+          set -eu
+          work="$RUNNER_TEMP/pivotkit"
+          mkdir -p "$work/data" "$work/secrets"
+          printf 'Region,Product,Customer,Sales\nNorth,A,Alice,10\nSouth,B,Bob,20\nNorth,B,Carol,5\n' > "$work/data/sales.csv"
+          node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > "$work/secrets/pivotkit_token"
+          node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > "$work/secrets/pivotkit_export_token"
+          chmod 0644 "$work/secrets/"*
+          cp docker/pivotkit.example.json "$work/pivotkit.json"
+          docker volume create pivotkit-out
+          docker run -d --name pivotkit --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+            -p 127.0.0.1:3333:3333 \
+            -v "$work/data:/data:ro" -v "$work/pivotkit.json:/config/pivotkit.json:ro" \
+            -v "$work/secrets/pivotkit_token:/run/secrets/pivotkit_token:ro" \
+            -v "$work/secrets/pivotkit_export_token:/run/secrets/pivotkit_export_token:ro" \
+            -v pivotkit-out:/out pivotkit:test
+          for i in $(seq 1 30); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' pivotkit)"
+            test "$status" = "healthy" && break
+            sleep 2
+          done
+          docker logs pivotkit
+          test "$(docker inspect --format '{{.State.Health.Status}}' pivotkit)" = "healthy"
+          test "$(docker inspect --format '{{.Config.User}}' pivotkit:test)" = "10001:10001"
+          token="$(cat "$work/secrets/pivotkit_token")"
+          export_token="$(cat "$work/secrets/pivotkit_export_token")"
+          api=http://localhost:3333/api/v1
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$api/sources")" = "401"
+          curl -fsS -H "authorization: Bearer $token" "$api/sources" | grep -q '"id":"sales"'
+          curl -fsS -H "authorization: Bearer $token" -H 'content-type: application/json' \
+            -d '{"source":"sales","view":{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]},"format":"xlsx"}' \
+            "$api/views/render" | grep -q '"ok":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer $token" -H 'content-type: application/json' \
+            -d '{"source":"sales","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' "$api/views/render/file")" = "403"
+          curl -fsS -H "authorization: Bearer $export_token" -H 'content-type: application/json' \
+            -d '{"source":"sales","view":{"rows":["Region"],"values":[{"agg":"count"}]},"format":"csv"}' \
+            "$api/views/render/file" | grep -q North
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{}' http://localhost:3333/mcp)" = "401"
+          curl -fsS http://localhost:3333/readyz | grep -q '"ok":true'
+          # the report was written to the volume by the image's user
+          docker run --rm -v pivotkit-out:/out --entrypoint /nodejs/bin/node pivotkit:test -e "const f=require('fs').readdirSync('/out');console.log(f);if(!f.some(n=>n.endsWith('.xlsx')))process.exit(1)"
+          # without a configuration (auth none) on every address it refuses to start, and says why
+          if docker run --rm -e PIVOTKIT_CONFIG= pivotkit:test 2> "$work/refused.txt"; then exit 1; fi
+          grep -q "needs --auth token or oauth" "$work/refused.txt"
+          docker run --rm pivotkit:test cli --version
+          docker run --rm pivotkit:test mcp --version
+          docker run --rm --read-only -v "$work/data:/data:ro" pivotkit:test cli describe /data/sales.csv | grep -q Region
+          docker stop --time 30 pivotkit
+          test "$(docker inspect --format '{{.State.ExitCode}}' pivotkit)" = "0"
+
+  publish:
+    if: github.event_name == 'push' && vars.IMAGE_RELEASE_ENABLED == 'true'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # to find the CI run of the tagged commit
+      actions: read
+      # to push the image and its attestations to GHCR
+      packages: write
+      # the OIDC token for cosign's keyless signature
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Tag matches pivotkit-server's version, on main, CI passed
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          version="$(node -p "require('./packages/pivotkit-server/package.json').version")"
+          test "$TAG" = "pivotkit-server@$version" || { echo "tag $TAG does not match pivotkit-server@$version"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "$GITHUB_SHA is not on main"; exit 1; }
+          runs="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')"
+          test "$runs" -gt 0 || { echo "no successful CI run for $GITHUB_SHA"; exit 1; }
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=match,pattern=pivotkit-server@(\d+\.\d+\.\d+),group=1
+            type=match,pattern=pivotkit-server@(\d+\.\d+)\.\d+,group=1
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push (linux/amd64, linux/arm64) with provenance and SBOM
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        # the digest, not a tag: a tag can be moved, the signature names what was built
+        run: cosign sign --yes "$IMAGE@$DIGEST"

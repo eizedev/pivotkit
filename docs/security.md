@@ -243,6 +243,46 @@ may try to steer it:
 - **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
   client id), never a view, a value, a token, a person's id or a full path.
 
+## The REST service { #rest }
+
+[pivotkit-server](reference/rest.md) serves the same operations to programs, on the same core as the
+MCP server: the exposure policy, the workers and their limits, the output directory, the Host check
+and the sign-in above hold for it too. What differs:
+
+- **A caller gets what its policy allows, never more.** A program is not a model, but a field at
+  `summary` keeps its values out of every answer and `hide` drops it. A **profile** can give one
+  caller more (values, downloads): it is bound to a token or an OAuth client or scope in the
+  configuration, never chosen by the caller, and a field the source hides stays hidden in every
+  profile. A token without a profile gets the server's policy.
+- **Downloads** (`POST /api/v1/views/render/file`) need a policy with `results: true`; whether one is
+  allowed never depends on the view's fields. The file comes as an attachment with
+  `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` and
+  `Content-Security-Policy: sandbox; default-src 'none'`, so an HTML or SVG report runs nothing when
+  a browser opens it.
+- **No files by path**: `file:` sources are refused, whatever the MCP server's `files.allowDirs` says.
+  Inline results are off unless the operator turns them on, since a program can enumerate through
+  them.
+- **Sign-in**: only the `Authorization` header is read (no cookie, no Basic, no token in the address,
+  no second header), so a page on another site cannot call the service with a browser's
+  credentials. With OAuth the REST service is a resource of its own: a token for the MCP endpoint does
+  not reach it, and the other way round.
+- **CORS** is off: a browser request is refused unless its origin is listed exactly
+  (`rest.cors.origins`, never `*`).
+- **Limits** per caller (requests per minute, requests at once) and per address for refused tokens
+  slow down scripts and token guessing; they live in one process's memory.
+- **Errors** are problem documents with a stable code; a message names no file content, and a 5xx
+  carries a fixed text. A source the caller may not use answers as a missing one.
+
+### The container image { #container }
+
+The [image](reference/container.md) runs as the user 10001 on a distroless Node 22 base (no shell, no
+package manager), pinned by digest, with its packages installed from the repository's lock file
+without install scripts. Run it with a read-only root file system, no capabilities and
+`no-new-privileges`, data mounted read-only, tokens as secret files (environment variables show in
+`docker inspect`). It refuses to listen on every address without sign-in. Each release's image is
+signed with cosign (keyless) and has provenance and SBOM attestations; [check them](reference/container.md#verify)
+before you run it.
+
 ## Content-Security-Policy
 
 The web component was measured in the browser tests (`tests/browser/element.spec.js`) in Chromium,

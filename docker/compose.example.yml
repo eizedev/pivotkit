@@ -1,0 +1,27 @@
+# An example for Docker Compose (docs/reference/container.md): the REST service and the MCP server
+# on 127.0.0.1:3333, data read-only, reports in a volume, tokens as secrets (not environment
+# variables, which `docker inspect` shows). Set PIVOTKIT_VERSION to a release of pivotkit-server.
+services:
+  pivotkit:
+    image: ghcr.io/eizedev/pivotkit:${PIVOTKIT_VERSION:?set PIVOTKIT_VERSION to a pivotkit-server release, e.g. 0.1}
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
+    ports: ["127.0.0.1:3333:3333"]
+    volumes:
+      - ./data:/data:ro
+      - ./pivotkit.json:/config/pivotkit.json:ro
+      - pivotkit-out:/out
+    secrets: [pivotkit_token, pivotkit_export_token]
+    stop_grace_period: 30s
+
+volumes:
+  pivotkit-out: {}
+
+secrets:
+  pivotkit_token:
+    file: ./secrets/pivotkit_token
+  pivotkit_export_token:
+    file: ./secrets/pivotkit_export_token

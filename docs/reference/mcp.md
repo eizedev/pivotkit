@@ -20,8 +20,10 @@ npx -y pivotkit-mcp --config pivotkit-mcp.json --http             # Streamable H
 ```
 
 Node 22 or later. It brings the official MCP TypeScript SDK (`@modelcontextprotocol/server`, which
-speaks the protocol revision 2026-07-28 and the 2025 revisions), [pivotkit-report](report.md),
-pivotkit-cli's file handling, pivotkit-xlsx, ECharts 6.1.0 and jose (for OAuth).
+speaks the protocol revision 2026-07-28 and the 2025 revisions) and [pivotkit-server](rest.md), which
+holds what it shares with the REST service (sources, policy, workers, output, sign-in) and brings
+[pivotkit-report](report.md), pivotkit-cli's file handling, pivotkit-xlsx, ECharts 6.1.0 and jose
+(for OAuth). `pivotkit-server serve` runs this endpoint and the REST service on one port.
 
 ## Tools { #tools }
 
@@ -40,7 +42,8 @@ Every tool has an input and an output JSON Schema (draft 2020-12) and returns it
 structured content and as one text block: a short sentence with counts and ids (never a name or value
 from the data), then the JSON. A view with errors is not a tool error: `ok` or `valid` is false and
 `findings` say what to fix. The tools are one table shared with the command line
-([`pivotkit-report/operations`](report.md#operations)); a REST service will use the same table.
+([`pivotkit-report/operations`](report.md#operations)); the [REST service](rest.md) offers the
+same operations with the same policy to programs.
 
 The server also gives the model short **instructions** when it connects, a **prompt**
 `pivotkit_report` (for clients with a prompt picker) and a **skill** (see [the skill](#skill)).
@@ -82,6 +85,13 @@ server's `policy`; field names are matched without regard to case.
 | `rows` | `true` | Show the number of rows |
 | `counts` | `true` | Show distinct and blank counts per field |
 | `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never |
+| `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
+
+A **profile** (`policy.profiles.<name>`, a policy of the same shape) gives one caller more or less
+than this: bound to a static token (`auth.tokens[].profile`), an OAuth client
+(`auth.clientProfiles`) or scope (`auth.scopeProfiles`), laid over each source's policy; a field a
+source hides stays hidden in every profile, and a caller without a profile gets the server's policy.
+See [profiles](rest.md#profiles).
 
 A view that uses a field the model may not see in full (rows, columns, values, filters, sorting, a
 date grouping's source field) has its result **withheld**: `render_view` writes the file and returns
@@ -118,7 +128,8 @@ error that names the key and the one probably meant.
 | `output.dir` | `--output dir` | none | Where reports and drafts are written |
 | `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
 | `output.maxFiles` | - | 1000 | Files the directory may hold before render_view refuses (`NO_OUTPUT`) |
-| `policy` | - | see above | The server's exposure policy |
+| `output.maxAgeDays` | - | none | Delete files older than this from the output directory (checked at most once an hour, when a file is written) |
+| `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
 | `locale`, `timeZone` | - | en-US, UTC | Numbers and dates of reports; the time zone of dates in the data |
 | `compute.workers` | - | 2 | Reports computed at once (worker threads) |
@@ -130,10 +141,14 @@ error that names the key and the one probably meant.
 | `http.allowHosts` | `--allow-host name` | localhost names | Host names the server answers to (DNS rebinding protection) |
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
+| `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit |
+
+The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`
+too; pivotkit-mcp ignores them.
 
 ```json
 {
@@ -171,7 +186,7 @@ give a source `load: async () => rows` (rows or columnar data) and `version: () 
 `file`; such sources run in the host's thread, not in a worker. `createHttpHandler(context, { env })`
 reads static tokens from `env` (default `process.env`). `pivotkit-mcp/policy` exports the exposure
 policy (`resolvePolicy`, `levelOf`, `exposeSource`, `exposeFindings`, `touchesClosed`) for another
-front end over the same sources.
+front end over the same sources; it is `pivotkit-server/policy` under another name.
 
 ## Limits and errors { #errors }
 
@@ -186,7 +201,7 @@ base name only and holds no file content.
 
 | Code | When |
 | --- | --- |
-| `INVALID_INPUT` | An input the schema allows but the tool does not (a recipient that is an address, a format) |
+| `INVALID_INPUT` | An input the schema allows but the tool does not (a recipient that is an address, a format, an input nested too deeply) |
 | `SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for (the same answer) |
 | `FILES_NOT_ALLOWED` | `file:` without allowed directories, or without the scopes for files |
 | `FILE_NOT_AVAILABLE` | A file missing, outside the allowed directories, or changed while read |
@@ -219,7 +234,8 @@ checks in order:
 3. **Authentication** for `/mcp` ([below](#auth)).
 
 Host, Origin, the declared size and the token are checked from the headers before the body is
-read; at most 256 connections are open at once, and a request has 30 seconds.
+read; at most 256 connections are open at once, and a request has 30 seconds. On SIGTERM the server
+takes no new connection and lets running requests finish for up to `http.graceMs`.
 
 Without authentication: `/healthz` (`{ "ok": true }`, for a supervisor or a proxy), the OAuth
 discovery documents, and the **quick-start page** at `/`: what the server is, its endpoint, client
@@ -260,7 +276,8 @@ an environment variable or a file (read on every request, so a token is rotated 
 each with its own `scopes` (a token without `scopes` holds every scope). A token has at least 32
 characters; make one with
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Tokens are compared
-as SHA-256 digests in constant time, never logged, and refused in the address (`?access_token=`).
+as SHA-256 digests in constant time, never logged, and refused in the address (`?access_token=`) and
+when a request carries two `Authorization` headers.
 The token's name is the client in the log.
 
 ```json
@@ -306,6 +323,7 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 | `auth.requireTyp` | none | Require a token type, e.g. `at+jwt` (rejects ID tokens where the provider marks access tokens) |
 | `auth.clockTolerance` | 30 | Seconds of clock difference |
 | `auth.allowInsecureIssuer` | false | Accept an `http://` issuer: for a test issuer on this machine only |
+| `auth.clientProfiles`, `auth.scopeProfiles` | none | The policy profile of an OAuth client id or scope ([profiles](rest.md#profiles)) |
 
 A token stays valid until it expires: keep the provider's access token lifetime short (minutes), so
 taking a person's access away takes effect soon. Set `requiredScopes`, so not every token the provider

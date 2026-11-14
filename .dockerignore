@@ -1,0 +1,21 @@
+# The image is built from the lock file, the packages and the example data only (docker/Dockerfile).
+**/node_modules
+**/.DS_Store
+packages/*/types
+packages/*/LICENSE
+packages/*/coverage
+.git
+.github
+.claude
+assets
+bench
+coverage
+docs
+site
+test-results
+playwright-report
+tests
+examples/angular
+examples/element
+examples/reader-plugin
+examples/playground/dist

@@ -26,3 +26,10 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - `--check-config` prints what the server would expose (sources, fields by level, files, output,
   auth, token scopes no source names) and exits 1 when a file or directory it names is missing.
 - `pivotkit-mcp/policy`: the exposure policy for another front end over the same sources.
+- Built on `pivotkit-server`, which holds what the MCP server and the REST service share (options,
+  sources, policy, workers, output, sign-in); `pivotkit-mcp/policy` is `pivotkit-server/policy`
+  ([#268](https://github.com/eizedev/pivotkit/issues/268)). Policy profiles per token, OAuth client or
+  scope apply to the tools too.
+- On SIGTERM the HTTP server lets running requests finish (`http.graceMs`, 25 seconds by default);
+  two `Authorization` headers are refused, also when node:http would keep only the first; an input
+  nested too deeply for a worker is `INVALID_INPUT` and frees the worker at once.
