@@ -171,3 +171,40 @@ test.describe("a second rule added while the first one's value still waits (#245
         await expect.poll(() => menu.getByTestId("value-filter-op").evaluateAll((list) => list.map((c) => c.value))).toEqual([">", "<"]);
     });
 });
+
+test.describe("a rule's × clicked while its value still waits (#320)", () => {
+    test("on the name, the item and the total: the rule goes, nothing applies on the way", async ({ page }) => {
+        await openView(page, "nobel", { rows: ["Year"], values: [{ agg: "count" }] });
+        await chipMenu(page, "Year", "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await openRules(menu);
+        for (const [add, field, text] of [["rule-add-name", "filter-condition-text", "19"], ["rule-add-item", "rule-item-value", "2000"], ["rule-add-total", "value-filter-number", "5"]]) {
+            await menu.getByTestId(add).click();
+            await menu.getByTestId(field).click();
+            await page.keyboard.type(text);
+            // no wait for the value to apply: the row's × at once
+            await menu.getByTestId("rule-remove").click();
+            await expect(menu.getByTestId("rule")).toHaveCount(0);
+            await expect.poll(() => years(page)).toEqual(nobelYears);
+            await expect(badge(page, "Year")).toHaveCount(0);
+            await expect(badge(page, "Year", "condition-badge")).toHaveCount(0);
+            await openRules(menu);
+        }
+    });
+
+    test("on a rule that applies, with a new value still waiting: the rule goes, the new value never applies", async ({ page }) => {
+        await openView(page, "nobel", { rows: ["Year"], values: [{ agg: "count" }] });
+        await chipMenu(page, "Year", "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await openRules(menu);
+        await menu.getByTestId("rule-add-item").click();
+        await menu.getByTestId("rule-item-value").click();
+        await page.keyboard.type("2000");
+        await expect.poll(() => years(page)).toEqual(nobelYears.filter((y) => y >= 2000));
+        await page.keyboard.type("0");
+        await menu.getByTestId("rule-remove").click();
+        await expect(menu.getByTestId("rule")).toHaveCount(0);
+        await expect.poll(() => years(page)).toEqual(nobelYears);
+        await expect(badge(page, "Year")).toHaveCount(0);
+    });
+});

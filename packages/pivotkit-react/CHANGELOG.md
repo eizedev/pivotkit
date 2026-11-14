@@ -8,6 +8,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Filter level: a rule's × clicked while its value still waits to apply (a moment after typing)
+  takes the rule away; before, the field's blur applied the value and the click was lost. What waits
+  in a removed row applies nothing ([#320](https://github.com/eizedev/pivotkit/issues/320)).
 - Filter level: emptying the value of a rule on the item or on its total takes the rule off, as
   emptying the text of a rule on the name does; its row stays, says "Applies once it is complete."
   and applies again with the next value, in its place among the rules. Before, the field looked empty
