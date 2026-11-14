@@ -44,8 +44,10 @@ test("a view file has its keys in the canonical order and lists the fields the v
 
 test("without a description, a time or data the keys are left out, and the text is the same bytes every time", () => {
     const file = toViewFile(view, { name: "Units" });
-    assert.deepEqual(Object.keys(file), ["$schema", "format", "formatVersion", "name", "source", "extensions", "view"]);
-    assert.deepEqual(file.source, {});
+    // a source with no id, name or fields is left out, not written as {}
+    assert.deepEqual(Object.keys(file), ["$schema", "format", "formatVersion", "name", "extensions", "view"]);
+    assert.equal(toViewFile(view, { name: "Units", source: null }).source, undefined);
+    assert.equal(toViewFile(view, { source: { id: " ", name: "" } }).source, undefined);
     const text = viewFileText(file);
     assert.equal(text, viewFileText(toViewFile(view, { name: "Units" })));
     assert.ok(text.endsWith("}\n"));

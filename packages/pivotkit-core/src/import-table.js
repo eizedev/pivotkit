@@ -13,7 +13,7 @@
 
 import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
-import { parseIso } from "./time.js";
+import { isDateMs, parseIso } from "./time.js";
 
 /** The column types a loaded table can have (`encode`'s, without "null"). */
 export const IMPORT_TYPES = Object.freeze(["string", "number", "date", "boolean"]);
@@ -354,7 +354,7 @@ const EXCEL_EPOCH = Date.UTC(1899, 11, 30);
 /** ISO wall-clock text of a Date whose UTC fields are the wall clock (as a spreadsheet's dates are read). */
 export function dateToIso(d) {
     let ms = d.getTime();
-    if (!Number.isFinite(ms) || Math.abs(ms) > 8.64e15) {
+    if (!isDateMs(ms)) {
         return null;
     }
     // a spreadsheet's serial date is a fraction of a day: 08:49:40 can come back as 08:49:39.999

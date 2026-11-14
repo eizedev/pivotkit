@@ -10,7 +10,7 @@
 // pivotkit-element is not affected: it bundles the packages of this repository (devDependencies).
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { isMain } from "./is-main.js";
 
 const root = new URL("../", import.meta.url);
 
@@ -54,7 +54,7 @@ export function releaseProblems(name, read) {
     });
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
     const name = process.argv[2];
     if (!name) {
         console.error("usage: node scripts/check-release.js <workspace> [--published]");

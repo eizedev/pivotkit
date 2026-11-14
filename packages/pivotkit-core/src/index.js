@@ -30,6 +30,7 @@
  * @typedef {import("./suggest.js").LayoutPick} LayoutPick
  * @typedef {import("./suggest.js").LayoutNote} LayoutNote
  * @typedef {import("./suggest.js").LayoutDescription} LayoutDescription
+ * @typedef {import("./suggest.js").LayoutView} LayoutView
  * @typedef {import("./view.js").ValueSpec} ValueSpec
  * @typedef {import("./view.js").ValueRef} ValueRef
  * @typedef {import("./view.js").FilterSpec} FilterSpec
@@ -63,6 +64,7 @@ export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
 export { dateUnitFor, suggestDateUnit } from "./derive.js";
 export { relativeDateRange } from "./filters.js";
+export { MAX_DATE_MS, isDateMs } from "./time.js";
 export { foldText, MATCH_DEFAULTS } from "./text-match.js";
 export { closest, HINT_LIMITS } from "./hints.js";
 export { toGrid } from "./grid.js";

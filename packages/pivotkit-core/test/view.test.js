@@ -373,6 +373,15 @@ test("an unknown field, aggregator, filter type or key names the closest known o
     assert.deepEqual(validate({ rows: ["Region"], columns: ["Year"], Measures: [] }, data).errors.map((e) => [e.path, e.params?.suggestion]), [["columns", "cols"], ["Measures", "values"]]);
 });
 
+test("a filter or sort without a field says it names none, not \"unknown field undefined\"", () => {
+    for (const view of [{ filters: [{}] }, { filters: [{ type: "include", items: [] }] }, { sort: [{ dir: "asc" }] }]) {
+        const [error] = validate(view, data).errors;
+        assert.equal(error.code, "unknownField");
+        assert.equal(error.message, "names no field");
+        assert.deepEqual(error.params, { field: "" });
+    }
+});
+
 test("a key inside a part of the view that this version does not know is a warning, with what was meant", () => {
     const { valid, errors, warnings } = validate({
         rows: ["Region"],

@@ -24,6 +24,10 @@ Dates are **wall-clock time**: a value is grouped and shown as it was written, n
 reader's zone.
 
 - An ISO string without an offset (`"2026-03-04T10:00"`, `"2026-03-04"`) is taken as written.
+- A year before 0 or after 9999 is written as ECMAScript writes it, with a sign and six digits
+  (`"+010000-01-01"`, `"-000001-12-31"` for 2 BC), within what a `Date` holds (`MAX_DATE_MS`: the
+  years -271821 to 275760); a compare filter's day at the edges of that range is written so too and
+  reads the same when the view is saved and loaded again.
 - A `Date`, epoch milliseconds, or an ISO string with an offset (`"2026-03-04T10:00:00Z"`) is an
   **instant**. It is read at the wall clock of the zone given to `encode(rows, { timeZone })`
   (`timeZone` prop or `time-zone` attribute in the UI): `"UTC"` by default, any IANA zone
@@ -60,7 +64,7 @@ over it and reports it as an issue.
 | `cacheEntries` | 16 | Derived columns and sort orders kept per data set. | On each new entry; the least recently used go first. |
 | `fileBytes` | 104,857,600 (100 MiB) | Bytes of a file [loaded](../reference/import.md#limits). | Before a byte is read. |
 | `columns` | 1,000 | Columns of a loaded table. | As they appear. |
-| `importCells` | 10,000,000 | Rows x columns of a loaded table. | As the rows are read. |
+| `importCells` | 10,000,000 | Rows x columns of a loaded table; for a workbook also its shared strings and its cell and number formats (with 1,000 rows more for a title block above the header). | As the rows are read; a workbook's before it is parsed, while its parts are unpacked. |
 | `textLength` | 32,767 | Characters of one value of a loaded table (Excel's cell limit). | As the value is read; longer text is cut, with a note. |
 | `archiveEntries` | 10,000 | Parts of an archive file (an `.xlsx` is a ZIP). | From its directory, before anything is unpacked. |
 | `unpackedBytes` | 524,288,000 (500 MiB) | Bytes the parts of an archive file unpack to. | From its directory, before anything is unpacked; a part that unpacks to more than its directory states stops the read. |
@@ -180,7 +184,10 @@ Measured in Node 26 on arm64; other engines and machines differ.
 - `fileBytes`, `importCells`: a loaded table keeps each value twice until it is encoded (as read and
   typed) and the encoded columns once more; a CSV file of 100 MiB or 10 million values is about what a
   tab handles without slowing to a crawl. A workbook of 94,000 rows x 20 columns (12 MB) took about
-  650 MB of memory while it was read ([measured](../reference/plugins.md#pivotkit-xlsx)).
+  650 MB of memory while it was read ([measured](../reference/plugins.md#pivotkit-xlsx)). Its parser
+  keeps about 100 bytes per shared string and per format, so they count against `importCells` too:
+  a sheet cannot name more strings than it has cells, and 11 million cost about 1 GB, less than a
+  table at that limit ([measured](../security.md#untrusted-workbooks)).
 - `textLength`: Excel's own limit per cell; longer text in a CSV file is more likely an error than a
   value.
 - `archiveEntries`, `unpackedBytes`: a workbook has a few dozen parts; 94,000 rows x 20 columns

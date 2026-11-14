@@ -173,18 +173,34 @@ reads (rows without a value, anything between rows that is no row, what follows 
 runs of whitespace to 128 KiB and refuses a text of more than 1 MiB or a tag of more than 256 KiB as `DAMAGED`, so a small
 file padded with whitespace costs time in proportion to its unpacked size, and memory mostly for the
 pieces being unpacked, which the garbage collector frees as it goes (up to about 2 to 3 times the
-unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large. Measured with Node 26 on an
-Apple M4, peak memory of the whole process (approximate; machines differ):
+unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large.
+
+read-excel-file keeps an entry for each shared string and each cell or number format, which costs
+about 100 bytes even for a string of one letter. Of the shared strings, pivotkit-xlsx keeps only
+those up to the highest one a cell of the sheet names (strings that only other sheets use are left
+out), and it counts the strings and formats it keeps, together and with a namespace prefix too,
+against `importCells` (plus 1,000 rows for a title block): more stop the read with `LIMIT_EXCEEDED`,
+so they cost no more than a table at that limit. Shared strings are numbered across the whole
+workbook, so a small sheet whose cell names a string past that limit (a workbook whose other sheets
+hold millions of strings) is refused too. When the sheet names its strings in a way the filter does
+not read (a prefix, a value that is no plain number), all strings are kept, up to the same limit. A
+comment, CDATA section or processing instruction in a row or in the shared strings is skipped as the
+parser skips it. Measured with Node 26 on an Apple M4, peak memory of the whole process (approximate; machines
+differ):
 
 | Workbook | Unpacked | Time | Memory |
 | --- | --- | --- | --- |
 | 54 KB, sheet XML padded with whitespace | 50 MiB | 0.4 s | about 200 MB |
 | 105 KB, whitespace before, in and after the rows, in a tag, in shared strings | 100 MiB | 0.4 to 0.8 s | about 190 to 310 MB |
-| 257 KB, 6 million one-letter shared strings | 100 MiB | 2.4 s | about 660 MB |
+| 257 KB, 6 million one-letter shared strings, a sheet of two cells | 100 MiB | 0.3 s | about 120 MB |
+| 1.3 MB, 30 million one-letter shared strings, a sheet of two cells | 495 MiB | 1.3 s | about 120 MB |
+| 455 KB, 11 million one-letter shared strings, a cell naming the last one | 178 MiB | 5 to 8 s | about 1 GB |
+| 81 KB, 11 million cell formats (`<xf/>`) | 52 MiB | 2 s | about 1.3 GB |
+| 1.3 MB, 30 million one-letter shared strings, a cell naming the last one | 495 MiB | refused after 2 to 3 s | about 300 MB |
 
-At the default 500 MiB, content of the last kind would take several gigabytes (extrapolated, not
-measured). For workbooks from people you do not trust, lower `unpackedBytes` to what your workbooks
-need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
+The last three are what the defaults still allow: lowering `importCells` lowers them in proportion.
+For workbooks from people you do not trust, lower `unpackedBytes` and `importCells` to what your
+workbooks need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
 [command line](reference/cli.md#files)) and run a server-side read with a time and memory limit of
 its own (a worker or a container).
 
@@ -226,9 +242,21 @@ may try to steer it:
   becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
   with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
-  gets names that start with 22 random characters; protect that server as you would the data.
+  gets names that start with 22 random characters; protect that server as you would the data. The
+  directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's (its
+  reports and drafts carry `.pivotkit-out.` in their names; other files are neither counted nor
+  deleted). When it is full, a new report deletes the oldest reports, so one caller cannot stop
+  rendering for everyone, but any token that may render can push other callers' reports out (a link
+  to one then answers 404); drafts awaiting approval are never deleted this way and may take at most
+  half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
+  as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
+  set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
+- **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
+  for the headers; `http.maxConnectionsPerAddress` bounds one address where clients reach the port
+  directly. Behind a proxy the proxy must guard the connections and the port be reachable from it
+  only.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
   it is stopped), at most a few at once, with pivotkit-core's [limits](concepts/limits.md) and a
   default of 50 MiB per file.

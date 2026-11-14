@@ -660,11 +660,11 @@
                     "content"
                   ],
                   "output": {
-                    "name": "Sum of Sales by Region.xlsx",
+                    "name": "Sum of Sales by Region.pivotkit-out.xlsx",
                     "format": "xlsx",
                     "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   },
-                  "message": "The report is saved as Sum of Sales by Region.xlsx in the output directory."
+                  "message": "The report is saved as Sum of Sales by Region.pivotkit-out.xlsx in the output directory."
                 }
               }
             }
@@ -870,11 +870,11 @@
                     "name": "Weekly sales"
                   },
                   "output": {
-                    "name": "Weekly sales.report.json",
+                    "name": "Weekly sales.pivotkit-out.report.json",
                     "format": "json",
                     "mediaType": "application/json"
                   },
-                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.report.json in the output directory. Nothing runs until a person approves it in the host."
+                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.pivotkit-out.report.json in the output directory. Nothing runs until a person approves it in the host."
                 }
               }
             }

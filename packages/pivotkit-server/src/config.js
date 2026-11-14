@@ -52,13 +52,13 @@ export class ConfigError extends Error {
  * @typedef {object} ServerOptions
  * @property {Record<string, SourceOptions>} [sources]
  * @property {{ allowDirs?: string[], list?: boolean, hardLinks?: boolean, scopes?: string[], policy?: PolicyOptions }} [files]
- * @property {{ dir?: string, baseUrl?: string, maxFiles?: number, maxAgeDays?: number }} [output]
+ * @property {{ dir?: string, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number }} [output]
  * @property {PolicyOptions} [policy]
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [locale]
  * @property {string} [timeZone]
  * @property {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [compute]
- * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number }} [http]
+ * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
  * @property {"info" | "debug" | "off"} [log]
@@ -106,6 +106,9 @@ export const SERVER_LIMITS = Object.freeze({ fileBytes: 52_428_800, unpackedByte
 /** The defaults of the compute pool. */
 export const COMPUTE_DEFAULTS = Object.freeze({ workers: 2, timeMs: 30_000, memoryMb: 1024, queueMs: 10_000 });
 
+/** How many reports and drafts the output directory holds, and how many megabytes, before its oldest go. */
+export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024 });
+
 /** The JWT signature algorithms accepted by default: asymmetric only. */
 export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdDSA"]);
 
@@ -122,13 +125,13 @@ export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
 export const OPTION_KEYS = Object.freeze({
     sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: POLICY } } },
     files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
-    output: { object: { dir: "string", baseUrl: "string", maxFiles: "integer", maxAgeDays: "integer" } },
+    output: { object: { dir: "string", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" } },
     policy: SERVER_POLICY,
     limits: { map: "integer" },
     locale: "string",
     timeZone: "string",
     compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } },
-    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer" } },
+    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" } },
     auth: {
         object: {
             mode: { enum: ["none", "token", "oauth"] },
@@ -315,10 +318,13 @@ export function validateOptions(options) {
     if (options.output?.baseUrl) {
         urlOf(options.output.baseUrl, "output.baseUrl");
     }
+    if (options.http?.maxConnectionsPerAddress !== undefined && options.http.maxConnectionsPerAddress > 256) {
+        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound, the default) to 256");
+    }
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");
     }
-    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
+    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxMb", options.output?.maxMb], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
         if (value !== undefined && value < 1) {
             throw new ConfigError(`${path}: must be 1 or more`);
         }

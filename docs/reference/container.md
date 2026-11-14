@@ -48,7 +48,7 @@ docker run -d --name pivotkit \
 | --- | --- |
 | `/config/pivotkit.json` | The configuration (`$PIVOTKIT_CONFIG` names another) |
 | `/data` | The data files, mounted read-only |
-| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`) |
+| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`; `check-config` and the start say so when it is not) |
 | `/run/secrets/` | Token files, readable by the user 10001 |
 | `/tmp` | A tmpfs: the root file system stays read-only |
 
@@ -94,7 +94,9 @@ Set `http.publicUrl` to the address clients use and keep the proxy's `Host` head
 to `http.allowHosts`); the server answers no other host name. With a proxy or a published port in
 front, every client comes from one address: set `http.trustProxy` with a proxy that writes
 `X-Forwarded-For` ([the nginx example](rest.md#running)), so the limit on refused tokens counts per
-client. With OAuth the MCP endpoint and the
+client; the proxy then guards the connections (timeouts, limits per client), and the container's
+port should be reachable from the proxy only. Leave `http.maxConnectionsPerAddress` off there: every
+client has the proxy's address. With OAuth the MCP endpoint and the
 REST service are two resources with their own audiences:
 
 ```json

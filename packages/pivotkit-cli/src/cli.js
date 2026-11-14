@@ -25,6 +25,7 @@ import { INFO_NOTES } from "./files.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 import { resolve as resolvePath } from "node:path";
+import { stat } from "node:fs/promises";
 
 /**
  * @typedef {object} Io
@@ -322,7 +323,14 @@ async function readView(positionals, values, ctx) {
     if (arg.trimStart().startsWith("{")) {
         return { view: arg, name: "", source: "argument", sheet: sheetOf(arg, ctx.limits) };
     }
-    const text = textOf(await ctx.readInput(arg, "the view", VIEW_BYTES, "json"));
+    let bytes;
+    try {
+        bytes = await ctx.readInput(arg, "the view", VIEW_BYTES, "json");
+    } catch (e) {
+        // a name that is no file: say what the argument is read as (a mistyped name, JSON text without its {)
+        throw e instanceof CliError && e.code === "NOT_FOUND" ? new CliError(e.kind, e.code, `${e.message}: the view is a view file, - for stdin, JSON text or --link`) : e;
+    }
+    const text = textOf(bytes);
     return { view: text, name: "", source: arg, sheet: sheetOf(text, ctx.limits) };
 }
 
@@ -389,6 +397,9 @@ async function readData(values, ctx, viewSheet = null) {
         notes.push({ severity: "info", code: "viewSheet", path: "source.params.sheet", message: printable(`${shortName(path)}: sheet ${quoted(fromView)}, the one the view names`) });
     } else if (viewSheet && !workbook) {
         notes.push({ severity: "info", code: "viewSheet", path: "source.params.sheet", message: printable(`the view names the sheet ${quoted(viewSheet)}; ${shortName(path)} is no workbook, so it is not used`) });
+    }
+    if (given && !workbook) {
+        notes.push({ severity: "warning", code: "ignoredOption", path: "", message: printable(`--sheet does nothing: ${shortName(path)} is no workbook (only an XLSX file has sheets)`) });
     }
     try {
         const table = await readFile(file, { plugins: [xlsxReader], limits: ctx.limits, ...(sheet ? { sheet } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}) });
@@ -643,6 +654,38 @@ function explain(findings, viewText, data) {
     return marked;
 }
 
+/** The grouping errors that leave a grouping out of the view, so that an error naming it follows from them. */
+const GROUPING_DROPPED = new Set(["groupingNeedsDate", "binsNeedNumber", "groupingUnknown", "groupingNoSource", "binSize"]);
+
+/**
+ * A grouping the view cannot make (a date grouping of a text field) leaves its name unknown: the errors
+ * that name it (an unknown field "Region by month") follow from it. They are marked `followsFrom` (the
+ * grouping's code) and counted on the grouping's error, as a data mismatch counts its own; --json keeps
+ * them.
+ * @param {any[]} findings
+ * @param {unknown} viewText  the view as given (text or an object of a link)
+ */
+function withGroupingFollowers(findings, viewText) {
+    const read = fromViewFile(typeof viewText === "string" ? viewText : JSON.stringify(viewText));
+    const derived = Array.isArray(read.view?.derived) ? read.view.derived : [];
+    let out = findings;
+    for (const grouping of findings.filter((f) => f.severity === "error" && GROUPING_DROPPED.has(f.code) && !f.followsFrom)) {
+        const name = derived[Number(/^derived\[(\d+)\]$/.exec(grouping.path ?? "")?.[1])]?.name;
+        if (typeof name !== "string" || !name) {
+            continue;
+        }
+        const quotedName = `"${name.toLowerCase()}"`;
+        const followers = out.filter((f) => f !== grouping && f.severity === "error" && !f.followsFrom && FOLLOW_ON.has(f.code) && f.message.toLowerCase().includes(quotedName));
+        if (!followers.length) {
+            continue;
+        }
+        const n = followers.length;
+        const line = `and ${n} more error${n === 1 ? "" : "s"} from it (--json lists ${n === 1 ? "it" : "them"})`;
+        out = out.map((f) => (followers.includes(f) ? { ...f, followsFrom: grouping.code } : f === grouping ? { ...f, details: [...(f.details ?? []), line] } : f));
+    }
+    return out;
+}
+
 /** The extensions -o names a format by (".htm" is HTML too). */
 const EXTENSIONS = Object.freeze({ ...Object.fromEntries(Object.keys(RENDER_FORMATS).map((f) => [f, f])), htm: "html" });
 
@@ -669,8 +712,20 @@ async function renderCommand(positionals, values, ctx) {
     if (positionals.length > 1) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `render takes one view, not ${positionals.length}`);
     }
+    if (values.output === "-") {
+        throw new CliError("usage", "BAD_VALUE", "-o -: the output goes to stdout when -o is left out");
+    }
     if (values.json && !values.output) {
         throw new CliError("usage", "JSON_NEEDS_OUTPUT", "--json writes the result on stdout: give the output a file with -o");
+    }
+    // the inputs an output must not replace: the data (the argument with layout flags), else the view and --data
+    /** @type {Array<[string | undefined, string]>} */
+    const inputs = fromFields(values) ? [[positionals[0] ?? values.data, "data"]] : [[values.link === undefined ? positionals[0] : undefined, "view"], [values.data, "data"]];
+    if (values.output !== undefined) {
+        await checkNotInput(ctx, "-o", values.output, inputs, "output");
+    }
+    if (values["save-view"] !== undefined) {
+        await checkNotInput(ctx, "--save-view", values["save-view"], inputs.filter(([, what]) => what === "data"), "view file");
     }
     if (values.format && values.output) {
         // -o t.html -f csv would write CSV into an .html file: the name and the format must agree
@@ -712,7 +767,7 @@ async function renderCommand(positionals, values, ctx) {
     const { result, file: rendered } = await runOperation("render_view", input, env, values.template);
     // the view's findings (the data's notes are in already), explained against the data
     const viewFindings = result.findings.filter((f) => !data.notes.includes(f));
-    findings.push(...withJsonPosition(explain(viewFindings, view.view, data), view.view));
+    findings.push(...withDataHint(withJsonPosition(withGroupingFollowers(explain(viewFindings, view.view, data), view.view), view.view), view, "render"));
     const errors = findings.filter((f) => f.severity === "error").length;
     const mismatch = findings.some((f) => f.code === "dataMismatch");
     // filters that keep no row give a table of zeros: said, not left for the reader to wonder
@@ -762,6 +817,30 @@ async function renderCommand(positionals, values, ctx) {
     const summary = result.summary;
     const lines = [...(made?.lines ?? []), `wrote ${file}: ${FORMAT_NAMES[format]}${summary ? `, ${summary.rows} rows x ${summary.columns} columns, from ${summary.sourceRows.toLocaleString("en-US")} rows of ${data.name}` : ""}`, ...(saved ? [`wrote ${saved.file}: the view, to render again with pivotkit render ${quoteArg(saved.file)} --data ${quoteArg(data.name)}`] : [])];
     return { findings, extra, note: lines.join("\n") };
+}
+
+/**
+ * An output (-o, --save-view) that names one of the command's input files would replace it: refused
+ * before anything is read or written. stdin and a view as JSON text name no file.
+ * @param {any} ctx
+ * @param {string} flag
+ * @param {string} output
+ * @param {Array<[string | undefined, string]>} inputs  each input's path and what it is ("data", "view")
+ * @param {string} written  what the output is ("output", "draft")
+ */
+async function checkNotInput(ctx, flag, output, inputs, written) {
+    // the file -o names, if it is there: one file under another name (a link to its directory, another
+    // case of its name where the file system ignores case) is the same device and inode
+    const target = await stat(resolvePath(ctx.io.cwd, output)).catch(() => null);
+    for (const [path, what] of inputs) {
+        if (path === undefined || path === "-" || path.trimStart().startsWith("{")) {
+            continue;
+        }
+        const same = resolvePath(ctx.io.cwd, path) === resolvePath(ctx.io.cwd, output) || (target !== null && (await stat(resolvePath(ctx.io.cwd, path)).then((s) => s.dev === target.dev && s.ino === target.ino, () => false)));
+        if (same) {
+            throw new CliError("usage", "SAME_FILE", `${flag} names the ${what} file: the ${written} would replace the ${what}; give it another name`);
+        }
+    }
 }
 
 /** -o and --save-view naming the same file would write the view over the report: refused first. */
@@ -858,7 +937,7 @@ async function viewFromData(positionals, values, ctx, command) {
     if (input === undefined) {
         throw new CliError("usage", "MISSING_DATA", `--${flag} needs the data: pivotkit ${command} <data> --${flag} ...`);
     }
-    const data = await readData({ ...values, data: input }, ctx);
+    const data = await readData({ ...values, data: input }, await notAView(input, values, ctx, command, flag));
     const built = await layoutView(data, values, ctx, { sheets: data.sheets, command, input });
     // an exported pivot result is no data to make a view of: said as for a view that does not fit
     const signs = pivotResultSigns(data.table);
@@ -876,6 +955,30 @@ async function viewFromData(positionals, values, ctx, command) {
     const lines = draft ? pickLines(built.view, `pivotkit ${command} ${quoteArg(shortName(input))} --suggest`, fields) : [];
     const file = { format: VIEW_FILE_FORMAT, formatVersion: VIEW_FILE_VERSION, name, ...(description ? { description } : {}), view: built.view };
     return { data, built, findings: built.findings, picks: built.picks, lines, name, description, read: { view: JSON.stringify(file), name, source: "layout", sheet: data.sheet } };
+}
+
+/**
+ * The data of --suggest or layout flags is no view: a JSON input that is a view (a view file given
+ * where the data belongs) is a usage error that says what to give, not the reader's notes on it. JSON
+ * is read once here; the context returned hands those bytes to readData.
+ * @param {string} input
+ * @param {Record<string, any>} values
+ * @param {any} ctx
+ * @param {"render" | "describe"} command
+ * @param {string} flag  the flag that makes the view from the data
+ */
+async function notAView(input, values, ctx, command, flag) {
+    const format = values["data-format"] ?? (input === "-" ? null : extname(input).slice(1).toLowerCase());
+    if (format !== "json" || values.as === "data") {
+        return ctx;
+    }
+    const bytes = await ctx.readInput(input, "the data", ctx.fileLimits.fileBytes, "fileBytes");
+    if (bytes.length <= VIEW_BYTES && isView(textOf(bytes))) {
+        const name = shortName(input);
+        const pasted = quoteArg(input === "-" ? "-" : name);
+        throw new CliError("usage", "VIEW_NOT_DATA", `--${flag} makes a view from a data file, and ${name} is a view: give the data (pivotkit ${command} <data> --${flag}${flag === "suggest" ? "" : " ..."}), or ${command} the view with pivotkit ${command} ${pasted} --data <data>`);
+    }
+    return withBytes(ctx, input, bytes);
 }
 
 /** What each output format is, for the line that says what was written. */
@@ -902,6 +1005,32 @@ function withJsonPosition(findings, viewText) {
         }
     }
     return findings.map((f) => (at && /not valid JSON/.test(f.message) ? { ...f, message: printable(f.message.replace("not valid JSON", `not valid JSON${at}`)) } : f));
+}
+
+/** The extensions of a data file (what readData reads besides JSON). */
+const DATA_EXTENSIONS = Object.freeze(["csv", "tsv", "txt", "xlsx"]);
+
+/**
+ * A data file given where the view belongs (pivotkit validate sales.csv): the view file's error gets a
+ * line that says to give it with --data, or what to run on data. Data: a file of a data extension, or
+ * JSON that is a list (rows), not an object.
+ * @param {any[]} findings
+ * @param {{ view: unknown, source: string }} view  readView's result
+ * @param {"render" | "validate"} command
+ */
+function withDataHint(findings, view, command) {
+    const file = findings.find((f) => f.code === "viewFile" && f.severity === "error");
+    if (!file || ["argument", "link", "-"].includes(view.source)) {
+        return findings;
+    }
+    const looksLikeData = DATA_EXTENSIONS.includes(extname(view.source).slice(1).toLowerCase()) || (typeof view.view === "string" && view.view.trimStart().startsWith("["));
+    if (!looksLikeData) {
+        return findings;
+    }
+    const name = quoteArg(shortName(view.source));
+    const other = command === "validate" ? `describe it: pivotkit describe ${name}` : `make a view of it: pivotkit render ${name} --suggest`;
+    const line = printable(`${shortName(view.source)} looks like data, not a view: give it with --data (pivotkit ${command} <view> --data ${name}), or ${other}`);
+    return findings.map((f) => (f === file ? { ...f, details: [...(f.details ?? []), line] } : f));
 }
 
 /**
@@ -960,9 +1089,9 @@ async function validateCommand(positionals, values, ctx) {
     const fileFindings = all.filter((f) => !notes.includes(f) && f.code === "viewFile");
     const viewFindings = all.filter((f) => !notes.includes(f) && f.code !== "viewFile");
     if (fileFindings.some((f) => f.severity === "error")) {
-        return { findings: withJsonPosition(fileFindings, view.view), extra };
+        return { findings: withDataHint(withJsonPosition(fileFindings, view.view), view, "validate"), extra };
     }
-    const findings = [...notes, ...fileFindings, ...(data ? explain(viewFindings, view.view, data) : viewFindings)];
+    const findings = [...notes, ...fileFindings, ...withGroupingFollowers(data ? explain(viewFindings, view.view, data) : viewFindings, view.view)];
     // what was checked, said when it is valid (an invalid view says so through its errors)
     const warnings = viewFindings.filter((f) => f.severity === "warning").length;
     const counted = (n, word) => (n === 0 ? `no ${word}s` : `${n} ${word}${n === 1 ? "" : "s"}`);
@@ -985,9 +1114,14 @@ async function describeCommand(positionals, values, ctx) {
     if (onlySuggest) {
         throw new CliError("usage", "NEEDS_SUGGEST", `--${onlySuggest} acts with --suggest only: pivotkit describe <data> --suggest --${onlySuggest} ...`);
     }
-    const input = positionals[0];
+    // --data alone (describe --data - --data-format csv) is the data to describe; with an argument it is a view's data
+    const dataAlone = positionals[0] === undefined && values.data !== undefined;
+    if (dataAlone && values.as === "view") {
+        throw new CliError("usage", "MISSING_INPUT", "--as view needs the view as the argument: pivotkit describe <view> --data <data>");
+    }
+    const input = dataAlone ? values.data : positionals[0];
     if (input === undefined) {
-        throw new CliError("usage", "MISSING_INPUT", "describe needs a view or a data file");
+        throw new CliError("usage", "MISSING_INPUT", "describe needs a view or a data file (the argument, or --data <file>)");
     }
     const items = intOption("items", values.items, 0, 1000) ?? 0;
     const ext = input === "-" ? values["data-format"] ?? "" : extname(input).slice(1).toLowerCase();
@@ -1008,6 +1142,10 @@ async function describeCommand(positionals, values, ctx) {
             kind = "data";
         }
     }
+    if (dataAlone && kind === "view") {
+        const name = quoteArg(input === "-" ? "-" : shortName(input));
+        throw new CliError("usage", "VIEW_NOT_DATA", `--data ${shortName(input)} is a view, not data: describe it with pivotkit describe ${name} (and its data with --data <data>)`);
+    }
     if (kind === "view") {
         const view = text ?? (input.trimStart().startsWith("{") ? input : textOf(await ctx.readInput(input, "the view", VIEW_BYTES, "json")));
         // the sheet the view was made on (source.params.sheet), read from its view file
@@ -1025,7 +1163,7 @@ async function describeCommand(positionals, values, ctx) {
         }
         const notes = data?.notes ?? [];
         const viewFindings = findings.filter((f) => !notes.includes(f));
-        return { findings: [...notes, ...(data ? explain(viewFindings, view, data) : viewFindings)], extra: { kind, ...extra, sheet: data?.sheet ?? null } };
+        return { findings: [...notes, ...withGroupingFollowers(data ? explain(viewFindings, view, data) : viewFindings, view)], extra: { kind, ...extra, sheet: data?.sheet ?? null } };
     }
     // data: the bytes or the text read above (JSON that is no view), else the file
     const known = bytes ?? (text !== null ? new TextEncoder().encode(text) : null);
@@ -1064,14 +1202,13 @@ async function suggestCommand(positionals, values, ctx) {
         if (!/\.json$/i.test(values.output)) {
             throw new CliError("usage", "UNKNOWN_EXTENSION", `-o ${shortName(values.output)}: a view file is JSON: name it <name>.pivotkit.json`);
         }
-        if (input !== undefined && input !== "-" && resolvePath(ctx.io.cwd, input) === resolvePath(ctx.io.cwd, values.output)) {
-            throw new CliError("usage", "SAME_FILE", "-o names the data file: the draft would replace the data; give it another name");
-        }
+        await checkNotInput(ctx, "-o", values.output, [[input, "data"]], "draft");
     }
     const made = await viewFromData(positionals, values, ctx, "describe");
     const { data, built } = made;
     const { errors, warnings } = validate(built.view, built.encoded, { limits: outsideLimits(ctx.limits) });
-    const findings = [...data.notes, ...made.findings, ...errors.map(findingOf), ...warnings.map(findingOf)];
+    // the draft's findings explained against the data, as render explains a view's
+    const findings = [...data.notes, ...made.findings, ...withGroupingFollowers(explain([...errors, ...warnings].map(findingOf), made.read.view, data), made.read.view)];
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
     const file = await viewFileFor(normalized(built.view, built.encoded, outsideLimits(ctx.limits)), data, built.encoded, { name: made.name, description: made.description, version: versions()["pivotkit-cli"] });
     const text = viewFileText(file);

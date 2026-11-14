@@ -88,7 +88,7 @@ export const COMMANDS = Object.freeze({
             ...LAYOUT_OPTIONS,
             "save-view": { type: "string", value: "file", complete: "file", text: "Also write the view used as a view file (after --map; with layout flags or --suggest the view they make)." },
             format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension (another one is an error), html on stdout." },
-            output: { type: "string", short: "o", value: "file", complete: "file", text: "Write to this file (replaced if it is a file) instead of stdout." },
+            output: { type: "string", short: "o", value: "file", complete: "file", text: "Write to this file (replaced if it is a file) instead of stdout; the data file and the view file are refused." },
             template: { type: "string", value: "file", complete: "file", formats: ["html"], text: "html: the print template with {{placeholders}} (default the built-in one)." },
             title: { type: "string", value: "text", formats: ["html", "xlsx"], text: "html, xlsx: the report's title (default the view file's name)." },
             chart: { type: "string", value: "when", choices: ["auto", "on", "off"], formats: ["html"], text: "html: the chart above the table: auto (when the view shows the chart), on or off." },
@@ -110,11 +110,11 @@ export const COMMANDS = Object.freeze({
     describe: {
         usage: "pivotkit describe <view | data> [options]\n       pivotkit describe <data> --suggest [-o <file>] [layout flags]",
         text: "Describe a view (what it shows and filters) or a data file (its fields, types and counts); --suggest writes a draft view of the data.",
-        args: [{ name: "input", text: "A view file or a data file (CSV, JSON, XLSX), or - for stdin.", complete: "file" }],
+        args: [{ name: "input", text: "A view file or a data file (CSV, JSON, XLSX), or - for stdin; data may be given with --data instead.", complete: "file" }],
         options: {
             ...DATA_OPTIONS,
             ...LAYOUT_OPTIONS,
-            output: { type: "string", short: "o", value: "file", complete: "file", text: "--suggest: write the draft view file here (replaced if it is a file) instead of stdout." },
+            output: { type: "string", short: "o", value: "file", complete: "file", text: "--suggest: write the draft view file here (replaced if it is a file) instead of stdout; the data file is refused." },
             lenient: { type: "boolean", text: "--suggest: write the draft also when the data has nothing to group by (a count of rows); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." },
             as: { type: "string", value: "kind", choices: ["view", "data"], text: "Read the input as a view or as data (default: a view when it is one)." },
