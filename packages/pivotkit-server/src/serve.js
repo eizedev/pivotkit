@@ -6,7 +6,9 @@
  */
 
 import { ConfigError } from "./config.js";
-import { VERSION, createContext } from "./context.js";
+import { TOKEN_ENV, VERSION, createContext } from "./context.js";
+
+export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { isLoopback, serveFetch } from "./listen.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
@@ -15,8 +17,6 @@ import { problem } from "./rest/problem.js";
 /** The default port. */
 export const DEFAULT_PORT = 3333;
 
-/** The variable of the one static token when auth.tokens is empty. */
-export const TOKEN_ENV = "PIVOTKIT_TOKEN";
 
 /** The MCP server's package: imported by name at run time, so pivotkit-server does not depend on it. */
 export const MCP_PACKAGE = "pivotkit-mcp";

@@ -10,7 +10,7 @@
  *   const { result } = await present(context, "describe_source", { source: "sales" }, callerOf("none"));
  */
 
-export { createContext, callerOf, VERSION } from "./context.js";
+export { createContext, callerOf, VERSION, TOKEN_ENV } from "./context.js";
 export { present, presentedInput, presentedOutput, renderFile, findingsText } from "./present.js";
 export { ConfigError, loadConfig, validateOptions, pathOf, restResourceOf, OPTION_KEYS, SERVER_LIMITS, COMPUTE_DEFAULTS, DEFAULT_ALGORITHMS, ENDPOINTS, REST_BASE, SOURCE_ID } from "./config.js";
 export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
@@ -18,8 +18,9 @@ export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, r
 export { allowedHosts, hostRefusal, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { serveFetch, isLoopback, GRACE_MS } from "./listen.js";
 export { checkConfig } from "./check.js";
+export { OperationError } from "pivotkit-report/operations";
 export { optionsFrom, flagLines, SERVER_FLAGS } from "./flags.js";
-export { serve, createServerHandler, DEFAULT_PORT, TOKEN_ENV } from "./serve.js";
+export { serve, createServerHandler, DEFAULT_PORT } from "./serve.js";
 
 /**
  * @typedef {import("./config.js").ServerOptions} ServerOptions
@@ -30,4 +31,6 @@ export { serve, createServerHandler, DEFAULT_PORT, TOKEN_ENV } from "./serve.js"
  * @typedef {import("./registry.js").Caller} Caller
  * @typedef {import("./context.js").ContextRuntime} ContextRuntime
  * @typedef {import("./context.js").ServerContext} ServerContext
+ * @typedef {import("./present.js").PresentOptions} PresentOptions
+ * @typedef {import("./listen.js").FetchHandler} FetchHandler
  */

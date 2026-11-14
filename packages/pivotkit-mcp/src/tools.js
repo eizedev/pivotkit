@@ -74,8 +74,8 @@ export function registerTools(server, context, caller) {
                     return /** @type {any} */ (okResult(text, result));
                 } catch (e) {
                     const error = e instanceof OperationError ? e : null;
-                    if (!error) {
-                        context.log.error(e, entry);
+                    if (!error || (error.code === "INTERNAL" && error.cause)) {
+                        context.log.error(error?.cause ?? e, entry);
                     }
                     context.log.call({ ...entry, ok: false, code: error?.code ?? "INTERNAL", ms: Date.now() - started });
                     return errorResult(error?.code ?? "INTERNAL", error ? error.message : "internal error");

@@ -172,7 +172,7 @@ export const SOURCE_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 /** Checks a value against a schema of the small language above; throws ConfigError with the key's path. */
 function check(value, schema, path) {
     const fail = (what) => {
-        throw new ConfigError(`${path}: ${what}`);
+        throw new ConfigError(path ? `${path}: ${what}` : `the options: ${what}`);
     };
     if (schema === "string") {
         return typeof value === "string" || fail("must be a text");
@@ -306,7 +306,7 @@ export function validateOptions(options) {
             // reported below
         }
         if (!url || url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
-            throw new ConfigError(`rest.cors.origins[${i}]: an origin is scheme, host and port as a browser sends it (https://app.example.com), without a path; "*" is not accepted`);
+            throw new ConfigError(`rest.cors.origins[${i}]: an origin is scheme, host and port as a browser sends it (https://app.example.com), without a path${origin === "*" ? '; "*" is not accepted: list each origin' : ""}`);
         }
     }
     if (options.http?.publicUrl) {

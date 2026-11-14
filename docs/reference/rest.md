@@ -337,9 +337,27 @@ const server = await serveFetch(rest, { host: "127.0.0.1", port: 3333, bodyBytes
 // or in a framework: return rest.fetch(request, { address });
 ```
 
-A source may be `load: async () => rows` (rows or columnar data) with `version: () => key` instead
-of `file`; it runs in the host's thread, not in a worker. `rest.fetch(request, { address })` takes the
-client's address for the limits. `openApiDocument(options)` builds the OpenAPI document,
+A source may be `load: async () => rows` instead of `file`: an array of row objects, or columnar data
+`{ columns, types, data }` with one array per column (not `encode()`'s result, so hidden fields can
+be dropped). It runs in the host's thread, not in a worker. With `version: () => key` the encoded data
+is kept until the key changes (per process, by source id and key); without it, every request loads
+again. An error thrown by `load` answers 500 with a fixed text; its class is logged, its message with
+`log: "debug"`.
+
+- The one static token without `auth.tokens` is `$PIVOTKIT_TOKEN` (`createContext(options,
+  { tokenEnv })` names another); tokens are read from `env` of `createRestHandler`.
+- `loopback` says whether the server listens on loopback only; it decides whether `auth: none` is
+  allowed, so it must match the address you listen on.
+- `rest.fetch(request, { address })` takes the client's address for the limit on refused tokens;
+  without it, refused tokens are not limited (a warning says so once).
+- The Host check reads the request's `Host` header (a `Request` built in code without one: its URL's
+  host); it accepts `localhost`, `127.0.0.1`, `[::1]`, the host of `http.publicUrl` and
+  `http.allowHosts`.
+- `createServerHandler(options, { env, stderr, loopback })` is the handler of `pivotkit-server serve`:
+  REST and, when pivotkit-mcp is installed, MCP over one context, with `/healthz` and `/readyz`; hand
+  it to `serveFetch` or your own server. To combine them yourself, build the context with pivotkit-mcp's
+  `createMcpContext` (its `createHttpHandler` needs the MCP server factory it adds) and give it to both
+  `createHttpHandler` and `createRestHandler`. `openApiDocument(options)` builds the OpenAPI document,
 `REST_ROUTES` lists the routes, and `present(context, operation, input, caller)` runs an operation for
 a caller (`callerOf("none")` without sign-in) and gives `{ text, result }` as both endpoints do.
 `serve(options, { env, stderr })` is `pivotkit-server serve` in code.

@@ -41,7 +41,7 @@ const PROMPT_ARGS = { type: "object", properties: { request: { type: "string", d
  * @returns {Promise<import("pivotkit-server").ServerContext & { server(requestContext?: { authInfo?: import("@modelcontextprotocol/server").AuthInfo }): McpServer }>}
  */
 export async function createMcpContext(options, runtime = {}) {
-    const shared = await createContext(options, runtime);
+    const shared = await createContext(options, { tokenEnv: "PIVOTKIT_MCP_TOKEN", ...runtime });
     let skills = null;
     try {
         const { loadSkills } = await import("@modelcontextprotocol/server/ext/skills/node");

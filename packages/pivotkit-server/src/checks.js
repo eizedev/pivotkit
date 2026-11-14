@@ -22,7 +22,8 @@ export function allowedHosts(options) {
  * @param {string[]} hosts
  */
 export function hostRefusal(request, hosts) {
-    const header = request.headers.get("host");
+    // a Request built in code (a test, an adapter that keeps only the URL) has no Host header: its URL's host stands for it
+    const header = request.headers.get("host") ?? new URL(request.url).host;
     if (!header) {
         return "Missing Host header";
     }

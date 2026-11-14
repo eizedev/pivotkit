@@ -17,6 +17,9 @@ import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
 import { createAuthCore, profileOf } from "./auth.js";
 
+/** The variable of the one static token when auth.tokens is empty. */
+export const TOKEN_ENV = "PIVOTKIT_TOKEN";
+
 /** The package's version. */
 export const VERSION = createRequire(import.meta.url)("../package.json").version;
 
@@ -24,7 +27,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @typedef {object} ContextRuntime
  * @property {boolean} [showPaths]  tell the caller a written file's full path (a local stdio server)
  * @property {{ write(text: string): unknown }} [stderr]  where the log goes (default process.stderr)
- * @property {string} [tokenEnv]  the variable of the one static token when auth.tokens is empty (default PIVOTKIT_MCP_TOKEN)
+ * @property {string} [tokenEnv]  the variable of the one static token when auth.tokens is empty (default PIVOTKIT_TOKEN; pivotkit-mcp: PIVOTKIT_MCP_TOKEN)
  */
 
 /**
@@ -82,7 +85,7 @@ export async function createContext(options, runtime = {}) {
          * @param {{ env?: Record<string, string | undefined>, loopback: boolean }} how
          */
         auth(how) {
-            auth ??= createAuthCore(options, { env: how.env ?? process.env, log, loopback: how.loopback, tokenEnv: runtime.tokenEnv ?? "PIVOTKIT_MCP_TOKEN" }).catch((e) => {
+            auth ??= createAuthCore(options, { env: how.env ?? process.env, log, loopback: how.loopback, tokenEnv: runtime.tokenEnv ?? TOKEN_ENV }).catch((e) => {
                 auth = null;
                 throw e;
             });

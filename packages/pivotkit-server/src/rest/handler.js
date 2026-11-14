@@ -109,6 +109,7 @@ export async function createRestHandler(context, runtime = {}) {
     const requiredScopes = rest.requiredScopes ?? authOptions.requiredScopes ?? [];
     const metadataUrl = mode === "oauth" ? resourceMetadataUrlOf(resource) : null;
     const limits = createLimits(rest);
+    let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
     let document = null;
     const openapi = () => (document ??= openApiDocument({ auth: authOptions, publicUrl: options.http?.publicUrl, issuer: core.metadata?.() ?? null, resource: resource.href, requiredScopes }));
@@ -130,7 +131,13 @@ export async function createRestHandler(context, runtime = {}) {
         if (mode === "none") {
             return { caller: callerOf("none", undefined) };
         }
-        const wait = limits.blocked(address);
+        // refused tokens are counted per address; without one (a host that gives none) they are not
+        // counted at all, rather than every caller sharing one count that a stranger could fill
+        if (!address && !warnedAddress) {
+            warnedAddress = true;
+            context.log.warn("rest: requests come without the client's address (fetch(request, { address })): refused tokens are not limited");
+        }
+        const wait = address ? limits.blocked(address) : 0;
         if (wait) {
             return { refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
         }
@@ -156,7 +163,9 @@ export async function createRestHandler(context, runtime = {}) {
             if (e.status === 503) {
                 return { refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };
             }
-            limits.failed(address);
+            if (address) {
+                limits.failed(address);
+            }
             return { refused: problem("INVALID_TOKEN", e.message, { headers: { "www-authenticate": challenge("invalid_token", e.message) } }) };
         }
     }
@@ -302,8 +311,8 @@ export async function createRestHandler(context, runtime = {}) {
             if (e?.problem) {
                 response = problem(e.problem, "the body is larger than the service takes");
             } else {
-                if (!error) {
-                    context.log.error(e, { where: "rest", operation: match.route.operation });
+                if (!error || (error.code === "INTERNAL" && error.cause)) {
+                    context.log.error(error?.cause ?? e, { where: "rest", operation: match.route.operation });
                 }
                 const code = error?.code ?? "INTERNAL";
                 response = problem(code, error ? error.message : "internal error", code === "BUSY" || code === "NOT_READY" ? { headers: { "retry-after": "5" } } : {});

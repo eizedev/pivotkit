@@ -135,8 +135,9 @@ export async function codeData(spec, source) {
     let loaded;
     try {
         loaded = await source.load();
-    } catch {
-        throw new OperationError("INTERNAL", "the host could not load this source");
+    } catch (e) {
+        // the host's own error stays in the log (its message with --log debug), never in the answer
+        throw Object.assign(new OperationError("INTERNAL", "the host could not load this source"), { cause: e });
     }
     const columnar = Array.isArray(loaded) ? loaded : loaded && typeof loaded.column === "function" ? null : loaded;
     if (columnar === null) {

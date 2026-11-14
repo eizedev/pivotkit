@@ -23,7 +23,8 @@
 import { findingText } from "pivotkit-report/operations";
 
 /** The levels, from most to least visible. */
-export const POLICY_LEVELS = Object.freeze(["show", "summary", "hide"]);
+/** @type {readonly ["show", "summary", "hide"]} */
+export const POLICY_LEVELS = Object.freeze(/** @type {const} */ (["show", "summary", "hide"]));
 
 /** The most characters of a field name that reaches the model. */
 export const NAME_TEXT = 80;
