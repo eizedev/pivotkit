@@ -48,6 +48,7 @@ report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view",
 | Topic | Page |
 | --- | --- |
 | Getting started: install, first report, saving views on a server | [Getting started with the web component](https://pivotkit.eize.dev/getting-started/web-component/) |
+| Loading files and the source data | [Load your own data](https://pivotkit.eize.dev/use/load-data/), [the table or the rows](https://pivotkit.eize.dev/use/export/#the-table-or-the-rows-behind-it) |
 | PHP and server-rendered pages | [PHP and other server-rendered pages](https://pivotkit.eize.dev/getting-started/web-component/#php-and-other-server-rendered-pages) |
 | Angular | [Angular](https://pivotkit.eize.dev/getting-started/web-component/#angular), [Angular and zone.js](https://pivotkit.eize.dev/reference/element/#angular-and-zonejs) |
 | A page with React of its own | [React on the page](https://pivotkit.eize.dev/reference/element/#react-on-the-page) |

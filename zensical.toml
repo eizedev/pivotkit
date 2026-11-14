@@ -3,7 +3,7 @@
 # `npm run docs:demo` (and by the docs workflow) and not committed; see CONTRIBUTING.md.
 [project]
 site_name = "pivotkit"
-site_description = "Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), views as JSON files, native Excel export; as a JavaScript engine, a React component and a web component."
+site_description = "Pivot reports for the web and the command line: people load their own file, drag fields, filter, chart and export to Excel; views are safe JSON files that a CLI renders again from the source data. React, web component, engine, CLI. MIT."
 site_url = "https://pivotkit.eize.dev/"
 repo_url = "https://github.com/eizedev/pivotkit"
 repo_name = "eizedev/pivotkit"
@@ -12,6 +12,7 @@ copyright = "MIT licensed"
 extra_css = ["assets/site.css"]
 nav = [
   { "Home" = "index.md" },
+  { "Features" = "features.md" },
   { "Live demo" = "demo.md" },
   { "Comparison" = "compare.md" },
   { "Use a report" = [
@@ -35,8 +36,8 @@ nav = [
     { "Getting started: React" = "getting-started/react.md" },
     { "Getting started: web component" = "getting-started/web-component.md" },
     { "Getting started: engine only" = "getting-started/engine.md" },
-    { "Upgrading from 0.4" = "getting-started/upgrading.md" },
     { "Recipes" = "embed/recipes.md" },
+    { "Upgrading from 0.4" = "getting-started/upgrading.md" },
     { "Concepts" = [
       { "Views and saved views" = "concepts/views.md" },
       { "Templates and shared views" = "concepts/templates.md" },
@@ -49,20 +50,23 @@ nav = [
       { "Locale, time zones, limits and errors" = "concepts/limits.md" },
     ] },
   ] },
+  { "Reports and CLI" = [
+    { "Getting started: command line" = "getting-started/cli.md" },
+    { "Getting started: reports in code" = "getting-started/report.md" },
+    { "pivotkit-cli" = "reference/cli.md" },
+    { "pivotkit-report" = "reference/report.md" },
+    { "Print template" = "reference/print-template.md" },
+  ] },
   { "Reference" = [
     { "pivotkit-core" = "reference/core.md" },
     { "pivotkit-react props" = "reference/react.md" },
     { "pivotkit-element" = "reference/element.md" },
+    { "View file format" = "reference/view-file.md" },
     { "Loading files" = "reference/import.md" },
     { "Plugins" = "reference/plugins.md" },
     { "Write a plugin" = "reference/write-a-plugin.md" },
-    { "pivotkit-report" = "reference/report.md" },
-    { "Print template" = "reference/print-template.md" },
-    { "pivotkit-cli" = "reference/cli.md" },
-    { "View file format" = "reference/view-file.md" },
     { "Theming" = "reference/theming.md" },
     { "Localisation" = "reference/localisation.md" },
-    { "Feature list" = "features.md" },
   ] },
   { "Security" = "security.md" },
   { "Browser support" = "browser-support.md" },

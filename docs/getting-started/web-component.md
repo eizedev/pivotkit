@@ -32,7 +32,48 @@ To get `dist/` without a build: `npm install pivotkit-element` and copy
 tarball. A CDN that serves npm packages works the same way, as long as it serves the whole `dist/`
 directory of one exact version.
 
+## A complete page to copy { #a-complete-page }
+
+Four commands and one file, no build step:
+
+```bash
+mkdir pivot-page && cd pivot-page
+npm install pivotkit-element
+mkdir -p assets/pivotkit-element && cp -R node_modules/pivotkit-element/dist assets/pivotkit-element/
+npx --yes http-server -p 8080 .     # any static server; then open http://localhost:8080/
+```
+
+`index.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pivot report</title>
+    <script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
+</head>
+<body>
+    <pivot-report height="640" default-view='{"rows":["Region"],"cols":["Product"],"values":[{"field":"Sales","agg":"sum"}]}'></pivot-report>
+    <script type="module">
+        const rows = [
+            { Region: "North", Product: "A", Sales: 120, Date: "2026-01-05" },
+            { Region: "North", Product: "B", Sales: 80, Date: "2026-01-20" },
+            { Region: "South", Product: "B", Sales: 340, Date: "2026-02-14" },
+            { Region: "West", Product: "A", Sales: 210, Date: "2026-03-02" }
+        ];
+        document.querySelector("pivot-report").data = rows;
+    </script>
+</body>
+</html>
+```
+
+The page must be served over HTTP (not opened as a file): the element loads its chunks by URL.
+
 ## The first report
+
+The same in parts, as a page with its own script file. `rows` is your data, an array of objects:
 
 ```html
 <script type="module" src="/assets/pivotkit-element/dist/index.js"></script>

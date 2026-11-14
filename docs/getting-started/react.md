@@ -33,6 +33,81 @@ exactly) come with the package.
     version inside that range; npm shares one copy only when the ranges overlap
     (`npm ls pivotkit-core` lists the copies).
 
+## A complete app to copy { #a-complete-app }
+
+A new project with [Vite](https://vite.dev/), four files, runs in a minute. Each step below adds to
+`Report.jsx`.
+
+=== "Terminal"
+
+    ```bash
+    mkdir pivot-app && cd pivot-app
+    npm init -y && npm pkg set type=module
+    npm install pivotkit-react react react-dom echarts
+    npm install --save-dev vite @vitejs/plugin-react
+    # create the files of the other tabs, then:
+    npx vite            # opens on http://localhost:5173
+    ```
+
+=== "index.html"
+
+    ```html
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Pivot report</title>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.jsx"></script>
+    </body>
+    </html>
+    ```
+
+=== "vite.config.js"
+
+    ```js
+    import { defineConfig } from "vite";
+    import react from "@vitejs/plugin-react";
+
+    export default defineConfig({ plugins: [react()] });
+    ```
+
+=== "src/main.jsx"
+
+    ```jsx
+    import { createRoot } from "react-dom/client";
+    import { Report } from "./Report.jsx";
+
+    createRoot(document.getElementById("root")).render(<Report />);
+    ```
+
+=== "src/Report.jsx"
+
+    ```jsx
+    import { PivotReport } from "pivotkit-react";
+    import "pivotkit-react/styles.css";
+
+    const rows = [
+        { Region: "North", Product: "A", Sales: 120, Date: "2026-01-05" },
+        { Region: "North", Product: "B", Sales: 80, Date: "2026-01-20" },
+        { Region: "South", Product: "B", Sales: 340, Date: "2026-02-14" },
+        { Region: "West", Product: "A", Sales: 210, Date: "2026-03-02" }
+    ];
+
+    export function Report() {
+        return (
+            <PivotReport
+                data={rows}
+                defaultView={{ rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] }}
+                height={640}
+            />
+        );
+    }
+    ```
+
 ## 2. Render the first report { #the-first-report }
 
 ```jsx
@@ -95,7 +170,26 @@ passes a key, and the rows are encoded again only when it changes.
 
 ## 5. Offer saved views { #saved-views }
 
+Without a server, the browser keeps them:
+
 ```jsx
+<PivotReport data={rows} dataKey="tickets" view={view} onViewChange={setView} templates={presets} templateStore="browser" storageKey="tickets" />
+```
+
+With a server, your app keeps them and the report calls back. A sketch with the app's own state
+(`fetch` to your API where it says so):
+
+```jsx
+const [saved, setSaved] = useState([]);   // the user's views, as your server returns them: [{ name, view }]
+const saveTemplate = async (template) => {
+    // await fetch("/api/views", { method: "PUT", body: JSON.stringify(template) });
+    setSaved((list) => [...list.filter((t) => t.name !== template.name), template]);
+};
+const deleteTemplate = async (name) => {
+    // await fetch(`/api/views/${encodeURIComponent(name)}`, { method: "DELETE" });
+    setSaved((list) => list.filter((t) => t.name !== name));
+};
+
 <PivotReport
     data={rows}
     dataKey="tickets"

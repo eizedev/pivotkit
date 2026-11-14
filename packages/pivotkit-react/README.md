@@ -4,7 +4,9 @@ The pivot report builder of [pivotkit](https://pivotkit.eize.dev/) as a React 18
 `<PivotReport>`: a searchable field list, four drop zones (Rows, Columns, Values, Filters) with drag
 and drop and a menu on every field, table and chart (Apache ECharts), filters with value counts,
 drill-down to the rows behind a value, undo and redo, saved and shared views as JSON files, and
-Excel, CSV, HTML report, PNG and SVG export and printing. Excel's PivotTable is the reference; the engine is
+Excel, CSV, HTML report, PNG and SVG export and printing. Where the host turns them on, people load
+their own CSV, JSON or Excel file with a preview (`allowImport`) and download the rows behind the
+report for the command line (`exportData`). Excel's PivotTable is the reference; the engine is
 [pivotkit-core](https://www.npmjs.com/package/pivotkit-core).
 
 ![The pivot report with real weather data: field list, the Filters, Columns, Rows and Values zones, and the average temperature of 14 cities by month as a colour scale](https://pivotkit.eize.dev/assets/screenshots/report-light.png)
@@ -54,6 +56,7 @@ the data; it cannot run code.
 | Topic | Page |
 | --- | --- |
 | Getting started: install, first report, saved views, clicks | [Getting started with React](https://pivotkit.eize.dev/getting-started/react/) |
+| Loading files and the source data | [Load your own data](https://pivotkit.eize.dev/use/load-data/), [the table or the rows](https://pivotkit.eize.dev/use/export/#the-table-or-the-rows-behind-it) |
 | Bundlers, import maps, PowerShell Universal | [Bundlers and import maps](https://pivotkit.eize.dev/getting-started/react/#bundlers-and-import-maps), [PowerShell Universal](https://pivotkit.eize.dev/getting-started/react/#powershell-universal) |
 | Every prop | [Props](https://pivotkit.eize.dev/reference/react/#props), [props in detail](https://pivotkit.eize.dev/reference/react/#props-in-detail) |
 | Controlled and uncontrolled | [Controlled and uncontrolled](https://pivotkit.eize.dev/reference/react/#controlled-and-uncontrolled) |
