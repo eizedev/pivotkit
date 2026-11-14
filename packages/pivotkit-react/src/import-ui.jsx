@@ -164,7 +164,8 @@ function cellText(value, type, t, locale) {
  * the focus moves in, Tab stays inside, Escape cancels, the focus goes back to where it was. A file
  * that cannot be read closes it with a note; the report's data stays. A job with `sheet` starts on that
  * sheet (a name); with `auto` it loads as soon as the sheet is read, without waiting for "Load data"
- * (a saved view opened on another sheet of the file shown: the person asked for that sheet already).
+ * (a saved view opened on another sheet of the file shown: the person asked for that sheet already),
+ * unless the reader has notes about it or it has no rows: then the preview stays, as for a file.
  * @param {{ job: { file: File, n: number, sheet?: string, auto?: boolean }, labels: any, locale: string, plugins: any[], worker?: () => Worker,
  *   limits?: object, timeZone?: string, onApply: (data: LoadedData) => void, onClose: () => void,
  *   announce: (text: string, extra?: { tone?: "error" }) => void }} props
@@ -325,10 +326,12 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
         }
     };
 
-    // a job that loads by itself: once, when the sheet's rows are there and nothing is wrong
+    // a job that loads by itself: once, when the sheet's rows are there and nothing is wrong; a reader's
+    // note about the sheet (a used range, values not read, columns renamed) keeps the preview open, so
+    // it is read before "Load data" (the sheet's name alone is no reason)
     const autoDone = useRef(false);
     useEffect(() => {
-        if (job.auto && ready && shown && shown.rowCount > 0 && !typed.error && !autoDone.current) {
+        if (job.auto && ready && shown && shown.rowCount > 0 && !typed.error && shown.notes.every((n) => n.code === "SHEET") && !autoDone.current) {
             autoDone.current = true;
             void apply();
         }

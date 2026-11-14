@@ -77,8 +77,12 @@ shown; the others keep the type found.
   Opening one reads that sheet of the file again and shows the view on it, so after a reload you load
   the workbook as it comes (the preview starts on the first sheet) and open the view. An application
   that checks the files you load checks that sheet too and may refuse it: then the view is not
-  opened, and a note says so. **Undo** takes back the view, then reading the sheet. **Cancel** while
-  the sheet is read leaves the sheet and the view you had. A view whose sheet the workbook no longer
+  opened, and a note says so. **Undo** takes back the view, then reading the sheet. The sheet loads
+  by itself, unless the reader has notes on it (a used range, values it could not read, columns it
+  renamed) or it has no rows: then the preview stays open with them, and **Load data** loads the
+  sheet and opens the view. **Cancel** while the sheet is read, or in that preview, leaves the sheet
+  and the view you had; a file you drop meanwhile takes the place of the read, and the view is not
+  opened on it. A view whose sheet the workbook no longer
   has says so ("“Q3 by region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and
   is shown on the sheet you have. A view file or link made on a sheet does the same under **Open view
   file…**.
