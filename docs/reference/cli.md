@@ -205,7 +205,7 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 A view made in the report on a workbook's sheet names that sheet in its view file and link
 (`source.params.sheet`, [view file](view-file.md)). `render`, `validate` and `describe` of such a view
 read that sheet of `--data` when `--sheet` is not given, and say so in an `info` finding `viewSheet`
-(`--json` only); `--sheet` reads another. A view without a sheet reads the first visible sheet. Data
+(in `--json`, and on stderr with `--verbose`); `--sheet` reads another. A view without a sheet reads the first visible sheet. Data
 that is no workbook does not use the view's sheet (an `info` finding `viewSheet` says so).
 
 A sheet the workbook does not have, named by `--sheet` or by the view, is an error (exit 2, `io`,
