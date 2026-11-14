@@ -95,7 +95,7 @@ policy:
   read);
 - any other field takes the profile's level for it, else the profile's `default`, else the source's
   level;
-- `items`, `rows`, `counts`, `inline` and `results` are the profile's where it sets them;
+- `items`, `rows`, `counts`, `inline` and `results` are the profile's where it sets them (a profile with `results: true` may download from a source whose own policy says `results: false`);
 - a caller without a profile gets the server's policy, never more. An OAuth token whose scopes name
   two different profiles gets none.
 
