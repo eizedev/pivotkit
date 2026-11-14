@@ -48,7 +48,8 @@ MIT · in the browser, nothing uploaded · React, web component, Node, command l
 
 ## What it does well
 
-1. **Bring your own file.** Drop a CSV, JSON or Excel file onto the report: a preview shows a type
+1. **Bring your own file.** Where the application allows it, drop a CSV, JSON or Excel file onto
+   the report: a preview shows a type
    under each column, lets you change it and pick the sheet of a workbook; German numbers and dates,
    title lines above the header and leading zeros ("01067") are read right; Undo brings the
    application's data back. Nothing is uploaded ([load your own data](use/load-data.md)).
