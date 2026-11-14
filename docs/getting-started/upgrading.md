@@ -1,12 +1,87 @@
 ---
 title: Upgrading
-description: What a host or a script checks when it moves to the next release of pivotkit - from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
+description: What a host or a script checks when it moves to the next release of pivotkit - from 0.6.0 to 0.6.1 (the services' output files and request limits, checks at start, years before 1 AD and the command line), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
 ---
 
 # Upgrading
 
 Each section lists what changes between two releases and whom it concerns; **Breaking** marks a
 change that needs your action when it applies.
+
+## From 0.6.0 to 0.6.1 { #from-0-6-0 }
+
+Hosts of the report change nothing. Operators of pivotkit-server and pivotkit-mcp check the first
+three rows: the output directory names its files differently and has a size limit, and the MCP
+endpoint has request limits. Each package's `CHANGELOG.md` has the full list.
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [Versions move together](#versions-0-6-1) | you also install pivotkit-core, pivotkit-report or pivotkit-xlsx yourself | update them to the same release |
+| [Output files of the services](#output-0-6-1) | you run pivotkit-server or pivotkit-mcp with an output directory | remove the reports of 0.6.0 by hand once; check `output.maxMb` and `output.maxFiles` |
+| [Request limits of the MCP endpoint](#mcp-limits-0-6-1) | clients use pivotkit-mcp or pivotkit-server's `/mcp` over HTTP | raise `mcp.rateLimit` or `mcp.concurrency` for busy clients |
+| [Checks at start](#checks-0-6-1) | you run `check-config` in a pipeline or start the service from scripts | fix what it now names |
+| [Years before 1 AD](#bce-0-6-1) | your data has dates before 1 AD or after 9999, and tests or screenshots show them | take the new labels |
+| [Command line](#cli-0-6-1) | a script runs `pivotkit` with `--strict`, `-o` or on Windows | check the list below |
+
+### Versions move together { #versions-0-6-1 }
+
+The packages of this release depend on each other at its versions (pivotkit-core 0.6.1,
+pivotkit-react 0.6.1, pivotkit-report 0.2.1, pivotkit-xlsx 0.3.1, ...). A host that also lists
+pivotkit-core, pivotkit-report or pivotkit-xlsx itself updates them with pivotkit-react, or npm may
+install two copies.
+
+### Output files of the services { #output-0-6-1 }
+
+pivotkit-server and pivotkit-mcp name the reports and drafts they write `<name>.pivotkit-out.<format>`
+(`sales.pivotkit-out.xlsx`) and count, clean up (`output.maxAgeDays`) and delete only files named so.
+**Breaking** for the directory's old files: reports written by 0.6.0 are neither counted nor deleted;
+remove them by hand once.
+
+- `output.maxMb` (default 1024) is new: a new report deletes the oldest reports until the directory
+  fits it and `output.maxFiles`, instead of refusing every caller. Set both to what the disk holds.
+- Schedule drafts are never deleted this way and may take at most half of `output.maxFiles` (none
+  at 1); a draft over that answers 409 `NO_OUTPUT`.
+- An output directory the server cannot write is a problem in `check-config` (exit 1), a warning at
+  start, and 409 `NO_OUTPUT` for a report, instead of 500 `INTERNAL`.
+
+See [the REST service's options](../reference/rest.md#running).
+
+### Request limits of the MCP endpoint { #mcp-limits-0-6-1 }
+
+Over HTTP, the MCP endpoint limits each caller as the REST service does: `mcp.rateLimit.perMinute`
+(120), `.burst` (30), `.failedAuthPerMinute` (30) and `mcp.concurrency` (4); over a limit the answer
+is 429 with `Retry-After`. Both services also have `http.maxConnectionsPerAddress` (default 0, no
+bound), and a client has 5 seconds for its headers (was 15). See [the MCP server's
+configuration](../reference/mcp.md#configuration).
+
+### Checks at start { #checks-0-6-1 }
+
+- A static token with characters a bearer token cannot carry is refused at start and in
+  `check-config`: no request could have sent it. Make one with the command the message names.
+- `check-config` warns of a policy rule that names no column of its source, with the name probably
+  meant (exit 0): such a rule left the real column at the default level.
+- With OAuth and neither required scopes nor `auth.toolScopes`, the REST service warns at start, as
+  the MCP endpoint does.
+
+### Years before 1 AD { #bce-0-6-1 }
+
+Date labels write a year before 1 AD with its era: `yearQuarter` "Q1 2 BC" (was "Q1 -1"), a date
+"Jan 11, 2 BC" (was "Jan 11, 2", the same as 2 AD), `yearWeek` "2 BC-W02". `toCsv` and `toJson`
+write a date before year 0 or after 9999 in its signed ISO form (`-000001-01-11`). `isIdentifierName`
+takes `HTTPId` and `ABCId` as identifiers, so such a number field is counted when placed, as `ID` is.
+
+### Command line { #cli-0-6-1 }
+
+- `--sheet` for data that is no workbook is a warning `ignoredOption`: with `--strict` the run
+  exits 1.
+- `-o` naming the data file or the view file (also through a link or another case of its name),
+  `--save-view` naming the data file, and `-o -` are usage errors (exit 2) instead of replacing the
+  input or writing a file named `-`.
+- On Windows, a device name as the output (`-o NUL`, `CON`, `COM1.csv`) is refused, as `/dev/null`
+  is elsewhere.
+- `--json`: an error that follows from a grouping the view cannot make has `followsFrom` with the
+  grouping's code and is counted there on stderr instead of shown.
+- `describe --data <file>` without an argument describes the data.
 
 ## From 0.5 to 0.6 { #from-0-5 }
 

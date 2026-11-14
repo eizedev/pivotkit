@@ -263,9 +263,9 @@ seconds for its headers and 30 for its request. `http.maxConnectionsPerAddress` 
 bound) caps the connections of one address; set it where clients reach the port directly with
 addresses of their own. Behind NAT, a published port or a proxy every client has one address, so
 leave it off there. An IPv6 address counts as it is, not by its network. Refused connections are
-logged at most once a minute (the first at once, the rest when the minute ends), with every bound
-that refused one since the last line (`total`, `loopbackReserve`, `perAddress`), the last address
-and the counts. Behind a proxy (`http.trustProxy`) the protection comes from the proxy: its header
+logged at most once a minute (the first at once, the rest when the minute ends), naming each bound
+that refused a connection since the last line (`total`, `loopbackReserve`, `perAddress`), the last
+address and the counts. Behind a proxy (`http.trustProxy`) the protection comes from the proxy: its header
 and body timeouts, its limits per client, and the server's port reachable from the proxy only. A
 request target must be a path (or the absolute form `http://host/path`, read by its path):
 `OPTIONS *` answers 400. On SIGTERM the server
