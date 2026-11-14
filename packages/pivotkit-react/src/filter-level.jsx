@@ -15,9 +15,10 @@
  * with the menus (menus.js).
  */
 
-import React, { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter, relativeDateRange } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
+import { useIsoLayoutEffect } from "./iso.js";
 import { activeIn, useFormName } from "./dom.js";
 import { FILTER_LIST_MAX, keyOf, ValueList } from "./filter.jsx";
 import { HelpContext } from "./help.js";
@@ -1104,12 +1105,13 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     // the rows whose × was clicked: what still waits in them (a value typed a moment ago, applied
     // when the row goes) applies nothing (#320)
     const removed = useRef(/** @type {Set<string>} */ (new Set()));
-    // the view shown now: a value that waits in a row applies to it, also when it applies as its row
-    // goes after a change above it (another rule's ×), so the row's older view does not bring back
-    // what that change took away (#320)
-    const viewNow = useRef(view);
-    useLayoutEffect(() => {
-        viewNow.current = view;
+    // the view and the rows' generation shown now: a value that waits in a row applies to that view,
+    // also when it applies as its row goes after a change above it (another rule's ×), so the row's
+    // older view does not bring back what that change took away; a row of an older generation leaves
+    // the held rows and the new one alone, since the rows were drawn again without them (#320)
+    const now = useRef({ view, gen });
+    useIsoLayoutEffect(() => {
+        now.current = { view, gen };
     });
     useEffect(() => {
         if (focusAdd.current) {
@@ -1177,21 +1179,24 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
             // an emptied rule typed again keeps its blanks
             const was = isHeld ? held.find((h) => h.at === i) : undefined;
             const own = was?.blanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: was.blanks } : !rule && ctx.keepBlanks && ITEM_RULE_TYPES.includes(entry.type) ? { ...entry, blanks: "include" } : entry;
-            if (isHeld) {
+            const current = now.current.gen === gen;
+            if (isHeld && current) {
                 setHeld(held.filter((h) => h.at !== i));
-            } else if (!rule) {
+            } else if (!rule && current) {
                 setDraft(null);
             }
             // in its place: before the next row's rule
             const before = isHeld ? (rows.slice(i + 1).find((x) => x.rule)?.rule ?? null) : null;
-            commitOwn(setRule(viewNow.current, field, rule, own, before));
+            commitOwn(setRule(now.current.view, field, rule, own, before));
         };
         // the value emptied: the rule leaves the view, its row stays (the sections stay as they are)
         const unset = () => {
             if (rule && !removed.current.has(key)) {
-                setHeld([...held, { at: i, kind, blanks: rule.blanks }].sort((a, b) => a.at - b.at));
-                ctx.keepSections();
-                commitOwn(setRule(viewNow.current, field, rule, null));
+                if (now.current.gen === gen) {
+                    setHeld([...held, { at: i, kind, blanks: rule.blanks }].sort((a, b) => a.at - b.at));
+                    ctx.keepSections();
+                }
+                commitOwn(setRule(now.current.view, field, rule, null));
             }
         };
         const remove = () => {
