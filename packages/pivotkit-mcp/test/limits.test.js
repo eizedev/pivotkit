@@ -54,6 +54,9 @@ test("mcp.rateLimit.failedAuthPerMinute: an address that keeps sending wrong tok
         const blocked = await raw(server.url, { method: "POST", headers: as(`${TOKEN}x`), body: LIST });
         assert.equal(blocked.status, 429, blocked.body);
         assert.ok(Number(blocked.headers["retry-after"]) >= 1);
+        // the log says what the client was answered
+        const refused = server.log.filter((l) => l.event === "refused").map((l) => l.status);
+        assert.deepEqual(refused, [401, 401, 401, 429]);
         assert.equal((await raw(server.url, { method: "POST", headers: as(TOKEN), body: LIST })).status, 200);
     } finally {
         await server.close();

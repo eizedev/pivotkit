@@ -6,6 +6,12 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `env.drafting`: a front end narrows what a draft (`suggest_view`, a layout) reads of the data's
+  description, such as the counts and spans its exposure policy keeps back
+  ([#296](https://github.com/eizedev/pivotkit/issues/296)).
+
 ## [0.2.0] - 2026-11-14
 
 ### Upgrading from 0.1
