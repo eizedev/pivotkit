@@ -77,14 +77,11 @@ shown; the others keep the type found.
   one reads that sheet of the file again and shows the view on it (an application that checks the
   files you load checks that sheet too, and may refuse it: then the view is not opened, and a note
   says so), so after a reload you load the
-  workbook as it comes (the preview starts on the first sheet) and open the view. **Undo** takes back
-  the view, then reading the sheet.
-  **Cancel** while the sheet is read leaves the sheet and the view you had. A view whose sheet the workbook no longer has says so ("“Q3 by
-  region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and is shown on the
-  sheet you have. A view file or link made on a sheet does the same under **Open view file…**.
-
-## Back to the original data
-
+  workbook as it comes (the preview starts on the first sheet) and open the view. **Undo** takes
+  back the view, then reading the sheet. **Cancel** while the sheet is read leaves the sheet and the
+  view you had. A view whose sheet the workbook no longer has says so ("“Q3 by region” was made for
+  the sheet “Q3”, which quarters.xlsx does not have.") and is shown on the sheet you have. A view
+  file or link made on a sheet does the same under **Open view file…**. ## Back to the original data
 - **Data**, **Back to original data** shows the application's data again, with the view you had on it.
   It is there only while a file's data is shown.
 - **Undo** takes back loading too: first your changes on the file, then the loading itself; **Redo**
