@@ -43,26 +43,6 @@ export const formatsOf = (plugins, names = {}) =>
 /** How long a worker may take to say it is ready before the page reads the file itself (ms). */
 export const WORKER_READY_MS = 10_000;
 
-/**
- * A reader's table as the import UI uses it: what checkTable of pivotkit-core does not ask for, but
- * retype and the preview need, filled in from what is there (a plugin may return the minimal shape),
- * and notes that are no `{ code, params }` left out.
- * @param {any} table
- * @returns {import("pivotkit-core/import").ImportTable}
- */
-export function completeTable(table) {
-    const n = table.data[0]?.length ?? 0;
-    const same = (list) => Array.isArray(list) && list.length === table.columns.length;
-    return {
-        ...table,
-        rowCount: Number.isInteger(table.rowCount) && table.rowCount >= 0 ? table.rowCount : n,
-        raw: same(table.raw) && table.raw.every((c) => Array.isArray(c) && c.length === n) ? table.raw : table.data,
-        detected: same(table.detected) ? table.detected : table.types,
-        hints: table.hints && typeof table.hints === "object" ? table.hints : { decimal: ".", dateOrder: "dmy" },
-        notes: table.notes.filter((x) => x && typeof x.code === "string").map((x) => ({ code: x.code, params: x.params && typeof x.params === "object" ? x.params : {}, message: String(x.message ?? x.code) }))
-    };
-}
-
 /** A worker's table: the shape every reader returns (pivotkit-core's checkTable checks the rest). */
 const isTable = (t) => t !== null && typeof t === "object" && Array.isArray(t.columns) && Array.isArray(t.types) && Array.isArray(t.data) && Array.isArray(t.notes);
 
@@ -185,11 +165,11 @@ export async function readImport(file, { plugins = [], worker, sheet, locale, li
     if (worker && reader && BUILT_IN_READERS.includes(reader)) {
         const table = await inWorker(worker, file, plain, signal, onProgress, readyMs);
         if (table !== UNAVAILABLE) {
-            return completeTable(table);
+            return table;
         }
     }
     signal?.throwIfAborted();
-    return completeTable(await readFile(file, { ...plain, plugins, signal, onProgress }));
+    return readFile(file, { ...plain, plugins, signal, onProgress });
 }
 
 /**

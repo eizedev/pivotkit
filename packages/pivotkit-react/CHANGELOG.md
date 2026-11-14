@@ -6,6 +6,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- The import UI takes a plugin's table as pivotkit-core's `readFile` completes it; its own
+  `completeTable` is gone ([#130](https://github.com/eizedev/pivotkit/issues/130)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5

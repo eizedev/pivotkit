@@ -290,6 +290,17 @@ test("plugins: the contract is checked, another API version is refused with both
     // what a plugin's read() returns is checked
     const sloppy = { ...plugin, name: "sloppy", load: async () => ({ read: async () => ({ columns: ["a"], types: ["money"], data: [[1]], notes: [] }) }) };
     await assert.rejects(readFile(text("x.demo", "x"), { plugins: [sloppy] }), (e) => e.code === "INVALID_ARGUMENT" && /plugin "sloppy".*a type is none/.test(e.message));
+    // a hand-built table of columns, types, data and notes gets what retype and a preview need:
+    // raw (its data), detected (its types), rowCount, hints; notes that are no { code } are left out
+    const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }, null, { nope: 1 }] };
+    const mini = { ...plugin, name: "mini", load: async () => ({ read: async () => structuredClone(minimal) }) };
+    const read = await readFile(text("x.demo", "x"), { plugins: [mini] });
+    assert.equal(read.rowCount, 2);
+    assert.deepEqual(read.raw, minimal.data);
+    assert.deepEqual(read.detected, ["string", "string"]);
+    assert.deepEqual(read.hints, { decimal: ".", dateOrder: "dmy" });
+    assert.deepEqual(read.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
+    assert.deepEqual(retype(read, ["number", "string"]).data[0], [1, 2]);
     // a module's default export is accepted
     const viaDefault = await loadReader({ ...plugin, name: "dflt", load: async () => ({ default: { read: async () => "ok" } }) });
     assert.equal(await viaDefault.read(), "ok");

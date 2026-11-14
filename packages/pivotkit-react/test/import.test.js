@@ -8,7 +8,7 @@ import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, limitError, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
 import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
-import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
+import { acceptOf, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
 import { importLimitsOf } from "../src/import-limits.js";
@@ -322,16 +322,12 @@ test("a worker that answers without a table, cannot take the options or never st
     assert.equal((await readImport(file, { worker: silent, readyMs: 50 })).rowCount, 3);
 });
 
-test("a plugin's minimal table (columns, types, data, notes) gets what the preview and retype need", async () => {
+test("a plugin's minimal table (columns, types, data, notes) gets what the preview and retype need (pivotkit-core completes it)", async () => {
     const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }, null, { nope: 1 }] };
-    const t = completeTable(minimal);
-    assert.equal(t.rowCount, 2);
-    assert.deepEqual(t.raw, minimal.data);
-    assert.deepEqual(t.detected, ["string", "string"]);
-    assert.deepEqual(t.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
     const plugin = { apiVersion: 1, kind: "reader", name: "mini", label: "Mini", accept: [".mini"], load: async () => ({ read: async () => minimal }) };
     const read = await readImport(new File(["x"], "a.mini"), { plugins: [plugin] });
     assert.equal(read.rowCount, 2);
+    assert.deepEqual(read.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
     // the preview's change of a type works on it (retype needs raw and hints)
     const { retype } = await import("pivotkit-core/import");
     assert.deepEqual(retype(read, ["number", "string"]).data[0], [1, 2]);

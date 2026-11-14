@@ -24,6 +24,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- A reader plugin's table built by hand (`columns`, `types`, `data`, `notes`) gets `rowCount`, `raw`,
+  `detected` and `hints` from `readFile`, so `retype` works on it; notes that are no `{ code }` are
+  left out ([#130](https://github.com/eizedev/pivotkit/issues/130)).
 - The `week` and `yearWeek` groupings of the first days of the year -271820 (1 and 2 January,
   whose ISO week belongs to the year before, the first a `Date` holds) are their week instead of
   blank ([#97](https://github.com/eizedev/pivotkit/issues/97)).

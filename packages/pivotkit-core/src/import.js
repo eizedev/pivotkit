@@ -188,7 +188,10 @@ export async function readFile(file, options = {}) {
 
 /**
  * The table a reader returned, checked: names, types and one array per column of one length. A
- * plugin that returns something else is a programmer error (INVALID_ARGUMENT naming it).
+ * plugin that returns something else is a programmer error (INVALID_ARGUMENT naming it). What
+ * createTable().finish() adds besides is optional for a plugin and filled in from the rest: rowCount,
+ * raw (the data), detected (the types), hints (decimal ".", dates day first); notes that are no
+ * `{ code }` are left out.
  * @param {any} table
  * @param {string} plugin
  * @returns {ImportTable}
@@ -205,5 +208,14 @@ function checkTable(table, plugin) {
     if (!table.columns.every((c) => typeof c === "string")) fail("a column name is no string");
     if (!table.types.every((t) => IMPORT_TYPES.includes(t))) fail("a type is none of string, number, date, boolean");
     if (!table.data.every((c) => Array.isArray(c) && c.length === n)) fail("the columns differ in length");
-    return table;
+    // what retype and a preview need besides: from what is there when a plugin returns the minimal shape
+    const same = (list) => Array.isArray(list) && list.length === table.columns.length;
+    return {
+        ...table,
+        rowCount: Number.isInteger(table.rowCount) && table.rowCount >= 0 ? table.rowCount : n,
+        raw: same(table.raw) && table.raw.every((c) => Array.isArray(c) && c.length === n) ? table.raw : table.data,
+        detected: same(table.detected) && table.detected.every((t) => IMPORT_TYPES.includes(t)) ? table.detected : table.types,
+        hints: table.hints && typeof table.hints === "object" ? table.hints : { decimal: ".", dateOrder: "dmy" },
+        notes: table.notes.filter((x) => x && typeof x.code === "string").map((x) => ({ code: x.code, params: x.params && typeof x.params === "object" ? x.params : {}, message: String(x.message ?? x.code) }))
+    };
 }

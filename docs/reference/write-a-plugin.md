@@ -35,7 +35,7 @@ The module `load()` gives offers:
 
 | Function | What |
 | --- | --- |
-| `read(file, options)` | Reads the file into a table. `file` is a `File`, a `Blob`, an `ArrayBuffer` or a `Uint8Array`. Required.<br><small>Returns `Promise<ImportTable>`</small> |
+| `read(file, options)` | Reads the file into a table. `file` is a `File`, a `Blob`, an `ArrayBuffer` or a `Uint8Array`. Required. Build the table with `createTable` (below); a table built by hand needs `columns`, `types`, `data` (one array per column, all of one length) and `notes`, and `readFile` fills in the rest from them (`rowCount`, `raw` as the data, `detected` as the types, `hints` with `"."` and day first) or refuses it with `INVALID_ARGUMENT` naming the plugin.<br><small>Returns `Promise<ImportTable>`</small> |
 | `sheets(file, options)` | For formats with several tables (a workbook's sheets): `[{ name, index, visible }]`. Optional.<br><small>Returns `Promise<SheetInfo[]>`</small> |
 
 `options` are `ReadOptions`: `name`, `sheet`, `types`, `locale`, `limits`, `signal` and `onProgress`,
