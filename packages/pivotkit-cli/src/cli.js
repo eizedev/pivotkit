@@ -11,7 +11,7 @@
 import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import { LIMITS, OUTSIDE_LIMITS, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, validate } from "pivotkit-core";
+import { LIMITS, OUTSIDE_LIMITS, PivotkitError, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, validate } from "pivotkit-core";
 import { readFile } from "pivotkit-core/import";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "pivotkit-report";
@@ -270,25 +270,61 @@ async function readView(positionals, values, ctx) {
     if (values.link !== undefined) {
         const url = String(values.link);
         const hash = url.includes("#") ? url.slice(url.indexOf("#")) : url;
-        const read = readViewLink(hash, values.key ?? null, { limits: ctx.limits });
+        // the link's source.params.sheet is the one parameter the CLI uses: the sheet of a workbook
+        const read = readViewLink(hash, values.key ?? null, { limits: ctx.limits, allowParams: ["sheet"] });
         if (!read.view) {
             throw new CliError("usage", "BAD_LINK", `--link: not a pivotkit link (${read.failed})`);
         }
-        return { view: read.view, name: read.name, source: "link" };
+        return { view: read.view, name: read.name, source: "link", sheet: read.src?.params?.sheet ?? null };
     }
     const arg = positionals[0];
     if (arg === undefined) {
         throw new CliError("usage", "MISSING_VIEW", "a view is needed: a file, - for stdin, JSON text or --link");
     }
     if (arg.trimStart().startsWith("{")) {
-        return { view: arg, name: "", source: "argument" };
+        return { view: arg, name: "", source: "argument", sheet: sheetOf(arg) };
     }
     const text = textOf(await ctx.readInput(arg, "the view", VIEW_BYTES, "json"));
-    return { view: text, name: "", source: arg };
+    return { view: text, name: "", source: arg, sheet: sheetOf(text) };
 }
 
-/** The data of --data as an import table, with the reader's notes as warnings. */
-async function readData(values, ctx) {
+/**
+ * The sheet of a workbook a view file names (source.params.sheet, written by pivotkit-react for a
+ * loaded workbook's sheet), or null.
+ * @param {string} text
+ */
+function sheetOf(text) {
+    const sheet = fromViewFile(text).source?.params?.sheet;
+    return typeof sheet === "string" && sheet ? sheet : null;
+}
+
+/** A sheet name in a message, quoted. */
+const quoted = (name) => `"${printable(name)}"`;
+
+/**
+ * The sheets of a workbook for a message: "Q1", "Q2", "Hidden" (hidden). Empty when they cannot be read.
+ * @param {File} file
+ * @param {object} limits
+ */
+async function sheetList(file, limits) {
+    try {
+        const reader = await xlsxReader.load();
+        const list = await reader.sheets(file, { name: file.name, limits });
+        return list.map((s) => `${quoted(s.name)}${s.visible ? "" : " (hidden)"}`).join(", ");
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * The data of --data as an import table, with the reader's notes as warnings. A workbook's sheet:
+ * --sheet, else the one the view names (`viewSheet`), else the first visible one; a sheet the
+ * workbook does not have is an error that lists the sheets there are.
+ * @param {Record<string, any>} values
+ * @param {any} ctx
+ * @param {string | null} [viewSheet]  source.params.sheet of the view
+ */
+async function readData(values, ctx, viewSheet = null) {
     const path = values.data;
     if (path === undefined) {
         return null;
@@ -299,12 +335,45 @@ async function readData(values, ctx) {
     }
     const bytes = await ctx.readInput(path, "the data", ctx.fileLimits.fileBytes, "fileBytes");
     const name = path === "-" ? `stdin.${format}` : basename(path).endsWith(`.${format}`) ? basename(path) : `${basename(path)}.${format}`;
+    const file = new File([/** @type {BlobPart} */ (bytes)], name);
+    const workbook = format === "xlsx";
+    const fromView = workbook && !values.sheet && viewSheet ? viewSheet : null;
+    const sheet = workbook ? (values.sheet ?? fromView) : values.sheet;
+    /** @type {any[]} */
+    const notes = [];
+    if (fromView) {
+        notes.push({ severity: "info", code: "viewSheet", path: "source.params.sheet", message: printable(`${shortName(path)}: sheet ${quoted(fromView)}, the one the view names`) });
+    } else if (viewSheet && !workbook) {
+        notes.push({ severity: "info", code: "viewSheet", path: "source.params.sheet", message: printable(`the view names the sheet ${quoted(viewSheet)}; ${shortName(path)} is no workbook, so it is not used`) });
+    }
     try {
-        const table = await readFile(new File([/** @type {BlobPart} */ (bytes)], name), { plugins: [xlsxReader], limits: ctx.limits, ...(values.sheet ? { sheet: values.sheet } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}) });
-        return { table, name: path === "-" ? "stdin" : basename(path), notes: table.notes.map((n) => ({ severity: INFO_NOTES.has(n.code) ? "info" : "warning", code: n.code, path: "", message: printable(`${shortName(path)}: ${n.message}`) })) };
+        const table = await readFile(file, { plugins: [xlsxReader], limits: ctx.limits, ...(sheet ? { sheet } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}) });
+        const read = table.notes.find((n) => n.code === "SHEET")?.params?.sheet;
+        return {
+            table,
+            name: path === "-" ? "stdin" : basename(path),
+            sheet: typeof read === "string" ? read : null,
+            sheets: workbook ? await sheetInfo(file, ctx.limits) : null,
+            notes: [...notes, ...table.notes.map((n) => ({ severity: INFO_NOTES.has(n.code) ? "info" : "warning", code: n.code, path: "", message: printable(`${shortName(path)}: ${n.message}`) }))]
+        };
     } catch (e) {
+        if (e instanceof PivotkitError && e.details?.reason === "NO_SHEET" && sheet) {
+            const list = await sheetList(file, ctx.limits);
+            const why = fromView ? " (the view's source.params.sheet; give --sheet to read another)" : "";
+            throw new CliError("io", "NO_SHEET", `${shortName(path)}: the workbook has no sheet ${quoted(sheet)}${why}${list ? `; its sheets: ${list}` : ""}`);
+        }
         throw asCliError(e, path);
     }
+}
+
+/**
+ * The sheets of a workbook for --json: [{ name, index, visible }].
+ * @param {File} file
+ * @param {object} limits
+ */
+async function sheetInfo(file, limits) {
+    const reader = await xlsxReader.load();
+    return (await reader.sheets(file, { name: file.name, limits })).map((s) => ({ name: printable(s.name), index: s.index, visible: s.visible }));
 }
 
 /** The render options common to the commands. */
@@ -344,7 +413,7 @@ async function renderCommand(positionals, values, ctx) {
         throw new CliError("usage", "BINARY_TO_TERMINAL", "an XLSX file is not shown in a terminal: write it to a file with -o, or redirect stdout");
     }
     const view = await readView(positionals, values, ctx);
-    const data = await readData(values, ctx);
+    const data = await readData(values, ctx, view.sheet);
     if (!data) {
         throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file> or --data -");
     }
@@ -374,7 +443,7 @@ async function renderCommand(positionals, values, ctx) {
     findings.push(...result.issues.map(findingOf));
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
     /** @type {any} */
-    const extra = { summary: result.summary };
+    const extra = { summary: result.summary, sheet: data.sheet };
     if (result.body && !(failed && !values.lenient)) {
         if (values.output) {
             try {
@@ -396,7 +465,7 @@ async function renderCommand(positionals, values, ctx) {
 
 async function validateCommand(positionals, values, ctx) {
     const view = await readView(positionals, values, ctx);
-    const data = await readData(values, ctx);
+    const data = await readData(values, ctx, view.sheet);
     const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
     if (read.failed) {
         return { findings: [{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], extra: { valid: false } };
@@ -411,7 +480,7 @@ async function validateCommand(positionals, values, ctx) {
     }
     const { errors, warnings, valid } = validate(read.view, schema, { limits: outsideLimits(ctx.limits) });
     const fileNotes = read.issues.map((i) => ({ severity: "warning", code: "viewFile", path: printable(i.path ?? ""), message: printable(i.message) }));
-    return { findings: [...(data?.notes ?? []), ...fileNotes, ...errors.map(findingOf), ...warnings.map(findingOf)], extra: { valid } };
+    return { findings: [...(data?.notes ?? []), ...fileNotes, ...errors.map(findingOf), ...warnings.map(findingOf)], extra: { valid, ...(data ? { sheet: data.sheet } : {}) } };
 }
 
 async function describeCommand(positionals, values, ctx) {
@@ -444,7 +513,7 @@ async function describeCommand(positionals, values, ctx) {
         if (read.failed) {
             return { findings: [{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], extra: { kind } };
         }
-        const data = await readData(values, ctx);
+        const data = await readData(values, ctx, typeof read.source?.params?.sheet === "string" ? read.source.params.sheet : null);
         if (!data && !read.source?.fields?.length) {
             throw new CliError("usage", "MISSING_DATA", "describing a view needs its data (--data) or a view file that lists its fields (source.fields)");
         }
@@ -453,7 +522,7 @@ async function describeCommand(positionals, values, ctx) {
         if (!values.json) {
             ctx.io.stdout.write(`${printable(read.name || "view")}: ${printable(described.text)}\n`);
         }
-        return { findings: [...(data?.notes ?? []), ...[...described.errors, ...described.warnings].map(findingOf)], extra: { kind, name: printable(read.name), description: described } };
+        return { findings: [...(data?.notes ?? []), ...[...described.errors, ...described.warnings].map(findingOf)], extra: { kind, name: printable(read.name), description: described, ...(data ? { sheet: data.sheet } : {}) } };
     }
     // data: the bytes or the text read above (JSON that is no view), else the file
     const known = bytes ?? (text !== null ? new TextEncoder().encode(text) : null);
@@ -464,11 +533,15 @@ async function describeCommand(positionals, values, ctx) {
     const summary = items > 0 ? full : { ...full, fields: full.fields.map(({ min: _min, max: _max, ...f }) => ({ ...f, text: f.text.replace(/, from .*$/, "") })) };
     if (!values.json) {
         ctx.io.stdout.write(`${printable(summary.text)}\n`);
+        // a workbook: its sheets, the one read marked
+        if (data.sheets && data.sheets.length > 0) {
+            ctx.io.stdout.write(`  sheets: ${data.sheets.map((s) => `${quoted(s.name)}${s.name === data.sheet ? " (read)" : ""}${s.visible ? "" : " (hidden)"}`).join(", ")}\n`);
+        }
         for (const f of summary.fields) {
             ctx.io.stdout.write(`  ${printable(f.text)}${f.items?.length ? `; e.g. ${f.items.map((v) => printable(JSON.stringify(v))).join(", ")}` : ""}\n`);
         }
     }
-    return { findings: data.notes, extra: { kind: "data", description: summary } };
+    return { findings: data.notes, extra: { kind: "data", description: summary, ...(data.sheets ? { sheet: data.sheet, sheets: data.sheets } : {}) } };
 }
 
 /** A context whose reader hands back the bytes already read (stdin is read once). */
