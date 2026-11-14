@@ -126,7 +126,8 @@ The files are named after the application's report name, "pivot" when it gives n
 `pivot.csv`, `pivot.html`, `pivot.png`, `pivot.svg`; the source data `pivot-data.csv` and
 `pivot-data.json`. A downloaded view is `<name>.pivotkit.json`, after the view's or the
 data's name ([views](views.md#share-a-view)). The rows behind a number are named after the cell
-([drill-down](drill-down.md#copy-or-download-the-rows)).
+([drill-down](drill-down.md#copy-or-download-the-rows)). The live demo names its files after its data set
+(`pivotkit-tickets.xlsx`), and after a file you load into it (`quarter-csv.xlsx`).
 
 ## Safe to open
 

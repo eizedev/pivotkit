@@ -360,6 +360,17 @@ plain("a policy that refuses workers: the element reads the file on the page and
     expect(problems.filter((p) => !/worker|Worker|style-src/.test(p))).toEqual([]);
 });
 
+strict("the element's importWorkerUrl: the worker starts from the app's own path, relative to the page (#194)", async ({ page }) => {
+    const report = await elementPage(page, "?workerurl=app-assets/pk-import-worker.js");
+    await expect(report.getByTestId("pivot-table")).toBeVisible();
+    const worker = page.waitForEvent("worker", { timeout: 10_000 });
+    await dropFiles(page, report.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    expect((await worker).url()).toMatch(/\/pages\/app-assets\/pk-import-worker\.js$/);
+    await report.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(report)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
+    expect(await page.evaluate(() => document.querySelector("pivot-report").importWorkerUrl)).toBe("app-assets/pk-import-worker.js");
+});
+
 strict("the element: preventDefault() on pivot-data-load refuses the file, the data stays", async ({ page }) => {
     const report = await elementPage(page, "?refuse");
     await expect(report.getByTestId("pivot-table")).toBeVisible();
@@ -845,4 +856,35 @@ strict("the element taken out of the page and put back (with storage-key): the l
     await expect.poll(() => chips(report, "rows")).toEqual([]);
     await report.getByTestId("undo").click();
     await expect.poll(() => fieldNames(report)).toEqual(before);
+});
+
+test("the playground with a loaded file: its name under Data, no start view or shared views of the data set, files named after it (#295)", async ({ page }) => {
+    await page.goto("?data=tickets");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await toolbar(page, "views");
+    await expect(page.locator(".pk-popover")).toContainText("Tickets per team and priority");
+    await page.keyboard.press("Escape");
+    await pickThroughMenu(page, page, fileOf("quarter.csv", CSV, TICKETS));
+    await page.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(page)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
+    // the top bar names the file; the data set's start view is no choice for it
+    await expect(page.getByTestId("pg-dataset").locator("option:checked")).toHaveText("quarter.csv");
+    await expect(page.getByTestId("pg-preset")).toHaveCount(0);
+    await expect(page.getByTestId("pg-file")).toContainText("Your file quarter.csv");
+    // the Views menu lists no view of the data set
+    await toolbar(page, "views");
+    await expect(page.locator(".pk-popover")).not.toContainText("Tickets per team and priority");
+    await page.keyboard.press("Escape");
+    // every file is named after the loaded file, as the view file is
+    await toolbar(page, "export");
+    const [data] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-data-csv").click()]);
+    expect(data.suggestedFilename()).toBe("quarter-csv-data.csv");
+    // back to the data set: its name, its start and its views again
+    await dataMenu(page);
+    await page.getByTestId("back-to-original").click();
+    await expect(page.getByTestId("pg-dataset").locator("option:checked")).toHaveText("IT tickets");
+    await expect(page.getByTestId("pg-preset")).toBeVisible();
+    await toolbar(page, "export");
+    const [again] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-data-csv").click()]);
+    expect(again.suggestedFilename()).toBe("pivotkit-tickets-data.csv");
 });

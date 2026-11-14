@@ -152,11 +152,14 @@ export { EVENTS };
  */
 
 /**
- * Starts the import worker of the package (dist/import-worker.js, next to this module's chunk): CSV
- * and JSON files are read off the page. A file of the page's origin, never blob:, so a policy with
- * script-src 'self' allows it; where it cannot start, the report reads on the page.
+ * Starts the import worker: the package's (dist/import-worker.js, next to this module's chunk), or
+ * the app's own copy at `url` (importWorkerUrl, relative to the page) where a bundle moved the module
+ * away from it (#194). CSV and JSON files are read off the page. A file of the page's origin, never
+ * blob:, so a policy with script-src 'self' allows it; where it cannot start, the report reads on the
+ * page.
+ * @param {string | URL | undefined} url
  */
-const startImportWorker = () => new Worker(new URL(IMPORT_WORKER, import.meta.url), { type: "module" });
+const startImportWorker = (url) => new Worker(url ? new URL(String(url), document.baseURI) : new URL(IMPORT_WORKER, import.meta.url), { type: "module" });
 
 /** Where the worker is from the module this code lands in (build.js: the bundle's layout). */
 const IMPORT_WORKER = typeof __PIVOTKIT_IMPORT_WORKER__ === "string" ? __PIVOTKIT_IMPORT_WORKER__ : "./import-worker.js";
@@ -577,6 +580,18 @@ export class PivotReportElement extends Base {
     }
 
     /**
+     * Where the import worker of allow-import is served (a URL, relative to the page): for an app
+     * that bundles the element and serves dist/import-worker.js at a path of its own (a base href).
+     * Default: next to the element's own module. A property only.
+     */
+    get importWorkerUrl() {
+        return /** @type {string | URL | undefined} */ (this.#values.importWorkerUrl);
+    }
+    set importWorkerUrl(value) {
+        this.#set("importWorkerUrl", value);
+    }
+
+    /**
      * Reader plugins for more formats with allow-import (pivotkit-xlsx for Excel workbooks); CSV, TSV,
      * text and JSON are built in.
      */
@@ -747,9 +762,12 @@ export class PivotReportElement extends Base {
             allowImport: this.allowImport,
             plugins: Array.isArray(v.plugins) ? v.plugins : undefined,
             onDataLoad: this.#onDataLoad,
-            importWorker: startImportWorker
+            importWorker: this.#startImportWorker
         };
     }
+
+    /** The import worker, from importWorkerUrl as it is when a file is read. */
+    #startImportWorker = () => startImportWorker(/** @type {string | URL | undefined} */ (this.#values.importWorkerUrl));
 
     /** @param {PivotView} view */
     #onViewChange = (view) => {
