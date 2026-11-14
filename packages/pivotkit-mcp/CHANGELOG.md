@@ -20,6 +20,9 @@ What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-st
 
 ### Added
 
+- A missing `--output` directory is made at start with mode 0700 (0755 narrowed by the umask when
+  `output.baseUrl` is set), as pivotkit-server does; the former error is opt-in with
+  `output.create: false`.
 - Request limits over HTTP, as the REST service has them: `mcp.rateLimit.perMinute`, `.burst`,
   `.failedAuthPerMinute` and `mcp.concurrency`; over a limit the answer is 429 with `Retry-After`
   ([#270](https://github.com/eizedev/pivotkit/issues/270)). `/mcp` answers a method other than

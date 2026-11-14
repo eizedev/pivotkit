@@ -3,11 +3,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { ConfigError, SKILLS_DIR, loadConfig, validateOptions } from "pivotkit-mcp";
-import { BIN, workspace } from "./helpers.js";
+import { BIN, httpServer, workspace } from "./helpers.js";
 
 const runner = (args, cwd, env = {}) => spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8", env: { PATH: process.env.PATH, ...env }, timeout: 30_000 });
 
@@ -48,9 +48,14 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     const ok = runner(["--config", join(dir, "pivotkit-mcp.json"), "--check-config"], other);
     assert.equal(ok.status, 0, ok.stdout);
     writeFileSync(join(dir, "bad-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope" } }));
+    // a missing output directory is made at start; with output.create off it is a problem
     const noOut = runner(["--config", join(dir, "bad-out.json"), "--check-config"], other);
-    assert.equal(noOut.status, 1);
-    assert.match(noOut.stdout, /Output: nope {2}\(NOT FOUND: create the directory first\)/);
+    assert.equal(noOut.status, 0, noOut.stdout);
+    assert.match(noOut.stdout, /Output: nope {2}\(does not exist yet: will be created at start; check the path\)/);
+    writeFileSync(join(dir, "off-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope", create: false } }));
+    const off = runner(["--config", join(dir, "off-out.json"), "--check-config"], other);
+    assert.equal(off.status, 1);
+    assert.match(off.stdout, /Output: nope {2}\(NOT FOUND: create the directory first, or leave output\.create on\)/);
 });
 
 test("the runner's usage errors exit 2 with a hint; --help and --version exit 0", () => {
@@ -93,4 +98,15 @@ test("the Claude Code plugin is the package's folder: its version is the package
     assert.equal(plugin.name, pkg.name);
     assert.equal(plugin.version, pkg.version);
     assert.deepEqual(market.plugins.map((p) => [p.name, p.source]), [["pivotkit-mcp", "./packages/pivotkit-mcp"]]);
+});
+
+test("the MCP server makes a missing output directory at start, as pivotkit-server does", async () => {
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "fresh/out" }, baseDir: dir });
+    try {
+        assert.ok(statSync(join(dir, "fresh", "out")).isDirectory());
+        assert.ok(server.log.some((l) => l.event === "warning" && /output directory did not exist and was created/.test(l.message)));
+    } finally {
+        await server.close();
+    }
 });

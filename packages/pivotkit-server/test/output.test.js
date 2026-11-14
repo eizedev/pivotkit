@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, readdirSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { prune } from "../src/present.js";
 import { BIN, BY_REGION, call, restServer, workspace } from "./helpers.js";
@@ -214,4 +214,112 @@ test("check-config warns of a policy rule that matches no column and prints the 
     assert.match(res.stdout, /warning: policy\.fields\.Margin: no column of any source has this name/);
     assert.match(res.stdout, /Profile export: .*Customer show/);
     assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(res.stdout), "a rule that matches by another case is no warning");
+});
+
+test("a missing output directory is created at start (0700, or 0755 narrowed by the umask where a web server serves it) and said once in the log", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "reports/new" }, baseDir: dir });
+    try {
+        const info = statSync(join(dir, "reports", "new"));
+        assert.ok(info.isDirectory());
+        if (process.platform !== "win32") {
+            assert.equal(info.mode & 0o777, 0o700, "reports may hold what a model may not see: the server's user only");
+        }
+        const said = server.log.filter((l) => l.event === "warning" && /output directory/.test(l.message) && /created/.test(l.message));
+        assert.equal(said.length, 1, JSON.stringify(server.log));
+        assert.ok(!JSON.stringify(server.log).includes(dir), "no path in the log");
+        const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(res.status, 200, JSON.stringify(res.data));
+    } finally {
+        await server.close();
+    }
+    // a served directory is read by the web server's user: 0755, which the umask can only narrow,
+    // so even under umask 000 nobody else may write it
+    const before = process.umask(0);
+    try {
+        const served = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "served", baseUrl: "https://files.example.com/r/" }, baseDir: dir });
+        await served.close();
+    } finally {
+        process.umask(before);
+    }
+    if (process.platform !== "win32") {
+        assert.equal(statSync(join(dir, "served")).mode & 0o777, 0o755);
+    }
+    // an existing directory is left as it is, and nothing is said
+    const again = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "reports/new" }, baseDir: dir });
+    try {
+        assert.ok(!again.log.some((l) => /created/.test(String(l.message))));
+    } finally {
+        await again.close();
+    }
+});
+
+test("output.create: false keeps a missing directory an error; one that cannot be created is an error with the reason", async () => {
+    const dir = workspace();
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "missing", create: false }, baseDir: dir }), /output\.dir: not found.*output\.create/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "missing", create: "yes" }, baseDir: dir }), /output\.create/);
+    if (process.getuid?.() !== 0 && process.platform !== "win32") {
+        chmodSync(join(dir, "data"), 0o555);
+        try {
+            await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data/out" }, baseDir: dir }), /output\.dir: cannot be created.*permission denied/);
+        } finally {
+            chmodSync(join(dir, "data"), 0o755);
+        }
+    }
+});
+
+test("a symbolic link to nothing as output.dir is a problem in check-config and refused at start; a refused start makes no directory", async () => {
+    const dir = workspace();
+    symlinkSync(join(dir, "gone"), join(dir, "dangling"));
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" } }));
+    const check = run(["check-config", "--config", config]);
+    assert.equal(check.status, 1, check.stdout);
+    assert.match(check.stdout, /Output: dangling {2}\(NOT FOUND: a symbolic link to nothing\)/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "dangling" }, baseDir: dir }), /output\.dir: a symbolic link to nothing/);
+    // inside an allowed directory: refused before anything is made
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, files: { allowDirs: ["data"] }, output: { dir: "data/new/out" }, baseDir: dir }), /files\.allowDirs/);
+    assert.ok(!existsSync(join(dir, "data", "new")), "no directory left behind");
+});
+
+test("check-config refuses what serve refuses: a missing output.dir inside an allowed directory, one below a link to nothing", async () => {
+    const dir = workspace();
+    symlinkSync(join(dir, "gone"), join(dir, "link"));
+    const config = join(dir, "pivotkit.json");
+    const check = (options) => {
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, ...options }));
+        return run(["check-config", "--config", config]);
+    };
+    const inside = check({ files: { allowDirs: ["data"] }, output: { dir: "data/new/out" } });
+    assert.equal(inside.status, 1, inside.stdout);
+    assert.match(inside.stdout, /PROBLEM: output\.dir lies inside a directory of files\.allowDirs/);
+    const below = check({ output: { dir: "link/out" } });
+    assert.equal(below.status, 1, below.stdout);
+    assert.match(below.stdout, /Output: link\/out {2}\(NOT FOUND: cannot be created: a symbolic link in the path points to nothing\)/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "link/out" }, baseDir: dir }), /output\.dir: cannot be created: a symbolic link in the path points to nothing/);
+});
+
+test("check-config says whether the output directory exists, will be created, or cannot be", () => {
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    const check = (output) => {
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output }));
+        return run(["check-config", "--config", config]);
+    };
+    const created = check({ dir: "later/out" });
+    assert.equal(created.status, 0, created.stdout);
+    assert.match(created.stdout, /Output: later\/out {2}\(does not exist yet: will be created at start; check the path\)/);
+    const off = check({ dir: "later/out", create: false });
+    assert.equal(off.status, 1, off.stdout);
+    assert.match(off.stdout, /Output: later\/out {2}\(NOT FOUND: create the directory first, or leave output\.create on\)/);
+    if (process.getuid?.() !== 0 && process.platform !== "win32") {
+        chmodSync(join(dir, "data"), 0o555);
+        try {
+            const denied = check({ dir: "data/out" });
+            assert.equal(denied.status, 1, denied.stdout);
+            assert.match(denied.stdout, /Output: data\/out {2}\(NOT FOUND: cannot be created: permission denied for the user \d+/);
+        } finally {
+            chmodSync(join(dir, "data"), 0o755);
+        }
+    }
 });

@@ -115,7 +115,9 @@ does not read counts (a shown date's grouping still follows its span).
 ## Configuration { #configuration }
 
 The runner reads a configuration file (JSON) and its flags; a flag wins, and a list given as flags
-adds to the file's. Paths in the file are relative to the file. The configuration is read at start: a
+adds to the file's. Paths in the file are relative to the file; a relative path given without a
+configuration file (`--output reports`) is relative to the working directory, for a stdio client the
+folder the client starts the server in. The configuration is read at start: a
 change needs a restart, except token files (read on every request). An unknown key or value is an
 error that names the key and the one probably meant.
 
@@ -132,7 +134,8 @@ error that names the key and the one probably meant.
 | `files.list` | `--list-files` | false | list_sources lists the data files of the allowed directories (not their subdirectories) |
 | `files.hardLinks` | - | false | Read files that have a second name |
 | `files.scopes`, `files.policy` | - | none, the server's | Scopes and policy of `file:` sources |
-| `output.dir` | `--output dir` | none | Where reports and drafts are written |
+| `output.dir` | `--output dir` | none | Where reports and drafts are written; made at start when missing (with its parents, mode 0700: reports may hold what a model may not see; 0755 narrowed by the umask when `output.baseUrl` is set, so the web server can read it), a warning in the log; a missing directory was an error before, now only with `output.create: false` |
+| `output.create` | - | true | `false`: a missing `output.dir` is an error at start instead |
 | `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |

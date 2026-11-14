@@ -24,6 +24,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- Filter level: Years combined (its year buttons, "The table shows … only" and the summary) writes a
+  year before 1 AD as the table does ("5 BC", not "-4"); the reference date's field shows and takes a
+  day after 9999 ("+010000-01-01" was cut off and could not be typed), and whether a quick choice
+  reaches the data compares days, not their text, for years with a sign
+  ([#351](https://github.com/eizedev/pivotkit/issues/351)).
 - An open menu no longer moves when its own content is scrolled: a click on a control reached by
   scrolling (Rolling under More choices of a date's quick choices) could land beside it when the
   menu was placed again between the press and the release. A menu whose content grew while it was

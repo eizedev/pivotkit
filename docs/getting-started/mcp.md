@@ -14,10 +14,11 @@ Node 22 or later. A client starts the server itself (stdio), or connects to one 
 
 ## 1. Your data and a folder for the reports
 
-Put the data where the server may read it and make a folder for what it writes:
+Put the data where the server may read it; the server makes the folder for what it writes
+(`--output`) when it starts:
 
 ```bash
-mkdir -p ~/reports/out
+mkdir -p ~/reports
 cd ~/reports && npx -y pivotkit-cli example   # optional: sample data (sales.csv) from the command line
 ```
 

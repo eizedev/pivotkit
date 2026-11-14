@@ -23,6 +23,10 @@ What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-st
 
 ### Added
 
+- A missing `output.dir` is made at start (with its parents, mode 0700, or 0755 narrowed by the
+  umask when `output.baseUrl` is set) with a warning in the log. It was an error before; that is now
+  opt-in with `output.create: false`. `check-config` says whether the directory exists, will be
+  made, or cannot be, and names one inside an allowed directory as the problem the start refuses.
 - `mcp.rateLimit` and `mcp.concurrency`: the MCP endpoint over HTTP limits each caller and refused
   tokens per address as the REST service does, with counts of its own; `createLimits` is shared
   ([#270](https://github.com/eizedev/pivotkit/issues/270)).

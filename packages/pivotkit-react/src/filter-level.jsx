@@ -26,7 +26,7 @@ import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
 import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
-import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
+import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText, yearText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
 import { RULE_OPS, dateSpan, filtersOf, hiddenNot, opOf, ruleOp, sameRef, searchItems, selectedItems, sourceOf } from "./view-ops.js";
@@ -34,7 +34,11 @@ import {
     ITEM_RULE_TYPES,
     RULES_MAX,
     RULE_TYPES,
+    combinedYearsText,
     conditionKind,
+    dateFromInput,
+    dateInputValue,
+    dayOnOrBefore,
     itemTotals,
     keepsBlanks,
     quickChoice,
@@ -288,7 +292,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     };
     const rowsOf = (range) => (range ? rowsInRange(range, column.dict, counts) : 0);
     /** Whether a range with a start begins on or before the latest record: its last periods reach the data. */
-    const reaches = (r) => r !== null && r.from !== null && r.from.slice(0, 10) <= latestDay;
+    const reaches = (r) => r !== null && r.from !== null && dayOnOrBefore(r.from, latestDay);
     /** The smallest count of a unit whose last periods reach the latest record, up to REACH. */
     const reach = (unit) => {
         for (let n = 1; n <= REACH[unit]; n++) {
@@ -543,16 +547,18 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const periodStart = fk.months ? Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) : Date.UTC(today.getUTCFullYear(), 0, 1);
     const [anchorOutside] = useState(() => span.max < periodStart || anchor !== "today");
     const anchorKind = ["today", "latest", "first"].includes(anchor) ? anchor : "date";
-    // the date field shows a day ("2025-06-30" of a loaded "2025-06-30T18:00:00"); one being typed
-    // stays in the field, the range keeps the last whole date until a whole date is there
-    const [day, setDay] = useState(anchorKind === "date" ? anchor.slice(0, 10) : latestDay);
-    const dayWhole = /^\d{4}-\d{2}-\d{2}$/.test(day);
+    // the date field shows a day ("2025-06-30" of a loaded "2025-06-30T18:00:00", "10000-01-01" of
+    // "+010000-01-01"; a year before 1 it cannot hold); one being typed stays in the field, the range
+    // keeps the last whole date until a whole date is there
+    const [day, setDay] = useState(dateInputValue(anchorKind === "date" ? anchor : latestDay));
+    const dayIso = dateFromInput(day);
+    const dayWhole = dayIso !== null;
     // a date set elsewhere (Undo) shows in the field
     const [seenAnchor, setSeenAnchor] = useState(anchor);
     if (anchor !== seenAnchor) {
         setSeenAnchor(anchor);
         if (anchorKind === "date") {
-            setDay(anchor.slice(0, 10));
+            setDay(dateInputValue(anchor));
         }
     }
     const dayHint = `${anchorId}-hint`;
@@ -565,7 +571,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     const anchorRow = (
         <div className="pk-quick-anchor">
             <label htmlFor={anchorId}>{labels.anchorLabel}</label>
-            <select id={anchorId} name={`${formName}-anchor`} value={anchorKind} onChange={(e) => setAnchorTo(e.target.value === "date" ? (dayWhole ? day : latestDay) : e.target.value)} data-testid="quick-anchor">
+            <select id={anchorId} name={`${formName}-anchor`} value={anchorKind} onChange={(e) => setAnchorTo(e.target.value === "date" ? (dayIso ?? latestDay) : e.target.value)} data-testid="quick-anchor">
                 <option value="today">{fill(labels.anchorToday, { date: dayText(isoDay(today.getTime()), locale) })}</option>
                 <option value="latest">{fill(labels.anchorLatest, { date: dayText(latestDay, locale) })}</option>
                 <option value="first">{fill(labels.anchorFirst, { date: dayText(isoDay(span.min), locale) })}</option>
@@ -578,14 +584,15 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
                     value={day}
                     onChange={(e) => {
                         setDay(e.target.value);
-                        if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) {
-                            setAnchorTo(e.target.value);
+                        const iso = dateFromInput(e.target.value);
+                        if (iso) {
+                            setAnchorTo(iso);
                         }
                     }}
                     // left without a whole date: the one that applies comes back
                     onBlur={() => {
                         if (!dayWhole) {
-                            setDay(anchor.slice(0, 10));
+                            setDay(dateInputValue(anchor));
                         }
                     }}
                     aria-label={labels.anchorDay}
@@ -596,7 +603,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
             ) : null}
             {anchorKind === "date" && !dayWhole ? (
                 <p className="pk-hint pk-quick-missing" id={dayHint} data-testid="quick-anchor-date-hint">
-                    {fill(labels.anchorDayIncomplete, { date: dayText(anchor.slice(0, 10), locale) })}
+                    {fill(labels.anchorDayIncomplete, { date: dayText(anchor, locale) })}
                 </p>
             ) : null}
         </div>
@@ -665,13 +672,13 @@ function YearsCombined({ ctx, years, on }) {
                     return (
                         <button key={y.year} type="button" className="pk-year-chip" aria-pressed={pressed} disabled={pressed && on.length === 1} onClick={() => toggle(y.year)} data-testid={`year-${y.year}`}>
                             {pressed ? <Icon name="check" size={12} /> : null}
-                            <span>{String(y.year)}</span>
+                            <span>{yearText(y.year, locale)}</span>
                             <span className="pk-quick-rows">{fill(labels.quickRows, { rows: y.rows.toLocaleString(locale) })}</span>
                         </button>
                     );
                 })}
             </div>
-            {on.length === 1 ? <p className="pk-hint">{fill(labels.yearsCombinedOne, { year: String(on[0]) })}</p> : null}
+            {on.length === 1 ? <p className="pk-hint">{fill(labels.yearsCombinedOne, { year: yearText(on[0], locale) })}</p> : null}
         </>
     );
 }
@@ -1450,7 +1457,7 @@ export function FilterLevel({ view, field, encoded, types, labels, locale, commi
     const number = (n) => n.toLocaleString(locale);
     // the quick choice in words: "last 2 years (2025; 2026 has no data)", "2024–2025 combined"
     const yearsOn = quick.id === "yearsCombined" && quick.years ? quick.years : years.map((y) => y.year);
-    const yearsText = fk.cyclic && years.length > 1 ? (yearsOn.length === 1 ? fill(labels.yearsOne, { year: String(yearsOn[0]) }) : fill(labels.yearsAll, { years: yearsOn.length === years.length || yearsOn[yearsOn.length - 1] - yearsOn[0] === yearsOn.length - 1 ? `${yearsOn[0]}–${yearsOn[yearsOn.length - 1]}` : yearsOn.join(", ") })) : null;
+    const yearsText = fk.cyclic && years.length > 1 ? combinedYearsText(yearsOn, years.map((y) => y.year), labels, locale) : null;
     const quickWords = quick.id === "yearsCombined" ? yearsText : quick.filters.length ? relativeText(quick.filters[0], labels, locale, timeZone, undefined, span, view.formatting?.weekStart) : null;
     // the items: picked, kept by the quick choice and the rules on items, shown after the rules on totals
     const outByQuick = /** @type {Set<string> | undefined} */ (itemResults.get("quick")) ?? (quick.filters.length ? new Set(info.items.filter((i) => !i.kept).map((i) => keyOf(i.value))) : new Set());
