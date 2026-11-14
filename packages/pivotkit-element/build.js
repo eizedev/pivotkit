@@ -23,8 +23,9 @@ import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
 export { bundledPackages } from "../../scripts/third-party-licenses.js";
 import { hostStyles } from "./src/host-css.js";
 import { isMain } from "../../scripts/is-main.js";
+import { fileURLToPath } from "node:url";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
 
 /** pivotkit-react/styles.css as a JS string for the shadow root. */

@@ -14,7 +14,7 @@ import { gzipSync } from "node:zlib";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
 import { isMain } from "../../scripts/is-main.js";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 /** saxen as installed for read-excel-file: its license covers the copy read-excel-file carries. */
 const SAXEN = dirname(createRequire(fileURLToPath(import.meta.resolve("read-excel-file/package.json"))).resolve("saxen/package.json"));
 

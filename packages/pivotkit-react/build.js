@@ -7,6 +7,7 @@
 //   node build.js --watch    rebuild on change
 import * as esbuild from "esbuild";
 import { isMain } from "../../scripts/is-main.js";
+import { fileURLToPath } from "node:url";
 
 const pkg = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./package.json", import.meta.url), "utf8"));
 const externals = [...Object.keys(pkg.peerDependencies ?? {}), ...Object.keys(pkg.dependencies ?? {})];
@@ -21,7 +22,7 @@ const echartsFile = {
 
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
-    absWorkingDir: new URL(".", import.meta.url).pathname,
+    absWorkingDir: fileURLToPath(new URL(".", import.meta.url)),
     // menus.js: the menus' panels, loaded on demand (lazy-menus.jsx); what it shares with index.js is
     // a chunk of its own (splitting), so both use one copy of each module (one React context each)
     // labels.js (the package's "./labels"): every text, for hosts; not part of the report's first load
