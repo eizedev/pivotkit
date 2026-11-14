@@ -141,7 +141,11 @@ test("exit 1: an error in the view writes nothing; --lenient writes it and still
     const bad = JSON.stringify({ rows: ["Regoin"], values: [{ field: "Units", agg: "sum" }] });
     const r = await run(["render", bad, "--data", "sales.csv", "-o", "out.csv"], { cwd: dir });
     assert.equal(r.code, 1);
-    assert.match(r.stderr, /error unknownField at rows\[0\]: unknown field "Regoin" \(did you mean "Region"\?\)/);
+    // a field the data does not have leads, with the hint; the unknownField behind it is in --json
+    assert.match(r.stderr, /^error dataMismatch: sales\.csv does not have the fields the view uses$/m);
+    assert.match(r.stderr, /^ {2}missing: "Regoin" \(did you mean "Region"\?\)$/m);
+    const json = JSON.parse((await run(["render", bad, "--data", "sales.csv", "-o", "out.csv", "--json"], { cwd: dir })).stdout);
+    assert.equal(json.findings.find((f) => f.code === "unknownField").suggestion, "Region");
     assert.match(r.stderr, /nothing written/);
     assert.ok(!existsSync(join(dir, "out.csv")));
     const lenient = await run(["render", bad, "--data", "sales.csv", "-o", "out.csv", "--lenient"], { cwd: dir });

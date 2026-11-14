@@ -69,7 +69,7 @@ export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
 export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
-export { DEFAULT_LABELS, fieldLabel } from "./labels.js";
+export { DEFAULT_LABELS, REPORT_LABELS, fieldLabel, reportLabels } from "./labels.js";
 export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";

@@ -7,7 +7,7 @@
  * load with them; a host's entries for them are kept here and win there.
  */
 
-import { DEFAULT_LABELS, PivotkitError } from "pivotkit-core";
+import { PivotkitError, REPORT_LABELS } from "pivotkit-core";
 
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
@@ -23,28 +23,7 @@ export const en = {
     lang: "en",
     /** the name of the report's region landmark */
     report: "Pivot report",
-    core: /** @type {import("pivotkit-core").Labels} */ ({
-        ...DEFAULT_LABELS,
-        // a yes/no field in the table, the filter list and the drill-down: words, not true/false
-        true: "Yes",
-        false: "No",
-        aggregators: {
-            count: "Count",
-            countUnique: "Distinct count",
-            listUnique: "List of distinct values",
-            sum: "Sum",
-            average: "Average",
-            median: "Median",
-            min: "Minimum",
-            max: "Maximum",
-            stdev: "Standard deviation (sample)",
-            stdevp: "Standard deviation (population)",
-            var: "Variance (sample)",
-            varp: "Variance (population)",
-            first: "First value",
-            last: "Last value"
-        }
-    }),
+    core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.en),
     zones: { rows: "Rows", cols: "Columns", values: "Values", filters: "Filters" },
     zoneHints: {
         rows: "Drop fields here to group rows",
@@ -379,47 +358,7 @@ export const en = {
 export const de = {
     lang: "de",
     report: "Pivot-Bericht",
-    core: /** @type {import("pivotkit-core").Labels} */ ({
-        ...DEFAULT_LABELS,
-        blank: "(Leer)",
-        total: "{label} gesamt",
-        grandTotal: "Gesamtergebnis",
-        values: "Werte",
-        valueName: "{agg} von {field}",
-        countRows: "Anzahl",
-        true: "Ja",
-        false: "Nein",
-        aggregators: {
-            count: "Anzahl",
-            countUnique: "Anzahl verschiedener Werte",
-            listUnique: "Liste verschiedener Werte",
-            sum: "Summe",
-            average: "Durchschnitt",
-            median: "Median",
-            min: "Minimum",
-            max: "Maximum",
-            stdev: "Standardabweichung (Stichprobe)",
-            stdevp: "Standardabweichung (Grundgesamtheit)",
-            var: "Varianz (Stichprobe)",
-            varp: "Varianz (Grundgesamtheit)",
-            first: "Erster Wert",
-            last: "Letzter Wert"
-        },
-        showAsName: "{showAs} von {value}",
-        showAs: {
-            percentOfGrandTotal: "% des Gesamtergebnisses",
-            percentOfRowTotal: "% der Zeilensumme",
-            percentOfColumnTotal: "% der Spaltensumme",
-            percentOfParentRow: "% der übergeordneten Zeile",
-            percentOfParentColumn: "% der übergeordneten Spalte",
-            differenceFromPrevious: "Differenz zum vorherigen",
-            percentDifferenceFromPrevious: "% Differenz zum vorherigen",
-            runningTotal: "Laufende Summe",
-            percentRunningTotal: "% laufende Summe",
-            rankAscending: "Rang (kleinster zuerst)",
-            rankDescending: "Rang (größter zuerst)"
-        }
-    }),
+    core: /** @type {import("pivotkit-core").Labels} */ (REPORT_LABELS.de),
     zones: { rows: "Zeilen", cols: "Spalten", values: "Werte", filters: "Filter" },
     zoneHints: {
         rows: "Felder hierher ziehen, um Zeilen zu gruppieren",

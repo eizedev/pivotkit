@@ -100,7 +100,8 @@ export function describeSource(data, options) {
         return out;
     });
     const rows = encoded ? encoded.length : null;
-    return { rows, fields: summaries, text: `${rows === null ? "" : `${rows} rows, `}${summaries.length} fields: ${summaries.map((f) => `${nameText(f.name)} (${f.type})`).join(", ")}` };
+    const count = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+    return { rows, fields: summaries, text: `${rows === null ? "" : `${count(rows, "row")}, `}${count(summaries.length, "field")}: ${summaries.map((f) => `${nameText(f.name)} (${f.type})`).join(", ")}` };
 }
 
 /** A value reference in words: "sum of Sales", "count of rows". */
