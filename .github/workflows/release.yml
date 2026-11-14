@@ -1,7 +1,7 @@
 name: Release
 
 # Prepared, not active. Publishes a package of this repository (pivotkit-core, pivotkit-react,
-# pivotkit-element, pivotkit-xlsx, pivotkit-report or pivotkit-cli) to npm with provenance when a tag <package>@<version> is pushed, but only after
+# pivotkit-element, pivotkit-xlsx, pivotkit-report, pivotkit-cli or pivotkit-mcp) to npm with provenance when a tag <package>@<version> is pushed, but only after
 # the maintainer has
 #   1. made the repository public (npm provenance is not available for private repositories),
 #   2. created the package on npm and set up trusted publishing for this repository, the workflow
@@ -14,7 +14,7 @@ name: Release
 # there); "publish" gets the OIDC token, installs nothing and publishes the tarball "build" made.
 on:
   push:
-    tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-cli@*"]
+    tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-cli@*", "pivotkit-mcp@*"]
 
 permissions:
   contents: read
@@ -50,7 +50,7 @@ jobs:
         run: |
           name="${TAG%@*}"
           case "$name" in
-            pivotkit-core|pivotkit-react|pivotkit-element|pivotkit-xlsx|pivotkit-report|pivotkit-cli) ;;
+            pivotkit-core|pivotkit-react|pivotkit-element|pivotkit-xlsx|pivotkit-report|pivotkit-cli|pivotkit-mcp) ;;
             *) echo "tag $TAG names no package of this repository"; exit 1 ;;
           esac
           version="$(node -p "require('./packages/$name/package.json').version")"

@@ -11,15 +11,17 @@
 import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, renameFields, validate, viewFileFields, viewFileText } from "pivotkit-core";
+import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, closest, encode, fromViewFile, outsideLimits, renameFields, validate, viewFileFields, viewFileText } from "pivotkit-core";
 import { IMPORT_TYPES, readFile, retype } from "pivotkit-core/import";
-import { readViewLink } from "pivotkit-core/link";
-import { RENDER_FORMATS, render } from "pivotkit-report";
 import xlsxReader from "pivotkit-xlsx";
+import { readViewLink } from "pivotkit-core/link";
+import { RENDER_FORMATS } from "pivotkit-report";
+import { OPERATIONS, findingOf } from "pivotkit-report/operations";
 import { COMMANDS, DOCS, SHELLS, optionsOf } from "./commands.js";
 import { CliError, asCliError, printable, shortName } from "./errors.js";
 import { examples, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
+import { INFO_NOTES } from "./files.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 import { resolve as resolvePath } from "node:path";
@@ -140,15 +142,6 @@ function intOption(name, value, min, max) {
     }
     return n;
 }
-
-/** The findings of a run, in the --json shape. */
-const findingOf = (issue) => ({
-    severity: issue.severity === "warning" ? "warning" : "error",
-    code: issue.code ?? "issue",
-    path: printable(issue.path ?? ""),
-    message: printable(issue.message ?? ""),
-    ...(issue.params?.suggestion ? { suggestion: printable(issue.params.suggestion) } : {})
-});
 
 /**
  * Runs one command. Never throws: every error ends in its exit code and message.
@@ -307,14 +300,6 @@ async function context(values, io) {
     return { limits, allow, readInput, io, fileLimits, now: values.now, locale: values.locale, timeZone: values["time-zone"] };
 }
 
-/**
- * Reader notes that only say how a file was read (its encoding, separator, sheet): "info", in --json
- * only. The others say the data differs from the file (a column renamed or dropped, text cut, values
- * not converted): warnings.
- */
-// LINES_SKIPPED is a warning: the lines above the header a reader took for a title may be data
-const INFO_NOTES = new Set(["ENCODING", "SEPARATOR", "SHEET", "USED_RANGE", "JSON_FLATTENED", "ROWS_EMPTY"]);
-
 /** The text of a view or template file, as UTF-8. */
 const textOf = (bytes) => new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/^\uFEFF/, "");
 
@@ -423,6 +408,34 @@ async function readData(values, ctx, viewSheet = null) {
             const why = fromView ? " (the view's source.params.sheet; give --sheet to read another)" : "";
             throw new CliError("io", "NO_SHEET", `${shortName(path)}: the workbook has no sheet ${quoted(sheet)}${why}${list ? `; its sheets: ${list}` : ""}`);
         }
+        throw asCliError(e, path);
+    }
+}
+
+/**
+ * The environment of pivotkit-report's operations for one command: the data of --data (encoded), or
+ * the fields a view file lists when there is no data.
+ * @param {any} ctx
+ * @param {{ table: any, name: string, notes: any[] } | null} data
+ * @param {Array<{ name: string, type: string }> | null} [fields]
+ * @returns {import("pivotkit-report/operations").OperationEnv}
+ */
+function operationEnv(ctx, data, fields = null) {
+    const encoded = data ? encode(data.table, { timeZone: ctx.timeZone ?? "UTC", ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) }) : null;
+    return {
+        data: async () => (encoded ? { data: encoded, name: data.name, notes: data.notes } : { data: fields ?? [], name: "", notes: [] }),
+        ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}),
+        ...(ctx.locale ? { locale: ctx.locale } : {}),
+        ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}),
+        ...(ctx.now ? { now: ctx.now } : {})
+    };
+}
+
+/** Runs an operation of pivotkit-report's table, its errors as the CLI's. */
+async function runOperation(name, input, env, path) {
+    try {
+        return await OPERATIONS[name].run(input, env);
+    } catch (e) {
         throw asCliError(e, path);
     }
 }
@@ -621,9 +634,6 @@ function explain(findings, viewText, data) {
     return marked;
 }
 
-/** The render options common to the commands. */
-const renderBase = (ctx) => ({ ...(ctx.locale ? { locale: ctx.locale } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(ctx.now ? { now: ctx.now } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
-
 /** The extensions -o names a format by (".htm" is HTML too). */
 const EXTENSIONS = Object.freeze({ ...Object.fromEntries(Object.keys(RENDER_FORMATS).map((f) => [f, f])), htm: "html" });
 
@@ -677,52 +687,51 @@ async function renderCommand(positionals, values, ctx) {
     const echarts = format === "svg" || format === "html" ? await import("echarts") : undefined;
     const width = intOption("width", values.width, 100, 8000);
     const height = intOption("height", values.height, 100, 8000);
-    let result;
-    try {
-        result = await render(view.view, data.table, {
-            ...renderBase(ctx),
-            format: /** @type {any} */ (format),
+    const env = {
+        ...operationEnv(ctx, data),
+        ...(echarts ? { echarts } : {}),
+        // the command line's own render options: the template file, --lenient, the byte order mark, the chart's size
+        renderOptions: {
             strict: !values.lenient,
-            source: data.name,
-            ...(values.title !== undefined ? { title: values.title } : {}),
             ...(template !== undefined ? { template } : {}),
-            ...(values.chart ? { chart: values.chart === "auto" ? "auto" : values.chart === "on" } : {}),
             // a byte order mark lets Excel read a CSV file as UTF-8; a program reading stdout gets none
             ...(format === "csv" ? { bom: values.bom === "on" || ((values.bom ?? "auto") === "auto" && Boolean(values.output)) } : {}),
-            ...(echarts ? { echarts } : {}),
             ...(width || height ? { size: { ...(width ? { width } : {}), ...(height ? { height } : {}) } } : {})
-        });
-    } catch (e) {
-        throw asCliError(e, values.template);
-    }
-    findings.push(...withJsonPosition(explain(result.issues.map(findingOf), view.view, data), view.view));
+        }
+    };
+    const input = { source: data.name, view: view.view, format, ...(values.title !== undefined ? { title: values.title } : {}), ...(values.chart ? { chart: values.chart } : {}) };
+    const { result, file: rendered } = await runOperation("render_view", input, env, values.template);
+    // the view's findings (the data's notes are in already), explained against the data
+    const viewFindings = result.findings.filter((f) => !data.notes.includes(f));
+    findings.push(...withJsonPosition(explain(viewFindings, view.view, data), view.view));
     const errors = findings.filter((f) => f.severity === "error").length;
     const mismatch = findings.some((f) => f.code === "dataMismatch");
     // filters that keep no row give a table of zeros: said, not left for the reader to wonder
     const s = result.summary;
     if (s && s.sourceRows > 0 && s.keptRows === 0 && errors === 0) {
-        const dated = (result.view?.filters ?? []).some((f) => f.type === "relative");
+        const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
+        const dated = /** @type {any[]} */ (read.view?.filters ?? []).some((f) => f?.type === "relative");
         findings.push({ severity: "warning", code: "noRowsKept", path: "", message: printable(`the filters keep none of the ${s.sourceRows.toLocaleString("en-US")} rows of ${data.name}${dated ? " (a date filter counts from --now or today)" : ""}`) });
     }
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
     /** @type {any} */
     const extra = { summary: result.summary, sheet: data.sheet, ...(made?.picks.length ? { draft: true, picks: made.picks } : {}) };
-    const saved = result.view && values["save-view"] !== undefined && !(failed && !values.lenient) ? await saveView(result.view, view, data, values, ctx) : null;
+    const saved = rendered && values["save-view"] !== undefined && !(failed && !values.lenient) ? await saveView(view, data, values, ctx) : null;
     if (saved) {
         extra.savedView = saved;
     }
-    if (result.body && !(failed && !values.lenient)) {
+    if (rendered && !(failed && !values.lenient)) {
         if (values.output) {
             try {
-                await writeSafe(values.output, result.body, { cwd: ctx.io.cwd, allow: ctx.allow });
+                await writeSafe(values.output, rendered.bytes, { cwd: ctx.io.cwd, allow: ctx.allow });
             } catch (e) {
                 const error = asCliError(e, values.output);
                 // -o /dev/stdout: a device is never replaced, and stdout is where the output goes without -o
                 throw error.code === "SPECIAL_FILE" ? new CliError(error.kind, error.code, `${error.message}; to write to stdout, leave out -o`) : error;
             }
-            extra.output = { file: shortName(values.output), format, mediaType: result.mediaType, bytes: result.body.length };
+            extra.output = { file: shortName(values.output), format, mediaType: result.mediaType, bytes: rendered.bytes.length };
         } else {
-            ctx.io.stdout.write(result.body);
+            ctx.io.stdout.write(rendered.bytes);
             if (format === "html" && ctx.io.stdout.isTTY && !values.quiet) {
                 ctx.io.stderr.write("an HTML report was written to the terminal: add -o report.html to save it\n");
             }
@@ -764,9 +773,10 @@ function checkSaveView(values) {
  * --save-view: the view rendered (normalized) as a view file for the data it ran on, the source named
  * as the browser names the file, with the workbook's sheet.
  */
-async function saveView(viewUsed, view, data, values, ctx) {
+async function saveView(view, data, values, ctx) {
     const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
     const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
+    const viewUsed = normalized(/** @type {any} */ (read.view ?? {}), encoded, outsideLimits(ctx.limits));
     const name = values.title ?? (read.name || "");
     const file = await viewFileFor(viewUsed, data, encoded, { name, ...(read.description ? { description: read.description } : {}), version: versions()["pivotkit-cli"] });
     const bytes = new TextEncoder().encode(viewFileText(file));
@@ -917,26 +927,31 @@ async function exampleCommand(positionals, values, ctx) {
 async function validateCommand(positionals, values, ctx) {
     const view = await readView(positionals, values, ctx);
     const data = withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
-    const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
-    if (read.failed) {
-        return { findings: withJsonPosition([{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], view.view), extra: { valid: false } };
-    }
-    let schema;
-    if (data) {
-        schema = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
-    } else if (read.source?.fields?.length) {
-        schema = read.source.fields;
-    } else {
+    const fields = data ? null : listedFields(view);
+    if (!data && fields === null) {
         throw new CliError("usage", "MISSING_DATA", "validate needs data (--data) or a view file that lists its fields (source.fields)");
     }
-    const { errors, warnings, valid } = validate(read.view, schema, { limits: outsideLimits(ctx.limits) });
-    const fileNotes = read.issues.map((i) => ({ severity: "warning", code: "viewFile", path: printable(i.path ?? ""), message: printable(i.message) }));
-    const viewFindings = [...errors.map(findingOf), ...warnings.map(findingOf)];
-    const findings = [...(data?.notes ?? []), ...fileNotes, ...(data ? explain(viewFindings, view.view, data) : viewFindings)];
+    const { result } = await runOperation("validate_view", { source: data?.name || "view file", view: view.view }, operationEnv(ctx, data, fields));
+    const { findings: all, ...extra } = result;
+    const notes = data?.notes ?? [];
+    const fileFindings = all.filter((f) => !notes.includes(f) && f.code === "viewFile");
+    const viewFindings = all.filter((f) => !notes.includes(f) && f.code !== "viewFile");
+    if (fileFindings.some((f) => f.severity === "error")) {
+        return { findings: withJsonPosition(fileFindings, view.view), extra };
+    }
+    const findings = [...notes, ...fileFindings, ...(data ? explain(viewFindings, view.view, data) : viewFindings)];
     // what was checked, said when it is valid (an invalid view says so through its errors)
+    const warnings = viewFindings.filter((f) => f.severity === "warning").length;
     const counted = (n, word) => (n === 0 ? `no ${word}s` : `${n} ${word}${n === 1 ? "" : "s"}`);
-    const note = !valid ? null : data ? `valid: no errors, ${counted(warnings.length, "warning")} (with ${data.name})` : "valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data";
-    return { findings, extra: { valid, sheet: data?.sheet ?? null }, note };
+    const note = !result.valid ? null : data ? `valid: no errors, ${counted(warnings, "warning")} (with ${data.name})` : "valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data";
+    return { findings, extra: { ...extra, sheet: data?.sheet ?? null }, note };
+}
+
+/** The fields a view file lists (source.fields), or null: a view's schema when there is no data. */
+function listedFields(view) {
+    const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
+    // a view that cannot be read has no fields, but its finding comes from the operation
+    return read.failed ? [] : read.source?.fields?.length ? read.source.fields : null;
 }
 
 async function describeCommand(positionals, values, ctx) {
@@ -972,29 +987,29 @@ async function describeCommand(positionals, values, ctx) {
     }
     if (kind === "view") {
         const view = text ?? (input.trimStart().startsWith("{") ? input : textOf(await ctx.readInput(input, "the view", VIEW_BYTES, "json")));
-        const read = fromViewFile(view);
-        if (read.failed) {
-            return { findings: [{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], extra: { kind } };
-        }
-        const data = withViewTypes(await readData(values, ctx, typeof read.source?.params?.sheet === "string" ? read.source.params.sheet : null), read.source?.fields ?? []);
-        if (!data && !read.source?.fields?.length) {
+        // the sheet the view was made on (source.params.sheet), read from its view file
+        const viewFile = fromViewFile(view);
+        const sheetOfView = !viewFile.failed && typeof viewFile.source?.params?.sheet === "string" ? viewFile.source.params.sheet : null;
+        const data = withViewTypes(await readData(values, ctx, sheetOfView), viewFields(view));
+        const fields = data ? null : listedFields({ view });
+        if (!data && fields === null) {
             throw new CliError("usage", "MISSING_DATA", "describing a view needs its data (--data) or a view file that lists its fields (source.fields)");
         }
-        const schema = data ? encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}) }) : read.source?.fields;
-        const described = describeView(read.view, schema, { limits: outsideLimits(ctx.limits) });
-        if (!values.json) {
-            ctx.io.stdout.write(`${printable(read.name || "view")}: ${printable(described.text)}\n`);
+        const { result } = await runOperation("describe_view", { source: data?.name || "view file", view }, operationEnv(ctx, data, fields));
+        const { findings, ...extra } = result;
+        if (!values.json && result.description) {
+            ctx.io.stdout.write(`${printable(result.name || "view")}: ${printable(result.description.text)}\n`);
         }
-        const viewFindings = [...described.errors, ...described.warnings].map(findingOf);
-        return { findings: [...(data?.notes ?? []), ...(data ? explain(viewFindings, view, data) : viewFindings)], extra: { kind, name: printable(read.name), description: described, sheet: data?.sheet ?? null } };
+        const notes = data?.notes ?? [];
+        const viewFindings = findings.filter((f) => !notes.includes(f));
+        return { findings: [...notes, ...(data ? explain(viewFindings, view, data) : viewFindings)], extra: { kind, ...extra, sheet: data?.sheet ?? null } };
     }
     // data: the bytes or the text read above (JSON that is no view), else the file
     const known = bytes ?? (text !== null ? new TextEncoder().encode(text) : null);
     const data = await readData({ ...values, data: input, "data-format": values["data-format"] ?? (known ? "json" : undefined) }, known ? withBytes(ctx, input, known) : ctx);
-    const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}) });
-    const full = describeSource(encoded, { items });
-    // what is shown by default is names, types and counts: values (items, the smallest and largest) only with --items
-    const summary = items > 0 ? full : { ...full, fields: full.fields.map(({ min: _min, max: _max, ...f }) => ({ ...f, text: f.text.replace(/, from .*$/, "") })) };
+    const { result } = await runOperation("describe_source", { source: data.name, items }, operationEnv(ctx, data));
+    // what describeSource gives (the examples are for a model, not for a log)
+    const summary = { rows: result.rows, fields: result.fields, text: result.text };
     const sheets = data.sheets ? await data.sheets() : null;
     if (!values.json) {
         ctx.io.stdout.write(`${printable(summary.text)}\n`);

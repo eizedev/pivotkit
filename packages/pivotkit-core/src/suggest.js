@@ -152,7 +152,7 @@ export function suggestLayout(description, options) {
         const part = first ? "cols" : "rows";
         layout[part].push(date.f.name);
         layout.groups.push({ field: date.f.name, by: date.by });
-        picks.push({ part, code: "date", field: date.f.name, by: date.by, others: dates.slice(1).map((d) => d.f.name), text: `${groupingName(date.f.name, date.by, options)}: the first date, grouped by its span (${date.f.min} to ${date.f.max})` });
+        picks.push({ part, code: "date", field: date.f.name, by: date.by, others: dates.slice(1).map((d) => d.f.name), text: `${groupingName(date.f.name, date.by, options)}: the first date, grouped by its span` });
     } else if (first) {
         const second = categories.find((f) => f !== first && isCategory(f, SUGGEST_LIMITS.cols));
         if (second) {

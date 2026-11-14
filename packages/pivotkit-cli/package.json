@@ -32,6 +32,10 @@
       "types": "./types/cli.d.ts",
       "default": "./src/cli.js"
     },
+    "./files": {
+      "types": "./types/files.d.ts",
+      "default": "./src/files.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -22,6 +22,17 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 - A view file's field types (`source.fields`) decide how a column of the data is read when the reader
   inferred another one (text such as `1e3` in a CSV stays text): an `info` finding `typeFromView`;
   a type the column's values do not fit is not applied (`typeFromViewFailed`, a warning).
+- `pivotkit-cli/files`: the file handling of the command line for pivotkit's other Node front ends
+  (`readSafe`, `readStdin`, `writeSafe`, `writeNew`, `allowedDirs`, `readTable`, ...); `readSafe`
+  takes `hardLinks: false` to refuse a file with a second name and checks the real path again after
+  opening ([#165](https://github.com/eizedev/pivotkit/issues/165), [#209](https://github.com/eizedev/pivotkit/issues/209)).
+
+### Changed
+
+- `validate`, `describe` and `render` run pivotkit-report's operations, which the MCP server shares.
+  `--json`: `validate` and `describe` of a view add `uses` (the data's fields the view uses);
+  `describe` of a view gives `valid`, `name` and `description` without `errors` and `warnings`
+  (they are the `findings`); `describe` of data gives `rows`, `fields` and `text`.
 
 ### Changed
 

@@ -198,8 +198,13 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
   default `limits`: for a bug report or a CI log.
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
-  written). `validate`: `valid`. `describe`: `kind` (`view` or `data`) and `description`
-  (pivotkit-core's [`describeView` or `describeSource`](core.md)).
+  written). `validate`: `valid` and `uses` (the data's fields the view uses). `describe`: `kind`
+  (`view` or `data`) and `description` (pivotkit-core's [`describeView`](core.md) without its
+  `errors` and `warnings`, which are the `findings`, plus `valid`, `name` and `uses`; or
+  [`describeSource`](core.md)'s `rows`, `fields` and `text`).
+- `validate`, `describe` and `render` are operations of pivotkit-report's
+  [operation table](report.md#operations), which the [MCP server](mcp.md) shares: the same findings
+  and the same output there.
 - `render`, `validate` and `describe`: `sheet`, the sheet of a workbook read (`null` for other data or
   without data). `describe` of a workbook also gives `sheets`: `[{ name, index, visible }]` in the
   workbook's order.
@@ -276,8 +281,10 @@ for a report that is the same on every run.
   from a view or the data are cleaned of control characters and cut at 200 characters.
 - **`pivotkit example`** writes its files the same way, in the current directory, after checking that
   none of them is there yet (one that is: nothing is written, exit 2, `EXISTS`); `--allow-dir` holds.
-- Templates and file paths come only from the person running the command; a server built on the
-  same code (MCP, REST) never takes them from a caller.
+- Templates and file paths come only from the person running the command. The [MCP server](mcp.md),
+  built on the same file handling (`pivotkit-cli/files`: `readSafe`, `writeSafe`, `writeNew`,
+  `allowedDirs`, `readTable`), takes a template only from its operator and a path from a model only
+  inside the operator's allowed directories, and refuses hard links there.
 
 ## Completion
 

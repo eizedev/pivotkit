@@ -1,7 +1,7 @@
 // What a spawned process cannot show: stdout that is a terminal. main() runs with the streams given.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { linkSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { main } from "pivotkit-cli";
 import { BY_REGION, SALES_CSV, tempDir } from "./helpers.js";
@@ -44,10 +44,37 @@ test("a regular file is read whole, up to the last byte; a file of 0 bytes is em
     await assert.rejects(readSafe("six.txt", { cwd: dir, allow: [], maxBytes: 5 }), (e) => e.code === "LIMIT_EXCEEDED");
 });
 
-// safe-files.js is internal until the open points of #209 are settled: an export is an API that a
-// later release could not take back
-test("the package exports the command's main() only, not its file helpers", async () => {
+// the file helpers are one documented entry (pivotkit-cli/files, for pivotkit-mcp); the module behind
+// it stays internal, so its other names are no API
+test("the package exports main() and the file helpers of pivotkit-cli/files, not safe-files.js", async () => {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-    assert.deepEqual(Object.keys(pkg.exports), [".", "./package.json"]);
+    assert.deepEqual(Object.keys(pkg.exports), [".", "./files", "./package.json"]);
     await assert.rejects(import("pivotkit-cli/safe-files"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
+    const files = await import("pivotkit-cli/files");
+    assert.deepEqual(Object.keys(files).sort(), ["CliError", "DATA_FORMATS", "INFO_NOTES", "allowedDirs", "asCliError", "cleanFileName", "isInside", "printable", "readSafe", "readStdin", "readTable", "shortName", "writeNew", "writeSafe"]);
+});
+
+test("writeNew never replaces a file: a taken name gets -2, -3; the name is cleaned; no temporary file stays", async () => {
+    const { writeNew } = await import("pivotkit-cli/files");
+    const dir = tempDir();
+    writeFileSync(join(dir, "Sales.csv"), "keep");
+    assert.equal(await writeNew(dir, "Sales", "csv", new TextEncoder().encode("a")), "Sales-2.csv");
+    assert.equal(await writeNew(dir, "Sales", "csv", new TextEncoder().encode("b")), "Sales-3.csv");
+    assert.equal(readFileSync(join(dir, "Sales.csv"), "utf8"), "keep");
+    assert.equal(await writeNew(dir, "../../etc/passwd", "csv", new Uint8Array()), "etc-passwd.csv");
+    assert.equal(await writeNew(dir, ".hidden\u202e", "csv", new Uint8Array()), "hidden.csv");
+    assert.equal(await writeNew(dir, "Umsätze Q1/2026", "xlsx", new Uint8Array()), "Umsatze Q1-2026.xlsx");
+    assert.equal(await writeNew(dir, "", "json", new Uint8Array()), "report.json");
+    assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
+    await assert.rejects(writeNew(dir, "Sales", "csv", new Uint8Array(), { tries: 3 }), (e) => e.code === "EXISTS");
+    assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
+});
+
+test("readSafe with hardLinks: false refuses a file with a second name; the default reads it", { skip: process.platform === "win32" ? "hard links differ on Windows" : false }, async () => {
+    const { readSafe } = await import("pivotkit-cli/files");
+    const dir = tempDir();
+    writeFileSync(join(dir, "data.csv"), "a\n1\n");
+    linkSync(join(dir, "data.csv"), join(dir, "alias.csv"));
+    await assert.rejects(readSafe("alias.csv", { cwd: dir, allow: [dir], maxBytes: 100, hardLinks: false }), (e) => e.code === "HARD_LINK" && !/a\n1/.test(e.message));
+    assert.equal((await readSafe("alias.csv", { cwd: dir, allow: [dir], maxBytes: 100 })).length, 4);
 });

@@ -1,0 +1,76 @@
+{
+  "name": "pivotkit-mcp",
+  "version": "0.1.0",
+  "description": "An MCP server for pivotkit: let an AI client describe data sources, draft and validate pivot views, render reports to files and make links, without reading the data itself. stdio and Streamable HTTP with token or OAuth.",
+  "license": "MIT",
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev/reference/mcp/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-mcp"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivotkit",
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "pivot-table",
+    "reporting",
+    "report",
+    "excel",
+    "llm"
+  ],
+  "type": "module",
+  "bin": {
+    "pivotkit-mcp": "bin/pivotkit-mcp.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./policy": {
+      "types": "./types/policy.d.ts",
+      "default": "./src/policy.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "types",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "test:types": "tsc -p test/types",
+    "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "echarts": "6.1.0",
+    "jose": "6.2.17",
+    "pivotkit-cli": "^0.1.0",
+    "pivotkit-core": "^0.5.0",
+    "pivotkit-report": "^0.1.0",
+    "pivotkit-xlsx": "^0.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "22.20.4"
+  },
+  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
+}

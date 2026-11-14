@@ -3,9 +3,10 @@
 pivotkit is a pivot report builder for the web (Excel's PivotTable is the reference) as npm
 packages in this repository with npm workspaces: the engine `pivotkit-core`, the React UI
 `pivotkit-react`, the web component `pivotkit-element`, the reader plugin `pivotkit-xlsx`, the
-renderer without a browser `pivotkit-report` and the command line `pivotkit-cli`; see
-[README.md](README.md). The workspaces are listed in build order (core, react, element, xlsx, report,
-cli) in the root `package.json`: `npm run types` and the builds depend on it.
+renderer without a browser `pivotkit-report`, the command line `pivotkit-cli` and the MCP server
+`pivotkit-mcp`; see [README.md](README.md). The workspaces are listed in build order (core, react,
+element, xlsx, report, cli, mcp) in the root `package.json`: `npm run types` and the builds depend on
+it.
 
 ## Layout
 
@@ -115,6 +116,14 @@ cli) in the root `package.json`: `npm run types` and the builds depend on it.
   holds CSV, JSON and HTML golden files (`-text` in `.gitattributes`; rebuild with
   `PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report` and review the diff); the SVG is checked by
   its structure, the XLSX by reading it back (#163). ECharts is an optional peer dependency.
+  `src/operations.js` (`pivotkit-report/operations`) is the one table of the operations the front ends
+  without a browser share (`OPERATIONS`: list_sources, describe_source, get_view_guide, validate_view,
+  describe_view, render_view, create_link, draft_schedule; each with words, input and output JSON
+  Schema without `$schema`, an HTTP route for the REST step, `needs`, `run(input, env)`), `VIEW_GUIDE`,
+  `exampleViews`, `findingOf`, `OperationError` with `OPERATION_ERRORS` (code to HTTP status); no file
+  system or network there: a front end brings `env` and puts a returned `file` somewhere. A new
+  operation is an entry there, its tests in `test/operations.test.js`, its tool in pivotkit-mcp's
+  `tools.js` (`TOOLS`) and, if the CLI has it, its command in `commands.js`.
 - `packages/pivotkit-cli/` - the command line `pivotkit` (Node only): `bin/pivotkit.js`, `src/cli.js`
   (`main(argv, io)`: render, validate, describe, example, completion, help; a view file's
   `source.fields` decide the type of a column the reader inferred otherwise, `withViewTypes`, never
@@ -122,13 +131,36 @@ cli) in the root `package.json`: `npm run types` and the builds depend on it.
   io, limit, template; `--json` on stdout), `src/commands.js` (the one table of commands and options
   that the parser, the help and the completions are made from), `src/help.js` (help and bash, zsh,
   fish and PowerShell completions), `src/safe-files.js` (read a regular file once with its size checked
-  first, write through a temporary file, `--allow-dir` by real path; internal, not an export of the
-  package, until the open points of #209 are settled), `src/errors.js` (`CliError` with a kind; no file content in a message beyond the data's
+  first, `hardLinks: false` refuses a second name; write through a temporary file, `exclusive` and
+  `writeNew` never replace one; `--allow-dir` by real path), exported with `readTable` (a data file
+  into an import table with pivotkit-xlsx) as `pivotkit-cli/files` (`src/files.js`) for pivotkit-mcp;
+  `validate`, `describe` and `render` run pivotkit-report's operations (`operationEnv`, `runOperation`),
+  `src/errors.js` (`CliError` with a kind; no file content in a message beyond the data's
   field names and one cell value cut at 20 characters, `printable` cleans names), `src/examples.js` (`pivotkit example`: `examples/examples.json`, the files written, never
   over one). `examples/` holds the example files: the view files and `examples.json` committed, the
   data gzipped (`*.csv.gz`, build output of `npm run build -w pivotkit-cli`, also in prepack and the
   CLI's `npm test`). `test/` spawns the CLI as a user runs it; `test/examples.test.js` runs every
   shipped example through validate and render.
+- `packages/pivotkit-mcp/` - the MCP server (Node only), on the official MCP TypeScript SDK v2
+  (`@modelcontextprotocol/server`, protocol 2026-07-28 and the 2025 era): `src/context.js`
+  (`createMcpContext(options)`: what requests share, `context.server(ctx)` a fresh McpServer per HTTP
+  request or stdio connection, the instructions, the prompt, the skill), `src/tools.js` (one tool per
+  operation of pivotkit-report's table, `TOOLS`: what the server adds after `run`: policy, output
+  files, inline results, one text sentence with counts and ids only), `src/policy.js` (the exposure
+  policy: show, summary, hide; `exposeSource`, `exposeFindings`, `touchesClosed`), `src/registry.js`
+  (source ids and `file:` paths in the allowed directories; scopes; "not found" for a source the
+  caller may not use), `src/data.js` (read, drop hidden columns, encode, cache by file identity),
+  `src/compute.js` and `src/worker.js` (worker threads with memory and time limits, BUSY, TIMEOUT),
+  `src/config.js` (`OPTION_KEYS`, the one table of options; `validateOptions` with "did you mean";
+  `loadConfig`), `src/runner.js` (`FLAGS`, the runner's flags; stdio or `--http`; `--check-config`
+  with `src/check.js`), `src/http.js` (the fetch handler: Host, Origin, `/healthz`, discovery
+  documents, the quick-start page of `src/page.js`, auth, the SDK's `createMcpHandler`; `listen()`
+  on node:http), `src/auth.js` (none, static tokens, OAuth 2.1 resource server: discovery, jose JWT
+  checks, the SDK's `requireBearerAuth` and `oauthMetadataResponse`), `src/log.js` (JSON lines on
+  stderr, no values). `skills/pivotkit-reports/SKILL.md` is the skill (shipped; the package folder is
+  also a Claude Code plugin, `.claude-plugin/`, listed in the repository's
+  `.claude-plugin/marketplace.json`). `test/` drives the server with the SDK's client over stdio and
+  HTTP in both eras, a local OAuth issuer, hostile files and inputs.
 - `examples/angular/` - a minimal Angular app (standalone component, zoneless, `CUSTOM_ELEMENTS_SCHEMA`)
   with `<pivot-report>`: data and start view bound as properties, `(pivot-view-change)` handled,
   `allow-import` with the element's `dist/import-worker.js` copied as an asset (`angular.json`). Its
@@ -209,6 +241,8 @@ npm run size -w pivotkit-xlsx       # build pivotkit-xlsx's dist/, gzip of the p
 npm run bench -w pivotkit-xlsx      # read time and memory of a generated 94,000-row workbook (-- --browser: Chromium too)
 npm run bench -w pivotkit-core      # engine timings for 2k, 4k and 100k rows
 npx pivotkit-cli render view.json --data data.csv -o out.html   # the CLI of this repository (packages/pivotkit-cli; the package name, as outside it)
+npx pivotkit-mcp --source sales=data.csv --output out --check-config   # the MCP server of this repository: what it would expose
+npm test -w pivotkit-mcp            # the MCP server through the SDK's client: stdio, HTTP, OAuth, policy, hostile inputs
 PIVOTKIT_UPDATE_GOLDEN=1 npm test -w pivotkit-report   # rebuild pivotkit-report's golden files after a wanted change
 npm run bench:browser               # the report in Chromium, Firefox and WebKit, 100k to 1M rows (-- --runs 3 --sizes 100000 --browsers chromium)
 node scripts/schemas.js             # rebuild pivotkit-core's JSON Schemas from the engine's tables

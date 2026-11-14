@@ -1,6 +1,6 @@
 ---
 title: Security
-description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, and runs under a strict Content-Security-Policy.
+description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see, and runs under a strict Content-Security-Policy.
 ---
 
 # Security
@@ -196,6 +196,52 @@ size is checked; writes through a temporary file; never replaces a link or a dir
 sandbox: a hard link inside an allowed directory reaches the file it names, and another process of
 the same user can change the directories while the CLI runs. Its messages never hold a file's
 content, and `describe` shows a data file's values only when asked (`--items`).
+
+## The MCP server { #mcp }
+
+[pivotkit-mcp](reference/mcp.md) lets an AI model build reports over data the operator names. It
+treats the model as a caller that may have been steered by text it read, and the data as text that
+may try to steer it:
+
+- **The model never gets the data.** It gets what the [exposure policy](reference/mcp.md#policy)
+  allows per field: by default names, types and counts; values only of fields marked `show`; nothing
+  of fields marked `hide`, which are dropped when the data is read. A view that touches a field whose
+  values are not shown has its result written to a file, and its row count, size and content are
+  withheld from the model. Findings that would tell whether an item exists are left out for such
+  fields.
+- **The policy is not confidentiality.** A model can still learn from what it may see (results over
+  `show` fields, counts), every number in a report is real (a small group can identify a person), and
+  field names are data too. Leave out of the data, or `hide`, what the model must not learn about.
+- **Data values are text, never instructions**: names and values reach the model only inside the
+  result's JSON, cleaned of control and direction characters and cut at 80 characters, never in the
+  sentence a tool answers with, the tool descriptions or the instructions. A model can still be
+  misled by them; the skill and the instructions tell it they are data.
+- **Files**: no directory is open to the model by default. With `files.allowDirs` it may name files
+  inside those directories, checked by real path on the path and again on the open file; a hard link
+  is refused; a file missing, outside or replaced gets one answer, so paths outside cannot be probed.
+  Not a sandbox (see [the command line](#the-command-line)): run the server as a user that can only
+  read what it should. Configured sources are the operator's paths and need no allowed directory; a
+  `file:` path to one of them is that source, with its scopes and policy. The output directory may
+  not lie inside an allowed directory. Every file in an allowed directory can be read: its first line
+  becomes field names the model sees, so keep only data files there.
+- **Output** goes only to the operator's output directory, as new files that never replace one,
+  with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
+  gets names that start with 22 random characters; protect that server as you would the data.
+- **Templates and recipients**: a print template comes from the operator, never from the model.
+  A schedule is a draft a person approves in the host; recipients are names, never addresses.
+- **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
+  it is stopped), at most a few at once, with pivotkit-core's [limits](concepts/limits.md) and a
+  default of 50 MiB per file.
+- **HTTP**: it listens on 127.0.0.1 by default and refuses another address without authentication
+  unless told the network is trusted; it checks the `Host` header against an allow-list (DNS
+  rebinding) and refuses browser origins it does not know, as the MCP transport spec requires; bodies
+  are capped at 2 MiB. Authentication is a static token (compared in constant time, never logged) or
+  OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
+  describes: JWT access tokens checked for signature, issuer, audience (the server itself), expiry and
+  algorithm, never passed on; scopes per tool and per source. The quick-start page at `/` is not
+  behind authentication and shows no source names unless the operator allows it.
+- **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
+  client id), never a view, a value, a token, a person's id or a full path.
 
 ## Content-Security-Policy
 

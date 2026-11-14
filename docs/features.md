@@ -151,6 +151,14 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - For programs and reviews: `validate` with "did you mean" hints, `describeSource` and `describeView`
   in plain words ([views](concepts/views.md)).
 
+## AI clients (MCP) { #mcp }
+
+- `pivotkit-mcp`: tools to list and describe sources, write, validate and describe views, render
+  reports into files, make links and draft schedules; the model sees per field names and counts,
+  values or nothing (exposure policy) and never the data itself; stdio and Streamable HTTP with a
+  token or OAuth 2.1; a skill that teaches the workflow
+  ([getting started](getting-started/mcp.md), [pivotkit-mcp](reference/mcp.md), [security](security.md#mcp)).
+
 ## Security { #security }
 
 - A view holds names only (and the values chosen in its filters), is checked against fixed lists and
@@ -173,7 +181,8 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - `pivotkit-react` (`<PivotReport>`, React 18 and 19), `pivotkit-element` (`<pivot-report>` with its
   own React, for Angular, PHP and plain HTML; attributes, properties, `pivot-*` events with
   `respondWith()`), `pivotkit-core` (the engine, browser and Node), `pivotkit-xlsx`,
-  `pivotkit-report`, `pivotkit-cli` ([Embed pivotkit](embed/index.md), [pivotkit-element](reference/element.md)).
+  `pivotkit-report`, `pivotkit-cli`, `pivotkit-mcp` ([Embed pivotkit](embed/index.md), [pivotkit-element](reference/element.md)).
+- AI clients through MCP, with what the model may see set per field ([MCP server](getting-started/mcp.md)).
 - Bundlers and import maps, several reports on one page, PowerShell Universal on the React it
   provides and as the module `New-UDPivotReport` ([recipes](embed/recipes.md),
   [PowerShell Universal](getting-started/react.md#powershell-universal)).

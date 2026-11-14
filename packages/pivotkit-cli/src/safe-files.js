@@ -16,7 +16,10 @@
  * runs: the checks narrow that window, they do not close it. A hard link inside an allowed directory
  * to a file outside it is that file's name inside: no path check can tell it apart. A temporary file
  * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp").
- * The MCP server of step 3 reuses this module.
+ * `hardLinks: false` refuses a file with more than one name (a hard link), for callers that read on
+ * behalf of someone else (pivotkit-mcp). `writeNew` never replaces a file: the final name is created
+ * by writeSafe's exclusive write (link(), which fails when the name exists). The module is exported
+ * as `pivotkit-cli/files`.
  */
 
 import { constants } from "node:fs";
@@ -67,10 +70,11 @@ function checkAllowed(real, allow, path) {
 /**
  * Reads a regular file of at most `maxBytes` bytes.
  * @param {string} path
- * @param {{ cwd: string, allow: string[], maxBytes: number, limit?: string }} options  `limit`: the limit's name for the message
+ * @param {{ cwd: string, allow: string[], maxBytes: number, limit?: string, hardLinks?: boolean }} options  `limit`: the limit's name for
+ *   the message; `hardLinks: false` refuses a file with more than one name (default true)
  * @returns {Promise<Uint8Array>}
  */
-export async function readSafe(path, { cwd, allow, maxBytes, limit = "fileBytes" }) {
+export async function readSafe(path, { cwd, allow, maxBytes, limit = "fileBytes", hardLinks = true }) {
     const full = resolve(cwd, path);
     let real;
     try {
@@ -86,8 +90,14 @@ export async function readSafe(path, { cwd, allow, maxBytes, limit = "fileBytes"
             throw new CliError("io", "NOT_REGULAR_FILE", `${shortName(path)}: not a regular file`);
         }
         const now = await stat(real);
-        if (now.dev !== info.dev || now.ino !== info.ino) {
+        // the path again after the open: a directory on the way replaced by a link in between
+        // gives another real path, the file replaced another device or inode
+        const again = await realpath(full).catch(() => null);
+        if (now.dev !== info.dev || now.ino !== info.ino || again !== real) {
             throw new CliError("io", "CHANGED", `${shortName(path)}: changed while it was opened`);
+        }
+        if (!hardLinks && info.nlink > 1) {
+            throw new CliError("io", "HARD_LINK", `${shortName(path)}: has more than one name (a hard link); not read`);
         }
         if (info.size > maxBytes) {
             throw tooLarge(path, info.size, maxBytes, limit);
@@ -201,4 +211,45 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
         throw e.code === "EEXIST" ? new CliError("io", "EXISTS", `${shortName(path)}: is already there; not replaced`) : e;
     }
     return target;
+}
+
+/** The characters a name of writeNew keeps; the others become "-". */
+const NAME_CHARS = /[^A-Za-z0-9 ._-]/g;
+
+/**
+ * A file name from a name given from outside: letters, digits, space, ".", "_" and "-" only, no
+ * leading dot, at most `max` characters; "report" when nothing is left.
+ * @param {unknown} name
+ * @param {number} [max]
+ */
+export function cleanFileName(name, max = 80) {
+    const clean = String(name ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(NAME_CHARS, "-").replace(/-{2,}/g, "-").replace(/^[.\s-]+|[.\s-]+$/g, "").slice(0, max).trim();
+    return clean || "report";
+}
+
+/**
+ * Writes `bytes` as a new file in `dir` (a real path), never replacing one: `<name>.<extension>`, or
+ * with "-2", "-3" ... when the name is taken (at most `tries`); each try is writeSafe's exclusive
+ * write, so a file that appears in between is never replaced.
+ * @param {string} dir  a directory's real path
+ * @param {string} name  the file's name without extension (cleaned with cleanFileName)
+ * @param {string} extension  without the dot
+ * @param {Uint8Array} bytes
+ * @param {{ prefix?: string, tries?: number }} [options]  `prefix`: put before the name (a random part)
+ * @returns {Promise<string>}  the file's base name
+ */
+export async function writeNew(dir, name, extension, bytes, { prefix = "", tries = 100 } = {}) {
+    const stem = `${prefix}${cleanFileName(name)}`;
+    for (let n = 1; n <= tries; n++) {
+        const base = `${stem}${n === 1 ? "" : `-${n}`}.${extension}`;
+        try {
+            await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true });
+            return base;
+        } catch (e) {
+            if (e?.code !== "EXISTS") {
+                throw e;
+            }
+        }
+    }
+    throw new CliError("io", "EXISTS", `${shortName(stem)}: ${tries} files of this name exist already`);
 }

@@ -2,7 +2,7 @@
   "name": "pivotkit-monorepo",
   "private": true,
   "type": "module",
-  "description": "Repository root of pivotkit: npm workspaces for pivotkit-core, pivotkit-react, pivotkit-element, pivotkit-xlsx, pivotkit-report and pivotkit-cli, the playground (examples/playground) and its browser tests (tests/browser).",
+  "description": "Repository root of pivotkit: npm workspaces for pivotkit-core, pivotkit-react, pivotkit-element, pivotkit-xlsx, pivotkit-report, pivotkit-cli and pivotkit-mcp, the playground (examples/playground) and its browser tests (tests/browser).",
   "license": "MIT",
   "workspaces": [
     "packages/pivotkit-core",
@@ -10,7 +10,8 @@
     "packages/pivotkit-element",
     "packages/pivotkit-xlsx",
     "packages/pivotkit-report",
-    "packages/pivotkit-cli"
+    "packages/pivotkit-cli",
+    "packages/pivotkit-mcp"
   ],
   "engines": {
     "node": ">=22"
@@ -21,7 +22,7 @@
     "test": "npm test --workspaces --if-present && node --test \"tests/*.test.js\"",
     "types": "npm run types --workspaces --if-present && npm run test:types --workspaces --if-present",
     "coverage": "npm run coverage --workspaces --if-present",
-    "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react && node scripts/check-pack.js pivotkit-element && node scripts/check-pack.js pivotkit-xlsx && node scripts/check-pack.js pivotkit-report && node scripts/check-pack.js pivotkit-cli",
+    "pack:check": "node scripts/check-pack.js pivotkit-core && node scripts/check-pack.js pivotkit-react && node scripts/check-pack.js pivotkit-element && node scripts/check-pack.js pivotkit-xlsx && node scripts/check-pack.js pivotkit-report && node scripts/check-pack.js pivotkit-cli && node scripts/check-pack.js pivotkit-mcp",
     "playground": "node examples/playground/build.js --serve",
     "build:playground": "node examples/playground/build.js && node packages/pivotkit-element/build.js && node packages/pivotkit-xlsx/build.js && node tests/browser/pages/build.js",
     "test:browser": "npm run build:playground && playwright test",

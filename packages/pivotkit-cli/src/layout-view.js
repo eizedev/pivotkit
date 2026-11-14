@@ -1,14 +1,16 @@
 /*
  * A view from the data's fields instead of a view file: `describe <data> --suggest` (a draft), and
- * `render <data>` with layout flags (--rows, --values, ...) or --suggest. pivotkit-core's
- * suggestLayout picks a first layout, the flags given replace its parts, and viewFromLayout makes the
- * view (the one function the operations of pivotkit-report use too). A view written to a file names
+ * `render <data>` with layout flags (--rows, --values, ...) or --suggest, through pivotkit-report's
+ * viewOfLayout, which the operations (suggest_view, a layout on render_view and validate_view) use
+ * too: pivotkit-core's suggestLayout picks a first layout, the flags given replace its parts, and
+ * viewFromLayout makes the view. A view written to a file names
  * the data as the browser's report names a loaded file (pivotkit-core/import's sourceIdOf), with the
  * workbook's sheet, so the browser opens it as a view of that file.
  */
 
-import { describeSource, encode, normalize, suggestLayout, toViewFile, viewFromLayout } from "pivotkit-core";
+import { describeSource, encode, normalize, toViewFile } from "pivotkit-core";
 import { sourceIdOf } from "pivotkit-core/import";
+import { LAYOUT_NOTE_SEVERITY, OperationError, viewOfLayout } from "pivotkit-report/operations";
 import { CliError, printable, shortName } from "./errors.js";
 import { LAYOUT_FLAGS, layoutOf, parseFilter, parseMap } from "./layout-flags.js";
 
@@ -61,8 +63,7 @@ export function mapOf(list, used) {
 }
 
 /**
- * The view the layout flags (and --suggest) make from the data: the picks of the suggestion, the flags
- * given over them, viewFromLayout. Its notes as findings: dateGrouped (info), unusedGroup and unusedMap
+ * The view the layout flags (and --suggest) make from the data (viewOfLayout). Its notes as findings: dateGrouped (info), unusedGroup and unusedMap
  * (warnings), noSuggestion (an error: nothing to group by, with the workbook's other sheets).
  * @param {any} data  readData's result
  * @param {Record<string, any>} values
@@ -73,28 +74,20 @@ export function mapOf(list, used) {
 export async function layoutView(data, values, ctx, where) {
     const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
     const description = describeSource(encoded, { items: 0 });
-    const options = ctx.locale ? { locale: ctx.locale } : {};
-    const suggestion = values.suggest ? suggestLayout(description, options) : null;
     const filters = await filtersOf(values.filter, ctx);
-    const given = layoutOf(values, { fields: data.table.columns.map(String), filters });
-    const layout = { ...(suggestion?.layout ?? {}), ...given };
-    // a grouping of the suggestion stays only while its field is still placed where the suggestion put it
-    if (suggestion && given.groups === undefined && (given.rows || given.cols) && layout.groups) {
-        const placed = new Set([...(layout.rows ?? []), ...(layout.cols ?? [])].map((n) => n.toLowerCase()));
-        layout.groups = layout.groups.filter((g) => placed.has(g.field.toLowerCase()));
-    }
-    const map = mapOf(values.map, [...(layout.rows ?? []), ...(layout.cols ?? []), ...(layout.values ?? []).map((v) => v.field ?? ""), ...(layout.groups ?? []).map((g) => g.field), ...filters.map((f) => f.field ?? "")]);
+    const layout = layoutOf(values, { fields: data.table.columns.map(String), filters });
+    const placed = [...(layout.rows ?? []), ...(layout.cols ?? []), ...(layout.values ?? []).map((v) => v.field ?? ""), ...(layout.groups ?? []).map((g) => g.field), ...filters.map((f) => (typeof f.field === "string" ? f.field : ""))];
+    const map = mapOf(values.map, values.suggest ? [...placed, ...data.table.columns.map(String)] : placed);
     if (map) layout.map = map;
     let built;
     try {
-        built = viewFromLayout(layout, description, options);
+        built = viewOfLayout(description, layout, { suggest: Boolean(values.suggest), ...(ctx.locale ? { locale: ctx.locale } : {}) });
     } catch (e) {
-        throw new CliError("usage", "BAD_LAYOUT", printable(String(e.message).replace(/^viewFromLayout: /, "")));
+        throw e instanceof OperationError ? new CliError(e.code === "LIMIT_EXCEEDED" ? "limit" : "usage", e.code === "LIMIT_EXCEEDED" ? "LIMIT_EXCEEDED" : "BAD_LAYOUT", printable(e.message)) : e;
     }
     const findings = [];
-    const notes = [...(suggestion?.notes ?? []), ...built.notes];
-    const nothing = notes.some((n) => n.code === "noSuggestion") && !given.rows && !given.cols;
-    if (nothing) {
+    const notes = built.notes;
+    if (notes.some((n) => n.code === "noSuggestion")) {
         const sheets = where.sheets ? await where.sheets().catch(() => []) : [];
         const others = sheets.filter((s) => s.visible && s.name !== data.sheet);
         const sheetText = data.sheet ? `the sheet ${JSON.stringify(data.sheet)} of ${data.name}` : data.name;
@@ -105,15 +98,15 @@ export async function layoutView(data, values, ctx, where) {
             path: "",
             message: printable(`${sheetText} has nothing to group by (${why})`),
             details: others.length
-                ? [`the workbook's other sheets: ${others.map((s) => JSON.stringify(printable(s.name))).join(", ")}; try: pivotkit ${where.command} ${shortName(where.input)} --suggest --sheet ${quoteArg(others[0].name)}`]
+                ? [printable(`the workbook's other sheets: ${others.map((s) => JSON.stringify(s.name)).join(", ")}; try: pivotkit ${where.command} ${shortName(where.input)} --suggest --sheet ${quoteArg(others[0].name)}`)]
                 : ["give --rows <field> (and --values) to say what to show"]
         });
     }
-    for (const n of built.notes) {
-        if (n.code === "dateGrouped") findings.push({ severity: "info", code: n.code, path: "", message: printable(`${n.message}; --group "${n.field}:<unit>" for another`) });
-        else findings.push({ severity: "warning", code: n.code, path: "", message: printable(n.message) });
+    for (const n of notes.filter((note) => note.code !== "noSuggestion")) {
+        const more = n.code === "dateGrouped" ? `; --group ${quoteArg(`${n.field}:<unit>`)} for another` : "";
+        findings.push({ severity: LAYOUT_NOTE_SEVERITY[n.code] ?? "warning", code: n.code, path: "", message: printable(`${n.message}${more}`) });
     }
-    return { view: built.view, name: built.name, picks: suggestion?.picks ?? [], findings, encoded, layout };
+    return { view: built.view, name: built.name, picks: built.picks, findings, encoded, layout };
 }
 
 /** A word as a shell takes it: as it is when it is plain, else in double quotes. */
