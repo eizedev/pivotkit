@@ -40,7 +40,11 @@ void anchored;
 void latest;
 
 // loading a file: the built-in readers and a reader plugin; the table is encode's columnar input
-import { BUILT_IN_READERS, readFile, retype, validatePlugin, type ImportTable, type ReaderPlugin } from "pivotkit-core/import";
+import { BUILT_IN_READERS, readFile, retype, validatePlugin, type ImportTable, type PluginTable, type ReaderModule, type ReaderPlugin } from "pivotkit-core/import";
+// a reader built by hand returns columns, types, data and notes; readFile fills in the rest
+const handBuilt: PluginTable = { columns: ["a"], types: ["string"], data: [["x"]], notes: [] };
+const handReader: ReaderModule = { read: async () => handBuilt };
+void handReader;
 import { type ColumnarData } from "pivotkit-core";
 const plugin: ReaderPlugin = validatePlugin({ apiVersion: 1, kind: "reader", name: "demo", label: "Demo", accept: [".demo"], load: async () => ({ read: async () => ({}) }) });
 export async function load(file: File): Promise<number> {

@@ -323,7 +323,8 @@ test("a worker that answers without a table, cannot take the options or never st
 });
 
 test("a plugin's minimal table (columns, types, data, notes) gets what the preview and retype need (pivotkit-core completes it)", async () => {
-    const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }, null, { nope: 1 }] };
+    // a note without a code is the plugin's error now (pivotkit-core refuses it), so this one has codes only
+    const minimal = { columns: ["a", "b"], types: ["string", "string"], data: [["1", "2"], ["x", "y"]], notes: [{ code: "SHEET" }] };
     const plugin = { apiVersion: 1, kind: "reader", name: "mini", label: "Mini", accept: [".mini"], load: async () => ({ read: async () => minimal }) };
     const read = await readImport(new File(["x"], "a.mini"), { plugins: [plugin] });
     assert.equal(read.rowCount, 2);

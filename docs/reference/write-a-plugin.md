@@ -35,7 +35,7 @@ The module `load()` gives offers:
 
 | Function | What |
 | --- | --- |
-| `read(file, options)` | Reads the file into a table. `file` is a `File`, a `Blob`, an `ArrayBuffer` or a `Uint8Array`. Required. Build the table with `createTable` (below); a table built by hand needs `columns`, `types`, `data` (one array per column, all of one length) and `notes`, and `readFile` fills in the rest from them (`rowCount`, `raw` as the data, `detected` as the types, `hints` with `"."` and day first) or refuses it with `INVALID_ARGUMENT` naming the plugin.<br><small>Returns `Promise<ImportTable>`</small> |
+| `read(file, options)` | Reads the file into a table. `file` is a `File`, a `Blob`, an `ArrayBuffer` or a `Uint8Array`. Required. Build the table with `createTable` (below). A table built by hand needs `columns`, `types`, `data` (one array per column, all of one length) and `notes` (each with a `code`); `readFile` fills in `raw`, `detected`, `rowCount` and `hints` ([The table](import.md#the-table)), checks the limits, and refuses a wrong table with `INVALID_ARGUMENT` naming the plugin and the field. The completion happens in `readFile`: `loadReader(plugin).read()` returns the table as the plugin built it.<br><small>Returns `Promise<PluginTable>`</small> |
 | `sheets(file, options)` | For formats with several tables (a workbook's sheets): `[{ name, index, visible }]`. Optional.<br><small>Returns `Promise<SheetInfo[]>`</small> |
 
 `options` are `ReadOptions`: `name`, `sheet`, `types`, `locale`, `limits`, `signal` and `onProgress`,
