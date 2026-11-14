@@ -167,13 +167,16 @@ test("Export → Source data: only with exportData; then every row through onExp
         await runExport("data-json", { ...base, exportData: { columns: ["Nope"] } });
         await runExport("data-json", { ...base, exportData: { columns: ["Nope"] } });
         await runExport("data-csv", { ...base, exportData: { columns: [] } });
+        await runExport("data-csv", { ...base, exportData: { columns: "Region" } });
+        await runExport("data-csv", { ...base, exportData: { columns: () => ["Region"] } });
     } finally {
         console.warn = warn;
     }
     assert.equal(files.length, 1);
     assert.deepEqual(warnings, [
         'pivotkit: exportData.columns names no column of the data: "Nope"; no column is left, so Source data and the drill-down\'s exports are off',
-        "pivotkit: exportData.columns is empty; no column is left, so Source data and the drill-down's exports are off"
+        "pivotkit: exportData.columns is empty; no column is left, so Source data and the drill-down's exports are off",
+        "pivotkit: exportData.columns is not a list; Source data and the drill-down's exports are off"
     ]);
 });
 
@@ -300,8 +303,12 @@ test("the new export texts exist in English and German", () => {
 
 test("exportData against the data's columns: off, every column, or the host's columns; none left is off (#259)", () => {
     const names = ["Region", "Country", "Revenue"];
-    for (const off of [undefined, false, null, 0, "", "yes", ["Region"], { columns: "Region" }]) {
+    for (const off of [undefined, false, null, 0, "", "yes", ["Region"]]) {
         assert.deepEqual(dataExportOf(off, names), { source: false, unknown: [] }, JSON.stringify(off));
+    }
+    // columns that are no list: both off, as an empty list (the drill-down's exports too)
+    for (const columns of ["Region", () => ["Region"], { 0: "Region" }, null]) {
+        assert.deepEqual(dataExportOf({ columns }, names), { source: false, columns: [], unknown: [], notList: true }, String(columns));
     }
     assert.deepEqual(dataExportOf(true, names), { source: true, unknown: [] });
     assert.deepEqual(dataExportOf({}, names), { source: true, unknown: [] });

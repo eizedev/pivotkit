@@ -174,9 +174,10 @@ holds, also columns no view places and rows its filters leave out, so it is off 
 (matched case-insensitively, each once; derived fields are never written), and the drill-down
 panel's copies and files too; the panel still shows every column, and `onCellClick` still gets whole
 rows. A name the data lacks is left out and said once in the console when the Export menu or a
-drill-down opens (`pivotkit: exportData.columns names no column of the data: …`); with no column left (an empty list, or none that matches) Source
-data and the drill-down's Export menu are off. A value of another shape (`{ columns: "Region" }`) is
-off, as `false`.
+drill-down opens (`pivotkit: exportData.columns names no column of the data: …`); with no column
+left (an empty list, or none that matches) Source data and the drill-down's Export menu are off, and
+so they are for `columns` that is no list (`{ columns: "Region" }`, said once too). An `exportData`
+of another shape (a text, an array) is off, as `false`.
 
 ### `storageKey` { #prop-storagekey }
 

@@ -13,7 +13,7 @@ async function openDrill(page) {
     return panel;
 }
 // the console warning these tests ask for (they check it themselves)
-test.use({ ignoreConsole: [/^pivotkit: exportData\.columns names no column of the data: "Nope"/] });
+test.use({ ignoreConsole: [/^pivotkit: exportData\.columns (names no column of the data: "Nope"|is not a list)/] });
 
 const csvLines = async (download) => (await readFile(await download.path(), "utf8")).replace(/^\uFEFF/, "").trimEnd().split("\r\n");
 
@@ -45,6 +45,20 @@ test("exportData with columns that name nothing of the data: off, the drill-down
     // the host page renders again every 200 ms with a new object: still said once
     await page.waitForTimeout(500);
     expect(warnings).toEqual(['pivotkit: exportData.columns names no column of the data: "Nope"; no column is left, so Source data and the drill-down\'s exports are off']);
+});
+
+test("exportData with columns that are no list: off, the drill-down's Export menu too, said once", async ({ page }) => {
+    const warnings = [];
+    page.on("console", (m) => m.type() === "warning" && m.text().startsWith("pivotkit:") && warnings.push(m.text()));
+    await page.goto("pages/host.html?exportcolumnstext=Region");
+    await expect(page.locator(".pk-root")).toBeVisible();
+    await toolbar(page, "export");
+    await expect(page.getByTestId("export-csv")).toBeVisible();
+    await expect(page.getByTestId("export-data-csv")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    const panel = await openDrill(page);
+    await expect(panel.getByTestId("drill-export")).toHaveCount(0);
+    expect(warnings).toEqual(["pivotkit: exportData.columns is not a list; Source data and the drill-down's exports are off"]);
 });
 
 test("exportData with columns: Source data and the drill-down's exports hold those columns only, in that order", async ({ page }) => {

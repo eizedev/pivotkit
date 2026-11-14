@@ -10,8 +10,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - `exportData={{ columns: [...] }}`: Source data and the drill-down's copies and files hold only
   those columns, in that order (matched case-insensitively, derived fields never). A name the data
-  lacks is left out and said once in the console; with no column left, or a value of another shape,
-  Source data and the drill-down's Export menu are off ([#259](https://github.com/eizedev/pivotkit/issues/259)).
+  lacks is left out and said once in the console; with no column left, or `columns` that is no list
+  (said once too), Source data and the drill-down's Export menu are off; an `exportData` of another
+  shape is off, as `false` ([#259](https://github.com/eizedev/pivotkit/issues/259)).
 
 ### Changed
 
