@@ -113,9 +113,10 @@ test.describe("countries", () => {
     });
 
     test("population per income group: chart and its table", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
+        // "More", after Views): the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
-        await open(page, "data=countries&preset=3");
+        await open(page, "data=countries&preset=3&import=off");
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await expect(page.getByTestId("chart-type")).toContainText("Stacked bars");
         await page.getByTestId("show-table").click();
@@ -423,9 +424,10 @@ test.describe("learning tasks", () => {
     });
 
     test("end of life: category as a heatmap; the median instead of the average", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
+        // "More", after Views): the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
-        await open(page, "data=endoflife&preset=0");
+        await open(page, "data=endoflife&preset=0&import=off");
         await page.getByTestId("field-menu-Category").click();
         await page.getByRole("menuitem", { name: "Add to Columns" }).click();
         await page.getByTestId("chart-type").click();

@@ -32,6 +32,7 @@ Installation and a first example are in [Getting started with React](../getting-
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
 | `onCellClick` | `({ row, col, value, valueIndex, text, count, rows }) => void` |  | A click (or Enter) on a value or a chart point: key paths of its row and column, the value, the number of source rows and the first `drillDownLimit` of them. [More](#prop-oncellclick) |
 | `drillDown` | `boolean` | `true` | The panel with the rows behind a clicked value. |
+| `exportData` | `boolean` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file, for the user's own analysis or the command line. [More](#prop-exportdata) |
 | `drillDownLimit` | `number` | `1000` | Rows passed to the panel and to `onCellClick`; the panel's exports (Copy, Copy as JSON, Download CSV and Excel) hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `locale` | `string` | `"en-US"` | Numbers, dates and sorting (a view's own `formatting.locale` wins), and the language of the labels: `de-*` picks German. |
 | `timeZone` | `string` | `"UTC"` | The zone `data` is encoded in; see pivotkit-core. |
@@ -153,7 +154,21 @@ pivotkit-core's [limits](../concepts/limits.md#limits). Data over `limits.rows`,
 
 Type: `({ kind, fileName, blob, text, rows }) => unknown`.
 
-Every exported file (`"xlsx"`, `"csv"`, `"html"`, `"png"`, `"svg"`, or `"json"` for the [view file](view-file.md) of "Download view" in Views, named `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded, and every copy before it goes on the clipboard (`"copy-table"`, `"copy-json"` from Export; `"drill-copy"`, `"drill-json"`, `"drill-csv"`, `"drill-xlsx"` from the drill-down panel; a copy has its `text` and the `fileName` it would have as a file, a drill-down export `rows: { shown, count }`); returning `false` skips the download or the copy, so the host can keep the file or the text (upload it, say). `"print"` is the [HTML report](report.md) before the print dialog opens (`pivot.html`): returning `false` prints nothing, so the host can print it its own way (a PDF of its server, say). An empty report (no field placed) has its Export entries greyed out ("Add a field first."): no call for them.
+Every exported file (`"xlsx"`, `"csv"`, `"html"`, `"png"`, `"svg"`, `"data-csv"` and `"data-json"` for Source data with [`exportData`](#prop-exportdata), or `"json"` for the [view file](view-file.md) of "Download view" in Views, named `<name>.pivotkit.json`; the name with its extension, the file) before it is downloaded, and every copy before it goes on the clipboard (`"copy-table"`, `"copy-json"` from Export; `"drill-copy"`, `"drill-json"`, `"drill-csv"`, `"drill-xlsx"` from the drill-down panel; a copy has its `text` and the `fileName` it would have as a file, a drill-down export `rows: { shown, count }`); returning `false` skips the download or the copy, so the host can keep the file or the text (upload it, say). `"print"` is the [HTML report](report.md) before the print dialog opens (`pivot.html`): returning `false` prints nothing, so the host can print it its own way (a PDF of its server, say). An empty report (no field placed) has its table's Export entries greyed out ("Add a field first."): no call for them; Source data stays.
+
+### `exportData` { #prop-exportdata }
+
+Type: `boolean`. Default `false`.
+
+Adds the group **Source data** last in the Export menu: **All rows as CSV (.csv)** and **All rows as
+JSON (.json)**, every row of the data the report shows (yours, or a file the user loaded), every
+column except the derived fields a view adds, under the fields' own names, values not formatted
+(pivotkit-core's [`dataToCsvBytes` and `dataToJson`](core.md)), named `<fileName>-data.csv` and
+`<fileName>-data.json`. With the view file of "Download view" the [command line](cli.md) renders the
+report again: `pivotkit render <view> --data <fileName>-data.csv`. Each file passes
+[`onExport`](#prop-onexport) first (`kind` `"data-csv"`, `"data-json"`). It holds what the report
+holds, also columns no view places and rows its filters leave out, so it is off unless you turn it on:
+[Security](../security.md#source-data). The file counts against `limits.cells` (rows times fields).
 
 ### `storageKey` { #prop-storagekey }
 

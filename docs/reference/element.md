@@ -55,6 +55,7 @@ supported.
 | `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
+| `exportData` | `export-data` | `boolean` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line; a boolean attribute (`<pivot-report export-data>`). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips). |
 | `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. [More](#prop-storagekey) |
@@ -255,7 +256,7 @@ The events whose line in the table ends in "More", in full.
 
 `detail`: `{ kind, fileName, blob, text, rows }`.
 
-Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"html"`, `"png"`, `"svg"`, `"json"` for the view file of "Download view"; `"print"`, the HTML report before the print dialog opens (`preventDefault()` prints nothing); the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). Not sent for an empty report (no field placed): its Export entries are greyed out ("Add a field first.").
+Every exported file before its download and every copy before it goes on the clipboard: `"xlsx"`, `"csv"`, `"html"`, `"png"`, `"svg"`, `"json"` for the view file of "Download view"; `"data-csv"` and `"data-json"`, Source data (with `export-data`); `"print"`, the HTML report before the print dialog opens (`preventDefault()` prints nothing); the copies `"copy-table"` and `"copy-json"` (Export, Copy table and Copy data as JSON); the drill-down panel's `"drill-copy"`, `"drill-json"`, `"drill-csv"` and `"drill-xlsx"`. A copy also has its `text` and the `fileName` it would have as a file (`pivot.tsv`); a drill-down export has `rows: { shown, count }`. Cancelable: `preventDefault()` skips the download or the copy, the page keeps the blob (to upload it, say). Not sent for the table's exports of an empty report (no field placed): they are greyed out ("Add a field first."); Source data stays.
 
 ### `pivot-source-switch` { #event-pivot-source-switch }
 
@@ -403,10 +404,10 @@ numbers):
 | --- | ---: | ---: | ---: |
 | First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 9 | 518 KiB | 169 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 1 | 604 KiB | 204 KiB |
-| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 2 | 24 KiB | 11 KiB |
+| On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 27 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
-| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 131 KiB | 42 KiB |
-| With the menus, for a German report only (the menus' German texts) | 1 | 18 KiB | 6 KiB |
+| Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 139 KiB | 45 KiB |
+| With the menus, for a German report only (the menus' German texts) | 1 | 20 KiB | 7 KiB |
 | When a view has unused parts (their plain words: English, and German for a German report) | 2 | 16 KiB | 5 KiB |
 | With `allow-import`, on the first use of the Data menu, a drop or the empty report's Load data… (the import UI with its English and German texts, pivotkit-core's readers) | 5 | 50 KiB | 20 KiB |
 | With `allow-import`, the worker of a CSV or JSON file (`dist/import-worker.js`, one file) | 1 | 25 KiB | 10 KiB |

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://pivotkit.eize.dev/schema/view-file-2.json",
+  "format": "pivotkit-view",
+  "formatVersion": 2,
+  "name": "Monthly revenue trend (chart)",
+  "source": {
+    "id": "sales",
+    "name": "Sales",
+    "fields": [
+      {
+        "name": "Month",
+        "type": "date"
+      },
+      {
+        "name": "Category",
+        "type": "string"
+      },
+      {
+        "name": "Revenue",
+        "type": "number"
+      }
+    ]
+  },
+  "extensions": {},
+  "view": {
+    "version": 2,
+    "rows": [
+      "Month (Year and month)"
+    ],
+    "cols": [
+      "Category"
+    ],
+    "values": [
+      {
+        "field": "Revenue",
+        "agg": "sum",
+        "format": "currency:eur",
+        "label": null,
+        "showAs": null,
+        "conditional": null
+      }
+    ],
+    "filters": [],
+    "derived": [
+      {
+        "name": "Month (Year and month)",
+        "field": "Month",
+        "by": "yearMonth"
+      }
+    ],
+    "sort": [],
+    "totals": {
+      "grandTotalRow": true,
+      "grandTotalColumn": true,
+      "rowSubtotals": true,
+      "colSubtotals": false
+    },
+    "collapsed": {
+      "rows": [],
+      "cols": []
+    },
+    "display": "chart",
+    "chart": {
+      "type": "line",
+      "stacked": false,
+      "horizontal": false,
+      "valueLabels": "auto",
+      "legend": "auto",
+      "title": null,
+      "smooth": false,
+      "axisLabels": "auto",
+      "groupLabels": "auto",
+      "labelPosition": "outside"
+    },
+    "formatting": {
+      "locale": null,
+      "timeZone": null,
+      "weekStart": 1
+    }
+  }
+}

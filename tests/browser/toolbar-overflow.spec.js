@@ -1,6 +1,6 @@
 // Which toolbar buttons are in the toolbar and which in More, in English and German, at the desktop
 // widths of issue #88 with the field list open and folded, without and with the Data button
-// (allowImport, the playground's ?import): a button moves into More only when the
+// (allowImport, on in the playground unless ?import=off): a button moves into More only when the
 // room left in the toolbar cannot hold it (measured with the texts shown, and the chart type's room
 // for its longest type, so picking a type never moves a button), and the toolbar stays on one line.
 import { expect, test } from "./fixtures.js";
@@ -70,7 +70,7 @@ async function toolbarState(page, MOVABLE = BUTTONS) {
     return { ...state, inMore };
 }
 
-for (const [lang, query, MOVABLE] of [["en", "", BUTTONS], ["de", "", BUTTONS], ["en", "&import", WITH_DATA], ["de", "&import", WITH_DATA]]) {
+for (const [lang, query, MOVABLE] of [["en", "&import=off", BUTTONS], ["de", "&import=off", BUTTONS], ["en", "", WITH_DATA], ["de", "", WITH_DATA]]) {
     test(`${lang}${query ? ", with Data" : ""}: a button moves into More only when the room left cannot hold it`, async ({ page }) => {
         test.slow();
         const sizes = await buttonSizes(page, lang, query);
@@ -109,7 +109,7 @@ for (const [lang, query, MOVABLE] of [["en", "", BUTTONS], ["de", "", BUTTONS], 
         // 1440 px, Layout and Options stay in English (they went into More next to a wide gap)
         expect(seen["1920 px, field list open"]).toEqual(Object.keys(MOVABLE));
         expect(seen["1920 px, field list folded"]).toEqual(Object.keys(MOVABLE));
-        if (lang === "en" && !query) {
+        if (lang === "en" && MOVABLE === BUTTONS) {
             // Start over (where New is) goes late: it stays where Layout and Options already went
             expect(seen["1440 px, field list open"]).toEqual(expect.arrayContaining(["start-over", "views"]));
             expect(seen["1280 px, field list open"]).toEqual(expect.arrayContaining(["start-over", "views"]));
@@ -119,15 +119,16 @@ for (const [lang, query, MOVABLE] of [["en", "", BUTTONS], ["de", "", BUTTONS], 
         // after the chart type and before Start over (OVERFLOW_ORDER)
         for (const [at, shown] of Object.entries(seen)) {
             if (shown.length) expect(shown, at).toContain("views");
-            if (query && shown.includes("chart-type")) expect(shown, at).toContain("data");
-            if (query && shown.includes("data")) expect(shown, at).toContain("start-over");
+            if (MOVABLE === WITH_DATA && shown.includes("chart-type")) expect(shown, at).toContain("data");
+            if (MOVABLE === WITH_DATA && shown.includes("data")) expect(shown, at).toContain("start-over");
         }
     });
 }
 
 test("picking another chart type never moves a button", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("?data=sales&preset=1");
+    // at 1440 px the chart type keeps its button without the Data button (the matrix above has both)
+    await page.goto("?data=sales&preset=1&import=off");
     await settled(page);
     const before = (await toolbarState(page)).shown;
     await page.getByTestId("chart-type").click();

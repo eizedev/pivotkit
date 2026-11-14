@@ -6,6 +6,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `dataToCsv`, `dataToCsvBytes` and `dataToJson` in `pivotkit-core/export`: the data itself as a file
+  to read again, every row with its values as they are and the fields under their own names, so a
+  view file applies to it as it is (`pivotkit render <view> --data <file>` gives the report again).
+
 ## [0.5.0] - 2026-11-13
 
 ### Changed

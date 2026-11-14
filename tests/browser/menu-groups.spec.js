@@ -96,7 +96,8 @@ test("the chart type menu: a rule between Chart type and Display, and between Di
 
 test("More: Start over's two actions, then Layout, Chart type and Options, then Views - rules, no titles", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("?data=sales");
+    // a report without the Data button (the next test has it)
+    await page.goto("?data=sales&import=off");
     await toolbar(page, "more");
     const menu = page.getByRole("menu", { name: "More" });
     const groups = await groupsOf(menu);
@@ -175,7 +176,8 @@ async function ruleContrasts(scope) {
 for (const theme of ["light", "dark"]) {
     test(`the rules between groups stand 3:1 against the menu in the ${theme} theme: More, whose groups have no titles, and Options`, async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
-        await page.goto(`?data=sales&theme=${theme}`);
+        // without the Data button: More's three groups have two rules
+        await page.goto(`?data=sales&theme=${theme}&import=off`);
         await toolbar(page, "more");
         const more = await ruleContrasts(page.getByRole("menu", { name: "More" }));
         expect(more).toHaveLength(2);

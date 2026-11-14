@@ -758,13 +758,14 @@ export function ExportOption({ icon, text, info, onSelect, testId, disabled, rea
 
 /**
  * The Export menu: the table as a file (Excel, CSV), the chart as an image (PNG, SVG), an HTML report,
- * printing (or saving as PDF from the print dialog), and the table on the clipboard (as shown, or its
- * data as JSON). The export module loads when the menu opens, so a copy happens right in the click.
- * An empty report (no field placed) has nothing to export: every entry is off, and says so; the chart's
- * images are off while the table is shown.
- * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, empty?: boolean, prepare: () => void, close: () => void }} props
+ * printing (or saving as PDF from the print dialog), the table on the clipboard (as shown, or its data
+ * as JSON), and last, when the host turns it on (exportData), the source data: every row as it is,
+ * CSV or JSON, apart from the table's exports so the two are not taken for each other. The export module loads when the menu opens, so a copy happens right in
+ * the click. An empty report (no field placed) has no table to export: those entries are off, and say
+ * so; the source data is there all the same. The chart's images are off while the table is shown.
+ * @param {{ labels: import("./labels.js").UiLabels, onExport: (kind: string) => void, chartReady: boolean, display: string, empty?: boolean, dataExport?: boolean, prepare: () => void, close: () => void }} props
  */
-export function ExportPanel({ labels, onExport, chartReady, display, empty = false, prepare, close }) {
+export function ExportPanel({ labels, onExport, chartReady, display, empty = false, dataExport = false, prepare, close }) {
     useEffect(() => {
         prepare();
     }, [prepare]);
@@ -790,6 +791,12 @@ export function ExportPanel({ labels, onExport, chartReady, display, empty = fal
                 <ExportOption icon="copy" text={labels.copyTable} info="copyTable" onSelect={run("copy-table")} {...off} testId="export-copy-table" />
                 <ExportOption icon="copy" text={labels.copyDataJson} info="copyDataJson" onSelect={run("copy-json")} {...off} testId="export-copy-json" />
             </Section>
+            {dataExport ? (
+                <Section title={labels.exportDataGroup}>
+                    <ExportOption icon="file" text={labels.exportDataCsv} info="exportDataCsv" onSelect={run("data-csv")} testId="export-data-csv" />
+                    <ExportOption icon="file" text={labels.exportDataJson} info="exportDataJson" onSelect={run("data-json")} testId="export-data-json" />
+                </Section>
+            ) : null}
         </>
     );
 }

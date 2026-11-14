@@ -6,17 +6,26 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- `describe` of a workbook lists its sheets; `--json` gives `sheet` (the sheet read) for every
+  command with data and `sheets` for `describe` of a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+- `pivotkit example [name]`: writes the data and views of an example into the current directory
+  (default `sales`, generated; `weather`, the playground's start, with `weather-SOURCE.txt`, its
+  attribution and licence), never over a file there, and says what each file is and what to run
+  next; `--list` names them. The files are the playground's data and views as the report downloads
+  them; the package ships the data gzipped.
+- A view file's field types (`source.fields`) decide how a column of the data is read when the reader
+  inferred another one (text such as `1e3` in a CSV stays text): an `info` finding `typeFromView`;
+  a type the column's values do not fit is not applied (`typeFromViewFailed`, a warning).
+
 ### Fixed
 
 - `render`, `validate` and `describe` read the sheet of a workbook a view file or link names
   (`source.params.sheet`, written by pivotkit-react) when `--sheet` is not given, instead of the first
   sheet; `--sheet` overrides it. A sheet the workbook does not have, from `--sheet` or the view, is an
   `io` error `NO_SHEET` that lists the sheets there are ([#252](https://github.com/eizedev/pivotkit/issues/252)).
-
-### Added
-
-- `describe` of a workbook lists its sheets; `--json` gives `sheet` (the sheet read) for every
-  command with data and `sheets` for `describe` of a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+- The help's examples name view files `.pivotkit.json`, as the report downloads them.
 
 ## [0.1.0] - 2026-11-13
 

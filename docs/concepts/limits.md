@@ -56,7 +56,7 @@ over it and reports it as an issue.
 | `groups` | 500,000 | Nodes of the row and column key trees of `computePivot` together: every item, every subtotal and the two grand totals. | The distinct leaves of an axis before its first node is made, then each node before it is made. |
 | `pivotCells` | 2,000,000 | Cells `computePivot` aggregates: for each distinct pair of row leaf and column leaf in the filtered rows, (row fields + 1) x (column fields + 1), its subtotals and totals included. | A lower bound (the leaves of the larger axis times that product) before the cell index is built, then each pair before it is stored. |
 | `work` | 100,000,000 | Cell updates of `computePivot`: filtered rows x (row fields + 1) x (column fields + 1) x measures (the values plus the values a sort uses, each once); a `median`, `countUnique` or `listUnique` counts 10 times, since it keeps an entry per row and cell. | Exactly, after the filters and before the key trees are built. |
-| `cells` | 2,000,000 | Cells of a grid (`toGrid`: header and body rows x columns) and data points of a chart (`toSeries`). | Before the grid or the series is built. |
+| `cells` | 2,000,000 | Cells of a grid (`toGrid`: header and body rows x columns), data points of a chart (`toSeries`), and the values of a source rows file (`rowsToCsv`, the drill-down's; `dataToCsv` and `dataToJson`, Export → Source data: rows x fields). | Before the grid, the series or the file is built. |
 | `cacheEntries` | 16 | Derived columns and sort orders kept per data set. | On each new entry; the least recently used go first. |
 | `fileBytes` | 104,857,600 (100 MiB) | Bytes of a file [loaded](../reference/import.md#limits). | Before a byte is read. |
 | `columns` | 1,000 | Columns of a loaded table. | As they appear. |

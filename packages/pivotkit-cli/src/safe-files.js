@@ -20,7 +20,7 @@
  */
 
 import { constants } from "node:fs";
-import { lstat, open, realpath, rename, stat, unlink } from "node:fs/promises";
+import { link, lstat, open, realpath, rename, stat, unlink } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from "node:path";
 import { CliError, shortName } from "./errors.js";
 
@@ -145,13 +145,15 @@ export async function readStdin(stdin, maxBytes, limit = "fileBytes") {
 }
 
 /**
- * Writes `bytes` to `path`: into a new temporary file in the target's directory, then renamed over it.
+ * Writes `bytes` to `path`: into a new temporary file in the target's directory, then renamed over it;
+ * with `exclusive`, linked into place instead, which fails when a file is there (also one made
+ * between the check and the write), so nothing is replaced: `EXISTS`.
  * @param {string} path
  * @param {Uint8Array} bytes
- * @param {{ cwd: string, allow: string[] }} options
+ * @param {{ cwd: string, allow: string[], exclusive?: boolean }} options
  * @returns {Promise<string>}  the real path written
  */
-export async function writeSafe(path, bytes, { cwd, allow }) {
+export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) {
     const full = resolve(cwd, path);
     let dir;
     try {
@@ -162,6 +164,9 @@ export async function writeSafe(path, bytes, { cwd, allow }) {
     const target = join(dir, basename(full));
     checkAllowed(target, allow, path);
     const existing = await lstat(target).catch((e) => (e.code === "ENOENT" ? null : Promise.reject(e)));
+    if (existing && exclusive) {
+        throw new CliError("io", "EXISTS", `${shortName(path)}: is already there; not replaced`);
+    }
     if (existing && !existing.isFile()) {
         const what = existing.isSymbolicLink() ? "a symbolic link" : existing.isDirectory() ? "a directory" : "a device or another special file";
         throw new CliError("io", existing.isSymbolicLink() || existing.isDirectory() ? "NOT_REGULAR_FILE" : "SPECIAL_FILE", `${shortName(path)}: exists and is ${what}; not replaced`);
@@ -181,10 +186,16 @@ export async function writeSafe(path, bytes, { cwd, allow }) {
     }
     await handle.close();
     try {
-        await rename(temp, target);
+        if (exclusive) {
+            // link() never replaces: a file that appeared since the check stays as it is
+            await link(temp, target);
+            await unlink(temp);
+        } else {
+            await rename(temp, target);
+        }
     } catch (e) {
         await unlink(temp).catch(() => undefined);
-        throw e;
+        throw e.code === "EEXIST" ? new CliError("io", "EXISTS", `${shortName(path)}: is already there; not replaced`) : e;
     }
     return target;
 }

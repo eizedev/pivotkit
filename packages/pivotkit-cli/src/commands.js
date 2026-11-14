@@ -46,7 +46,7 @@ const VIEW_OPTIONS = Object.freeze({
  * @typedef {object} CommandSpec
  * @property {string} usage
  * @property {string} text
- * @property {Array<{ name: string, text: string, optional?: boolean, complete?: "file" | "shell" | "command" }>} args
+ * @property {Array<{ name: string, text: string, optional?: boolean, complete?: "file" | "shell" | "command" | "example" }>} args
  * @property {Readonly<Record<string, OptionSpec>>} options  besides GLOBAL_OPTIONS
  * @property {string[]} [examples]
  */
@@ -71,14 +71,14 @@ export const COMMANDS = Object.freeze({
             lenient: { type: "boolean", text: "Write the output also when the view has errors (as the report shows it); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." }
         },
-        examples: ["pivotkit render sales.pivot.json --data sales.csv -o sales.html", "pivotkit render view.json --data - --data-format csv --format csv < sales.csv > out.csv", "pivotkit render view.json --data sales.xlsx -o chart.svg --now 2026-11-13"]
+        examples: ["pivotkit render sales.pivotkit.json --data sales.csv -o sales.html", "pivotkit render view.json --data - --data-format csv --format csv < sales.csv > out.csv", "pivotkit render view.json --data sales.xlsx -o chart.svg --now 2026-11-13"]
     },
     validate: {
         usage: "pivotkit validate <view> [--data <file>] [options]",
         text: "Check a view against data (or the fields its view file lists): errors exit 1, warnings too with --strict.",
         args: [{ name: "view", text: "A view file, a view as JSON text, or - for stdin.", optional: true, complete: "file" }],
         options: { ...VIEW_OPTIONS, ...DATA_OPTIONS, strict: { type: "boolean", text: "Warnings are findings too (exit 1)." } },
-        examples: ["pivotkit validate sales.pivot.json --data sales.csv --strict"]
+        examples: ["pivotkit validate sales.pivotkit.json --data sales.csv --strict"]
     },
     describe: {
         usage: "pivotkit describe <view | data> [options]",
@@ -89,7 +89,14 @@ export const COMMANDS = Object.freeze({
             as: { type: "string", value: "kind", choices: ["view", "data"], text: "Read the input as a view or as data (default: a view when it is one)." },
             items: { type: "string", value: "n", text: "data: list up to n values of each field (default none: names, types and counts only)." }
         },
-        examples: ["pivotkit describe sales.csv --json", "pivotkit describe sales.pivot.json --data sales.csv"]
+        examples: ["pivotkit describe sales.csv --json", "pivotkit describe sales.pivotkit.json --data sales.csv"]
+    },
+    example: {
+        usage: "pivotkit example [name] [--list]",
+        text: "Write an example's data and views into the current directory (never over a file) and say what to run next.",
+        args: [{ name: "name", text: "The example (default sales); --list names them all.", optional: true, complete: "example" }],
+        options: { list: { type: "boolean", text: "List the examples and their files; write nothing." } },
+        examples: ["pivotkit example", "pivotkit example weather", "pivotkit example --list"]
     },
     completion: {
         usage: "pivotkit completion <bash | zsh | fish | powershell>",

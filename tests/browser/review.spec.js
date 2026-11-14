@@ -13,9 +13,10 @@ const BY_MONTH = { name: "Month by month", field: "Month", by: "yearMonth" };
 
 test.describe("the chart type the data suggests", () => {
     test("no type chosen: dates on Columns draw lines with the months along the axis; the table keeps its layout", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
+        // "More", after Views): the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
-        await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart" }));
+        await page.goto(withView("data=sales&import=off", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart" }));
         await expect(page.locator('[data-testid="pivot-chart"] canvas')).toBeVisible();
         await expect(page.getByTestId("chart-summary")).toContainText(/^Lines: Sum of Revenue by Month by month\./);
         await expect(page.getByTestId("chart-type")).toHaveText("Automatic");
@@ -27,9 +28,10 @@ test.describe("the chart type the data suggests", () => {
     });
 
     test("a type the user chose stays, with a one-click suggestion that draws lines over time", async ({ page }) => {
-        // a window wide enough for the chart type's button (narrower, it is in "More", after Views)
+        // a window wide enough for the chart type's button (narrower, or with the Data button, it is in
+        // "More", after Views): the report without the Data button (import=off)
         await page.setViewportSize({ width: 1440, height: 900 });
-        await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "bar" } }));
+        await page.goto(withView("data=sales&import=off", { rows: ["Region"], cols: ["Month by month"], derived: [BY_MONTH], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "bar" } }));
         await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
         const tip = page.getByTestId("tip-chartOverTime");
         await expect(tip).toContainText("Month by month is a date: lines show how the values change over time.");
@@ -50,7 +52,7 @@ test("a pie of many slices suggests bars; a pie with columns says it adds them u
     await expect(tip).toContainText("A pie works for up to about 7 parts; this one has 12.");
     await tip.getByRole("button", { name: "Switch to Bars" }).click();
     await expect(page.getByTestId("chart-summary")).toContainText(/^Bars: /);
-    await page.goto(withView("data=sales", { rows: ["Region"], cols: ["Channel"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "pie" } }));
+    await page.goto(withView("data=sales&import=off", { rows: ["Region"], cols: ["Channel"], values: [{ field: "Revenue", agg: "sum" }], display: "chart", chart: { type: "pie" } }));
     await expect(page.getByTestId("tip-pieColumns")).toContainText("adds up the columns (Channel)");
 });
 

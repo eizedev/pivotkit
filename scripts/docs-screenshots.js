@@ -523,7 +523,7 @@ const SHOTS = [
         }
     },
     { name: "german", query: "data=sales&lang=de", size: WIDE },
-    // loading data (allowImport, the playground's ?import): the Data menu, a file dragged over the
+    // loading data (allowImport, on in the playground; the other shots turn it off): the Data menu, a file dragged over the
     // report, its preview, the report on it, the empty report's place to drop, the preview on a phone
     { name: "data-menu", query: "data=sales&import", size: WIDE, open: (page) => toolbar(page, "data") },
     { name: "import-drop", query: "data=sales&import", size: WIDE, open: (page) => dragTickets(page, false) },
@@ -603,7 +603,10 @@ try {
     for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
         for (const theme of THEMES) {
             const page = await browser.newPage({ viewport: shot.size, deviceScaleFactor: 1, reducedMotion: "reduce", colorScheme: theme });
-            const url = `${base}?${shot.query}&theme=${theme}${shot.hash ? `#pivot-playground=${shot.hash}` : ""}`;
+            // the report as a host gets it by default: without the Data button (allowImport), which the
+            // playground shows unless ?import=off, except in the shots of loading data
+            const query = /(^|&)import(=|&|$)/.test(shot.query) ? shot.query : `${shot.query}&import=off`;
+            const url = `${base}?${query}&theme=${theme}${shot.hash ? `#pivot-playground=${shot.hash}` : ""}`;
             // the server needs a moment on the first request
             for (let i = 0; ; i++) {
                 try {
