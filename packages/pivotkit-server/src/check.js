@@ -9,7 +9,7 @@ import { basename } from "node:path";
 import { closest } from "pivotkit-core";
 import { readSafe, readTable } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
-import { TOKEN_MIN } from "./auth.js";
+import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
 import { ownFileDirs, writable } from "./context.js";
 import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
@@ -154,10 +154,12 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
 /** Why a static token would keep the server from starting, or null. */
 async function tokenProblem(token, env, options) {
     if (token.env) {
-        return (env[token.env] ?? "").length >= TOKEN_MIN ? null : `($${token.env}) is not set or shorter than ${TOKEN_MIN} characters`;
+        const value = env[token.env] ?? "";
+        return value.length < TOKEN_MIN ? `($${token.env}) is not set or shorter than ${TOKEN_MIN} characters` : TOKEN_SYNTAX.test(value) ? null : `($${token.env}) ${TOKEN_SYNTAX_TEXT}`;
     }
     try {
-        return (await readFile(pathOf(options, token.file), "utf8")).trim().length >= TOKEN_MIN ? null : `(${token.file}) is shorter than ${TOKEN_MIN} characters`;
+        const value = (await readFile(pathOf(options, token.file), "utf8")).trim();
+        return value.length < TOKEN_MIN ? `(${token.file}) is shorter than ${TOKEN_MIN} characters` : TOKEN_SYNTAX.test(value) ? null : `(${token.file}) ${TOKEN_SYNTAX_TEXT}`;
     } catch (e) {
         return `(${token.file}) cannot be read: ${e?.code === "ENOENT" ? "no such file" : e?.code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : "unreadable"}`;
     }

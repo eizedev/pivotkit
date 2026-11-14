@@ -17,7 +17,7 @@ export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
 export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
 export { allowedHosts, hostRefusal, clientAddress, LOCAL_HOSTS } from "./checks.js";
 export { createLimits, REQUEST_LIMITS } from "./limits.js";
-export { serveFetch, isLoopback, GRACE_MS, BODY_BYTES, SIGNED_IN, takeSignIn } from "./listen.js";
+export { serveFetch, isLoopback, connectionLimitsOf, refusedText, GRACE_MS, CONNECTION_LIMITS, BODY_BYTES, SIGNED_IN, takeSignIn } from "./listen.js";
 export { checkConfig } from "./check.js";
 export { OperationError } from "pivotkit-report/operations";
 export { optionsFrom, flagLines, httpFlags, SERVER_FLAGS, SHARED_FLAGS } from "./flags.js";

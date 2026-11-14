@@ -101,3 +101,39 @@ test("the first and last years a Date holds group by month and week without a th
     assert.deepEqual(group("-271821-12-31", "yearWeek"), [[-27182048, "271822 BC-W52"]]);
     assert.deepEqual(group("+275760-09-13", "yearWeek"), [[27576037, "275760-W37"]]);
 });
+
+test("every date grouping labels the first and last 400 days a Date holds, and their weeks run on", () => {
+    const days = 400;
+    const first = Array.from({ length: days }, (_, i) => -MAX_DATE_MS + i * 86_400_000);
+    const last = Array.from({ length: days }, (_, i) => MAX_DATE_MS - (days - 1 - i) * 86_400_000);
+    for (const run of [first, last]) {
+        const data = encode(run.map((ms) => ({ D: new Date(ms) })));
+        for (const by of ["year", "quarter", "month", "week", "day", "hour", "weekday", "yearQuarter", "yearMonth", "yearWeek"]) {
+            const r = computePivot(data, { rows: ["G"], derived: [{ name: "G", field: "D", by }], values: [{ agg: "count" }] });
+            for (const n of r.rowRoot.children) {
+                assert.ok(n.key !== null && r.label("rows", n) !== "(blank)", `${by} ${run[0]}`);
+            }
+            assert.equal(r.value(r.rowRoot, r.colRoot, 0), days, `${by}: every day in a group`);
+        }
+        // ISO weeks, day by day: a new week on Mondays only, one more or week 1 of the next year; 4 January in week 1
+        const yearWeek = derivedKeys(data, "yearWeek");
+        for (let i = 1; i < days; i++) {
+            const day = new Date(run[i]);
+            const [prev, cur] = [yearWeek[i - 1], yearWeek[i]];
+            if (day.getUTCDay() !== 1) {
+                assert.equal(cur, prev, `${day.toISOString()} stays in its week`);
+            } else {
+                assert.ok(cur === prev + 1 || (Math.floor(cur / 100) === Math.floor(prev / 100) + 1 && cur - Math.floor(cur / 100) * 100 === 1), `${day.toISOString()} starts week ${cur} after ${prev}`);
+            }
+            if (day.getUTCMonth() === 0 && day.getUTCDate() === 4) {
+                assert.equal(cur, day.getUTCFullYear() * 100 + 1, `${day.toISOString()} is in week 1`);
+            }
+        }
+    }
+});
+
+/** The key of a date grouping for each row, in row order. */
+function derivedKeys(data, by) {
+    const r = computePivot(data, { rows: ["D", "G"], derived: [{ name: "G", field: "D", by }], values: [{ agg: "count" }] });
+    return r.rowRoot.children.sort((a, b) => a.key - b.key).map((n) => n.children[0].key);
+}

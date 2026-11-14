@@ -15,7 +15,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, SIGNED_IN, allowedHosts, clientAddress, createLimits, isLoopback, serveFetch, takeSignIn } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createLimits, isLoopback, refusedText, serveFetch, takeSignIn } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
 import { createAuth } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -246,7 +246,7 @@ export async function listen(options, runtime) {
     let listening;
     try {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
-        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs });
+        listening = await serveFetch({ precheck: (request, info) => handler.precheck(request, info), fetch: (request, info) => handler.fetch(request, info), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler?.close();
         await context.close();
