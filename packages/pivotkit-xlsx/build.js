@@ -23,9 +23,11 @@ const SAXEN = dirname(createRequire(fileURLToPath(import.meta.resolve("read-exce
  * read-excel-file, fflate's inflate, the XML guard (xml.js) and the table of pivotkit-core/import.
  * Measured 0.2 and 30.6 on a Mac, Node 26, when set; the reader 31.4 after the count of shared
  * strings and formats and the markup inside rows (#237, #238), and CI's Node 24 measures about
- * 0.2 KiB more than Node 26, so the reader's budget went from 31.5 to 32.
+ * 0.2 KiB more than Node 26, so the reader's budget went from 31.5 to 32. The pre-parse filter
+ * that reads a sheet as the parser does (GHSA-c6vh-q36c-92r3) measures 32.0 on the Mac and 32.2 in
+ * CI, so the reader's budget is 33.
  */
-export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 32 };
+export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 33 };
 
 /** @type {import("esbuild").BuildOptions} */
 export const options = {
