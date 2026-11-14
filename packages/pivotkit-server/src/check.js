@@ -7,10 +7,10 @@
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import { basename } from "node:path";
 import { closest } from "pivotkit-core";
-import { readSafe, readTable } from "pivotkit-cli/files";
+import { isInside, readSafe, readTable } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
-import { cannotCreate, ownFileDirs, whyNot, writable } from "./context.js";
+import { OUTPUT_INSIDE_ALLOWED, cannotCreate, ownFileDirs, plannedPath, whyNot, writable } from "./context.js";
 import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
@@ -81,11 +81,17 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     // a missing directory is made at start (output.create), when its nearest existing parent lets it be
     const dangling = Boolean(outputDir && !outputInfo && (await lstat(outputDir).catch(() => null)));
     const notMade = outputDir && !outputInfo ? (dangling ? "dangling" : options.output?.create === false ? "off" : await cannotCreate(outputDir)) : null;
-    const outputState = outputFound ? "" : outputInfo ? "  (NOT FOUND: not a directory)" : notMade === "dangling" ? "  (NOT FOUND: a symbolic link to nothing)" : notMade === "off" ? "  (NOT FOUND: create the directory first, or leave output.create on)" : notMade ? `  (NOT FOUND: cannot be created: ${whyNot(notMade)})` : "  (missing: created at start)";
+    const outputState = outputFound ? "" : outputInfo ? "  (NOT FOUND: not a directory)" : notMade === "dangling" ? "  (NOT FOUND: a symbolic link to nothing)" : notMade === "off" ? "  (NOT FOUND: create the directory first, or leave output.create on)" : notMade ? `  (NOT FOUND: cannot be created: ${whyNot(notMade)})` : "  (does not exist yet: will be created at start; check the path)";
     const outputWritable = outputDir && outputFound ? await writable(outputDir) : true;
     problems += outputFound || (!outputInfo && !notMade) ? 0 : 1;
     unwritable += outputWritable ? 0 : 1;
     lines.push(`Output: ${options.output?.dir ?? "none (only inline csv/json where the policy allows)"}${outputState}${outputWritable ? "" : `  (NOT WRITABLE by the user ${process.getuid?.() ?? ""} the server runs as: every report would fail)`}${options.output?.baseUrl ? `, served at ${options.output.baseUrl}` : ""}`);
+    // what the start refuses: the directory, or where it will be made, inside an allowed directory
+    const outputWhere = outputDir ? (outputInfo ? await realpath(outputDir).catch(() => null) : notMade ? null : await plannedPath(outputDir)) : null;
+    if (outputWhere && registry.allow.some((allowed) => isInside(outputWhere, allowed) || isInside(allowed, outputWhere))) {
+        other += 1;
+        lines.push(`  PROBLEM: ${OUTPUT_INSIDE_ALLOWED.replace(/^output\.dir: /, "output.dir ")}`);
+    }
     if (outputDir && outputFound) {
         const real = await realpath(outputDir).catch(() => outputDir);
         const shared = (await ownFileDirs(options)).includes(real);

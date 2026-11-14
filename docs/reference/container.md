@@ -48,7 +48,7 @@ docker run -d --name pivotkit \
 | --- | --- |
 | `/config/pivotkit.json` | The configuration (`$PIVOTKIT_CONFIG` names another) |
 | `/data` | The data files, mounted read-only |
-| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`, and Docker makes a missing one as root, so make it yourself first; `check-config` and the start say so when it is not writable). A directory below it in `output.dir` is made at start, with mode 0700 (by the umask when `output.baseUrl` is set): only the user 10001 reads it, so a second reader (a web server, a backup) needs `output.baseUrl` or a directory you make yourself |
+| `/out` | The output directory, writable by the user 10001 (a named volume is; a host folder needs `chown 10001:10001`, and Docker makes a missing one as root, so make it yourself first; `check-config` and the start say so when it is not writable). A directory below it in `output.dir` is made at start, with mode 0700 (0755 narrowed by the umask when `output.baseUrl` is set): only the user 10001 reads it, so a second reader (a web server, a backup) needs `output.baseUrl` or a directory you make yourself |
 | `/run/secrets/` | Token files, readable by the user 10001 |
 | `/tmp` | A tmpfs: the root file system stays read-only |
 

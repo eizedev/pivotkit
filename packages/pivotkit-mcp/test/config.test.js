@@ -51,7 +51,7 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     // a missing output directory is made at start; with output.create off it is a problem
     const noOut = runner(["--config", join(dir, "bad-out.json"), "--check-config"], other);
     assert.equal(noOut.status, 0, noOut.stdout);
-    assert.match(noOut.stdout, /Output: nope {2}\(missing: created at start\)/);
+    assert.match(noOut.stdout, /Output: nope {2}\(does not exist yet: will be created at start; check the path\)/);
     writeFileSync(join(dir, "off-out.json"), JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "nope", create: false } }));
     const off = runner(["--config", join(dir, "off-out.json"), "--check-config"], other);
     assert.equal(off.status, 1);
@@ -105,7 +105,7 @@ test("the MCP server makes a missing output directory at start, as pivotkit-serv
     const server = await httpServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "fresh/out" }, baseDir: dir });
     try {
         assert.ok(statSync(join(dir, "fresh", "out")).isDirectory());
-        assert.ok(server.log.some((l) => l.event === "info" && /output directory did not exist and was created/.test(l.message)));
+        assert.ok(server.log.some((l) => l.event === "warning" && /output directory did not exist and was created/.test(l.message)));
     } finally {
         await server.close();
     }

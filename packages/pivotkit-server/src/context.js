@@ -19,6 +19,9 @@ import { createRegistry } from "./registry.js";
 import { createAuthCore, profileOf } from "./auth.js";
 import { prune } from "./present.js";
 
+/** Why an output directory inside (or holding) an allowed directory is refused. */
+export const OUTPUT_INSIDE_ALLOWED = "output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them";
+
 /** The variable of the one static token when auth.tokens is empty. */
 export const TOKEN_ENV = "PIVOTKIT_TOKEN";
 
@@ -75,19 +78,29 @@ export async function createContext(options, runtime = {}) {
             throw new ConfigError("output.dir: not a directory");
         }
         // a directory the model may read files from must not hold what it may not see: the results
-        if (registry.allow.some((allowed) => isInside(planned, allowed) || isInside(allowed, planned))) {
-            throw new ConfigError("output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them");
+        const insideAllowed = (path) => registry.allow.some((allowed) => isInside(path, allowed) || isInside(allowed, path));
+        if (insideAllowed(planned)) {
+            throw new ConfigError(OUTPUT_INSIDE_ALLOWED);
         }
         if (missing) {
-            // reports may hold what a model may not see: only the server's user reads them, unless a
-            // web server serves the directory (output.baseUrl), where the umask decides as for any.
-            // The log names no path (it never does): the operator knows output.dir
-            await mkdir(wanted, { recursive: true, mode: options.output.baseUrl ? 0o777 : 0o700 }).catch((e) => {
+            const why = await cannotCreate(wanted);
+            if (why) {
+                throw new ConfigError(`output.dir: cannot be created: ${whyNot(why)}`);
+            }
+            // reports may hold what a model may not see: only the server's user reads them (0700),
+            // unless a web server serves the directory (output.baseUrl): 0755, which the umask can
+            // only narrow, never widen to others' writing. The log names no path (it never does): the
+            // operator knows output.dir
+            await mkdir(wanted, { recursive: true, mode: options.output.baseUrl ? 0o755 : 0o700 }).catch((e) => {
                 throw new ConfigError(`output.dir: cannot be created: ${whyNot(e?.code)}`);
             });
-            log.info(`the output directory did not exist and was created (${options.output.baseUrl ? "mode by the umask: output.baseUrl is served" : "mode 0700"})`);
+            log.warn(`the output directory did not exist and was created (${options.output.baseUrl ? "mode 0755 narrowed by the umask: output.baseUrl is served" : "mode 0700"}); check output.dir if that was not meant`);
         }
         const dir = await realpath(wanted);
+        // what was made may have come out elsewhere (a link changed in between): checked again
+        if (insideAllowed(dir)) {
+            throw new ConfigError(OUTPUT_INSIDE_ALLOWED);
+        }
         // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
         // own files lie, which have such names too
         const shared = (await ownFileDirs(options)).includes(dir);
@@ -196,6 +209,10 @@ export async function cannotCreate(path) {
         if (info) {
             return !info.isDirectory() ? "ENOTDIR" : (await writable(dir)) ? null : "EACCES";
         }
+        // a link whose target is missing: mkdir -p cannot go through it
+        if (await lstat(dir).catch(() => null)) {
+            return "ENOENT";
+        }
         const up = dirname(dir);
         if (up === dir) {
             return "ENOENT";
@@ -209,7 +226,7 @@ export async function cannotCreate(path) {
  * the rest of the path after it.
  * @param {string} path
  */
-async function plannedPath(path) {
+export async function plannedPath(path) {
     const rest = [];
     for (let dir = path; ; ) {
         const real = await realpath(dir).catch(() => null);

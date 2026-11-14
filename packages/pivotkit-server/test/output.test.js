@@ -216,7 +216,7 @@ test("check-config warns of a policy rule that matches no column and prints the 
     assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(res.stdout), "a rule that matches by another case is no warning");
 });
 
-test("a missing output directory is created at start (0700, or the umask's mode where a web server serves it) and said once in the log", async () => {
+test("a missing output directory is created at start (0700, or 0755 narrowed by the umask where a web server serves it) and said once in the log", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "reports/new" }, baseDir: dir });
     try {
@@ -225,7 +225,7 @@ test("a missing output directory is created at start (0700, or the umask's mode 
         if (process.platform !== "win32") {
             assert.equal(info.mode & 0o777, 0o700, "reports may hold what a model may not see: the server's user only");
         }
-        const said = server.log.filter((l) => l.event === "info" && /output directory/.test(l.message) && /created/.test(l.message));
+        const said = server.log.filter((l) => l.event === "warning" && /output directory/.test(l.message) && /created/.test(l.message));
         assert.equal(said.length, 1, JSON.stringify(server.log));
         assert.ok(!JSON.stringify(server.log).includes(dir), "no path in the log");
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
@@ -233,11 +233,17 @@ test("a missing output directory is created at start (0700, or the umask's mode 
     } finally {
         await server.close();
     }
-    // a served directory is read by the web server's user: the umask decides, as for any directory
-    const served = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "served", baseUrl: "https://files.example.com/r/" }, baseDir: dir });
-    await served.close();
+    // a served directory is read by the web server's user: 0755, which the umask can only narrow,
+    // so even under umask 000 nobody else may write it
+    const before = process.umask(0);
+    try {
+        const served = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "served", baseUrl: "https://files.example.com/r/" }, baseDir: dir });
+        await served.close();
+    } finally {
+        process.umask(before);
+    }
     if (process.platform !== "win32") {
-        assert.equal(statSync(join(dir, "served")).mode & 0o777, 0o777 & ~process.umask());
+        assert.equal(statSync(join(dir, "served")).mode & 0o777, 0o755);
     }
     // an existing directory is left as it is, and nothing is said
     const again = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "reports/new" }, baseDir: dir });
@@ -276,6 +282,23 @@ test("a symbolic link to nothing as output.dir is a problem in check-config and 
     assert.ok(!existsSync(join(dir, "data", "new")), "no directory left behind");
 });
 
+test("check-config refuses what serve refuses: a missing output.dir inside an allowed directory, one below a link to nothing", async () => {
+    const dir = workspace();
+    symlinkSync(join(dir, "gone"), join(dir, "link"));
+    const config = join(dir, "pivotkit.json");
+    const check = (options) => {
+        writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, ...options }));
+        return run(["check-config", "--config", config]);
+    };
+    const inside = check({ files: { allowDirs: ["data"] }, output: { dir: "data/new/out" } });
+    assert.equal(inside.status, 1, inside.stdout);
+    assert.match(inside.stdout, /PROBLEM: output\.dir lies inside a directory of files\.allowDirs/);
+    const below = check({ output: { dir: "link/out" } });
+    assert.equal(below.status, 1, below.stdout);
+    assert.match(below.stdout, /Output: link\/out {2}\(NOT FOUND: cannot be created: a symbolic link in the path points to nothing\)/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "link/out" }, baseDir: dir }), /output\.dir: cannot be created: a symbolic link in the path points to nothing/);
+});
+
 test("check-config says whether the output directory exists, will be created, or cannot be", () => {
     const dir = workspace();
     const config = join(dir, "pivotkit.json");
@@ -285,7 +308,7 @@ test("check-config says whether the output directory exists, will be created, or
     };
     const created = check({ dir: "later/out" });
     assert.equal(created.status, 0, created.stdout);
-    assert.match(created.stdout, /Output: later\/out {2}\(missing: created at start\)/);
+    assert.match(created.stdout, /Output: later\/out {2}\(does not exist yet: will be created at start; check the path\)/);
     const off = check({ dir: "later/out", create: false });
     assert.equal(off.status, 1, off.stdout);
     assert.match(off.stdout, /Output: later\/out {2}\(NOT FOUND: create the directory first, or leave output\.create on\)/);
