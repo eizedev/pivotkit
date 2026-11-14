@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 import { MAX_DATE_MS, computePivot, encode, normalize } from "pivotkit-core";
 import { LABELS } from "../src/labels.js";
 import { en as menuEn } from "../src/menu-labels.js";
-import { yearRules } from "../src/menu-ops.js";
-import { compareText, isoDay, periodText, rangeShare, wholeYears } from "../src/names.js";
+import { combinedYearsText, dateFromInput, dateInputValue, dayOnOrBefore, yearRules } from "../src/menu-ops.js";
+import { compareText, isoDay, periodText, rangeShare, wholeYears, yearText } from "../src/names.js";
 
 const L = { ...LABELS.en, ...menuEn };
 /** Wall-clock ms of a day in any year. */
@@ -66,4 +66,35 @@ test("Years combined writes years with a sign, and the first and last year as fa
     assert.deepEqual(edges[0].value2, isoDay(MAX_DATE_MS));
     assert.deepEqual(normalize({ ...view, filters: edges }, data).issues, []);
     assert.deepEqual(wholeYears(edges[0].value, edges[0].value2), [-271821, 275760]);
+});
+
+test("Years combined's summary writes the years as the table does (#351)", () => {
+    assert.equal(combinedYearsText([-4, -3, -2], [-4, -3, -2, 5], L, "en-US"), `${tableYear(-4)}–${tableYear(-2)} combined`);
+    assert.equal(combinedYearsText([0, 5], [0, 1, 5], L, "en-US"), `${tableYear(0)}, 5 combined`);
+    assert.equal(combinedYearsText([0], [0, 5], L, "en-US"), `${tableYear(0)} only`);
+    assert.equal(combinedYearsText([2024, 2025], [2024, 2025], L, "en-US"), "2024–2025 combined");
+    assert.equal(tableYear(0), yearText(0, "en-US"));
+});
+
+test("whether a day is on or before another compares the days, not their text (#351)", () => {
+    // as text "-000002" sorts after "-000001" and "+010000" before "2026"
+    assert.equal(dayOnOrBefore("-000002-01-01", "-000001-01-01"), true);
+    assert.equal(dayOnOrBefore("-000001-01-01", "-000002-01-01"), false);
+    assert.equal(dayOnOrBefore("+010000-01-01", "2026-01-01"), false);
+    assert.equal(dayOnOrBefore("2026-01-01T10:00", "2026-01-01"), true);
+});
+
+test("a reference date in the date field: years after 9999 both ways, years before 1 not offered (#351)", () => {
+    // an <input type="date"> holds four or more digits of a year after 0, without a sign
+    assert.equal(dateInputValue("2026-03-01"), "2026-03-01");
+    assert.equal(dateInputValue("+010000-01-01T00:00"), "10000-01-01");
+    assert.equal(dateInputValue("0005-06-15"), "0005-06-15");
+    assert.equal(dateInputValue("-000001-06-15"), "");
+    assert.equal(dateFromInput("10000-01-01"), "+010000-01-01");
+    assert.equal(dateFromInput("2026-03-01"), "2026-03-01");
+    assert.equal(dateFromInput("0005-06-15"), "0005-06-15");
+    assert.equal(dateFromInput("2026-02-30"), null);
+    assert.equal(dateFromInput("0000-01-01"), null);
+    assert.equal(dateFromInput("202"), null);
+    assert.equal(dateFromInput(""), null);
 });

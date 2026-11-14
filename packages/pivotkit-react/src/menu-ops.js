@@ -7,7 +7,7 @@
 
 import { CATALOG, MATCH_DEFAULTS, MAX_DATE_MS, computePivot, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { dayMs, isoDay, isoYear, itemRuleText, valueConditionText, wholeYears } from "./names.js";
+import { dayMs, isoDay, isoYear, itemRuleText, valueConditionText, wholeYears, yearOf, yearText } from "./names.js";
 import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
@@ -623,4 +623,49 @@ export function rowsInRange(range, dict, counts) {
         }
     }
     return rows;
+}
+
+/**
+ * The years Years combined keeps, in the Filter level's summary: "2024–2025 combined" for years in a
+ * row (all of them, or a run), else listed; "2026 only" for one; each year as the table writes it.
+ * @param {number[]} on  the years kept, ascending
+ * @param {number[]} all  the years of the data
+ * @param {any} labels
+ * @param {string} locale
+ */
+export function combinedYearsText(on, all, labels, locale) {
+    if (on.length === 1) {
+        return fill(labels.yearsOne, { year: yearText(on[0], locale) });
+    }
+    const run = on.length === all.length || on[on.length - 1] - on[0] === on.length - 1;
+    return fill(labels.yearsAll, { years: run ? `${yearText(on[0], locale)}–${yearText(on[on.length - 1], locale)}` : on.map((y) => yearText(y, locale)).join(", ") });
+}
+
+/** Whether the day of `a` (an ISO day or minute) is on or before the day of `b`, by their ms. */
+export const dayOnOrBefore = (a, b) => dayMs(a) <= dayMs(b);
+
+/**
+ * An ISO day (or minute) as an `<input type="date">` holds it: the year with four or more digits and
+ * no sign ("10000-01-01" of "+010000-01-01"); "" for a year before 1, which the field cannot hold.
+ * @param {string} iso
+ */
+export const dateInputValue = (iso) => {
+    const day = isoDay(dayMs(iso));
+    const y = yearOf(day);
+    return y >= 1 ? `${String(y).padStart(4, "0")}${day.slice(day.indexOf("-", 1))}` : "";
+};
+
+/**
+ * What an `<input type="date">` holds as an ISO day ("+010000-01-01" of "10000-01-01"), or null while
+ * it is no whole day of a year from 1 that a Date holds.
+ * @param {string} text
+ */
+export function dateFromInput(text) {
+    const m = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(text);
+    if (!m || Number(m[1]) < 1) {
+        return null;
+    }
+    const iso = `${isoYear(Number(m[1]))}-${m[2]}-${m[3]}`;
+    // a day the month does not have (30 February) reads as another day
+    return Number.isNaN(dayMs(iso)) || isoDay(dayMs(iso)) !== iso ? null : iso;
 }
