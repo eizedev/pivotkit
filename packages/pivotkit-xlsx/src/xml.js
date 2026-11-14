@@ -411,14 +411,15 @@ function cellExtent(buf, from, to) {
     let open = -1; // where the tag of the last shared-string cell ended, until its value is read
     /** That cell's value: its <v> before `next` (the next cell's tag), so each stretch is searched once. */
     const value = (next) => {
-        const v = open === -1 ? -1 : indexOf(buf, VALUE, open, next);
-        if (v !== -1) {
-            let k = v + 3;
-            while (k < next && isSpace(buf[k])) k++;
-            let n = 0;
-            for (; k < next && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
-            shared = Math.max(shared, n);
-        }
+        if (open === -1) return;
+        const v = indexOf(buf, VALUE, open, next);
+        let k = v + 3;
+        while (v !== -1 && k < next && isSpace(buf[k])) k++;
+        let n = 0;
+        const digits = k;
+        for (; v !== -1 && k < next && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
+        // a value written otherwise (<v >, CDATA): which string it names is not known, so all are kept
+        shared = Math.max(shared, k > digits ? n : Infinity);
         open = -1;
     };
     for (let i = indexOf(buf, CELL, from, to); i !== -1; i = indexOf(buf, CELL, i + 2, to)) {
@@ -427,7 +428,7 @@ function cellExtent(buf, from, to) {
         // each tag is scanned once, up to its end: the time stays linear in the row's length
         const stop = tagEndAt(buf, i + 1, to);
         const t = attrAt(buf, i + 2, stop, 0x74);
-        if (t !== -1 && buf[t] === 0x73 && (buf[t + 1] === 0x22 || buf[t + 1] === 0x27)) open = stop;
+        if (t !== -1 && buf[t] === 0x73 && (buf[t + 1] === 0x22 || buf[t + 1] === 0x27) && buf[stop - 1] !== 0x2f) open = stop;
         let q = attrAt(buf, i + 2, stop, 0x72);
         if (q === -1) continue;
         let c = 0;
@@ -646,66 +647,87 @@ export function createSheetFilter(out, limits = {}) {
             run(true);
             if (pending.length) out.write(pending);
             if (closing.length) out.write(closing);
-            return { lastRow, lastValueRow, dropped, errors, shared };
+            // no <sheetData> found (a prefix, say): which strings the sheet names is not known
+            return { lastRow, lastValueRow, dropped, errors, shared: state === 0 ? Infinity : shared };
         }
     };
 }
 
-const STRING_ITEM = ascii("<si");
-const ENTRY_NAMES = [STRING_ITEM, ascii("<xf"), ascii("<numFmt")];
+const ENTRY_NAMES = ["si", "xf", "numFmt"].map(ascii);
 const SST_END = ascii("</sst>");
-const HOLD = 8; // the longest name above and the byte after it
+/** Whether a byte ends a tag's name. */
+const endsName = (b) => b === 0x3e || b === 0x2f || b === LT || isSpace(b);
 
 /**
  * Passes the shared strings or the styles of a workbook on to `out` and counts what read-excel-file
  * keeps one entry of each for: string items (`<si>`), cell formats (`<xf>`) and number formats
- * (`<numFmt>`), in either part. More than `max` stop the read with LIMIT_EXCEEDED, before the parser
- * makes millions of entries from a small file. Of the string items only the first `keep` go on (the
- * strings the sheet's cells name; Infinity for the styles): the rest is left out and `</sst>` ends
- * the part.
+ * (`<numFmt>`), with a namespace prefix (`<x:si>`) too, in either part; comments, CDATA sections and
+ * processing instructions are skipped as the parser skips them. More than `max` in all the parts
+ * counted with one `total` stop the read with LIMIT_EXCEEDED, before the parser makes millions of
+ * entries from a small file. Of the string items only the first `keep` go on (the strings the sheet's
+ * cells name; Infinity for the styles): the rest is left out and `</sst>` ends the part.
  * @param {{ write: (bytes: Uint8Array, from?: number, to?: number) => void }} out
- * @param {{ file: string, keep: number, max: number }} options
+ * @param {{ file: string, part: string, keep: number, max: number, total: { count: number } }} options
  */
-export function createEntryCount(out, { file, keep, max }) {
-    let carry = new Uint8Array(0); // the last bytes, held back: a name may go on in the next piece
+export function createEntryCount(out, { file, part, keep, max, total }) {
+    let carry = new Uint8Array(0); // held back: a tag or markup start that goes on in the next piece
+    /** @type {Uint8Array | null} */
+    let close = null; // in a comment, CDATA section or processing instruction: its end
     let items = 0;
-    let count = 0;
     let cut = false;
-    /** At a "<" at buf[i]: whether the bytes there are the string item past `keep` (the place to cut). */
-    const at = (buf, i) => {
-        for (const name of ENTRY_NAMES) {
-            let k = 1;
-            while (k < name.length && buf[i + k] === name[k]) k++;
-            const b = buf[i + k];
-            if (k === name.length && (b === 0x3e || b === 0x2f || isSpace(b))) {
-                if (++count > max) throw limitError("importCells", count, max, file, "shared strings and formats");
-                return name === STRING_ITEM && ++items > keep;
+    /** Passes buf on up to where it must wait for more (returned), or up to the cut (-1). */
+    const scan = (buf, final) => {
+        let i = 0;
+        while (i < buf.length) {
+            if (close) {
+                const end = indexOf(buf, close, i);
+                if (end === -1) return final ? buf.length : Math.max(i, buf.length - close.length + 1);
+                i = end + close.length;
+                close = null;
+                continue;
             }
+            const lt = buf.indexOf(LT, i);
+            if (lt === -1) return buf.length;
+            if (buf[lt + 1] === BANG || buf[lt + 1] === 0x3f) {
+                if (!final && lt + 9 > buf.length) return lt;
+                close = buf[lt + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, lt, lt + 4) === lt ? COMMENT_END : indexOf(buf, CDATA_START, lt, lt + 9) === lt ? CDATA_END : GT;
+                i = lt + 1;
+                continue;
+            }
+            // the tag's name, after its prefix
+            let j = lt + 1;
+            let local = j;
+            while (j < buf.length && !endsName(buf[j])) {
+                if (buf[j++] === 0x3a) local = j;
+            }
+            if (j - lt > MAX_TAG) throw fileError("DAMAGED", file, `the part "${part}" holds a tag of more than 256 KiB; the workbook is refused.`, { part });
+            if (j === buf.length && !final) return lt;
+            const name = ENTRY_NAMES.find((n) => n.length === j - local && n.every((b, k) => buf[local + k] === b));
+            if (name && buf[j] !== LT) {
+                if (++total.count > max) throw limitError("importCells", total.count, max, file, "shared strings and formats");
+                if (name === ENTRY_NAMES[0] && ++items > keep) {
+                    out.write(buf, 0, lt);
+                    cut = true;
+                    return -1;
+                }
+            }
+            i = j;
         }
-        return false;
+        return buf.length;
     };
-    /** Looks at every "<" of buf[0, to) and passes those bytes on, or those up to the cut: true there. */
-    const scan = (buf, to) => {
-        for (let i = buf.indexOf(LT); i !== -1 && i < to; i = buf.indexOf(LT, i + 1)) {
-            if (at(buf, i)) {
-                out.write(buf, 0, i);
-                return (cut = true);
-            }
-        }
-        if (to > 0) out.write(buf, 0, to);
-        return false;
+    const push = (buf, final) => {
+        if (cut) return;
+        if (carry.length) buf = concat(carry, buf);
+        const pass = scan(buf, final);
+        if (pass > 0) out.write(buf, 0, pass);
+        carry = pass === -1 ? carry : buf.slice(pass);
     };
     return {
         /** @param {Uint8Array} chunk */
-        write(chunk) {
-            if (cut) return;
-            if (carry.length) chunk = concat(carry, chunk);
-            const pass = Math.max(0, chunk.length - HOLD);
-            if (!scan(chunk, pass)) carry = chunk.slice(pass);
-        },
+        write: (chunk) => push(chunk, false),
         /** Passes the held bytes on, or ends the part after the cut. */
         end() {
-            if (!cut) scan(carry, carry.length);
+            push(new Uint8Array(0), true);
             if (cut) out.write(SST_END);
         }
     };

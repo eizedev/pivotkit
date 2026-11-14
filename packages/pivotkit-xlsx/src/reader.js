@@ -189,10 +189,11 @@ export async function read(file, options) {
     });
     const trimmed = filter.end();
     sheetPart.end();
-    // read-excel-file keeps an entry per string item and per format: counted against the cells a table
-    // may have, and only the strings up to the highest one a cell names go on
+    // read-excel-file keeps an entry per string item and per format: those of both parts count together
+    // against the cells a table may have, and only the strings up to the highest one a cell names go on
+    const total = { count: 0 };
     const counted = (path, out) =>
-        createEntryCount(out, { file: name, keep: path === shared.sharedStrings ? trimmed.shared + 1 : Infinity, max: path === shared.sharedStrings || path === shared.styles ? maxCells : Infinity });
+        createEntryCount(out, { file: name, part: path, keep: path === shared.sharedStrings ? trimmed.shared + 1 : Infinity, max: path === shared.sharedStrings || path === shared.styles ? maxCells : Infinity, total });
     for (const [path, data] of parts) {
         const part = zip.begin(path);
         const out = counted(path, createXmlGuard(part, name, path));

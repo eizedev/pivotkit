@@ -18,11 +18,13 @@ const here = new URL(".", import.meta.url).pathname;
 const SAXEN = dirname(createRequire(fileURLToPath(import.meta.resolve("read-excel-file/package.json"))).resolve("saxen/package.json"));
 
 /**
- * The most each part may be, gzip, in KiB (measured 0.2 and 30.6 on a Mac, Node 26, when set), with a
- * little room: the descriptor, and the reader with read-excel-file, fflate's inflate, the XML guard
- * (xml.js) and the table of pivotkit-core/import.
+ * The most each part may be, gzip, in KiB, with a little room: the descriptor, and the reader with
+ * read-excel-file, fflate's inflate, the XML guard (xml.js) and the table of pivotkit-core/import.
+ * Measured 0.2 and 30.6 on a Mac, Node 26, when set; the reader 31.4 after the count of shared
+ * strings and formats and the markup inside rows (#237, #238), and CI's Node 24 measures about
+ * 0.2 KiB more than Node 26, so the reader's budget went from 31.5 to 32.
  */
-export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 31.5 };
+export const SIZE_BUDGET_KIB = { plugin: 0.5, reader: 32 };
 
 /** @type {import("esbuild").BuildOptions} */
 export const options = {

@@ -178,10 +178,14 @@ unpacked size at its peak). What is kept costs a few times its size, as for any 
 read-excel-file keeps an entry for each shared string and each cell or number format, which costs
 about 100 bytes even for a string of one letter. Of the shared strings, pivotkit-xlsx keeps only
 those up to the highest one a cell of the sheet names (strings that only other sheets use are left
-out), and it counts the strings and formats it keeps against `importCells` (plus 1,000 rows for a
-title block): more stop the read with `LIMIT_EXCEEDED`, so they cost no more than a table at that
-limit. A comment, CDATA section or processing instruction in a row is skipped as the parser skips
-it. Measured with Node 26 on an Apple M4, peak memory of the whole process (approximate; machines
+out), and it counts the strings and formats it keeps, together and with a namespace prefix too,
+against `importCells` (plus 1,000 rows for a title block): more stop the read with `LIMIT_EXCEEDED`,
+so they cost no more than a table at that limit. Shared strings are numbered across the whole
+workbook, so a small sheet whose cell names a string past that limit (a workbook whose other sheets
+hold millions of strings) is refused too. When the sheet names its strings in a way the filter does
+not read (a prefix, a value that is no plain number), all strings are kept, up to the same limit. A
+comment, CDATA section or processing instruction in a row or in the shared strings is skipped as the
+parser skips it. Measured with Node 26 on an Apple M4, peak memory of the whole process (approximate; machines
 differ):
 
 | Workbook | Unpacked | Time | Memory |
@@ -190,9 +194,9 @@ differ):
 | 105 KB, whitespace before, in and after the rows, in a tag, in shared strings | 100 MiB | 0.4 to 0.8 s | about 190 to 310 MB |
 | 257 KB, 6 million one-letter shared strings, a sheet of two cells | 100 MiB | 0.3 s | about 120 MB |
 | 1.3 MB, 30 million one-letter shared strings, a sheet of two cells | 495 MiB | 1.3 s | about 120 MB |
-| 455 KB, 11 million one-letter shared strings, a cell naming the last one | 178 MiB | 4 s | about 1 GB |
+| 455 KB, 11 million one-letter shared strings, a cell naming the last one | 178 MiB | 5 to 8 s | about 1 GB |
 | 81 KB, 11 million cell formats (`<xf/>`) | 52 MiB | 2 s | about 1.3 GB |
-| 1.3 MB, 30 million one-letter shared strings, a cell naming the last one | 495 MiB | refused after 2 s | about 300 MB |
+| 1.3 MB, 30 million one-letter shared strings, a cell naming the last one | 495 MiB | refused after 2 to 3 s | about 300 MB |
 
 The last three are what the defaults still allow: lowering `importCells` lowers them in proportion.
 For workbooks from people you do not trust, lower `unpackedBytes` and `importCells` to what your
