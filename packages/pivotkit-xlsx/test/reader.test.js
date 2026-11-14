@@ -676,3 +676,25 @@ test("a sheet named as the shared strings or the styles of its workbook is refus
         await rejects(read(fileOf(rebuild(base, { "xl/_rels/workbook.xml.rels": rels(type) }))), "DAMAGED", (e) => /missing or not a sheet/.test(e.message));
     }
 });
+
+test("the report says this refusal of shared strings and formats in its own words, by details.what (issue #325)", async () => {
+    // pivotkit-react's texts of loading data, as the report shows a reader's error
+    const { de, en, errorText } = await import("../../pivotkit-react/src/import-labels.js");
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const limits = { importCells: 1_000, columns: 10 };
+    const strings = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), {
+        "xl/worksheets/sheet1.xml": strToU8(`<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s"><v>11999</v></c></row></sheetData></worksheet>`),
+        "xl/sharedStrings.xml": strToU8(`<sst ${NS}>${"<si><t>x</t></si>".repeat(12_000)}</sst>`)
+    });
+    // a workbook taken by its media type, without an extension in its name
+    const file = new File([strings], "export", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const error = await readFile(file, { plugins: [xlsxReader], limits }).catch((e) => e);
+    assert.equal(error.code, "LIMIT_EXCEEDED", String(error));
+    assert.equal(error.details.limit, "importCells");
+    assert.equal(errorText(error, "export", en, { lang: "en", locale: "en-US" }), "it has more than 11,000 different texts and formats (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(error, "export", de, { lang: "de", locale: "de-DE" }), "sie hat mehr als 11.000 verschiedene Texte und Formate (limits.importCells): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    // a sheet whose values span too much stays rows x columns
+    const wide = await read(fileOf(makeXlsx({ sheets: [{ name: "S", rows: Array.from({ length: 1_200 }, (_, r) => Array.from({ length: 10 }, (_, c) => r * 10 + c)) }] })), { limits }).catch((e) => e);
+    assert.equal(wide.details?.limit, "importCells", String(wide));
+    assert.equal(errorText(wide, "book.xlsx", en, { lang: "en", locale: "en-US" }), "it has more than 11,000 values (rows x columns) (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+});
