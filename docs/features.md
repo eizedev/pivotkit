@@ -16,7 +16,8 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 - People drop a CSV, TSV, JSON or Excel file onto the report or pick it under **Data**: a preview
   shows the first rows with a type under each column (change it there), the sheet of a workbook,
   and notes on what was read how; Undo and **Back to original data** bring the application's data
-  back; views remember the file they were made for ([load your own data](use/load-data.md)).
+  back; views remember the file they were made for, and on a workbook its sheet: a view of another
+  sheet reads that sheet when it is opened ([load your own data](use/load-data.md#after-loading)).
 - Read right: encodings, separators, title lines above the header, German and English numbers and
   dates, leading zeros kept ("01067"), long identifiers kept as text ([loading files](reference/import.md)).
 - Developers: `allowImport` (off by default), `plugins` ([pivotkit-xlsx](reference/plugins.md#pivotkit-xlsx)
@@ -144,7 +145,8 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
   ([reports in code](getting-started/report.md), [pivotkit-report](reference/report.md),
   [print template](reference/print-template.md)).
 - `pivotkit-cli`: `pivotkit example`, `render`, `validate` and `describe`, with exit codes, `--json`,
-  messages that say what to fix, shell completion and safe file handling; offline
+  messages that say what to fix, the sheet of a workbook a view names (`describe` lists a workbook's
+  sheets), shell completion and safe file handling; offline
   ([command line](getting-started/cli.md), [pivotkit-cli](reference/cli.md)).
 - For programs and reviews: `validate` with "did you mean" hints, `describeSource` and `describeView`
   in plain words ([views](concepts/views.md)).
