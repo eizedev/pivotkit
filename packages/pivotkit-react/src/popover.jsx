@@ -147,8 +147,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             const r = a.getBoundingClientRect();
             // its own width (max-content, styles.css), whatever room its last place left it: a size
             // measured at that place would narrow it a little on every placement
-            const size = { width: el.offsetWidth, height: el.scrollHeight };
-            placedHeight = size.height;
+            const size = { width: el.offsetWidth, height: (placedHeight = el.scrollHeight) };
             const viewport = viewportOf(el.ownerDocument);
             // a level opening in a menu does not move it to the anchor's other side
             const place = keepPlace(last, placePopover(r, size, viewport, align, { fill }), r, size, viewport);
@@ -172,7 +171,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         let rect = anchor.current?.getBoundingClientRect();
         const follow = () => {
             const next = anchor.current?.getBoundingClientRect();
-            if ((next && rect && (next.x !== rect.x || next.y !== rect.y || next.width !== rect.width || next.height !== rect.height)) || (ref.current && ref.current.scrollHeight !== placedHeight)) {
+            if ((next && rect && (next.x !== rect.x || next.y !== rect.y || next.width !== rect.width || next.height !== rect.height)) || ref.current?.scrollHeight !== placedHeight) {
                 place();
             }
             rect = next;
@@ -184,11 +183,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         // a scroll of the page or of a box around the anchor moves the anchor; one inside the popover
         // (its list, a level) does not, and placing the popover then would move it under the pointer
         // between the press and the release of a click (#222)
-        const onScroll = (/** @type {Event} */ e) => {
-            if (!(e.target instanceof Node && ref.current?.contains(e.target))) {
-                place();
-            }
-        };
+        const onScroll = (/** @type {Event} */ e) => ref.current?.contains(/** @type {Node} */ (e.target)) || place();
         window.addEventListener("resize", place);
         window.addEventListener("scroll", onScroll, true);
         return () => {
