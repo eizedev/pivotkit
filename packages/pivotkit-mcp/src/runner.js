@@ -4,28 +4,22 @@
  * expose and exits. The flags are one table (FLAGS): the parser and the help are made from it.
  */
 
-import { ConfigError, flagLines, optionsFrom as sharedOptionsFrom } from "pivotkit-server";
+import { ConfigError, SHARED_FLAGS, flagLines, httpFlags, optionsFrom as sharedOptionsFrom } from "pivotkit-server";
 import { VERSION, createMcpContext } from "./context.js";
 
-/** @type {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, value?: string, text: string }>>} */
+/** @type {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }>>} */
 export const FLAGS = Object.freeze({
     config: { type: "string", value: "file", text: "The configuration file (JSON); default $PIVOTKIT_MCP_CONFIG." },
-    source: { type: "string", multiple: true, value: "id=file", text: "A source: its id and a CSV, TSV, JSON or XLSX file (may be given more than once)." },
+    source: SHARED_FLAGS.source,
     "allow-dir": { type: "string", multiple: true, value: "dir", text: 'Let the model read data files in this directory by path ("file:..."); may be given more than once.' },
     "list-files": { type: "boolean", text: "List the data files of the allowed directories in list_sources." },
-    output: { type: "string", value: "dir", text: "Write reports and drafts into this directory." },
+    output: SHARED_FLAGS.output,
     http: { type: "boolean", text: "Serve Streamable HTTP instead of stdio." },
-    host: { type: "string", value: "address", text: "HTTP: the address to listen on (default 127.0.0.1)." },
-    port: { type: "string", value: "n", text: "HTTP: the port (default 3333)." },
-    "public-url": { type: "string", value: "url", text: "HTTP: the server's address as clients reach it (behind a proxy)." },
-    auth: { type: "string", value: "mode", text: "HTTP: none, token or oauth (oauth settings are in the configuration file)." },
-    "allow-unauthenticated": { type: "boolean", text: "HTTP: allow auth none on an address other than loopback." },
-    "allow-host": { type: "string", multiple: true, value: "name", text: "HTTP: a host name clients use (besides localhost and the public URL's)." },
-    "allow-origin": { type: "string", multiple: true, value: "name", text: "HTTP: a browser origin's host name allowed to call (none by default)." },
-    log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
-    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable)." },
+    ...httpFlags("HTTP: "),
+    log: SHARED_FLAGS.log,
+    "check-config": SHARED_FLAGS["check-config"],
     version: { type: "boolean", short: "v", text: "Print the version and exit." },
-    help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    help: SHARED_FLAGS.help
 });
 
 /** The help text, from the table. */

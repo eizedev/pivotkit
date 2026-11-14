@@ -93,12 +93,25 @@ test("schedule drafts take at most half of output.maxFiles: more are refused, re
         assert.equal(second.status, 409, JSON.stringify(second.data));
         assert.equal(second.data.code, "NO_OUTPUT");
         assert.match(second.data.detail, /schedule drafts awaiting approval, the most it may/);
+        assert.match(second.data.detail, /output\.maxAgeDays/, "the hint names what the operator can set");
         for (let i = 0; i < 4; i++) {
             assert.equal((await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } })).status, 200);
         }
         assert.equal(reports(out).filter((n) => n.endsWith(".report.json")).length, 1);
     } finally {
         await server.close();
+    }
+    // output.maxFiles 1 leaves no room for a draft: it is refused, and a render is never blocked by one
+    const one = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxFiles: 1 }, baseDir: workspace() });
+    try {
+        const refused = await call(`${one.api}/schedules/draft`, { body: { source: "sales", view: BY_REGION, name: "Only", formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Sales team"] } });
+        assert.equal(refused.status, 409, JSON.stringify(refused.data));
+        assert.match(refused.data.detail, /output\.maxFiles 1 leaves no room for drafts/);
+        for (let i = 0; i < 2; i++) {
+            assert.equal((await call(`${one.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } })).status, 200);
+        }
+    } finally {
+        await one.close();
     }
 });
 

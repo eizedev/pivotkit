@@ -88,19 +88,21 @@ async function staticTokens(auth, env, options, tokenEnv) {
     const list = auth.tokens?.length ? auth.tokens : [{ name: "token", env: tokenEnv }];
     const out = [];
     for (const t of list) {
+        // the one token of the variable has no name of its own ("token" in the log): a message names the variable only
+        const which = auth.tokens?.length ? `the token "${t.name}"` : "the token";
         const read = t.env ? async () => env[t.env] ?? "" : async () => (await readFile(pathOf(options, /** @type {string} */ (t.file)), "utf8").catch(() => "")).trim();
         const value = await read();
         if (t.file && value.length < TOKEN_MIN) {
             const why = await readFile(pathOf(options, t.file), "utf8").then(() => null, (e) => e?.code);
             if (why === "EACCES") {
-                throw new ConfigError(`auth: the token "${t.name}" (${t.file}) cannot be read: permission denied for the user ${process.getuid?.() ?? ""} the server runs as (in the container image: 10001)`);
+                throw new ConfigError(`auth: ${which} (${t.file}) cannot be read: permission denied for the user ${process.getuid?.() ?? ""} the server runs as (in the container image: 10001)`);
             }
         }
         if (value.length < TOKEN_MIN) {
-            throw new ConfigError(`auth: the token "${t.name}" (${t.env ? `$${t.env}` : "its file"}) is missing or shorter than ${TOKEN_MIN} characters; make one with: ${MAKE_TOKEN}`);
+            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) is missing or shorter than ${TOKEN_MIN} characters; make one with: ${MAKE_TOKEN}`);
         }
         if (!TOKEN_SYNTAX.test(value)) {
-            throw new ConfigError(`auth: the token "${t.name}" (${t.env ? `$${t.env}` : "its file"}) ${TOKEN_SYNTAX_TEXT}; make one with: ${MAKE_TOKEN}`);
+            throw new ConfigError(`auth: ${which} (${t.env ? `$${t.env}` : "its file"}) ${TOKEN_SYNTAX_TEXT}; make one with: ${MAKE_TOKEN}`);
         }
         out.push({ name: t.name, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? read : async () => value });
     }
