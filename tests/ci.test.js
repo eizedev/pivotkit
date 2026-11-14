@@ -247,7 +247,7 @@ function jobOf(file, job) {
     const text = readFileSync(new URL(file, root), "utf8");
     const start = text.indexOf(`\n  ${job}:\n`);
     assert.ok(start !== -1, `${file} has no job ${job}`);
-    const next = text.slice(start + 1).search(/\n  [a-z-]+:\n/);
+    const next = text.slice(start + 1).search(/\n {2}[a-z-]+:\n/);
     return next === -1 ? text.slice(start) : text.slice(start, start + 1 + next);
 }
 
