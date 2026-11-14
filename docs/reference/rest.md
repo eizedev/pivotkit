@@ -306,7 +306,7 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
-| `output.maxAgeDays` | none | Delete reports and drafts (`.xlsx`, `.html`, `.csv`, `.json`, `.svg`) older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory holds a source file, a token file or the configuration file |
+| `output.maxAgeDays` | none | Delete reports and drafts (`.xlsx`, `.html`, `.csv`, `.json`, `.svg`) older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`

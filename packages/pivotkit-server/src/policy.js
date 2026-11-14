@@ -58,9 +58,18 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined) {
     const pick = (key) => profile?.[key] ?? source?.[key] ?? server?.[key] ?? POLICY_DEFAULTS[key];
     /** @type {Map<string, "show" | "summary" | "hide">} */
     const fields = new Map();
+    // the source's rules override the server's; two names of one part that match the same field
+    // ("Customer Name" and "customer  name") keep the stricter level, whichever comes last
+    const strictness = { show: 0, summary: 1, hide: 2 };
     for (const part of [server?.fields, source?.fields]) {
+        const own = new Map();
         for (const [name, level] of Object.entries(part ?? {})) {
-            fields.set(fieldKey(name), level);
+            const key = fieldKey(name);
+            const before = own.get(key);
+            own.set(key, before !== undefined && strictness[before] > strictness[level] ? before : level);
+        }
+        for (const [key, level] of own) {
+            fields.set(key, level);
         }
     }
     let level = source?.default ?? server?.default ?? POLICY_DEFAULTS.default;

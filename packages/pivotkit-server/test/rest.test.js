@@ -421,15 +421,20 @@ test("output.maxAgeDays refuses an output directory that holds a source, a token
     const cases = [
         { output: { dir: "data", maxAgeDays: 1 } },
         { output: { dir: ".", maxAgeDays: 1 } },
-        { output: { dir: "out", maxAgeDays: 1 }, extra: "token" }
+        { output: { dir: "out", maxAgeDays: 1 }, extra: "token" },
+        { output: { dir: "out", maxAgeDays: 1 }, extra: "template" }
     ];
     for (const { output, extra } of cases) {
         const tokens = extra === "token" ? { auth: { mode: "token", tokens: [{ name: "t", file: "out/token.txt" }] } } : {};
+        const template = extra === "template" ? "out/print.html" : undefined;
+        if (template) {
+            writeFileSync(join(dir, template), "<!doctype html><title>{{title}}</title>{{table}}");
+        }
         if (extra === "token") {
             writeFileSync(join(dir, "out", "token.txt"), "a-test-token-that-is-long-enough-0123456789");
         }
         // a server that starts anyway is closed, so a failing case does not keep the test running
-        const started = restServer({ sources: { sales: { file: "data/sales.csv" } }, output, baseDir: dir, ...tokens });
+        const started = restServer({ sources: { sales: { file: "data/sales.csv", ...(template ? { template } : {}) } }, output, baseDir: dir, ...tokens });
         started.then((s) => s.close(), () => undefined);
         await assert.rejects(started, (e) => /output\.dir/.test(e.message) && /maxAgeDays/.test(e.message), JSON.stringify(output));
     }
@@ -437,4 +442,15 @@ test("output.maxAgeDays refuses an output directory that holds a source, a token
     // without maxAgeDays nothing is deleted, so a shared directory stays allowed
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data" }, baseDir: dir });
     await server.close();
+});
+
+test("two rules of one policy that name the same field keep the stricter level, whichever comes last", async () => {
+    const dir = workspace({ "sales.csv": "Region,Customer Name,Sales\nNorth,Alice Example,10\n" });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { "Customer Name": "hide", "customer  name": "show" } } } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        const res = await call(`${server.api}/sources/sales`);
+        assert.deepEqual(res.data.fields.map((f) => f.name), ["Region", "Sales"]);
+    } finally {
+        await server.close();
+    }
 });
