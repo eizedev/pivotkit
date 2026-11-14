@@ -12,12 +12,13 @@ import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
 import { LIMITS, OUTSIDE_LIMITS, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, validate } from "pivotkit-core";
-import { readFile } from "pivotkit-core/import";
+import { IMPORT_TYPES, readFile, retype } from "pivotkit-core/import";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "pivotkit-report";
 import xlsxReader from "pivotkit-xlsx";
 import { COMMANDS, SHELLS, optionsOf } from "./commands.js";
 import { CliError, asCliError, printable, shortName } from "./errors.js";
+import { examples, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 
@@ -176,7 +177,7 @@ export async function main(argv, io) {
         }
         checkValues(values, fromEnv);
         const ctx = await context(values, io);
-        const outcome = command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
+        const outcome = command === "render" ? await renderCommand(positionals, values, ctx) : command === "validate" ? await validateCommand(positionals, values, ctx) : command === "example" ? await exampleCommand(positionals, values, ctx) : await describeCommand(positionals, values, ctx);
         findings = outcome.findings;
         const failing = findings.filter((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
         const exitCode = failing.length > 0 ? 1 : 0;
@@ -307,6 +308,52 @@ async function readData(values, ctx) {
     }
 }
 
+/**
+ * The fields a view file lists with their types (source.fields), or none: a view as JSON or a link
+ * lists none.
+ * @param {unknown} view  the view's text, or a view read from a link
+ * @returns {Array<{ name: string, type: string }>}
+ */
+function viewFields(view) {
+    const read = fromViewFile(typeof view === "string" ? view : JSON.stringify(view));
+    return read.failed ? [] : (read.source?.fields ?? []);
+}
+
+/**
+ * The data with the types its view file lists for its columns: a CSV cannot say that "2025" is text
+ * or that a column of "true" is no boolean, a view file written with the data can. Only a column the
+ * reader read as another type is read again (pivotkit-core/import's retype), each an info finding so
+ * --json says why; a type that a value of the column does not fit is not applied (a view file made
+ * for other data must not blank a column): the column stays as read, with a warning.
+ * @param {Awaited<ReturnType<typeof readData>>} data
+ * @param {Array<{ name: string, type: string }>} fields
+ */
+function withViewTypes(data, fields) {
+    if (!data || !fields.length) {
+        return data;
+    }
+    const byName = new Map(data.table.columns.map((name, c) => [String(name).toLowerCase(), c]));
+    let table = data.table;
+    const findings = [];
+    for (const f of fields) {
+        const c = byName.get(String(f.name).toLowerCase());
+        if (c === undefined || !IMPORT_TYPES.includes(/** @type {any} */ (f.type)) || table.types[c] === f.type) {
+            continue;
+        }
+        const name = table.columns[c];
+        const next = retype(table, { [name]: /** @type {any} */ (f.type) });
+        const raw = table.raw[c];
+        const lost = raw.findIndex((v, i) => v !== null && v !== "" && (next.data[c][i] === null || next.data[c][i] === undefined));
+        if (lost >= 0) {
+            findings.push({ severity: "warning", code: "typeFromViewFailed", path: "", message: printable(`${data.name}: "${name}" is ${f.type} in the view file, but its value ${JSON.stringify(String(raw[lost]))} (row ${lost + 1}) is none; read as ${table.types[c]}`) });
+            continue;
+        }
+        table = next;
+        findings.push({ severity: "info", code: "typeFromView", path: "", message: printable(`${data.name}: "${name}" read as ${f.type}, the type the view file lists for it`) });
+    }
+    return findings.length ? { ...data, table, notes: [...data.notes, ...findings] } : data;
+}
+
 /** The render options common to the commands. */
 const renderBase = (ctx) => ({ ...(ctx.locale ? { locale: ctx.locale } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(ctx.now ? { now: ctx.now } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
 
@@ -344,7 +391,7 @@ async function renderCommand(positionals, values, ctx) {
         throw new CliError("usage", "BINARY_TO_TERMINAL", "an XLSX file is not shown in a terminal: write it to a file with -o, or redirect stdout");
     }
     const view = await readView(positionals, values, ctx);
-    const data = await readData(values, ctx);
+    const data = withViewTypes(await readData(values, ctx), viewFields(view.view));
     if (!data) {
         throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file> or --data -");
     }
@@ -394,9 +441,49 @@ async function renderCommand(positionals, values, ctx) {
     return { findings, extra, note: extra.output === null ? "nothing written: the view has errors (--lenient writes it as the report shows it)" : null };
 }
 
+/**
+ * pivotkit example [name] [--list]: the example's files written into the working directory (the
+ * default example without a name), what each one is and what to run next (stderr); --list names them
+ * all (stdout) and writes nothing.
+ */
+async function exampleCommand(positionals, values, ctx) {
+    if (positionals.length > 1) {
+        throw new CliError("usage", "EXTRA_ARGUMENT", `example takes one name, not ${positionals.length}`);
+    }
+    const all = examples();
+    if (values.list) {
+        if (!values.json) {
+            const width = Math.max(...all.map((e) => e.name.length));
+            const lines = all.map((e) => `  ${e.name.padEnd(width)}  ${e.text}${e.default ? " (the default)" : ""}\n  ${" ".repeat(width)}  ${e.files.join(", ")}`);
+            ctx.io.stdout.write(`Examples (pivotkit example <name> writes one into this directory):\n${lines.join("\n")}\n`);
+        }
+        return { findings: [], extra: { examples: all.map((e) => ({ name: e.name, text: e.text, files: e.files, default: Boolean(e.default), ...(e.credit ? { credit: e.credit } : {}) })) } };
+    }
+    const name = positionals[0] ?? all.find((e) => e.default)?.name ?? all[0].name;
+    const example = all.find((e) => e.name === name);
+    if (!example) {
+        throw new CliError("usage", "UNKNOWN_EXAMPLE", `no example ${printable(JSON.stringify(name))}${didYouMean(name, all.map((e) => e.name))}; run "pivotkit example --list"`);
+    }
+    const written = await writeExample(example, { cwd: ctx.io.cwd, allow: ctx.allow });
+    const width = Math.max(...written.map((f) => f.length));
+    const views = example.files.filter((f) => f.endsWith(".pivotkit.json"));
+    const next = [tryLine(example), ...views.slice(1).map((v) => `pivotkit validate ${v} --data ${example.data} --strict`), `pivotkit describe ${example.data}`];
+    const others = all.filter((e) => e !== example).map((e) => e.name);
+    const note = [
+        `Wrote ${written.length} files into this directory:`,
+        ...written.map((f) => `  ${f.padEnd(width)}  ${example.about?.[f] ?? ""}`.trimEnd()),
+        "Next:",
+        `  ${next[0]}    (an HTML report: open it in a browser)`,
+        ...next.slice(1).map((line) => `  ${line}`),
+        ...(example.credit ? [`Data: ${example.credit}`] : []),
+        ...(others.length ? [`Other examples: ${others.map((n) => `pivotkit example ${n}`).join(", ")}`] : [])
+    ].join("\n");
+    return { findings: [], extra: { example: example.name, written, next, ...(example.credit ? { credit: example.credit } : {}) }, note };
+}
+
 async function validateCommand(positionals, values, ctx) {
     const view = await readView(positionals, values, ctx);
-    const data = await readData(values, ctx);
+    const data = withViewTypes(await readData(values, ctx), viewFields(view.view));
     const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
     if (read.failed) {
         return { findings: [{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], extra: { valid: false } };
@@ -444,7 +531,7 @@ async function describeCommand(positionals, values, ctx) {
         if (read.failed) {
             return { findings: [{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], extra: { kind } };
         }
-        const data = await readData(values, ctx);
+        const data = withViewTypes(await readData(values, ctx), read.source?.fields ?? []);
         if (!data && !read.source?.fields?.length) {
             throw new CliError("usage", "MISSING_DATA", "describing a view needs its data (--data) or a view file that lists its fields (source.fields)");
         }

@@ -327,3 +327,41 @@ test("a reader's limit error is a limit: LIMIT_EXCEEDED, and INVALID_FILE with r
     const damaged = asCliError(new PivotkitError("INVALID_FILE", '"book.xlsx": damaged', { reason: "DAMAGED", file: "book.xlsx" }), "book.xlsx");
     assert.deepEqual([damaged.kind, damaged.code], ["io", "DAMAGED"]);
 });
+
+test("a view file's field types decide how a CSV column is read: text that looks like a number stays text", async () => {
+    const dir = tempDir();
+    // product codes of text, as a host's data had them; a CSV cannot say so, the view file can
+    writeFileSync(join(dir, "data.csv"), "Code,Units\n1e3,3\n2e3,4\n2e3,5\n");
+    const file = { format: "pivotkit-view", formatVersion: 2, name: "Units per code", source: { fields: [{ name: "code", type: "string" }, { name: "Units", type: "number" }] }, view: { rows: ["Code"], values: [{ field: "Units", agg: "sum" }] } };
+    writeFileSync(join(dir, "view.pivotkit.json"), JSON.stringify(file));
+    const r = await run(["render", "view.pivotkit.json", "--data", "data.csv", "-f", "csv", "--strict", "--json", "-o", "out.csv"], { cwd: dir });
+    assert.equal(r.code, 0, r.stdout);
+    assert.equal(readFileSync(join(dir, "out.csv"), "utf8").replace(/^\uFEFF/, ""), "Code,Sum of Units\r\n1e3,3\r\n2e3,9\r\nGrand Total,12\r\n");
+    // said in --json as an info finding, so a script sees why the column was read so
+    const note = JSON.parse(r.stdout).findings.find((f) => f.code === "typeFromView");
+    assert.equal(note?.severity, "info");
+    assert.match(note.message, /Code/);
+    // validate reads the data the same way
+    assert.equal((await run(["validate", "view.pivotkit.json", "--data", "data.csv", "--strict"], { cwd: dir })).code, 0);
+    // without the types the codes are the numbers 1000 and 2000
+    delete file.source;
+    writeFileSync(join(dir, "plain.json"), JSON.stringify(file));
+    const plain = await run(["render", "plain.json", "--data", "data.csv", "-f", "csv", "--strict"], { cwd: dir });
+    assert.equal(plain.stdout, "Code,Sum of Units\r\n1000,3\r\n2000,9\r\nGrand Total,12\r\n");
+});
+
+test("a view file's type that the data's values do not fit is not applied: a warning, the column as read", async () => {
+    const dir = tempDir();
+    // a view file made for other data: its "Units" are numbers, these are words
+    writeFileSync(join(dir, "data.csv"), "Region,Units\nNorth,many\nSouth,few\n");
+    const file = { format: "pivotkit-view", formatVersion: 2, name: "Count", source: { fields: [{ name: "Region", type: "string" }, { name: "Units", type: "number" }] }, view: { rows: ["Units"], values: [{ field: "Region", agg: "count" }] } };
+    writeFileSync(join(dir, "view.pivotkit.json"), JSON.stringify(file));
+    const r = await run(["render", "view.pivotkit.json", "--data", "data.csv", "-f", "csv", "--json", "-o", "out.csv"], { cwd: dir });
+    assert.equal(r.code, 0, r.stdout);
+    const warning = JSON.parse(r.stdout).findings.find((f) => f.code === "typeFromViewFailed");
+    assert.equal(warning?.severity, "warning");
+    assert.match(warning.message, /"Units".*number.*many/);
+    // the values stay: never blanked by a type that does not fit
+    assert.match(readFileSync(join(dir, "out.csv"), "utf8"), /many,1/);
+    assert.equal((await run(["render", "view.pivotkit.json", "--data", "data.csv", "-f", "csv", "--strict"], { cwd: dir })).code, 1);
+});

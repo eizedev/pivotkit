@@ -21,7 +21,10 @@ const exportPaths = Object.values(pkg.exports).flatMap((target) => (typeof targe
 const BUNDLED_LICENSES = { "pivotkit-element": ["dist/THIRD_PARTY_LICENSES.txt"], "pivotkit-xlsx": ["dist/index.js", "dist/THIRD_PARTY_LICENSES.txt"] };
 // a command-line package ships the files of its commands
 const binPaths = typeof pkg.bin === "string" ? [pkg.bin] : Object.values(pkg.bin ?? {});
-const required = ["LICENSE", "README.md", "CHANGELOG.md", "package.json", ...exportPaths.map((p) => p.replace(/^\.\//, "")), ...binPaths.map((p) => p.replace(/^\.\//, "")), ...(BUNDLED_LICENSES[workspace] ?? [])];
+// the CLI ships its examples (pivotkit example): examples.json and every file it lists, a CSV gzipped
+const examples = workspace === "pivotkit-cli" ? JSON.parse(readFileSync(new URL("../packages/pivotkit-cli/examples/examples.json", import.meta.url), "utf8")).examples : [];
+const exampleFiles = examples.length ? ["examples/examples.json", ...examples.flatMap((e) => e.files.map((f) => `examples/${f}${f.endsWith(".csv") ? ".gz" : ""}`))] : [];
+const required = ["LICENSE", "README.md", "CHANGELOG.md", "package.json", ...exportPaths.map((p) => p.replace(/^\.\//, "")), ...binPaths.map((p) => p.replace(/^\.\//, "")), ...(BUNDLED_LICENSES[workspace] ?? []), ...exampleFiles];
 const forbidden = /^(test|bench|scripts)\/|^tsconfig\.json$|^node_modules\//;
 
 // a package marked private cannot be published: npm publish stops with EPRIVATE

@@ -34,6 +34,12 @@ console.log("docs/schema/: the view file schema of pivotkit-core");
 await copyFile(new URL("assets/social-preview.png", root), new URL("docs/assets/social-preview.png", root));
 console.log("docs/assets/social-preview.png: the social preview");
 
+// the example files with stable addresses (https://pivotkit.eize.dev/assets/examples/sales.csv): the
+// data and views `pivotkit example` writes, built from the playground's data (scripts/examples.js)
+const { buildExamples, writeExamples } = await import("./examples.js");
+await writeExamples(new URL("docs/assets/examples/", root), await buildExamples());
+console.log("docs/assets/examples/: the example data and views");
+
 // every page may be crawled; the sitemap is the one Zensical writes
 await writeFile(new URL("docs/robots.txt", root), `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl()}/sitemap.xml\n`);
 console.log("docs/robots.txt: points at the sitemap");

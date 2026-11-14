@@ -1,0 +1,38 @@
+{
+  "examples": [
+    {
+      "name": "sales",
+      "text": "Generated sales, 2,000 rows: revenue by region and category, and a monthly chart",
+      "files": [
+        "sales.csv",
+        "sales.pivotkit.json",
+        "sales-chart.pivotkit.json"
+      ],
+      "data": "sales.csv",
+      "view": "sales.pivotkit.json",
+      "about": {
+        "sales.csv": "the data: 2,000 rows of generated sales, as the report's Export → Source data writes it",
+        "sales.pivotkit.json": "a view: Revenue by region and category (a table)",
+        "sales-chart.pivotkit.json": "a view: Monthly revenue trend (a line chart)"
+      },
+      "default": true
+    },
+    {
+      "name": "weather",
+      "text": "Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month",
+      "files": [
+        "weather.csv",
+        "weather.pivotkit.json",
+        "weather-SOURCE.txt"
+      ],
+      "data": "weather.csv",
+      "view": "weather.pivotkit.json",
+      "about": {
+        "weather.csv": "the data: 15,344 days of 14 cities, as the playground's Export → Source data writes it",
+        "weather.pivotkit.json": "a view: How warm is each city, month by month? (the playground's start)",
+        "weather-SOURCE.txt": "where the data comes from and its licence (CC BY 4.0): keep it with the data"
+      },
+      "credit": "Weather data by Open-Meteo.com (https://open-meteo.com/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data."
+    }
+  ]
+}

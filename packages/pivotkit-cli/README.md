@@ -17,8 +17,9 @@ Node 22 or later. It brings pivotkit-core, pivotkit-report, pivotkit-xlsx and EC
 ## Example
 
 ```bash
-pivotkit render sales.pivot.json --data sales.csv -o sales.html --now 2026-11-13
-pivotkit validate sales.pivot.json --data sales.csv --strict --json
+pivotkit example            # sales.csv, sales.pivotkit.json and sales-chart.pivotkit.json here
+pivotkit render sales.pivotkit.json --data sales.csv -o sales.html --now 2026-11-13
+pivotkit validate sales.pivotkit.json --data sales.csv --strict --json
 pivotkit describe sales.csv
 ```
 

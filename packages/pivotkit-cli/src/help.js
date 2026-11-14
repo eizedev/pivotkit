@@ -3,6 +3,7 @@
  */
 
 import { COMMANDS, GLOBAL_OPTIONS, SHELLS, optionsOf } from "./commands.js";
+import { exampleNames } from "./examples.js";
 
 /** One option as the help writes it: "-o, --output <file>". */
 function optionLine(name, spec) {
@@ -63,7 +64,8 @@ export function completionScript(shell) {
                         return `        ${flags}) ${reply}; return 0 ;;`;
                     })
                     .join("\n");
-                const arg = c.args[0]?.complete === "shell" ? `compgen -W ${sh(SHELLS.join(" "))} -- "$cur"` : c.args[0]?.complete === "command" ? `compgen -W ${sh(names)} -- "$cur"` : 'compgen -f -- "$cur"';
+                const words = { shell: SHELLS.join(" "), command: names, example: exampleNames().join(" ") }[c.args[0]?.complete ?? ""];
+                const arg = words !== undefined ? `compgen -W ${sh(words)} -- "$cur"` : 'compgen -f -- "$cur"';
                 return `    ${c.name})\n      case "$prev" in\n${values || "        *) ;;"}\n      esac\n      if [[ "$cur" == -* ]]; then COMPREPLY=( $(compgen -W ${sh(opts)} -- "$cur") ); else COMPREPLY=( $(${arg}) ); fi ;;`;
             })
             .join("\n");
@@ -81,6 +83,7 @@ export function completionScript(shell) {
                 lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -l ${o.name}${o.short ? ` -s ${o.short}` : ""}${values}`);
             }
             if (c.args[0]?.complete === "shell") lines.push(`complete -c pivotkit -n ${sh("__fish_seen_subcommand_from completion")} -a ${sh(SHELLS.join(" "))}`);
+            if (c.args[0]?.complete === "example") lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -a ${sh(exampleNames().join(" "))}`);
             if (c.args[0]?.complete === "file") lines.push(`complete -c pivotkit -n ${sh(`__fish_seen_subcommand_from ${c.name}`)} -F`);
         }
         return `${lines.join("\n")}\n`;
@@ -105,6 +108,7 @@ Register-ArgumentCompleter -Native -CommandName pivotkit -ScriptBlock {
         $previous = if ($wordToComplete) { $words[-2] } else { $words[-1] }
         if ($entry.choices.ContainsKey($previous)) { $candidates = $entry.choices[$previous] }
         elseif ($words[1] -eq 'completion') { $candidates = @(${SHELLS.map(ps).join(", ")}) }
+        elseif ($words[1] -eq 'example' -and -not ($wordToComplete -like '-*')) { $candidates = @(${exampleNames().map(ps).join(", ")}) }
         elseif ($wordToComplete -like '-*') { $candidates = $entry.options }
         else { return }
     }
