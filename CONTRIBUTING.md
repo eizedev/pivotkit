@@ -167,9 +167,10 @@ its first release.
    documentation, "Trusted publishers" and "Staged publishing"). An existing trusted publisher
    cannot be changed: add the staging-only one, then delete the one that allows `npm publish`.
    No npm token is stored in GitHub. A new trusted
-   publisher must be used once within two days, or it expires (npm's documentation, "Trusted
-   publishers"), so set it up when the next release is ready. Then set the package's publishing
-   access to "Require two-factor authentication and disallow tokens". The split of the workflow into
+   publisher expires unless it publishes successfully within two days (npm's documentation,
+   "Trusted publishers"); the documentation does not say whether staging counts, so create it when
+   the next release is ready, then tag and approve that release within the two days. Then set the
+   package's publishing access to "Require two-factor authentication and disallow tokens". The split of the workflow into
    a "build" and a "publish" job keeps the OIDC token away from the dependencies; it does not prove
    the tarball: "build" runs the dev dependencies that make `dist/`, and provenance attests the
    workflow and the commit, not that `dist/` is unaltered. "publish" checks only that the tarball's
@@ -219,10 +220,11 @@ For each release:
    only that tarball with an npm provenance attestation (`npm stage publish`), with npm 11.21.1
    (staged publishing needs 11.15.0 or later, trusted publishing Node 22.14.0 or later).
    Approve the staged version with two-factor authentication: in the package's Staged Packages tab
-   on npmjs.com, or `npm stage approve <stage-id>` (the job summary shows the id). No token of the
+   on npmjs.com, or `npm stage approve <stage-id>` (the job summary shows the id if npm prints one). No token of the
    workflow can approve or reject it; until it is approved, the version is not on npm and the next
    tag's `check-release.js --published` fails for it.
-4. Publish a GitHub release for each tag, with a short text and a link to the package's CHANGELOG.
+4. Once the version is approved and on npm, publish a GitHub release for each tag, with a short
+   text and a link to the package's CHANGELOG.
    Publishing a release also publishes the documentation site (`.github/workflows/docs.yml`), not a
    push to main, so the site describes what is on npm. Every release builds the newest release tag
    on main, whichever release started the run, so the releases of several packages cannot leave an

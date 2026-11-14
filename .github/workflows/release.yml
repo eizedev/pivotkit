@@ -140,11 +140,16 @@ jobs:
         # two-factor authentication, which no token of this workflow can do
         run: |
           set -o pipefail
-          npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts | tee stage.log
+          npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts 2>&1 | tee stage.log
+          # npm prints "(staged with id <id>)" when the registry returns one; the summary does not rely on it
+          id="$(grep -o 'staged with id [^)]*' stage.log | head -n 1 | sed 's/^staged with id //' || true)"
           {
             echo "## $TAG is staged on npm, not published"
             echo
-            echo "Approve it with two-factor authentication: in the Staged Packages tab on npmjs.com, or with \`npm stage approve <stage-id>\`."
+            echo "Approve it with two-factor authentication in the Staged Packages tab of ${TAG%@*} on npmjs.com."
+            if [ -n "$id" ]; then
+              echo "Or from the command line: \`npm stage approve $id\`."
+            fi
             echo
             echo '```'
             cat stage.log
