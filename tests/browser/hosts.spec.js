@@ -1,6 +1,7 @@
 // pivotkit-react as hosts load it: its own dist file with React from the page (import map), the
 // React version of the CI job, a host that renders again all the time, and a shadow root.
 import { chips, drag, expect, openZones, test, toolbar } from "./fixtures.js";
+import { HISTORY_LIMIT } from "../../packages/pivotkit-react/src/view-history.js";
 
 const wanted = process.env.PIVOTKIT_REACT === "19" ? /^19\./ : /^18\./;
 
@@ -142,5 +143,34 @@ for (const intermediate of [false, true]) {
         await page.keyboard.press("ControlOrMeta+Shift+z");
         await page.evaluate(() => window.__echoNext());
         await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+    });
+}
+
+// A host that never passes views back (#204): the report waits for at most HISTORY_LIMIT of the views
+// it told, the newest. Seen from outside: the first view told, passed back late, is still an answer
+// while it is among the last HISTORY_LIMIT told (Undo goes on in the report's own steps), and a change
+// from outside once more views were told after it (Undo takes that change back first).
+for (const [told, kept] of [[HISTORY_LIMIT, true], [HISTORY_LIMIT + 1, false]]) {
+    test(`a host that never answers: the first of ${told} views told, passed back, ${kept ? "is still awaited" : "is a change from outside"} #204`, async ({ page }) => {
+        test.setTimeout(120_000);
+        await page.goto("pages/host.html?manualecho");
+        await openZones(page);
+        const views = () => page.evaluate(() => window.__order.filter((o) => o === "view").length);
+        // three steps: A (Country removed), B (Category removed), C (Region removed)
+        for (const [n, field] of [[1, "Country"], [2, "Category"], [3, "Region"]]) {
+            await page.getByRole("button", { name: `Remove ${field}` }).click();
+            await expect.poll(views).toBe(n);
+        }
+        // then Undo and Redo between B and C, each a view told, none of them A again
+        await page.locator(".pk-status").click();
+        for (let n = 4; n <= told; n++) {
+            await page.keyboard.press(n % 2 === 0 ? "ControlOrMeta+z" : "ControlOrMeta+Shift+z");
+            await expect.poll(views).toBe(n);
+        }
+        // the host passes back A, the first view it was told
+        await page.evaluate(() => window.__echoNext());
+        await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+        await page.keyboard.press("ControlOrMeta+z");
+        await expect(page.locator(".pk-toasts")).toContainText(kept ? "Undone: Category removed" : "Undone: change from outside the report");
     });
 }
