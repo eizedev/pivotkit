@@ -183,7 +183,8 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         // a scroll of the page or of a box around the anchor moves the anchor; one inside the popover
         // (its list, a level) does not, and placing the popover then would move it under the pointer
         // between the press and the release of a click (#222)
-        const onScroll = (/** @type {Event} */ e) => ref.current?.contains(/** @type {Node} */ (e.target)) || place();
+        // (a scroll event fired on the window has the window as its target, no node)
+        const onScroll = (/** @type {Event} */ e) => (e.target instanceof Node && ref.current?.contains(e.target)) || place();
         window.addEventListener("resize", place);
         window.addEventListener("scroll", onScroll, true);
         return () => {

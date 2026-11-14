@@ -225,6 +225,22 @@ test.describe("a date's quick choices on dates past today (endoflife, EOL date b
         await expect(menu.getByTestId("quick-rolling")).toBeChecked();
     });
 
+    test("a scroll event of the window itself (no element as its target) still places the open menu, without an error", async ({ page }) => {
+        const errors = [];
+        page.on("pageerror", (e) => errors.push(e.message));
+        await openView(page, "endoflife", view());
+        await chipMenu(page, EOL, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await expect(menu).toBeVisible();
+        // a host page's script may fire one on the window; its target is the window, not a node
+        await page.evaluate(() => window.dispatchEvent(new Event("scroll")));
+        await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(undefined)))));
+        expect(errors).toEqual([]);
+        await expect(menu).toBeVisible();
+        await menu.getByTestId("quick-more").click();
+        await expect(menu.getByTestId("quick-more")).toHaveAttribute("aria-expanded", "true");
+    });
+
     test("counted from a date or the first record: the ranges move with it; the blank dates kept with the choice", async ({ page }) => {
         await openView(page, "endoflife", view());
         await chipMenu(page, EOL, "filter");
