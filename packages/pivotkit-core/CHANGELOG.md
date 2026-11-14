@@ -10,8 +10,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - `dataToCsvParts(data, options)` in `pivotkit-core/export`: the bytes of `dataToCsvBytes` in pieces
   of whole lines, for a Blob; the text is never held whole, so a large file takes about twice its size
-  while it is made, not about five times. `dataToCsv` and `dataToCsvBytes` build their output from the same pieces
-  ([#260](https://github.com/eizedev/pivotkit/issues/260)).
+  while it is made, not about five times. `dataToCsv` and `dataToCsvBytes` build their output from
+  the same pieces ([#260](https://github.com/eizedev/pivotkit/issues/260)).
 - `MAX_DATE_MS` and `isDateMs(ms)`: the range a `Date` holds, exported once for hosts and the other
   packages ([#226](https://github.com/eizedev/pivotkit/issues/226)).
 - `encode`'s `issues` have a `code` and `params`: `columnCase`, `columnCaseValue` (a row with two
