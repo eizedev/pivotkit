@@ -34,6 +34,7 @@ one per operation of the [operation table](report.md#operations):
 | `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works |
 | `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views |
 | `POST /sources/describe` | `describe_source` | The same, with `{ "source": "<id>" }` |
+| `POST /views/suggest` | `suggest_view` | A draft view from the source's fields, with the fields it picked (`picks`); a `layout` replaces the parts it gives |
 | `GET /views/guide` | `get_view_guide` | How to write a view: its keys, the vocabulary, example views |
 | `POST /views/validate` | `validate_view` | Errors and warnings of a view against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) |
 | `POST /views/describe` | `describe_view` | A view in plain parts with the same findings |
@@ -45,7 +46,10 @@ one per operation of the [operation table](report.md#operations):
 A POST takes its input as JSON (`Content-Type: application/json`, at most 2 MiB). The input and the
 answer of each route are in the [OpenAPI document](#openapi). A view with errors is no error: the
 answer is 200 with `ok` or `valid` false and `findings` that say what to fix (the file route answers
-422). `source` is the id of a source the operator configured: files by path (`file:`) are refused
+422). `validate`, `render` and `render/file` take a `layout` instead of a `view`: the view by field names
+(rows, columns, values, groupings), as the command line's layout flags write it
+([layout](report.md#operations)); the answer then holds the `view` it made. `suggest` takes one too,
+whose parts replace those of the draft. `source` is the id of a source the operator configured: files by path (`file:`) are refused
 over REST (`FILES_NOT_ALLOWED`), whatever `files.allowDirs` allows the MCP server.
 
 ```bash

@@ -67,7 +67,7 @@ pivotkit render sales-chart.pivotkit.json --data sales.csv -o trend.html      # 
 pivotkit render sales.pivotkit.json --data sales.csv -o sales.xlsx            # the same as Excel
 ```
 
-`pivotkit example weather` writes the playground's start (daily weather of 14 cities, with its
+`pivotkit example weather` writes the live demo's start (daily weather of 14 cities, with its
 licence in `weather-SOURCE.txt`); `pivotkit example --list` names the examples. It never writes over a
 file: in a directory that has one of its files it writes nothing.
 

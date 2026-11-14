@@ -28,7 +28,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   and "now" the environment sets and whether Intl knows them, the default limits), for bug reports
   and CI logs.
 - `pivotkit example [name]`: writes the data and views of an example into the current directory
-  (default `sales`, generated; `weather`, the playground's start, with `weather-SOURCE.txt`, its
+  (default `sales`, generated; `weather`, the live demo's start, with `weather-SOURCE.txt`, its
   attribution and licence), never over a file there, and says what each file is and what to run
   next; `--list` names them. The files are the playground's data and views as the report downloads
   them; the package ships the data gzipped.

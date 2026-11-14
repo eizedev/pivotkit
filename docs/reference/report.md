@@ -180,4 +180,5 @@ views from a data set's fields.
 `fillTemplate`, `escapeHtml`, `PLACEHOLDERS`, `ATTRIBUTES`, `TEMPLATE_LIMIT`
 ([print template](print-template.md)); `pivotkit-report/operations`: `OPERATIONS`, `OPERATION_NAMES`,
 `OPERATION_ERRORS`, `OperationError`, `VIEW_GUIDE`, `exampleViews`, `findingOf`, `findingText`,
-`FINDING_TEXT` ([operations](#operations)).
+`FINDING_TEXT`, `viewOfLayout`, `LAYOUT_NOTE_SEVERITY`, `checkInput` (an operation's input against its
+JSON Schema) ([operations](#operations)).

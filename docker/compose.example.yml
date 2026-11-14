@@ -1,7 +1,7 @@
 # An example for Docker Compose (docs/reference/container.md): the REST service and the MCP server
 # on 127.0.0.1:3333, data read-only, reports in a volume, tokens as secrets (not environment
 # variables, which `docker inspect` shows; the files must be readable by the user 10001, e.g.
-# chmod 0644 secrets/*). Set PIVOTKIT_VERSION to a release of pivotkit-server.
+# chown 10001 secrets/* with chmod 0400, or chmod 0644 without root). Set PIVOTKIT_VERSION to a release of pivotkit-server.
 services:
   pivotkit:
     image: ghcr.io/eizedev/pivotkit:${PIVOTKIT_VERSION:?set PIVOTKIT_VERSION to a pivotkit-server release, e.g. 0.1}

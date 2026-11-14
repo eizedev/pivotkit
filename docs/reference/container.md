@@ -54,7 +54,8 @@ docker run -d --name pivotkit \
 
 Keep tokens in files (secrets), not in environment variables: `docker inspect` shows a container's
 environment. A secret file is mounted with its owner and mode from the host, so it must be readable
-by the user 10001 (`chmod 0644`, or owned by 10001); `check-config` and the start say so when it is
+by the user 10001: owned by 10001 with `chmod 0400` (`sudo chown 10001 secrets/*`) keeps it from the
+host's other users; `chmod 0644` is the way without root; `check-config` and the start say so when it is
 not. Set the port with `PIVOTKIT_PORT`, not `http.port` in the file: the health check asks
 `$PIVOTKIT_PORT`. A token file is read on every request, so a new token works without a restart.
 
@@ -69,7 +70,7 @@ The image's entry point is `pivotkit-server`; the command after the image name i
 
 ```bash
 docker run --rm ghcr.io/eizedev/pivotkit:<version> --help
-docker run --rm ghcr.io/eizedev/pivotkit:<version> check-config          # with the configuration mounted
+docker run --rm -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" ghcr.io/eizedev/pivotkit:<version> check-config
 docker run --rm --read-only -v "$PWD:/work" -w /work ghcr.io/eizedev/pivotkit:<version> cli render view.json --data sales.csv -o report.xlsx
 docker run --rm -i -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" ghcr.io/eizedev/pivotkit:<version> mcp
 ```

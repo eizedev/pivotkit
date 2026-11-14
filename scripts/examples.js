@@ -108,7 +108,7 @@ export async function buildExamples() {
         view: "weather.pivotkit.json",
         about: {
             "weather.csv": `the data: ${weatherData.length.toLocaleString("en-US")} days of 14 cities, as the playground's Export → Source data writes it`,
-            "weather.pivotkit.json": "a view: How warm is each city, month by month? (the playground's start)",
+            "weather.pivotkit.json": "a view: How warm is each city, month by month? (the live demo's start)",
             "weather-SOURCE.txt": "where the data comes from and its licence (CC BY 4.0): keep it with the data"
         },
         credit: WEATHER_CREDIT

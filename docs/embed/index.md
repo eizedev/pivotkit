@@ -1,6 +1,6 @@
 ---
 title: Embed pivotkit
-description: For developers and the people who run applications with pivotkit - which of the pivotkit packages fits, a first report in a few lines for React, the web component, the engine, reports in code and the command line, what a host switches on or off, and where to go next.
+description: For developers and the people who run applications with pivotkit - which of the pivotkit packages fits, a first report in a few lines for React, the web component, the engine, reports in code, the command line, the REST service and the MCP server, what a host switches on or off, and where to go next.
 ---
 
 # Embed pivotkit

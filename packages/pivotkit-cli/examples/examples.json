@@ -29,7 +29,7 @@
       "view": "weather.pivotkit.json",
       "about": {
         "weather.csv": "the data: 15,344 days of 14 cities, as the playground's Export → Source data writes it",
-        "weather.pivotkit.json": "a view: How warm is each city, month by month? (the playground's start)",
+        "weather.pivotkit.json": "a view: How warm is each city, month by month? (the live demo's start)",
         "weather-SOURCE.txt": "where the data comes from and its licence (CC BY 4.0): keep it with the data"
       },
       "credit": "Weather data by Open-Meteo.com (https://open-meteo.com/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data."

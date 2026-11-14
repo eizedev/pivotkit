@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: pivotkit is Excel's PivotTable for web applications and the command line - people load their own file, drag fields, filter, chart and export to Excel, and the report is a safe JSON view that renders again in CI. React, web component, engine, CLI; MIT.
+description: pivotkit is Excel's PivotTable for web applications and the command line - people load their own file, drag fields, filter, chart and export to Excel, and the report is a safe JSON view that renders again in CI. React, web component, engine, CLI, REST service and MCP server; MIT.
 hide:
   - navigation
   - toc
@@ -14,7 +14,7 @@ hide:
 
 <p class="hero-lead">Excel's PivotTable for your web application: people load their data, drag fields into rows, columns and values, and take the result to Excel - and the same report runs again on the command line.</p>
 
-MIT · in the browser, nothing uploaded · React, web component, Node, command line
+MIT · in the browser, nothing uploaded · React, web component, Node, command line, REST, MCP
 
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: load data, fields, filters, charts, export" }
 [I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports and the command line" }
@@ -99,7 +99,6 @@ life), or [load your own](use/load-data.md). Every task has its page under
 | Reports and view checks in a terminal or CI | [Command line](getting-started/cli.md): `pivotkit example` |
 | Reports for programs over HTTP (scripts, PowerShell, schedulers), with an OpenAPI document | [REST service](getting-started/rest.md): `pivotkit-server serve`, or the [container image](reference/container.md) |
 | Reports from an AI client (Claude, VS Code), without the model reading the data | [MCP server](getting-started/mcp.md): `npx -y pivotkit-mcp` |
-
 | A PowerShell Universal app | [PowerShell Universal](getting-started/react.md#powershell-universal): `New-UDPivotReport` |
 
 Which package fits, what a host switches on, and the recipes: [Embed pivotkit](embed/index.md).
@@ -110,11 +109,13 @@ Which package fits, what a host switches on, and the recipes: [Embed pivotkit](e
 
 !!! note "What pivotkit does not do"
 
-    - It fetches no data and makes no network request: the application passes the rows, or a person
-      loads a file ([FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)).
+    - The report fetches no data and makes no network request: the application passes the rows, or a
+      person loads a file; only the REST service and the MCP server, which you run yourself, answer
+      requests, and they read the files you configure ([FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)).
     - It is not access control: whoever sees the report can read every row the application passes
       ([security](security.md#pivotkit-is-not-access-control)).
-    - It computes on the page, not in WebAssembly or on a server: measured up to 1,000,000 rows, where
+    - The report computes on the page, not in WebAssembly or on a server (the REST service and the MCP
+      server compute on yours): measured up to 1,000,000 rows, where
       the first table takes 1 to 2.5 s and the page waits meanwhile; for more, aggregate on the server
       first ([limits](concepts/limits.md#measured-in-the-browser)).
     - It draws bars, lines, area, pie, donut and heatmap, not dozens of chart types, and ships English

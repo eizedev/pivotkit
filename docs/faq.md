@@ -9,7 +9,13 @@ description: Common questions about pivotkit - which package to use, data size, 
 
 - A React app: [pivotkit-react](getting-started/react.md).
 - A page without React (Angular, PHP, plain HTML): [pivotkit-element](getting-started/web-component.md).
-- Your own UI, or reports built on a server: [pivotkit-core](getting-started/engine.md).
+- Your own UI, or pivots, grids and exports in your own code: [pivotkit-core](getting-started/engine.md).
+- Reports as files from a script or a server: [pivotkit-report](getting-started/report.md).
+- Reports in a terminal or CI: [pivotkit-cli](getting-started/cli.md).
+- Reports for programs over HTTP, or as a container: [pivotkit-server](getting-started/rest.md).
+- Reports from an AI client: [pivotkit-mcp](getting-started/mcp.md).
+
+All eight packages and what a host switches on: [Embed pivotkit](embed/index.md).
 
 ## How many rows can it handle?
 
@@ -27,7 +33,8 @@ the size of the table (`cells`). For more rows, see
 No. pivotkit takes an array of plain objects you load yourself (`fetch`, a framework's data layer, a
 `<script type="application/json">` block), and never makes a network request. To aggregate on the
 server instead, run pivotkit-core there and send the [grid](getting-started/engine.md#drawing-the-grid)
-or the XLSX file.
+or the XLSX file, or run the [REST service](getting-started/rest.md) (or its container image) on files
+you configure, and let programs ask it for reports.
 
 ## My data is columnar (`{ columns, rows }`). Can I pass it?
 

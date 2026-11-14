@@ -37,7 +37,7 @@ await writeFile("report.html", result.body);  // Uint8Array; result.text for the
 | Getting started: a complete script, rows in code and data files | [Getting started with reports](https://pivotkit.eize.dev/getting-started/report/) |
 | `render()`, its options, formats, limits and errors | [pivotkit-report reference](https://pivotkit.eize.dev/reference/report/) |
 | The print template and its placeholders | [Print template](https://pivotkit.eize.dev/reference/print-template/) |
-| The command line on top of it | [pivotkit-cli](https://pivotkit.eize.dev/reference/cli/) |
+| The command line, the REST service and the MCP server on top of it | [pivotkit-cli](https://pivotkit.eize.dev/reference/cli/), [pivotkit-server](https://pivotkit.eize.dev/reference/rest/), [pivotkit-mcp](https://pivotkit.eize.dev/reference/mcp/) |
 | Changes | [CHANGELOG](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-report/CHANGELOG.md) |
 
 ## License

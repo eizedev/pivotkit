@@ -3,7 +3,7 @@
 # `npm run docs:demo` (and by the docs workflow) and not committed; see CONTRIBUTING.md.
 [project]
 site_name = "pivotkit"
-site_description = "Pivot reports for the web and the command line: people load their own file, drag fields, filter, chart and export to Excel; views are safe JSON files that a CLI renders again from the source data. React, web component, engine, CLI. MIT."
+site_description = "Pivot reports for the web and the command line: people load their own file, drag fields, filter, chart and export to Excel; views are safe JSON files that a CLI renders again from the source data. React, web component, engine, CLI, REST service and MCP server. MIT."
 site_url = "https://pivotkit.eize.dev/"
 repo_url = "https://github.com/eizedev/pivotkit"
 repo_name = "eizedev/pivotkit"

@@ -185,7 +185,7 @@ const server = await listen({ sources: { sales: { file: "/srv/data/sales.csv" } 
 
 `createMcpContext(options)` checks the options (`validateOptions`), resolves the
 directories and starts the workers; `context.server(ctx)` builds a fresh McpServer for the SDK's
-`serveStdio` or `createMcpHandler`; `createHttpHandler(context)` returns `{ fetch, close }` with every
+`serveStdio` or `createMcpHandler`; `await createHttpHandler(context)` gives `{ fetch, close }` with every
 check of this page; `loadConfig(file)` reads a configuration file into options. A library host may
 give a source `load: async () => rows` (rows or columnar data) and `version: () => key` instead of
 `file`; such sources run in the host's thread, not in a worker. `createHttpHandler(context, { env })`

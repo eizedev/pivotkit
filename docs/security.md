@@ -1,6 +1,6 @@
 ---
 title: Security
-description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see, and runs under a strict Content-Security-Policy.
+description: Why pivotkit is not access control, how it treats views and loaded files as untrusted input, keeps memory use bounded, renders no markup from data, writes safe exports, what its MCP server lets a model see and its REST service lets a program fetch, and runs under a strict Content-Security-Policy.
 ---
 
 # Security
@@ -239,7 +239,8 @@ may try to steer it:
   OAuth 2.1 as the [MCP authorization spec](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)
   describes: JWT access tokens checked for signature, issuer, audience (the server itself), expiry and
   algorithm, never passed on; scopes per tool and per source. The quick-start page at `/` is not
-  behind authentication and shows no source names unless the operator allows it.
+  behind authentication and shows no source names unless the operator allows it (`http.page`), or the
+server runs without sign-in (`auth: none`), where it lists them.
 - **The log** names tools, source ids, file base names and the client (a token's name or an OAuth
   client id), never a view, a value, a token, a person's id or a full path.
 

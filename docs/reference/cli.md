@@ -47,7 +47,7 @@ Other examples: pivotkit example weather
 | Example | Files | What |
 | --- | --- | --- |
 | `sales` | `sales.csv`, `sales.pivotkit.json`, `sales-chart.pivotkit.json` | Generated sales, 2,000 rows: revenue by region and category, and a monthly chart. |
-| `weather` | `weather.csv`, `weather.pivotkit.json`, `weather-SOURCE.txt` | Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month, the playground's start. Weather data by [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0: `weather-SOURCE.txt` holds the attribution and the changes made; keep it with the data. |
+| `weather` | `weather.csv`, `weather.pivotkit.json`, `weather-SOURCE.txt` | Daily weather of 14 cities, 2023-2025, 15,344 rows: the mean temperature per city and month, the live demo's start. Weather data by [Open-Meteo.com](https://open-meteo.com/), CC BY 4.0: `weather-SOURCE.txt` holds the attribution and the changes made; keep it with the data. |
 
 The same files are on this site: [sales.csv](../assets/examples/sales.csv),
 [sales.pivotkit.json](../assets/examples/sales.pivotkit.json),

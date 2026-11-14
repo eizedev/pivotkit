@@ -15,6 +15,9 @@ report by dragging fields, and take it to Excel; the same report renders again i
 - Safe JSON views and reports without a browser: a view cannot run code; `pivotkit render`
   makes the same report from the downloaded view and data, and `pivotkit describe sales.xlsx
   --suggest` a first view from a file's fields ([command line](https://pivotkit.eize.dev/getting-started/cli/)).
+- Reports for other programs: a REST service with an OpenAPI document and a container image
+  ([REST](https://pivotkit.eize.dev/getting-started/rest/)), and an MCP server for AI clients that
+  never hands the model the rows ([MCP](https://pivotkit.eize.dev/getting-started/mcp/)).
 
 [Live demo](https://pivotkit.eize.dev/playground/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) ([policy](SECURITY.md))
 
@@ -24,7 +27,7 @@ report by dragging fields, and take it to Excel; the same report renders again i
 
 For the people who build reports in an application, and for the developers who put it there: a
 React 18/19 component, a web component (also in PowerShell Universal apps), a JavaScript engine for
-the browser and Node, and a command line; MIT. It computes in the browser on the rows the host passes and fetches no data. It
+the browser and Node, a command line, a REST service and an MCP server; MIT. It computes in the browser on the rows the host passes and fetches no data. It
 runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
 ([browser support](docs/browser-support.md)); the engine, the reports, the CLI, the REST service and the MCP server in Node 22 or later.
 [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)

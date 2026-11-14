@@ -17,7 +17,8 @@ without technical knowledge, loading their own CSV, JSON or Excel file in the re
 (where the host turns it on; Excel with a plugin),
 a switch between table and chart, views as JSON with a published JSON Schema, a native Excel export
 that keeps the pivot layout, the rows behind the report as a file, and the same report rendered
-without a browser by a library and a command line that checks views in CI; it is MIT-licensed.
+without a browser by a library, a command line that checks views in CI, a REST service with a
+container image and an MCP server for AI clients; it is MIT-licensed.
 
 - **Perspective** is the strongest engine for large and live data, has no built-in Excel export (its
   FAQ says so) and streams live data.
@@ -60,10 +61,10 @@ on a small screen.
 | Share as a link | [Yes](use/views.md#share-a-view) | [Partial: the app's job](https://perspective-dev.github.io/guide/print.html) | [Not found](https://docs.kanaries.net/graphic-walker/faq) | [Not found](https://github.com/nicolaskruchten/pivottable/wiki/Frequently-Asked-Questions) | [Not found](https://www.ag-grid.com/react-data-grid/grid-state/) | [Yes, with its server](https://www.flexmonster.com/doc/share-report/) | [Not found](https://www.webdatarocks.com/doc/js/saving-the-report/) |
 | Excel (.xlsx) export | [Yes, layout and highlighting kept](use/export.md#what-each-one-holds) | [No](https://perspective-dev.github.io/guide/print.html) | [Not found](https://docs.kanaries.net/graphic-walker/guides/chart-export) | [No](https://github.com/nicolaskruchten/pivottable/wiki/Frequently-Asked-Questions) | [Yes (paid); styles not by default](https://www.ag-grid.com/react-data-grid/excel-export/) | [Yes, with caveats](https://www.flexmonster.com/doc/export-report/) | [Yes](https://www.webdatarocks.com/doc/js/exporting/) |
 | Other files | [CSV, HTML, PNG, SVG; PDF via the print dialog](use/export.md) | [CSV, Arrow, HTML, PNG](https://perspective-dev.github.io/guide/print.html) | [CSV, SVG, PNG](https://docs.kanaries.net/graphic-walker/guides/chart-export) | [TSV](https://github.com/nicolaskruchten/pivottable/wiki/Optional-Extra-Renderers) | [CSV, print, PNG](https://www.ag-grid.com/react-data-grid/csv-export/) | [CSV, PDF, HTML, PNG](https://www.flexmonster.com/doc/export-report/) | [PDF, HTML, print](https://www.webdatarocks.com/doc/js/exporting/) |
-| Reports without a browser | [Node library and CLI](reference/cli.md) | [Partial: engine in Node](https://perspective-dev.github.io/guide/print.html) | [No](https://docs.kanaries.net/graphic-walker/faq) | [No](https://github.com/nicolaskruchten/pivottable/wiki/Frequently-Asked-Questions) | [Not found](https://www.ag-grid.com/react-data-grid/excel-export/) | [Partial: a headless browser](https://www.flexmonster.com/doc/export-report/) | [Not found](https://www.webdatarocks.com/doc/js/exporting/) |
+| Reports without a browser | [Node library, CLI, REST service and MCP server](embed/index.md) | [Partial: engine in Node](https://perspective-dev.github.io/guide/print.html) | [No](https://docs.kanaries.net/graphic-walker/faq) | [No](https://github.com/nicolaskruchten/pivottable/wiki/Frequently-Asked-Questions) | [Not found](https://www.ag-grid.com/react-data-grid/excel-export/) | [Partial: a headless browser](https://www.flexmonster.com/doc/export-report/) | [Not found](https://www.webdatarocks.com/doc/js/exporting/) |
 | Check saved views in CI | [validate, CLI, JSON Schema](reference/cli.md#in-ci) | [Partial: restore() checks](https://perspective-dev.github.io/guide/print.html) | [Partial: JSON Schema](https://github.com/Kanaries/graphic-walker#readme) | [Not found](https://github.com/nicolaskruchten/pivottable#readme) | [Partial: development checks](https://www.ag-grid.com/react-data-grid/dev-validation/) | [Partial: an option](https://www.flexmonster.com/doc/options/) | [Not found](https://www.webdatarocks.com/doc/js/saving-the-report/) |
 | Theming with CSS variables | [Yes: `--pk-*`](reference/theming.md) | [Yes](https://perspective-dev.github.io/guide/print.html) | [Partial](https://docs.kanaries.net/graphic-walker/guides/theming) | [Partial: CSS classes](https://github.com/nicolaskruchten/pivottable/wiki/Frequently-Asked-Questions) | [Yes: `--ag-*`](https://www.ag-grid.com/react-data-grid/theming-css/) | [Partial: LESS themes](https://www.flexmonster.com/doc/customizing-appearance/) | [Partial: Less themes](https://www.webdatarocks.com/doc/js/custom-report-themes/) |
-| Frameworks | [React 18, 19; web component; Node](embed/index.md) | [Web component, React, Python](https://perspective-dev.github.io/guide/print.html) | [React 19, plain JS](https://docs.kanaries.net/graphic-walker/api-reference/vanilla-js) | [jQuery / React](https://github.com/plotly/react-pivottable#readme) | [JS, React, Angular, Vue](https://www.ag-grid.com/react-data-grid/compatibility/) | [JS, React, Angular, Vue, more](https://www.flexmonster.com/doc/) | [JS, React 17, Angular, Vue](https://www.npmjs.com/package/@webdatarocks/react-webdatarocks) |
+| Frameworks | [React 18, 19; web component; Node; REST and MCP](embed/index.md) | [Web component, React, Python](https://perspective-dev.github.io/guide/print.html) | [React 19, plain JS](https://docs.kanaries.net/graphic-walker/api-reference/vanilla-js) | [jQuery / React](https://github.com/plotly/react-pivottable#readme) | [JS, React, Angular, Vue](https://www.ag-grid.com/react-data-grid/compatibility/) | [JS, React, Angular, Vue, more](https://www.flexmonster.com/doc/) | [JS, React 17, Angular, Vue](https://www.npmjs.com/package/@webdatarocks/react-webdatarocks) |
 | Licence | MIT | [Apache-2.0](https://github.com/perspective-dev/perspective/blob/master/LICENSE.md)¹ | [Apache-2.0](https://github.com/Kanaries/graphic-walker/blob/main/LICENSE)¹ | MIT¹ | [Paid for pivoting](https://www.ag-grid.com/license-pricing/) | [Paid](https://www.flexmonster.com/software-license-agreement/)¹ | [Free, proprietary](https://www.webdatarocks.com/license-agreement/)¹ |
 
 ## At a glance
@@ -114,19 +115,21 @@ npm and GitHub. Their words are quoted in [each in detail](#each-in-detail). The
   1.5 MB minified, roughly 400 KB gzip, with Vega-Lite.
 - **Maturity and support**: AG Grid, Flexmonster and WebDataRocks are commercial products with vendor
   support and years in production, Perspective and PivotTable.js have long track records; pivotkit
-  is 0.5.0 (released 2026-11-13) and its API can still change between minor versions.
+  is in 0.x (the version and date are in the table above) and its API can still change between minor
+  versions.
 - **Calculated values and more chart types**: Flexmonster has calculated values with a formula
   editor and charts such as scatter and column-line combinations; pivotkit has neither.
 
 ## What pivotkit does not do
 
-- It does not fetch data and makes no network request: the host passes the rows, or a person loads a
-  file of their own in the browser where the host allows it (`allowImport`, off by default;
+- The report does not fetch data and makes no network request: the host passes the rows, or a person
+  loads a file of their own in the browser where the host allows it (`allowImport`, off by default;
   [FAQ](faq.md#my-data-is-on-a-server-does-pivotkit-fetch-it)). The command line reads local files
-  only.
+  only; the REST service and the MCP server, which an operator runs, read the files their
+  configuration names and answer requests.
 - It is not access control: a viewer can see every row the host passes, and with Source data
   (`exportData`, off by default) download them ([security](security.md#pivotkit-is-not-access-control)).
-- It computes on the page, not in WebAssembly or a worker, and has no server row model or streaming
+- The report computes on the page, not in WebAssembly or a worker, and has no server row model or streaming
   updates. For more than a million rows, aggregate on the server first
   ([more than a million rows](concepts/limits.md#more-than-a-million-rows)).
 - It is a pivot report, not a data grid or a dashboard tool: no editing of cells, no calculated
