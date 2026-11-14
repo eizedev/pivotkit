@@ -6,8 +6,17 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- Request limits over HTTP, as the REST service has them: `mcp.rateLimit.perMinute`, `.burst`,
+  `.failedAuthPerMinute` and `mcp.concurrency`; over a limit the answer is 429 with `Retry-After`
+  ([#270](https://github.com/eizedev/pivotkit/issues/270)). `/mcp` answers a method other than
+  `POST` with 405 before it takes a request slot.
+
 ### Changed
 
+- A token is checked once per request; the Host list, the body cap, the default port and the common
+  flags come from pivotkit-server ([#291](https://github.com/eizedev/pivotkit/issues/291)).
 - The output directory and `--check-config` follow pivotkit-server's: reports and drafts are named
   `<name>.pivotkit-out.<format>`, a full directory deletes its oldest reports (never drafts), `output.maxMb`, `NO_OUTPUT` with a hint for a directory the server
   cannot write, and a warning for a policy rule that names no column

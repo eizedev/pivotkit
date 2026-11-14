@@ -75,20 +75,26 @@ test.describe("the row label column's width follows the font (#110, #121)", () =
             e.style.width = was;
             return Math.min(most, 28 * parseFloat(getComputedStyle(e).fontSize));
         });
-        const cut = new Map();
-        const height = await wrap.evaluate((el) => el.scrollHeight);
-        for (let top = 0; top < height; top += 600) {
-            await wrap.evaluate((el, t) => {
-                el.scrollTop = t;
-            }, top);
-            await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-            const seen = await page.locator(".pk-table tbody th.pk-rowHeader .pk-th-text").evaluateAll((els) =>
-                els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => ({ text: e.textContent, box: e.parentElement.getBoundingClientRect().width }))
-            );
-            for (const c of seen) {
-                cut.set(c.text, c.box);
-            }
-        }
+        // every 600 px down to the end, two frames for the virtual rows after each scroll, the cut
+        // labels with their box: in the page in one call, not three round trips per step, which took
+        // a minute and more on a loaded machine (#278)
+        const cut = new Map(
+            await wrap.evaluate(async (el) => {
+                const frame = () => new Promise((done) => requestAnimationFrame(() => done(undefined)));
+                const found = [];
+                for (let top = 0; top < el.scrollHeight; top += 600) {
+                    el.scrollTop = top;
+                    await frame();
+                    await frame();
+                    for (const e of el.querySelectorAll(".pk-table tbody th.pk-rowHeader .pk-th-text")) {
+                        if (e.scrollWidth > e.clientWidth) {
+                            found.push([e.textContent, /** @type {HTMLElement} */ (e.parentElement).getBoundingClientRect().width]);
+                        }
+                    }
+                }
+                return found;
+            })
+        );
         // the generated names reach past 28em: some are cut, all of them in a column at the cap
         expect(cut.size).toBeGreaterThan(0);
         expect([...cut].filter(([, box]) => box < cap - 1)).toEqual([]);

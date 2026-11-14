@@ -10,7 +10,7 @@ import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
 export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
-import { connectionLimitsOf, isLoopback, serveFetch } from "./listen.js";
+import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
 
@@ -61,7 +61,7 @@ export async function createServerHandler(options, runtime) {
         /** /healthz and /readyz, after the Host check. */
         async function health(request) {
             const path = new URL(request.url).pathname;
-            if (request.method !== "GET" || (path !== "/healthz" && path !== "/readyz")) {
+            if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
                 return null;
             }
             const refused = hostRefusal(request, hosts);
@@ -103,7 +103,7 @@ export async function createServerHandler(options, runtime) {
                     return rest.fetch(request, info);
                 }
                 if (mcp) {
-                    return mcp.fetch(request);
+                    return mcp.fetch(request, info);
                 }
                 const refused = hostRefusal(request, hosts);
                 return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
@@ -136,7 +136,7 @@ export async function serve(options, runtime) {
     const handler = await createServerHandler(options, { ...runtime, loopback: isLoopback(host) });
     let listening;
     try {
-        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn("connections refused: the server holds as many as it may (http.maxConnectionsPerAddress, 256 in all)", entry) });
+        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler.close();
         throw e;

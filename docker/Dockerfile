@@ -16,7 +16,7 @@ WORKDIR /src
 COPY package.json package-lock.json LICENSE ./
 COPY packages/ packages/
 # the CLI's example files (pivotkit example) are build output: made from the playground's data
-COPY scripts/examples.js scripts/
+COPY scripts/examples.js scripts/is-main.js scripts/
 COPY examples/playground/src/data.js examples/playground/src/
 COPY examples/playground/data/ examples/playground/data/
 # only the three commands and what they need at run time, at the lock file's versions
