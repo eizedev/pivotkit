@@ -70,7 +70,7 @@ The image's entry point is `pivotkit-server`; the command after the image name i
 
 ```bash
 docker run --rm ghcr.io/eizedev/pivotkit:<version> --help
-docker run --rm -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" ghcr.io/eizedev/pivotkit:<version> check-config
+docker run --rm -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" -v "$PWD/secrets/pivotkit_token:/run/secrets/pivotkit_token:ro" -v pivotkit-out:/out ghcr.io/eizedev/pivotkit:<version> check-config   # the mounts of the example above
 docker run --rm --read-only -v "$PWD:/work" -w /work ghcr.io/eizedev/pivotkit:<version> cli render view.json --data sales.csv -o report.xlsx
 docker run --rm -i -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/data:/data:ro" ghcr.io/eizedev/pivotkit:<version> mcp
 ```

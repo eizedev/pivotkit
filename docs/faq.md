@@ -30,7 +30,7 @@ the size of the table (`cells`). For more rows, see
 
 ## My data is on a server. Does pivotkit fetch it?
 
-No. pivotkit takes an array of plain objects you load yourself (`fetch`, a framework's data layer, a
+No. The report takes an array of plain objects you load yourself (`fetch`, a framework's data layer, a
 `<script type="application/json">` block), and never makes a network request. To aggregate on the
 server instead, run pivotkit-core there and send the [grid](getting-started/engine.md#drawing-the-grid)
 or the XLSX file, or run the [REST service](getting-started/rest.md) (or its container image) on files

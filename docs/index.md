@@ -14,10 +14,10 @@ hide:
 
 <p class="hero-lead">Excel's PivotTable for your web application: people load their data, drag fields into rows, columns and values, and take the result to Excel - and the same report runs again on the command line.</p>
 
-MIT · in the browser, nothing uploaded · React, web component, Node, command line, REST, MCP
+MIT · the report runs in the browser, nothing uploaded · React, web component, Node, command line, REST, MCP
 
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: load data, fields, filters, charts, export" }
-[I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports and the command line" }
+[I embed or automate pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine, reports, the command line, REST and MCP" }
 [Try the live demo](demo.md){ .md-button }
 
 </div>
