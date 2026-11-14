@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { quoteArg } from "../src/layout-view.js";
 import { BY_REGION, SALES_CSV, run, tempDir } from "./helpers.js";
@@ -162,4 +162,44 @@ test("describe --data - with no argument describes the data from stdin", async (
     const none = await run(["describe"], { cwd: dir });
     assert.equal(none.code, 2);
     assert.match(none.stderr, /describe needs a view or a data file \(the argument, or --data <file>\)/);
+});
+
+/** Whether the file system of a directory finds a file by another case of its name (macOS, Windows). */
+const caseInsensitive = (dir) => existsSync(join(dir, "SALES.CSV"));
+
+test("-o naming the data through a link to its directory or another case of its name: refused, the data kept", async () => {
+    const dir = fixtureDir();
+    symlinkSync(dir, join(dir, "lnk"));
+    for (const args of [
+        ["render", "sales.csv", "--rows", "Region", "-f", "csv", "-o", "lnk/sales.csv"],
+        ["render", "view.json", "--data", "sales.csv", "-f", "csv", "-o", "lnk/sales.csv"],
+        ["render", "view.json", "--data", "sales.csv", "-f", "json", "-o", "lnk/view.json"],
+        ["describe", "rows.json", "--suggest", "-o", "lnk/rows.json"]
+    ]) {
+        writeFileSync(join(dir, "rows.json"), JSON.stringify([{ Region: "North", Units: 3 }, { Region: "South", Units: 4 }, { Region: "North", Units: 1 }]));
+        const r = await run(args, { cwd: dir });
+        assert.equal(r.code, 2, `${args.join(" ")}: ${r.stderr}`);
+        assert.match(r.stderr, /names the (data|view) file/);
+    }
+    assert.equal(readFileSync(join(dir, "sales.csv"), "utf8"), SALES_CSV);
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, "view.json"), "utf8")), BY_REGION);
+});
+
+test("-o naming the data by another case of its name, where the file system ignores case: refused", async (t) => {
+    const dir = fixtureDir();
+    if (!caseInsensitive(dir)) {
+        t.skip("the file system tells cases apart");
+        return;
+    }
+    const r = await run(["render", "sales.csv", "--rows", "Region", "-f", "csv", "-o", "SALES.CSV"], { cwd: dir });
+    assert.equal(r.code, 2, r.stderr);
+    assert.equal(readFileSync(join(dir, "sales.csv"), "utf8"), SALES_CSV);
+});
+
+test("describe --data <view file>: says it is a view and how to describe it", async () => {
+    const dir = fixtureDir();
+    const r = await run(["describe", "--data", "view.json"], { cwd: dir });
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /^pivotkit: --data view\.json is a view, not data: describe it with pivotkit describe view\.json \(and its data with --data <data>\)/m);
+    assert.doesNotMatch(r.stderr, /no table/i);
 });

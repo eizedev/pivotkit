@@ -25,6 +25,7 @@ import { INFO_NOTES } from "./files.js";
 import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
 import { resolve as resolvePath } from "node:path";
+import { stat } from "node:fs/promises";
 
 /**
  * @typedef {object} Io
@@ -721,10 +722,10 @@ async function renderCommand(positionals, values, ctx) {
     /** @type {Array<[string | undefined, string]>} */
     const inputs = fromFields(values) ? [[positionals[0] ?? values.data, "data"]] : [[values.link === undefined ? positionals[0] : undefined, "view"], [values.data, "data"]];
     if (values.output !== undefined) {
-        checkNotInput(ctx, "-o", values.output, inputs, "output");
+        await checkNotInput(ctx, "-o", values.output, inputs, "output");
     }
     if (values["save-view"] !== undefined) {
-        checkNotInput(ctx, "--save-view", values["save-view"], inputs.filter(([, what]) => what === "data"), "view file");
+        await checkNotInput(ctx, "--save-view", values["save-view"], inputs.filter(([, what]) => what === "data"), "view file");
     }
     if (values.format && values.output) {
         // -o t.html -f csv would write CSV into an .html file: the name and the format must agree
@@ -827,9 +828,16 @@ async function renderCommand(positionals, values, ctx) {
  * @param {Array<[string | undefined, string]>} inputs  each input's path and what it is ("data", "view")
  * @param {string} written  what the output is ("output", "draft")
  */
-function checkNotInput(ctx, flag, output, inputs, written) {
+async function checkNotInput(ctx, flag, output, inputs, written) {
+    // the file -o names, if it is there: one file under another name (a link to its directory, another
+    // case of its name where the file system ignores case) is the same device and inode
+    const target = await stat(resolvePath(ctx.io.cwd, output)).catch(() => null);
     for (const [path, what] of inputs) {
-        if (path !== undefined && path !== "-" && !path.trimStart().startsWith("{") && resolvePath(ctx.io.cwd, path) === resolvePath(ctx.io.cwd, output)) {
+        if (path === undefined || path === "-" || path.trimStart().startsWith("{")) {
+            continue;
+        }
+        const same = resolvePath(ctx.io.cwd, path) === resolvePath(ctx.io.cwd, output) || (target !== null && (await stat(resolvePath(ctx.io.cwd, path)).then((s) => s.dev === target.dev && s.ino === target.ino, () => false)));
+        if (same) {
             throw new CliError("usage", "SAME_FILE", `${flag} names the ${what} file: the ${written} would replace the ${what}; give it another name`);
         }
     }
@@ -1117,7 +1125,7 @@ async function describeCommand(positionals, values, ctx) {
     }
     const items = intOption("items", values.items, 0, 1000) ?? 0;
     const ext = input === "-" ? values["data-format"] ?? "" : extname(input).slice(1).toLowerCase();
-    let kind = dataAlone ? "data" : values.as;
+    let kind = values.as;
     let text = null;
     /** @type {Uint8Array | null} a JSON file read to tell a view from data, kept for reading it as data */
     let bytes = null;
@@ -1133,6 +1141,10 @@ async function describeCommand(positionals, values, ctx) {
         } else {
             kind = "data";
         }
+    }
+    if (dataAlone && kind === "view") {
+        const name = quoteArg(input === "-" ? "-" : shortName(input));
+        throw new CliError("usage", "VIEW_NOT_DATA", `--data ${shortName(input)} is a view, not data: describe it with pivotkit describe ${name} (and its data with --data <data>)`);
     }
     if (kind === "view") {
         const view = text ?? (input.trimStart().startsWith("{") ? input : textOf(await ctx.readInput(input, "the view", VIEW_BYTES, "json")));
@@ -1190,7 +1202,7 @@ async function suggestCommand(positionals, values, ctx) {
         if (!/\.json$/i.test(values.output)) {
             throw new CliError("usage", "UNKNOWN_EXTENSION", `-o ${shortName(values.output)}: a view file is JSON: name it <name>.pivotkit.json`);
         }
-        checkNotInput(ctx, "-o", values.output, [[input, "data"]], "draft");
+        await checkNotInput(ctx, "-o", values.output, [[input, "data"]], "draft");
     }
     const made = await viewFromData(positionals, values, ctx, "describe");
     const { data, built } = made;

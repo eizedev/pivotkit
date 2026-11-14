@@ -90,7 +90,7 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--data-format csv\|json\|xlsx` | | The data's format; needed for stdin, else the file's extension. |
 | `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one; for data that is no workbook a warning `ignoredOption`. [More](#the-sheet-of-a-workbook) |
 | `-f, --format html\|csv\|json\|xlsx\|svg` | render | Default: the extension of `-o` (`.htm` is `html`); another extension, or none, is a usage error. On stdout `html`. |
-| `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. The data file, the view file and `-` are a usage error (stdout is where the output goes without `-o`). |
+| `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. The data file, the view file (also by another name: a link to its directory, another case of its name) and `-` are a usage error (stdout is where the output goes without `-o`). |
 | `--template <file>` | render | `html`: a [print template](print-template.md). |
 | `--title <text>` | render | `html`, `xlsx`: the report's title (default the view file's name). |
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
@@ -151,6 +151,7 @@ and `pivotkit help <command>` lists the ones that act in it.
 | a view that is not JSON | `not a view: not valid JSON at line 2, column 30` |
 | a data file where the view belongs (`validate sales.csv`) | `error viewFile: not a view: not valid JSON`, then `sales.csv looks like data, not a view: give it with --data (pivotkit validate <view> --data sales.csv), or describe it: pivotkit describe sales.csv` |
 | a view that is no file | `pivotkit: x: not found: the view is a view file, - for stdin, JSON text or --link` |
+| a view file given as `--data` alone (`describe --data view.json`) | a usage error: `--data view.json is a view, not data: describe it with pivotkit describe view.json (and its data with --data <data>)` |
 | a view file where `--suggest` or a layout flag wants data | a usage error: `--suggest makes a view from a data file, and view.json is a view: give the data (pivotkit describe <data> --suggest), or describe the view with pivotkit describe view.json --data <data>` |
 | a grouping that cannot be made (`--group Region:yearMonth` on a text field) | `error groupingNeedsDate at derived[0]: date grouping needs a date field`, then `and 1 more error from it (--json lists it)`: the unknown field "Region by month" that follows is left out |
 
