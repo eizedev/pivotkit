@@ -133,7 +133,7 @@ error that names the key and the one probably meant.
 | `output.dir` | `--output dir` | none | Where reports and drafts are written |
 | `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
 | `output.maxFiles` | - | 1000 | Files the directory may hold before render_view refuses (`NO_OUTPUT`) |
-| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was stopped in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
+| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
 | `locale`, `timeZone` | - | en-US, UTC | Numbers and dates of reports; the time zone of dates in the data |
@@ -151,6 +151,10 @@ error that names the key and the one probably meant.
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit |
+
+Without `output.maxAgeDays` nothing in the output directory is deleted: the temporary file of a
+write the server was killed in (`.<name>.<pid>-<random>.tmp`) stays and counts toward
+`output.maxFiles`.
 
 The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`
 too; pivotkit-mcp ignores them.

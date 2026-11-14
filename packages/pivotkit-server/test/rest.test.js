@@ -268,7 +268,7 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
     }
 });
 
-test("output.maxAgeDays: old reports and drafts go at start (and hourly); other files, newer ones and subdirectories stay", async () => {
+test("output.maxAgeDays: old reports and drafts, and temporary files of killed writes after an hour, go at start (and hourly); other files, newer ones and subdirectories stay", async () => {
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);

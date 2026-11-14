@@ -180,7 +180,9 @@ Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (R
 token with the right audience is refused.
 
 Every token that may render can fill the output directory up to `output.maxFiles`; then rendering
-into it answers 409 `NO_OUTPUT` for everyone until files are removed. Set `output.maxAgeDays`, and
+into it answers 409 `NO_OUTPUT` for everyone until files are removed. Without `output.maxAgeDays`
+nothing there is deleted, also not the temporary file of a write the server was killed in
+(`.<name>.<pid>-<random>.tmp`), which counts toward `output.maxFiles`. Set `output.maxAgeDays`, and
 give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it. The server
 holds at most 256 connections, and a client has 15 seconds to send its headers: on a network you do
 not trust, put a reverse proxy in front.

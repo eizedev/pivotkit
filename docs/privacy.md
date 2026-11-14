@@ -59,9 +59,10 @@ person's id), the status and the time (a source id only when it is a configured 
 default level never a view, a value or a token, and no client address unless
 `http.trustProxy` is set. Reports and drafts stay in the output directory until you remove them:
 `output.maxAgeDays` deletes older reports and drafts (drafts waiting for approval too), and the
-temporary files of writes the server was killed in, at start and every hour, or clean it up on a schedule of your own; give the output directory to pivotkit alone.
-Reports are written with mode 0644 (less the umask), readable for other local users: restrict the directory
-itself where that matters. Decide how long the
+temporary files of writes the server was killed in, at start and every hour, or clean it up on a
+schedule of your own; give the output directory to pivotkit alone. Reports are written with mode
+0644 (less the umask), readable for other local users: restrict the directory itself where that
+matters. Decide how long the
 log and the reports are kept, and who can read the output directory (a web server that serves it,
 `output.baseUrl`, makes every file reachable by its name).
 
