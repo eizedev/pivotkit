@@ -242,6 +242,34 @@ exit 1
     assert.match(r.stderr, /^pivotkit-react depends on pivotkit-core, whose CHANGELOG has 1 unreleased entry: release pivotkit-core first/);
 });
 
+/** The text of a job of a workflow file: from "  <job>:" to the next job. */
+function jobOf(file, job) {
+    const text = readFileSync(new URL(file, root), "utf8");
+    const start = text.indexOf(`\n  ${job}:\n`);
+    assert.ok(start !== -1, `${file} has no job ${job}`);
+    const next = text.slice(start + 1).search(/\n {2}[a-z-]+:\n/);
+    return next === -1 ? text.slice(start) : text.slice(start, start + 1 + next);
+}
+
+// npm audit signatures checks the registry signatures of what npm ci installed: the step right after
+// the install, in CI's test job and in the release's build job
+test("CI's test job and the release build verify the registry signatures right after npm ci", () => {
+    for (const [file, job] of [[".github/workflows/ci.yml", "test"], [".github/workflows/release.yml", "build"]]) {
+        const section = jobOf(file, job);
+        const install = section.indexOf("run: npm ci --no-audit");
+        const audit = section.indexOf("run: npm audit signatures");
+        assert.ok(install !== -1 && audit > install, `${file} ${job}: npm audit signatures after npm ci`);
+        assert.equal((section.slice(install, audit).match(/\n {6}- /g) ?? []).length, 1, `${file} ${job}: npm audit signatures is the step right after the install`);
+    }
+});
+
+// pivotkit-cli's file handling is tested on Windows too (junctions, drive letters, device names)
+test("CI runs pivotkit-cli's tests on Windows", () => {
+    const job = jobOf(".github/workflows/ci.yml", "windows");
+    assert.match(job, /runs-on: windows-latest/);
+    assert.match(job, /run: npm test -w pivotkit-cli/);
+});
+
 test("the release workflow runs check-release for the tagged package before it packs", () => {
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
     const check = release.indexOf("node scripts/check-release.js");

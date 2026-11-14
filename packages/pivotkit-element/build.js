@@ -218,9 +218,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * value that takes its rule off, a second rule added while the first one waits): the menus 45.96 on a
  * Mac (45.87 before; CI 46.0, over the budget of 46 that had about 0.1 left), budget 47 (2 % above
  * CI, below the rule's 3 % to keep the menus in check).
+ * After the encode issue codes (#261) main's first load is 173.36 on a Mac, about 173.95 in CI (CI
+ * measured 174.0 for 173.4 on a Mac in run 43604441863): at the budget of 174 already. The element's
+ * importWorkerUrl with its origin check (#194) adds about 0.2. Budget 175, about 1 KiB above what CI
+ * measures, the first load's rule.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 47, texts: 7, unused: 5.5, import: 21.5, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 47, texts: 7, unused: 5.5, import: 21.5, report: 22 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and

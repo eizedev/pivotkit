@@ -35,7 +35,9 @@ export function run(args, { cwd, input, env = {}, timeout = 30_000 } = {}) {
 }
 
 /** A new empty directory (its real path: the system's temporary directory may be a link). */
-export const tempDir = (prefix = "pivotkit-cli-") => realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+// the real path as the system resolves it (realpathSync.native): on Windows realpathSync keeps a short
+// 8.3 name of the temporary directory (C:\Users\RUNNER~1), the file handling the long one
+export const tempDir = (prefix = "pivotkit-cli-") => realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
 
 export const SALES_CSV = "Region,Product,Units,Date\nNorth,A,3,2026-01-05\nSouth,B,4,2026-09-01\nNorth,B,2,2026-10-01\nWest,A,5,2025-06-30\n";
 

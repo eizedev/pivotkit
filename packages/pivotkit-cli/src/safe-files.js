@@ -177,6 +177,18 @@ export function tempFileName(name) {
 }
 
 /**
+ * Whether a file name is one of Windows' reserved device names (CON, PRN, AUX, NUL, COM1 to COM9,
+ * COM¹ to COM³, LPT1 to LPT9, LPT¹ to LPT³, in any case), also followed by an extension (NUL.txt and
+ * NUL.tar.gz are NUL): in every directory it names the device, not a file there (Microsoft's
+ * "Naming Files, Paths, and Namespaces"). Trailing dots and spaces are removed first, as Windows
+ * does with a name's end.
+ * @param {string} name  a base name
+ */
+export function isWindowsDevice(name) {
+    return /^(con|prn|aux|nul|com[1-9\u00b9\u00b2\u00b3]|lpt[1-9\u00b9\u00b2\u00b3])(\..*)?$/i.test(name.replace(/[. ]+$/, ""));
+}
+
+/**
  * Writes `bytes` to `path`: into a new temporary file in the target's directory, then renamed over it;
  * with `exclusive`, linked into place instead, which fails when a file is there (also one made
  * between the check and the write), so nothing is replaced: `EXISTS`.
@@ -198,6 +210,9 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
     }
     const target = join(dir, basename(full));
     checkAllowed(target, allow, path);
+    if (process.platform === "win32" && isWindowsDevice(basename(full))) {
+        throw new CliError("io", "SPECIAL_FILE", `${shortName(path)}: exists and is a device or another special file; not replaced`);
+    }
     const existing = await lstat(target).catch((e) => (e.code === "ENOENT" ? null : Promise.reject(e)));
     if (existing && exclusive) {
         throw new CliError("io", "EXISTS", `${shortName(path)}: is already there; not replaced`);
@@ -265,7 +280,8 @@ export async function writeNew(dir, name, extension, bytes, { prefix = "", tries
             await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true });
             return base;
         } catch (e) {
-            if (e?.code !== "EXISTS") {
+            // a device's name (Windows' NUL, CON ...) is taken as well: the next name
+            if (e?.code !== "EXISTS" && e?.code !== "SPECIAL_FILE") {
                 throw e;
             }
         }

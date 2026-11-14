@@ -11,7 +11,7 @@ import { announcementsOf, nextTarget } from "../src/dnd-moves.js";
 import { dataUrlToBlob, safeFileName } from "../src/files.js";
 import { LABELS, errorText, fill, plural, resolveLabels } from "../src/labels.js";
 import { fieldAction, layoutSummary, valueLabel } from "../src/names.js";
-import { HISTORY_LIMIT, createState, record, redo, reset, settle, tagFor, undo } from "../src/view-history.js";
+import { HISTORY_LIMIT, answered, createState, record, redo, reset, settle, tagFor, told, undo } from "../src/view-history.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
 import { en as menuEn } from "../src/menu-labels.js";
 
@@ -546,3 +546,19 @@ test("toolbar room: the texts of the report's language, the chart type's longest
     assert.equal(toolbarRoom(toolbarTexts({ ...LABELS.en, views: "Saved reports" }), (t) => t.length, chrome).views, 40 + "Saved reports".length + 6);
 });
 
+
+test("the views a controlled host has not passed back: at most HISTORY_LIMIT, the ones after its answer wait (#204)", () => {
+    // a host that never passes a view back: every change is told, the list stays at the limit, the newest kept
+    let pending = [];
+    for (let i = 0; i < HISTORY_LIMIT * 3; i++) {
+        pending = told(pending, `v${i}`);
+    }
+    assert.equal(pending.length, HISTORY_LIMIT);
+    assert.equal(pending[0], `v${HISTORY_LIMIT * 2}`);
+    assert.equal(pending.at(-1), `v${HISTORY_LIMIT * 3 - 1}`);
+    // a host that answers late (#141): the views told after the one it passes still wait
+    assert.deepEqual(answered(["a", "b", "c"], "a"), ["b", "c"]);
+    assert.deepEqual(answered(["a", "b", "c"], "c"), []);
+    // a view it was not told is a change of its own: nothing waits
+    assert.deepEqual(answered(["a", "b"], "x"), []);
+});
