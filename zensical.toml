@@ -50,7 +50,7 @@ nav = [
       { "Locale, time zones, limits and errors" = "concepts/limits.md" },
     ] },
   ] },
-  { "Reports and CLI" = [
+  { "Command line and reports in code" = [
     { "Getting started: command line" = "getting-started/cli.md" },
     { "Getting started: reports in code" = "getting-started/report.md" },
     { "pivotkit-cli" = "reference/cli.md" },

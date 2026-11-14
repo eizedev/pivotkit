@@ -96,7 +96,9 @@ life), or [load your own](use/load-data.md). Every task has its page under
 | Reports as files from a script or a server | [Reports in code](getting-started/report.md): `pivotkit-report` |
 | Reports and view checks in a terminal or CI | [Command line](getting-started/cli.md): `pivotkit example` |
 
-Which package fits, PowerShell Universal and the recipes: [Embed pivotkit](embed/index.md).
+| A PowerShell Universal app | [PowerShell Universal](getting-started/react.md#powershell-universal): `New-UDPivotReport` |
+
+Which package fits, what a host switches on, and the recipes: [Embed pivotkit](embed/index.md).
 
 </div>
 

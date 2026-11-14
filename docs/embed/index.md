@@ -46,12 +46,17 @@ Coming from 0.4? [Upgrading from 0.4](../getting-started/upgrading.md) lists wha
     import { PivotReport } from "pivotkit-react";
     import "pivotkit-react/styles.css";
 
-    <PivotReport
+    const rows = [{ Region: "North", Sales: 120 }, { Region: "South", Sales: 340 }];
+    const save = (view) => localStorage.setItem("view", JSON.stringify(view));
+
+    export const Report = () => <PivotReport
         data={rows}
         defaultView={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }}
         onViewChange={save}
-    />
+    />;
     ```
+
+    A whole app to copy, with Vite: [getting started with React](../getting-started/react.md#a-complete-app).
 
 === "Web component"
 
@@ -64,10 +69,12 @@ Coming from 0.4? [Upgrading from 0.4](../getting-started/upgrading.md) lists wha
     <pivot-report default-view='{"rows":["Region"],"values":[{"field":"Sales","agg":"sum"}]}'></pivot-report>
     <script type="module">
         const report = document.querySelector("pivot-report");
-        report.data = rows;
-        report.addEventListener("pivot-view-change", (e) => save(e.detail.view));
+        report.data = [{ Region: "North", Sales: 120 }, { Region: "South", Sales: 340 }];
+        report.addEventListener("pivot-view-change", (e) => localStorage.setItem("view", JSON.stringify(e.detail.view)));
     </script>
     ```
+
+    A whole page to copy: [getting started with the web component](../getting-started/web-component.md#a-complete-page).
 
 === "Engine"
 
@@ -75,6 +82,7 @@ Coming from 0.4? [Upgrading from 0.4](../getting-started/upgrading.md) lists wha
     import { encode, computePivot, toGrid } from "pivotkit-core";
     import { toXlsx } from "pivotkit-core/export";
 
+    const rows = [{ Region: "North", Sales: 120 }, { Region: "South", Sales: 340 }];
     const data = encode(rows);
     const result = computePivot(data, { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] });
     const xlsx = toXlsx(toGrid(result));   // Uint8Array
@@ -87,8 +95,9 @@ Coming from 0.4? [Upgrading from 0.4](../getting-started/upgrading.md) lists wha
     npx pivotkit-cli render sales.pivotkit.json --data sales.csv -o sales.html
     ```
 
-`rows` is an array of plain objects, one per record. Each key is a field the user can drag. The
-getting-started pages have complete projects to copy and run.
+`rows` is an array of plain objects, one per record; each key is a field the user can drag. The
+getting-started pages have complete projects to copy and run (the engine's in an ES module:
+`"type": "module"` in `package.json`, or a `.mjs` file).
 
 ## What a host switches on
 

@@ -18,8 +18,9 @@ npm install pivotkit-react react react-dom echarts
 ```
 
 React, ReactDOM and Apache ECharts are **peer dependencies**: your app provides them, so the page has
-one copy of each. pivotkit-core (a caret range) and `@dnd-kit/core` and `@dnd-kit/sortable` (pinned
-exactly) come with the package.
+one copy of each. pivotkit-core and pivotkit-report (caret ranges; pivotkit-report is loaded for the
+HTML report, the SVG and printing) and `@dnd-kit/core` and `@dnd-kit/sortable` (pinned exactly) come
+with the package.
 
 | Peer | Range | Why it is a peer |
 | --- | --- | --- |
@@ -143,26 +144,32 @@ export function SalesReport() {
 
 To store the report, or start it from a saved one, make it **controlled**: pass `view` and set it
 from `onViewChange`. The undo history stays inside the report however often your app renders.
+`Report.jsx` of the app above becomes:
 
 ```jsx
 import { useState } from "react";
+import { PivotReport } from "pivotkit-react";
+import "pivotkit-react/styles.css";
 
-export function TicketReport({ rows }) {
+const rows = [/* the rows of the app above */];
+const presets = [
+    { name: "Sales per region", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "sum" }] } }
+];
+
+export function Report() {
     const [view, setView] = useState(presets[0].view);
     return <PivotReport data={rows} view={view} onViewChange={setView} />;
 }
-
-const presets = [
-    { name: "Tickets per team", view: { rows: ["Team"], cols: ["Priority"], values: [{ field: "Ticket", agg: "count" }] } }
-];
 ```
+
+The steps below add props to this `<PivotReport>` inside `Report`.
 
 Store `view` wherever your app keeps settings; it is plain JSON.
 
 ## 4. Tell the report when the data is new { #data-key }
 
 ```jsx
-<PivotReport data={rows} dataKey="tickets" view={view} onViewChange={setView} />
+<PivotReport data={rows} dataKey="sales" view={view} onViewChange={setView} />
 ```
 
 `dataKey` tells the report when the data is new. An app that builds a new array on every render
@@ -173,11 +180,11 @@ passes a key, and the rows are encoded again only when it changes.
 Without a server, the browser keeps them:
 
 ```jsx
-<PivotReport data={rows} dataKey="tickets" view={view} onViewChange={setView} templates={presets} templateStore="browser" storageKey="tickets" />
+<PivotReport data={rows} dataKey="sales" view={view} onViewChange={setView} templates={presets} templateStore="browser" storageKey="sales" />
 ```
 
-With a server, your app keeps them and the report calls back. A sketch with the app's own state
-(`fetch` to your API where it says so):
+With a server, your app keeps them and the report calls back. Inside `Report`, next to `view`
+(`fetch` to your API where the comments say so):
 
 ```jsx
 const [saved, setSaved] = useState([]);   // the user's views, as your server returns them: [{ name, view }]
@@ -185,14 +192,14 @@ const saveTemplate = async (template) => {
     // await fetch("/api/views", { method: "PUT", body: JSON.stringify(template) });
     setSaved((list) => [...list.filter((t) => t.name !== template.name), template]);
 };
-const deleteTemplate = async (name) => {
+const deleteTemplate = async (name, scope) => {   // scope: the group of the view, "user" for the user's own
     // await fetch(`/api/views/${encodeURIComponent(name)}`, { method: "DELETE" });
     setSaved((list) => list.filter((t) => t.name !== name));
 };
 
 <PivotReport
     data={rows}
-    dataKey="tickets"
+    dataKey="sales"
     view={view}
     onViewChange={setView}
     templates={[...presets, ...saved.map((t) => ({ ...t, scope: "user", deletable: true }))]}
@@ -212,7 +219,7 @@ from an OpenAPI document are in [Templates and shared views](../concepts/templat
 ```jsx
 <PivotReport
     data={rows}
-    fieldDefaults={{ "Lead hours": { agg: "average", format: "duration:h" } }}
+    fieldDefaults={{ Sales: { agg: "sum", format: "currency:EUR" } }}
 />
 ```
 
@@ -231,7 +238,7 @@ in [Field descriptions and names](../concepts/fields.md).
 ## 8. Language and the data's name { #locale-and-source }
 
 ```jsx
-<PivotReport data={rows} locale="de-DE" source={{ id: "tickets", name: "Tickets" }} />
+<PivotReport data={rows} locale="de-DE" source={{ id: "sales", name: "Sales" }} />
 ```
 
 - `locale` sets numbers, dates and sorting, and the language of the labels (`de-*` is German).

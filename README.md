@@ -21,8 +21,9 @@ report by dragging fields, and take it to Excel; the same report renders again i
 
 <sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
 
-As a React 18/19 component, a web component, a JavaScript engine for the browser and Node, and a
-command line; MIT. It computes in the browser on the rows the host passes and fetches no data. It
+For the people who build reports in an application, and for the developers who put it there: a
+React 18/19 component, a web component (also in PowerShell Universal apps), a JavaScript engine for
+the browser and Node, and a command line; MIT. It computes in the browser on the rows the host passes and fetches no data. It
 runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
 ([browser support](docs/browser-support.md)); the engine, the reports and the CLI in Node 22 or later.
 [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)

@@ -57,6 +57,10 @@ the same as text for the text formats.
 
 ## 3. Render a data file and a view file { #files }
 
+```bash
+npx pivotkit-cli example      # sales.csv and two views in this directory, to try it with
+```
+
 The files the report downloads (**Views**, **Download view**; **Export**, **Source data**, **All rows
 as CSV**) or the example files (`npx pivotkit-cli example`) work as they are. pivotkit-core reads the
 CSV:

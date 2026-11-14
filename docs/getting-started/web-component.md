@@ -34,13 +34,14 @@ directory of one exact version.
 
 ## A complete page to copy { #a-complete-page }
 
-Four commands and one file, no build step:
+A few commands and one file, no build step:
 
 ```bash
 mkdir pivot-page && cd pivot-page
 npm install pivotkit-element
 mkdir -p assets/pivotkit-element && cp -R node_modules/pivotkit-element/dist assets/pivotkit-element/
-npx --yes http-server -p 8080 .     # any static server; then open http://localhost:8080/
+# put index.html (below) into pivot-page/, then serve the folder:
+npx --yes http-server -p 8080 .     # any static server; runs until Ctrl-C; open http://localhost:8080/
 ```
 
 `index.html`:

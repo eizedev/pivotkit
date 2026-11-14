@@ -58,7 +58,8 @@ Next:
 Other examples: pivotkit example weather
 ```
 
-Run the first line it prints and open `sales.html` in a browser:
+Run what it prints, and open `sales.html` in a browser; the same view also gives a chart and a
+workbook:
 
 ```bash
 pivotkit render sales.pivotkit.json --data sales.csv -o sales.html
@@ -88,10 +89,11 @@ report in the browser (the [live demo](../demo.md) does it):
 2. **Export**, **Source data**, **All rows as CSV (.csv)**: the rows. The application decides whether
    it offers this group ([exportData](../reference/react.md#prop-exportdata)); a file you loaded
    yourself you have already.
-3. Render them:
+3. Render them (the names are the playground's: the view is named after its name, the data after
+   the application's file name with `-data`):
 
     ```bash
-    pivotkit render "Revenue by region.pivotkit.json" --data pivotkit-sales-data.csv -o report.html
+    pivotkit render revenue-by-region-and-category.pivotkit.json --data pivotkit-sales-data.csv -o report.html
     ```
 
 The table's own CSV (**Export**, **Table as CSV**) is the result of the view, not its data: given as
@@ -140,8 +142,8 @@ if (-not $result.ok) {
     $result.findings | Where-Object severity -eq 'error' | Format-Table code, path, message
     exit $result.exitCode
 }
-pivotkit render sales.pivotkit.json --data sales.csv -o sales.xlsx --json | ConvertFrom-Json |
-    Select-Object -ExpandProperty output
+$written = pivotkit render sales.pivotkit.json --data sales.csv -o sales.xlsx --json | ConvertFrom-Json
+$written.output.file      # sales.xlsx; .output.bytes its size
 ```
 
 Shell completion: `pivotkit completion powershell | Out-String | Invoke-Expression` (bash, zsh and fish
