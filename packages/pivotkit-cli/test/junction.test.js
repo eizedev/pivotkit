@@ -1,8 +1,10 @@
 // A directory link inside an allowed directory that leads out of it: a junction (a reparse point) on
 // Windows, a symbolic link elsewhere (Node makes a symbolic link to a directory when the type
-// "junction" is given on another system). Creating a junction needs no administrator rights, so CI's
-// Windows job runs these. pivotkit-cli/files must follow it to its real path and refuse what lies
-// outside, and never write through it or replace it.
+// "junction" is given on another system). Only CI's Windows job proves the reparse point; on Linux
+// and macOS the same tests run on a symbolic link. Creating a junction needs no administrator rights.
+// pivotkit-cli/files must follow it to its real path and refuse what lies outside, and never write
+// through it or replace it. Each test first uses the allowed directory itself, so a refusal is the
+// junction's, not a path the check does not recognise (on Windows a short 8.3 name would be one).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
@@ -36,6 +38,7 @@ test("a junction out of the allowed directory: a file behind it is not read", as
 test("a junction out of the allowed directory: nothing is written through it", async () => {
     const { allowed, outside } = junctionToOutside();
     const options = { cwd: allowed, allow: [allowed] };
+    assert.equal(await writeSafe("report.csv", new TextEncoder().encode("x"), options), join(allowed, "report.csv"));
     await assert.rejects(writeSafe("out/report.csv", new TextEncoder().encode("x"), options), refused("OUTSIDE_ALLOWED_DIR"));
     await assert.rejects(writeSafe("out/secret.csv", new TextEncoder().encode("x"), options), refused("OUTSIDE_ALLOWED_DIR"));
     assert.deepEqual(readdirSync(outside), ["secret.csv"]);
@@ -44,6 +47,7 @@ test("a junction out of the allowed directory: nothing is written through it", a
 
 test("a junction at the target is refused, never replaced, with or without allowed directories", async () => {
     const { allowed, outside } = junctionToOutside();
+    assert.equal(await writeSafe("data.csv", new TextEncoder().encode(SALES_CSV), { cwd: allowed, allow: [allowed] }), join(allowed, "data.csv"));
     for (const allow of [[allowed], []]) {
         await assert.rejects(writeSafe("out", new TextEncoder().encode("x"), { cwd: allowed, allow }), refused("NOT_REGULAR_FILE"));
         await assert.rejects(writeSafe("out", new TextEncoder().encode("x"), { cwd: allowed, allow, exclusive: true }), refused("EXISTS"));
