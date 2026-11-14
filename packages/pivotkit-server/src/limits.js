@@ -1,13 +1,14 @@
 /*
- * The REST service's request limits, in the memory of one process (a second instance behind a load
+ * The request limits of the REST service (rest.rateLimit, rest.concurrency) and of the MCP endpoint
+ * (mcp.rateLimit, mcp.concurrency), each its own, in the memory of one process (a second instance behind a load
  * balancer counts on its own): a token bucket per caller (rest.rateLimit.perMinute, .burst), a count
  * of refused tokens per address over the last minute (.failedAuthPerMinute: someone trying tokens is
  * stopped before the next one is checked), and the requests of one caller at once
  * (rest.concurrency). Every map is bounded: the oldest key goes first.
  */
 
-/** The defaults. */
-export const REST_LIMITS = Object.freeze({ perMinute: 120, burst: 30, failedAuthPerMinute: 30, concurrency: 4 });
+/** The defaults, the same for both front ends. */
+export const REQUEST_LIMITS = Object.freeze({ perMinute: 120, burst: 30, failedAuthPerMinute: 30, concurrency: 4 });
 
 /** The most keys a limiter keeps. */
 const KEYS = 10_000;
@@ -20,14 +21,14 @@ function bound(map) {
 }
 
 /**
- * @param {import("../config.js").RestOptions} [rest]
+ * @param {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number }} [rest]  rest.* or mcp.*
  * @param {() => number} [now]  milliseconds (tests)
  */
 export function createLimits(rest = {}, now = Date.now) {
-    const perMinute = rest.rateLimit?.perMinute ?? REST_LIMITS.perMinute;
-    const burst = rest.rateLimit?.burst ?? REST_LIMITS.burst;
-    const failedPerMinute = rest.rateLimit?.failedAuthPerMinute ?? REST_LIMITS.failedAuthPerMinute;
-    const concurrency = rest.concurrency ?? REST_LIMITS.concurrency;
+    const perMinute = rest.rateLimit?.perMinute ?? REQUEST_LIMITS.perMinute;
+    const burst = rest.rateLimit?.burst ?? REQUEST_LIMITS.burst;
+    const failedPerMinute = rest.rateLimit?.failedAuthPerMinute ?? REQUEST_LIMITS.failedAuthPerMinute;
+    const concurrency = rest.concurrency ?? REQUEST_LIMITS.concurrency;
     /** @type {Map<string, { tokens: number, at: number }>} */
     const buckets = new Map();
     /** @type {Map<string, number[]>} */

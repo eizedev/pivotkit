@@ -62,11 +62,10 @@ for reports, until the directory holds `output.maxFiles` files or `output.maxMb`
 pivotkit's: then a new report deletes the oldest reports, whoever asked for them (drafts are not
 deleted this way; they may take at most half of `output.maxFiles`, and a draft over that is
 refused). `output.maxAgeDays` deletes older reports and drafts (drafts waiting for approval
-too) at start and every hour, or clean it up on a schedule of your own; give the output directory to
-pivotkit alone.
-Reports are written with mode 0644 (less the umask), readable for other local users: restrict the directory
-itself where that matters. Decide how long the
-log and the reports are kept, and who can read the output directory (a web server that serves it,
+too), and the temporary files of writes the server was killed in, at start and every hour, or
+clean it up on a schedule of your own; give the output directory to pivotkit alone. Reports are
+written with mode 0644 (less the umask), readable for other local users: restrict the directory
+itself where that matters. Decide how long the log and the reports are kept, and who can read the output directory (a web server that serves it,
 `output.baseUrl`, makes every file reachable by its name).
 
 ## The AI client { #ai-client }

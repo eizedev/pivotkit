@@ -12,6 +12,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
   9999 in the filter's texts (173.7 KiB measured on a Mac, CI 174.3); its budget to 174.75
   ([#349](https://github.com/eizedev/pivotkit/issues/349)).
 
+### Fixed
+
+- The element bundles pivotkit-react's fix of a saved view that reads another sheet of the loaded
+  workbook: a sheet the reader has notes on shows them in the preview before it is loaded
+  ([#274](https://github.com/eizedev/pivotkit/issues/274)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5

@@ -18,7 +18,7 @@ with npm provenance.
 
 | Plugin | What | Size (gzip) | pivotkit-core |
 | --- | --- | --- | --- |
-| <span id="pivotkit-xlsx"></span>[`pivotkit-xlsx`](https://www.npmjs.com/package/pivotkit-xlsx) | Excel workbooks (`.xlsx`): one sheet, the first visible one or the one asked for; dates from the cell formats; the values Excel saved, never formulas. Refuses `.xls`, `.xlsb`, macro and password-protected workbooks, ZIP bombs and XML with a document type, before anything is parsed. Built on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). | 0.2 KiB descriptor, 30.6 KiB when the first workbook is read | 0.6 (plugin API 1) |
+| <span id="pivotkit-xlsx"></span>[`pivotkit-xlsx`](https://www.npmjs.com/package/pivotkit-xlsx) | Excel workbooks (`.xlsx`): one sheet, the first visible one or the one asked for; dates from the cell formats; the values Excel saved, never formulas. Refuses `.xls`, `.xlsb`, macro and password-protected workbooks, ZIP bombs and XML with a document type, before anything is parsed. Built on [read-excel-file](https://www.npmjs.com/package/read-excel-file) (MIT). | 0.2 KiB descriptor, 31.4 KiB when the first workbook is read | 0.6 (plugin API 1) |
 
 ### pivotkit-xlsx
 
@@ -79,7 +79,8 @@ What it reads and refuses:
 | Sheets | The first visible worksheet; another by name or position (`sheet`); `sheets(file)` from `pivotkit-xlsx/reader` lists them with `visible`. Hidden sheets are listed, never read unless asked for. |
 | Values | Numbers, text (shared and inline), booleans; a date where the cell's format is a date format; a formula's saved value. A cell with an Excel error (`#N/A`) is blank, with a note. A time without a date reads as that time on 30 December 1899, Excel's day 0. |
 | The used range | Rows without a value are left out while the sheet is unpacked, before it is parsed: a sheet whose formatting reaches row 900,000 below 94,000 rows of data is read as 94,000 rows, with a note. A value beyond `limits.rows` or `limits.columns`, or a sheet whose values span more than `limits.importCells`, is refused at that point too, before the parser makes the sheet a dense table. |
-| Refused | `.xls` (Excel 97-2003), `.xlsb`, `.xlsm` and any workbook with `vbaProject.bin` or the macro content type, password-protected workbooks, encrypted ZIP entries; a ZIP whose directory names more than `limits.archiveEntries` parts or more than `limits.unpackedBytes` bytes (checked before anything is unpacked); a part that unpacks to more than its directory states; `<!DOCTYPE` or `<!ENTITY` in any XML part it reads. |
+| Shared strings and formats | Only the shared strings up to the highest one a cell of the sheet names are handed to the parser. They and the cell and number formats count together against `limits.importCells` (plus 1,000 rows for a title block), checked while they are unpacked; strings are numbered across the workbook, so a sheet naming a string past that limit is refused: the parser keeps an entry for each, so a file of a few hundred kilobytes cannot make millions of them. |
+| Refused | `.xls` (Excel 97-2003), `.xlsb`, `.xlsm` and any workbook with `vbaProject.bin` or the macro content type, password-protected workbooks, encrypted ZIP entries; a ZIP whose directory names more than `limits.archiveEntries` parts or more than `limits.unpackedBytes` bytes (checked before anything is unpacked); a part that unpacks to more than its directory states; `<!DOCTYPE` or `<!ENTITY` in any XML part it reads; a sheet named as the workbook's shared strings or styles (as `DAMAGED`). |
 | Content-Security-Policy | No worker, no `eval`, no inline script: a strict policy works (`script-src 'self'`). |
 
 ??? info "Measured: 94,000 rows x 20 columns"
