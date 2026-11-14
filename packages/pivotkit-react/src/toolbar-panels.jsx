@@ -562,14 +562,14 @@ function viewActions(ctx, labels) {
 
 /**
  * The data an entry of the Views menu was made for, as the host's callbacks get a source: the browser
- * store's by its id and sheet, a host's view file's sheet with its id (named as the data shown when it
- * is that data); the data shown when the entry names none (a host's view, which the host lists for
- * the data shown), as onSaveTemplate gets it.
- * @param {{ sourceId?: string, sheetOf?: string, sheet?: string }} t
+ * store's by its id and sheet, a host's view file's source id and sheet (named as the data shown when
+ * it is that data); the data shown when the entry names none (a host's view, which the host lists for
+ * the data shown; a view of the browser store saved without data), as onSaveTemplate gets it.
+ * @param {{ sourceId?: string, sheetOf?: string, fileSource?: string, sheet?: string }} t
  * @param {{ id: string, name?: string, params?: Record<string, string> } | null | undefined} shown
  */
 const entrySource = (t, shown) => {
-    const id = t.sourceId ?? t.sheetOf;
+    const id = t.sourceId ?? t.sheetOf ?? t.fileSource;
     if (!id) {
         return shown ?? null;
     }

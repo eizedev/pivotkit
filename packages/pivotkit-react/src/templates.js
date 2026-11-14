@@ -36,6 +36,8 @@ export const viewsName = (key) => (key ? `pivotkit:views:${key}` : "pivotkit:vie
  * @property {string} [sheet]  the sheet of a workbook the view was made on (its source.params.sheet)
  * @property {string} [sheetOf]  the source id of that workbook's sheet (a host's view file; the
  *   browser store's entries have it as `sourceId`)
+ * @property {string} [fileSource]  the source id a host's view file names (with or without a sheet): the data it
+ *   was made for, which Publish hands on
  */
 
 /**
@@ -58,7 +60,7 @@ export function templateEntries(templates, stored, hostDeletes) {
             continue;
         }
         let { name, view } = t;
-        /** @type {{ sheet?: string, sheetOf?: string }} */
+        /** @type {{ sheet?: string, sheetOf?: string, fileSource?: string }} */
         let made = {};
         if (t.file !== undefined && t.file !== null) {
             const read = fromViewFile(t.file);
@@ -67,7 +69,7 @@ export function templateEntries(templates, stored, hostDeletes) {
             // the sheet of a workbook it was made on (sheet-views.js reads it the same way; that module
             // loads with the menus, this one with the first render)
             const sheet = read.source?.params?.sheet;
-            made = sheet && read.source?.id ? { sheet, sheetOf: read.source.id } : {};
+            made = { ...(read.source?.id ? { fileSource: read.source.id } : {}), ...(sheet && read.source?.id ? { sheet, sheetOf: read.source.id } : {}) };
         }
         if (typeof name === "string" && name && view && typeof view === "object") {
             const deletable = t.deletable === true;

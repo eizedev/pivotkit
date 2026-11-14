@@ -114,7 +114,9 @@
  *   marked `deletable` (`where.scope`: its group); the entry goes when it returns (or its promise resolves)
  * @property {(name: string, view: ViewInput, where: { source: TemplateSource | null }) => unknown} [onPublishTemplate]  with `canPublish`:
  *   "Publish as shared view" on each of the user's views; the host makes it a shared entry of
- *   `templates`; "published" is shown when it returns or its promise resolves; `where.source` the data shown
+ *   `templates`; "published" is shown when it returns or its promise resolves; `where.source` the data the
+ *   view was made for: the data shown (null without a source id), or the data a view file or a view of
+ *   the browser store names (its id and sheet; its name when that is the data shown)
  * @property {boolean} [canPublish]  the user may publish views for everyone (an admin); default false
  * @property {"browser"} [templateStore]  "browser": the user's own views are kept in this browser's
  *   localStorage under `storageKey` (only this browser and device, lost when the site's data is
