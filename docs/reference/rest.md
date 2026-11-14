@@ -179,9 +179,10 @@ error="insufficient_scope", scope="..."` naming them.
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068), so an ID
 token with the right audience is refused.
 
-Every token that may render can fill the output directory up to `output.maxFiles`; then rendering
-into it answers 409 `NO_OUTPUT` for everyone until files are removed. Set `output.maxAgeDays`, and
-give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it. The server
+The output directory holds at most `output.maxFiles` reports and `output.maxMb` megabytes: a new
+report deletes the oldest ones, whoever made them, so a token that renders without pause shortens how
+long reports stay but never stops the others from rendering. Set `output.maxAgeDays`, and give
+`render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it. The server
 holds at most 256 connections, and a client has 15 seconds to send its headers: on a network you do
 not trust, put a reverse proxy in front.
 
@@ -254,7 +255,7 @@ carry `Retry-After`.
 | 404 | <a id="error-source-not-found"></a>`SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
-| 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, or the directory is full |
+| 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
 | 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB; a file, a view or the work over a limit |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form); a source file in no data format |
@@ -288,7 +289,7 @@ pivotkit-server's.
 | Command | What it does |
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
-| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, fields by level, profiles, REST settings), then exit; 1 when a file it names is missing |
+| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, fields by level, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable; a warning for a policy rule that names no column of the data |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
@@ -302,7 +303,9 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise. On SIGTERM the server takes no
+loaded, workers up, the output directory writable) and 503 otherwise. An output directory the
+server's user cannot write is also a warning at start, a problem in `check-config`, and 409
+`NO_OUTPUT` for a report. On SIGTERM the server takes no
 new connection and lets running requests finish for up to `http.graceMs` (25 seconds by default).
 
 | Key | Default | What it is |
@@ -310,7 +313,8 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
-| `output.maxAgeDays` | none | Delete reports and drafts (`.xlsx`, `.html`, `.csv`, `.json`, `.svg`) older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
+| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Reports and drafts (`.xlsx`, `.html`, `.csv`, `.json`, `.svg` at the top level of the output directory) and their megabytes the directory may hold. A new report deletes the oldest until it fits, one write at a time; other files and subdirectories are not counted and stay. Where the output directory is the configuration file's directory or holds a source, print template or token file, nothing is deleted: a full directory answers 409 `NO_OUTPUT`, and the start warns |
+| `output.maxAgeDays` | none | Delete reports and drafts older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`

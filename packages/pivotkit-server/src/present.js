@@ -167,6 +167,18 @@ const pruned = new Map();
 const OUTPUT_FILE_NAME = /\.(xlsx|html|csv|json|svg)$/i;
 
 /**
+ * The reports and drafts in the output directory (its top level; a file of another kind and a
+ * subdirectory are not pivotkit's), oldest first.
+ * @param {string} dir
+ * @returns {Promise<Array<{ path: string, size: number, mtimeMs: number }>>}
+ */
+async function reportsIn(dir) {
+    const entries = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((e) => e.isFile() && OUTPUT_FILE_NAME.test(e.name));
+    const files = await Promise.all(entries.map((e) => stat(join(dir, e.name)).then((info) => ({ path: join(dir, e.name), size: info.size, mtimeMs: info.mtimeMs }), () => null)));
+    return /** @type {Array<{ path: string, size: number, mtimeMs: number }>} */ (files.filter(Boolean)).sort((a, b) => a.mtimeMs - b.mtimeMs);
+}
+
+/**
  * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
  * level; a file of another kind and a subdirectory stay), at most once an hour.
  * @param {any} context
@@ -179,15 +191,71 @@ export async function prune(context) {
     }
     pruned.set(dir, Date.now());
     const before = Date.now() - days * 86_400_000;
-    for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-        if (entry.isFile() && OUTPUT_FILE_NAME.test(entry.name)) {
-            const path = join(dir, entry.name);
-            const info = await stat(path).catch(() => null);
-            if (info && info.mtimeMs < before) {
-                await unlink(path).catch(() => undefined);
-            }
+    for (const file of await reportsIn(dir)) {
+        if (file.mtimeMs < before) {
+            await unlink(file.path).catch(() => undefined);
         }
     }
+}
+
+/** The write running per output directory: one at a time, so a count checked is the count written. */
+const writing = new Map();
+
+/** Runs fn after the write before it in this directory has finished. */
+async function oneAtATime(dir, fn) {
+    const before = writing.get(dir) ?? Promise.resolve();
+    const mine = before.then(fn);
+    const done = mine.catch(() => undefined);
+    writing.set(dir, done);
+    try {
+        return await mine;
+    } finally {
+        if (writing.get(dir) === done) {
+            writing.delete(dir);
+        }
+    }
+}
+
+/** A failed write of the output directory as the caller's answer: what the operator must fix. */
+function outputError(e) {
+    if (["EACCES", "EPERM", "EROFS"].includes(e?.code)) {
+        return new OperationError("NO_OUTPUT", "the output directory is not writable by the server's user; the operator must fix its owner or mode (output.dir)");
+    }
+    if (e?.code === "ENOSPC" || e?.code === "EDQUOT") {
+        return new OperationError("NO_OUTPUT", "the disk of the output directory is full; the operator must make room (output.maxMb)");
+    }
+    return e;
+}
+
+/**
+ * Makes room for a new file of `bytes`: while the directory would hold more than output.maxFiles
+ * reports or output.maxMb, its oldest reports and drafts are deleted, whoever made them; so a caller
+ * that renders without pause shortens how long the reports stay, but never stops the others from
+ * rendering. A directory that holds the operator's own files (output.cleanUp false) is never cleaned:
+ * a full one refuses.
+ * @returns {Promise<number>}  the files deleted
+ */
+async function makeRoom(context, dir, bytes) {
+    const { maxFiles, maxMb, cleanUp } = context.output;
+    const maxBytes = maxMb * 1_048_576;
+    if (bytes > maxBytes) {
+        throw new OperationError("NO_OUTPUT", `the report is larger than the output directory may hold (output.maxMb: ${maxMb})`);
+    }
+    const files = await reportsIn(dir);
+    let total = files.reduce((sum, f) => sum + f.size, 0);
+    let deleted = 0;
+    while (files.length + 1 > maxFiles || total + bytes > maxBytes) {
+        const oldest = files.shift();
+        if (!oldest || !cleanUp) {
+            const count = files.length + (oldest ? 1 : 0);
+            const over = count + 1 > maxFiles ? `holds ${count} reports, the most it may (output.maxFiles: ${maxFiles})` : `is full (output.maxMb: ${maxMb})`;
+            throw new OperationError("NO_OUTPUT", `the output directory ${over}${cleanUp ? "" : " and holds the operator's own files, so the server deletes none there"}; the operator must clean it up`);
+        }
+        await unlink(oldest.path).catch((e) => (e?.code === "ENOENT" ? undefined : Promise.reject(outputError(e))));
+        total -= oldest.size;
+        deleted++;
+    }
+    return deleted;
 }
 
 /** Writes a file an operation made into the output directory; its name, path and address. */
@@ -197,13 +265,15 @@ async function writeOutput(context, file) {
         return null;
     }
     await prune(context);
-    const count = (await readdir(dir).catch(() => [])).length;
-    if (count >= context.output.maxFiles) {
-        throw new OperationError("NO_OUTPUT", `the output directory holds ${count} files, the most it may (output.maxFiles); the operator must clean it up`);
-    }
     // a directory a web server serves gets names nobody can guess
     const prefix = context.output.baseUrl ? `${randomBytes(16).toString("base64url")}-` : "";
-    const name = await writeNew(dir, file.name, file.extension, file.bytes, { prefix });
+    const name = await oneAtATime(dir, async () => {
+        const deleted = await makeRoom(context, dir, file.bytes.length);
+        if (deleted) {
+            context.log.info("output directory full: the oldest reports deleted", { deleted });
+        }
+        return writeNew(dir, file.name, file.extension, file.bytes, { prefix }).catch((e) => Promise.reject(outputError(e)));
+    });
     return {
         name,
         ...(context.output.showPath ? { path: join(dir, name) } : {}),

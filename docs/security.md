@@ -226,7 +226,9 @@ may try to steer it:
   becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
   with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
-  gets names that start with 22 random characters; protect that server as you would the data.
+  gets names that start with 22 random characters; protect that server as you would the data. The
+  directory holds at most `output.maxFiles` reports and `output.maxMb` megabytes: a new report
+  deletes the oldest, so one caller cannot fill it for everyone.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
