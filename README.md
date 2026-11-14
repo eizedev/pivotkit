@@ -5,18 +5,28 @@
   </picture>
 </p>
 
-Pivot report builder for the web: drag-and-drop fields, table and chart (Apache ECharts), views as
-JSON files, native Excel export; as a JavaScript core, a React component and a web component.
-Free under MIT, it computes in the browser on the rows the host passes and fetches no data; a saved
-view is plain JSON that cannot run code, and the Excel export is a real .xlsx with the pivot layout
-kept. It runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
-([browser support](docs/browser-support.md)); the engine, the reports and the CLI in Node 22 or later.
+Excel's PivotTable for web applications and the command line: people load their data, build the
+report by dragging fields, and take it to Excel; the same report renders again in CI.
 
-[Live demo](https://pivotkit.eize.dev/demo/) · [Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
+- Bring your own file: CSV, JSON or Excel dropped onto the report (where the application allows
+  it), with a preview and a type per column; nothing is uploaded ([load your own data](https://pivotkit.eize.dev/use/load-data/)).
+- Excel with the layout kept, and the rows behind the report as CSV or JSON
+  ([export](https://pivotkit.eize.dev/use/export/)).
+- Safe JSON views and reports without a browser: a view cannot run code; `pivotkit render`
+  makes the same report from the downloaded view and data ([command line](https://pivotkit.eize.dev/getting-started/cli/)).
+
+[Live demo](https://pivotkit.eize.dev/playground/) · [Documentation](https://pivotkit.eize.dev/) · [Features](https://pivotkit.eize.dev/features/) · [Comparison](https://pivotkit.eize.dev/compare/) · [Security](docs/security.md) ([policy](SECURITY.md))
 
 ![The pivot report: average temperature of 14 cities by month as a colour scale](docs/assets/screenshots/report-light.png)
 
 <sub>Weather data by [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)); contains modified Copernicus Climate Change Service information 2023 (ERA5) and 2019 (ERA5-Land), and ECMWF IFS data ([sources](examples/playground/data/SOURCES.md)).</sub>
+
+For the people who build reports in an application, and for the developers who put it there: a
+React 18/19 component, a web component (also in PowerShell Universal apps), a JavaScript engine for
+the browser and Node, and a command line; MIT. It computes in the browser on the rows the host passes and fetches no data. It
+runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
+([browser support](docs/browser-support.md)); the engine, the reports and the CLI in Node 22 or later.
+[Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml)
 
 | | |
 | --- | --- |
@@ -38,7 +48,7 @@ kept. It runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
 
 ## Example
 
-The report builder in React (try it in the [playground](examples/playground/)):
+The report builder in React (try it in the [live demo](https://pivotkit.eize.dev/playground/)):
 
 ```jsx
 import { PivotReport } from "pivotkit-react";
@@ -47,7 +57,7 @@ import "pivotkit-react/styles.css";
 <PivotReport data={rows} defaultView={{ rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }} onViewChange={save} />
 ```
 
-The same as a web component, on a page without React (try it in the [example](examples/element/)):
+The same as a web component, on a page without React (try it in the [example page](https://pivotkit.eize.dev/playground/examples/element/)):
 
 ```html
 <script type="module" src="/assets/pivotkit-element/dist/index.js"></script>
@@ -73,6 +83,13 @@ const result = computePivot(data, {
 });
 const grid = toGrid(result);                     // cells with merges, totals and formatted text
 const xlsx = toXlsx(grid);                       // Uint8Array
+```
+
+The command line, on example files it writes itself:
+
+```bash
+npx pivotkit-cli example                 # sales.csv and two views
+npx pivotkit-cli render sales.pivotkit.json --data sales.csv -o sales.html
 ```
 
 The view passed to `computePivot` is plain JSON: the same object is the saved template, the undo

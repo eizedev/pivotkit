@@ -58,7 +58,7 @@ const option = toEChartsOption(result, { chart: { type: "bar", stacked: true } }
 | Topic | Page |
 | --- | --- |
 | Getting started: rows to a table, drawing the grid, on a server | [Getting started with the engine](https://pivotkit.eize.dev/getting-started/engine/) |
-| Loading CSV, JSON and (with a plugin) Excel files | [Loading files](https://pivotkit.eize.dev/reference/import/), [Plugins](https://pivotkit.eize.dev/reference/plugins/) |
+| Loading CSV, JSON and (with a plugin) Excel files; the data as a file again (`dataToCsv`) | [Loading files](https://pivotkit.eize.dev/reference/import/), [Plugins](https://pivotkit.eize.dev/reference/plugins/) |
 | Every function, constant and type | [pivotkit-core reference](https://pivotkit.eize.dev/reference/core/): [data](https://pivotkit.eize.dev/reference/core/#data), [views](https://pivotkit.eize.dev/reference/core/#views), [pivot](https://pivotkit.eize.dev/reference/core/#pivot), [output and export](https://pivotkit.eize.dev/reference/core/#output), [helpers](https://pivotkit.eize.dev/reference/core/#helpers), [types](https://pivotkit.eize.dev/reference/core/#types) |
 | The view and every key | [Views and saved views](https://pivotkit.eize.dev/concepts/views/#a-complete-view) |
 | Aggregators, show as, formats | [Values](https://pivotkit.eize.dev/concepts/values/) |

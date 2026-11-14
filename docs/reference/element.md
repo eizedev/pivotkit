@@ -397,14 +397,14 @@ above.
 What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-13
 (esbuild 0.28.2, gzip level 9 per file, sizes add up per group; approximate, they change with every
 dependency update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in
-`build.js` (170.5 KiB for the first load, about 1.4 above what CI measures; 1 to 7 per cent
+`build.js` (173 KiB for the first load, about 0.3 above what CI measures; 1 to 7 per cent
 above what CI measures for the groups loaded later; CI reads up to about 0.7 KiB more than these
 numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 9 | 518 KiB | 169 KiB |
-| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 1 | 604 KiB | 204 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 528 KiB | 172 KiB |
+| On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 2 | 631 KiB | 216 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 27 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |
 | Right after the first render (the menus' panels with their levels, the Filter level with its summary, quick choices, items and rules, the Export menu, the drill-down's panel and its table, sharing's copy, download and load, and the English texts only they show) | 1 | 139 KiB | 45 KiB |

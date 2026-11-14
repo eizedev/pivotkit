@@ -9,8 +9,11 @@ directories you name.
 ## Install
 
 ```bash
-npm install --global pivotkit-cli    # or: npx pivotkit-cli render ...
+npm install --global pivotkit-cli    # the command pivotkit
 ```
+
+Without installing, `npx pivotkit-cli <command>` runs it once; it does not put `pivotkit` on the
+`PATH`, so every line starts with `npx pivotkit-cli`.
 
 Node 22 or later. It brings pivotkit-core, pivotkit-report, pivotkit-xlsx and ECharts 6.1.0.
 
@@ -30,6 +33,7 @@ limit or template error.
 
 | Topic | Page |
 | --- | --- |
+| Getting started: install, the example files, your own report, CI, PowerShell | [Getting started with the command line](https://pivotkit.eize.dev/getting-started/cli/) |
 | Commands, options, exit codes, `--json`, completion, file safety | [pivotkit-cli reference](https://pivotkit.eize.dev/reference/cli/) |
 | The print template of `--template` | [Print template](https://pivotkit.eize.dev/reference/print-template/) |
 | The library it runs on | [pivotkit-report reference](https://pivotkit.eize.dev/reference/report/) |
