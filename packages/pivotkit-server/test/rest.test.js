@@ -230,15 +230,19 @@ test("a deep or huge view is a limit or an invalid input, never a crash, and it 
     // one worker that waits at most a second for work: a view that kept it busy would make the next call BUSY
     const { server } = await salesServer({ compute: { workers: 1, queueMs: 1000 } });
     try {
-        let deep = { rows: ["Region"] };
-        for (let i = 0; i < 5000; i++) {
-            deep = { nested: deep };
-        }
-        for (let i = 0; i < 2; i++) {
-            const res = await call(`${server.api}/views/validate`, { body: `{"source":"sales","view":${JSON.stringify(deep)}}` });
+        // built as text: a value this deep would overflow JSON.stringify's stack in some runtimes
+        const nested = (levels) => `${'{"nested":'.repeat(levels)}{"rows":["Region"]}${"}".repeat(levels)}`;
+        // exactly INPUT_DEPTH (64) levels: the input, 61 wrappers, the view and its rows list
+        const atLimit = await call(`${server.api}/views/validate`, { body: `{"source":"sales","view":${nested(61)}}` });
+        assert.equal(atLimit.status, 200, JSON.stringify(atLimit.data));
+        for (const body of [`{"source":"sales","view":${nested(62)}}`, `{"source":"sales","view":${nested(5000)}}`, `{"source":"sales","view":${nested(150_000)}}`, JSON.stringify({ source: "sales", view: nested(5000) })]) {
+            const res = await call(`${server.api}/views/validate`, { body });
             assert.equal(res.status, 400, `status ${res.status}: ${JSON.stringify(res.data)}`);
             assert.equal(res.data.code, "INVALID_INPUT");
+            assert.equal(res.data.detail, "the input is nested deeper than 64 levels");
         }
+        const file = await call(`${server.api}/views/render/file`, { body: `{"source":"sales","view":${nested(5000)}}` });
+        assert.equal(file.status, 400);
         const after = await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(after.status, 200, JSON.stringify(after.data));
         const many = await call(`${server.api}/views/validate`, { body: { source: "sales", view: { rows: Array.from({ length: 5000 }, (_, i) => `F${i}`) } } });

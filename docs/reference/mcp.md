@@ -206,7 +206,7 @@ base name only and holds no file content.
 
 | Code | When |
 | --- | --- |
-| `INVALID_INPUT` | An input the schema allows but the tool does not (a recipient that is an address, a format, an input nested too deeply) |
+| `INVALID_INPUT` | An input the schema allows but the tool does not (a recipient that is an address, a format, an input nested deeper than 64 levels) |
 | `SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for (the same answer) |
 | `FILES_NOT_ALLOWED` | `file:` without allowed directories, or without the scopes for files |
 | `FILE_NOT_AVAILABLE` | A file missing, outside the allowed directories, or changed while read |

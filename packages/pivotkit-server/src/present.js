@@ -69,6 +69,66 @@ export function presentedInput(name, how = {}) {
     return { ...input, properties };
 }
 
+/**
+ * How deep an input may nest (objects and arrays, also inside a view given as JSON text). A view is a
+ * few levels deep; far deeper input would overflow a stack somewhere between here and the worker,
+ * at a depth that differs by platform, so it is refused here, before anything else, at a fixed one.
+ */
+export const INPUT_DEPTH = 64;
+
+/** The deepest nesting of a value (counted without recursion), or of the JSON text a string holds. */
+function depthOf(value) {
+    let deepest = 0;
+    /** @type {Array<[unknown, number]>} */
+    const stack = [[value, 0]];
+    while (stack.length) {
+        const [node, depth] = /** @type {[unknown, number]} */ (stack.pop());
+        if (typeof node === "string") {
+            deepest = Math.max(deepest, depth + textDepth(node));
+        } else if (node && typeof node === "object") {
+            deepest = Math.max(deepest, depth + 1);
+            if (deepest > INPUT_DEPTH) {
+                return deepest;
+            }
+            for (const child of Object.values(node)) {
+                stack.push([child, depth + 1]);
+            }
+        }
+    }
+    return deepest;
+}
+
+/** The deepest bracket nesting of a JSON text, outside its strings. */
+function textDepth(text) {
+    let depth = 0;
+    let deepest = 0;
+    let inString = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inString) {
+            if (c === "\\") {
+                i++;
+            } else if (c === '"') {
+                inString = false;
+            }
+        } else if (c === '"') {
+            inString = true;
+        } else if (c === "{" || c === "[") {
+            deepest = Math.max(deepest, ++depth);
+        } else if (c === "}" || c === "]") {
+            depth--;
+        }
+    }
+    return deepest;
+}
+
+/** Refuses an input nested deeper than INPUT_DEPTH. */
+function checkDepth(input) {
+    if (depthOf(input) > INPUT_DEPTH) {
+        throw new OperationError("INVALID_INPUT", `the input is nested deeper than ${INPUT_DEPTH} levels`);
+    }
+}
+
 /** The limits whose numbers count a result's groups or cells (what a filter keeps), not a file's or a view's size. */
 const RESULT_LIMITS = new Set(["groups", "pivotCells", "cells", "work"]);
 
@@ -281,6 +341,7 @@ export async function present(context, name, input, caller, how = {}) {
     if (!Object.hasOwn(STEPS, name)) {
         throw new OperationError("INTERNAL", "unknown operation");
     }
+    checkDepth(input);
     return STEPS[name](input ?? {}, context, caller, how);
 }
 
@@ -294,6 +355,7 @@ export async function present(context, name, input, caller, how = {}) {
  * @returns {Promise<{ result: Record<string, any>, file: { bytes: Uint8Array, mediaType: string, extension: string, name: string } | null }>}
  */
 export async function renderFile(context, input, caller) {
+    checkDepth(input);
     const resolved = await context.registry.resolve(input.source, caller, { files: false, surface: "rest" });
     if (!resolved.policy.results) {
         throw new OperationError("NOT_ALLOWED", "your token may not download files (the operator allows it per profile: results: true)");

@@ -35,4 +35,4 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
   scope apply to the tools too.
 - On SIGTERM the HTTP server lets running requests finish (`http.graceMs`, 25 seconds by default);
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
-  nested too deeply for a worker is `INVALID_INPUT` and frees the worker at once.
+  nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
