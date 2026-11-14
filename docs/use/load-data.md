@@ -75,13 +75,22 @@ shown; the others keep the type found.
 - A view saved on a sheet of a workbook remembers the sheet. While a workbook of that name is shown,
   **Views** lists the views of its other sheets too, with the sheet next to each ("Sheet “Q3”").
   Opening one reads that sheet of the file again and shows the view on it, so after a reload you load
-  the workbook as it comes (the preview starts on the first sheet) and open the view. An application
-  that checks the files you load checks that sheet too and may refuse it: then the view is not
-  opened, and a note says so. **Undo** takes back the view, then reading the sheet. **Cancel** while
-  the sheet is read leaves the sheet and the view you had. A view whose sheet the workbook no longer
-  has says so ("“Q3 by region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and
-  is shown on the sheet you have. A view file or link made on a sheet does the same under **Open view
-  file…**.
+  the workbook as it comes (the preview starts on the first sheet) and open the view. A view file or
+  link made on a sheet does the same under **Open view file…**. **Undo** takes back the view, then
+  reading the sheet.
+- The sheet loads by itself, unless the reader has notes on it (a used range, values it could not
+  read, columns it renamed) or it has no rows. Then the preview stays open with the notes and a line
+  that says which view needs the sheet ("Opening “Q3 by region” needs the sheet “Q3”."); **Load
+  data** loads the sheet and opens the view.
+- If you pick another sheet in that preview, it does not load by itself; **Load data** loads it, and
+  the view is not opened ("“Q3 by region” was not opened: it was made for the sheet “Q3”.").
+- **Cancel** while the sheet is read, or in its preview, keeps the sheet and the view you had, and the
+  view is dropped. A file you drop meanwhile takes the place of the read; the view is not opened on
+  it.
+- An application that checks the files you load checks that sheet too and may refuse it: then the
+  view is not opened, and a note says so. A view whose sheet the workbook no longer has says so
+  ("“Q3 by region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and is shown on
+  the sheet you have.
 
 ## Back to the original data
 

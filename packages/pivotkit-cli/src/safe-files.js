@@ -15,7 +15,9 @@
  * Not a sandbox against another process of the same user that changes the directories while the CLI
  * runs: the checks narrow that window, they do not close it. A hard link inside an allowed directory
  * to a file outside it is that file's name inside: no path check can tell it apart. A temporary file
- * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp").
+ * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp",
+ * `TEMP_FILE_NAME`): this module installs no signal handler, which would change the host's signal
+ * handling; a caller that owns a directory removes them (pivotkit-server's output.maxAgeDays).
  * `hardLinks: false` refuses a file with more than one name (a hard link), for callers that read on
  * behalf of someone else (pivotkit-mcp). `writeNew` never replaces a file: the final name is created
  * by writeSafe's exclusive write (link(), which fails when the name exists). The module is exported
@@ -155,6 +157,26 @@ export async function readStdin(stdin, maxBytes, limit = "fileBytes") {
 }
 
 /**
+ * The name of writeSafe's temporary files: ".<up to 50 characters of the target's name>.<pid>-<random>.tmp".
+ * A write takes seconds; one older than an hour was left by a process that was killed during it.
+ */
+export const TEMP_FILE_NAME = /^\..+\.\d+-[0-9a-z]{1,8}\.tmp$/;
+
+/**
+ * A temporary file's name for the target `name` (TEMP_FILE_NAME). It stays within a file name's 255
+ * bytes, however long the target's name is: 50 characters of at most 4 bytes each, then about 25 for
+ * the process, a random part and ".tmp". A longer name keeps its first and its last 25 characters,
+ * so the temporary file still shows where it belongs and what it is (pivotkit-server's random
+ * prefix, its ".pivotkit-out.<format>" mark).
+ * @param {string} name  the target's base name
+ */
+export function tempFileName(name) {
+    const chars = Array.from(name);
+    const stem = chars.length <= 50 ? name : [...chars.slice(0, 25), ...chars.slice(-25)].join("");
+    return `.${stem}.${process.pid}-${Math.random().toString(36).slice(2, 10) || "0"}.tmp`;
+}
+
+/**
  * Writes `bytes` to `path`: into a new temporary file in the target's directory, then renamed over it;
  * with `exclusive`, linked into place instead, which fails when a file is there (also one made
  * between the check and the write), so nothing is replaced: `EXISTS`.
@@ -184,10 +206,7 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
         const what = existing.isSymbolicLink() ? "a symbolic link" : existing.isDirectory() ? "a directory" : "a device or another special file";
         throw new CliError("io", existing.isSymbolicLink() || existing.isDirectory() ? "NOT_REGULAR_FILE" : "SPECIAL_FILE", `${shortName(path)}: exists and is ${what}; not replaced`);
     }
-    // the temporary name stays within a file name's 255 bytes, however long the target's name is: 50
-    // characters of at most 4 bytes each, then about 25 for the process, a random part and ".tmp"
-    const stem = Array.from(basename(full)).slice(0, 50).join("");
-    const temp = join(dir, `.${stem}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.tmp`);
+    const temp = join(dir, tempFileName(basename(full)));
     const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), existing ? existing.mode & 0o777 : 0o644);
     try {
         await handle.writeFile(bytes);
