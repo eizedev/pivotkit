@@ -16,31 +16,32 @@ export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || ho
 export const GRACE_MS = 25_000;
 
 /**
- * The bounds on connections: open at once in all, from one address (not loopback), the ones kept
- * for loopback (a health check, a proxy on the same host), and how long a client may take for its
+ * The bounds on connections: open at once in all; from one address other than loopback (0: no
+ * bound, the default, since behind a published port, NAT or a proxy every client has one address);
+ * the ones kept for loopback clients (the health check, a proxy on the same host: they protect
+ * against the network, not against a local process); and how long a client may take for its
  * headers and for its whole request (checked every checkMs: node:http's default, 30 seconds, would
  * let a stalled client stay six times as long).
  */
 /** @typedef {{ total: number, perAddress: number, loopback: number, headersMs: number, requestMs: number, checkMs: number }} ConnectionLimits */
 /** @type {Readonly<ConnectionLimits>} */
-export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 32, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
+export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 0, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
 
 /**
- * The connection limits for a server's options: behind a proxy it trusts (http.trustProxy) every
- * client comes from the proxy's address, so there is no bound per address.
- * @param {{ http?: { trustProxy?: boolean } }} options
+ * The connection limits a server's options set: http.maxConnectionsPerAddress.
+ * @param {{ http?: { maxConnectionsPerAddress?: number } }} options
  * @returns {Partial<ConnectionLimits>}
  */
-export const connectionLimitsOf = (options) => (options.http?.trustProxy ? { perAddress: Infinity } : {});
+export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerAddress ? { perAddress: options.http.maxConnectionsPerAddress } : {});
 
 /** A socket's address as a loopback check reads it ("::ffff:127.0.0.1" is 127.0.0.1). */
 const plainAddress = (address) => String(address ?? "").replace(/^::ffff:/i, "");
 
 /**
  * Who may open a connection: a count in all and per address. A connection from loopback may use
- * every slot; one from another address only those not kept for loopback, and at most
- * `perAddress` from one address, so stalled sockets from the network cannot lock out the health
- * check, and one address cannot take them all.
+ * every slot; one from another address only those not kept for loopback, and with `perAddress` at
+ * most that many from one address (an IPv6 address counts as it is, not by its network), so stalled
+ * sockets from the network cannot lock out the health check, and one address cannot take them all.
  * @param {{ total: number, perAddress: number, loopback: number }} limits
  */
 export function connectionGate(limits) {
@@ -55,7 +56,7 @@ export function connectionGate(limits) {
                 if (open >= limits.total) {
                     return false;
                 }
-            } else if (open >= limits.total || network >= limits.total - limits.loopback || (byAddress.get(plain) ?? 0) >= limits.perAddress) {
+            } else if (open >= limits.total || network >= limits.total - limits.loopback || (limits.perAddress > 0 && (byAddress.get(plain) ?? 0) >= limits.perAddress)) {
                 return false;
             } else {
                 network++;
@@ -78,7 +79,9 @@ export function connectionGate(limits) {
                 byAddress.delete(plain);
             }
         },
-        open: () => open
+        open: () => open,
+        /** The connections open in all and from one address. */
+        counts: (address) => ({ open, fromAddress: byAddress.get(plainAddress(address)) ?? 0 })
     };
 }
 
@@ -149,10 +152,10 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
 /**
  * Serves a fetch handler on node:http.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits> }} options  limits: CONNECTION_LIMITS's (tests)
+ * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: { address: string, open: number, fromAddress: number, refused: number }) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections, at most once a minute (with how many since)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
-export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {} }) {
+export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused }) {
     const problem = handler.problem ?? defaultProblem;
     const limits = { ...CONNECTION_LIMITS, ...given };
     const gate = connectionGate(limits);
@@ -252,10 +255,19 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
     });
     server.keepAliveTimeout = 5_000;
     // a bound on open connections, in all and per address, with slots kept for loopback
+    // refused connections are told at most once a minute, so a flood does not flood the log too
+    let refused = 0;
+    let toldAt = 0;
     server.on("connection", (socket) => {
         const address = socket.remoteAddress;
         if (!gate.admit(address)) {
             socket.destroy();
+            refused++;
+            if (onRefused && Date.now() - toldAt >= 60_000) {
+                toldAt = Date.now();
+                onRefused({ address: String(address ?? ""), ...gate.counts(address), refused });
+                refused = 0;
+            }
             return;
         }
         socket.once("close", () => gate.release(address));

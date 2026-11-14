@@ -160,7 +160,7 @@ export async function listen(options, runtime) {
     let listening;
     try {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
-        listening = await serveFetch({ precheck: (request) => handler.precheck(request), fetch: (request) => handler.fetch(request), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options) });
+        listening = await serveFetch({ precheck: (request) => handler.precheck(request), fetch: (request) => handler.fetch(request), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => context.log.warn("connections refused: the server holds as many as it may (http.maxConnectionsPerAddress, 256 in all)", entry) });
     } catch (e) {
         await handler?.close();
         await context.close();

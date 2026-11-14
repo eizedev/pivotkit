@@ -242,6 +242,8 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     let state = { metadata: null, jwks: null, jwksUri: null };
     // when a token with an unknown key last made the metadata be read again
     let unknownAt = 0;
+    /** @type {Promise<boolean> | null} */
+    let inflight = null;
 
     /** Reads the issuer's metadata; a new key set only when its jwks_uri changed, so keys stay cached. Whether the key set changed. */
     async function load() {
@@ -302,8 +304,13 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             if (e?.code !== "ERR_JWKS_NO_MATCHING_KEY" || Date.now() - unknownAt < METADATA_REFRESH.unknownKeyMs) {
                 throw e;
             }
-            unknownAt = Date.now();
-            if (!(await refresh())) {
+            // one read for the requests that come at once; the wait starts only after a read that
+            // found nothing new (or failed), so a made-up key cannot hold back a real rotation
+            inflight ??= refresh().finally(() => {
+                inflight = null;
+            });
+            if (!(await inflight)) {
+                unknownAt = Date.now();
                 throw e;
             }
             return jwtVerify(token, state.jwks, how);

@@ -148,6 +148,7 @@ error that names the key and the one probably meant.
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
+| `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
@@ -240,10 +241,16 @@ checks in order:
 3. **Authentication** for `/mcp` ([below](#auth)).
 
 Host, Origin, the declared size and the token are checked from the headers before the body is
-read. At most 256 connections are open at once, at most 32 from one address (no such bound with `http.trustProxy`, where every client is the proxy), and 16 of them are
-kept for loopback (a health check, a proxy on the same host), so clients that hold connections
-without sending cannot lock the server out; a client has 5 seconds for its headers and 30 for its
-request. A request target must be a path (or the absolute form `http://host/path`, read by its
+read. At most 256 connections are open at once, and 16 of them are kept for loopback clients
+such as the health check or a proxy on the same host, so clients on the network that hold
+connections without sending cannot lock them out (a process on the same host can); a client has 5
+seconds for its headers and 30 for its request. `http.maxConnectionsPerAddress` (default 0, no
+bound) caps the connections of one address; set it where clients reach the port directly with
+addresses of their own. Behind NAT, a published port or a proxy every client has one address, so
+leave it off there. An IPv6 address counts as it is, not by its network. Refused connections are
+logged at most once a minute, with the address and the counts. Behind a proxy (`http.trustProxy`)
+the protection comes from the proxy: its header and body timeouts, its limits per client, and the
+server's port reachable from the proxy only. A request target must be a path (or the absolute form `http://host/path`, read by its
 path): `OPTIONS *` answers 400. On SIGTERM the server
 takes no new connection and lets running requests finish for up to `http.graceMs`.
 
@@ -316,9 +323,10 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 - At start the server reads the issuer's metadata (RFC 8414, then OpenID Connect discovery; its
   `issuer` must match exactly, its `jwks_uri` must be on the issuer's origin unless `jwksUri` is set),
   with a time limit and no redirects. Until it has it, `/mcp` answers 503 and the server keeps trying.
-  It reads the metadata again every hour, and when a token names a key the JWKS does not hold (at
-  most once a minute), so a moved `jwks_uri` works without a restart; a failed read keeps what is
-  loaded. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
+  It reads the metadata again every hour, and when a token names a key the JWKS does not hold, so a
+  moved `jwks_uri` works without a restart; after a read that found nothing new (or failed, which
+  keeps what is loaded) the next such read waits a minute, so made-up key ids cannot hammer the
+  issuer nor hold back a real rotation for longer. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
   30 seconds. A token stays valid until it expires (no revocation check).
 
 | Key | Default | What it is |

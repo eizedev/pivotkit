@@ -136,7 +136,7 @@ export async function serve(options, runtime) {
     const handler = await createServerHandler(options, { ...runtime, loopback: isLoopback(host) });
     let listening;
     try {
-        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options) });
+        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn("connections refused: the server holds as many as it may (http.maxConnectionsPerAddress, 256 in all)", entry) });
     } catch (e) {
         await handler.close();
         throw e;

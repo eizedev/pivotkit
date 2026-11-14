@@ -237,6 +237,10 @@ may try to steer it:
   set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
+- **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
+  for the headers; `http.maxConnectionsPerAddress` bounds one address where clients reach the port
+  directly. Behind a proxy the proxy must guard the connections and the port be reachable from it
+  only.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
   it is stopped), at most a few at once, with pivotkit-core's [limits](concepts/limits.md) and a
   default of 50 MiB per file.

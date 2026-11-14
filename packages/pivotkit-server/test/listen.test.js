@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
-import { connectionGate, connectionLimitsOf } from "../src/listen.js";
+import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf } from "../src/listen.js";
 import { serveFetch } from "pivotkit-server";
 import { BIN, TOKEN, call, restServer, workspace } from "./helpers.js";
 
@@ -32,6 +32,10 @@ function rawExchange(port, text, ms = 3000) {
     });
 }
 
+test("CONNECTION_LIMITS: the defaults", () => {
+    assert.deepEqual({ ...CONNECTION_LIMITS }, { total: 256, perAddress: 0, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
+});
+
 test("connections: one address gets perAddress, the network gets all but the loopback slots, loopback the rest", () => {
     const gate = connectionGate({ total: 6, perAddress: 2, loopback: 2 });
     assert.equal(gate.admit("203.0.113.1"), true);
@@ -48,8 +52,16 @@ test("connections: one address gets perAddress, the network gets all but the loo
     assert.equal(gate.admit("127.0.0.1"), false);
     assert.equal(gate.open(), 6);
     // behind a proxy the server trusts, every client has the proxy's address: no bound per address
-    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true } }), { perAddress: Infinity });
+    // no bound per address unless the operator sets one: behind NAT or a published port every client has one address
     assert.deepEqual(connectionLimitsOf({}), {});
+    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true } }), {});
+    assert.deepEqual(connectionLimitsOf({ http: { maxConnectionsPerAddress: 32 } }), { perAddress: 32 });
+    const open = connectionGate({ ...CONNECTION_LIMITS, total: 6, loopback: 2 });
+    for (let i = 0; i < 4; i++) {
+        assert.equal(open.admit("203.0.113.9"), true, "one address may take every slot of the network");
+    }
+    assert.equal(open.admit("203.0.113.9"), false);
+    assert.equal(open.admit("127.0.0.1"), true, "loopback keeps its slots");
 });
 
 test("serveFetch: stalled sockets past the limit are cut; a client that sends no headers is cut after headersMs", async () => {
@@ -73,6 +85,32 @@ test("serveFetch: stalled sockets past the limit are cut; a client that sends no
     } finally {
         await listening.close();
     }
+});
+
+test("refused connections are told once a minute with the address and counts; http.maxConnectionsPerAddress is checked", async () => {
+    const told = [];
+    const listening = await serveFetch({ fetch: async () => Response.json({ ok: true }) }, { host: "127.0.0.1", port: 0, bodyBytes: 1024, limits: { total: 1, loopback: 0, headersMs: 2000, requestMs: 3000, checkMs: 100 }, onRefused: (entry) => told.push(entry) });
+    const held = connect(listening.port, "127.0.0.1");
+    try {
+        await new Promise((r) => held.once("connect", r));
+        held.write("GET / HTTP/1.1\r\n");
+        held.resume();
+        for (let i = 0; i < 3; i++) {
+            assert.equal(await rawExchange(listening.port, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n", 300), "");
+        }
+        assert.equal(told.length, 1, JSON.stringify(told));
+        assert.equal(told[0].open, 1);
+        assert.equal(told[0].fromAddress, 1);
+        assert.match(told[0].address, /127\.0\.0\.1/);
+    } finally {
+        held.destroy();
+        await listening.close();
+    }
+    const dir = workspace();
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: -1 }, baseDir: dir }), /http\.maxConnectionsPerAddress/);
+    await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 300 }, baseDir: dir }), /http\.maxConnectionsPerAddress: 0 \(no bound, the default\) to 256/);
+    const bounded = await restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 8 }, baseDir: dir });
+    await bounded.close();
 });
 
 test("a request target that is not a path: the absolute form by its path, '*' 400, a tunnel nothing", async () => {
@@ -111,7 +149,9 @@ test("a static token with characters a bearer token cannot carry is refused at s
 async function movingIssuer() {
     const first = await generateKeyPair("RS256");
     const second = await generateKeyPair("RS256");
+    const third = await generateKeyPair("RS256");
     const jwks = {
+        "/jwks-c": { keys: [{ ...(await exportJWK(third.publicKey)), kid: "c", alg: "RS256", use: "sig" }] },
         "/jwks-a": { keys: [{ ...(await exportJWK(first.publicKey)), kid: "a", alg: "RS256", use: "sig" }] },
         "/jwks-b": { keys: [{ ...(await exportJWK(second.publicKey)), kid: "b", alg: "RS256", use: "sig" }] }
     };
@@ -132,7 +172,7 @@ async function movingIssuer() {
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     const url = `http://127.0.0.1:${/** @type {any} */ (server.address()).port}`;
     const sign = (pair, kid) => new SignJWT({ scope: "pivotkit", client_id: "bot" }).setProtectedHeader({ alg: "RS256", kid }).setIssuer(url).setAudience("https://pk.example.com/api/v1").setExpirationTime("5m").sign(pair.privateKey);
-    return { url, state, server, tokenA: () => sign(first, "a"), tokenB: () => sign(second, "b") };
+    return { url, state, server, tokenA: () => sign(first, "a"), tokenB: () => sign(second, "b"), tokenC: () => sign(third, "c") };
 }
 
 test("oauth: a token signed with a key of a moved jwks_uri works without a restart; unknown keys do not read the metadata on every request", async () => {
@@ -148,13 +188,33 @@ test("oauth: a token signed with a key of a moved jwks_uri works without a resta
         const reads = issuer.state.metadataReads;
         assert.equal((await call(`${server.api}/sources`, { token: await issuer.tokenB() })).status, 200, "the new key set is found");
         assert.equal(issuer.state.metadataReads, reads + 1);
-        // a stream of tokens with unknown keys reads the metadata at most once a minute
+        // a stream of tokens with unknown keys reads the metadata once, then not again within a minute
         const stranger = await generateKeyPair("RS256");
         for (let i = 0; i < 5; i++) {
             const token = await new SignJWT({ scope: "pivotkit" }).setProtectedHeader({ alg: "RS256", kid: `x${i}` }).setIssuer(issuer.url).setAudience("https://pk.example.com/api/v1").setExpirationTime("5m").sign(stranger.privateKey);
             assert.equal((await call(`${server.api}/sources`, { token })).status, 401);
         }
-        assert.equal(issuer.state.metadataReads, reads + 1);
+        assert.equal(issuer.state.metadataReads, reads + 2);
+    } finally {
+        await server.close();
+        await new Promise((resolve) => issuer.server.close(resolve));
+    }
+});
+
+test("oauth: a made-up key that triggers a read which finds a new key set does not hold back the next rotation", async () => {
+    const issuer = await movingIssuer();
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, auth: { mode: "oauth", issuer: issuer.url, resource: "https://pk.example.com/mcp", allowInsecureIssuer: true, requiredScopes: ["pivotkit"] }, baseDir: dir });
+    try {
+        for (let i = 0; i < 50 && (await call(`${server.url}/readyz`)).status !== 200; i++) {
+            await new Promise((r) => setTimeout(r, 100));
+        }
+        issuer.state.jwksPath = "/jwks-b";
+        const stranger = await generateKeyPair("RS256");
+        const made = await new SignJWT({ scope: "pivotkit" }).setProtectedHeader({ alg: "RS256", kid: "made-up" }).setIssuer(issuer.url).setAudience("https://pk.example.com/api/v1").setExpirationTime("5m").sign(stranger.privateKey);
+        assert.equal((await call(`${server.api}/sources`, { token: made })).status, 401, "its read finds jwks-b, but the token is still not signed by it");
+        issuer.state.jwksPath = "/jwks-c";
+        assert.equal((await call(`${server.api}/sources`, { token: await issuer.tokenC() })).status, 200, "the next rotation is read at once");
     } finally {
         await server.close();
         await new Promise((resolve) => issuer.server.close(resolve));
