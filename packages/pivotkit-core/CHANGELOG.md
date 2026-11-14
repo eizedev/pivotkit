@@ -10,6 +10,10 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 - `MAX_DATE_MS` and `isDateMs(ms)`: the range a `Date` holds, exported once for hosts and the other
   packages ([#226](https://github.com/eizedev/pivotkit/issues/226)).
+- `encode`'s `issues` have a `code` and `params`: `columnCase`, `columnCaseValue` (a row with two
+  spellings of a column, one value lost) and `columnCaseLeftOut` ([#261](https://github.com/eizedev/pivotkit/issues/261)).
+- The type `LayoutView`: `viewFromLayout`'s view is declared with its parts instead of
+  `Record<string, any>` ([#300](https://github.com/eizedev/pivotkit/issues/300)).
 
 ### Changed
 
@@ -20,6 +24,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- The `week` and `yearWeek` groupings of the first days of the year -271820 (1 and 2 January,
+  whose ISO week belongs to the year before, the first a `Date` holds) are their week instead of
+  blank ([#97](https://github.com/eizedev/pivotkit/issues/97)).
 - ISO dates with a year before 0 or after 9999 in ECMAScript's form (a sign and six digits,
   `"+010000-01-01"`) are dates, so a compare filter's day at the edge of the `Date` range, which
   `normalize` writes so, reads the same in a saved or shared view instead of reporting
@@ -28,6 +35,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   1902-W02 for a day of the year 2, -1-W-98 for one of 2 BC; blank in the first year a `Date`
   holds), and the month grouping of the first month a `Date` holds no longer throws
   ([#225](https://github.com/eizedev/pivotkit/issues/225)).
+- `toViewFile` leaves `source` out when it has no id, name or fields, instead of writing `{}`
+  ([#276](https://github.com/eizedev/pivotkit/issues/276)).
+- `isIdentifierName` splits a run of capitals before a word: `HTTPId` and `ABCId` are identifiers
+  ([#281](https://github.com/eizedev/pivotkit/issues/281)).
+- A filter or sort without a field reports "names no field" instead of "unknown field undefined"
+  ([#284](https://github.com/eizedev/pivotkit/issues/284)).
 
 ## [0.6.0] - 2026-11-14
 

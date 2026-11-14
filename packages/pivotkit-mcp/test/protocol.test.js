@@ -58,7 +58,7 @@ async function workflow(client, dir) {
     assert.equal(rendered.data.format, "xlsx");
     assert.deepEqual(rendered.data.withheld, ["rows", "columns", "bytes", "content"]);
     assert.equal(rendered.data.summary, undefined);
-    assert.equal(rendered.data.output.name, "sales.xlsx");
+    assert.equal(rendered.data.output.name, "sales.pivotkit-out.xlsx");
     assert.match(rendered.data.message, /not shown to the assistant/);
     const file = join(dir, "out", rendered.data.output.name);
     assert.deepEqual([...readFileSync(file).subarray(0, 2)], [0x50, 0x4b]);
@@ -71,7 +71,7 @@ for (const era of ["legacy", "modern"]) {
         const { client, close } = await stdioClient(["--source", "sales=data/sales.csv", "--output", "out"], { era, cwd: dir });
         try {
             const rendered = await workflow(client, dir);
-            assert.equal(rendered.data.output.path, join(dir, "out", "sales.xlsx"));
+            assert.equal(rendered.data.output.path, join(dir, "out", "sales.pivotkit-out.xlsx"));
             const prompts = await client.listPrompts();
             assert.deepEqual(prompts.prompts.map((p) => p.name), ["pivotkit_report"]);
             const prompt = await client.getPrompt({ name: "pivotkit_report", arguments: { request: "sales by region" } });
@@ -105,7 +105,7 @@ test("render_view never replaces a file: the same name twice gives -2; a served 
         const { client, close } = await httpClient(server.url);
         const a = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "by region" });
         const b = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", name: "by region" });
-        assert.match(a.data.output.name, /^[A-Za-z0-9_-]{22}-by region\.csv$/);
+        assert.match(a.data.output.name, /^[A-Za-z0-9_-]{22}-by region\.pivotkit-out\.csv$/);
         assert.notEqual(a.data.output.name, b.data.output.name);
         assert.equal(a.data.output.url, `https://files.example.com/reports/${encodeURIComponent(a.data.output.name)}`);
         assert.equal(readdirSync(join(dir, "out")).length, 2);
@@ -123,9 +123,9 @@ test("draft_schedule writes a draft for approval and runs nothing; a file handed
         const input = { source: "sales", view: BY_REGION, name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", weekday: "mon", at: "07:00" }, recipients: ["Sales team"] };
         const draft = await call(client, "draft_schedule", input);
         assert.equal(draft.data.draft.status, "draft");
-        assert.equal(draft.data.output.name, "Weekly sales.report.json");
+        assert.equal(draft.data.output.name, "Weekly sales.pivotkit-out.report.json");
         assert.match(draft.data.message, /Nothing runs until a person approves it/);
-        assert.ok(existsSync(join(dir, "out", "Weekly sales.report.json")));
+        assert.ok(existsSync(join(dir, "out", "Weekly sales.pivotkit-out.report.json")));
         const fromFile = await call(client, "draft_schedule", { ...input, source: "file:handed-in.csv" });
         assert.equal(fromFile.isError, true);
         assert.match(fromFile.text, /^NOT_SCHEDULABLE/);

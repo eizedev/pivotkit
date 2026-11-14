@@ -39,9 +39,14 @@ import { MS_PER_DAY, createCache, optionsOf } from "./util.js";
  */
 
 /**
+ * A column name that collides with another case-insensitively. Codes: "columnCase" (another spelling
+ * joined to the column), "columnCaseValue" (a row has both spellings: its later value is used),
+ * "columnCaseLeftOut" (columnar data: the later column is left out).
  * @typedef {object} Issue
- * @property {string} path
+ * @property {string} path  the column's name
  * @property {string} message
+ * @property {"columnCase" | "columnCaseValue" | "columnCaseLeftOut"} code
+ * @property {{ column: string, spelling: string, row?: number }} params  the column's name as kept, the other spelling, the row
  */
 
 /**
@@ -294,9 +299,10 @@ export function encode(rows, options) {
 
     /** @type {Issue[]} */
     const issues = [];
-    const report = (path, message) => {
+    /** @type {(code: Issue["code"], params: Issue["params"], message: string) => void} */
+    const report = (code, params, message) => {
         if (issues.length < MAX_ISSUES) {
-            issues.push({ path, message });
+            issues.push({ path: params.column, message, code, params });
         }
     };
     const { n, found } = columnar
@@ -355,10 +361,10 @@ function columnsOfRows(rows, wanted, limits, report) {
                 found.set(key, col);
             } else if (!col.spellings.has(k)) {
                 col.spellings.add(k);
-                report(col.name, `"${k}" and "${col.name}" are one column: names match case-insensitively`);
+                report("columnCase", { column: col.name, spelling: k }, `"${k}" and "${col.name}" are one column: names match case-insensitively`);
             }
             if (seen.has(key)) {
-                report(col.name, `row ${r} has "${k}" next to another spelling of it; the later value is used`);
+                report("columnCaseValue", { column: col.name, spelling: k, row: r }, `row ${r} has "${k}" next to another spelling of it; the later value is used`);
             }
             seen.add(key);
             col.raw[r] = row[k];
@@ -393,7 +399,7 @@ function columnsOf(input, wanted, limits, report) {
         }
         const earlier = found.get(key);
         if (earlier !== undefined) {
-            report(earlier.name, `"${name}" and "${earlier.name}" are one column: names match case-insensitively; the later column is left out`);
+            report("columnCaseLeftOut", { column: earlier.name, spelling: name }, `"${name}" and "${earlier.name}" are one column: names match case-insensitively; the later column is left out`);
             continue;
         }
         const t = types ? types[c] : undefined;

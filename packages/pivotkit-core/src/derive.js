@@ -32,9 +32,9 @@ const CYCLE_MS = 146_097 * MS_PER_DAY;
 /** ISO 8601 week and its year for wall-clock milliseconds. */
 export function isoWeek(ms) {
     const d = new Date(ms);
-    // the first and last years a Date holds lack the days a week is counted from (4 January, the
-    // Thursday after): the same day 400 years on or back is in the same week
-    const shift = d.getUTCFullYear() <= -271821 ? 1 : d.getUTCFullYear() >= 275760 ? -1 : 0;
+    // within a year of either end of what a Date holds, the days a week is counted from (4 January,
+    // the Thursday of the week) can lie outside it: the same day 400 years on or back is in the same week
+    const shift = ms < -MAX_DATE_MS + 366 * MS_PER_DAY ? 1 : ms > MAX_DATE_MS - 366 * MS_PER_DAY ? -1 : 0;
     if (shift !== 0) {
         const w = isoWeek(ms + shift * CYCLE_MS);
         return { year: w.year - shift * 400, week: w.week };
