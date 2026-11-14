@@ -19,7 +19,7 @@ test("the package exports its documented entry points and nothing else", () => {
         "cellRows", "chartPlan", "chartThemeFrom", "closest", "computePivot", "createHistory", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
         "migrate", "normalize", "outsideLimits", "relativeDateRange", "suggestDateUnit", "swapAxes", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "withLinkFragment"
     ]);
-    assert.deepEqual(Object.keys(exporters).sort(), ["rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "scaleColor", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
+    assert.deepEqual(Object.keys(exporters).sort(), ["dataToCsv", "dataToCsvBytes", "dataToJson", "rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "scaleColor", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
     assert.deepEqual(Object.keys(charts).sort(), [
         "BOTTOM_LEGEND_ROOM", "CATEGORY_LABEL_WIDTH", "GROUP_LABEL_ROOM", "RIGHT_LEGEND_MIN_WIDTH", "SLANTED_LABEL_WIDTH", "categoryLabelLayout", "categoryLabelWidth", "columnLabelLayout", "decorateOption", "groupLabelsFit", "heatmapCellLabels", "pieLabelRoom", "ringLabelsFit", "rowLabelInterval"
     ]);
