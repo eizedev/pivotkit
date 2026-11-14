@@ -6,7 +6,7 @@
  * template throw PivotkitError.
  */
 
-import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, toGrid } from "pivotkit-core";
+import { PivotkitError, closest, computePivot, describeView, encode, fromViewFile, normalize, outsideLimits, reportLabels, toGrid } from "pivotkit-core";
 import { toCsvBytes, toJson, toXlsx } from "pivotkit-core/export";
 import { DEFAULT_TEMPLATE } from "./default-template.js";
 import { htmlTable } from "./html-table.js";
@@ -185,7 +185,8 @@ export async function render(view, data, options = {}) {
     if (!ok && options.strict) {
         return { ...base, body: null, issues, ok, summary: null, view: normalized.view };
     }
-    const grid = toGrid(result, { ...(options.labels ? { labels: options.labels } : {}), ...(options.limits ? { limits: options.limits } : {}) });
+    // the report's own words in the language of its locale (pivotkit-core's REPORT_LABELS, as the report on a page shows them), unless given
+    const grid = toGrid(result, { labels: options.labels ?? reportLabels(result.locale ?? pivotOptions.locale), ...(options.limits ? { limits: options.limits } : {}) });
     const summary = { rows: grid.bodyRows.length, columns: grid.columnCount, sourceRows: data2.length, truncated: false };
     const texts = textsFor(grid.locale, options.texts);
     const title = (options.title ?? (read.name || normalized.view.chart.title || texts.untitled)).trim() || texts.untitled;

@@ -22,7 +22,7 @@
 import { constants } from "node:fs";
 import { link, lstat, open, realpath, rename, stat, unlink } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, isAbsolute, sep } from "node:path";
-import { CliError, shortName } from "./errors.js";
+import { CliError, printable, shortName } from "./errors.js";
 
 const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
 
@@ -159,7 +159,8 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
     try {
         dir = await realpath(dirname(full));
     } catch {
-        throw new CliError("io", "NOT_FOUND", `${shortName(path)}: its directory is not found`);
+        const parent = relative(cwd, dirname(full)) || dirname(full);
+        throw new CliError("io", "NOT_FOUND", `${shortName(path)}: the directory ${JSON.stringify(printable(parent))} does not exist: create it first (mkdir -p ${printable(parent)})`);
     }
     const target = join(dir, basename(full));
     checkAllowed(target, allow, path);

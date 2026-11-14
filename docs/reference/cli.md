@@ -95,8 +95,9 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--as view\|data` | describe | Read the input as a view or as data (default: a view when it is one). |
 | `--items <n>` | describe | Data: list up to n values of each field (default none). |
 | `--json` | all | One JSON object on stdout (render: needs `-o`). |
-| `-q, --quiet` | all | No warnings on stderr; errors still. |
-| `--locale <tag>` | render (checked by all) | Default `en-US`; environment `PIVOTKIT_LOCALE`. The locale also picks the CSV separator (`;` where the decimal mark is a comma). |
+| `-q, --quiet` | all | No warnings and no line saying what was written on stderr; errors still. |
+| `--verbose` | render, validate, describe | Also how the data was read: encoding, separator, sheet (the reader's `info` notes) on stderr. |
+| `--locale <tag>` | render (checked by all) | Default `en-US`; environment `PIVOTKIT_LOCALE`. The locale also picks the CSV separator (`;` where the decimal mark is a comma) and the report's words: German ones ("Gesamtergebnis", "Summe von Units") for a German locale, as the report on a page writes them, English for any other. |
 | `--time-zone <zone>` | all | The data's dates; default `UTC`; environment `PIVOTKIT_TIME_ZONE`. |
 | `--now <date>` | render (checked by all) | "Today" of relative filters and the generated time; environment `PIVOTKIT_NOW`. |
 | `--limit key=n` | all | One of pivotkit-core's [limits](../concepts/limits.md) (`--limit rows=200000`); repeatable. |
@@ -107,6 +108,46 @@ An option on the command line wins over its environment variable. Every command 
 variable), so a wrong value in a pipeline's environment fails in every step, not only in `render`. An
 option given for a format it does nothing in (`--width` with `csv`) is a warning `ignoredOption`. The
 CLI writes no colours.
+
+## What it says
+
+Every command says on stderr what it did, so a run in a terminal is never silent; `-q` keeps it to
+errors, `--json` puts it all into the JSON object. Commands accept every common option, and `pivotkit
+help <command>` lists the ones that act in it.
+
+| When | stderr |
+| --- | --- |
+| `render -o` wrote a file | `wrote sales.html: an HTML report, 21 rows x 6 columns, from 2,000 rows of sales.csv` (nothing when the output goes to stdout) |
+| `render --lenient` wrote despite errors | the errors, then `wrote out.html despite 2 errors (--lenient)` |
+| the view has errors | the errors, then `nothing written: the view has errors.` |
+| `validate` found nothing | `valid: no errors, no warnings (with sales.csv)`, or without `--data`: `valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data` |
+| a usage error | `pivotkit: ...; see "pivotkit help render"` |
+| `-o` into a directory that does not exist | `the directory "out" does not exist: create it first (mkdir -p out)` |
+| `-o report.html -f csv` | a usage error: the name says HTML, `-f` CSV (an extension that is no format of pivotkit's, `-o out.txt -f csv`, is written as asked) |
+| data or a view from stdin on a terminal | `reading the data from stdin: type or paste it, then Ctrl-D (Ctrl-Z, Enter on Windows)` |
+| a view that is not JSON | `not a view: not valid JSON at line 2, column 30` |
+
+### When the data does not fit the view { #data-mismatch }
+
+When the data lacks fields the view uses, the first error says so, with both lists and what to do;
+the errors that follow from it (an unknown field, a grouping whose name the data has) are counted
+there and listed in `--json`:
+
+```text
+error dataMismatch: pivotkit-weather.csv does not have the fields the view uses
+  the view uses: City, Date, Mean °C
+  the data has: Date by month of year, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Grand Total
+  it looks like an exported pivot result ("Grand Total", "Average of Mean °C"), not the rows the report was made from:
+  in the report, take Export → Source data → All rows as CSV, and give that file to --data
+  and 3 more errors from the missing fields (--json lists them)
+nothing written: the view has errors.
+```
+
+That is the table's own CSV (Export, **Table as CSV**): the result of a view, not the data a view
+applies to ([Try it](#try-it)). A field the data has under a near name is named
+(`missing: "Mean °C" (did you mean "Mean C"?)`); an unknown field lists the fields the data has; a
+value refused on a text field names the value and row that made it text (`its value "n/a" in row 2 is
+no number`).
 
 ## Exit codes
 
@@ -128,10 +169,16 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 ```
 
 - `findings`: each with `severity` (`error`, `warning`, or `info` for a reader's note on how a file was
-  read), `code` ([the view's issue codes](core.md), the reader's note codes, `viewFile`), `path`,
-  `message` and, where there is one, `suggestion`.
+  read), `code` ([the view's issue codes](core.md), the reader's note codes, `viewFile`,
+  `dataMismatch`, `typeFromView`, `typeFromViewFailed`), `path`, `message` and, where there is one,
+  `suggestion`. `dataMismatch` also has `missing`, `dataFields`, `pivotResult` and `details` (the lines
+  stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`.
 - `error` (exit 2): `{ kind, code, message }`, `kind` one of `usage`, `io`, `limit`, `template`,
   `internal` (more may come).
+- `pivotkit --version --json`: `{ "pivotkit-cli", "pivotkit-report", "pivotkit-core", environment }`,
+  `environment` with `node`, `locale`, `timeZone` (each `{ value, from, known }`: from the environment
+  variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
+  default `limits`: for a bug report or a CI log.
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
   written). `validate`: `valid`. `describe`: `kind` (`view` or `data`) and `description`
   (pivotkit-core's [`describeView` or `describeSource`](core.md)).

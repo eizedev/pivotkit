@@ -11,12 +11,12 @@
 import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import { LIMITS, OUTSIDE_LIMITS, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, validate } from "pivotkit-core";
+import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, REPORT_LABELS, VIEW_FILE_FORMAT, closest, describeSource, describeView, encode, fromViewFile, outsideLimits, validate, viewFileFields } from "pivotkit-core";
 import { IMPORT_TYPES, readFile, retype } from "pivotkit-core/import";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "pivotkit-report";
 import xlsxReader from "pivotkit-xlsx";
-import { COMMANDS, SHELLS, optionsOf } from "./commands.js";
+import { COMMANDS, DOCS, SHELLS, optionsOf } from "./commands.js";
 import { CliError, asCliError, printable, shortName } from "./errors.js";
 import { examples, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
@@ -40,6 +40,39 @@ export function versions() {
     const require = createRequire(import.meta.url);
     const of = (name) => require(`${name}/package.json`).version;
     return { "pivotkit-cli": of("pivotkit-cli"), "pivotkit-report": of("pivotkit-report"), "pivotkit-core": of("pivotkit-core") };
+}
+
+/**
+ * What a bug report or a CI log needs besides the versions: Node, the defaults the environment sets
+ * (and whether Intl knows them) and pivotkit-core's limits.
+ * @param {Record<string, string | undefined>} env
+ */
+export function environment(env) {
+    const knownLocale = (tag) => {
+        try {
+            return Intl.DateTimeFormat.supportedLocalesOf([tag]).length > 0;
+        } catch {
+            return false;
+        }
+    };
+    const knownZone = (zone) => {
+        try {
+            new Intl.DateTimeFormat("en-US", { timeZone: zone });
+            return true;
+        } catch {
+            return false;
+        }
+    };
+    const locale = env.PIVOTKIT_LOCALE || null;
+    const timeZone = env.PIVOTKIT_TIME_ZONE || null;
+    const now = env.PIVOTKIT_NOW || null;
+    return {
+        node: process.version,
+        locale: { value: locale ?? "en-US", from: locale ? "PIVOTKIT_LOCALE" : "default", known: knownLocale(locale ?? "en-US") },
+        timeZone: { value: timeZone ?? "UTC", from: timeZone ? "PIVOTKIT_TIME_ZONE" : "default", known: knownZone(timeZone ?? "UTC") },
+        now: { value: now, from: now ? "PIVOTKIT_NOW" : "the clock" },
+        limits: { ...LIMITS }
+    };
 }
 
 /** "; did you mean --x?" or "" (pivotkit-core's closest(), as the view's and the template's hints). */
@@ -83,7 +116,7 @@ function limitsOf(list) {
             throw new CliError("usage", "BAD_LIMIT", `--limit takes key=number, not ${printable(JSON.stringify(entry))}`);
         }
         if (!Object.hasOwn(LIMITS, m[1])) {
-            throw new CliError("usage", "UNKNOWN_LIMIT", `unknown limit "${printable(m[1])}"${didYouMean(m[1], Object.keys(LIMITS))} (one of ${Object.keys(LIMITS).join(", ")})`);
+            throw new CliError("usage", "UNKNOWN_LIMIT", `unknown limit "${printable(m[1])}"${didYouMean(m[1], Object.keys(LIMITS))} (the limits: ${DOCS}concepts/limits/)`);
         }
         const value = Number(m[2]);
         if (!Number.isSafeInteger(value) || value < 1) {
@@ -134,7 +167,7 @@ export async function main(argv, io) {
         }
         if (argv[0] === "--version" || argv[0] === "-v") {
             const v = versions();
-            io.stdout.write(json ? `${JSON.stringify(v)}\n` : `pivotkit-cli ${v["pivotkit-cli"]} (pivotkit-report ${v["pivotkit-report"]}, pivotkit-core ${v["pivotkit-core"]})\n`);
+            io.stdout.write(json ? `${JSON.stringify({ ...v, environment: environment(io.env) })}\n` : `pivotkit-cli ${v["pivotkit-cli"]} (pivotkit-report ${v["pivotkit-report"]}, pivotkit-core ${v["pivotkit-core"]})\n`);
             return 0;
         }
         if (argv[0] === "--help" || argv[0] === "-h") {
@@ -185,17 +218,29 @@ export async function main(argv, io) {
             io.stdout.write(`${JSON.stringify({ ok: exitCode === 0, exitCode, command, findings, ...outcome.extra })}\n`);
         } else {
             for (const f of findings) {
-                if (f.severity === "error" || (f.severity === "warning" && !values.quiet)) {
+                // an error that follows from another one (the fields a data mismatch is about) is counted there; --json keeps it
+                if (f.followsFrom) {
+                    continue;
+                }
+                if (f.severity === "error" || (f.severity === "warning" && !values.quiet) || (f.severity === "info" && values.verbose && !values.quiet)) {
                     say(`${f.severity} ${f.code}${f.path ? ` at ${f.path}` : ""}: ${f.message}${f.suggestion ? ` (did you mean "${f.suggestion}"?)` : ""}`);
+                    for (const line of f.details ?? []) {
+                        say(`  ${line}`);
+                    }
                 }
             }
-            if (outcome.note && !values.quiet) {
+            // what was written or checked: a line for a person (not with -q, and an error's line always)
+            if (outcome.note && (!values.quiet || outcome.noteIsError)) {
                 say(outcome.note);
             }
         }
         return exitCode;
     } catch (e) {
         const error = asCliError(e);
+        // a usage error ends with the way to the command's help
+        if (error.kind === "usage" && Object.hasOwn(COMMANDS, command) && command !== "help" && !error.message.includes("pivotkit help")) {
+            error.message = `${error.message}; see "pivotkit help ${command}"`;
+        }
         if (json) {
             io.stdout.write(`${JSON.stringify({ ok: false, exitCode: 2, command, findings, error: { kind: error.kind, code: error.code, message: error.message } })}\n`);
         } else {
@@ -244,6 +289,10 @@ async function context(values, io) {
                 throw new CliError("usage", "STDIN_TWICE", `only one input can come from stdin (${stdinUsed} does already)`);
             }
             stdinUsed = what;
+            // a terminal, not a pipe: the CLI waits for what is typed, so it says so
+            if (io.stdin.isTTY && !values.quiet) {
+                io.stderr.write(`reading ${what} from stdin: type or paste it, then Ctrl-D (Ctrl-Z, Enter on Windows)\n`);
+            }
             return readStdin(io.stdin, maxBytes, limit);
         }
         try {
@@ -261,7 +310,8 @@ async function context(values, io) {
  * only. The others say the data differs from the file (a column renamed or dropped, text cut, values
  * not converted): warnings.
  */
-const INFO_NOTES = new Set(["ENCODING", "SEPARATOR", "SHEET", "USED_RANGE", "JSON_FLATTENED", "LINES_SKIPPED", "ROWS_EMPTY"]);
+// LINES_SKIPPED is a warning: the lines above the header a reader took for a title may be data
+const INFO_NOTES = new Set(["ENCODING", "SEPARATOR", "SHEET", "USED_RANGE", "JSON_FLATTENED", "ROWS_EMPTY"]);
 
 /** The text of a view or template file, as UTF-8. */
 const textOf = (bytes) => new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/^\uFEFF/, "");
@@ -354,6 +404,102 @@ function withViewTypes(data, fields) {
     return findings.length ? { ...data, table, notes: [...data.notes, ...findings] } : data;
 }
 
+/** At most this many of the data's field names in a message, then "and n more". */
+const LISTED_FIELDS = 20;
+
+/** Field names as a message lists them. */
+const nameList = (names) => (names.length > LISTED_FIELDS ? `${names.slice(0, LISTED_FIELDS).join(", ")} and ${names.length - LISTED_FIELDS} more` : names.join(", "));
+
+/** The errors a field the data does not have brings along, counted under dataMismatch. */
+const FOLLOW_ON = new Set(["unknownField", "groupingNameTaken", "groupingNoSource"]);
+
+/** The words of a value's name in a pivot result's header ("Sum of", "Summe von"), every language's. */
+const VALUE_NAME = (() => {
+    const words = new Set();
+    for (const labels of [DEFAULT_LABELS, ...Object.values(REPORT_LABELS)]) {
+        const joiner = labels.valueName.replace("{agg}", "").replace("{field}", "").trim();
+        for (const agg of Object.values(labels.aggregators)) words.add(`${agg} ${joiner} `.toLowerCase());
+    }
+    return [...words];
+})();
+const TOTAL_NAMES = new Set([DEFAULT_LABELS.grandTotal, ...Object.values(REPORT_LABELS).map((l) => l.grandTotal)].map((t) => t.toLowerCase()));
+
+/**
+ * What says a data file is a pivot RESULT (the table's own CSV), not the rows: a grand total column,
+ * a value's name ("Average of Mean °C") in its header or its first rows. At most two, for the message.
+ * @param {import("pivotkit-core/import").ImportTable} table
+ */
+function pivotResultSigns(table) {
+    const signs = [];
+    const total = table.columns.find((name) => TOTAL_NAMES.has(String(name).toLowerCase()));
+    if (total) signs.push(total);
+    const valueName = (text) => typeof text === "string" && VALUE_NAME.some((w) => text.toLowerCase().startsWith(w));
+    const named = table.columns.find(valueName) ?? table.raw.flatMap((values) => values.slice(0, 3)).find(valueName);
+    if (named) signs.push(named);
+    return signs;
+}
+
+/**
+ * The findings of a view over data, explained for a person: when the data lacks fields the view uses,
+ * one error first (dataMismatch: the view's fields, the data's, the missing ones with a hint, and
+ * whether the file looks like a pivot result), the errors that follow from it marked; an unknown
+ * field names the data's fields; a value refused on a text field names the value that made it text.
+ * @param {any[]} findings
+ * @param {unknown} viewText  the view as given (text or an object of a link)
+ * @param {NonNullable<Awaited<ReturnType<typeof readData>>>} data
+ */
+function explain(findings, viewText, data) {
+    const columns = data.table.columns.map(String);
+    const has = new Set(columns.map((c) => c.toLowerCase()));
+    const read = fromViewFile(typeof viewText === "string" ? viewText : JSON.stringify(viewText));
+    const wanted = read.failed ? [] : read.source?.fields?.length ? read.source.fields.map((f) => f.name) : viewFileFields(read.view ?? {});
+    const missing = wanted.filter((name) => !has.has(String(name).toLowerCase()));
+    const out = findings.map((f) => {
+        if (f.code === "unknownField") {
+            return { ...f, message: printable(`${f.message}; the data has: ${nameList(columns)}`) };
+        }
+        if (f.code === "aggregatorType" || f.code === "filterFieldType") {
+            const field = /the string field "(.+)"/.exec(f.message)?.[1];
+            const c = field === undefined ? -1 : columns.findIndex((name) => name.toLowerCase() === field.toLowerCase());
+            const raw = c >= 0 ? data.table.raw[c] : [];
+            const row = raw.findIndex((v) => v !== null && String(v).trim() !== "" && !Number.isFinite(Number(String(v).trim().replace(",", "."))));
+            if (row >= 0) {
+                return { ...f, message: printable(`${f.message} (read as text: its value ${JSON.stringify(String(raw[row]))} in row ${row + 1} is no number)`) };
+            }
+        }
+        return f;
+    });
+    if (!missing.length) {
+        return out;
+    }
+    const signs = pivotResultSigns(data.table);
+    const followers = out.filter((f) => f.severity === "error" && FOLLOW_ON.has(f.code));
+    const hints = missing.map((name) => ({ name, near: closest(String(name), columns) })).filter((m) => m.near);
+    const details = [
+        `the view uses: ${nameList(wanted)}`,
+        `the data has: ${nameList(columns)}`,
+        ...hints.map((m) => `missing: "${m.name}" (did you mean "${m.near}"?)`),
+        ...(signs.length
+            ? [`it looks like an exported pivot result (${signs.map((s) => JSON.stringify(s)).join(", ")}), not the rows the report was made from:`, "in the report, take Export → Source data → All rows as CSV, and give that file to --data"]
+            : []),
+        ...(followers.length ? [`and ${followers.length} more error${followers.length === 1 ? "" : "s"} from the missing fields (--json lists them)`] : [])
+    ].map(printable);
+    const mismatch = {
+        severity: "error",
+        code: "dataMismatch",
+        path: "",
+        message: printable(`${data.name} does not have the fields the view uses`),
+        missing: missing.map((m) => printable(String(m))),
+        dataFields: columns.map(printable),
+        pivotResult: signs.length > 0,
+        details
+    };
+    const first = out.findIndex((f) => f.severity === "error");
+    const marked = out.map((f) => (followers.includes(f) ? { ...f, followsFrom: "dataMismatch" } : f));
+    marked.splice(first < 0 ? marked.length : first, 0, mismatch);
+    return marked;
+}
+
 /** The render options common to the commands. */
 const renderBase = (ctx) => ({ ...(ctx.locale ? { locale: ctx.locale } : {}), ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(ctx.now ? { now: ctx.now } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
 
@@ -385,6 +531,14 @@ async function renderCommand(positionals, values, ctx) {
     }
     if (values.json && !values.output) {
         throw new CliError("usage", "JSON_NEEDS_OUTPUT", "--json writes the result on stdout: give the output a file with -o");
+    }
+    if (values.format && values.output) {
+        // -o t.html -f csv would write CSV into an .html file: the name and the format must agree
+        const ext = extname(values.output).slice(1).toLowerCase();
+        if (Object.hasOwn(EXTENSIONS, ext) && EXTENSIONS[ext] !== values.format) {
+            const name = shortName(values.output);
+            throw new CliError("usage", "FORMAT_MISMATCH", `${name} is an ${EXTENSIONS[ext]} file, -f asks for ${values.format}: name it ${name.slice(0, name.length - ext.length)}${values.format}, or leave out -f`);
+        }
     }
     const format = values.format ?? formatOf(values.output);
     if (!values.output && format === "xlsx" && ctx.io.stdout.isTTY) {
@@ -418,8 +572,9 @@ async function renderCommand(positionals, values, ctx) {
     } catch (e) {
         throw asCliError(e, values.template);
     }
-    findings.push(...result.issues.map(findingOf));
+    findings.push(...withJsonPosition(explain(result.issues.map(findingOf), view.view, data), view.view));
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
+    const errors = findings.filter((f) => f.severity === "error" && !f.followsFrom).length;
     /** @type {any} */
     const extra = { summary: result.summary };
     if (result.body && !(failed && !values.lenient)) {
@@ -438,7 +593,44 @@ async function renderCommand(positionals, values, ctx) {
     } else {
         extra.output = null;
     }
-    return { findings, extra, note: extra.output === null ? "nothing written: the view has errors (--lenient writes it as the report shows it)" : null };
+    if (extra.output === null) {
+        return { findings, extra, note: "nothing written: the view has errors.", noteIsError: true };
+    }
+    if (!extra.output) {
+        return { findings, extra, note: null };
+    }
+    const file = extra.output.file;
+    if (failed) {
+        return { findings, extra, note: `wrote ${file} despite ${errors} error${errors === 1 ? "" : "s"} (--lenient)` };
+    }
+    const summary = result.summary;
+    return { findings, extra, note: `wrote ${file}: ${FORMAT_NAMES[format]}${summary ? `, ${summary.rows} rows x ${summary.columns} columns, from ${summary.sourceRows.toLocaleString("en-US")} rows of ${data.name}` : ""}` };
+}
+
+/** What each output format is, for the line that says what was written. */
+const FORMAT_NAMES = Object.freeze({ html: "an HTML report", csv: "a CSV file", json: "a JSON file", xlsx: "an Excel workbook", svg: "an SVG chart" });
+
+/**
+ * A view that is not JSON: where its JSON stops ("at line 2, column 30"), added to the finding that
+ * says so.
+ * @param {any[]} findings
+ * @param {unknown} viewText
+ */
+function withJsonPosition(findings, viewText) {
+    if (typeof viewText !== "string" || !findings.some((f) => /not valid JSON/.test(f.message))) {
+        return findings;
+    }
+    let at = "";
+    try {
+        JSON.parse(viewText);
+    } catch (e) {
+        const position = Number(/position (\d+)/.exec(String(e.message))?.[1]);
+        if (Number.isInteger(position)) {
+            const before = viewText.slice(0, position).split("\n");
+            at = ` at line ${before.length}, column ${before.at(-1).length + 1}`;
+        }
+    }
+    return findings.map((f) => (at && /not valid JSON/.test(f.message) ? { ...f, message: printable(f.message.replace("not valid JSON", `not valid JSON${at}`)) } : f));
 }
 
 /**
@@ -489,7 +681,7 @@ async function validateCommand(positionals, values, ctx) {
     const data = withViewTypes(await readData(values, ctx), viewFields(view.view));
     const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
     if (read.failed) {
-        return { findings: [{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], extra: { valid: false } };
+        return { findings: withJsonPosition([{ severity: "error", code: "viewFile", path: "", message: printable(`not a view: ${read.issues.at(-1)?.message ?? read.failed}`) }], view.view), extra: { valid: false } };
     }
     let schema;
     if (data) {
@@ -501,7 +693,12 @@ async function validateCommand(positionals, values, ctx) {
     }
     const { errors, warnings, valid } = validate(read.view, schema, { limits: outsideLimits(ctx.limits) });
     const fileNotes = read.issues.map((i) => ({ severity: "warning", code: "viewFile", path: printable(i.path ?? ""), message: printable(i.message) }));
-    return { findings: [...(data?.notes ?? []), ...fileNotes, ...errors.map(findingOf), ...warnings.map(findingOf)], extra: { valid } };
+    const viewFindings = [...errors.map(findingOf), ...warnings.map(findingOf)];
+    const findings = [...(data?.notes ?? []), ...fileNotes, ...(data ? explain(viewFindings, view.view, data) : viewFindings)];
+    // what was checked, said when it is valid (an invalid view says so through its errors)
+    const counted = (n, word) => (n === 0 ? `no ${word}s` : `${n} ${word}${n === 1 ? "" : "s"}`);
+    const note = !valid ? null : data ? `valid: no errors, ${counted(warnings.length, "warning")} (with ${data.name})` : "valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data";
+    return { findings, extra: { valid }, note };
 }
 
 async function describeCommand(positionals, values, ctx) {
@@ -543,7 +740,8 @@ async function describeCommand(positionals, values, ctx) {
         if (!values.json) {
             ctx.io.stdout.write(`${printable(read.name || "view")}: ${printable(described.text)}\n`);
         }
-        return { findings: [...(data?.notes ?? []), ...[...described.errors, ...described.warnings].map(findingOf)], extra: { kind, name: printable(read.name), description: described } };
+        const viewFindings = [...described.errors, ...described.warnings].map(findingOf);
+        return { findings: [...(data?.notes ?? []), ...(data ? explain(viewFindings, view, data) : viewFindings)], extra: { kind, name: printable(read.name), description: described } };
     }
     // data: the bytes or the text read above (JSON that is no view), else the file
     const known = bytes ?? (text !== null ? new TextEncoder().encode(text) : null);

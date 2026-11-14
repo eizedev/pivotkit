@@ -72,6 +72,88 @@ export const DEFAULT_LABELS = Object.freeze({
 });
 
 /**
+ * The texts of a report in a language, as pivotkit-react's report shows them and pivotkit-report
+ * writes them: DEFAULT_LABELS with words for yes/no and the aggregators' longer names, and German.
+ * Every text can still be replaced through toGrid's `labels` option.
+ * @type {Readonly<Record<"en" | "de", Labels>>}
+ */
+export const REPORT_LABELS = Object.freeze({
+    en: Object.freeze({
+        ...DEFAULT_LABELS,
+        // a yes/no field in the table, the filter list and the drill-down: words, not true/false
+        true: "Yes",
+        false: "No",
+        aggregators: {
+            count: "Count",
+            countUnique: "Distinct count",
+            listUnique: "List of distinct values",
+            sum: "Sum",
+            average: "Average",
+            median: "Median",
+            min: "Minimum",
+            max: "Maximum",
+            stdev: "Standard deviation (sample)",
+            stdevp: "Standard deviation (population)",
+            var: "Variance (sample)",
+            varp: "Variance (population)",
+            first: "First value",
+            last: "Last value"
+        }
+    }),
+    de: Object.freeze({
+        ...DEFAULT_LABELS,
+        blank: "(Leer)",
+        total: "{label} gesamt",
+        grandTotal: "Gesamtergebnis",
+        values: "Werte",
+        valueName: "{agg} von {field}",
+        countRows: "Anzahl",
+        true: "Ja",
+        false: "Nein",
+        aggregators: {
+            count: "Anzahl",
+            countUnique: "Anzahl verschiedener Werte",
+            listUnique: "Liste verschiedener Werte",
+            sum: "Summe",
+            average: "Durchschnitt",
+            median: "Median",
+            min: "Minimum",
+            max: "Maximum",
+            stdev: "Standardabweichung (Stichprobe)",
+            stdevp: "Standardabweichung (Grundgesamtheit)",
+            var: "Varianz (Stichprobe)",
+            varp: "Varianz (Grundgesamtheit)",
+            first: "Erster Wert",
+            last: "Letzter Wert"
+        },
+        showAsName: "{showAs} von {value}",
+        showAs: {
+            percentOfGrandTotal: "% des Gesamtergebnisses",
+            percentOfRowTotal: "% der Zeilensumme",
+            percentOfColumnTotal: "% der Spaltensumme",
+            percentOfParentRow: "% der übergeordneten Zeile",
+            percentOfParentColumn: "% der übergeordneten Spalte",
+            differenceFromPrevious: "Differenz zum vorherigen",
+            percentDifferenceFromPrevious: "% Differenz zum vorherigen",
+            runningTotal: "Laufende Summe",
+            percentRunningTotal: "% laufende Summe",
+            rankAscending: "Rang (kleinster zuerst)",
+            rankDescending: "Rang (größter zuerst)"
+        }
+    })
+});
+
+/**
+ * The REPORT_LABELS of a locale's language ("de-DE": German), English for any other.
+ * @param {string} [locale]
+ * @returns {Labels}
+ */
+export function reportLabels(locale) {
+    const lang = String(locale ?? "").split("-")[0].toLowerCase();
+    return lang === "de" ? REPORT_LABELS.de : REPORT_LABELS.en;
+}
+
+/**
  * The display name of a field: its entry in `labels.fields` (matched case-insensitively, own entries
  * only), else the name itself. Display only; a view always holds the field's own name.
  * @param {string} field
