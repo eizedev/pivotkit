@@ -208,7 +208,7 @@ Every error is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem doc
 
 ```json
 { "type": "https://pivotkit.eize.dev/reference/rest/#error-source-not-found", "title": "Source not found",
-  "status": 404, "code": "SOURCE_NOT_FOUND", "detail": "no source \"salse\"; did you mean \"sales\"?; list_sources lists them" }
+  "status": 404, "code": "SOURCE_NOT_FOUND", "detail": "no source \"salse\"; did you mean \"sales\"?; GET /sources lists them" }
 ```
 
 `code` is stable; `detail` says what went wrong and what to do, and names a file by its base name at

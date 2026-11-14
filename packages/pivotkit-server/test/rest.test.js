@@ -150,7 +150,7 @@ test("errors are problem documents: unknown route 404, wrong method 405 with All
         assert.match(extra.data.detail, /no key "admin"/);
         const unknown = await call(`${server.api}/sources/salse`);
         assertProblem(unknown, 404, "SOURCE_NOT_FOUND");
-        assert.match(unknown.data.detail, /did you mean "sales"/);
+        assert.match(unknown.data.detail, /did you mean "sales"\?; GET \/sources lists them/);
         // the safe headers on every answer
         const ok = await call(`${server.api}/sources`);
         assert.equal(ok.headers.get("x-content-type-options"), "nosniff");
@@ -233,6 +233,24 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
         assert.equal(res.data.code, "FORBIDDEN_HOST");
         const post = await raw(`${server.api}/views/validate`, { method: "POST", headers: { host: "evil.example", "content-type": "application/json" }, body: "{}" });
         assert.equal(post.status, 403);
+    } finally {
+        await server.close();
+    }
+});
+
+test("output.maxAgeDays: writing a report deletes the files older than that, and keeps the others", async () => {
+    const dir = workspace();
+    const { utimesSync } = await import("node:fs");
+    writeFileSync(join(dir, "out", "old.xlsx"), "old");
+    writeFileSync(join(dir, "out", "recent.xlsx"), "recent");
+    const old = new Date(Date.now() - 3 * 86_400_000);
+    utimesSync(join(dir, "out", "old.xlsx"), old, old);
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
+    try {
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["old.xlsx", "recent.xlsx"], "nothing is deleted before a report is written");
+        const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
+        assert.equal(res.status, 200);
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [res.data.output.name, "recent.xlsx"].sort());
     } finally {
         await server.close();
     }

@@ -59,12 +59,12 @@ export async function createRegistry(options) {
     }
 
     /** The source of an id for a caller, or SOURCE_NOT_FOUND (also for one it may not use). */
-    function sourceOf(id, caller) {
+    function sourceOf(id, caller, how = {}) {
         const source = sources.get(id);
         if (!source || !holds(caller, source.scopes)) {
             const known = [...sources.entries()].filter(([, s]) => holds(caller, s.scopes)).map(([k]) => k);
             const near = closest(String(id), known);
-            throw new OperationError("SOURCE_NOT_FOUND", `no source "${String(id).slice(0, 80)}"${near ? `; did you mean "${near}"?` : ""}; list_sources lists them`);
+            throw new OperationError("SOURCE_NOT_FOUND", `no source "${String(id).slice(0, 80)}"${near ? `; did you mean "${near}"?` : ""}; ${how.surface === "rest" ? "GET /sources" : "list_sources"} lists them`);
         }
         return source;
     }
@@ -95,7 +95,7 @@ export async function createRegistry(options) {
          * What a worker needs to read a source, and the policy that applies to it.
          * @param {string} ref  a source id or "file:<path>"
          * @param {Caller} caller
-         * @param {{ files?: boolean }} [how]  files: false refuses a file: source whatever files.allowDirs says (REST)
+         * @param {{ files?: boolean, surface?: "mcp" | "rest" }} [how]  files: false refuses a file: source whatever files.allowDirs says (REST); surface: whose words a message uses
          */
         async resolve(ref, caller, how = {}) {
             if (typeof ref !== "string" || !ref) {
@@ -127,7 +127,7 @@ export async function createRegistry(options) {
                     spec: { id: ref, kind: "file", path: real, allow, hardLinks: files.hardLinks ?? false, name, levels: levelsOf(policy), limits, timeZone: options.timeZone, schedulable: false }
                 };
             }
-            const source = sourceOf(ref, caller);
+            const source = sourceOf(ref, caller, how);
             const policy = resolvePolicy(options.policy, source.policy, profileOf(caller));
             const template = source.template ? await readTemplate(pathOf(options, source.template)) : undefined;
             return {

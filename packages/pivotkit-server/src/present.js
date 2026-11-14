@@ -279,7 +279,7 @@ export async function present(context, name, input, caller, how = {}) {
  * @returns {Promise<{ result: Record<string, any>, file: { bytes: Uint8Array, mediaType: string, extension: string, name: string } | null }>}
  */
 export async function renderFile(context, input, caller) {
-    const resolved = await context.registry.resolve(input.source, caller, { files: false });
+    const resolved = await context.registry.resolve(input.source, caller, { files: false, surface: "rest" });
     if (!resolved.policy.results) {
         throw new OperationError("NOT_ALLOWED", "your token may not download files (the operator allows it per profile: results: true)");
     }
