@@ -24,6 +24,18 @@ export const TOKEN_MIN = 32;
 /** The most bytes of the issuer's metadata document. */
 const METADATA_BYTES = 262_144;
 
+/** What a bearer token may hold (RFC 6750's b64token): a token with other characters never matches a request. */
+export const TOKEN_SYNTAX = /^[A-Za-z0-9\-._~+/]+=*$/;
+
+/** Why a token outside TOKEN_SYNTAX does not work. */
+export const TOKEN_SYNTAX_TEXT = "has characters a bearer token cannot carry (letters, digits and - . _ ~ + / only, = at the end), so no request could send it";
+
+/** The command that makes a token, for the messages. */
+export const MAKE_TOKEN = `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`;
+
+/** How often the issuer's metadata is read again (a changed jwks_uri), and the least time between two reads for a token with an unknown key. */
+export const METADATA_REFRESH = Object.freeze({ everyMs: 3_600_000, unknownKeyMs: 60_000 });
+
 /** SHA-256 of a text, for comparing tokens in constant time. */
 const digest = (text) => createHash("sha256").update(text, "utf8").digest();
 
@@ -61,8 +73,8 @@ export function bearerOf(request) {
     if (!header || header.includes(",")) {
         return { refused: header ? "send one Authorization header, not two" : "no token; send Authorization: Bearer <token>" };
     }
-    const m = /^Bearer[ ]+([A-Za-z0-9\-._~+/]+=*)$/i.exec(header.trim());
-    return m ? { token: m[1] } : { refused: "not a bearer token; send Authorization: Bearer <token>" };
+    const m = /^Bearer[ ]+(\S+)$/i.exec(header.trim());
+    return m && TOKEN_SYNTAX.test(m[1]) ? { token: m[1] } : { refused: "not a bearer token; send Authorization: Bearer <token>" };
 }
 
 /**
@@ -85,7 +97,10 @@ async function staticTokens(auth, env, options, tokenEnv) {
             }
         }
         if (value.length < TOKEN_MIN) {
-            throw new ConfigError(`auth: the token "${t.name}" (${t.env ? `$${t.env}` : "its file"}) is missing or shorter than ${TOKEN_MIN} characters; make one with: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`);
+            throw new ConfigError(`auth: the token "${t.name}" (${t.env ? `$${t.env}` : "its file"}) is missing or shorter than ${TOKEN_MIN} characters; make one with: ${MAKE_TOKEN}`);
+        }
+        if (!TOKEN_SYNTAX.test(value)) {
+            throw new ConfigError(`auth: the token "${t.name}" (${t.env ? `$${t.env}` : "its file"}) ${TOKEN_SYNTAX_TEXT}; make one with: ${MAKE_TOKEN}`);
         }
         out.push({ name: t.name, scopes: t.scopes ?? null, profile: t.profile ?? null, read: t.file ? read : async () => value });
     }
@@ -224,8 +239,13 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
     const algorithms = auth.algorithms?.length ? auth.algorithms : [...DEFAULT_ALGORITHMS];
     const { createRemoteJWKSet, jwtVerify } = await import("jose");
     /** @type {any} */
-    let state = { metadata: null, jwks: null };
+    let state = { metadata: null, jwks: null, jwksUri: null };
+    // when a token with an unknown key last made the metadata be read again
+    let unknownAt = 0;
+    /** @type {Promise<boolean> | null} */
+    let inflight = null;
 
+    /** Reads the issuer's metadata; a new key set only when its jwks_uri changed, so keys stay cached. Whether the key set changed. */
     async function load() {
         const metadata = await discover(issuer);
         const jwksUri = auth.jwksUri ?? metadata.jwks_uri;
@@ -235,9 +255,22 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
         if (!auth.jwksUri && new URL(jwksUri).origin !== new URL(issuer).origin) {
             throw new Error(`the issuer's jwks_uri is on another origin (${new URL(jwksUri).origin}); set auth.jwksUri to accept it`);
         }
-        state = { metadata, jwks: createRemoteJWKSet(new URL(jwksUri), { timeoutDuration: 5000, cooldownDuration: 30_000, cacheMaxAge: 600_000 }) };
-        log.info("oauth: issuer metadata loaded", { issuer });
+        if (jwksUri === state.jwksUri) {
+            state = { ...state, metadata };
+            return false;
+        }
+        const first = !state.jwks;
+        state = { metadata, jwksUri, jwks: createRemoteJWKSet(new URL(jwksUri), { timeoutDuration: 5000, cooldownDuration: 30_000, cacheMaxAge: 600_000 }) };
+        log.info(first ? "oauth: issuer metadata loaded" : "oauth: the issuer's jwks_uri changed; keys are read from the new one", { issuer });
+        return true;
     }
+
+    /** Reads the metadata again (the hourly refresh, a token with an unknown key); a failure keeps what is loaded. */
+    const refresh = () =>
+        load().catch((e) => {
+            log.warn(`oauth: the issuer's metadata could not be read again, keeping the loaded one: ${String(e?.message ?? e).slice(0, 300)}`);
+            return false;
+        });
     let delay = 2000;
     let timer = null;
     let closed = false;
@@ -252,6 +285,37 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
             delay = Math.min(delay * 2, 60_000);
         });
     await attempt();
+    const refreshing = setInterval(() => {
+        if (state.jwks) {
+            refresh();
+        }
+    }, METADATA_REFRESH.everyMs);
+    refreshing.unref?.();
+
+    /**
+     * Verifies a token. One signed with a key the set does not hold reads the metadata again (at most
+     * once a minute) and, when the key set moved to another jwks_uri, is tried once more.
+     */
+    async function verifyJwt(token, audience) {
+        const how = { issuer, audience, algorithms, clockTolerance: auth.clockTolerance ?? 30, ...(auth.requireTyp ? { typ: auth.requireTyp } : {}), requiredClaims: ["exp"] };
+        try {
+            return await jwtVerify(token, state.jwks, how);
+        } catch (e) {
+            if (e?.code !== "ERR_JWKS_NO_MATCHING_KEY" || Date.now() - unknownAt < METADATA_REFRESH.unknownKeyMs) {
+                throw e;
+            }
+            // one read for the requests that come at once; the wait starts only after a read that
+            // found nothing new (or failed), so a made-up key cannot hold back a real rotation
+            inflight ??= refresh().finally(() => {
+                inflight = null;
+            });
+            if (!(await inflight)) {
+                unknownAt = Date.now();
+                throw e;
+            }
+            return jwtVerify(token, state.jwks, how);
+        }
+    }
 
     return {
         mode,
@@ -271,7 +335,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
                 throw new AuthRefusal(503, "temporarily_unavailable", "the server is waiting for its authorization server");
             }
             try {
-                const { payload } = await jwtVerify(token, state.jwks, { issuer, audience, algorithms, clockTolerance: auth.clockTolerance ?? 30, ...(auth.requireTyp ? { typ: auth.requireTyp } : {}), requiredClaims: ["exp"] });
+                const { payload } = await verifyJwt(token, audience);
                 return { token, clientId: String(payload.azp ?? payload.client_id ?? "client").slice(0, 80), scopes: scopesOf(payload, auth.scopeClaim), expiresAt: /** @type {number} */ (payload.exp), resource, extra: {} };
             } catch (e) {
                 // why a token failed stays here (a message would help someone who tries tokens); the
@@ -282,6 +346,7 @@ export async function createAuthCore(options, { env, log, loopback, tokenEnv = "
         },
         close() {
             closed = true;
+            clearInterval(refreshing);
             if (timer) {
                 clearTimeout(timer);
             }

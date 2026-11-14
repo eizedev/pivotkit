@@ -94,7 +94,9 @@ Set `http.publicUrl` to the address clients use and keep the proxy's `Host` head
 to `http.allowHosts`); the server answers no other host name. With a proxy or a published port in
 front, every client comes from one address: set `http.trustProxy` with a proxy that writes
 `X-Forwarded-For` ([the nginx example](rest.md#running)), so the limit on refused tokens counts per
-client. With OAuth the MCP endpoint and the
+client; the proxy then guards the connections (timeouts, limits per client), and the container's
+port should be reachable from the proxy only. Leave `http.maxConnectionsPerAddress` off there: every
+client has the proxy's address. With OAuth the MCP endpoint and the
 REST service are two resources with their own audiences:
 
 ```json

@@ -51,7 +51,7 @@ test("the package exports main() and the file helpers of pivotkit-cli/files, not
     assert.deepEqual(Object.keys(pkg.exports), [".", "./files", "./package.json"]);
     await assert.rejects(import("pivotkit-cli/safe-files"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
     const files = await import("pivotkit-cli/files");
-    assert.deepEqual(Object.keys(files).sort(), ["CliError", "DATA_FORMATS", "INFO_NOTES", "allowedDirs", "asCliError", "cleanFileName", "isInside", "printable", "readSafe", "readStdin", "readTable", "shortName", "writeNew", "writeSafe"]);
+    assert.deepEqual(Object.keys(files).sort(), ["CliError", "DATA_FORMATS", "INFO_NOTES", "TEMP_FILE_NAME", "allowedDirs", "asCliError", "cleanFileName", "isInside", "printable", "readSafe", "readStdin", "readTable", "shortName", "writeNew", "writeSafe"]);
 });
 
 test("writeNew never replaces a file: a taken name gets -2, -3; the name is cleaned; no temporary file stays", async () => {
@@ -68,6 +68,26 @@ test("writeNew never replaces a file: a taken name gets -2, -3; the name is clea
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
     await assert.rejects(writeNew(dir, "Sales", "csv", new Uint8Array(), { tries: 3 }), (e) => e.code === "EXISTS");
     assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".tmp")), []);
+});
+
+// pivotkit-server removes the temporary files of writes that were killed by TEMP_FILE_NAME: it must
+// match every name writeSafe makes, and no report's name
+test("TEMP_FILE_NAME matches the temporary files writeSafe makes, not the files it writes", async () => {
+    const { TEMP_FILE_NAME } = await import("pivotkit-cli/files");
+    const { tempFileName } = await import("../src/safe-files.js");
+    for (const name of ["Sales.csv", "a", "Umsätze Q1 2026.xlsx", "x".repeat(300), "😀".repeat(80), ".hidden", "name.with.dots.tmp"]) {
+        for (let i = 0; i < 20; i++) {
+            const temp = tempFileName(name);
+            assert.match(temp, TEMP_FILE_NAME, temp);
+            assert.ok(Buffer.byteLength(temp) <= 255, `${temp}: longer than a file name may be`);
+        }
+    }
+    for (const name of ["Sales.csv", "report.json", "a1b2-Sales.xlsx", "notes.tmp", ".hidden.tmp", "Sales.csv.tmp", ".Sales.csv.tmp"]) {
+        assert.doesNotMatch(name, TEMP_FILE_NAME, name);
+    }
+    // a long name keeps its start and its end (the server's random prefix, its output mark)
+    const long = `${"r".repeat(22)}-${"Quarterly sales by region and product ".repeat(3)}.pivotkit-out.report.json`;
+    assert.match(tempFileName(long), /^\.r{22}-Q.*\.pivotkit-out\.report\.json\.\d+-[0-9a-z]+\.tmp$/);
 });
 
 test("readSafe with hardLinks: false refuses a file with a second name; the default reads it", { skip: process.platform === "win32" ? "hard links differ on Windows" : false }, async () => {

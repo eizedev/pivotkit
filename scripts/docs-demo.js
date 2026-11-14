@@ -7,10 +7,11 @@
 //   npm run build:playground && node scripts/docs-demo.js     (npm run docs:demo does both)
 import { copyFile, cp, rm, stat, writeFile } from "node:fs/promises";
 import { siteUrl } from "./site-url.js";
+import { fileURLToPath } from "node:url";
 
 const root = new URL("../", import.meta.url);
-const from = new URL("examples/playground/dist/", root).pathname;
-const to = new URL("docs/playground/", root).pathname;
+const from = fileURLToPath(new URL("examples/playground/dist/", root));
+const to = fileURLToPath(new URL("docs/playground/", root));
 
 try {
     await stat(`${from}index.html`);
@@ -24,8 +25,8 @@ console.log("docs/playground/: the playground and the web component example");
 
 // the view file's JSON Schema, published at https://pivotkit.eize.dev/schema/: pivotkit-core's own
 // file (it ships in the package), the same bytes
-const schemaFrom = new URL("packages/pivotkit-core/schema/", root).pathname;
-const schemaTo = new URL("docs/schema/", root).pathname;
+const schemaFrom = fileURLToPath(new URL("packages/pivotkit-core/schema/", root));
+const schemaTo = fileURLToPath(new URL("docs/schema/", root));
 await rm(schemaTo, { recursive: true, force: true });
 await cp(schemaFrom, schemaTo, { recursive: true });
 console.log("docs/schema/: the view file schema of pivotkit-core");

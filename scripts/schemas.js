@@ -7,7 +7,6 @@
 //
 //   node scripts/schemas.js
 import { writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { AGGREGATOR_NAMES } from "../packages/pivotkit-core/src/aggregators.js";
 import { DERIVE_UNITS, MIN_BIN_SIZE } from "../packages/pivotkit-core/src/derive.js";
 import { COMPARE_OPS, COMPARE_PRECISIONS, FILTERS, FILTER_BLANKS, RELATIVE_ANCHORS, RELATIVE_DIRECTIONS, RELATIVE_MAX_COUNT, RELATIVE_UNITS, TEXT_ON, TEXT_OPS, TOP_TIES } from "../packages/pivotkit-core/src/filters.js";
@@ -16,6 +15,7 @@ import { SHOW_AS_NAMES } from "../packages/pivotkit-core/src/show-as.js";
 import { MATCH_CASES, MATCH_WHITESPACE } from "../packages/pivotkit-core/src/text-match.js";
 import { FIELD_TYPES, VIEW_FILE_FORMAT, VIEW_FILE_LIMITS, VIEW_FILE_SCHEMA, VIEW_FILE_VERSION } from "../packages/pivotkit-core/src/view-file.js";
 import { CHART_AXIS_LABELS, CHART_GROUP_LABELS, CHART_LABEL_POSITIONS, CHART_LEGENDS, CHART_TYPES, CHART_VALUE_LABELS, COLOR, DISPLAY_MODES, SORT_BY, VIEW_VERSION, emptyView } from "../packages/pivotkit-core/src/view.js";
+import { isMain } from "./is-main.js";
 
 /** Where the schemas are published (the site copies schema/ there, scripts/docs-demo.js). */
 export const SCHEMA_BASE = "https://pivotkit.eize.dev/schema/";
@@ -230,7 +230,7 @@ export function buildSchemas() {
 /** A schema file's text: JSON with a 2-space indent and a trailing newline. */
 export const schemaText = (schema) => `${JSON.stringify(schema, null, 2)}\n`;
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
     for (const [name, schema] of Object.entries(buildSchemas())) {
         writeFileSync(new URL(`../packages/pivotkit-core/schema/${name}`, import.meta.url), schemaText(schema));
         console.log(`packages/pivotkit-core/schema/${name}`);

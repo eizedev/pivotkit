@@ -13,7 +13,7 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { writeNew } from "pivotkit-cli/files";
+import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
 import { OPERATIONS, OperationError, findingText } from "pivotkit-report/operations";
 import { exposeFindings, exposeSource, levelOf, touchesClosed } from "./policy.js";
 
@@ -186,9 +186,26 @@ async function reportsIn(dir) {
     return /** @type {Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>} */ (files.filter(Boolean)).sort((a, b) => a.mtimeMs - b.mtimeMs);
 }
 
+/** A write's temporary file older than this was left by a server killed during the write. */
+const TEMP_MAX_AGE_MS = 3_600_000;
+
+/**
+ * The temporary files of pivotkit's writes into the output directory (pivotkit-cli/files'
+ * TEMP_FILE_NAME of a name with the mark): left there by a server killed between creating one and
+ * renaming it. They are not reports: neither counted nor deleted to make room.
+ * @param {string} dir
+ * @returns {Promise<Array<{ path: string, mtimeMs: number }>>}
+ */
+async function leftoverTempFiles(dir) {
+    const entries = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((e) => e.isFile() && TEMP_FILE_NAME.test(e.name) && e.name.includes(`.${OUTPUT_MARK}.`));
+    const files = await Promise.all(entries.map((e) => stat(join(dir, e.name)).then((info) => ({ path: join(dir, e.name), mtimeMs: info.mtimeMs }), () => null)));
+    return /** @type {Array<{ path: string, mtimeMs: number }>} */ (files.filter(Boolean));
+}
+
 /**
  * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
- * level; a file of another kind and a subdirectory stay), at most once an hour.
+ * level; a file of another kind and a subdirectory stay), and the temporary files of its writes
+ * older than an hour, at most once an hour.
  * @param {any} context
  */
 export async function prune(context) {
@@ -200,9 +217,15 @@ export async function prune(context) {
         return;
     }
     pruned.set(dir, Date.now());
-    const before = Date.now() - days * 86_400_000;
+    const now = Date.now();
+    const before = now - days * 86_400_000;
     for (const file of await reportsIn(dir)) {
         if (file.mtimeMs < before) {
+            await unlink(file.path).catch(() => undefined);
+        }
+    }
+    for (const file of await leftoverTempFiles(dir)) {
+        if (file.mtimeMs < now - TEMP_MAX_AGE_MS) {
             await unlink(file.path).catch(() => undefined);
         }
     }

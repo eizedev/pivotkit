@@ -29,11 +29,29 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- `output.maxAgeDays` also removes the temporary files of writes the server was killed in
+  (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); they are not reports,
+  so nothing else ever removed them ([#209](https://github.com/eizedev/pivotkit/issues/209)).
 - The file count of the output directory holds when many reports are written at once: writes into
   it run one at a time ([#269](https://github.com/eizedev/pivotkit/issues/269)).
 - An output directory the server cannot write is a problem in `check-config` and a warning at start,
   and a report answers 409 `NO_OUTPUT` with a hint instead of 500 `INTERNAL`
   ([#297](https://github.com/eizedev/pivotkit/issues/297)).
+- 16 of the 256 connections are kept for loopback, so clients on the network that hold connections
+  without sending cannot lock out the health check; a client has 5 seconds for its headers (was 15,
+  and checked only every 30 seconds); `http.maxConnectionsPerAddress` (default 0, no bound) caps one
+  address, and refused connections are logged at most once a minute
+  ([#289](https://github.com/eizedev/pivotkit/issues/289)).
+- A request target in the absolute form (`GET http://host/path`) is read by its path, and `OPTIONS *`
+  answers 400, instead of both reaching `/` ([#299](https://github.com/eizedev/pivotkit/issues/299)).
+- A static token with characters a bearer token cannot carry is refused at start and in
+  `check-config` (no request could send it); with OAuth and neither required scopes nor
+  `auth.toolScopes`, the REST service warns at start as MCP does
+  ([#299](https://github.com/eizedev/pivotkit/issues/299)).
+- The issuer's metadata is read again every hour and when a token names an unknown key (after a
+  read that found nothing new, not again within a minute), so a changed `jwks_uri` works without a
+  restart
+  ([#271](https://github.com/eizedev/pivotkit/issues/271)).
 
 ## [0.1.0] - 2026-11-14
 

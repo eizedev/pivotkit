@@ -8,6 +8,7 @@
  */
 
 import { Zip, ZipDeflate, ZipPassThrough, strToU8 } from "fflate";
+import { isMain } from "../../../scripts/is-main.js";
 
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
@@ -195,7 +196,7 @@ export function* ticketRows(count, seed = 44) {
     }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     const { writeFileSync } = await import("node:fs");
     const [out, rows = "94000", used = "900000"] = process.argv.slice(2);
     const bytes = makeXlsx({ sheets: [{ name: "Tickets", rows: () => ticketRows(Number(rows)), usedRangeTo: Number(used), emptyCells: 20 }] });
