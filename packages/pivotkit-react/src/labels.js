@@ -7,7 +7,7 @@
  * load with them; a host's entries for them are kept here and win there.
  */
 
-import { PivotkitError, REPORT_LABELS } from "pivotkit-core";
+import { GROUPING_NAMES, PivotkitError, REPORT_LABELS } from "pivotkit-core";
 
 /**
  * Every text of the UI: these and the menus' (menu-labels.js, loaded with the menus; a type import
@@ -110,14 +110,10 @@ export const en = {
         quarter: "Quarter of year", month: "Month of year", week: "Week of year", weekday: "Weekday", hour: "Hour of day",
         bin: "Ranges"
     },
-    // a date grouping's name: "Date by month"; the unit as it reads inside it (unitInName)
-    derivedName: "{field} by {unit}",
-    unitInName: {
-        year: "year", yearQuarter: "quarter", yearMonth: "month", yearWeek: "week", day: "day",
-        quarter: "quarter of year", month: "month of year", week: "week of year", weekday: "weekday", hour: "hour of day",
-        bin: "ranges"
-    },
-    binsName: "{field} (by {size})",
+    // a date grouping's name: "Date by month"; the unit as it reads inside it (unitInName); pivotkit-core's GROUPING_NAMES
+    derivedName: GROUPING_NAMES.en.name,
+    unitInName: { ...GROUPING_NAMES.en.units },
+    binsName: GROUPING_NAMES.en.bins,
     top: "Top",
     topBadge: "Top {count}",
     bottomBadge: "Bottom {count}",
@@ -434,13 +430,9 @@ export const de = {
         quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
         bin: "Bereiche"
     },
-    derivedName: "{field} nach {unit}",
-    unitInName: {
-        year: "Jahr", yearQuarter: "Quartal", yearMonth: "Monat", yearWeek: "Woche", day: "Tag",
-        quarter: "Quartal im Jahr", month: "Monat im Jahr", week: "Woche im Jahr", weekday: "Wochentag", hour: "Stunde am Tag",
-        bin: "Bereichen"
-    },
-    binsName: "{field} (je {size})",
+    derivedName: GROUPING_NAMES.de.name,
+    unitInName: { ...GROUPING_NAMES.de.units },
+    binsName: GROUPING_NAMES.de.bins,
     top: "Oberste",
     topBadge: "Top {count}",
     bottomBadge: "Letzte {count}",

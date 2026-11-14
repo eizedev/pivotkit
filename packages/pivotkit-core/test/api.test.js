@@ -15,9 +15,9 @@ const src = fileURLToPath(new URL("../src/", import.meta.url));
 
 test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(core).sort(), [
-        "CATALOG", "CHART_COLORS", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "HINT_LIMITS", "ISSUE_CAP", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "REPORT_LABELS", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
-        "cellRows", "chartPlan", "chartThemeFrom", "closest", "computePivot", "createHistory", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "isFormat", "linkFragment", "linkParam",
-        "migrate", "normalize", "outsideLimits", "relativeDateRange", "reportLabels", "suggestDateUnit", "swapAxes", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "withLinkFragment"
+        "CATALOG", "CHART_COLORS", "DEFAULT_LABELS", "DEFAULT_THEME", "DESCRIBE_LIMITS", "GROUPING_NAMES", "HINT_LIMITS", "ISSUE_CAP", "LAYOUT_LIMITS", "LIMITS", "MATCH_DEFAULTS", "OUTSIDE_LIMITS", "PivotkitError", "REPORT_LABELS", "SUGGEST_LIMITS", "VIEW_FILE_FORMAT", "VIEW_FILE_LIMITS", "VIEW_FILE_SCHEMA", "VIEW_FILE_VERSION", "VIEW_ISSUES", "VIEW_ISSUE_CODES", "VIEW_VERSION", "aggregatorsFor", "autoChartType",
+        "cellRows", "chartPlan", "chartThemeFrom", "closest", "computePivot", "createHistory", "dateUnitFor", "describeSource", "describeView", "emptyView", "encode", "fieldDefaultsFromSchema", "fieldItems", "fieldLabel", "findNode", "foldText", "formatter", "fromViewFile", "groupingName", "isFormat", "isIdentifierName", "linkFragment", "linkParam",
+        "migrate", "normalize", "outsideLimits", "relativeDateRange", "renameFields", "reportLabels", "suggestDateUnit", "suggestLayout", "swapAxes", "toEChartsOption", "toGrid", "toSeries", "toViewFile", "validate", "viewFields", "viewFileFields", "viewFileName", "viewFileText", "viewFromLayout", "withLinkFragment"
     ]);
     assert.deepEqual(Object.keys(exporters).sort(), ["dataToCsv", "dataToCsvBytes", "dataToJson", "rowsToCsv", "rowsToCsvBytes", "rowsToXlsx", "scaleColor", "toCsv", "toCsvBytes", "toJson", "toTsv", "toXlsx"]);
     assert.deepEqual(Object.keys(charts).sort(), [
@@ -26,8 +26,8 @@ test("the package exports its documented entry points and nothing else", () => {
     assert.deepEqual(Object.keys(links).sort(), ["LINK_ISSUE_CODES", "LINK_LIMITS", "decodeViewLink", "encodeViewLink", "linkFragment", "linkParam", "readViewLink", "withLinkFragment"]);
     assert.deepEqual(Object.keys(templates).sort(), ["TEMPLATES_EXTENSION", "TEMPLATE_LIMITS", "parseTemplates", "templatesFromSchema"]);
     assert.deepEqual(Object.keys(importer).sort(), [
-        "BUILT_IN_READERS", "IMPORT_NOTE_CODES", "IMPORT_TYPES", "PLUGIN_API_VERSION", "bytesOf", "checkFileLimit", "cleanText", "createTable", "csvReader", "dateToIso", "fileError", "fileName",
-        "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "validatePlugin"
+        "BUILT_IN_READERS", "IMPORT_NOTE_CODES", "IMPORT_TYPES", "PLUGIN_API_VERSION", "SHOWN_MAX", "bytesOf", "checkFileLimit", "cleanText", "createTable", "csvReader", "dateToIso", "fileError", "fileName",
+        "jsonReader", "limitError", "loadReader", "noteMessage", "readFile", "readOptions", "readerFor", "retype", "shownName", "sourceIdOf", "validatePlugin"
     ]);
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     assert.deepEqual(Object.keys(pkg.exports), [".", "./export", "./chart", "./import", "./link", "./templates", "./schema/view-file-1.json", "./schema/view-2.json", "./schema/view-file-2.json", "./package.json"]);
