@@ -35,6 +35,7 @@ nav = [
     { "Getting started: React" = "getting-started/react.md" },
     { "Getting started: web component" = "getting-started/web-component.md" },
     { "Getting started: engine only" = "getting-started/engine.md" },
+    { "Getting started: MCP server" = "getting-started/mcp.md" },
     { "Upgrading from 0.4" = "getting-started/upgrading.md" },
     { "Recipes" = "embed/recipes.md" },
     { "Concepts" = [
@@ -59,6 +60,7 @@ nav = [
     { "pivotkit-report" = "reference/report.md" },
     { "Print template" = "reference/print-template.md" },
     { "pivotkit-cli" = "reference/cli.md" },
+    { "pivotkit-mcp" = "reference/mcp.md" },
     { "View file format" = "reference/view-file.md" },
     { "Theming" = "reference/theming.md" },
     { "Localisation" = "reference/localisation.md" },
@@ -156,7 +158,7 @@ pivotkit is a pivot report builder for the web, with Excel's PivotTable as the r
 npm packages: pivotkit-core (the engine, plain JavaScript for the browser and Node), pivotkit-react
 (the React 18 and 19 component `<PivotReport>`), pivotkit-element (the web component `<pivot-report>`),
 pivotkit-xlsx (a reader plugin for Excel workbooks), pivotkit-report (JSON, CSV, XLSX, SVG and a
-printable HTML report without a browser) and pivotkit-cli (the command line `pivotkit`). A report is a JSON view, checked as untrusted
+printable HTML report without a browser), pivotkit-cli (the command line `pivotkit`) and pivotkit-mcp (an MCP server for AI clients). A report is a JSON view, checked as untrusted
 input; its format and JSON Schema are on the page "View file format". llms-full.txt holds every page
 listed here in one file.
 """

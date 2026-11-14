@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: pivotkit is a pivot report builder for the web - drag-and-drop fields, table and chart, filters, drill-down, views as JSON files and native Excel export - as a JavaScript engine, a React component, a web component and a command line.
+description: pivotkit is a pivot report builder for the web - drag-and-drop fields, table and chart, filters, drill-down, views as JSON files and native Excel export - as a JavaScript engine, a React component, a web component, a command line and an MCP server.
 hide:
   - navigation
   - toc
@@ -8,15 +8,15 @@ hide:
 
 <div class="hero" markdown>
 
-<p class="hero-kicker">Pivot tables · React · Web component · CLI · Excel export</p>
+<p class="hero-kicker">Pivot tables · React · Web component · CLI · MCP · Excel export</p>
 
 # pivotkit
 
 <p class="hero-lead">A pivot report builder for the web, with Excel's PivotTable as the reference: people drag fields into rows, columns and values, filter, drill into the rows behind a number, switch to a chart and export to Excel - and the whole report is a small JSON object you can save, share as a link or a file and load again.</p>
 
-MIT · Excel-like pivot in the browser · views as [safe](security.md) JSON · native .xlsx · React, web component, Node, command line
+MIT · Excel-like pivot in the browser · views as [safe](security.md) JSON · native .xlsx · React, web component, Node, command line, MCP
 
-[Security](security.md) · [Performance (measured)](concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison](compare.md) · [Reports without a browser (CLI)](reference/cli.md)
+[Security](security.md) · [Performance (measured)](concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison](compare.md) · [Reports without a browser (CLI)](reference/cli.md) · [AI clients (MCP)](getting-started/mcp.md)
 
 [I build reports](use/index.md){ .md-button .md-button--primary title="For the people who build reports in an application: fields, filters, charts, export" }
 [I embed pivotkit](embed/index.md){ .md-button .md-button--primary title="For developers: React, web component, engine" }
@@ -99,7 +99,7 @@ Start with [Embed pivotkit](embed/index.md): which package fits, and a first rep
 - `source`, `sources` and `onSourceSwitch` name the data a view is made for and let a view for other data switch to it ([sharing](concepts/sharing.md#the-source-of-a-view-for-developers)).
 - `loading` shows the skeleton while the host fetches data ([React props](reference/react.md#props)).
 - Every file and every copy passes `onExport` first, so the host can keep it ([React props](reference/react.md#props)).
-- Reports without a browser: `render()` writes JSON, CSV, XLSX, SVG or a printable HTML report from a template ([pivotkit-report](reference/report.md)); the command line `pivotkit` renders, validates and describes views in CI ([pivotkit-cli](reference/cli.md)).
+- Reports without a browser: `render()` writes JSON, CSV, XLSX, SVG or a printable HTML report from a template ([pivotkit-report](reference/report.md)); the command line `pivotkit` renders, validates and describes views in CI ([pivotkit-cli](reference/cli.md)); an MCP server lets an AI client build reports over your data without reading it, with what it may see set per field ([pivotkit-mcp](getting-started/mcp.md)).
 - Theming through `--pk-*` tokens, inside a shadow root too ([theming](reference/theming.md)); every text replaceable, English and German built in ([localisation](reference/localisation.md)).
 - Measured up to 1,000,000 rows in three browsers on an Apple M4 ([measured in the browser](concepts/limits.md#measured-in-the-browser)); heavy parts load on first use ([performance](reference/react.md#performance), [bundle size](reference/element.md#bundle-size)).
 

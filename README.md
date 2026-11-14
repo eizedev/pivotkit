@@ -10,7 +10,7 @@ JSON files, native Excel export; as a JavaScript core, a React component and a w
 Free under MIT, it computes in the browser on the rows the host passes and fetches no data; a saved
 view is plain JSON that cannot run code, and the Excel export is a real .xlsx with the pivot layout
 kept. It runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
-([browser support](docs/browser-support.md)); the engine, the reports and the CLI in Node 22 or later.
+([browser support](docs/browser-support.md)); the engine, the reports, the CLI and the MCP server in Node 22 or later.
 
 [Live demo](https://pivotkit.eize.dev/demo/) · [Security](docs/security.md) ([policy](SECURITY.md)) · [Performance (measured)](docs/concepts/limits.md#measured-in-the-browser) · [Tests and CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) · [Comparison with other pivot components](docs/compare.md)
 
@@ -22,7 +22,7 @@ kept. It runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
 | --- | --- |
 | Build | [![CI](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/ci.yml) [![Docs site](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml/badge.svg)](https://github.com/eizedev/pivotkit/actions/workflows/docs.yml) |
 | Documentation | [pivotkit.eize.dev](https://pivotkit.eize.dev/): [Use a report](https://pivotkit.eize.dev/use/) for the people who build reports, [Embed pivotkit](https://pivotkit.eize.dev/embed/) and the API reference for developers, a [live demo](https://pivotkit.eize.dev/demo/) and [Learn with real data](https://pivotkit.eize.dev/learn/) (weather, countries, earthquakes, Nobel laureates, software end of life) |
-| npm | [![pivotkit-core](https://img.shields.io/npm/v/pivotkit-core?label=pivotkit-core)](https://www.npmjs.com/package/pivotkit-core) [![pivotkit-react](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react) [![pivotkit-element](https://img.shields.io/npm/v/pivotkit-element?label=pivotkit-element)](https://www.npmjs.com/package/pivotkit-element) [![pivotkit-xlsx](https://img.shields.io/npm/v/pivotkit-xlsx?label=pivotkit-xlsx)](https://www.npmjs.com/package/pivotkit-xlsx) [![pivotkit-report](https://img.shields.io/npm/v/pivotkit-report?label=pivotkit-report)](https://www.npmjs.com/package/pivotkit-report) [![pivotkit-cli](https://img.shields.io/npm/v/pivotkit-cli?label=pivotkit-cli)](https://www.npmjs.com/package/pivotkit-cli) |
+| npm | [![pivotkit-core](https://img.shields.io/npm/v/pivotkit-core?label=pivotkit-core)](https://www.npmjs.com/package/pivotkit-core) [![pivotkit-react](https://img.shields.io/npm/v/pivotkit-react?label=pivotkit-react)](https://www.npmjs.com/package/pivotkit-react) [![pivotkit-element](https://img.shields.io/npm/v/pivotkit-element?label=pivotkit-element)](https://www.npmjs.com/package/pivotkit-element) [![pivotkit-xlsx](https://img.shields.io/npm/v/pivotkit-xlsx?label=pivotkit-xlsx)](https://www.npmjs.com/package/pivotkit-xlsx) [![pivotkit-report](https://img.shields.io/npm/v/pivotkit-report?label=pivotkit-report)](https://www.npmjs.com/package/pivotkit-report) [![pivotkit-cli](https://img.shields.io/npm/v/pivotkit-cli?label=pivotkit-cli)](https://www.npmjs.com/package/pivotkit-cli) [![pivotkit-mcp](https://img.shields.io/npm/v/pivotkit-mcp?label=pivotkit-mcp)](https://www.npmjs.com/package/pivotkit-mcp) |
 | License | [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE) |
 
 ## Packages
@@ -35,6 +35,7 @@ kept. It runs in Chrome and Edge from 111, Firefox from 113 and Safari from 16.4
 | [pivotkit-xlsx](packages/pivotkit-xlsx/) | A [plugin](https://pivotkit.eize.dev/reference/plugins/) that reads Excel workbooks (.xlsx) in the browser, checked before parsing; CSV and JSON are built into pivotkit-core | `npm install pivotkit-xlsx` |
 | [pivotkit-report](packages/pivotkit-report/) | [Reports without a browser](https://pivotkit.eize.dev/reference/report/): a view over rows as JSON, CSV, XLSX, an SVG chart or a printable HTML report from a template, in Node and the browser | `npm install pivotkit-report echarts` |
 | [pivotkit-cli](packages/pivotkit-cli/) | The [command line](https://pivotkit.eize.dev/reference/cli/) `pivotkit`: render, validate and describe views in CI, exit codes and `--json` | `npm install --global pivotkit-cli` |
+| [pivotkit-mcp](packages/pivotkit-mcp/) | An [MCP server](https://pivotkit.eize.dev/reference/mcp/): an AI client describes data sources, writes and checks views and has reports made into files or links, without reading the data; stdio and Streamable HTTP with a token or OAuth | `npx -y pivotkit-mcp` |
 
 ## Example
 

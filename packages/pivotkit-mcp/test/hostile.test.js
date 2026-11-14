@@ -134,11 +134,12 @@ test("a worker over its time is stopped and replaced; the next call works", asyn
         rows.push(`R${i % 5000},P${i % 3000},${i}`);
     }
     const dir = workspace({ "sales.csv": SALES_CSV, "huge.csv": `${rows.join("\n")}\n` });
-    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, timeMs: 300 }, baseDir: dir });
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv" }, huge: { file: "data/huge.csv" } }, output: { dir: "out" }, compute: { workers: 1, timeMs: 50 }, baseDir: dir });
     try {
         const { client, close } = await httpClient(server.url);
-        const slow = await call(client, "render_view", { source: "huge", view: { rows: ["Region"], cols: ["Product"], values: [{ field: "Sales", agg: "median" }] }, format: "csv" });
-        assert.match(slow.text, /^TIMEOUT: the report took longer than 0.3 s/);
+        // reading and encoding 200,000 rows takes far longer than 50 ms
+        const slow = await call(client, "describe_source", { source: "huge" });
+        assert.match(slow.text, /^TIMEOUT: the report took longer than 0.05 s/);
         const next = await call(client, "describe_source", { source: "sales" });
         assert.equal(next.isError, false, next.text);
         await close();

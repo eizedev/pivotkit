@@ -78,3 +78,12 @@ test("the skill: valid frontmatter, every tool it names exists, every view in it
         assert.doesNotThrow(() => JSON.parse(json), json);
     }
 });
+
+test("the Claude Code plugin is the package's folder: its version is the package's, the marketplace points at it", () => {
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    const plugin = JSON.parse(readFileSync(new URL("../.claude-plugin/plugin.json", import.meta.url), "utf8"));
+    const market = JSON.parse(readFileSync(new URL("../../../.claude-plugin/marketplace.json", import.meta.url), "utf8"));
+    assert.equal(plugin.name, pkg.name);
+    assert.equal(plugin.version, pkg.version);
+    assert.deepEqual(market.plugins.map((p) => [p.name, p.source]), [["pivotkit-mcp", "./packages/pivotkit-mcp"]]);
+});

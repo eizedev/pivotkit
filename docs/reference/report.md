@@ -129,10 +129,45 @@ control characters left out, every `style` attribute turned into presentation at
 also shows under a strict Content-Security-Policy). Anything else is refused with `PivotkitError`
 (`details.reason`). Text from the data is never trusted to the renderer's escaping alone.
 
+## Operations { #operations }
+
+`pivotkit-report/operations` is the one table of what pivotkit's front ends without a browser offer:
+the [command line](cli.md), the [MCP server](mcp.md) and a REST service (planned). Each entry of
+`OPERATIONS` has its `name`, `title` and `description`, its input and output as JSON Schema (draft
+2020-12, no `$schema` key), the HTTP route it would have (`http`), the CLI command it is (`cli`), what
+it needs from its front end (`needs`), annotations, and `run(input, env)`:
+
+| Operation | CLI | HTTP | What it does |
+| --- | --- | --- | --- |
+| `list_sources` | - | `GET /sources` | The sources the caller may use (`env.sources`) |
+| `describe_source` | `describe <data>` | `POST /sources/describe` | describeSource with example views; values only with `items` |
+| `get_view_guide` | - | `GET /views/guide` | `VIEW_GUIDE`: a view's format, its vocabulary from `CATALOG`, examples |
+| `validate_view` | `validate` | `POST /views/validate` | Findings and the fields the view uses |
+| `describe_view` | `describe <view>` | `POST /views/describe` | describeView in parts, with findings |
+| `render_view` | `render` | `POST /views/render` | render(); the file comes back as `file`, the front end puts it somewhere |
+| `create_link` | - | `POST /views/link` | A link into the source's page (`env.link`) |
+| `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
+
+```js
+import { OPERATIONS } from "pivotkit-report/operations";
+const env = { data: async (source) => ({ data: encode(rows), name: source }) };
+const { result, file } = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, env);
+```
+
+`env` gives what the operations need: `data(source)` (encoded data, or only `{ name, type }` fields
+for validate and describe), `sources()`, `link(source)`, `template(source)`, `echarts`, `limits`,
+`locale`, `timeZone`, `now`, and `renderOptions` for a front end's own render options. A view with
+errors is no error (`ok` or `valid` false, with `findings`); what a front end must handle is
+`OperationError` with a `code` of `OPERATION_ERRORS` and its HTTP `status`. `findingOf` turns a
+pivotkit-core issue into a finding (cleaned, cut at 200 characters); `exampleViews(fields)` builds
+views from a data set's fields.
+
 ## Exports
 
 `render`, `RENDER_FORMATS`, `REPORT_LIMITS` (`template`, `chartWidth`, `chartHeight`, `tableCells`,
 `categories`), `REPORT_ISSUE_CODES`, `CHART_SIZE`, `cleanSvg`, `DEFAULT_TEMPLATE`, `REPORT_CSP`,
 `REPORT_TEXTS`, `LIGHT_TOKENS`, `DARK_TOKENS`, `WEIGHT_TOKENS`, `SHAPE_TOKENS`, `SIZE_TOKENS`; `pivotkit-report/template`: `parseTemplate`,
 `fillTemplate`, `escapeHtml`, `PLACEHOLDERS`, `ATTRIBUTES`, `TEMPLATE_LIMIT`
-([print template](print-template.md)).
+([print template](print-template.md)); `pivotkit-report/operations`: `OPERATIONS`, `OPERATION_NAMES`,
+`OPERATION_ERRORS`, `OperationError`, `VIEW_GUIDE`, `exampleViews`, `findingOf`, `findingText`,
+`FINDING_TEXT` ([operations](#operations)).

@@ -149,13 +149,14 @@ its first release.
 1. Make the repository public: npm generates no provenance for private repositories (npm's
    documentation, "Generating provenance statements").
 2. Publish the first version of each package by hand, in the publish order below (`pivotkit-core`,
-   `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`), from
+   `pivotkit-xlsx`, `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`,
+   `pivotkit-mcp`), from
    tarballs built from `main` (`npm ci --ignore-scripts`, `npm run build`, `npm pack -w <package>`),
    with an npm account that has two-factor authentication: `npm publish <tarball> --access public`.
    Provenance is not in `publishConfig`: the workflow asks for it with `--provenance`, which needs
    the CI's OIDC token.
 3. Configure trusted publishing for each package on npm (`pivotkit-core`, `pivotkit-xlsx`,
-   `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`): owner `eizedev`,
+   `pivotkit-report`, `pivotkit-react`, `pivotkit-element`, `pivotkit-cli`, `pivotkit-mcp`): owner `eizedev`,
    repository `pivotkit`, workflow file `release.yml`, environment `npm`. No npm token is stored in
    GitHub. A new trusted
    publisher must publish once within two days, or it expires (npm's documentation, "Trusted
@@ -173,9 +174,12 @@ its first release.
 The publish order follows the run-time dependencies in each `package.json`: `pivotkit-core` (no own
 dependency), `pivotkit-xlsx` (core), `pivotkit-report` (core), `pivotkit-react` (core, report),
 `pivotkit-element` (bundles core, react and report: devDependencies only, no registry dependency),
-`pivotkit-cli` (core, report, xlsx). A package that depends on pivotkit-core takes `^<its version>`,
+`pivotkit-cli` (core, report, xlsx), `pivotkit-mcp` (core, report, cli, xlsx; it imports
+`pivotkit-report/operations` and `pivotkit-cli/files`, so both are released before it when they
+changed). `pivotkit-mcp` is not on npm yet: its first release needs steps 2 and 3 above (a manual
+first publish, then its trusted publisher). A package that depends on pivotkit-core takes `^<its version>`,
 which in 0.x admits that minor only: when core's minor moves (0.4 to 0.5), pivotkit-xlsx,
-pivotkit-report, pivotkit-react and pivotkit-cli are released too, even without a change of their
+pivotkit-report, pivotkit-react, pivotkit-cli and pivotkit-mcp are released too, even without a change of their
 own, or their published ranges keep the old core and a host gets two copies (`tests/ci.test.js`
 requires every range to be the version in this repository).
 

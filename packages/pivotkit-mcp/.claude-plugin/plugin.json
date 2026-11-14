@@ -1,0 +1,11 @@
+{
+  "name": "pivotkit-mcp",
+  "version": "0.1.0",
+  "description": "The skill for pivotkit's MCP server (pivotkit-mcp): build pivot reports over a data source without reading the data - describe, write a view, validate, render or link",
+  "author": {
+    "name": "eizedev"
+  },
+  "homepage": "https://pivotkit.eize.dev/getting-started/mcp/",
+  "repository": "https://github.com/eizedev/pivotkit",
+  "license": "MIT"
+}

@@ -8,6 +8,7 @@
 
 import { parentPort } from "node:worker_threads";
 import { OPERATIONS, OperationError } from "pivotkit-report/operations";
+import { readTable } from "pivotkit-cli/files";
 import { asOperationError, fileData } from "./data.js";
 
 /** ECharts, loaded on the first SVG or HTML report. */
@@ -42,4 +43,7 @@ parentPort?.on("message", async (job) => {
     }
 });
 
+// the readers load on first use: read a tiny file once, so a run's time is the run's, not the loading's
+await readTable(new TextEncoder().encode("a\n1\n"), "warm-up.csv").catch(() => undefined);
+await readTable(new TextEncoder().encode("[]"), "warm-up.json").catch(() => undefined);
 parentPort?.postMessage({ ready: true });

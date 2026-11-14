@@ -1,0 +1,14 @@
+{
+  "name": "pivotkit",
+  "description": "pivotkit's plugins for Claude Code",
+  "owner": {
+    "name": "eizedev"
+  },
+  "plugins": [
+    {
+      "name": "pivotkit-mcp",
+      "description": "The skill for pivotkit's MCP server: describe a source, write and validate a view, render a report or make a link, and respect what the operator lets the model see",
+      "source": "./packages/pivotkit-mcp"
+    }
+  ]
+}

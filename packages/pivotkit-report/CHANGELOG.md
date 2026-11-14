@@ -6,6 +6,14 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `pivotkit-report/operations`: the one table of operations the command line, the MCP server and a
+  REST service share (`OPERATIONS`: list_sources, describe_source, get_view_guide, validate_view,
+  describe_view, render_view, create_link, draft_schedule), each with its description, input and
+  output JSON Schema, HTTP route and `run(input, env)`; `VIEW_GUIDE`, `exampleViews`, `findingOf`,
+  `OperationError` with `OPERATION_ERRORS` ([#165](https://github.com/eizedev/pivotkit/issues/165)).
+
 ## [0.1.0] - 2026-11-13
 
 First release.

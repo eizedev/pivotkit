@@ -18,7 +18,8 @@
  * of a run that is killed between its creation and the rename stays behind (".<name>.<pid>-<random>.tmp").
  * `hardLinks: false` refuses a file with more than one name (a hard link), for callers that read on
  * behalf of someone else (pivotkit-mcp). `writeNew` never replaces a file: the final name is created
- * by link(), which fails when the name exists. The module is exported as `pivotkit-cli/files`.
+ * by writeSafe's exclusive write (link(), which fails when the name exists). The module is exported
+ * as `pivotkit-cli/files`.
  */
 
 import { constants } from "node:fs";
@@ -225,9 +226,8 @@ export function cleanFileName(name, max = 80) {
 
 /**
  * Writes `bytes` as a new file in `dir` (a real path), never replacing one: `<name>.<extension>`, or
- * with "-2", "-3" ... when the name is taken (at most `tries`). The bytes go to a temporary file first,
- * then link() gives it its name (link fails when the name exists, so a file that appears in between
- * is never replaced), then the temporary name is removed.
+ * with "-2", "-3" ... when the name is taken (at most `tries`); each try is writeSafe's exclusive
+ * write, so a file that appears in between is never replaced.
  * @param {string} dir  a directory's real path
  * @param {string} name  the file's name without extension (cleaned with cleanFileName)
  * @param {string} extension  without the dot
@@ -237,28 +237,16 @@ export function cleanFileName(name, max = 80) {
  */
 export async function writeNew(dir, name, extension, bytes, { prefix = "", tries = 100 } = {}) {
     const stem = `${prefix}${cleanFileName(name)}`;
-    const temp = join(dir, `.${stem.slice(0, 50)}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.tmp`);
-    const handle = await open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o644);
-    try {
-        await handle.writeFile(bytes);
-        await handle.sync();
-    } finally {
-        await handle.close();
-    }
-    try {
-        for (let n = 1; n <= tries; n++) {
-            const base = `${stem}${n === 1 ? "" : `-${n}`}.${extension}`;
-            try {
-                await link(temp, join(dir, base));
-                return base;
-            } catch (e) {
-                if (e?.code !== "EEXIST") {
-                    throw e;
-                }
+    for (let n = 1; n <= tries; n++) {
+        const base = `${stem}${n === 1 ? "" : `-${n}`}.${extension}`;
+        try {
+            await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true });
+            return base;
+        } catch (e) {
+            if (e?.code !== "EXISTS") {
+                throw e;
             }
         }
-        throw new CliError("io", "EXISTS", `${shortName(stem)}: ${tries} files of this name exist already`);
-    } finally {
-        await unlink(temp).catch(() => undefined);
     }
+    throw new CliError("io", "EXISTS", `${shortName(stem)}: ${tries} files of this name exist already`);
 }
