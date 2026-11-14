@@ -3,7 +3,8 @@
  * scales and data bars in the theme's colours where the view names none) or a CSV file
  * (pivotkit-core/export, loaded on first use), the chart as a PNG image, an HTML report, the chart as
  * SVG and the HTML report printed (pivotkit-report with ECharts' SVG renderer, report-run.js, loaded on
- * first use), and the table on the clipboard: as the table shows it, tab-separated (a spreadsheet
+ * first use), the source data (every row of the data shown as it is, CSV or JSON: pivotkit-core's
+ * dataToCsvBytes and dataToJson, so a view file renders it again on the command line), and the table on the clipboard: as the table shows it, tab-separated (a spreadsheet
  * takes it as columns), or its data as JSON. The file name is the host's fileName made safe
  * (files.js). The host's onExport sees every file, every copy and the report before it is printed
  * first and may take it over by returning false. use-export.js calls it.
@@ -169,21 +170,23 @@ function reportTokens(root, report, chart) {
 }
 
 /**
- * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, locale: string,
+ * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, encoded?: import("pivotkit-core").Encoded | null, exportData?: boolean, locale: string,
  *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
  *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
  *   onExport?: (file: ExportFile) => unknown, title?: string | null, source?: string | null, loadECharts?: () => Promise<any> }} ExportContext
  *   `title`: the report's title in an HTML report (the loaded view's name); `source`: the data's name;
+ *   `encoded`: the data shown (the host's or a loaded file's), which the source data exports, only
+ *   with `exportData` (the host's prop: the menu hides it otherwise, and no other way reaches it);
  *   `loadECharts`: chart.jsx's loader of dist/echarts.js (passed in: a module of the menus that
  *   imported chart.jsx would move it out of the first load into a shared chunk)
  */
 
 /**
  * One export of the Export menu.
- * @param {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json"} kind
+ * @param {"xlsx" | "csv" | "png" | "html" | "svg" | "print" | "copy-table" | "copy-json" | "data-csv" | "data-json"} kind
  * @param {ExportContext} context
  */
-export async function runExport(kind, { fileName, result, locale, labels, limits, root, chartRef, announce, onExport, title, source, loadECharts }) {
+export async function runExport(kind, { fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title, source, loadECharts }) {
     // the menus' texts (the copies' notes) over the report's
     labels = menuLabels(labels);
     const base = safeFileName(fileName);
@@ -196,6 +199,21 @@ export async function runExport(kind, { fileName, result, locale, labels, limits
             const file = `${base}.png`;
             // the host that kept the file says itself what became of it
             if (url && deliver(dataUrlToBlob(url), { kind, fileName: file, doc, onExport })) {
+                announce(fill(labels.toastExported, { file }));
+            }
+            return;
+        }
+        if (kind === "data-csv" || kind === "data-json") {
+            // every row as it is, also while no field is placed: what a view file is applied to
+            const data = encoded ?? result?.encoded;
+            if (!exportData || !data) {
+                return;
+            }
+            const m = exporters ?? (await loadExporters());
+            const csv = kind === "data-csv";
+            const file = `${base}-data.${csv ? "csv" : "json"}`;
+            const blob = csv ? new Blob([/** @type {BlobPart} */ (m.dataToCsvBytes(data, limits ? { limits } : {}))], { type: "text/csv;charset=utf-8" }) : new Blob([m.dataToJson(data, limits ? { limits } : {})], { type: "application/json" });
+            if (deliver(blob, { kind, fileName: file, doc, onExport })) {
                 announce(fill(labels.toastExported, { file }));
             }
             return;

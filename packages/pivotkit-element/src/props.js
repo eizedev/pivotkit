@@ -27,6 +27,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "label", prop: "label", kind: "string" },
     { attr: "drill-down", prop: "drillDown", kind: "on-unless-false" },
     { attr: "drill-down-limit", prop: "drillDownLimit", kind: "number" },
+    { attr: "export-data", prop: "exportData", kind: "flag" },
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },
     { attr: "template-store", prop: "templateStore", kind: "string" },
     { attr: "can-publish", prop: "canPublish", kind: "flag" },

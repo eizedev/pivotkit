@@ -28,9 +28,9 @@ const SOURCES = Object.keys(DATASETS).filter((k) => k !== "markup").map((k) => (
 const params = new URLSearchParams(location.search);
 // the report's storageKey; its view is in the fragment under "pivot-<storageKey>" (pivotkit-react's rule)
 const STORAGE_KEY = "playground";
-// loading data (allowImport) with ?import: Excel workbooks with pivotkit-xlsx, CSV and JSON read in a
-// module worker; the host decides, so the playground's other pages show the report without it
-const IMPORT = params.has("import")
+// loading data (allowImport), on unless ?import=off: Excel workbooks with pivotkit-xlsx, CSV and JSON
+// read in a module worker, nothing uploaded; ?import=off shows the report as a host without it does
+const IMPORT = params.get("import") !== "off"
     ? { allowImport: true, plugins: [xlsxReader], importWorker: () => new Worker(new URL("./import-worker.js", import.meta.url), { type: "module" }) }
     : {};
 const LINK_PARAM = `pivot-${STORAGE_KEY}`;
@@ -303,6 +303,8 @@ function App() {
                 grow={grow}
                 className={fixedHeight ? "pg-fixed" : undefined}
                 fileName={`pivotkit-${dataset}`}
+                // Export → Source data: the rows a view file renders again on the command line
+                exportData
                 {...IMPORT}
                 onDataLoad={(d) => setLastLoad({ cause: d.cause, name: d.source?.name ?? null, rows: d.rows, columns: d.columns.length })}
             />

@@ -297,6 +297,7 @@ function Report(props) {
         fileName = "pivot",
         fieldDefaults,
         onExport,
+        exportData = false,
         label,
         tips: tipsProp = "on",
         storageKey,
@@ -966,7 +967,7 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    const doExport = useExport({ fileName, result, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
+    const doExport = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
     // file dragged over the report, the empty report's button) and renders the file input, the drop
@@ -1423,6 +1424,7 @@ function Report(props) {
                                 templateActions={templateActions}
                                 onExport={doExport}
                                 prepareExport={prepareExporters}
+                                dataExport={exportData}
                                 chartReady={view.display === "chart" && chartReady}
                                 empty={empty}
                                 onShowFields={() => setDrawer(true)}

@@ -210,7 +210,7 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * (pivotkit-core): report 21.0 on a Mac (CI 21.1, 20.9 before), budget 21.5.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 173, chart: 222.5, export: 11.5, link: 7.5, menus: 45, texts: 6.8, unused: 5.5, import: 21, report: 21.5 };
+export const SIZE_BUDGET_KIB = { initial: 173, chart: 222.5, export: 12, link: 7.5, menus: 45.5, texts: 7, unused: 5.5, import: 21, report: 21.5 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
