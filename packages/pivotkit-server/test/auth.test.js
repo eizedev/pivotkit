@@ -121,8 +121,9 @@ test("limits: refused tokens per address, requests per caller; 429 with Retry-Af
         assert.equal(blocked.status, 429);
         assert.equal(blocked.data.code, "RATE_LIMITED");
         assert.ok(Number(blocked.headers.get("retry-after")) >= 1);
-        // the right token from the same address is blocked too while the address is: no more guessing
-        assert.equal((await call(`${server.api}/sources`, { token: TOKEN })).status, 429);
+        // the right token still works from that address: a stranger's wrong tokens lock out nobody
+        assert.equal((await call(`${server.api}/sources`, { token: TOKEN })).status, 200);
+        assert.equal((await call(`${server.api}/sources`, { token: OTHER_TOKEN })).status, 429);
     } finally {
         await server.close();
     }

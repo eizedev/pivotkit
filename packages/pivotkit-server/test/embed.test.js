@@ -40,7 +40,8 @@ test("without the client's address, refused tokens do not lock everyone out", as
         for (let i = 0; i < 2; i++) {
             await rest.fetch(new Request("http://localhost/api/v1/sources", { headers: { authorization: `Bearer ${OTHER_TOKEN}` } }), { address: "192.0.2.1" });
         }
-        assert.equal((await rest.fetch(new Request("http://localhost/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } }), { address: "192.0.2.1" })).status, 429);
+        assert.equal((await rest.fetch(new Request("http://localhost/api/v1/sources", { headers: { authorization: `Bearer ${OTHER_TOKEN}` } }), { address: "192.0.2.1" })).status, 429);
+        assert.equal((await rest.fetch(new Request("http://localhost/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } }), { address: "192.0.2.1" })).status, 200);
         assert.equal((await rest.fetch(new Request("http://localhost/api/v1/sources", { headers: { authorization: `Bearer ${TOKEN}` } }), { address: "192.0.2.2" })).status, 200);
     } finally {
         await context.close();

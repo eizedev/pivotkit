@@ -40,12 +40,15 @@ const MATCHERS = REST_ROUTES.map((route) => ({ route, pattern: patternOf(route.p
 /** The PRM path of the REST resource. */
 const PRM_PATH = `/.well-known/oauth-protected-resource${REST_BASE}`;
 
+/** The direction controls a name could hide its real extension with ("gnp.exe" shown as "exe.png"). */
+const BIDI = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+
 /** A file's name without a path, a reserved or a control character, at most 80 characters. */
 const safeName = (name) =>
     // by code point, so a cut never splits a character in two; a lone surrogate is no character
     [.../** @type {any} */ (String(name ?? "report")).toWellFormed()]
         .slice(0, 80)
-        .map((c) => (c.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(c) ? "_" : c))
+        .map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 || BIDI.test(c) || '\\/:*?"<>|'.includes(c) ? "_" : c))
         .join("") || "report";
 
 /** A file's name for Content-Disposition: its own characters as filename*, a plain ASCII copy as filename. */
@@ -140,10 +143,9 @@ export async function createRestHandler(context, runtime = {}) {
             warnedAddress = true;
             context.log.warn("rest: requests come without the client's address (fetch(request, { address })): refused tokens are not limited");
         }
+        // a valid token always passes; a refused one from an address over the limit is told to wait
+        // (tokens have at least 32 random characters: the limit slows scripts, guessing gets nowhere)
         const wait = address ? limits.blocked(address) : 0;
-        if (wait) {
-            return { refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
-        }
         try {
             let authInfo;
             if (mode === "token") {
@@ -165,6 +167,9 @@ export async function createRestHandler(context, runtime = {}) {
             }
             if (e.status === 503) {
                 return { refused: problem("AUTH_NOT_READY", e.message, { headers: { "retry-after": "10" } }) };
+            }
+            if (wait) {
+                return { refused: problem("RATE_LIMITED", "too many refused tokens from this address; wait before you try again", { headers: { "retry-after": String(wait) } }) };
             }
             if (address) {
                 limits.failed(address);

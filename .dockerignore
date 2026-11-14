@@ -1,6 +1,9 @@
 # The image is built from the lock file, the packages and the example data only (docker/Dockerfile).
 **/node_modules
 **/.DS_Store
+**/.env*
+**/*.pem
+**/.npmrc
 packages/*/types
 packages/*/LICENSE
 packages/*/coverage

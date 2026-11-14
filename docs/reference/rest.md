@@ -172,6 +172,15 @@ issued for the MCP endpoint is refused by REST, and one for REST by the MCP endp
 the required scopes gets 403 `INSUFFICIENT_SCOPE` with `WWW-Authenticate: Bearer
 error="insufficient_scope", scope="..."` naming them.
 
+Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068), so an ID
+token with the right audience is refused.
+
+Every token that may render can fill the output directory up to `output.maxFiles`; then rendering
+into it answers 409 `NO_OUTPUT` for everyone until files are removed. Set `output.maxAgeDays`, and
+give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it. The server
+holds at most 256 connections, and a client has 15 seconds to send its headers: on a network you do
+not trust, put a reverse proxy in front.
+
 Scopes per operation (`auth.toolScopes`, e.g. `{ "render_view": ["pivotkit:render"] }`) and per
 source (`sources.<id>.scopes`) hold as for MCP; a source the caller may not use answers as a missing
 one (404 `SOURCE_NOT_FOUND`).
@@ -206,7 +215,7 @@ client id, or `local` without sign-in):
 | Key | Default | What it is |
 | --- | --- | --- |
 | `rest.rateLimit.perMinute`, `.burst` | 120, 30 | Requests per minute, with up to `burst` at once after a pause |
-| `rest.rateLimit.failedAuthPerMinute` | 30 | Refused tokens per address and minute; beyond, the address waits, also with a right token |
+| `rest.rateLimit.failedAuthPerMinute` | 30 | Refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
 | `rest.concurrency` | 4 | Requests of one caller at once |
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
 
@@ -303,8 +312,8 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`
 (with MCP also `/mcp`, `/.well-known/` and `/`), keep the `Host` header (or add the proxy's name to
 `http.allowHosts`), and set `http.publicUrl`. Set `http.trustProxy` when the proxy adds the client's
-address to `X-Forwarded-For`: otherwise every client has the proxy's address, and 30 refused tokens a
-minute from anyone lock out every caller (the [limit](#limits) per address). Only with a proxy in front:
+address to `X-Forwarded-For`: otherwise every client has the proxy's address and shares one count of
+refused tokens (the [limit](#limits) per address). Only when the service is reachable through the proxy alone:
 a client that reaches the server directly can write any `X-Forwarded-For`. With it, the log names the
 client's address. Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB). For nginx:
 

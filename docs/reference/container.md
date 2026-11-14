@@ -92,8 +92,8 @@ reports finish for up to 25 seconds (`http.graceMs`); give the container more th
 Set `http.publicUrl` to the address clients use and keep the proxy's `Host` header (or add its name
 to `http.allowHosts`); the server answers no other host name. With a proxy or a published port in
 front, every client comes from one address: set `http.trustProxy` with a proxy that writes
-`X-Forwarded-For` ([the nginx example](rest.md#running)), or refused tokens from one client lock out
-the others. With OAuth the MCP endpoint and the
+`X-Forwarded-For` ([the nginx example](rest.md#running)), so the limit on refused tokens counts per
+client. With OAuth the MCP endpoint and the
 REST service are two resources with their own audiences:
 
 ```json
