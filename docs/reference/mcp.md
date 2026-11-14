@@ -89,6 +89,10 @@ date grouping's source field) has its result **withheld**: `render_view` writes 
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
 
+`suggest_view` reads only what is not hidden. Its draft and `picks` name fields, never values or
+counts; the one thing they tell about a field's values is the date grouping its span gives (a span
+of up to two years is grouped by month), as a `layout` with a date on an axis does.
+
 !!! warning "summary is not confidentiality"
     `summary` keeps values out of what the model reads directly. A model that writes filters over
     other fields and looks at what comes back inline can still learn about the data, and every

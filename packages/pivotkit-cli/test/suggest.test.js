@@ -328,3 +328,37 @@ test("help and completions name the layout flags", async () => {
     const bash = await run(["completion", "bash"]);
     assert.match(bash.stdout, /--chart-type\) COMPREPLY=\( \$\(compgen -W 'auto bar line area pie donut heatmap'/);
 });
+
+test("what the review found: no file content in a --filter error, -o never over the data, UTF-16 filter files, x:bin:month", async () => {
+    const dir = files();
+    writeFileSync(join(dir, "f.json"), "secret-token-abc123 not json");
+    const leak = await run(["render", "sales.csv", "--rows", "Region", "--filter", "@f.json"], { cwd: dir });
+    assert.equal(leak.code, 2);
+    assert.doesNotMatch(leak.stderr, /token|abc123/);
+    assert.match(leak.stderr, /--filter @f\.json: not JSON/);
+    const over = await run(["describe", "sales.csv", "--suggest", "-o", "sales.csv"], { cwd: dir });
+    assert.equal(over.code, 2);
+    assert.match(readFileSync(join(dir, "sales.csv"), "utf8"), /^\uFEFF?Region,/);
+    const named = await run(["describe", "sales.csv", "--suggest", "-o", "draft.txt"], { cwd: dir });
+    assert.equal(named.code, 2);
+    const dash = await run(["describe", "sales.csv", "--suggest", "-o", "-"], { cwd: dir });
+    assert.equal(dash.code, 2);
+    assert.ok(!existsSync(join(dir, "-")));
+    // Windows PowerShell 5.1 writes UTF-16 with a byte order mark
+    writeFileSync(join(dir, "north16.json"), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('{"field":"Region","type":"in","items":["North"]}', "utf16le")]));
+    const utf16 = await run(["render", "sales.csv", "--rows", "Region", "--values", "count", "--filter", "@north16.json", "-f", "csv"], { cwd: dir });
+    assert.equal(utf16.code, 0, utf16.stderr);
+    assert.doesNotMatch(utf16.stdout, /South/);
+    // a field named "x:bin" grouped by month
+    writeFileSync(join(dir, "bin.csv"), '"x:bin",n\n2025-01-05,1\n2025-03-01,2\n');
+    const bin = await run(["render", "bin.csv", "--rows", "x:bin", "--group", "x:bin:month", "--values", "sum:n", "-f", "csv"], { cwd: dir });
+    assert.equal(bin.code, 0, bin.stderr);
+    assert.match(bin.stdout, /x:bin by month of year/);
+    // a grouping of a field the data does not have, on no axis: said
+    const nope = await run(["render", "sales.csv", "--rows", "Region", "--group", "Nope:month", "--values", "count", "-f", "csv", "--strict"], { cwd: dir });
+    assert.equal(nope.code, 1);
+    assert.match(nope.stderr, /warning unusedGroup: the data has no field Nope to group/);
+    // the same --map name twice with two new names
+    const twice = await run(["render", "sales.csv", "--rows", "Region", "--map", "A=B", "--map", "a=C"], { cwd: dir });
+    assert.equal(twice.code, 2);
+});

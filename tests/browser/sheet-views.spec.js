@@ -158,6 +158,9 @@ test("a draft view the command line made for a workbook's sheet opens in the rep
     await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
     await expect.poll(() => chips(page, "cols")).toEqual(["Order date by month"]);
     await expect(page.getByTestId("view-name")).toContainText("Draft: Sum of Units by Region and Order date by month");
-    const rows = await tableRows(page);
-    expect(rows.map((r) => r[0])).toEqual(expect.arrayContaining(["North", "South", "East", "West", "Grand Total"]));
+    // the same table as the command line renders from the draft: each region's total and the grand total
+    const csv = execFileSync(process.execPath, [cli, "render", "-", "--data", "book.xlsx", "-f", "csv"], { cwd: dir, encoding: "utf8", input: JSON.stringify(draft) });
+    const totals = csv.trim().split(/\r?\n/).map((line) => line.split(",")).filter((cells) => ["North", "South", "East", "West", "Grand Total"].includes(cells[0])).map((cells) => [cells[0], cells.at(-1)]);
+    expect(totals).toHaveLength(5);
+    await expect.poll(async () => (await tableRows(page)).filter((r) => totals.some(([name]) => name === r[0])).map((r) => [r[0], r.at(-1)])).toEqual(totals);
 });

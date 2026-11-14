@@ -36,7 +36,7 @@ import { renameFields } from "./view-file.js";
  *
  * @typedef {object} LayoutPick  why suggestLayout chose a part
  * @property {"rows" | "cols" | "values"} part
- * @property {"category" | "date" | "secondCategory" | "firstNumber" | "countRows"} code
+ * @property {"category" | "date" | "secondCategory" | "firstNumber" | "countRows" | "given"} code  "given": a part the layout gave (pivotkit-report's viewOfLayout)
  * @property {string} [field]
  * @property {string} [agg]
  * @property {string} [by]
@@ -151,7 +151,7 @@ export function suggestLayout(description, options) {
     const first = categories[0];
     if (first) {
         layout.rows.push(first.name);
-        picks.push({ part: "rows", code: "category", field: first.name, others: names(categories, first), text: `${first.name}: the first text field with few values${typeof first.distinct === "number" ? ` (${first.distinct})` : ""}` });
+        picks.push({ part: "rows", code: "category", field: first.name, others: names(categories, first), text: `${first.name}: the first text field with few values` });
     }
     if (date) {
         const part = first ? "cols" : "rows";
@@ -162,7 +162,7 @@ export function suggestLayout(description, options) {
         const second = categories.find((f) => f !== first && isCategory(f, SUGGEST_LIMITS.cols));
         if (second) {
             layout.cols.push(second.name);
-            picks.push({ part: "cols", code: "secondCategory", field: second.name, others: names(categories, second).filter((n) => n !== first.name), text: `${second.name}: the next text field with up to ${SUGGEST_LIMITS.cols} values${typeof second.distinct === "number" ? ` (${second.distinct})` : ""}` });
+            picks.push({ part: "cols", code: "secondCategory", field: second.name, others: names(categories, second).filter((n) => n !== first.name), text: `${second.name}: the next text field with up to ${SUGGEST_LIMITS.cols} values` });
         }
     }
     const number = numbers[0];
@@ -315,6 +315,9 @@ export function viewFromLayout(layout, description, options) {
     for (const g of layout.groups ?? []) {
         if (!fields.length || byName.has(g.field.toLowerCase())) {
             addGroup(spelled(g.field), g.by, g.size);
+        } else if (![...(layout.rows ?? []), ...(layout.cols ?? [])].some((n) => n.toLowerCase() === g.field.toLowerCase())) {
+            // on no axis, normalize would not name it: said here
+            notes.push({ code: "unusedGroup", field: g.field, message: `the data has no field ${g.field} to group` });
         }
     }
     const derivedNames = new Map(derived.map((d) => [d.name.toLowerCase(), d.name]));

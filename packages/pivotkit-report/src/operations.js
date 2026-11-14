@@ -156,7 +156,7 @@ const NAMES = { type: "array", maxItems: LAYOUT_LIMITS.entries, items: NAME };
 const LAYOUT = {
     type: "object",
     additionalProperties: false,
-    description: 'A view by field names instead of a view: { "rows": ["Region"], "cols": ["OrderDate"], "values": [{ "field": "Sales", "agg": "sum" }], "groups": [{ "field": "OrderDate", "by": "yearQuarter" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.',
+    description: 'A view by field names, instead of a view (give one of them, not both): { "rows": ["Region"], "cols": ["OrderDate"], "values": [{ "field": "Sales", "agg": "sum" }], "groups": [{ "field": "OrderDate", "by": "yearQuarter" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.',
     properties: {
         rows: { ...NAMES, description: "Fields (or groupings) on the rows, outer first." },
         cols: { ...NAMES, description: "Fields on the columns." },
@@ -273,7 +273,20 @@ export function viewOfLayout(description, layout = {}, options = {}) {
     }
     const placed = Boolean(layout.rows?.length || layout.cols?.length);
     const notes = [...(suggestion?.notes ?? []).filter((n) => !(n.code === "noSuggestion" && placed)), ...built.notes];
-    return { view: built.view, name: built.name, picks: suggestion?.picks ?? [], notes };
+    // a part the layout gives is no pick of the rules: said as "given", so picks and view agree
+    const given = /** @type {const} */ (["rows", "cols", "values"]).filter((part) => layout[part] !== undefined);
+    const picks = suggestion ? [...suggestion.picks.filter((p) => !given.includes(p.part)), ...given.map((part) => ({ part, code: /** @type {any} */ ("given"), others: [], text: `${part}: as given` }))] : [];
+    return { view: built.view, name: built.name, picks, notes };
+}
+
+/** An input gives a view or a layout: exactly one, checked before any data is read. */
+function checkViewOrLayout(input) {
+    if (input.view === undefined && input.layout === undefined) {
+        throw new OperationError("INVALID_INPUT", "input needs a view or a layout");
+    }
+    if (input.view !== undefined && input.layout !== undefined) {
+        throw new OperationError("INVALID_INPUT", "input takes a view or a layout, not both");
+    }
 }
 
 /**
@@ -284,9 +297,7 @@ export function viewOfLayout(description, layout = {}, options = {}) {
  * @param {OperationEnv} env
  */
 function viewOrLayout(input, source, env) {
-    if ((input.view === undefined) === (input.layout === undefined)) {
-        throw new OperationError("INVALID_INPUT", "input needs a view or a layout, not both");
-    }
+    checkViewOrLayout(input);
     if (input.view !== undefined) {
         return { view: input.view, notes: [], fromLayout: false };
     }
@@ -556,6 +567,7 @@ export const OPERATIONS = Object.freeze({
         input: object({ source: SOURCE, view: VIEW, layout: LAYOUT }, ["source"]),
         output: object({ valid: { type: "boolean" }, findings: FINDINGS, uses: USES, view: { type: "object", description: "With a layout: the view it makes (normalized)." } }, ["valid", "findings"]),
         run: async (input, env) => {
+            checkViewOrLayout(input);
             const source = await sourceData(env, input.source);
             const given = viewOrLayout(input, source, env);
             const read = readView(given.view);
@@ -632,6 +644,7 @@ export const OPERATIONS = Object.freeze({
             if (!Object.hasOwn(RENDER_FORMATS, format)) {
                 throw new OperationError("INVALID_INPUT", `format is one of ${FORMATS.join(", ")}`);
             }
+            checkViewOrLayout(input);
             const source = await sourceData(env, input.source);
             if (!isEncoded(source.data)) {
                 throw new OperationError("INVALID_INPUT", "rendering needs the data, not only its fields");

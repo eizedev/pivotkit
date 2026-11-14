@@ -11,7 +11,7 @@
 import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, closest, encode, fromViewFile, outsideLimits, renameFields, validate, viewFileFields, viewFileText } from "pivotkit-core";
+import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, closest, encode, fromViewFile, outsideLimits, renameFields, validate, viewFileFields, viewFileText } from "pivotkit-core";
 import { IMPORT_TYPES, readFile, retype } from "pivotkit-core/import";
 import xlsxReader from "pivotkit-xlsx";
 import { readViewLink } from "pivotkit-core/link";
@@ -608,10 +608,10 @@ function explain(findings, viewText, data) {
             const type = typeOf.get(String(name).toLowerCase());
             const fresh = type ? newOfType(type) : [];
             if (fresh.length === 1) {
-                return `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed? --map ${quoteArg(`${cut(name, NAME_LENGTH)}=${cut(fresh[0], NAME_LENGTH)}`)}`;
+                return `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed? --map ${quoteArg(`${name}=${fresh[0]}`)}`;
             }
             // a few candidates: name them and the flag to give
-            return fresh.length > 1 && fresh.length <= RENAME_CANDIDATES ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has ${type} fields the view does not use: ${fresh.map((f) => JSON.stringify(cut(f, NAME_LENGTH))).join(", ")}: one of them renamed? --map ${quoteArg(`${cut(name, NAME_LENGTH)}=<its new name>`)}` : null;
+            return fresh.length > 1 && fresh.length <= RENAME_CANDIDATES ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has ${type} fields the view does not use: ${fresh.map((f) => JSON.stringify(cut(f, NAME_LENGTH))).join(", ")}: one of them renamed? --map ${quoteArg(`${name}=<its new name>`)}` : null;
         })
         .filter(Boolean);
     const signText = signs.map((s) => JSON.stringify(s)).join(", ");
@@ -725,7 +725,7 @@ async function renderCommand(positionals, values, ctx) {
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
     /** @type {any} */
     const extra = { summary: result.summary, sheet: data.sheet, ...(made?.picks.length ? { draft: true, picks: made.picks } : {}) };
-    const saved = rendered && values["save-view"] !== undefined && !(failed && !values.lenient) ? await saveView(view, data, values, ctx) : null;
+    const saved = rendered && values["save-view"] !== undefined && !(failed && !values.lenient) ? await saveView(view, data, values, ctx, made?.built.encoded) : null;
     if (saved) {
         extra.savedView = saved;
     }
@@ -782,8 +782,8 @@ function checkSaveView(values) {
  * --save-view: the view rendered (normalized) as a view file for the data it ran on, the source named
  * as the browser names the file, with the workbook's sheet.
  */
-async function saveView(view, data, values, ctx) {
-    const encoded = encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
+async function saveView(view, data, values, ctx, known) {
+    const encoded = known ?? encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
     const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
     const viewUsed = normalized(/** @type {any} */ (read.view ?? {}), encoded, outsideLimits(ctx.limits));
     const name = values.title ?? (read.name || "");
@@ -820,10 +820,11 @@ function withMap(view, values) {
     }
     const lower = new Map(Object.entries(map).map(([from, to]) => [from.toLowerCase(), to]));
     const fields = (read.source?.fields ?? []).map((f) => ({ ...f, name: lower.get(f.name.toLowerCase()) ?? f.name }));
-    const unusedInFields = new Set(fields.length ? (read.source?.fields ?? []).map((f) => f.name.toLowerCase()) : []);
-    const file = { format: VIEW_FILE_FORMAT, formatVersion: 2, name: read.name, ...(read.description ? { description: read.description } : {}), source: { ...(read.source ?? {}), fields }, view: renamed.view };
+    // a name the file lists among its fields (the view itself may not use it): renamed there, no warning
+    const listedInFile = new Set((read.source?.fields ?? []).map((f) => f.name.toLowerCase()));
+    const file = { format: VIEW_FILE_FORMAT, formatVersion: VIEW_FILE_VERSION, name: read.name, ...(read.description ? { description: read.description } : {}), source: { ...(read.source ?? {}), fields }, view: renamed.view };
     const findings = [
-        ...renamed.unused.filter((n) => !unusedInFields.has(n.toLowerCase())).map((n) => ({ severity: "warning", code: "unusedMap", path: "", message: printable(`--map ${n}=...: the view uses no field ${JSON.stringify(n)}`) })),
+        ...renamed.unused.filter((n) => !listedInFile.has(n.toLowerCase())).map((n) => ({ severity: "warning", code: "unusedMap", path: "", message: printable(`--map ${n}=...: the view uses no field ${JSON.stringify(n)}`) })),
         ...Object.entries(map)
             .filter(([from]) => !renamed.unused.includes(from))
             .map(([from, to]) => ({ severity: "info", code: "mapped", path: "", message: printable(`--map: the view's ${JSON.stringify(from)} is read as ${JSON.stringify(to)}`) }))
@@ -873,7 +874,7 @@ async function viewFromData(positionals, values, ctx, command) {
     const description = draft ? `A draft suggested by ${tool} from the fields of ${data.name}: check what it shows, then change it in the report or with the layout flags.` : "";
     const fields = data.table.columns.map((c, i) => ({ name: String(c), type: data.table.types[i] }));
     const lines = draft ? pickLines(built.view, `pivotkit ${command} ${quoteArg(shortName(input))} --suggest`, fields) : [];
-    const file = { format: VIEW_FILE_FORMAT, formatVersion: 2, name, ...(description ? { description } : {}), view: built.view };
+    const file = { format: VIEW_FILE_FORMAT, formatVersion: VIEW_FILE_VERSION, name, ...(description ? { description } : {}), view: built.view };
     return { data, built, findings: built.findings, picks: built.picks, lines, name, description, read: { view: JSON.stringify(file), name, source: "layout", sheet: data.sheet } };
 }
 
@@ -1055,15 +1056,24 @@ async function suggestCommand(positionals, values, ctx) {
     if (values.as === "view") {
         throw new CliError("usage", "BAD_VALUE", "--suggest makes a view from data: leave out --as view");
     }
-    if (values["save-view"] !== undefined) {
-        throw new CliError("usage", "BAD_VALUE", "describe --suggest writes the view with -o; --save-view is render's");
+    if (values.output !== undefined) {
+        const input = positionals[0] ?? values.data;
+        if (values.output === "-") {
+            throw new CliError("usage", "BAD_VALUE", "-o -: the draft goes to stdout when -o is left out");
+        }
+        if (!/\.json$/i.test(values.output)) {
+            throw new CliError("usage", "UNKNOWN_EXTENSION", `-o ${shortName(values.output)}: a view file is JSON: name it <name>.pivotkit.json`);
+        }
+        if (input !== undefined && input !== "-" && resolvePath(ctx.io.cwd, input) === resolvePath(ctx.io.cwd, values.output)) {
+            throw new CliError("usage", "SAME_FILE", "-o names the data file: the draft would replace the data; give it another name");
+        }
     }
     const made = await viewFromData(positionals, values, ctx, "describe");
     const { data, built } = made;
     const { errors, warnings } = validate(built.view, built.encoded, { limits: outsideLimits(ctx.limits) });
     const findings = [...data.notes, ...made.findings, ...errors.map(findingOf), ...warnings.map(findingOf)];
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
-    const file = await viewFileFor(normalized(built.view, built.encoded, ctx.limits), data, built.encoded, { name: made.name, description: made.description, version: versions()["pivotkit-cli"] });
+    const file = await viewFileFor(normalized(built.view, built.encoded, outsideLimits(ctx.limits)), data, built.encoded, { name: made.name, description: made.description, version: versions()["pivotkit-cli"] });
     const text = viewFileText(file);
     const sheets = data.sheets ? await data.sheets() : null;
     /** @type {any} */
@@ -1082,7 +1092,7 @@ async function suggestCommand(positionals, values, ctx) {
         const out = shortName(values.output);
         extra.output = { file: out, bytes: bytes.length };
         const report = out.replace(/(\.pivotkit)?\.json$/i, "") + ".html";
-        return { findings, extra, note: [...made.lines, `wrote ${out}: a draft view of ${data.name}${failed ? " despite its errors (--lenient)" : ""}`, `next: pivotkit render ${quoteArg(out)} --data ${quoteArg(input)}${data.sheet ? "" : ""} -o ${quoteArg(report)}`].join("\n") };
+        return { findings, extra, note: [...made.lines, `wrote ${out}: a draft view of ${data.name}${failed ? " despite its errors (--lenient)" : ""}`, `next: pivotkit render ${quoteArg(out)} --data ${quoteArg(input)} -o ${quoteArg(report)}`].join("\n") };
     }
     if (values.json) {
         extra.view = file;

@@ -64,6 +64,11 @@ export function parseValue(value, fields) {
  * @param {string} value
  */
 export function parseGroup(value) {
+    const at = value.lastIndexOf(":");
+    const unit = at > 0 ? CATALOG.deriveUnits.find((u) => u.toLowerCase() === value.slice(at + 1).trim().toLowerCase()) : undefined;
+    if (unit && unit !== "bin") {
+        return { field: value.slice(0, at), by: unit };
+    }
     const bin = /^(.+):bin:([^:]+)$/i.exec(value);
     if (bin) {
         const size = Number(bin[2]);
@@ -72,13 +77,8 @@ export function parseGroup(value) {
         }
         return { field: bin[1], by: "bin", size };
     }
-    const at = value.lastIndexOf(":");
-    const unit = at > 0 ? CATALOG.deriveUnits.find((u) => u.toLowerCase() === value.slice(at + 1).trim().toLowerCase()) : undefined;
-    if (!unit || unit === "bin") {
-        const list = Object.entries(UNIT_TEXTS).map(([u, t]) => `${u} (${t})`).join(", ");
-        throw new CliError("usage", "BAD_VALUE", `--group ${shown(value)}: give <field>:<unit>, the unit one of ${list}`);
-    }
-    return { field: value.slice(0, at), by: unit };
+    const list = Object.entries(UNIT_TEXTS).map(([u, t]) => `${u} (${t})`).join(", ");
+    throw new CliError("usage", "BAD_VALUE", `--group ${shown(value)}: give <field>:<unit>, the unit one of ${list}`);
 }
 
 /**
@@ -105,7 +105,9 @@ export function parseFilter(text, where) {
     try {
         filter = JSON.parse(text);
     } catch (e) {
-        throw new CliError("usage", "BAD_VALUE", `${where}: not JSON (${printable(String(e.message).split("\n")[0].slice(0, 80))}); give one filter as in a view, e.g. {"field":"Region","type":"in","items":["North"]}`);
+        // where the JSON stops, never the text itself (it may be a file's content)
+        const at = /position (\d+)/.exec(String(e.message))?.[1];
+        throw new CliError("usage", "BAD_VALUE", `${where}: not JSON${at ? ` (at character ${Number(at) + 1})` : ""}; give one filter as in a view, e.g. {"field":"Region","type":"in","items":["North"]}`);
     }
     const list = Array.isArray(filter) ? filter : [filter];
     if (!list.length || list.some((f) => !f || typeof f !== "object" || Array.isArray(f))) {

@@ -17,6 +17,16 @@ import { LAYOUT_FLAGS, layoutOf, parseFilter, parseMap } from "./layout-flags.js
 /** The most bytes of a --filter @file (a filter is small; a view may be larger). */
 const FILTER_BYTES = 1_000_000;
 
+/**
+ * A small text file as text: UTF-8, or UTF-16 by its byte order mark (what Windows PowerShell 5.1's
+ * `>` and `Out-File` write).
+ * @param {Uint8Array} bytes
+ */
+function textOfFile(bytes) {
+    const encoding = bytes[0] === 0xff && bytes[1] === 0xfe ? "utf-16le" : bytes[0] === 0xfe && bytes[1] === 0xff ? "utf-16be" : "utf-8";
+    return new TextDecoder(encoding).decode(bytes).replace(/^\uFEFF/, "");
+}
+
 /** Whether a layout flag is given (render: the flags mode). */
 export const hasLayoutFlags = (values) => LAYOUT_FLAGS.some((flag) => flag !== "map" && values[flag] !== undefined);
 
@@ -34,7 +44,7 @@ export async function filtersOf(list, ctx) {
         if (value.startsWith("@")) {
             const path = value.slice(1);
             const bytes = await ctx.readInput(path, "the filter", FILTER_BYTES, "json");
-            out.push(...parseFilter(new TextDecoder().decode(bytes).replace(/^\uFEFF/, ""), `--filter @${shortName(path)}`));
+            out.push(...parseFilter(textOfFile(bytes), `--filter @${shortName(path)}`));
         } else {
             out.push(...parseFilter(value, "--filter"));
         }
@@ -55,8 +65,14 @@ export function mapOf(list, used) {
     const names = new Set(used.map((n) => n.toLowerCase()));
     /** @type {Record<string, string>} */
     const map = Object.create(null);
+    const seen = new Map();
     for (const value of list) {
         const [from, to] = parseMap(value, names);
+        const before = seen.get(from.toLowerCase());
+        if (before !== undefined && before !== to) {
+            throw new CliError("usage", "BAD_VALUE", `--map ${JSON.stringify(printable(from))} is given twice, with two new names`);
+        }
+        seen.set(from.toLowerCase(), to);
         map[from] = to;
     }
     return { ...map };

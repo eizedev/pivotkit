@@ -98,13 +98,15 @@ const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[k
  * viewFileFields and renameFields both walk it.
  * @param {unknown} view
  * @param {(name: string, kind: "field" | "grouping" | "source", set: (name: string) => void) => void} visit
- * @returns {unknown} a copy of the view with what `set` wrote (the view itself when it is no object)
+ * @param {boolean} [copy]  walk a copy (JSON) that `set` writes into; without it, the view itself is
+ *   only read (a view that is no JSON, a cycle or a BigInt, is read without a throw)
+ * @returns {unknown} the copy with what `set` wrote, or the view
  */
-function mapFieldRefs(view, visit) {
+function mapFieldRefs(view, visit, copy = false) {
     if (!isPlainObject(view)) {
         return view;
     }
-    const out = JSON.parse(JSON.stringify(view));
+    const out = copy ? JSON.parse(JSON.stringify(view)) : view;
     const list = (key) => {
         const v = own(out, key);
         return Array.isArray(v) ? v : [];
@@ -216,13 +218,23 @@ export function renameFields(view, map) {
         }
     }
     const hit = new Set();
-    const out = mapFieldRefs(view, (name, kind, set) => {
-        const next = kind === "grouping" ? undefined : to.get(name.toLowerCase());
-        if (next !== undefined) {
-            hit.add(name.toLowerCase());
-            set(next);
-        }
-    });
+    let out;
+    try {
+        out = mapFieldRefs(
+            view,
+            (name, kind, set) => {
+                const next = kind === "grouping" ? undefined : to.get(name.toLowerCase());
+                if (next !== undefined) {
+                    hit.add(name.toLowerCase());
+                    set(next);
+                }
+            },
+            true
+        );
+    } catch (e) {
+        if (e instanceof PivotkitError) throw e;
+        throw new PivotkitError("INVALID_ARGUMENT", "renameFields: the view is no JSON (a cycle or a value JSON does not hold)");
+    }
     return { view: out, unused: Object.keys(map).filter((k) => !hit.has(k.toLowerCase())) };
 }
 
