@@ -42,15 +42,18 @@ const PRM_PATH = `/.well-known/oauth-protected-resource${REST_BASE}`;
 
 /** A file's name without a path, a reserved or a control character, at most 80 characters. */
 const safeName = (name) =>
-    [...String(name ?? "report")]
+    // by code point, so a cut never splits a character in two; a lone surrogate is no character
+    [.../** @type {any} */ (String(name ?? "report")).toWellFormed()]
+        .slice(0, 80)
         .map((c) => (c.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(c) ? "_" : c))
-        .join("")
-        .slice(0, 80) || "report";
+        .join("") || "report";
 
 /** A file's name for Content-Disposition: its own characters as filename*, a plain ASCII copy as filename. */
 function disposition(name) {
     const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
-    return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+    // RFC 5987: encodeURIComponent leaves ' ( ) * as they are, which attr-char does not allow
+    const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+    return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 /**

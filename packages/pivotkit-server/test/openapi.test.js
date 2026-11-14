@@ -47,7 +47,7 @@ test("the document is OpenAPI 3.1 for each sign-in, and every $ref resolves insi
     assert.equal(oauth.components.securitySchemes.oauth.flows.authorizationCode.tokenUrl, issuer.token_endpoint);
     assert.deepEqual(oauth.paths["/api/v1/views/render"].post.security, [{ oauth: ["pivotkit", "pivotkit:render"] }]);
     assert.deepEqual(oauth.paths["/api/v1/views/render"].post["x-pivotkit-scopes"], ["pivotkit:render"]);
-    assert.equal(oauth.servers[0].url, "https://pk.example.com/api/v1");
+    assert.equal(oauth.servers[0].url, "https://pk.example.com");
     assert.equal(openApiDocument({ auth: { mode: "none" } }).components.securitySchemes, undefined);
     // the check itself finds a broken document
     const broken = openApiDocument();
@@ -88,7 +88,8 @@ test("every route of the document is answered by the server (no 404 or 405), and
         const doc = openApiDocument();
         for (const [path, methods] of Object.entries(doc.paths)) {
             for (const [method, op] of Object.entries(methods)) {
-                const url = `${server.url}${path.replace("{id}", "sales")}`;
+                // as a client builds it: the server's URL, then the path
+                const url = `${new URL(doc.servers[0].url, server.url).href.replace(/\/$/, "")}${path.replace("{id}", "sales")}`;
                 const example = op.requestBody?.content["application/json"].example;
                 const res = await call(url, { method: method.toUpperCase(), body: example });
                 assert.ok(![404, 405].includes(res.status), `${method} ${path}: ${res.status} ${JSON.stringify(res.data).slice(0, 200)}`);
@@ -110,7 +111,7 @@ test("/openapi.json: for signed-in callers by default, for anyone with public, n
         assert.equal((await call(`${auth.url}/openapi.json`)).status, 401);
         const doc = await call(`${auth.url}/openapi.json`, { token: TOKEN });
         assert.equal(doc.status, 200);
-        assert.equal(doc.data.servers[0].url, "https://pk.example.com/api/v1");
+        assert.equal(doc.data.servers[0].url, "https://pk.example.com");
         assert.equal(doc.data.components.securitySchemes.bearer.scheme, "bearer");
     } finally {
         await auth.close();

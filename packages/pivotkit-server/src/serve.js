@@ -29,7 +29,8 @@ export async function loadMcp() {
     try {
         return await import(MCP_PACKAGE);
     } catch (e) {
-        if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes("pivotkit-mcp")) {
+        // only pivotkit-mcp itself missing; a pivotkit-mcp whose own dependency is missing is an error
+        if (e?.code === "ERR_MODULE_NOT_FOUND" && String(e.message).includes(`Cannot find package '${MCP_PACKAGE}'`)) {
             return null;
         }
         throw e;
@@ -107,7 +108,7 @@ export async function createServerHandler(options, runtime) {
                 const refused = hostRefusal(request, hosts);
                 return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
             },
-            problem: (status) => problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than the service takes" : "the request cannot be read"),
+            problem: (status, path) => (mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than the service takes" : "the request cannot be read")),
             async close() {
                 await rest?.close();
                 await mcp?.close();

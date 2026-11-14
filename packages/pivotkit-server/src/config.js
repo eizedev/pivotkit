@@ -318,7 +318,7 @@ export function validateOptions(options) {
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");
     }
-    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
+    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
         if (value !== undefined && value < 1) {
             throw new ConfigError(`${path}: must be 1 or more`);
         }

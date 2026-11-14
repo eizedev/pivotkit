@@ -17,7 +17,7 @@ export const GRACE_MS = 25_000;
  * @typedef {object} FetchHandler
  * @property {(request: Request, info: { address: string }) => Promise<Response>} fetch
  * @property {(request: Request, info: { address: string }) => Promise<Response | null>} [precheck]  checks before the body is read: a Response to send, or null to go on
- * @property {(status: 400 | 413) => Response} [problem]  the answer for a body that cannot be read
+ * @property {(status: 400 | 413, path: string) => Response} [problem]  the answer for a body that cannot be read (path: the request's)
  */
 
 /**
@@ -106,7 +106,14 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
                 for await (const chunk of response.body) {
                     if (!res.write(chunk)) {
-                        await new Promise((resolve) => res.once("drain", resolve));
+                        // a client that leaves while the socket is full sends no drain: its close ends the wait
+                        await new Promise((resolve) => {
+                            res.once("drain", resolve);
+                            res.once("close", resolve);
+                        });
+                        if (res.destroyed) {
+                            break;
+                        }
                     }
                 }
             }
@@ -126,7 +133,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                     setTimeout(resolve, 5000).unref();
                 });
             }
-            const answer = problem(e?.status === 413 ? 413 : 400);
+            const answer = problem(e?.status === 413 ? 413 : 400, req.url ?? "/");
             res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close" });
             res.end(Buffer.from(await answer.arrayBuffer()));
         } finally {

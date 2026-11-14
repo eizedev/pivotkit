@@ -172,7 +172,8 @@ export function openApiDocument(options = {}) {
             description: "The operations of pivotkit's MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change. Docs: https://pivotkit.eize.dev/reference/rest/",
             license: { name: "MIT", identifier: "MIT" }
         },
-        servers: [{ url: options.publicUrl ? new URL(REST_BASE, options.publicUrl).href : REST_BASE }],
+        // the paths carry /api/v1: the server is the origin
+        servers: [{ url: options.publicUrl ? new URL(options.publicUrl).origin : "/" }],
         tags: [
             { name: "sources", description: "The data sources a caller may use." },
             { name: "views", description: "Views: the guide, validation, description, rendering and links." },

@@ -51,7 +51,7 @@ function isBrowser(request) {
  * The fetch handler of a context.
  * @param {any} context  createMcpContext's
  * @param {{ env?: Record<string, string | undefined>, loopback?: boolean }} [runtime]
- * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, close(): Promise<void>, auth: any }>}
+ * @returns {Promise<{ fetch(request: Request): Promise<Response>, precheck(request: Request): Promise<Response | null>, problem(status: number): Response, close(): Promise<void>, auth: any }>}
  */
 export async function createHttpHandler(context, runtime = {}) {
     const http = context.options.http ?? {};
@@ -100,6 +100,8 @@ export async function createHttpHandler(context, runtime = {}) {
 
     return {
         auth,
+        /** The answer for a body that cannot be read, as JSON-RPC. */
+        problem: (status) => bodyProblem(status),
         /**
          * The checks a request's headers allow, before its body is read: Host, Origin, the declared
          * size, and the token for /mcp. A Response to send, or null to go on.

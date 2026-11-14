@@ -304,3 +304,75 @@ test("the log names the route, the source and the status; never the view, a valu
         await server.close();
     }
 });
+
+test("a client that leaves in the middle of a large download does not keep the server from stopping", async () => {
+    const { connect } = await import("node:net");
+    const rows = ["Region,Product,Customer,Sales,OrderDate,Q", ...Array.from({ length: 200_000 }, (_, i) => `R${i},A,C${i},${i},2026-01-01,1`)].join("\n");
+    const dir = workspace({ "sales.csv": rows });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { results: true } } }, http: { graceMs: 5000 }, baseDir: dir });
+    const body = JSON.stringify({ source: "sales", view: { rows: ["Region"], values: [{ field: "Sales", agg: "sum" }] }, format: "csv" });
+    const url = new URL(server.api);
+    await new Promise((resolve, reject) => {
+        const socket = connect(Number(url.port), url.hostname, () => {
+            socket.write(`POST /api/v1/views/render/file HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+        });
+        let got = 0;
+        socket.on("data", (c) => {
+            got += c.length;
+            if (got > 65_536) {
+                socket.pause();
+                socket.destroy();
+                resolve(undefined);
+            }
+        });
+        socket.on("error", reject);
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    const started = Date.now();
+    await server.close();
+    assert.ok(Date.now() - started < 2000, `close took ${Date.now() - started} ms`);
+});
+
+test("a file name cut at 80 characters never splits a character; the download still works", async () => {
+    const dir = workspace();
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv", title: `${"x".repeat(79)}\u{1F600}tail`, policy: { results: true } } }, baseDir: dir });
+    try {
+        const res = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(res.status, 200);
+        assert.match(res.headers.get("content-disposition"), /filename\*=UTF-8''x{79}%F0%9F%98%80\.csv$/);
+        const quoted = await call(`${server.api}/views/render/file`, { body: { source: "sales", view: BY_REGION, format: "csv", name: "it's (a) *test*" } });
+        assert.match(quoted.headers.get("content-disposition"), /filename\*=UTF-8''it%27s%20%28a%29%20_test_\.csv$/);
+    } finally {
+        await server.close();
+    }
+});
+
+test("limits: requests of one caller at once, the client's address behind a proxy, Retry-After when busy", async () => {
+    let release;
+    const gate = new Promise((r) => (release = r));
+    const dir = workspace();
+    const server = await restServer({ sources: { slow: { load: async () => (await gate, [{ Region: "N", Sales: 1 }]) }, sales: { file: "data/sales.csv" } }, rest: { concurrency: 2 }, http: { trustProxy: true }, baseDir: dir });
+    try {
+        const running = [0, 1].map(() => call(`${server.api}/views/validate`, { body: { source: "slow", view: BY_REGION } }));
+        await new Promise((r) => setTimeout(r, 100));
+        const third = await call(`${server.api}/sources`);
+        assert.equal(third.status, 429);
+        assert.equal(third.headers.get("retry-after"), "1");
+        release();
+        assert.deepEqual((await Promise.all(running)).map((r) => r.status), [200, 200]);
+        await call(`${server.api}/sources`, { headers: { "x-forwarded-for": "198.51.100.7, 203.0.113.9" } });
+        assert.equal(server.log.filter((l) => l.event === "request").at(-1).address, "203.0.113.9");
+    } finally {
+        await server.close();
+    }
+    const busy = await restServer({ sources: { sales: { file: "data/sales.csv" } }, compute: { workers: 1, queueMs: 1, timeMs: 30_000 }, baseDir: dir });
+    try {
+        const all = await Promise.all(Array.from({ length: 6 }, () => call(`${busy.api}/sources/sales`)));
+        const refused = all.filter((r) => r.status === 503);
+        assert.ok(refused.length > 0, all.map((r) => r.status).join(","));
+        assert.equal(refused[0].data.code, "BUSY");
+        assert.equal(refused[0].headers.get("retry-after"), "5");
+    } finally {
+        await busy.close();
+    }
+});

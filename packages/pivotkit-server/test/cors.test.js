@@ -55,3 +55,7 @@ test("rest.cors.origins takes exact origins only: no *, no path, no other scheme
     }
     assert.doesNotThrow(() => validateOptions({ rest: { cors: { origins: ["https://app.example.com", "http://localhost:5173"] } } }));
 });
+
+test("limits in the configuration: a refused-token limit of 0 is refused, not read as the opposite", () => {
+    assert.throws(() => validateOptions({ rest: { rateLimit: { failedAuthPerMinute: 0 } } }), /rest\.rateLimit\.failedAuthPerMinute: must be 1 or more/);
+});
