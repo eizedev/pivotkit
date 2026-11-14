@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",
-    "@types/node": "22.20.4",
+    "@types/node": "26.6.6",
     "jose": "6.2.17"
   },
   "types": "./types/index.d.ts",
