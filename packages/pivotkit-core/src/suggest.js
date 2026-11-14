@@ -44,6 +44,10 @@ import { renameFields } from "./view-file.js";
  * @property {string} text
  *
  * @typedef {{ code: "noSuggestion" | "dateGrouped" | "unusedGroup" | "unusedMap", message: string, field?: string }} LayoutNote
+ *
+ * @typedef {{ name: string, type: string, distinct?: number, blanks?: number, min?: string | number, max?: string | number }} DescribedField
+ * @typedef {{ rows?: number | null, fields: DescribedField[] } | DescribedField[] | null | undefined} LayoutDescription  describeSource's
+ *   result (or its fields): counts and spans where it has them
  */
 
 /** What suggestLayout takes for a category: at most this many values (rows), and on columns at most `cols`. */
@@ -114,8 +118,9 @@ function fieldsOf(description, fn) {
  * values, values the first number field that is no identifier, summed (none: the count of rows).
  * Without a category the date goes to rows. A data set with nothing to group by gets a count of rows
  * and the note `noSuggestion`. `picks` say what each part took and what else it could have taken.
- * @param {unknown} description  describeSource(data), or its fields
- * @param {{ locale?: string }} [options]  the language of the groupings' names in `picks`
+ * @param {LayoutDescription} description  describeSource(data), or its fields
+ * @param {{ locale?: string }} [options]  the language of the groupings' names in `picks` (German for
+ *   a "de" locale, English for any other)
  * @returns {{ layout: Layout, picks: LayoutPick[], notes: LayoutNote[] }}
  */
 export function suggestLayout(description, options) {
@@ -234,6 +239,26 @@ function checkLayout(layout) {
     }
 }
 
+/**
+ * A layout with `map`'s names renamed, through renameFields (the same rules: all at once, case-
+ * insensitive, no two fields joined): its axes, values, groupings' fields, filters and their measures.
+ * @param {Layout} layout
+ * @param {Record<string, string>} map
+ */
+function mapLayout(layout, map) {
+    // the layout as a view, its groupings as groupings of names no view field has
+    const groups = (layout.groups ?? []).map((g, i) => ({ name: `\u0000${i}`, field: g.field, by: g.by }));
+    const { view, unused } = renameFields({ rows: layout.rows ?? [], cols: layout.cols ?? [], values: layout.values ?? [], filters: layout.filters ?? [], derived: groups }, map);
+    /** @type {any} */
+    const out = { ...layout };
+    delete out.map;
+    for (const key of ["rows", "cols", "values", "filters"]) {
+        if (layout[key] !== undefined) out[key] = view[key];
+    }
+    if (layout.groups) out.groups = layout.groups.map((g, i) => ({ ...g, field: view.derived[i].field }));
+    return { layout: /** @type {Layout} */ (out), unused };
+}
+
 /** A copy of plain JSON (a filter of the layout), so the view never shares an object with it. */
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
@@ -249,18 +274,25 @@ const copy = (value) => JSON.parse(JSON.stringify(value));
  * or validate() it against the data. `name` says what it shows ("Sum of Revenue by Region and Date by
  * month"). Throws INVALID_ARGUMENT for a layout of another shape, LIMIT_EXCEEDED beyond LAYOUT_LIMITS.
  * @param {Layout} layout
- * @param {unknown} description
- * @param {{ locale?: string }} [options]
+ * @param {LayoutDescription} description
+ * @param {{ locale?: string }} [options]  the names' language: German for a "de" locale, English for any other
  * @returns {{ view: Record<string, any>, name: string, notes: LayoutNote[] }}
  */
 export function viewFromLayout(layout, description, options) {
     options = optionsOf(options, "viewFromLayout");
     checkLayout(layout);
+    /** @type {LayoutNote[]} */
+    const notes = [];
+    if (layout.map) {
+        const mapped = mapLayout(layout, layout.map);
+        layout = mapped.layout;
+        for (const name of mapped.unused) {
+            notes.push({ code: "unusedMap", field: name, message: `the layout names no field ${name}` });
+        }
+    }
     const fields = fieldsOf(description, "viewFromLayout");
     const byName = new Map(fields.map((f) => [f.name.toLowerCase(), f]));
     const spelled = (name) => byName.get(name.toLowerCase())?.name ?? name;
-    /** @type {LayoutNote[]} */
-    const notes = [];
 
     // the groupings: their names, unique against the fields and each other
     const taken = new Set(fields.map((f) => f.name.toLowerCase()));
@@ -278,8 +310,12 @@ export function viewFromLayout(layout, description, options) {
         groupsOf.set(field.toLowerCase(), [...(groupsOf.get(field.toLowerCase()) ?? []), name]);
         return name;
     };
+    // a grouping of a field the data does not have is left out, so normalize names the field itself
+    // (with the name meant) where the axes place it, not a grouping's name the user never wrote
     for (const g of layout.groups ?? []) {
-        addGroup(spelled(g.field), g.by, g.size);
+        if (!fields.length || byName.has(g.field.toLowerCase())) {
+            addGroup(spelled(g.field), g.by, g.size);
+        }
     }
     const derivedNames = new Map(derived.map((d) => [d.name.toLowerCase(), d.name]));
     const used = new Set();
@@ -333,19 +369,10 @@ export function viewFromLayout(layout, description, options) {
         }
     }
     /** @type {Record<string, any>} */
-    let view = { version: 2, rows, cols, values, ...(derived.length ? { derived } : {}), ...(filters.length ? { filters } : {}) };
+    const view = { version: 2, rows, cols, values, ...(derived.length ? { derived } : {}), ...(filters.length ? { filters } : {}) };
     if (layout.chart !== undefined) {
         view.display = "chart";
         view.chart = { type: layout.chart };
-    }
-    if (layout.map) {
-        const renamed = renameFields(view, layout.map);
-        view = renamed.view;
-        for (const name of renamed.unused) {
-            notes.push({ code: "unusedMap", field: name, message: `the layout names no field ${name}` });
-        }
-        // the new names in the data's spelling
-        view = renameFields(view, Object.fromEntries(Object.values(layout.map).filter((n) => byName.has(n.toLowerCase()) && byName.get(n.toLowerCase()).name !== n).map((n) => [n, spelled(n)]))).view;
     }
     return { view, name: viewName(view, options.locale), notes };
 }

@@ -181,7 +181,8 @@ export function viewFileFields(view) {
  * view names a data field is renamed (rows, columns, values, filters and their measures, sort and its
  * measure, the groupings' source fields), all at once (a swap { A: "B", B: "A" } swaps); a grouping's
  * own name is no data field and stays. `unused` lists the keys the view does not name. Own keys of
- * `map` only. Two keys onto one new name would join two fields: INVALID_ARGUMENT.
+ * `map` only. Two keys onto one new name, or a new name the view keeps as a field, would join two
+ * fields: INVALID_ARGUMENT.
  * @param {unknown} view
  * @param {Record<string, string>} map
  * @returns {{ view: any, unused: string[] }}
@@ -203,6 +204,16 @@ export function renameFields(view, map) {
         }
         targets.set(next.toLowerCase(), from);
         to.set(from.toLowerCase(), next);
+    }
+    // a field the view uses renamed to a field the view keeps would join two fields too
+    const used = new Set();
+    mapFieldRefs(view, (name, kind) => {
+        if (kind !== "grouping") used.add(name.toLowerCase());
+    });
+    for (const [target, from] of targets) {
+        if (used.has(from.toLowerCase()) && used.has(target) && !to.has(target)) {
+            throw new PivotkitError("INVALID_ARGUMENT", `renameFields: ${JSON.stringify(from.slice(0, 40))} cannot become ${JSON.stringify(map[from].slice(0, 40))}, a field the view keeps`);
+        }
     }
     const hit = new Set();
     const out = mapFieldRefs(view, (name, kind, set) => {

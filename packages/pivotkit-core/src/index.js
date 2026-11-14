@@ -29,6 +29,7 @@
  * @typedef {import("./suggest.js").Layout} Layout
  * @typedef {import("./suggest.js").LayoutPick} LayoutPick
  * @typedef {import("./suggest.js").LayoutNote} LayoutNote
+ * @typedef {import("./suggest.js").LayoutDescription} LayoutDescription
  * @typedef {import("./view.js").ValueSpec} ValueSpec
  * @typedef {import("./view.js").ValueRef} ValueRef
  * @typedef {import("./view.js").FilterSpec} FilterSpec

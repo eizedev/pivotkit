@@ -131,8 +131,10 @@ export function pickLines(view, command, fields) {
     const otherTexts = texts.filter((t) => !shown.has(t.toLowerCase()));
     if (otherTexts.length) lines.push(`  other text fields: ${printable(otherTexts.join(", "))}`);
     if (numbers.length) lines.push(`  other numbers: ${printable(numbers.join(", "))}`);
+    // the change most drafts need first: another number, or the average of the one taken
     const first = view.values.find((v) => v.field)?.field;
-    if (first) lines.push(`  to change a part: ${printable(`${command} --values ${quoteArg(`average:${first}`)}`)} (or --rows, --cols, --group <field>:<unit>)`);
+    const change = numbers.length ? `sum:${numbers[0]}` : first ? `average:${first}` : null;
+    if (change) lines.push(`  to change a part: ${printable(`${command} --values ${quoteArg(change)}`)} (or --rows, --cols, --group <field>:<unit>)`);
     return lines;
 }
 

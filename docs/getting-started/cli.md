@@ -93,7 +93,7 @@ pivotkit describe sales.csv --suggest -o draft.pivotkit.json
 draft: rows Region; columns Month by month; values Sum of Units
   other text fields: Country, Product, Category, Channel
   other numbers: Revenue, Discount
-  to change a part: pivotkit describe sales.csv --suggest --values average:Units (or --rows, --cols, --group <field>:<unit>)
+  to change a part: pivotkit describe sales.csv --suggest --values sum:Revenue (or --rows, --cols, --group <field>:<unit>)
 wrote draft.pivotkit.json: a draft view of sales.csv
 next: pivotkit render draft.pivotkit.json --data sales.csv -o draft.html
 ```

@@ -173,7 +173,8 @@ names and at most one cell value, cut at 20 characters; a file is named by its b
 (`missing: "Mean °C" (did you mean "Mean C"?)`); a field the view file lists with its type that the
 data has as the one new field of that type is named as a rename (`missing: "Revenue" (number); the
 data has a new number field "Turnover": renamed? --map "Revenue=Turnover"`, the flag that renders the
-view on the renamed column, [below](#map)); an unknown field lists the fields the data has; a
+view on the renamed column, [below](#map); with two or three such fields it names them and
+`--map "Revenue=<its new name>"`); an unknown field lists the fields the data has; a
 value refused on a text field names the value and row that made it text (`its value "n/a" in row 2 is
 no number`); an aggregator as other tools name it gets ours as the hint (`avg`: did you mean
 `average`?). `--lenient` writes the report all the same and says how many errors it has, and when the
@@ -198,7 +199,7 @@ $ pivotkit describe sales.csv --suggest -o draft.pivotkit.json
 draft: rows Region; columns Month by month; values Sum of Units
   other text fields: Country, Product, Category, Channel
   other numbers: Revenue, Discount
-  to change a part: pivotkit describe sales.csv --suggest --values average:Units (or --rows, --cols, --group <field>:<unit>)
+  to change a part: pivotkit describe sales.csv --suggest --values sum:Revenue (or --rows, --cols, --group <field>:<unit>)
 wrote draft.pivotkit.json: a draft view of sales.csv
 next: pivotkit render draft.pivotkit.json --data sales.csv -o draft.html
 ```
@@ -226,6 +227,9 @@ with `--json` it is the `view` key of the object instead, and with `-o` and `--j
 `output` (`{ file, bytes }`) and no `view`. `describe` without `--suggest` writes nothing, and its
 layout flags and `-o` are a usage error there.
 
+A file that looks like an exported pivot result (a `Grand Total` column, `Sum of …` headers) is
+said with what to take instead, as for a view that [does not fit](#data-mismatch).
+
 Nothing to group by (a workbook whose first sheet is a note, a file of one column of different
 values) is an error, `noSuggestion` (exit 1), and nothing is written unless `--lenient`. For a
 workbook it names the other sheets and the command for one:
@@ -249,6 +253,8 @@ with "did you mean" hints, exit codes 0, 1 and 2 as for a view.
 - **`--values`**: `<agg>:<field>` splits at the first colon only when what is before it is an
   aggregator (`sum`, `average`, `count`, `countUnique`, `median`, `min`, `max`, …, any case), so
   `"sum:Time: start"` sums the field `Time: start`; a field named exactly as the whole value wins.
+  A misspelt aggregator before a field of the data (`summ:Revenue`) is a usage error with the one
+  meant.
   `count` alone counts the rows.
 - **`--group`**: `<field>:<unit>`, the unit after the last colon, or `<field>:bin:<size>` for number
   ranges. The units are the view file's: `year`, `yearQuarter`, `yearMonth`, `yearWeek`, `day` along
@@ -272,8 +278,9 @@ was made. Every place the view names the field is renamed (rows, columns, values
 measures they go by, sort, a grouping's field), the types the view file lists too; a grouping's own
 name stays. It works with a view file, a link and the layout flags, and with `--save-view` it keeps
 the renamed view. The `=` that splits is the one whose left part the view uses, so a name may hold
-`=`. A name the view does not use is a warning `unusedMap`; two names mapped onto one is a usage
-error.
+`=`. Each name mapped is an `info` finding `mapped` (`--verbose`, `--json`); a name the view does not use
+is a warning `unusedMap`; two names mapped onto one, or a name mapped onto a field the view keeps,
+is a usage error.
 
 ```bash
 pivotkit render revenue.pivotkit.json --data new-export.csv --map Revenue=Turnover -o report.html --save-view revenue-turnover.pivotkit.json
@@ -301,7 +308,7 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 - `findings`: each with `severity` (`error`, `warning`, or `info` for a reader's note on how a file was
   read), `code` ([the view's issue codes](core.md), the reader's note codes, `viewFile`,
   `dataMismatch`, `typeFromView`, `typeFromViewFailed`, and from a view made from the data's fields
-  `noSuggestion`, `dateGrouped`, `unusedGroup`, `unusedMap`), `path`, `message` and, where there is one,
+  `noSuggestion`, `pivotResult`, `dateGrouped`, `unusedGroup`, `unusedMap`, `mapped`), `path`, `message` and, where there is one,
   `suggestion`. `dataMismatch` also has `missing`, `dataFields`, `pivotResult` and `details` (the lines
   stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`.
 - `error` (exit 2): `{ kind, code, message }`, `kind` one of `usage`, `io`, `limit`, `template`,

@@ -5,7 +5,7 @@
  * "=". Pure: --filter @file is read by the caller (`readFilterFile`).
  */
 
-import { CATALOG } from "pivotkit-core";
+import { CATALOG, closest } from "pivotkit-core";
 import { CliError, printable } from "./errors.js";
 
 /** The flags that make a layout; any of them given turns render into the flags mode. */
@@ -50,6 +50,11 @@ export function parseValue(value, fields) {
     }
     if (value.toLowerCase() === "count") {
         return { agg: "count" };
+    }
+    // "summ:Revenue": a field of the data after the colon, an aggregator misspelt before it
+    if (at > 0 && fields.has(value.slice(at + 1).toLowerCase())) {
+        const near = closest(value.slice(0, at), [...CATALOG.aggregators]);
+        throw new CliError("usage", "BAD_VALUE", `--values ${shown(value)}: ${shown(value.slice(0, at))} is no aggregator${near ? `; did you mean ${near}?` : ""} (the aggregators: ${CATALOG.aggregators.join(", ")})`);
     }
     return { field: value };
 }

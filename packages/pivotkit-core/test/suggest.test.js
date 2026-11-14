@@ -260,3 +260,19 @@ test("a suggestion on random data normalizes without findings, whatever the colu
         suggested(rows);
     }
 });
+
+test("viewFromLayout: map renames the layout's names first, so a mapped number is summed and a mapped date grouped", () => {
+    const description = { rows: 3, fields: [{ name: "Revenue", type: "number" }, { name: "Region", type: "string", distinct: 2, blanks: 0 }, { name: "Booked", type: "date", min: "2025-01-01", max: "2025-12-01" }] };
+    const { view, name, notes } = viewFromLayout({ rows: ["Area"], cols: ["When"], values: [{ field: "Sales" }], map: { Area: "Region", Sales: "Revenue", When: "Booked" } }, description);
+    assert.deepEqual(view.values, [{ field: "Revenue", agg: "sum" }]);
+    assert.deepEqual(view.rows, ["Region"]);
+    assert.deepEqual(view.cols, ["Booked by month"]);
+    assert.equal(name, "Sum of Revenue by Region and Booked by month");
+    assert.deepEqual(notes.map((n) => n.code), ["dateGrouped"]);
+});
+
+test("renameFields: a new name that is a field the view keeps would join two fields: refused", () => {
+    assert.throws(() => renameFields({ version: 2, rows: ["A", "B"], values: [{ field: "A", agg: "sum" }] }, { A: "b" }), (e) => e instanceof PivotkitError && e.code === "INVALID_ARGUMENT");
+    // B renamed away at the same time: no join
+    assert.deepEqual(renameFields({ version: 2, rows: ["A", "B"] }, { A: "B", B: "C" }).view.rows, ["B", "C"]);
+});

@@ -82,7 +82,7 @@ test("describe --suggest on the sales example: a draft view file on stdout, what
     assert.equal(file.source.id, await sourceIdOf("sales.csv", columns));
     assert.match(r.stderr, /^draft: rows Region; columns Month by month; values Sum of Units$/m);
     assert.match(r.stderr, /other numbers: Revenue, Discount/);
-    assert.match(r.stderr, /^ {2}to change a part: pivotkit describe sales\.csv --suggest --values "?average:Units"?/m);
+    assert.match(r.stderr, /^ {2}to change a part: pivotkit describe sales\.csv --suggest --values sum:Revenue /m);
     assert.match(r.stderr, /^next: pivotkit describe sales\.csv --suggest -o sales\.pivotkit\.json$/m);
     assert.deepEqual(readdirSync(dir).sort(), ["book.xlsx", "sales.csv", "weather.csv"], "nothing written without -o");
 });
@@ -252,9 +252,26 @@ test("--filter as JSON or @file, --chart-type, --save-view: the saved view rende
     const svg = await run(["render", "sales.csv", "--rows", "Month", "--values", "sum:Revenue", "--chart-type", "line", "-o", "trend.svg"], { cwd: dir });
     assert.equal(svg.code, 0, svg.stderr);
     assert.match(readFileSync(join(dir, "trend.svg"), "utf8"), /^<svg/);
+    const agg = await run(["render", "sales.csv", "--rows", "Region", "--values", "summ:Revenue"], { cwd: dir });
+    assert.equal(agg.code, 2);
+    assert.match(agg.stderr, /"summ" is no aggregator; did you mean sum\?/);
+    // a grouping of a field the data does not have: the field is named with the one meant, not a grouping's name
+    const group = await run(["render", "sales.csv", "--rows", "Mnth", "--group", "Mnth:yearQuarter", "--values", "sum:Revenue", "-f", "csv"], { cwd: dir });
+    assert.equal(group.code, 1);
+    assert.match(group.stderr, /missing: "Mnth" \(did you mean "Month"\?\)/);
+    assert.doesNotMatch(group.stderr, /Mnth by quarter/);
     const bad = await run(["render", "sales.csv", "--rows", "Region", "--chart-type", "lines"], { cwd: dir });
     assert.equal(bad.code, 2);
     assert.match(bad.stderr, /did you mean line/);
+});
+
+test("an exported pivot result is no data to suggest from: said with what to take instead", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "result.csv"), "Region,Grand Total\nNorth,10\nSouth,20\n");
+    writeFileSync(join(dir, "table.csv"), "Date by month of year,Jan,Feb,Grand Total\nCity,Average of Mean °C,,\nBerlin,1,2,1.5\nMünchen,0,1,0.5\n");
+    const r = await run(["describe", "table.csv", "--suggest"], { cwd: dir });
+    assert.match(r.stderr, /an exported pivot result \("Grand Total", "Average of Mean °C"\)/);
+    assert.match(r.stderr, /Export → Source data → All rows as CSV/);
 });
 
 test("render <data> --suggest: the draft as a report in one step", async () => {
@@ -285,6 +302,13 @@ test("--map Old=New: a view made before a column was renamed renders on the new 
     assert.match(unused.stderr, /warning unusedMap/);
     const merge = await run(["render", "v.pivotkit.json", "--data", "renamed.csv", "--map", "Region=Turnover", "--map", "Revenue=Turnover"], { cwd: dir });
     assert.equal(merge.code, 2);
+    // a few fields of the type the view does not use: named, with the flag to give
+    writeFileSync(join(dir, "two.csv"), "Region,Units,Turnover\nNorth,1,3\n");
+    const two = await run(["render", "v.pivotkit.json", "--data", "two.csv", "-f", "csv"], { cwd: dir });
+    assert.match(two.stderr, /number fields the view does not use: "Units", "Turnover": one of them renamed\? --map "Revenue=<its new name>"/);
+    // the mapping is said (--verbose shows info findings)
+    const said = await run(["render", "v.pivotkit.json", "--data", "renamed.csv", "--map", "Revenue=Turnover", "-f", "csv", "--verbose"], { cwd: dir });
+    assert.match(said.stderr, /info mapped: --map: the view's "Revenue" is read as "Turnover"/);
 });
 
 test("the same file gives the same draft whatever the machine's language and zone", async () => {

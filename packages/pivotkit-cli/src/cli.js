@@ -522,6 +522,12 @@ function nameList(names) {
     return names.length > shown.length ? `${shown.join(", ")} and ${names.length - shown.length} more` : shown.join(", ");
 }
 
+/** What to take instead of an exported pivot result. */
+const PIVOT_RESULT_ADVICE = Object.freeze(["in the report, take Export → Source data → All rows as CSV, and give that file to --data", "or give --data the file the report was made from, if you have it"]);
+
+/** At most this many fields of a missing field's type are named as the one it may have been renamed to. */
+const RENAME_CANDIDATES = 3;
+
 /** The words of a value's name in a pivot result's header ("Sum of", "Summe von"), every language's. */
 const VALUE_NAME = (() => {
     const words = new Set();
@@ -601,7 +607,11 @@ function explain(findings, viewText, data) {
             if (near) return `missing: "${cut(name, NAME_LENGTH)}" (did you mean "${cut(near, NAME_LENGTH)}"?)`;
             const type = typeOf.get(String(name).toLowerCase());
             const fresh = type ? newOfType(type) : [];
-            return fresh.length === 1 ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed? --map ${quoteArg(`${cut(name, NAME_LENGTH)}=${cut(fresh[0], NAME_LENGTH)}`)}` : null;
+            if (fresh.length === 1) {
+                return `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed? --map ${quoteArg(`${cut(name, NAME_LENGTH)}=${cut(fresh[0], NAME_LENGTH)}`)}`;
+            }
+            // a few candidates: name them and the flag to give
+            return fresh.length > 1 && fresh.length <= RENAME_CANDIDATES ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has ${type} fields the view does not use: ${fresh.map((f) => JSON.stringify(cut(f, NAME_LENGTH))).join(", ")}: one of them renamed? --map ${quoteArg(`${cut(name, NAME_LENGTH)}=<its new name>`)}` : null;
         })
         .filter(Boolean);
     const signText = signs.map((s) => JSON.stringify(s)).join(", ");
@@ -612,8 +622,7 @@ function explain(findings, viewText, data) {
         ...(signs.length
             ? [
                   `it ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result (${signText}), not the rows the report was made from:`,
-                  "in the report, take Export → Source data → All rows as CSV, and give that file to --data",
-                  "or give --data the file the report was made from, if you have it"
+                  ...PIVOT_RESULT_ADVICE
               ]
             : []),
         ...(followers.length ? [`and ${followers.length} more error${followers.length === 1 ? "" : "s"} from the missing fields (--json lists them)`] : [])
@@ -813,7 +822,12 @@ function withMap(view, values) {
     const fields = (read.source?.fields ?? []).map((f) => ({ ...f, name: lower.get(f.name.toLowerCase()) ?? f.name }));
     const unusedInFields = new Set(fields.length ? (read.source?.fields ?? []).map((f) => f.name.toLowerCase()) : []);
     const file = { format: VIEW_FILE_FORMAT, formatVersion: 2, name: read.name, ...(read.description ? { description: read.description } : {}), source: { ...(read.source ?? {}), fields }, view: renamed.view };
-    const findings = renamed.unused.filter((n) => !unusedInFields.has(n.toLowerCase())).map((n) => ({ severity: "warning", code: "unusedMap", path: "", message: printable(`--map ${n}=...: the view uses no field ${JSON.stringify(n)}`) }));
+    const findings = [
+        ...renamed.unused.filter((n) => !unusedInFields.has(n.toLowerCase())).map((n) => ({ severity: "warning", code: "unusedMap", path: "", message: printable(`--map ${n}=...: the view uses no field ${JSON.stringify(n)}`) })),
+        ...Object.entries(map)
+            .filter(([from]) => !renamed.unused.includes(from))
+            .map(([from, to]) => ({ severity: "info", code: "mapped", path: "", message: printable(`--map: the view's ${JSON.stringify(from)} is read as ${JSON.stringify(to)}`) }))
+    ];
     return { ...view, view: JSON.stringify(file), findings };
 }
 
@@ -845,6 +859,14 @@ async function viewFromData(positionals, values, ctx, command) {
     }
     const data = await readData({ ...values, data: input }, ctx);
     const built = await layoutView(data, values, ctx, { sheets: data.sheets, command, input });
+    // an exported pivot result is no data to make a view of: said as for a view that does not fit
+    const signs = pivotResultSigns(data.table);
+    if (signs.length > 0) {
+        const lines = [`it ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result (${signs.map((t) => JSON.stringify(t)).join(", ")}), not the rows a report is made from:`, ...PIVOT_RESULT_ADVICE].map(printable);
+        const none = built.findings.find((f) => f.code === "noSuggestion");
+        if (none) none.details = [...lines, ...(none.details ?? [])];
+        else built.findings.unshift({ severity: "warning", code: "pivotResult", path: "", message: printable(`${data.name} ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result, not the rows a report is made from`), details: PIVOT_RESULT_ADVICE.map(printable) });
+    }
     const draft = Boolean(values.suggest);
     const tool = `pivotkit ${command} --suggest`;
     const name = draft ? `Draft: ${built.name}` : built.name;
