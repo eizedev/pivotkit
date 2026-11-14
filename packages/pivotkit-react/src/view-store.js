@@ -8,6 +8,7 @@
 import { toViewFile } from "pivotkit-core";
 import { parseTemplates } from "pivotkit-core/templates";
 import { fill } from "./labels.js";
+import { listedFor, sheetOfSource } from "./sheet-views.js";
 
 /** The most the browser store keeps per storageKey: views, and characters of their JSON. */
 export const VIEW_STORE_LIMITS = Object.freeze({ count: 100, text: 500_000 });
@@ -36,30 +37,40 @@ function readAll(raw) {
 }
 
 /**
- * The browser store's views from its text, those for the data shown: made for `sourceId` or for no
- * named data.
+ * The browser store's views from its text, those for the data shown: made for `sourceId`, for no
+ * named data, or for another sheet of the workbook shown (sheet-views.js: listedFor).
  * @param {string | null} raw
  * @param {string | undefined} sourceId
- * `sourceId` of an entry: the data it names (none for a view saved without), which tells two views
- * of the same name apart (one for no named data, one for this data).
- * @returns {Array<{ name: string, view: Record<string, unknown>, at: number, sourceId?: string }>}
+ * @param {{ sheet: string | null, sheets: readonly string[] }} [shown]  the workbook's sheet shown
+ * `sourceId` and `sheet` of an entry: the data it names (none for a view saved without) and the sheet
+ * of a workbook it was made on, which tell two views of the same name apart (one for no named data,
+ * one per data and sheet).
+ * @returns {Array<{ name: string, view: Record<string, unknown>, at: number, sourceId?: string, sheet?: string }>}
  */
-export function storedViews(raw, sourceId) {
+export function storedViews(raw, sourceId, shown = { sheet: null, sheets: [] }) {
     return readAll(raw)
-        .map((t, at) => ({ name: t.name, view: t.view, at, ...(t.source?.id ? { sourceId: t.source.id } : {}) }))
-        .filter((t) => !t.sourceId || !sourceId || t.sourceId === sourceId);
+        .map((t, at) => {
+            const sheet = sheetOfSource(t.source);
+            return { name: t.name, view: t.view, at, ...(t.source?.id ? { sourceId: t.source.id } : {}), ...(sheet ? { sheet } : {}) };
+        })
+        .filter((t) => listedFor(t, { id: sourceId, ...shown }));
 }
 
+/** The source a view is stored with: the data's id, and the sheet of a workbook when there is one. */
+const sourceOf = (id, sheet) => (id ? { id, ...(sheet ? { params: { sheet } } : {}) } : undefined);
+
 /**
- * The browser store's text after a change: `name` saved for `sourceId` (replacing a view of the same
- * name for the same data), the view at `replace` written over in its place (Save, and Save as onto a
- * name that exists: its data and its place in the list stay), or the view at `remove` taken out. A
+ * The browser store's text after a change: `name` saved for `sourceId` and `sheet` (replacing a view of
+ * the same name for the same data and sheet), the view at `replace` written over in its place (Save,
+ * and Save as onto a name that exists: its place in the list stays, and its data, which takes the sheet
+ * shown when it is the data shown: a view saved before views named their sheet gets it), or the view
+ * at `remove` taken out. A
  * delete and a replace check that the view there is still the one named `removeName` or `name`
  * (another tab may have changed the store since the menu was drawn) and throw "changed" when it is
  * not, so the wrong view is never deleted or overwritten. The caps apply to a save
  * only: a store over them (older caps, changed by hand) can always shrink.
  * @param {string | null} raw
- * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string, replace?: number }} change
+ * @param {{ name?: string, view?: object, sourceId?: string, sheet?: string | null, remove?: number, removeName?: string, replace?: number }} change
  * @param {(kind: "count" | "text" | "changed", max: number) => string} message  the Error's message
  * @returns {string | null}  null when nothing is left
  */
@@ -78,11 +89,14 @@ export function changedViews(raw, change, message) {
         if (old?.name !== change.name) {
             throw new Error(message("changed", 0));
         }
-        next = all.map((t, i) => (i === change.replace ? { name: old.name, view: /** @type {Record<string, unknown>} */ (change.view), ...(old.source ? { source: old.source } : {}) } : t));
+        const source = old.source?.id && old.source.id === change.sourceId ? sourceOf(change.sourceId, change.sheet) : old.source;
+        next = all.map((t, i) => (i === change.replace ? { name: old.name, view: /** @type {Record<string, unknown>} */ (change.view), ...(source ? { source } : {}) } : t));
     } else if (saving) {
         const id = change.sourceId;
-        next = next.filter((t) => t.name !== change.name || (t.source?.id ?? undefined) !== id);
-        next.push({ name: /** @type {string} */ (change.name), view: /** @type {Record<string, unknown>} */ (change.view), ...(id ? { source: { id } } : {}) });
+        const sheet = id ? (change.sheet ?? null) : null;
+        next = next.filter((t) => t.name !== change.name || (t.source?.id ?? undefined) !== id || sheetOfSource(t.source) !== sheet);
+        const source = sourceOf(id, sheet);
+        next.push({ name: /** @type {string} */ (change.name), view: /** @type {Record<string, unknown>} */ (change.view), ...(source ? { source } : {}) });
         if (next.length > VIEW_STORE_LIMITS.count) {
             throw new Error(message("count", VIEW_STORE_LIMITS.count));
         }
@@ -99,7 +113,7 @@ export function changedViews(raw, change, message) {
  * the labels' words when the store would hold too much, changed since the menu was drawn, or the
  * browser refused to keep it.
  * @param {string | null} raw  the store's text now
- * @param {{ name?: string, view?: object, sourceId?: string, remove?: number, removeName?: string, replace?: number }} change
+ * @param {{ name?: string, view?: object, sourceId?: string, sheet?: string | null, remove?: number, removeName?: string, replace?: number }} change
  * @param {any} labels  with the menus' texts
  * @param {string} locale  for the numbers
  * @param {(text: string | null) => boolean} keep  writes the text (storage.js: writeItem), false when the browser refused

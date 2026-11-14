@@ -15,12 +15,14 @@ import { useFormName } from "./dom.js";
 
 /**
  * @typedef {import("./import-steps.js").ImportContext & {
- *   job: { file: File, n: number } | null, setJob: React.Dispatch<React.SetStateAction<{ file: File, n: number } | null>>,
+ *   job: ImportJob | null, setJob: React.Dispatch<React.SetStateAction<ImportJob | null>>,
  *   dismiss?: (id: number) => void,
  *   dragging: boolean, encoded: import("pivotkit-core").Encoded, sourceName: string | undefined,
  *   plugins: any[], worker?: () => Worker, limits?: object, timeZone?: string,
  *   box: () => DOMRect | undefined, pick: () => void }} ImportApi
  *   `box`: the report's box on screen; `pick`: clicks the file input (ImportLayer's `input`)
+ * @typedef {{ file: File, n: number, sheet?: string, auto?: boolean, done?: (loaded: boolean) => void }} ImportJob
+ *   a file being read: `sheet` and `auto` as ImportDialog's job; `done` is told whether it was loaded
  */
 
 let jobs = 0;
@@ -51,15 +53,39 @@ function sayError(api, text) {
  * @param {File[]} files
  */
 export function startFiles(api, files) {
-    const dismiss = api.dismiss;
-    if (typeof dismiss === "function") {
-        (shownErrors.get(dismiss) ?? []).forEach((id) => dismiss(id));
-        shownErrors.delete(dismiss);
-    }
+    closeErrors(api);
     if (files.length === 1) {
         api.setJob({ file: files[0], n: ++jobs });
     } else if (files.length > 1) {
         sayError(api, importLabels(api.labels).dropOne);
+    }
+}
+
+/**
+ * Reads another sheet of the file shown and loads it at once (a saved view made on that sheet was
+ * opened, sheet-views.js): the dialog shows the progress and has Cancel, a sheet that cannot be read
+ * says why there. `done` is told whether the sheet was loaded (Cancel, a failure and a host's refusal
+ * are not).
+ * @param {ImportApi} api
+ * @param {string} sheet
+ * @param {(loaded: boolean) => void} done
+ */
+export function loadSheet(api, sheet, done) {
+    const file = api.imported?.blob;
+    if (!file) {
+        done(false);
+        return;
+    }
+    closeErrors(api);
+    api.setJob({ file, n: ++jobs, sheet, auto: true, done });
+}
+
+/** Closes the error notes of earlier files. @param {ImportApi} api */
+function closeErrors(api) {
+    const dismiss = api.dismiss;
+    if (typeof dismiss === "function") {
+        (shownErrors.get(dismiss) ?? []).forEach((id) => dismiss(id));
+        shownErrors.delete(dismiss);
     }
 }
 
@@ -107,10 +133,14 @@ export function ImportLayer({ api, input }) {
                     timeZone={api.timeZone}
                     announce={(text, extra) => (extra?.tone === "error" ? sayError(api, text) : api.announce(text, extra))}
                     // only this dialog's job: a file dropped meanwhile has its own
-                    onClose={() => api.setJob((j) => (j === job ? null : j))}
-                    onApply={(loaded) => {
-                        loadData(api, loaded);
+                    onClose={() => {
                         api.setJob((j) => (j === job ? null : j));
+                        job.done?.(false);
+                    }}
+                    onApply={(loaded) => {
+                        const ok = loadData(api, loaded);
+                        api.setJob((j) => (j === job ? null : j));
+                        job.done?.(ok);
                     }}
                 />
             ) : null}

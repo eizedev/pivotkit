@@ -5,5 +5,5 @@
  * report without allowImport, and one whose Data menu nobody opens, never loads it.
  */
 
-export { DataMenuPanel, ImportLayer, SourceLine, pickFile, startFiles } from "./import-host.jsx";
+export { DataMenuPanel, ImportLayer, SourceLine, loadSheet, pickFile, startFiles } from "./import-host.jsx";
 export { moveData, restoreData } from "./import-steps.js";

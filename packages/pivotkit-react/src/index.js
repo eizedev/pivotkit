@@ -34,6 +34,14 @@
 /**
  * @typedef {object} TemplateScope  where a template is or goes
  * @property {"shared" | "user"} scope
+ * @property {TemplateSource | null} [source]  for a save: the data shown
+ */
+
+/**
+ * @typedef {object} TemplateSource  the data a view is saved or published from, as a view file names it
+ * @property {string} id  the source's id (the host's `source.id`, a loaded file's name and hash)
+ * @property {string} [name]
+ * @property {Record<string, string>} [params]  a loaded workbook's sheet: `{ sheet }`
  */
 
 /**
@@ -98,13 +106,14 @@
  * @property {(view: View) => void} [onViewChange]  every change, normalized
  * @property {Template[]} [templates]  the entries of the Views menu, in two groups by `scope`
  * @property {(name: string, view: View, where: TemplateScope) => unknown} [onSaveTemplate]  shows
- *   "Save" when set (`where.scope` is "user"); "saved" is shown when it returns or the promise it
- *   returns resolves, an error when it throws or rejects. It wins over `templateStore`
+ *   "Save" when set (`where.scope` is "user", `where.source` the data shown, null without a source id);
+ *   "saved" is shown when it returns or the promise it returns resolves, an error when it throws or
+ *   rejects. It wins over `templateStore`
  * @property {(name: string, where: TemplateScope) => unknown} [onDeleteTemplate]  deletes a template
  *   marked `deletable` (`where.scope`: its group); the entry goes when it returns (or its promise resolves)
- * @property {(name: string, view: ViewInput) => unknown} [onPublishTemplate]  with `canPublish`:
+ * @property {(name: string, view: ViewInput, where: { source: TemplateSource | null }) => unknown} [onPublishTemplate]  with `canPublish`:
  *   "Publish as shared view" on each of the user's views; the host makes it a shared entry of
- *   `templates`; "published" is shown when it returns or its promise resolves
+ *   `templates`; "published" is shown when it returns or its promise resolves; `where.source` the data shown
  * @property {boolean} [canPublish]  the user may publish views for everyone (an admin); default false
  * @property {"browser"} [templateStore]  "browser": the user's own views are kept in this browser's
  *   localStorage under `storageKey` (only this browser and device, lost when the site's data is

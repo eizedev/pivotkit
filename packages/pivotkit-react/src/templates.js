@@ -5,6 +5,7 @@
  */
 
 import { fieldDefaultsFromSchema, fromViewFile } from "pivotkit-core";
+import { sheetOfSource } from "./sheet-views.js";
 
 /** Whether the console was told once that a deletable entry without a scope counts as the user's own. */
 let warnedScope = false;
@@ -33,6 +34,9 @@ export const viewsName = (key) => (key ? `pivotkit:views:${key}` : "pivotkit:vie
  * @property {boolean} deletable
  * @property {number} [at]  its place in the browser store; only for the store's own entries
  * @property {string} [sourceId]  the data a view of the browser store names, when it names one
+ * @property {string} [sheet]  the sheet of a workbook the view was made on (its source.params.sheet)
+ * @property {string} [sheetOf]  the source id of that workbook's sheet (a host's view file; the
+ *   browser store's entries have it as `sourceId`)
  */
 
 /**
@@ -43,7 +47,7 @@ export const viewsName = (key) => (key ? `pivotkit:views:${key}` : "pivotkit:vie
  * marked `deletable` and the host takes the delete (`hostDeletes`). Every name is plain text
  * (plainNames), as a name from a file or the store is.
  * @param {unknown} templates  the host's
- * @param {Array<{ name: string, view: Record<string, unknown>, at: number, sourceId?: string }>} stored
+ * @param {Array<{ name: string, view: Record<string, unknown>, at: number, sourceId?: string, sheet?: string }>} stored
  * @param {boolean} hostDeletes
  * @returns {TemplateEntry[]}
  */
@@ -55,10 +59,14 @@ export function templateEntries(templates, stored, hostDeletes) {
             continue;
         }
         let { name, view } = t;
+        /** @type {{ sheet?: string, sheetOf?: string }} */
+        let made = {};
         if (t.file !== undefined && t.file !== null) {
             const read = fromViewFile(t.file);
             view = read.view;
             name = typeof name === "string" && name ? name : read.name;
+            const sheet = sheetOfSource(read.source);
+            made = sheet && read.source?.id ? { sheet, sheetOf: read.source.id } : {};
         }
         if (typeof name === "string" && name && view && typeof view === "object") {
             const deletable = t.deletable === true;
@@ -67,10 +75,10 @@ export function templateEntries(templates, stored, hostDeletes) {
                 warnedScope = true;
                 console.warn('pivotkit: a template marked deletable without a scope is listed under "My views"; give shared views scope: "shared"');
             }
-            out.push({ name, view, deletable: deletable && hostDeletes, scope: scoped ? t.scope : deletable ? "user" : "shared" });
+            out.push({ name, view, deletable: deletable && hostDeletes, scope: scoped ? t.scope : deletable ? "user" : "shared", ...made });
         }
     }
-    const all = [...out, ...stored.map((t) => ({ name: t.name, view: t.view, scope: /** @type {const} */ ("user"), deletable: true, at: t.at, ...(t.sourceId ? { sourceId: t.sourceId } : {}) }))];
+    const all = [...out, ...stored.map((t) => ({ name: t.name, view: t.view, scope: /** @type {const} */ ("user"), deletable: true, at: t.at, ...(t.sourceId ? { sourceId: t.sourceId } : {}), ...(t.sheet ? { sheet: t.sheet } : {}) }))];
     const names = plainNames(all.map((t) => t.name));
     return all.flatMap((t, i) => (names[i] ? [{ ...t, name: /** @type {string} */ (names[i]) }] : []));
 }

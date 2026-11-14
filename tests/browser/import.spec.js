@@ -10,41 +10,11 @@
 import { test as plain } from "@playwright/test";
 import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 import { makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
+import { dataMenu, dropFiles, fieldNames, fileOf, pickThroughMenu } from "./import-helpers.js";
 
 const TICKETS = "Id;Team;Opened;Hours;Zip\n1001;Network;10.11.2026;1,5;01067\n1002;Server;11.11.2026;2,25;10115\n1003;Network;12.11.2026;4;01067\n\n1004;Client;13.11.2026;0,5;20095\n";
 const CSV = "text/csv";
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-/** A file for the page: its name, type and content (text, or bytes as base64). */
-const fileOf = (name, type, content) => ({ name, type, ...(typeof content === "string" ? { text: content } : { base64: Buffer.from(content).toString("base64") }) });
-
-/**
- * Drags files over the report and drops them, as a browser does with files from the desktop:
- * dragenter, dragover (the overlay shows), then drop, all with one DataTransfer holding the files.
- * `drop: false` drags them out again instead.
- */
-async function dropFiles(page, target, files, { drop = true, expectOverlay = true } = {}) {
-    const dt = await page.evaluateHandle((list) => {
-        const t = new DataTransfer();
-        for (const f of list) {
-            const content = f.text ?? Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0));
-            t.items.add(new File([content], f.name, { type: f.type }));
-        }
-        return t;
-    }, files);
-    const box = await target.boundingBox();
-    const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
-    await target.dispatchEvent("dragenter", { dataTransfer: dt, ...at });
-    await target.dispatchEvent("dragover", { dataTransfer: dt, ...at });
-    if (expectOverlay) {
-        await expect(page.getByTestId("drop-overlay")).toBeVisible();
-    }
-    await target.dispatchEvent(drop ? "drop" : "dragleave", { dataTransfer: dt, ...at });
-    await expect(page.getByTestId("drop-overlay")).toHaveCount(0);
-}
-
-/** The field names of the field list. */
-const fieldNames = (scope) => scope.locator(".pk-field-list [data-field]").evaluateAll((els) => els.map((e) => e.getAttribute("data-field")));
 
 /** The preview table: its header cells (column names) and body rows as texts. */
 async function preview(dialog) {
@@ -118,26 +88,6 @@ test("a CSV dropped onto the report: the overlay, the preview with types and not
     await page.getByTestId("redo").click();
     await expect.poll(() => chips(page, "rows")).toEqual(["Team"]);
 });
-
-/** Opens the Data menu: its own button, or its entry in "More". */
-async function dataMenu(scope) {
-    const own = scope.getByTestId("data");
-    if (await own.count()) {
-        await own.click();
-    } else {
-        await scope.getByTestId("more").click();
-        await scope.getByTestId("more-data").click();
-    }
-    await expect(scope.getByTestId("data-menu")).toBeVisible();
-}
-
-/** Picks a file through the Data menu's "Load data…" and the browser's file chooser. */
-async function pickThroughMenu(page, scope, file) {
-    await dataMenu(scope);
-    const chooser = page.waitForEvent("filechooser");
-    await scope.getByTestId("load-file").click();
-    await (await chooser).setFiles({ name: file.name, mimeType: file.type, buffer: file.base64 ? Buffer.from(file.base64, "base64") : Buffer.from(file.text) });
-}
 
 test("the Data menu by keyboard: where the data comes from, Load data… opens the file chooser, Escape cancels the preview and the focus goes back", async ({ page }) => {
     await page.goto("?data=sales&import");

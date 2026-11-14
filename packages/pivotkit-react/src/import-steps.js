@@ -17,6 +17,8 @@ import { fill, messageOf, plural } from "./labels.js";
  * @property {import("pivotkit-core").Encoded} encoded
  * @property {{ id: string, name: string }} source
  * @property {string | null} sheet
+ * @property {readonly string[]} [sheets]  the workbook's sheets (names)
+ * @property {File} [blob]  the file, to read another of its sheets
  * @property {{ name: string, size: number, type: string }} file
  *
  * @typedef {object} ImportContext
@@ -88,7 +90,7 @@ function tell(ctx, detail) {
  * @param {import("./import-ui.jsx").LoadedData} loaded
  */
 export function loadData(ctx, loaded) {
-    const data = { key: ++keys, encoded: loaded.encoded, source: loaded.source, sheet: loaded.sheet, file: loaded.file };
+    const data = { key: ++keys, encoded: loaded.encoded, source: loaded.source, sheet: loaded.sheet, sheets: loaded.sheets, blob: loaded.blob, file: loaded.file };
     const t = importLabels(ctx.labels);
     const told = tell(ctx, describe(ctx, data, "load", loaded.notes));
     if (told.refused) {

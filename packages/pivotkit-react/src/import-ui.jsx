@@ -152,6 +152,8 @@ function cellText(value, type, t, locale) {
  * @property {{ id: string, name: string }} source  the id for the saved views (import-source.js), the name shown
  * @property {{ name: string, size: number, type: string }} file
  * @property {string | null} sheet
+ * @property {readonly string[]} sheets  the names of the workbook's sheets ([] for a file with one table)
+ * @property {File} blob  the file itself, to read another of its sheets (a view made on it, sheet-views.js)
  * @property {number} rows
  * @property {Array<{ name: string, type: string }>} columns
  * @property {Array<{ code: string, params: Record<string, unknown>, message: string }>} notes
@@ -161,8 +163,10 @@ function cellText(value, type, t, locale) {
  * Reads a file (progress, Cancel) and shows it before it replaces the data: the sheet, the first
  * rows with a type per column, the readers' notes; "Load data" or Cancel. Modal, in the top layer:
  * the focus moves in, Tab stays inside, Escape cancels, the focus goes back to where it was. A file
- * that cannot be read closes it with a note; the report's data stays.
- * @param {{ job: { file: File, n: number }, labels: any, locale: string, plugins: any[], worker?: () => Worker,
+ * that cannot be read closes it with a note; the report's data stays. A job with `sheet` starts on that
+ * sheet (a name); with `auto` it loads as soon as the sheet is read, without waiting for "Load data"
+ * (a saved view opened on another sheet of the file shown: the person asked for that sheet already).
+ * @param {{ job: { file: File, n: number, sheet?: string, auto?: boolean }, labels: any, locale: string, plugins: any[], worker?: () => Worker,
  *   limits?: object, timeZone?: string, onApply: (data: LoadedData) => void, onClose: () => void,
  *   announce: (text: string, extra?: { tone?: "error" }) => void }} props
  */
@@ -172,15 +176,16 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     const { layer } = useContext(LayerContext);
     const file = job.file;
     const name = useMemo(() => fileName(file, {}), [file]);
-    const [sheet, setSheet] = useState(/** @type {number | undefined} */ (undefined));
+    // the sheet asked for: an index picked in the list, a name a job starts on, else the reader's first
+    const [sheet, setSheet] = useState(/** @type {number | string | undefined} */ (job.sheet));
     const [sheets, setSheets] = useState(/** @type {import("pivotkit-core/import").SheetInfo[]} */ ([]));
-    const [read, setRead] = useState(/** @type {{ table: import("pivotkit-core/import").ImportTable, sheet: number | undefined } | null} */ (null));
+    const [read, setRead] = useState(/** @type {{ table: import("pivotkit-core/import").ImportTable, sheet: number | string | undefined } | null} */ (null));
     const [types, setTypes] = useState(/** @type {import("pivotkit-core/import").ImportType[] | null} */ (null));
     const [progress, setProgress] = useState(/** @type {import("pivotkit-core/import").ImportProgress | null} */ (null));
     const [error, setError] = useState(/** @type {string | null} */ (null));
     const [busy, setBusy] = useState(false);
     // the sheet whose read failed: no preview and no Load data, the sheet list stays to pick another
-    const [failed, setFailed] = useState(/** @type {number | undefined | null} */ (null));
+    const [failed, setFailed] = useState(/** @type {number | string | undefined | null} */ (null));
     const current = read && read.sheet === sheet ? read : null;
     const reading = !current && failed !== sheet;
     // what a read takes from the report, read when it starts: a host that passes new plugins or a new
@@ -287,7 +292,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
         const n = shown?.notes.find((x) => x.code === "SHEET");
         return n && n.params?.sheet !== undefined ? String(n.params.sheet) : null;
     })();
-    const sheetIndex = sheet ?? sheets.find((s) => s.name === sheetName)?.index ?? 0;
+    const sheetIndex = typeof sheet === "number" ? sheet : (sheets.find((s) => s.name === sheetName)?.index ?? 0);
 
     const apply = async () => {
         if (!shown || busy) {
@@ -307,6 +312,8 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                 source: { id, name: shownName(name) },
                 file: { name, size: file.size, type: file.type },
                 sheet: sheetName,
+                sheets: sheets.map((s) => s.name),
+                blob: file,
                 rows: shown.rowCount,
                 columns: shown.columns.map((c, i) => ({ name: c, type: shown.types[i] })),
                 notes: shown.notes.map((n) => ({ code: n.code, params: { ...n.params }, message: n.message }))
@@ -318,6 +325,15 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
             }
         }
     };
+
+    // a job that loads by itself: once, when the sheet's rows are there and nothing is wrong
+    const autoDone = useRef(false);
+    useEffect(() => {
+        if (job.auto && ready && shown && shown.rowCount > 0 && !typed.error && !autoDone.current) {
+            autoDone.current = true;
+            void apply();
+        }
+    });
 
     if (!layer) {
         return null;

@@ -201,6 +201,8 @@ export const en = {
     // New's entry under Start over, and its step said in the status line
     newEmpty: "New, empty report",
     toastLoaded: "View “{name}” loaded",
+    // a view made on a workbook's sheet that the workbook loaded now does not have (it loads on the sheet shown)
+    sheetMissing: "“{name}” was made for the sheet “{sheet}”, which {file} does not have.",
     toastExportFailed: "Export failed: {message}",
     // what an undo step was, for "Undone: ..."
     steps: {
@@ -553,6 +555,7 @@ export const de = {
     toastReset: "Zurück zur Startansicht",
     newEmpty: "Neuer, leerer Bericht",
     toastLoaded: "Ansicht „{name}“ geladen",
+    sheetMissing: "„{name}“ wurde für das Blatt „{sheet}“ gemacht, das {file} nicht hat.",
     toastExportFailed: "Export fehlgeschlagen: {message}",
     steps: {
         added: "{field} zu {zone} hinzugefügt",

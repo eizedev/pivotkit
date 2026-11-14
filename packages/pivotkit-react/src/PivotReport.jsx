@@ -34,6 +34,7 @@ import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
 import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
 import { templateEntries, viewsName } from "./templates.js";
+import { sheetPlan } from "./sheet-views.js";
 import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
@@ -52,7 +53,7 @@ import {
 import { Zones, zoneEntries } from "./zones.jsx";
 
 /** A saved view's identity (view-save.js: LoadedView), for the keys of the views as saved. */
-const savedKeyOf = (t) => JSON.stringify([t.scope, t.store, t.storeSource ?? null, t.sourceId ?? null, t.name]);
+const savedKeyOf = (t) => JSON.stringify([t.scope, t.store, t.storeSource ?? null, t.storeSheet ?? null, t.sourceId ?? null, t.name]);
 
 /** Width classes of the report (its own width, not the window's). */
 export function sizeOf(width) {
@@ -142,6 +143,8 @@ const rowsOf = (d) => (Array.isArray(d) ? d.length : (d?.data?.[0]?.length ?? 0)
 
 /** No data steps (data-history.js): none until a file is loaded. */
 const NO_STEPS = Object.freeze({ past: [], future: [] });
+/** @type {readonly string[]} */
+const NO_SHEETS = Object.freeze([]);
 
 /**
  * The issues of a view loaded from outside as the warning's notes, with the view as given; a
@@ -329,7 +332,7 @@ function Report(props) {
     // loading data in the browser (allowImport): the file being read (the import dialog), a file
     // dragged over the report, and the import UI once loaded (lazy-import.jsx); the file's data shown
     // and the data steps further down, with the host's data
-    const [job, setJob] = useState(/** @type {{ file: File, n: number } | null} */ (null));
+    const [job, setJob] = useState(/** @type {import("./import-host.jsx").ImportJob | null} */ (null));
     const [dragging, setDragging] = useState(false);
     const dragDepth = useRef(0);
     const [importMod, setImportMod] = useState(importNow);
@@ -443,6 +446,11 @@ function Report(props) {
     // store keeps views per file), else the host's source
     const sourceId = imported ? imported.source.id : hostSourceId;
     const sourceName = imported ? imported.source.name : hostSourceName;
+    // the sheet of a workbook shown (a loaded file's), which the views saved, downloaded and linked from
+    // it name (source.params.sheet, sheet-views.js); the host's own source is passed on as it is
+    const shownSheet = imported?.sheet ?? null;
+    const shownSheets = imported?.sheets ?? NO_SHEETS;
+    const sourceParams = shownSheet ? { sheet: shownSheet } : undefined;
     const encoded = imported ? imported.encoded : source.encoded;
     // the limits of the data shown: a file's are the import limits, so its views, results and exports
     // are bounded the way it was read
@@ -1054,6 +1062,9 @@ function Report(props) {
         viewName,
         sourceId,
         sourceName,
+        sourceParams,
+        // a view file that names another sheet of the workbook shown reads that sheet first
+        viaSheet: (made, name, file) => viaSheet(made, name, () => loadLater.current?.({ file })),
         schemaUrl,
         encoded,
         shareLink,
@@ -1068,11 +1079,38 @@ function Report(props) {
         applyLoaded
     };
 
+    /**
+     * A view that names a sheet of the workbook shown other than the one shown (sheet-views.js): that
+     * sheet of the same file is read and loaded first (a data step, which the host may refuse and the
+     * person may cancel), and `then` runs once its data is shown; true when that started. A sheet the
+     * workbook does not have is said, and false lets the view load on the data shown.
+     * @param {{ id?: string | null, sheet?: string | null }} made  the data and sheet the view names
+     * @param {string} name  the view's name, for the note
+     * @param {() => void} then
+     */
+    const viaSheet = (made, name, then) => {
+        const plan = sheetPlan(made, { id: sourceId, sheet: shownSheet, sheets: shownSheets });
+        if (plan.kind === "switch") {
+            afterSheet.current = null;
+            requestImport().then(
+                (m) => m.loadSheet(apiNow.current, plan.sheet, (loaded) => void (afterSheet.current = loaded ? then : null)),
+                () => announce(labels.menuFailed, { tone: "error" })
+            );
+            return true;
+        }
+        if (plan.kind === "missing") {
+            announce(fill(labels.sheetMissing, { name, sheet: plan.sheet, file: imported?.file.name ?? "" }), { tone: "error" });
+        }
+        return false;
+    };
+    // what waits for the sheet read by viaSheet: it runs once that sheet's data is shown
+    const afterSheet = useRef(/** @type {(() => void) | null} */ (null));
+
     const loadTemplate = useCallback(
         (t) => {
-            // which saved view this is: its group, the browser store's entry (by its name and the data
-            // it names), and the data it was loaded for
-            const tag = { name: t.name, scope: t.scope === "user" ? "user" : "shared", store: t.at !== undefined, storeSource: t.sourceId ?? null, sourceId };
+            // which saved view this is: its group, the browser store's entry (by its name, the data and
+            // the sheet it names), and the data it was loaded for
+            const tag = { name: t.name, scope: t.scope === "user" ? "user" : "shared", store: t.at !== undefined, storeSource: t.sourceId ?? null, storeSheet: t.sheet ?? null, sourceId };
             remember(tag, history.keyOf(t.view));
             commit(t.view, { step: "template", name: t.name }, tag);
             // a saved view made with other limits loads with the fields that fit: what was left out
@@ -1089,6 +1127,29 @@ function Report(props) {
         },
         [commit, labels, announce, limits, locale, history, remember, sourceId, encoded, leaveOut]
     );
+    /** A saved view chosen in the menu or on the start screen: on its sheet of the workbook first. */
+    const openTemplate = (t) => {
+        if (!viaSheet({ id: t.sourceId ?? t.sheetOf, sheet: t.sheet }, t.name, () => loadLater.current?.({ template: t }))) {
+            loadTemplate(t);
+        }
+    };
+    // the view that waited for its sheet, once that sheet is shown (this render's loadTemplate and data)
+    const loadLater = useRef(/** @type {((what: { template?: any, file?: object }) => void) | null} */ (null));
+    useEffect(() => {
+        loadLater.current = ({ template, file }) => {
+            if (template) {
+                loadTemplate(template);
+            } else if (file) {
+                const loaded = viewFromObject(file, encoded, { limits, sourceId });
+                applyLoaded(loaded);
+            }
+        };
+        const run = afterSheet.current;
+        if (run && imported) {
+            afterSheet.current = null;
+            run();
+        }
+    }, [imported, loadTemplate, encoded, limits, sourceId, applyLoaded]);
     /** New: an empty report (the start screen), one step Undo takes back; the loaded view's name goes. */
     const newReport = () => {
         if (empty) {
@@ -1107,7 +1168,10 @@ function Report(props) {
     const storeName = viewsName(storageKey);
     const subscribeViews = useCallback((callback) => (viewStore ? subscribeItem(storeName, callback) : () => {}), [viewStore, storeName]);
     const viewsText = useSyncExternalStore(subscribeViews, () => (viewStore ? readItem(storeName, localStore()) : null), () => null);
-    const entries = useMemo(() => templateEntries(templates, viewStore && menus ? menus.storedViews(viewsText, sourceId) : [], Boolean(onDeleteTemplate)), [templates, viewStore, menus, viewsText, sourceId, onDeleteTemplate]);
+    const entries = useMemo(
+        () => templateEntries(templates, viewStore && menus ? menus.storedViews(viewsText, sourceId, { sheet: shownSheet, sheets: shownSheets }) : [], Boolean(onDeleteTemplate)),
+        [templates, viewStore, menus, viewsText, sourceId, shownSheet, shownSheets, onDeleteTemplate]
+    );
     // what the Views menu needs to save, delete and publish (toolbar-panels.jsx: viewActions): the
     // host's callbacks, else the browser store; the notes come when they are kept
     const templateActions = {
@@ -1115,6 +1179,10 @@ function Report(props) {
         announce,
         locale,
         sourceId,
+        // the sheet of a workbook shown, which a view saved into the browser store names, and the data
+        // shown as the host's callbacks get it
+        sheet: shownSheet,
+        source: sourceId ? { id: sourceId, ...(sourceName ? { name: sourceName } : {}), ...(sourceParams ? { params: sourceParams } : {}) } : null,
         viewsText,
         store: viewStore,
         keep: (text) => writeItem(storeName, localStore(), text),
@@ -1419,7 +1487,7 @@ function Report(props) {
                                 folding={folding}
                                 share={share}
                                 templates={entries}
-                                onLoadTemplate={loadTemplate}
+                                onLoadTemplate={openTemplate}
                                 templateActions={templateActions}
                                 onExport={doExport}
                                 prepareExport={prepareExporters}
@@ -1523,7 +1591,7 @@ function Report(props) {
                                         <p>{errorText(error, labels, locale)}</p>
                                     </div>
                                 ) : empty && view.display === "table" ? (
-                                    <EmptyState labels={labels} templates={entries} onTemplate={loadTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
+                                    <EmptyState labels={labels} templates={entries} onTemplate={openTemplate} onLoad={allowImport ? () => requestImport().then((m) => m.pickFile(fileInput.current), () => announce(labels.menuFailed, { tone: "error" })) : undefined} noData={allowImport && fields.length === 0} />
                                 ) : view.display === "chart" && chartResult ? (
                                     <PivotChart
                                         result={chartResult}
