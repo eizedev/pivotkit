@@ -36,7 +36,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   on the grouping's error (`followsFrom` in `--json`); `describe --suggest` with a field the data lacks
   is a `dataMismatch` that lists the data's fields, as in `render`.
 - On Windows, a device name as the output (`-o NUL`, `CON`, `COM1.csv`) is refused as a device, as
-  `/dev/null` is elsewhere ([#209](https://github.com/eizedev/pivotkit/issues/209)).
+  `/dev/null` is elsewhere; `writeNew` of `pivotkit-cli/files` takes such a name as taken and writes
+  `con-2.csv` ([#209](https://github.com/eizedev/pivotkit/issues/209)).
 
 ## [0.2.0] - 2026-11-14
 

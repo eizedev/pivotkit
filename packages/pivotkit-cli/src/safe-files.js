@@ -177,9 +177,11 @@ export function tempFileName(name) {
 }
 
 /**
- * Whether a file name is one of Windows' device names (CON, PRN, AUX, NUL, COM1 to COM9, LPT1 to
- * LPT9, also with extensions, NUL.tar.gz as NUL, or trailing dots and spaces): in every directory it
- * names the device, not a file there.
+ * Whether a file name is one of Windows' reserved device names (CON, PRN, AUX, NUL, COM1 to COM9,
+ * COM¹ to COM³, LPT1 to LPT9, LPT¹ to LPT³, in any case), also followed by an extension (NUL.txt and
+ * NUL.tar.gz are NUL): in every directory it names the device, not a file there (Microsoft's
+ * "Naming Files, Paths, and Namespaces"). Trailing dots and spaces are removed first, as Windows
+ * does with a name's end.
  * @param {string} name  a base name
  */
 export function isWindowsDevice(name) {
@@ -278,7 +280,8 @@ export async function writeNew(dir, name, extension, bytes, { prefix = "", tries
             await writeSafe(base, bytes, { cwd: dir, allow: [dir], exclusive: true });
             return base;
         } catch (e) {
-            if (e?.code !== "EXISTS") {
+            // a device's name (Windows' NUL, CON ...) is taken as well: the next name
+            if (e?.code !== "EXISTS" && e?.code !== "SPECIAL_FILE") {
                 throw e;
             }
         }
