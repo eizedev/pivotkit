@@ -36,12 +36,13 @@ dictionaries for labels, Float64 for measures. Returns `Encoded`.
 
 `Encoded` has `length`, `columns`, `schema.fields` (name, type, and `detected` when a text column
 holds only numbers, so a UI can offer `inferNumbers` or a `types` override), `column(name)` (a
-case-insensitive lookup), `timeZone`, and `issues` (column names that collide case-insensitively).
-Names match case-insensitively; the data's own spelling is kept for display. Each issue has a `code`
-and `params` (`column`: the name kept, `spelling`: the other one): `columnCase`, another spelling
-joined to the column (rows with `Team` and rows with `team`); `columnCaseValue`, a row with both
-spellings, whose later value is used and the other lost (`row`); `columnCaseLeftOut`, a column of
-columnar data left out for an earlier one.
+case-insensitive lookup), `timeZone`, and `issues` (column names that collide case-insensitively,
+type `EncodeIssue`). Names match case-insensitively; the data's own spelling is kept for display.
+Each issue has a `path` (the column's name), a `message`, a `code` and `params` (`column`: the name
+kept, `spelling`: the other one): `columnCase`, another spelling joined to the column (rows with
+`Team` and rows with `team`); `columnCaseValue`, a row with both spellings, whose later value is used
+and the other lost (`row`: its index in the data, 0-based); `columnCaseLeftOut`, a column of columnar
+data left out for an earlier one.
 
 #### Columnar input
 
@@ -405,7 +406,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 ## Types
 
 `View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `IssueParams`, `Encoded`, `Column`,
-`ColumnType`, `ColumnarData`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
+`ColumnType`, `ColumnarData`, `EncodeIssue` (an issue of `encode`; `Issue` is a view's), `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
 `Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults`, `PivotkitErrorCode`, `ViewFileMeta`, `ViewFileRead`,
 `ViewFileCompatibility`, `ViewFileSource`, `LayoutView` and `TextMatch`, from `pivotkit-core`.
 

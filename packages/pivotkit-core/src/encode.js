@@ -42,11 +42,13 @@ import { MS_PER_DAY, createCache, optionsOf } from "./util.js";
  * A column name that collides with another case-insensitively. Codes: "columnCase" (another spelling
  * joined to the column), "columnCaseValue" (a row has both spellings: its later value is used),
  * "columnCaseLeftOut" (columnar data: the later column is left out).
- * @typedef {object} Issue
+ * Exported as `EncodeIssue` (the exported `Issue` is a view's).
+ * @typedef {object} EncodeIssue
  * @property {string} path  the column's name
  * @property {string} message
  * @property {"columnCase" | "columnCaseValue" | "columnCaseLeftOut"} code
- * @property {{ column: string, spelling: string, row?: number }} params  the column's name as kept, the other spelling, the row
+ * @property {{ column: string, spelling: string, row?: number }} params  the column's name as kept, the
+ *   other spelling, and the row of the data where it was found, 0-based (the first row is 0)
  */
 
 /**
@@ -56,7 +58,7 @@ import { MS_PER_DAY, createCache, optionsOf } from "./util.js";
  * @property {{ fields: SchemaField[] }} schema
  * @property {(name: string) => Column | undefined} column  case-insensitive lookup
  * @property {string} timeZone  the zone Date objects and ISO strings with an offset were read in
- * @property {Issue[]} issues   column names that collide case-insensitively
+ * @property {EncodeIssue[]} issues   column names that collide case-insensitively
  * @property {import("./util.js").Cache} cache  internal: derived columns and sort orders (LRU)
  */
 
@@ -297,9 +299,9 @@ export function encode(rows, options) {
         ? new Set(options.columns.filter((c) => typeof c === "string").map((c) => c.toLowerCase()))
         : null;
 
-    /** @type {Issue[]} */
+    /** @type {EncodeIssue[]} */
     const issues = [];
-    /** @type {(code: Issue["code"], params: Issue["params"], message: string) => void} */
+    /** @type {(code: EncodeIssue["code"], params: EncodeIssue["params"], message: string) => void} */
     const report = (code, params, message) => {
         if (issues.length < MAX_ISSUES) {
             issues.push({ path: params.column, message, code, params });
@@ -412,7 +414,7 @@ function columnsOf(input, wanted, limits, report) {
 /**
  * @param {number} length
  * @param {Column[]} columns
- * @param {{ timeZone: string, issues: Issue[], detected: Map<string, ColumnType>, cacheEntries: number }} meta
+ * @param {{ timeZone: string, issues: EncodeIssue[], detected: Map<string, ColumnType>, cacheEntries: number }} meta
  * @returns {Encoded}
  */
 function makeEncoded(length, columns, meta) {
