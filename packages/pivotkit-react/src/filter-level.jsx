@@ -56,6 +56,22 @@ import {
 const twin = (op) => op === "between" || op === "notBetween";
 /** The first letter as a sentence starts: "last {count} years" in a list of choices is "Last …". */
 /**
+ * What a row's waiting value applies through: the row's latest `rule`, `apply` and `unset`, so a value
+ * that applies later (a moment after the typing, or when its field is left after another rule was
+ * added) goes into the row it is in now, a held one too (#245).
+ * @template T
+ * @param {T} props
+ * @returns {React.MutableRefObject<T>}
+ */
+function useLatest(props) {
+    const ref = useRef(props);
+    useEffect(() => {
+        ref.current = props;
+    });
+    return ref;
+}
+
+/**
  * A change that empties a value field (or leaves only spaces): its rule comes off, its row waits for a
  * new value. A comparison changed alone (to "is between") keeps the rule until its value is there.
  * @param {Record<string, unknown>} patch
@@ -791,6 +807,7 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
         unit: ranged?.unit ?? "year"
     }));
     const later = useLater();
+    const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
     const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? (/^\d{4,}-\d{2}-\d{2}$/.test(text) ? text : null) : text === "" ? null : Number(text));
     const entryOf = (x) => {
@@ -808,10 +825,10 @@ function ItemRule({ rule, ctx, apply, unset, first }) {
         const run = () => {
             const entry = entryOf(next);
             if (entry) {
-                apply(entry);
-            } else if (rule && emptied(patch)) {
+                latest.current.apply(entry);
+            } else if (latest.current.rule && emptied(patch)) {
                 // a value emptied takes the rule off, as on the name (#244)
-                unset();
+                latest.current.unset();
             }
         };
         if (wait) {
@@ -925,6 +942,7 @@ function TotalRule({ rule, ctx, apply, unset, first }) {
     const { choices, names } = measuresOf(view, types, labels, rule?.by);
     const [s, setS] = useState(() => ({ by: choiceIndex(choices, rule?.by), op: rule ? ruleOp(rule) : ">", a: numberText(rule?.value, locale), b: numberText(rule?.value2, locale) }));
     const later = useLater();
+    const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
     const change = (patch, wait = false) => {
         const next = { ...s, ...patch };
@@ -933,10 +951,10 @@ function TotalRule({ rule, ctx, apply, unset, first }) {
             const [a, b] = [parseNumber(next.a, locale), parseNumber(next.b, locale)];
             if (a !== null && (!twin(next.op) || b !== null)) {
                 const by = choices[next.by];
-                apply({ field: ctx.field, type: "value", by: { field: by.field, agg: by.agg }, ...opOf(next.op), value: a, ...(twin(next.op) ? { value2: b } : {}) });
-            } else if (rule && emptied(patch)) {
+                latest.current.apply({ field: ctx.field, type: "value", by: { field: by.field, agg: by.agg }, ...opOf(next.op), value: a, ...(twin(next.op) ? { value2: b } : {}) });
+            } else if (latest.current.rule && emptied(patch)) {
                 // a number emptied takes the rule off, as on the name (#244)
-                unset();
+                latest.current.unset();
             }
         };
         if (wait) {

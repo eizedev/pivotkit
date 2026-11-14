@@ -232,8 +232,8 @@ greater than 2,000,000".
 2. Pick the comparison: is, is not, is greater than, is at least, is less than, is at most, is
    between, is not between.
 3. Type the number, two for between. It applies a moment after you stop typing, or with Enter; the
-   value and the comparison apply at once once a number is there. Emptying a number takes the rule off; its row
-   stays and applies again with the next number.
+   value and the comparison apply at once once a number is there. Emptying a number takes the rule
+   off; its row stays and applies again with the next number.
 
 ![The Filter level of Region scrolled to its rules: Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-light.png#only-light)
 ![The Filter level of Region scrolled to its rules: Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-dark.png#only-dark)

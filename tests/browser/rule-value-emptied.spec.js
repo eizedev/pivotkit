@@ -122,3 +122,52 @@ test.describe("a rule's value emptied (#244)", () => {
         await expect(badge(page, YEAR, "condition-badge")).toHaveText("Count > 100");
     });
 });
+
+test.describe("a second rule added while the first one's value still waits (#245)", () => {
+    test("on the item: both rules apply, each in its own row, and stay when the menu opens again", async ({ page }) => {
+        await openView(page, "nobel", { rows: ["Year"], values: [{ agg: "count" }] });
+        await chipMenu(page, "Year", "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await openRules(menu);
+        await menu.getByTestId("rule-add-item").click();
+        await menu.getByTestId("rule-item-value").click();
+        await page.keyboard.type("2000");
+        // no wait for the first value to apply: Add at once
+        await menu.getByTestId("rule-add-item").click();
+        await expect(menu.getByTestId("rule")).toHaveCount(2);
+        await expect(menu.getByTestId("rule-item-op").last()).toBeFocused();
+        await menu.getByTestId("rule-item-op").last().selectOption("<=");
+        await menu.getByTestId("rule-item-value").last().click();
+        await page.keyboard.type("2010");
+        const both = nobelYears.filter((y) => y >= 2000 && y <= 2010);
+        await expect.poll(() => years(page)).toEqual(both);
+        await expect(menu.getByTestId("rule-result")).toHaveText([/^Keeps /, /^Keeps /]);
+        await expect.poll(() => menu.getByTestId("rule-item-op").evaluateAll((list) => list.map((c) => c.value))).toEqual([">=", "<="]);
+        await menu.getByTestId("section-rules").focus();
+        await page.keyboard.press("Escape");
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".pk-chip-menu")).toHaveCount(0);
+        await expect.poll(() => years(page)).toEqual(both);
+        await chipMenu(page, "Year", "filter");
+        await expect(page.locator(".pk-chip-menu").getByTestId("rule")).toHaveCount(2);
+    });
+
+    test("on the total: both rules apply, each in its own row", async ({ page }) => {
+        await openView(page, "endoflife", { derived: [{ name: YEAR, field: "Released", by: "year" }], rows: [YEAR], values: [{ agg: "count" }] });
+        await chipMenu(page, YEAR, "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await openRules(menu);
+        await menu.getByTestId("rule-add-total").click();
+        await menu.getByTestId("value-filter-number").click();
+        await page.keyboard.type("20");
+        await menu.getByTestId("rule-add-total").click();
+        await expect(menu.getByTestId("rule")).toHaveCount(2);
+        await expect(menu.getByTestId("value-filter-op").last()).toBeFocused();
+        await menu.getByTestId("value-filter-op").last().selectOption("<");
+        await menu.getByTestId("value-filter-number").last().click();
+        await page.keyboard.type("300");
+        await expect.poll(() => years(page)).toEqual(eolPerYear.filter(([, n]) => n > 20 && n < 300).map(([y]) => y));
+        await expect(menu.getByTestId("rule-result")).toHaveText([/^Keeps /, /^Keeps /]);
+        await expect.poll(() => menu.getByTestId("value-filter-op").evaluateAll((list) => list.map((c) => c.value))).toEqual([">", "<"]);
+    });
+});
