@@ -405,9 +405,9 @@ for a report that is the same on every run.
 - A file that has more bytes when it is read than its size said (it grew, or a `/proc` file that
   says 0) is refused, never cut.
 - **`--allow-dir`** is a hard limit: every file read or written must lie inside one of the
-  directories after its real path is resolved (symbolic links and `..` followed), checked on the
-  path and again on the opened file. Without it the CLI reads and writes with your own rights, as any
-  command-line tool does. It narrows what a mistake or a hostile view file name can reach; it is
+  directories after its real path is resolved (symbolic links, Windows junctions and `..`
+  followed), checked on the path and again on the opened file. Without it the CLI reads and writes
+  with your own rights, as any command-line tool does. It narrows what a mistake or a hostile view file name can reach; it is
   **not a sandbox**: not against another process of the same user that changes the directories while
   it runs, and a hard link inside an allowed directory to a file outside it reads that file (no path
   check can tell a hard link apart). Run the CLI as a user that can only reach what it should, or in
