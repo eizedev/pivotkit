@@ -153,14 +153,18 @@ test("a view file: its name is the title, its description is shown; a view's own
 test("the details: source, rows of the data, the filters in words and the generated time from now", async () => {
     const view = { ...BY_REGION, filters: [{ field: "Region", type: "in", items: ["North", "South"] }] };
     const r = await render(view, SALES, { format: "html", source: "sales.csv", ...FIXED });
-    assert.match(r.text, /<dl class="pk-report-details"><dt>Source<\/dt><dd>sales\.csv<\/dd><dt>Rows<\/dt><dd>8 rows<\/dd><dt>Filters<\/dt><dd>Region is one of &quot;North&quot;, &quot;South&quot; \(blanks dropped\)<\/dd><dt>Generated<\/dt><dd>Nov 13, 2026, 10:00\s?AM<\/dd><\/dl>/);
+    assert.match(r.text, /<dl class="pk-report-details"><dt>Source<\/dt><dd>sales\.csv<\/dd><dt>Rows<\/dt><dd>8<\/dd><dt>Filters<\/dt><dd>Region is one of &quot;North&quot;, &quot;South&quot; \(blanks dropped\)<\/dd><dt>Generated<\/dt><dd>Nov 13, 2026, 10:00\s?AM<\/dd><\/dl>/);
 });
 
 test("a German report: German words around the table, the locale's numbers and CSV separator", async () => {
     const view = { rows: ["Region"], values: [{ field: "Price", agg: "average" }] };
     const html = await render(view, SALES, { format: "html", ...FIXED, locale: "de-DE" });
     assert.match(html.text, /<html lang="de-DE" dir="ltr">/);
-    assert.match(html.text, /<dt>Zeilen<\/dt><dd>8 Zeilen<\/dd>/);
+    // the label names it, the value is the number ("Zeilen: 8 Zeilen" said it twice)
+    assert.match(html.text, /<dt>Zeilen<\/dt><dd>8<\/dd>/);
+    // the report's own words in German, as the report on a page shows them
+    assert.match(html.text, /Durchschnitt von Price/);
+    assert.match(html.text, /Gesamtergebnis/);
     assert.ok(bodyCells(html.text).some((c) => c[0] === "North" && c[1] === "14,00"));
     const csv = await render(view, SALES, { format: "csv", ...FIXED, locale: "de-DE" });
     assert.ok(csv.text.includes("North;14\r\n"));

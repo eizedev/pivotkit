@@ -98,7 +98,7 @@ test("render_view: a file of the format asked for (xlsx by default), its summary
     assert.deepEqual([...xlsx.file.bytes.subarray(0, 2)], [0x50, 0x4b]);
     assert.equal(xlsx.file.extension, "xlsx");
     // North, South, West, the blank region and the grand total
-    assert.deepEqual(xlsx.result.summary, { rows: 5, columns: 2, sourceRows: 8, truncated: false });
+    assert.deepEqual(xlsx.result.summary, { rows: 5, columns: 2, sourceRows: 8, keptRows: 8, truncated: false });
     const csv = await OPERATIONS.render_view.run({ source: "sales", view: VIEW_GUIDE.examples[0].view, format: "csv", name: "by region" }, env);
     assert.equal(csv.file.name, "by region");
     assert.match(new TextDecoder().decode(csv.file.bytes), /North,/);

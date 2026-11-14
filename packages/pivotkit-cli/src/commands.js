@@ -4,6 +4,8 @@
  * are all made from it, so they cannot drift apart.
  */
 
+import { createRequire } from "node:module";
+
 /**
  * @typedef {object} OptionSpec
  * @property {"string" | "boolean"} type
@@ -14,17 +16,23 @@
  * @property {"file" | "dir"} [complete]  what a shell completes for its value
  * @property {string} [env]  the environment variable that gives its default
  * @property {string[]} [formats]  render: the output formats it acts in (given with another, a warning)
+ * @property {string[]} [commands]  a global option: the commands it acts in, whose help lists it (every
+ *   command still takes it, so a script can pass it to all); default every command
  * @property {string} text  one line of help
  */
+
+/** The documentation site, from package.json's homepage (its CLI page): "https://pivotkit.eize.dev/". */
+export const DOCS = new URL("/", createRequire(import.meta.url)("../package.json").homepage).href;
 
 /** @type {Readonly<Record<string, OptionSpec>>} Options every command takes. */
 export const GLOBAL_OPTIONS = Object.freeze({
     json: { type: "boolean", text: "Write the result as one JSON object on stdout (render: needs -o)." },
     quiet: { type: "boolean", short: "q", text: "Write no notes and warnings to stderr; errors still." },
-    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", text: "render: numbers, dates and texts in this locale when the view names none (default en-US); checked by every command." },
-    "time-zone": { type: "string", value: "zone", env: "PIVOTKIT_TIME_ZONE", text: "Time zone of the data's dates and of the generated time (default UTC)." },
-    now: { type: "string", value: "date", env: "PIVOTKIT_NOW", text: 'render: the "today" of relative date filters and the generated time; fix it for the same output on every run; checked by every command.' },
-    limit: { type: "string", multiple: true, value: "key=n", text: "Set one of pivotkit-core's limits (rows=200000); may be given more than once." },
+    verbose: { type: "boolean", commands: ["render", "validate", "describe"], text: "Also write how the data was read (encoding, separator, sheet) to stderr." },
+    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", commands: ["render"], text: "Numbers, dates and the report's words in this locale when the view names none (default en-US; de-DE: German)." },
+    "time-zone": { type: "string", value: "zone", env: "PIVOTKIT_TIME_ZONE", commands: ["render", "validate", "describe"], text: "Time zone of the data's dates and of the generated time (default UTC)." },
+    now: { type: "string", value: "date", env: "PIVOTKIT_NOW", commands: ["render"], text: 'The "today" of relative date filters and the generated time; fix it for the same output on every run.' },
+    limit: { type: "string", multiple: true, value: "key=n", commands: ["render", "validate", "describe"], text: "Set one of pivotkit-core's limits (rows=200000); may be given more than once." },
     "allow-dir": { type: "string", multiple: true, value: "dir", complete: "dir", text: "Read and write only inside this directory (symbolic links and .. resolved); may be given more than once." },
     help: { type: "boolean", short: "h", text: "Show the help of the command." }
 });

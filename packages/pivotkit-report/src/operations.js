@@ -505,7 +505,7 @@ export const OPERATIONS = Object.freeze({
                 uses: USES,
                 format: { enum: FORMATS },
                 mediaType: { type: "string" },
-                summary: { type: ["object", "null"], properties: { rows: { type: "integer" }, columns: { type: "integer" }, sourceRows: { type: "integer" }, truncated: { type: "boolean" } } }
+                summary: { type: ["object", "null"], properties: { rows: { type: "integer" }, columns: { type: "integer" }, sourceRows: { type: "integer" }, keptRows: { type: "integer" }, truncated: { type: "boolean" } } }
             },
             ["ok", "findings", "format"]
         ),

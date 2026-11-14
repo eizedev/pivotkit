@@ -2,7 +2,7 @@
  * The help texts and the shell completions, both made from the command table (commands.js).
  */
 
-import { COMMANDS, GLOBAL_OPTIONS, SHELLS, optionsOf } from "./commands.js";
+import { COMMANDS, DOCS, GLOBAL_OPTIONS, SHELLS, optionsOf } from "./commands.js";
 import { exampleNames } from "./examples.js";
 
 /** One option as the help writes it: "-o, --output <file>". */
@@ -23,12 +23,15 @@ const columns = (rows) => {
 export function helpText(command) {
     if (!command || !Object.hasOwn(COMMANDS, command)) {
         const list = Object.entries(COMMANDS).map(([name, c]) => ({ flag: name, text: c.text }));
-        return `pivotkit - run pivotkit views without a browser\n\nUsage: pivotkit <command> [options]\n\nCommands:\n${columns(list)}\n\nOptions:\n${columns([...Object.entries(GLOBAL_OPTIONS).map(([n, s]) => optionLine(n, s)), { flag: "    --version", text: "Show the versions of pivotkit-cli, pivotkit-report and pivotkit-core." }])}\n\nExit codes: 0 done, 1 findings (errors in the view, or warnings with --strict), 2 usage, file, limit or template errors.\nRun "pivotkit help <command>" for a command's options. Documentation: https://pivotkit.eize.dev/reference/cli/\n`;
+        return `pivotkit - run pivotkit views without a browser\n\nUsage: pivotkit <command> [options]\n\nCommands:\n${columns(list)}\n\nOptions:\n${columns([...Object.entries(GLOBAL_OPTIONS).map(([n, s]) => optionLine(n, s)), { flag: "    --version", text: "Show the versions of pivotkit-cli, pivotkit-report and pivotkit-core." }])}\n\nExit codes: 0 done, 1 findings (errors in the view, or warnings with --strict), 2 usage, file, limit or template errors.\nRun "pivotkit help <command>" for a command's options. Documentation: ${DOCS}reference/cli/\n`;
     }
     const c = COMMANDS[command];
     const args = c.args.length ? `\n\nArguments:\n${columns(c.args.map((a) => ({ flag: a.optional ? `[${a.name}]` : `<${a.name}>`, text: a.text })))}` : "";
     const own = Object.entries(c.options).map(([n, s]) => optionLine(n, s));
-    const global = Object.entries(GLOBAL_OPTIONS).map(([n, s]) => optionLine(n, s));
+    // the options that act in this command (every command takes all of them)
+    const global = Object.entries(GLOBAL_OPTIONS)
+        .filter(([, s]) => !s.commands || s.commands.includes(command))
+        .map(([n, s]) => optionLine(n, s));
     const examples = c.examples?.length ? `\n\nExamples:\n${c.examples.map((e) => `  ${e}`).join("\n")}` : "";
     return `${c.text}\n\nUsage: ${c.usage}${args}${own.length ? `\n\nOptions:\n${columns(own)}` : ""}\n\nCommon options:\n${columns(global)}${examples}\n`;
 }

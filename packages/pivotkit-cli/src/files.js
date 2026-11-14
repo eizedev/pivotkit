@@ -21,7 +21,8 @@ export const DATA_FORMATS = Object.freeze(["csv", "tsv", "txt", "json", "xlsx"])
  * say the data differs from the file (a column renamed or dropped, text cut, values not converted):
  * warnings.
  */
-export const INFO_NOTES = Object.freeze(new Set(["ENCODING", "SEPARATOR", "SHEET", "USED_RANGE", "JSON_FLATTENED", "LINES_SKIPPED", "ROWS_EMPTY"]));
+// LINES_SKIPPED is a warning: the lines above the header a reader took for a title may be data
+export const INFO_NOTES = Object.freeze(new Set(["ENCODING", "SEPARATOR", "SHEET", "USED_RANGE", "JSON_FLATTENED", "ROWS_EMPTY"]));
 
 /**
  * The bytes of a data file as an import table (pivotkit-core/import with pivotkit-xlsx), with the

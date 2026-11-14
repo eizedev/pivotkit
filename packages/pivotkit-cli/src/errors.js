@@ -1,7 +1,9 @@
 /*
  * The CLI's errors and how each ends: a CliError has a kind (what went wrong, for scripts) and is
  * exit code 2; a view's findings are exit code 1 (cli.js). No message holds the content of a file:
- * a path is named by its base name, and text from a file or a view is cleaned before it is printed.
+ * a path is named by its base name (a directory below the working directory as typed), text from a
+ * file or a view is cleaned before it is printed; what a message may quote from data is the header's
+ * field names (each cut) and at most one cell value where it says what to fix, cut at 20 characters.
  */
 
 import { basename } from "node:path";

@@ -62,7 +62,7 @@ test("show: values listed, and a small csv or json result comes back inline (and
         assert.equal(rendered.data.withheld, undefined);
         assert.match(rendered.data.inline.text, /^Region,Sum of Sales\r?\n/);
         assert.match(rendered.data.inline.text, /North,15/);
-        assert.deepEqual(rendered.data.summary, { rows: 5, columns: 2, sourceRows: 5, truncated: false });
+        assert.deepEqual(rendered.data.summary, { rows: 5, columns: 2, sourceRows: 5, keptRows: 5, truncated: false });
         assert.equal(rendered.data.output.name, "sales.csv");
         const xlsx = await call(client, "render_view", { source: "sales", view: BY_REGION });
         assert.equal(xlsx.data.inline, undefined, "only csv and json come back inline");
