@@ -10,11 +10,12 @@
 import * as esbuild from "esbuild";
 import { copyFile, mkdir } from "node:fs/promises";
 import { options as packageOptions } from "../../packages/pivotkit-react/build.js";
+import { fileURLToPath } from "node:url";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 const serve = process.argv.includes("--serve");
 const port = Number(process.env.PORT ?? 5173);
-const react19 = new URL("../../tests/react19/node_modules/", import.meta.url).pathname;
+const react19 = fileURLToPath(new URL("../../tests/react19/node_modules/", import.meta.url));
 const alias = process.env.PIVOTKIT_REACT === "19" ? { react: `${react19}react`, "react-dom": `${react19}react-dom` } : undefined;
 
 /** @type {import("esbuild").BuildOptions} */

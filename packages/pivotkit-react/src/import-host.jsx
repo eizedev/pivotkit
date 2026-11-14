@@ -23,8 +23,9 @@ import { useFormName } from "./dom.js";
  *   plugins: any[], worker?: () => Worker, limits?: object, timeZone?: string,
  *   box: () => DOMRect | undefined, pick: () => void, afterData: (run: (() => void) | null) => void }} ImportApi
  *   `box`: the report's box on screen; `pick`: clicks the file input (ImportLayer's `input`)
- * @typedef {{ file: File, n: number, sheet?: string, auto?: boolean, done?: (loaded: boolean, refused?: boolean) => void }} ImportJob
- *   a file being read: `sheet` and `auto` as ImportDialog's job; `done` is told whether it was loaded
+ * @typedef {{ file: File, n: number, sheet?: string, auto?: boolean, view?: string, done?: (loaded: boolean, refused?: boolean, other?: boolean) => void }} ImportJob
+ *   a file being read: `sheet`, `auto` and `view` as ImportDialog's job; `done` is told whether the
+ *   sheet asked for was loaded, whether the host refused it, and whether another sheet was loaded
  */
 
 let jobs = 0;
@@ -66,20 +67,22 @@ export function startFiles(api, files) {
 /**
  * Reads another sheet of the file shown and loads it at once (a saved view made on that sheet was
  * opened, sheet-views.js): the dialog shows the progress and has Cancel, a sheet that cannot be read
- * says why there. `done` is told whether the sheet was loaded (Cancel, a failure and a host's refusal
- * are not).
+ * says why there. `done` is told whether the sheet was loaded (Cancel, a failure, a host's refusal and
+ * another sheet picked in the preview are not).
  * @param {ImportApi} api
  * @param {string} sheet
- * @param {(loaded: boolean, refused?: boolean) => void} done  `refused`: the host refused it (onDataLoad)
+ * @param {string} view  the name of the view that needs the sheet, for the dialog
+ * @param {(loaded: boolean, refused?: boolean, other?: boolean) => void} done  `refused`: the host
+ *   refused it (onDataLoad); `other`: another sheet was picked in the preview and loaded
  */
-export function loadSheet(api, sheet, done) {
+export function loadSheet(api, sheet, view, done) {
     const file = api.imported?.blob;
     if (!file) {
         done(false);
         return;
     }
     closeErrors(api);
-    api.setJob({ file, n: ++jobs, sheet, auto: true, done });
+    api.setJob({ file, n: ++jobs, sheet, auto: true, view, done });
 }
 
 /**
@@ -98,10 +101,10 @@ export function openOnSheet(api, made, name, then) {
     const t = importLabels(api.labels);
     if (plan.kind === "switch") {
         api.afterData(null);
-        loadSheet(api, plan.sheet, (loaded, refused) => {
+        loadSheet(api, plan.sheet, name, (loaded, refused, other) => {
             api.afterData(loaded ? then : null);
-            if (refused) {
-                sayError(api, fill(t.sheetRefused, { name, sheet: plan.sheet }));
+            if (refused || other) {
+                sayError(api, fill(refused ? t.sheetRefused : t.sheetOther, { name, sheet: plan.sheet }));
             }
         });
     } else if (plan.kind === "missing") {
@@ -170,7 +173,9 @@ export function ImportLayer({ api, input }) {
                     onApply={(loaded) => {
                         const ok = loadData(api, loaded);
                         api.setJob((j) => (j === job ? null : j));
-                        job.done?.(ok, !ok);
+                        // the sheet the job asked for, or another the person picked in its preview
+                        const asked = job.sheet === undefined || loaded.sheet === job.sheet;
+                        job.done?.(ok && asked, !ok, ok && !asked);
                     }}
                 />
             ) : null}

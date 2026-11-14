@@ -9,26 +9,51 @@ import { closest } from "pivotkit-core";
 import { ConfigError, loadConfig, validateOptions } from "./config.js";
 
 /**
- * @typedef {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }>>} FlagTable
+ * @typedef {{ type: "string" | "boolean", multiple?: boolean, short?: string, value?: string, text: string }} Flag
+ * @typedef {Readonly<Record<string, Flag>>} FlagTable
  */
+
+/**
+ * The flags both runners take, defined once: the HTTP ones (`http`) say what they set, without the
+ * runner's own words around them (pivotkit-mcp puts "HTTP: " before them, since it serves stdio by
+ * default).
+ */
+/** @type {Readonly<{ source: Flag, output: Flag, http: FlagTable, log: Flag, "check-config": Flag, help: Flag }>} */
+export const SHARED_FLAGS = Object.freeze({
+    source: { type: "string", multiple: true, value: "id=file", text: "A source: its id and a CSV, TSV, JSON or XLSX file (may be given more than once)." },
+    output: { type: "string", value: "dir", text: "Write reports and drafts into this directory." },
+    http: /** @type {FlagTable} */ (Object.freeze({
+        host: { type: "string", value: "address", text: "The address to listen on (default 127.0.0.1)." },
+        port: { type: "string", value: "n", text: "The port (default 3333)." },
+        "public-url": { type: "string", value: "url", text: "The server's address as clients reach it (behind a proxy)." },
+        auth: { type: "string", value: "mode", text: "none, token or oauth (oauth settings are in the configuration file)." },
+        "allow-unauthenticated": { type: "boolean", text: "Allow auth none on an address other than loopback." },
+        "allow-host": { type: "string", multiple: true, value: "name", text: "A host name clients use (besides localhost and the public URL's)." },
+        "allow-origin": { type: "string", multiple: true, value: "name", text: "A browser origin's host name allowed to call MCP (none by default)." }
+    })),
+    log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
+    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable)." },
+    help: { type: "boolean", short: "h", text: "Print this help and exit." }
+});
+
+/**
+ * The shared HTTP flags with a prefix before each text ("HTTP: ").
+ * @param {string} prefix
+ */
+/** @returns {Record<string, Flag>} */
+export const httpFlags = (prefix = "") => Object.fromEntries(Object.entries(SHARED_FLAGS.http).map(([name, f]) => [name, { ...f, text: prefix ? `${prefix}${f.text[0].toLowerCase()}${f.text.slice(1)}` : f.text }]));
 
 /** The flags of `pivotkit-server serve` and `check-config`. */
 /** @type {FlagTable} */
 export const SERVER_FLAGS = Object.freeze({
     config: { type: "string", value: "file", text: "The configuration file (JSON); default $PIVOTKIT_CONFIG." },
-    source: { type: "string", multiple: true, value: "id=file", text: "A source: its id and a CSV, TSV, JSON or XLSX file (may be given more than once)." },
-    output: { type: "string", value: "dir", text: "Write reports and drafts into this directory." },
+    source: SHARED_FLAGS.source,
+    output: SHARED_FLAGS.output,
     enable: { type: "string", value: "list", text: "What to serve: rest, mcp or rest,mcp (default rest, and mcp when pivotkit-mcp is installed)." },
-    host: { type: "string", value: "address", text: "The address to listen on (default 127.0.0.1)." },
-    port: { type: "string", value: "n", text: "The port (default 3333)." },
-    "public-url": { type: "string", value: "url", text: "The server's address as clients reach it (behind a proxy)." },
-    auth: { type: "string", value: "mode", text: "none, token or oauth (oauth settings are in the configuration file)." },
-    "allow-unauthenticated": { type: "boolean", text: "Allow auth none on an address other than loopback." },
-    "allow-host": { type: "string", multiple: true, value: "name", text: "A host name clients use (besides localhost and the public URL's)." },
-    "allow-origin": { type: "string", multiple: true, value: "name", text: "MCP: a browser origin's host name allowed to call (none by default)." },
-    log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
-    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing)." },
-    help: { type: "boolean", short: "h", text: "Print this help and exit." }
+    ...httpFlags(),
+    log: SHARED_FLAGS.log,
+    "check-config": SHARED_FLAGS["check-config"],
+    help: SHARED_FLAGS.help
 });
 
 /** A flag table as help lines. */

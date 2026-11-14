@@ -20,7 +20,7 @@ file or a link.
    aggregators, filter types and date groupings, with examples.
 4. Write the view, or a `layout` (the same by field names: `{ "rows": ["Region"], "cols":
    ["OrderDate"], "groups": [{ "field": "OrderDate", "by": "yearQuarter" }], "values": [{ "field":
-   "Sales", "agg": "sum" }] }`; a date on rows or cols is grouped by its span unless `groups` says how),
+   "Sales", "agg": "sum" }] }`; a date on rows or cols is grouped by its span, or by quarter where the operator does not show it, unless `groups` says how),
    which `validate_view` and `render_view` take instead of `view`. `validate_view` it. Every error names its place (`path`); a `suggestion` is the name
    or item meant. Fix and validate again until it is valid.
 5. `render_view` (`format`: `xlsx` for Excel, the default; `html` for a report to read or print, with

@@ -24,7 +24,7 @@ import { HelpContext } from "./help.js";
 import { Icon } from "./icons.jsx";
 import { fill, plural } from "./labels.js";
 import { useAppliedText, useLater } from "./levels.jsx";
-import { MeasurePick, NumberField, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
+import { MeasurePick, NumberField, Radio, choiceIndex, fieldKeys, measuresOf, readNumber } from "./menu-fields.jsx";
 import { dayText, isoDay, periodText, plainRange, rangeShare, refLabel, relativeDays, relativeText } from "./names.js";
 import { numberText, parseNumber } from "./numbers.js";
 import { LayerContext, Popover } from "./popover.jsx";
@@ -55,6 +55,32 @@ import {
 
 const twin = (op) => op === "between" || op === "notBetween";
 /** The first letter as a sentence starts: "last {count} years" in a list of choices is "Last …". */
+/**
+ * What a row's waiting value applies through: the row's latest `rule`, `apply` and `unset`, so a value
+ * that applies later (a moment after the typing, or when its field is left after another rule was
+ * added) goes into the row it is in now, a held one too (#245).
+ * @template T
+ * @param {T} props
+ * @returns {React.MutableRefObject<T>}
+ */
+function useLatest(props) {
+    const ref = useRef(props);
+    useEffect(() => {
+        ref.current = props;
+    });
+    return ref;
+}
+
+/**
+ * A change that empties a value field (or leaves only spaces): its rule comes off, its row waits for a
+ * new value. A comparison changed alone (to "is between") keeps the rule until its value is there.
+ * @param {Record<string, unknown>} patch
+ */
+const emptied = (patch) =>
+    ["a", "b", "count"].some((k) => {
+        const v = patch[k];
+        return typeof v === "string" && v.trim() === "";
+    });
 const capital = (text, locale) => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
 /** Rules as a text that does not depend on the order of their keys (normalize() writes its own order). */
 const rulesKeyOf = (rules) => JSON.stringify(rules, (_k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
@@ -346,8 +372,7 @@ function QuickChoices({ ctx, quick, anchor, setAnchorLocal, span, column, counts
     /** A choice's radio in a label with the words before its fields (a click on them picks it). */
     const radio = (id, checked, onPick, name, children, described = true) => (
         <label className="pk-radio pk-quick">
-            <input
-                type="radio"
+            <Radio
                 name={groupName}
                 checked={checked}
                 onChange={onPick}
@@ -763,9 +788,10 @@ function ItemPicker({ items, value, onChange, label, testId, labels, locale }) {
 /**
  * A rule on the item itself: "Released (Year) [is from] [2022]", "Price [is between] [10] and
  * [20]", for dates also "Released [is in the last] [5] [years]" (a relative range). The value is a
- * number typed, a day, or one of a grouping's items. Applies once it is complete.
+ * number typed, a day, or one of a grouping's items. Applies once it is complete; a value emptied
+ * takes the rule off and leaves the row for a new value, as on the name.
  */
-function ItemRule({ rule, ctx, apply, first }) {
+function ItemRule({ rule, ctx, apply, unset, first }) {
     const { field, labels, locale, fk, items } = ctx;
     const narrow = useContext(LayerContext).size === "narrow";
     const words = fk.dates ? labels.dateOps : labels.valueOps;
@@ -781,6 +807,7 @@ function ItemRule({ rule, ctx, apply, first }) {
         unit: ranged?.unit ?? "year"
     }));
     const later = useLater();
+    const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
     const read = (text) => (fk.item === "number" ? parseNumber(text, locale) : fk.item === "date" ? (/^\d{4,}-\d{2}-\d{2}$/.test(text) ? text : null) : text === "" ? null : Number(text));
     const entryOf = (x) => {
@@ -798,7 +825,10 @@ function ItemRule({ rule, ctx, apply, first }) {
         const run = () => {
             const entry = entryOf(next);
             if (entry) {
-                apply(entry);
+                latest.current.apply(entry);
+            } else if (latest.current.rule && emptied(patch)) {
+                // a value emptied takes the rule off, as on the name (#244)
+                latest.current.unset();
             }
         };
         if (wait) {
@@ -904,13 +934,15 @@ function ItemRule({ rule, ctx, apply, first }) {
 
 /**
  * A rule on the item's total: "[Count of Released] [is greater than] [3]", by a value of the view
- * (named in full; "Count of rows" when Values is empty). Applies once its numbers are there.
+ * (named in full; "Count of rows" when Values is empty). Applies once its numbers are there; a number
+ * emptied takes the rule off and leaves the row for a new number, as on the name.
  */
-function TotalRule({ rule, ctx, apply, first }) {
+function TotalRule({ rule, ctx, apply, unset, first }) {
     const { view, types, labels, locale } = ctx;
     const { choices, names } = measuresOf(view, types, labels, rule?.by);
     const [s, setS] = useState(() => ({ by: choiceIndex(choices, rule?.by), op: rule ? ruleOp(rule) : ">", a: numberText(rule?.value, locale), b: numberText(rule?.value2, locale) }));
     const later = useLater();
+    const latest = useLatest({ rule, apply, unset });
     const formName = useFormName();
     const change = (patch, wait = false) => {
         const next = { ...s, ...patch };
@@ -919,7 +951,10 @@ function TotalRule({ rule, ctx, apply, first }) {
             const [a, b] = [parseNumber(next.a, locale), parseNumber(next.b, locale)];
             if (a !== null && (!twin(next.op) || b !== null)) {
                 const by = choices[next.by];
-                apply({ field: ctx.field, type: "value", by: { field: by.field, agg: by.agg }, ...opOf(next.op), value: a, ...(twin(next.op) ? { value2: b } : {}) });
+                latest.current.apply({ field: ctx.field, type: "value", by: { field: by.field, agg: by.agg }, ...opOf(next.op), value: a, ...(twin(next.op) ? { value2: b } : {}) });
+            } else if (latest.current.rule && emptied(patch)) {
+                // a number emptied takes the rule off, as on the name (#244)
+                latest.current.unset();
             }
         };
         if (wait) {
@@ -1039,6 +1074,8 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     const { explain } = useContext(HelpContext);
     const lang = { lang: labels.lang, locale };
     const [draft, setDraft] = useState(/** @type {"item" | "total" | "name" | null} */ (null));
+    // counts the rows added, so a new row of the kind of the one before takes the focus too
+    const [added, setAdded] = useState(0);
     // rules whose value was emptied: out of the view, each row kept in its place (`at`, its index among
     // the rows) with the focus, what is typed and the rule's blanks, until a new value applies it again
     // before the rule that followed it, its × removes the row, or a change from elsewhere draws the
@@ -1085,7 +1122,19 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
                 }
             }
         }
-    }, [draft]);
+    }, [draft, added]);
+    /**
+     * A new rule's row, last. A new row not yet complete stays in its place (as an emptied rule's
+     * does) and applies with what it holds once its field is left, so a second rule added while the
+     * first one's text still waits is a row of its own (#245).
+     */
+    const add = (/** @type {"item" | "total" | "name"} */ k) => {
+        if (draft) {
+            setHeld([...held, { at: rules.length + held.length, kind: draft }]);
+        }
+        setDraft(k);
+        setAdded(added + 1);
+    };
     const kinds = /** @type {Array<"item" | "total" | "name">} */ (["item", "total", "name"]).filter((k) => (k === "item" ? Boolean(fk.item) : k === "name" ? Boolean(nameKind) : true));
     const count = rules.length + (draft ? 1 : 0) + held.length;
     const full = count >= RULES_MAX || view.filters.length >= LIMITS.filters;
@@ -1217,7 +1266,10 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
                         type="button"
                         className="pk-btn pk-small-btn"
                         disabled={full}
-                        onClick={() => setDraft(k)}
+                        // the field being typed in keeps the focus until the click (its blur would apply what
+                        // waits, and the menu, changed above the button, would move it from under the pointer)
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => add(k)}
                         data-autofocus={focusFirst && !count && i === 0 ? "" : undefined}
                         data-testid={`rule-add-${k}`}
                     >

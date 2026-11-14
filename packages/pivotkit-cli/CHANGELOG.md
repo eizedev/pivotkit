@@ -6,6 +6,12 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Added
+
+- `pivotkit-cli/files` exports `TEMP_FILE_NAME`, the pattern of the temporary files `writeSafe`
+  writes, so a caller that owns a directory can remove those of a process killed during a write
+  ([#209](https://github.com/eizedev/pivotkit/issues/209)).
+
 ### Changed
 
 - `describe --data <file>` without an argument describes the data, as the options table says

@@ -92,7 +92,10 @@ root `package.json`: `npm run types` and the builds depend on it.
   (imports nothing), `src/reader.js` the reader (`read`, `sheets`): its own checks before parsing
   (`zip.js`: the ZIP directory against `archiveEntries` and `unpackedBytes`, parts unpacked as a
   stream, never beyond their stated size; `xml.js`: no `<!DOCTYPE`/`<!ENTITY`, the sheet's rows
-  without a value and what follows `</sheetData>` left out while it streams, and `createXmlGuard` on
+  without a value and what follows `</sheetData>` left out while it streams (a comment, CDATA section
+  or processing instruction in a row skipped as the parser skips it), `createEntryCount`: the shared
+  strings past the highest one the sheet names left out, strings and formats counted against
+  `importCells` (the parser keeps an entry for each), and `createXmlGuard` on
   every part read-excel-file gets: whitespace runs cut to `SPACE_RUN`, a tag over `MAX_TAG` or
   another token over `MAX_TOKEN` refused, since read-excel-file re-reads an unfinished token with every piece it parses (quadratic
   time, a stack frame per piece); `workbook.js`: the sheets and their parts), then read-excel-file's
@@ -166,7 +169,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   before the body, every value of a repeated header, connections bounded in all and per address
   with slots kept for loopback (`connectionGate`), request targets read by their path, a graceful
   stop), `src/check.js` (`--check-config`
-  of both runners), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  of both runners), `src/limits.js` (`createLimits`: rate and concurrency limits in one process, one
+  set per front end: `rest.*`, `mcp.*`), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck).
   `src/rest/` is `pivotkit-server/rest`: `handler.js` (`createRestHandler`: Host, CORS, routes,
@@ -174,7 +178,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
   `http`, plus `GET /sources/{id}` and `POST /views/render/file`; neutral words and an example per
   operation), `openapi.js` (`openApiDocument`, pure, the view schema bundled), `problem.js` (RFC 9457
-  problems, `REST_ERRORS`), `limits.js` (rate and concurrency limits in one process). A new operation
+  problems, `REST_ERRORS`). A new operation
   gets its words and example in `routes.js`; `node scripts/openapi.js` writes `docs/openapi.json`
   again, which `test/openapi.test.js` compares. `test/` drives the service over HTTP: hostile inputs,
   tokens and a local OAuth issuer, profiles, CORS, the OpenAPI document against the OpenAPI 3.1
@@ -234,6 +238,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   `scripts/docs-demo.js`, `docs/assets/examples/` (build output, the site's stable addresses).
   `tests/examples.test.js` fails until the committed view files and `examples.json` are what it
   builds: run `node scripts/examples.js` after a change of the view file format or of a preset.
+- `scripts/is-main.js` - `isMain(import.meta.url)`: whether a script that can also be imported was
+  run (`node <script>`), comparing real paths so a checkout under a path with a space or behind a
+  symlink works; every such script of this repository uses it (`tests/is-main.test.js`).
 - `scripts/openapi.js` - writes `docs/openapi.json`, the REST service's OpenAPI document as
   pivotkit-server generates it (committed; served by the site; pivotkit-server's `test/openapi.test.js`
   fails until it is what the script writes).

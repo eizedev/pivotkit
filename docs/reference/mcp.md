@@ -36,8 +36,8 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
 | `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
-| `create_link` | A link that opens the view in the source's report page (only for sources with `link`) | - |
-| `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing | a new file |
+| `create_link` | A link that opens the view in the source's report page (only for sources with `link`); a view only, a `layout` is refused with the way to make one (`validate_view`) | - |
+| `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing; a view only, as `create_link` | a new file |
 
 Every tool has an input and an output JSON Schema (draft 2020-12) and returns its result as
 structured content and as one text block: a short sentence with counts and ids (never a name or value
@@ -74,8 +74,8 @@ server's `policy`; field names are matched without regard to case.
 
 | Level | describe_source shows | Findings | Results |
 | --- | --- | --- | --- |
-| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values (a misspelt item gets the item meant) | csv and json come back inline when they fit `inline` |
-| `summary` (default) | name, type, counts | names; no check of an item against the data | written to a file only; rows, columns and size withheld |
+| `show` | name, type, counts, up to `items` values, the smallest and largest value | names and values: an item in another case or with other spaces gets the data's spelling (`itemCase`), and a render whose filters keep no rows says so (`noRowsKept`); another misspelling gets no suggestion, only the empty result | csv and json come back inline when they fit `inline` |
+| `summary` (default) | name, type, counts | names; no check of an item against the data, and no word when a filter keeps no rows (it would tell whether an item exists): a misspelt item renders an empty report | written to a file only; rows, columns and size withheld |
 | `hide` | not listed; `hiddenFields` counts them | never named | the column is dropped when the data is read |
 
 | Key | Default | What it does |
@@ -83,7 +83,7 @@ server's `policy`; field names are matched without regard to case.
 | `default` | `"summary"` | The level of a field without its own |
 | `fields` | `{}` | Levels by field name: `{ "Region": "show", "Customer": "hide" }` |
 | `items` | `20` | Values listed per `show` field |
-| `rows` | `true` | Show the number of rows |
+| `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
 | `counts` | `true` | Show distinct and blank counts per field |
 | `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
@@ -99,9 +99,11 @@ date grouping's source field) has its result **withheld**: `render_view` writes 
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
 
-`suggest_view` reads only what is not hidden. Its draft and `picks` name fields, never values or
-counts; the one thing they tell about a field's values is the date grouping its span gives (a span
-of up to two years is grouped by month), as a `layout` with a date on an axis does.
+`suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
+or counts; the one thing they tell about a shown field's values is the date grouping its span gives
+(a span of up to two years is grouped by month), as a `layout` with a date on an axis does. A date
+field that is not shown is grouped by quarter whatever its span, and with `counts: false` the draft
+does not read counts (a shown date's grouping still follows its span).
 
 !!! warning "summary is not confidentiality"
     `summary` keeps values out of what the model reads directly. A model that writes filters over
@@ -134,7 +136,7 @@ error that names the key and the one probably meant.
 | `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
-| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, at start and every hour (see [REST](rest.md#running)) |
+| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
 | `locale`, `timeZone` | - | en-US, UTC | Numbers and dates of reports; the time zone of dates in the data |
@@ -149,10 +151,18 @@ error that names the key and the one probably meant.
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
+| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (a token's name, an OAuth client id, or `local` without sign-in), with up to `burst` at once after a pause |
+| `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
+| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0) |
+
+A write the server is killed in leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward
+`output.maxFiles` and `output.maxMb` nor deleted to make room. Without `output.maxAgeDays` it stays
+until you remove it.
 
 The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`
 too; pivotkit-mcp ignores them.
@@ -200,7 +210,9 @@ front end over the same sources; it is `pivotkit-server/policy` under another na
 Views from the model are checked with pivotkit-core's limits for views from outside (`outsideLimits`),
 data with its [limits](../concepts/limits.md); the server's own default for files is 50 MiB
 (`fileBytes`, `unpackedBytes`). A call's input may hold at most 10,000 array elements and object
-members; an HTTP body at most 2 MiB.
+members; an HTTP body at most 2 MiB. Over HTTP a caller over a request limit (`mcp.rateLimit`,
+`mcp.concurrency`, the REST service's limits with their own counts) gets 429 with `Retry-After` and
+a JSON-RPC error; the counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
 refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its
@@ -240,6 +252,9 @@ checks in order:
    is in `--allow-origin`; a client that sends none (every non-browser client) passes.
 3. **Authentication** for `/mcp` ([below](#auth)).
 
+`/mcp` takes `POST` only (the server keeps no sessions): another method, `HEAD` included, answers 405
+with `Allow: POST` after the token check and takes no request slot.
+
 Host, Origin, the declared size and the token are checked from the headers before the body is
 read. At most 256 connections are open at once, and 16 of them are kept for loopback clients
 such as the health check or a proxy on the same host, so clients on the network that hold
@@ -248,10 +263,12 @@ seconds for its headers and 30 for its request. `http.maxConnectionsPerAddress` 
 bound) caps the connections of one address; set it where clients reach the port directly with
 addresses of their own. Behind NAT, a published port or a proxy every client has one address, so
 leave it off there. An IPv6 address counts as it is, not by its network. Refused connections are
-logged at most once a minute, with the address and the counts. Behind a proxy (`http.trustProxy`)
-the protection comes from the proxy: its header and body timeouts, its limits per client, and the
-server's port reachable from the proxy only. A request target must be a path (or the absolute form `http://host/path`, read by its
-path): `OPTIONS *` answers 400. On SIGTERM the server
+logged at most once a minute (the first at once, the rest when the minute ends), with every bound
+that refused one since the last line (`total`, `loopbackReserve`, `perAddress`), the last address
+and the counts. Behind a proxy (`http.trustProxy`) the protection comes from the proxy: its header
+and body timeouts, its limits per client, and the server's port reachable from the proxy only. A
+request target must be a path (or the absolute form `http://host/path`, read by its path):
+`OPTIONS *` answers 400. On SIGTERM the server
 takes no new connection and lets running requests finish for up to `http.graceMs`.
 
 Without authentication: `/healthz` (`{ "ok": true }`, for a supervisor or a proxy), the OAuth
@@ -267,7 +284,8 @@ every request gets a fresh server from the shared context. Behind a reverse prox
 on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
 `/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
 `--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
-header: client addresses are in the proxy's log. For nginx:
+header: client addresses are in the proxy's log. For IIS with ARR, see
+[PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
 
 ```nginx
 location ~ ^/(mcp|\.well-known/|healthz$|$) {
@@ -326,7 +344,8 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
   It reads the metadata again every hour, and when a token names a key the JWKS does not hold, so a
   moved `jwks_uri` works without a restart; after a read that found nothing new (or failed, which
   keeps what is loaded) the next such read waits a minute, so made-up key ids cannot hammer the
-  issuer nor hold back a real rotation for longer. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
+  issuer; one sent just before a rotation can delay picking up the moved `jwks_uri` by up to that
+  minute. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
   30 seconds. A token stays valid until it expires (no revocation check).
 
 | Key | Default | What it is |

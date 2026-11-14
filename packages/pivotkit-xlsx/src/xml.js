@@ -13,6 +13,8 @@
  *   for the root's end tag, is left out too: read-excel-file reads nothing there.
  * - `createXmlGuard`: whitespace runs cut and over-long tokens refused, so read-excel-file's parser
  *   gets no token that costs it quadratic time.
+ * - `createEntryCount`: the shared strings and formats counted, and the shared strings the sheet does
+ *   not name left out, so a small file cannot make the parser keep millions of entries.
  *
  * Not part of the public API.
  */
@@ -127,7 +129,9 @@ const OPENING = 2; // after "<", until it is clear whether a comment, a CDATA se
 const MARKUP = 3; // a comment, a CDATA section or a processing instruction: ends at `ending`
 const CDATA_HEAD = ascii("![CDATA[");
 const COMMENT_HEAD = ascii("!--");
-const isSpace = (b) => b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d;
+// whitespace as read-excel-file's parser (saxen) reads it: a space, and tab to carriage return
+// (0x09-0x0D, form feed and vertical tab too), which ends a tag's name as a space does
+const isSpace = (b) => b === 0x20 || (b > 0x08 && b < 0x0e);
 
 /**
  * Passes an XML part on to `out`, piece by piece, with every run of whitespace in its text and
@@ -201,7 +205,7 @@ export function createXmlGuard(out, file, part) {
                         // a run may pass the cut: byte by byte
                         while (i < stop) {
                             const b = bytes[i];
-                            if (b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d) {
+                            if (isSpace(b)) {
                                 if (sp === SPACE_RUN) {
                                     // past the cut: the rest of the run is left out
                                     if (start < i) out.write(bytes, start, i);
@@ -245,7 +249,7 @@ export function createXmlGuard(out, file, part) {
                             if (b === q) q = 0;
                         } else if (b === 0x3e) {
                             break;
-                        } else if (b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d) {
+                        } else if (isSpace(b)) {
                             if (sp === SPACE_RUN) {
                                 if (start < i) out.write(bytes, start, i);
                                 while (i < to && isSpace(bytes[i])) i++;
@@ -322,16 +326,17 @@ export function createXmlGuard(out, file, part) {
 }
 
 /**
- * Where the value of the attribute `r` of the tag in buf[from, stop) starts, or -1: after whitespace,
- * with whitespace around "=" and either quote, as an XML parser reads it; quoted values are skipped.
+ * Where the value of the attribute `name` (one letter: `r`, `t`) of the tag in buf[from, stop) starts,
+ * or -1: after whitespace, with whitespace around "=" and either quote, as an XML parser reads it;
+ * quoted values are skipped.
  */
-function refAt(buf, from, stop) {
+function attrAt(buf, from, stop, name) {
     for (let k = from; k < stop; k++) {
         const b = buf[k];
         if (b === 0x22 || b === 0x27) {
             k++;
             while (k < stop && buf[k] !== b) k++;
-        } else if (isSpace(b) && buf[k + 1] === 0x72) {
+        } else if (isSpace(b) && buf[k + 1] === name) {
             let q = k + 2;
             while (q < stop && isSpace(buf[q])) q++;
             if (q < stop && buf[q] === 0x3d) {
@@ -364,7 +369,7 @@ function tagEndAt(buf, from, to) {
 
 /** The row number of a `<row ...>` tag (its `r` attribute), or 0. */
 function rowNumber(buf, from, to) {
-    const at = refAt(buf, from + 4, to);
+    const at = attrAt(buf, from + 4, to, 0x72);
     let n = 0;
     if (at !== -1) for (let k = at; k < to && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
     return n;
@@ -395,15 +400,38 @@ function squeeze(buf, file, part) {
     return out;
 }
 
-/** The highest column (1 for A) and row of the cells' `r` attributes in buf[from, to). */
+const VALUE = ascii("<v>");
+
+/**
+ * The highest column (1 for A) and row of the cells' `r` attributes in buf[from, to), and the highest
+ * shared string a cell names (`t="s"` and its `<v>`, -1 for none).
+ */
 function cellExtent(buf, from, to) {
     let column = 0;
     let row = 0;
+    let shared = -1;
+    let open = -1; // where the tag of the last shared-string cell ended, until its value is read
+    /** That cell's value: its <v> before `next` (the next cell's tag), so each stretch is searched once. */
+    const value = (next) => {
+        if (open === -1) return;
+        const v = indexOf(buf, VALUE, open, next);
+        let k = v + 3;
+        while (v !== -1 && k < next && isSpace(buf[k])) k++;
+        let n = 0;
+        const digits = k;
+        for (; v !== -1 && k < next && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
+        // a value written otherwise (<v >, CDATA): which string it names is not known, so all are kept
+        shared = Math.max(shared, k > digits ? n : Infinity);
+        open = -1;
+    };
     for (let i = indexOf(buf, CELL, from, to); i !== -1; i = indexOf(buf, CELL, i + 2, to)) {
         if (!isSpace(buf[i + 2])) continue; // <col>, <cfRule>
+        value(i);
         // each tag is scanned once, up to its end: the time stays linear in the row's length
         const stop = tagEndAt(buf, i + 1, to);
-        let q = refAt(buf, i + 2, stop);
+        const t = attrAt(buf, i + 2, stop, 0x74);
+        if (t !== -1 && buf[t] === 0x73 && (buf[t + 1] === 0x22 || buf[t + 1] === 0x27) && buf[stop - 1] !== 0x2f) open = stop;
+        let q = attrAt(buf, i + 2, stop, 0x72);
         if (q === -1) continue;
         let c = 0;
         for (; q < stop && ((buf[q] | 0x20) >= 0x61 && (buf[q] | 0x20) <= 0x7a) && c <= 1e7; q++) c = c * 26 + ((buf[q] | 0x20) - 0x60);
@@ -412,13 +440,49 @@ function cellExtent(buf, from, to) {
         column = Math.max(column, c);
         row = Math.max(row, r);
     }
-    return { column, row };
+    value(to);
+    return { column, row, shared };
+}
+
+/** What ends the comment, CDATA section, processing instruction or other markup starting at buf[at]. */
+const markupClose = (buf, at) => (buf[at + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, at, at + 4) === at ? COMMENT_END : indexOf(buf, CDATA_START, at, at + 9) === at ? CDATA_END : GT);
+
+/**
+ * Where the comment, CDATA section, processing instruction or other markup starting at buf[at] ("<")
+ * ends, where the parser ends it (just after its "-->", "]]>", "?>" or ">"), or -1 if not in `buf`.
+ */
+function markupEnd(buf, at) {
+    const close = markupClose(buf, at);
+    const end = indexOf(buf, close, at + 1);
+    return end === -1 ? -1 : end + close.length;
+}
+
+/**
+ * Where the row whose content starts at buf[from] ends (its `</row>`), or -1 while it does not end in
+ * `buf`. A comment, CDATA section or processing instruction in the row is skipped as the parser
+ * skips it, so a `</row>` inside one does not end the row (Excel writes none of them).
+ */
+function rowEndAt(buf, from) {
+    const end = indexOf(buf, ROW_END, from);
+    if (end === -1) return end;
+    // no "!" or "?" in the row: no markup ends it early (both are rare in a sheet's rows)
+    const row = buf.subarray(from, end);
+    if (row.indexOf(BANG) === -1 && row.indexOf(0x3f) === -1) return end;
+    // else one pass from tag to tag, each section skipped whole
+    for (let k = buf.indexOf(LT, from); k !== -1; k = buf.indexOf(LT, k + 1)) {
+        if (buf[k + 1] === BANG || buf[k + 1] === 0x3f) {
+            k = markupEnd(buf, k) - 1;
+            if (k < 0) return -1;
+        } else if (indexOf(buf, ROW_END, k, k + 6) === k) return k;
+    }
+    return -1;
 }
 
 /**
  * Streams a sheet's XML and leaves out its rows without a value and everything after `</sheetData>`
  * but the last end tag (the root's): read-excel-file reads nothing there. Feed pieces with `push`; the
- * XML kept goes to `out.write`; `end()` gives the row numbers seen.
+ * XML kept goes to `out.write`; `end()` gives the row numbers seen and the highest shared string a
+ * kept cell names (-1 for none).
  *
  * It also checks where the values are against the limits, before read-excel-file sees them: the
  * parser makes a dense array of the sheet's extent (every row up to the last row with a value, each
@@ -439,6 +503,7 @@ export function createSheetFilter(out, limits = {}) {
     let lastRow = 0;
     let dropped = 0;
     let errors = 0;
+    let shared = -1;
     /** After the sheet's data: the last end tag seen. */
     let closing = new Uint8Array(0);
 
@@ -498,19 +563,24 @@ export function createSheetFilter(out, limits = {}) {
                 // anything else in sheetData (a comment, say) is left out: read-excel-file reads rows
                 // only. A comment, CDATA section or processing instruction ends where the parser ends
                 // it, so a row inside one stays out too.
-                const close = buf[lt + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, lt, lt + 4) === lt ? COMMENT_END : indexOf(buf, CDATA_START, lt, lt + 9) === lt ? CDATA_END : GT;
-                const end = indexOf(buf, close, lt + 1);
+                const end = markupEnd(buf, lt);
                 if (end === -1) {
                     i = lt;
                     break;
                 }
-                i = end + close.length;
+                i = end;
                 continue;
             }
-            const tagEnd = buf.indexOf(0x3e, lt);
-            if (tagEnd === -1) {
+            // the row tag's end: its ">" outside quoted values (a quoted ">" or "/>" ends no tag)
+            const tagEnd = tagEndAt(buf, lt + 4, buf.length);
+            if (tagEnd === buf.length) {
                 i = lt;
                 break;
+            }
+            if (buf[tagEnd] === LT) {
+                // a "<" in a tag: no row the parser reads; left out
+                i = tagEnd;
+                continue;
             }
             const number = rowNumber(buf, lt, tagEnd);
             if (buf[tagEnd - 1] === 0x2f) {
@@ -520,7 +590,7 @@ export function createSheetFilter(out, limits = {}) {
                 i = tagEnd + 1;
                 continue;
             }
-            const end = indexOf(buf, ROW_END, tagEnd);
+            const end = rowEndAt(buf, tagEnd);
             if (end === -1) {
                 i = lt;
                 break;
@@ -531,6 +601,7 @@ export function createSheetFilter(out, limits = {}) {
                 const extent = cellExtent(buf, tagEnd, end);
                 const at = Math.max(number, extent.row);
                 widest = Math.max(widest, extent.column);
+                shared = Math.max(shared, extent.shared);
                 if (limits.maxRow !== undefined && at > limits.maxRow) throw limitError("rows", at, limits.maxRow, file, "rows");
                 if (limits.maxColumn !== undefined && widest > limits.maxColumn) throw limitError("columns", widest, limits.maxColumn, file, "columns");
                 if (limits.maxCells !== undefined && at * widest > limits.maxCells) throw limitError("importCells", at * widest, limits.maxCells, file, "values (rows x columns)");
@@ -580,14 +651,99 @@ export function createSheetFilter(out, limits = {}) {
             size = pending.length;
             need = pending.length * 2;
         },
-        /** @returns {{ lastRow: number, lastValueRow: number, dropped: number, errors: number }} */
+        /** @returns {{ lastRow: number, lastValueRow: number, dropped: number, errors: number, shared: number }} */
         end() {
             pending = size ? gather() : new Uint8Array(0);
             waiting = [];
             run(true);
             if (pending.length) out.write(pending);
             if (closing.length) out.write(closing);
-            return { lastRow, lastValueRow, dropped, errors };
+            // no <sheetData> found (a prefix, say): which strings the sheet names is not known
+            return { lastRow, lastValueRow, dropped, errors, shared: state === 0 ? Infinity : shared };
+        }
+    };
+}
+
+const ENTRY_NAMES = ["si", "xf", "numFmt"].map(ascii);
+/** Whether a byte ends a tag's name. */
+const endsName = (b) => b === 0x3e || b === 0x2f || b === LT || isSpace(b);
+
+/**
+ * Passes the shared strings or the styles of a workbook on to `out` and counts what read-excel-file
+ * keeps one entry of each for: string items (`<si>`), cell formats (`<xf>`) and number formats
+ * (`<numFmt>`), with a namespace prefix (`<x:si>`) too, in either part; comments, CDATA sections and
+ * processing instructions are skipped as the parser skips them. More than `max` in all the parts
+ * counted with one `total` stop the read with LIMIT_EXCEEDED, before the parser makes millions of
+ * entries from a small file. Of the string items only the first `keep` go on (the strings the sheet's
+ * cells name; Infinity for the styles): the rest is left out and the root's end tag (`</sst>`,
+ * `</x:sst>`) ends the part.
+ * @param {{ write: (bytes: Uint8Array, from?: number, to?: number) => void }} out
+ * @param {{ file: string, part: string, keep: number, max: number, total: { count: number } }} options
+ */
+export function createEntryCount(out, { file, part, keep, max, total }) {
+    let carry = new Uint8Array(0); // held back: a tag or markup start that goes on in the next piece
+    /** @type {Uint8Array | null} */
+    let close = null; // in a comment, CDATA section or processing instruction: its end
+    let items = 0;
+    let cut = false;
+    /** @type {Uint8Array | null} */
+    let root = null; // the root element's name as written (`sst`, `x:sst`): the end tag after a cut
+    /** Passes buf on up to where it must wait for more (returned), or up to the cut (-1). */
+    const scan = (buf, final) => {
+        let i = 0;
+        while (i < buf.length) {
+            if (close) {
+                const end = indexOf(buf, close, i);
+                if (end === -1) return final ? buf.length : Math.max(i, buf.length - close.length + 1);
+                i = end + close.length;
+                close = null;
+                continue;
+            }
+            const lt = buf.indexOf(LT, i);
+            if (lt === -1) return buf.length;
+            if (buf[lt + 1] === BANG || buf[lt + 1] === 0x3f) {
+                if (!final && lt + 9 > buf.length) return lt;
+                close = markupClose(buf, lt);
+                i = lt + 1;
+                continue;
+            }
+            // the tag's name, after its prefix
+            let j = lt + 1;
+            let local = j;
+            while (j < buf.length && !endsName(buf[j])) {
+                // the prefix ends at the first ":", as the parser reads it
+                if (buf[j++] === 0x3a && local === lt + 1) local = j;
+            }
+            if (j - lt > MAX_TAG) throw fileError("DAMAGED", file, `the part "${part}" holds a tag of more than 256 KiB; the workbook is refused.`, { part });
+            if (j === buf.length && !final) return lt;
+            if (!root && buf[lt + 1] !== 0x2f) root = buf.slice(lt + 1, j);
+            const name = ENTRY_NAMES.find((n) => n.length === j - local && n.every((b, k) => buf[local + k] === b));
+            if (name && buf[j] !== LT) {
+                if (++total.count > max) throw limitError("importCells", total.count, max, file, "shared strings and formats");
+                if (name === ENTRY_NAMES[0] && ++items > keep) {
+                    out.write(buf, 0, lt);
+                    cut = true;
+                    return -1;
+                }
+            }
+            i = j;
+        }
+        return buf.length;
+    };
+    const push = (buf, final) => {
+        if (cut) return;
+        if (carry.length) buf = concat(carry, buf);
+        const pass = scan(buf, final);
+        if (pass > 0) out.write(buf, 0, pass);
+        carry = pass === -1 ? carry : buf.slice(pass);
+    };
+    return {
+        /** @param {Uint8Array} chunk */
+        write: (chunk) => push(chunk, false),
+        /** Passes the held bytes on, or ends the part after the cut. */
+        end() {
+            push(new Uint8Array(0), true);
+            if (cut && root) out.write(concat(concat(ascii("</"), root), GT));
         }
     };
 }
