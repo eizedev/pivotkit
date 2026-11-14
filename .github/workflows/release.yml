@@ -1,17 +1,19 @@
 name: Release
 
-# Prepared, not active. Publishes a package of this repository (pivotkit-core, pivotkit-react,
-# pivotkit-element, pivotkit-xlsx, pivotkit-report, pivotkit-cli, pivotkit-server or pivotkit-mcp) to npm with provenance when a tag <package>@<version> is pushed, but only after
-# the maintainer has
+# Prepared, not active. Stages a package of this repository (pivotkit-core, pivotkit-react,
+# pivotkit-element, pivotkit-xlsx, pivotkit-report, pivotkit-cli, pivotkit-server or pivotkit-mcp)
+# on npm with provenance when a tag <package>@<version> is pushed; a maintainer approves the staged
+# version on npm with two-factor authentication before it is published. Runs only after the
+# maintainer has
 #   1. made the repository public (npm provenance is not available for private repositories),
 #   2. created the package on npm and set up trusted publishing for this repository, the workflow
-#      release.yml and the environment "npm",
+#      release.yml and the environment "npm", without "npm publish" (staging only),
 #   3. created the GitHub environment "npm" with required reviewers, deployable from tags only,
 #   4. set the repository variable NPM_RELEASE_ENABLED to "true".
 # Until then every run is skipped. See CONTRIBUTING.md, "Releasing".
 #
 # Two jobs: "build" installs, checks and packs without any publishing right (the dependencies run
-# there); "publish" gets the OIDC token, installs nothing and publishes the tarball "build" made.
+# there); "publish" gets the OIDC token, installs nothing and stages the tarball "build" made.
 on:
   push:
     tags: ["pivotkit-core@*", "pivotkit-react@*", "pivotkit-element@*", "pivotkit-xlsx@*", "pivotkit-report@*", "pivotkit-cli@*", "pivotkit-server@*", "pivotkit-mcp@*"]
@@ -114,7 +116,7 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
       - name: npm for trusted publishing
-        # trusted publishing needs npm 11.5.1 or later (npm's documentation, "Trusted publishers");
+        # staged publishing needs npm 11.15.0 or later (npm's documentation, "Staged publishing");
         # one pinned version instead of whatever ships with the runner's Node
         run: |
           npm install --global npm@11.21.1 --ignore-scripts --no-audit --no-fund
@@ -127,10 +129,24 @@ jobs:
         run: |
           actual="$(tar -xOzf "pack/$TARBALL" package/package.json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s);console.log(p.name+"@"+p.version)})')"
           test "$actual" = "$TAG" || { echo "tarball holds $actual, tag is $TAG"; exit 1; }
-      - name: Publish
+      - name: Stage on npm (approve it on npmjs.com)
         env:
+          TAG: ${{ github.ref_name }}
           TARBALL: ${{ needs.build.outputs.tarball }}
         # the tarball only: nothing of the repository is installed or run in this job, and no
         # lifecycle script of the tarball runs while the OIDC token is available. The path starts
-        # with ./ : npm reads "pack/<file>" as the GitHub repository <owner>/<repo>
-        run: npm publish "./pack/$TARBALL" --provenance --access public --ignore-scripts
+        # with ./ : npm reads "pack/<file>" as the GitHub repository <owner>/<repo>. The trusted
+        # publisher allows staging only: the version goes live when a maintainer approves it with
+        # two-factor authentication, which no token of this workflow can do
+        run: |
+          set -o pipefail
+          npm stage publish "./pack/$TARBALL" --provenance --access public --ignore-scripts | tee stage.log
+          {
+            echo "## $TAG is staged on npm, not published"
+            echo
+            echo "Approve it with two-factor authentication: in the Staged Packages tab on npmjs.com, or with \`npm stage approve <stage-id>\`."
+            echo
+            echo '```'
+            cat stage.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

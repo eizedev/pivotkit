@@ -232,11 +232,20 @@ test("the browser jobs cover every engine and every shard on React 18 and 19", (
 // npm reads "dir/file.tgz" as the GitHub repository <owner>/<repo>; a local tarball needs ./ or /
 test("the release workflow publishes the tarball by a path npm reads as a file", () => {
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
-    const publishes = [...release.matchAll(/npm publish\s+"?([^"\s]+)/g)].map((m) => m[1]);
-    assert.ok(publishes.length > 0, "no npm publish in release.yml");
+    const publishes = [...release.matchAll(/npm (?:stage )?publish\s+"?([^"\s]+)/g)].map((m) => m[1]);
+    assert.ok(publishes.length > 0, "no npm stage publish in release.yml");
     for (const target of publishes) {
         assert.match(target, /^(\.\/|\/)/, `npm publish ${target}: start the path with ./`);
     }
+});
+
+// The trusted publisher on npm allows staging only (CONTRIBUTING.md, "Releasing"): a plain npm publish
+// would fail at release time, after the tag is pushed
+test("the release workflow stages on npm and never publishes directly", () => {
+    const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
+    const commands = release.split("\n").filter((line) => !/^\s*#/.test(line)).join("\n");
+    assert.match(commands, /npm stage publish /, "release.yml does not run npm stage publish");
+    assert.doesNotMatch(commands.replaceAll("npm stage publish", ""), /npm publish/, "release.yml runs npm publish: stage it instead");
 });
 
 // Docs and READMEs name no version of pivotkit as a fact about the present, so a release cannot leave
