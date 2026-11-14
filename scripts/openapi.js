@@ -6,7 +6,8 @@
 //   node scripts/openapi.js
 import { writeFileSync } from "node:fs";
 import { openApiDocument } from "pivotkit-server/rest";
+import { fileURLToPath } from "node:url";
 
 const file = new URL("../docs/openapi.json", import.meta.url);
 writeFileSync(file, `${JSON.stringify(openApiDocument(), null, 2)}\n`);
-console.log(`wrote ${file.pathname}`);
+console.log(`wrote ${fileURLToPath(file)}`);

@@ -26,8 +26,9 @@ pivotkit-xlsx, ECharts 6.1.0 and jose (for OAuth); not the MCP SDK.
 
 ## Routes { #routes }
 
-Every route is under `/api/v1` and answers JSON. The routes are RPC-style (`POST /views/validate`),
-one per operation of the [operation table](report.md#operations):
+Every route is under `/api/v1` and answers JSON (a `GET` route answers `HEAD` too, without the
+body). The routes are RPC-style (`POST /views/validate`), one per operation of the
+[operation table](report.md#operations):
 
 | Route | Operation | What it does |
 | --- | --- | --- |
@@ -82,8 +83,10 @@ UTF-8 byte order mark, so a spreadsheet opens it as UTF-8.
 A csv or json result comes back inline (`inline.text`) only when the operator sets
 `rest.inline: true` and every field the view uses is shown. `withheld` lists what is left out of the
 answer because the view uses a field whose values the policy does not show. For such a view, the
-findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing)
-are left out too: a filter on an item that does not exist validates and renders an empty report.
+findings that would tell what the data holds (an item spelt differently, a filter that keeps nothing,
+`noRowsKept`) are left out too: a filter on an item that does not exist validates and renders an
+empty report, and nothing says why, since saying so would tell that the item does not exist. For a
+view of shown fields only, a render whose filters keep no rows has the warning `noRowsKept`.
 
 ## Exposure policy and profiles { #profiles }
 
@@ -184,18 +187,25 @@ The output directory holds at most `output.maxFiles` files and `output.maxMb` me
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them: any
 token that may render can push other callers' older reports out, and a link to one of them
 (`output.baseUrl`) then answers 404. Schedule drafts are never deleted this way; they may take at
-most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT` while reports keep
-working, so give `draft_schedule` a scope of its own too and set `output.maxAgeDays`. A file you
-name with `.pivotkit-out.` yourself counts as pivotkit's and may be deleted. A quota per caller
+most half of `output.maxFiles` (none at 1), and a draft over that answers 409 `NO_OUTPUT` while
+reports keep working, so give `draft_schedule` a scope of its own too and set
+`output.maxAgeDays`. A file you name with `.pivotkit-out.` yourself counts as pivotkit's and may be
+deleted. A quota per caller
 was the other choice; it was not taken because a caller is no stable owner (with auth `none` every
 caller is the same, files written before a restart have none) and the directory would still need a
 total that, once reached, refuses everyone again. So set `output.maxFiles` well above what your
 callers render between two clean-ups, give `render_view` a scope of its own (`auth.toolScopes`) when
 not every caller needs it, keep the per-caller rate limit ([limits](#limits)), set
 `output.maxAgeDays`, and run one server process per output directory (the count is kept within a
-process). The server
-holds at most 256 connections, and a client has 15 seconds to send its headers: on a network you do
-not trust, put a reverse proxy in front.
+process). A write the server is killed in leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`): it is neither counted nor deleted to make
+room, and without `output.maxAgeDays` it stays until you remove it. The server
+holds at most 256 connections and keeps 16 of them for loopback clients such as the health check or
+a proxy on the same host, and a client has 5 seconds to send its headers ([MCP](mcp.md#http) has the
+details); `http.maxConnectionsPerAddress` bounds the connections of one address. On a network you do
+not trust, put a reverse proxy in front. With `auth.mode: oauth` and neither
+required scopes nor `auth.toolScopes`, the start warns: any token of the issuer for the REST
+audience then gets everything its profile allows.
 
 Scopes per operation (`auth.toolScopes`, e.g. `{ "render_view": ["pivotkit:render"] }`) and per
 source (`sources.<id>.scopes`) hold as for MCP; a source the caller may not use answers as a missing
@@ -235,8 +245,9 @@ client id, or `local` without sign-in):
 | `rest.concurrency` | 4 | Requests of one caller at once |
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
 
-Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The counts live in the memory of
-one process: two instances behind a load balancer count on their own. The address is the socket's,
+Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The MCP endpoint has the same
+limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp.md#configuration)).
+A token is checked once per request. The counts live in the memory of one process: two instances behind a load balancer count on their own. The address is the socket's,
 or with `http.trustProxy` the last one in `X-Forwarded-For`.
 
 ## Errors { #errors }
@@ -314,7 +325,8 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise. An output directory the
+loaded, workers up, the output directory writable) and 503 otherwise; both answer `HEAD` too. An
+output directory the
 server's user cannot write is also a warning at start, a problem in `check-config`, and 409
 `NO_OUTPUT` for a report. On SIGTERM the server takes no
 new connection and lets running requests finish for up to `http.graceMs` (25 seconds by default).
@@ -323,9 +335,10 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | --- | --- | --- |
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log |
+| `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted); set it (e.g. 32) when clients reach the port directly with addresses of their own, not behind NAT, a published port or a proxy, where every client has one address |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`), at its top level. A new report deletes the oldest reports until it fits, one write at a time; drafts are counted but never deleted, and may take at most half of `output.maxFiles` (a draft over that answers 409 `NO_OUTPUT`). Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories; a file named with the mark by hand counts as pivotkit's. Where the output directory is the configuration file's directory or holds a source, print template or token file, nothing is deleted: a full directory answers 409 `NO_OUTPUT`, and the start warns (with `output.maxAgeDays` it does not start) |
-| `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
+| `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`
@@ -348,9 +361,11 @@ location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
 ```
 
 Without containers, on Windows next to PowerShell
-Universal, `pivotkit-server serve` from a global npm install runs as a service with a service
-manager of your choice; its file checks are measured on Linux and macOS
-([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).
+Universal, `pivotkit-server serve` runs as a service with a service manager of your choice:
+[PowerShell Universal](../getting-started/mcp.md#psu) has the steps (an account of its own, its file
+rights, the token from a PSU secret, a rotated log, IIS with ARR in front). Its file checks are
+measured on Linux and macOS ([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions
+and hard links on Windows).
 
 ## Logging { #logging }
 
@@ -414,7 +429,8 @@ A PowerShell Universal script, endpoint or app calls the REST service with `Invo
 instead of running Node on the PSU server: keep the token in a PSU secret, call
 `POST /api/v1/views/render/file` with a token whose profile has `results: true` and hand the file to
 the user, or `POST /api/v1/views/render` to save it in the service's output directory. See
-[Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell.
+[Getting started: REST service](../getting-started/rest.md#powershell) for the calls in PowerShell,
+and [Getting started: MCP server](../getting-started/mcp.md#psu) for running the service next to PSU.
 The links of the PSU module's reports open as before.
 
 ## Security { #security }

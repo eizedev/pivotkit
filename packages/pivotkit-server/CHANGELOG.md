@@ -8,6 +8,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `mcp.rateLimit` and `mcp.concurrency`: the MCP endpoint over HTTP limits each caller and refused
+  tokens per address as the REST service does, with counts of its own; `createLimits` is shared
+  ([#270](https://github.com/eizedev/pivotkit/issues/270)).
 - `output.maxMb` (default 1024): the megabytes of reports and drafts the output directory may hold
   ([#269](https://github.com/eizedev/pivotkit/issues/269)).
 - `check-config` warns of a policy rule that names no column of its source (a typo leaves the real
@@ -16,6 +19,17 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- A token is checked once per request: the precheck's sign-in is kept for the route (REST and MCP).
+  A `GET` route answers `HEAD`; the OAuth protected-resource metadata no longer carries
+  `Access-Control-Allow-Origin: *`, which the Origin check made untrue. The Host list, the body cap,
+  the default port and the runners' common flags are defined once (`SHARED_FLAGS`)
+  ([#291](https://github.com/eizedev/pivotkit/issues/291)).
+- `output.maxFiles` 1 leaves no room for schedule drafts (a draft would block every render); the
+  hint for a full set of drafts names `output.maxFiles` and `output.maxAgeDays`
+  ([#288](https://github.com/eizedev/pivotkit/issues/288)).
+- The log of refused connections names every bound that refused one (`total`, `loopbackReserve`,
+  `perAddress`) and reports the refusals of the rest of the minute when it ends or at close, instead
+  of dropping them; `/healthz` and `/readyz` answer `HEAD` ([#289](https://github.com/eizedev/pivotkit/issues/289)).
 - Reports and schedule drafts are named `<name>.pivotkit-out.<format>` (`sales.pivotkit-out.xlsx`),
   so the server knows its own files: only those are counted, cleaned up by `output.maxAgeDays` and
   deleted to make room; the operator's files, and reports written by an earlier version, are not
@@ -29,11 +43,43 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Fixed
 
+- A missing or short token of `$PIVOTKIT_TOKEN` (or `$PIVOTKIT_MCP_TOKEN`) is named by its variable
+  alone, not as `the token "token"`; a token of `auth.tokens` keeps its name in the message
+  ([#303](https://github.com/eizedev/pivotkit/issues/303)).
+- `output.maxAgeDays` also removes the temporary files of writes the server was killed in
+  (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); they are not reports,
+  so nothing else ever removed them ([#209](https://github.com/eizedev/pivotkit/issues/209)).
+- A render whose filters keep no rows has the warning `noRowsKept` when the view uses shown fields
+  only, as the command line has; for a view that touches a field whose values are not shown it stays
+  out, since it would tell whether an item exists ([#302](https://github.com/eizedev/pivotkit/issues/302),
+  [#290](https://github.com/eizedev/pivotkit/issues/290)).
+- `suggest_view` and a layout read what `describe_source` shows: no span of a date field that is not
+  shown (it is grouped by quarter whatever its span), no counts where `counts` is false
+  ([#296](https://github.com/eizedev/pivotkit/issues/296)).
+- `rows: false` keeps a render's `keptRows` back too: without a filter it is the source's row count
+  ([#296](https://github.com/eizedev/pivotkit/issues/296)).
+- The docs said a misspelt item of a shown field gets the item meant; only an item in another case
+  or with other spaces does ([#283](https://github.com/eizedev/pivotkit/issues/283)).
 - The file count of the output directory holds when many reports are written at once: writes into
   it run one at a time ([#269](https://github.com/eizedev/pivotkit/issues/269)).
 - An output directory the server cannot write is a problem in `check-config` and a warning at start,
   and a report answers 409 `NO_OUTPUT` with a hint instead of 500 `INTERNAL`
   ([#297](https://github.com/eizedev/pivotkit/issues/297)).
+- 16 of the 256 connections are kept for loopback, so clients on the network that hold connections
+  without sending cannot lock out the health check; a client has 5 seconds for its headers (was 15,
+  and checked only every 30 seconds); `http.maxConnectionsPerAddress` (default 0, no bound) caps one
+  address, and refused connections are logged at most once a minute
+  ([#289](https://github.com/eizedev/pivotkit/issues/289)).
+- A request target in the absolute form (`GET http://host/path`) is read by its path, and `OPTIONS *`
+  answers 400, instead of both reaching `/` ([#299](https://github.com/eizedev/pivotkit/issues/299)).
+- A static token with characters a bearer token cannot carry is refused at start and in
+  `check-config` (no request could send it); with OAuth and neither required scopes nor
+  `auth.toolScopes`, the REST service warns at start as MCP does
+  ([#299](https://github.com/eizedev/pivotkit/issues/299)).
+- The issuer's metadata is read again every hour and when a token names an unknown key (after a
+  read that found nothing new, not again within a minute), so a changed `jwks_uri` works without a
+  restart
+  ([#271](https://github.com/eizedev/pivotkit/issues/271)).
 
 ## [0.1.0] - 2026-11-14
 

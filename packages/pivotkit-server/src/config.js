@@ -58,9 +58,10 @@ export class ConfigError extends Error {
  * @property {string} [locale]
  * @property {string} [timeZone]
  * @property {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [compute]
- * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number }} [http]
+ * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
+ * @property {{ rateLimit?: { perMinute?: number, burst?: number, failedAuthPerMinute?: number }, concurrency?: number }} [mcp]  the MCP endpoint over HTTP: its limits per caller, and per address for refused tokens
  * @property {"info" | "debug" | "off"} [log]
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
  */
@@ -131,7 +132,7 @@ export const OPTION_KEYS = Object.freeze({
     locale: "string",
     timeZone: "string",
     compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } },
-    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer" } },
+    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" } },
     auth: {
         object: {
             mode: { enum: ["none", "token", "oauth"] },
@@ -153,6 +154,7 @@ export const OPTION_KEYS = Object.freeze({
             scopeProfiles: { map: "string" }
         }
     },
+    mcp: { object: { rateLimit: { object: { perMinute: "integer", burst: "integer", failedAuthPerMinute: "integer" } }, concurrency: "integer" } },
     rest: {
         object: {
             resource: "string",
@@ -318,10 +320,13 @@ export function validateOptions(options) {
     if (options.output?.baseUrl) {
         urlOf(options.output.baseUrl, "output.baseUrl");
     }
+    if (options.http?.maxConnectionsPerAddress !== undefined && options.http.maxConnectionsPerAddress > 256) {
+        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound, the default) to 256");
+    }
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");
     }
-    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxMb", options.output?.maxMb], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
+    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxMb", options.output?.maxMb], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["rest.rateLimit.failedAuthPerMinute", options.rest?.rateLimit?.failedAuthPerMinute], ["mcp.concurrency", options.mcp?.concurrency], ["mcp.rateLimit.perMinute", options.mcp?.rateLimit?.perMinute], ["mcp.rateLimit.burst", options.mcp?.rateLimit?.burst], ["mcp.rateLimit.failedAuthPerMinute", options.mcp?.rateLimit?.failedAuthPerMinute], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
         if (value !== undefined && value < 1) {
             throw new ConfigError(`${path}: must be 1 or more`);
         }

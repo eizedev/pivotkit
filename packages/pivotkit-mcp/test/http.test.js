@@ -128,5 +128,9 @@ test("refusals at start: no auth on another address than loopback, a short token
     const quiet = { env: {}, stderr: { write() {} } };
     await assert.rejects(listen({ http: { host: "0.0.0.0", port: 0 } }, quiet), /needs --auth token or oauth/);
     await assert.rejects(listen({ http: { port: 0 }, auth: { mode: "token" } }, { ...quiet, env: { PIVOTKIT_MCP_TOKEN: "short" } }), /shorter than 32 characters/);
+    // the one token of $PIVOTKIT_MCP_TOKEN has no name of its own: the message names the variable only
+    await assert.rejects(listen({ http: { port: 0 }, auth: { mode: "token" } }, { ...quiet, env: { PIVOTKIT_MCP_TOKEN: "short" } }), /^ConfigError: auth: the token \(\$PIVOTKIT_MCP_TOKEN\) is missing or shorter/);
+    // a named token of auth.tokens is named
+    await assert.rejects(listen({ http: { port: 0 }, auth: { mode: "token", tokens: [{ name: "analysts", env: "T_ANALYSTS" }] } }, quiet), /the token "analysts" \(\$T_ANALYSTS\) is missing/);
     await assert.rejects(listen({ http: { port: 0, hots: "x" } }, quiet), /unknown key "hots"; did you mean "host"\?/);
 });

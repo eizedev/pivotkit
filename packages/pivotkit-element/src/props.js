@@ -51,8 +51,8 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "default-view", prop: "defaultView", kind: "json" }
 ]);
 
-/** Properties without an attribute: objects and arrays a host sets from script. */
-export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "sources", "plugins"]);
+/** Properties without an attribute: objects and arrays a host sets from script, and the import worker's URL. */
+export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labels", "fieldDefaults", "limits", "importLimits", "dismissedTips", "chartOptions", "sources", "plugins", "importWorkerUrl"]);
 
 const THEMES = new Set(["auto", "light", "dark"]);
 

@@ -5,7 +5,7 @@
 // tooltip formatter, ?loading holds the data back for 800 ms, ?broken starts on a view with parts the
 // data cannot use (a field it lacks, an unknown format), ?import allows loading data (pivotkit-xlsx
 // as a plugin, a new plugins array on every render, no worker; window.__loads keeps onDataLoad's
-// details). ?remount adds the host's buttons that mount the report again (a new React key, as
+// details; a sheet named in window.__refuseSheet is refused, onDataLoad returns false). ?remount adds the host's buttons that mount the report again (a new React key, as
 // PowerShell Universal does on its light/dark switch and Sync-UDElement): "Mount again" with the same
 // data, "New data" with other rows under another dataKey (a second click goes back to the first rows); both start the controlled view again at the
 // host's start view, as a remounted PowerShell Universal component does; ?two a second report under its own
@@ -98,7 +98,7 @@ function Host() {
         ...(query.has("persist") ? { persistView: "session", storageKey: "host" } : {}),
         ...(query.has("options") ? { chartOptions: { title: { textStyle: { fontSize: 20 } }, series: { barMaxWidth: 12 }, grid: { left: 40 } } } : {}),
         ...(query.has("xss") ? { chartOptions: { tooltip: { formatter: '<img src="x" onerror="window.__xss = true">' }, series: { barMaxWidth: 10 } } } : {}),
-        ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => (window.__loads.push(d), window.__order.push(`data:${d.cause}`)), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
+        ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => (window.__loads.push(d), window.__order.push(`data:${d.cause}`), !(d.sheet && d.sheet === window.__refuseSheet)), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
         ...(query.has("nokey") ? { storageKey: undefined } : {}),
         // Source data and the drill-down's exports with only these columns (a new object on every render)
         ...(query.has("exportcolumns") ? { exportData: { columns: query.get("exportcolumns").split(",") } } : {}),

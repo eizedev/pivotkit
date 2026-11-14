@@ -20,6 +20,34 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   browser holds about twice the file's size while it is made, not about five times
   ([#260](https://github.com/eizedev/pivotkit/issues/260)).
 
+### Fixed
+
+- Filter level: emptying the value of a rule on the item or on its total takes the rule off, as
+  emptying the text of a rule on the name does; its row stays, says "Applies once it is complete."
+  and applies again with the next value, in its place among the rules. Before, the field looked empty
+  while the previous rule kept filtering ([#244](https://github.com/eizedev/pivotkit/issues/244)).
+- Filter level: a rule added while the text or number of a new rule still waits to apply is a row of
+  its own; the comparison and the value chosen next no longer change the first rule. The add buttons
+  keep the focus in the field until the click, and a new row not yet complete stays in its place when
+  another one is added ([#245](https://github.com/eizedev/pivotkit/issues/245)).
+- Filter level: a click on a date's quick choice (All, This, Last, …) focuses it in Safari too, as
+  Top items' choices do; both use one radio button that takes the focus on a click
+  ([#203](https://github.com/eizedev/pivotkit/issues/203)).
+- A saved view that reads another sheet of the loaded workbook no longer loads that sheet unseen when
+  the reader has notes on it (a used range, values not read, columns renamed): the preview stays
+  open with the notes and a line naming the view that needs the sheet, and **Load data** loads the
+  sheet and opens the view. Another sheet picked in that preview does not load by itself, and loaded
+  it does not open the view; a note says so
+  ([#274](https://github.com/eizedev/pivotkit/issues/274)). Browser tests cover Cancel, a host's
+  refusal, another file dropped during the read and a sheet without rows
+  ([#277](https://github.com/eizedev/pivotkit/issues/277)).
+- A controlled report whose host does not pass its views back (it rejects or ignores
+  `onViewChange`) keeps at most 100 of the views it told the host waiting, the newest ones, instead
+  of one more with every change ([#204](https://github.com/eizedev/pivotkit/issues/204)).
+- The dashed rule between the parts of a menu's group (the chart's Display: Value labels, Legend,
+  Title) uses `--pk-rule`, 3:1 against the menu as the rule between groups, instead of `--pk-border`
+  (about 1.3:1) ([#205](https://github.com/eizedev/pivotkit/issues/205)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
