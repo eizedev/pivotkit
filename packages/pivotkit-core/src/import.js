@@ -16,7 +16,7 @@
 
 import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
-import { IMPORT_TYPES, fileError, fileName, limitError } from "./import-table.js";
+import { IMPORT_TYPES, checkFileLimit, fileError, fileName, limitError, tableHints } from "./import-table.js";
 
 export { SHOWN_MAX, shownName, sourceIdOf } from "./source-id.js";
 export { createTable, retype, noteMessage, cleanText, fileError, limitError, checkFileLimit, bytesOf, readOptions, fileName, dateToIso, IMPORT_NOTE_CODES, IMPORT_TYPES } from "./import-table.js";
@@ -43,8 +43,12 @@ export const PLUGIN_API_VERSION = 1;
 
 /**
  * The code of a reader, loaded on demand by `ReaderPlugin.load`.
+ * What a reader's read() returns: an ImportTable, of which a table built by hand may leave out raw,
+ * detected, rowCount and hints (readFile fills them in from the rest).
+ * @typedef {Omit<ImportTable, "raw" | "detected" | "rowCount" | "hints"> & Partial<Pick<ImportTable, "raw" | "detected" | "rowCount" | "hints">>} PluginTable
+ *
  * @typedef {object} ReaderModule
- * @property {(file: Blob | ArrayBuffer | Uint8Array, options?: ReadOptions) => Promise<ImportTable>} read
+ * @property {(file: Blob | ArrayBuffer | Uint8Array, options?: ReadOptions) => Promise<PluginTable>} read  readFile completes the table
  * @property {(file: Blob | ArrayBuffer | Uint8Array, options?: ReadOptions) => Promise<SheetInfo[]>} [sheets]  for formats with several sheets
  */
 
@@ -183,27 +187,69 @@ export async function readFile(file, options = {}) {
     const readOptionsOnly = { ...options };
     delete readOptionsOnly.plugins;
     delete readOptionsOnly.reader;
-    return checkTable(await reader.read(file, readOptionsOnly), plugin.name);
+    return checkTable(await reader.read(file, readOptionsOnly), plugin.name, { limits, locale: options.locale, file: name });
 }
 
 /**
- * The table a reader returned, checked: names, types and one array per column of one length. A
- * plugin that returns something else is a programmer error (INVALID_ARGUMENT naming it).
+ * The table a reader returned, checked: names, types and one array per column of one length, within
+ * the limits a reader keeps (rows, columns, importCells, textLength: LIMIT_EXCEEDED). raw, detected,
+ * rowCount and hints are optional for a table built by hand and filled in from the rest (raw as the
+ * data, so changing a column's type in the preview reads the typed values, not the text as read);
+ * given, they must be right. Anything else is the plugin's error: INVALID_ARGUMENT naming the plugin
+ * and the field, also for a table whose fields throw when read.
  * @param {any} table
  * @param {string} plugin
+ * @param {{ limits: import("./limits.js").Limits, locale?: string, file: string }} context
  * @returns {ImportTable}
  */
-function checkTable(table, plugin) {
+function checkTable(table, plugin, { limits, locale, file }) {
     const fail = (what) => {
         throw new PivotkitError("INVALID_ARGUMENT", `plugin "${plugin}": read() must return a table of pivotkit-core/import (createTable().finish()); ${what}`);
     };
-    if (!table || typeof table !== "object" || !Array.isArray(table.columns) || !Array.isArray(table.types) || !Array.isArray(table.data) || !Array.isArray(table.notes)) {
-        fail("it needs columns, types, data and notes");
+    try {
+        if (!table || typeof table !== "object" || !Array.isArray(table.columns) || !Array.isArray(table.types) || !Array.isArray(table.data) || !Array.isArray(table.notes)) {
+            fail("it needs columns, types, data and notes");
+        }
+        const { columns, types, data, notes, raw, detected, rowCount, hints } = table;
+        const n = data[0]?.length ?? 0;
+        if (types.length !== columns.length || data.length !== columns.length) fail("columns, types and data differ in length");
+        if (!columns.every((c) => typeof c === "string")) fail("a column name is no string");
+        if (!types.every((t) => IMPORT_TYPES.includes(t))) fail("a type is none of string, number, date, boolean");
+        if (!data.every((c) => Array.isArray(c) && c.length === n)) fail("the columns differ in length");
+        const columnsOf = (list) => Array.isArray(list) && list.length === columns.length && list.every((c) => Array.isArray(c) && c.length === n);
+        if (raw !== undefined && !columnsOf(raw)) fail("raw must be one array per column, as long as data's");
+        if (detected !== undefined && !(Array.isArray(detected) && detected.length === columns.length && detected.every((t) => IMPORT_TYPES.includes(t)))) {
+            fail("detected must be one type per column: string, number, date or boolean");
+        }
+        if (rowCount !== undefined && rowCount !== n) fail(`rowCount must be the length of data's columns (${n})`);
+        if (hints !== undefined) {
+            if (hints === null || typeof hints !== "object" || Array.isArray(hints)) fail("hints must be an object");
+            if (hints.decimal !== undefined && hints.decimal !== "." && hints.decimal !== ",") fail('hints.decimal must be "." or ","');
+            if (hints.dateOrder !== undefined && hints.dateOrder !== "dmy" && hints.dateOrder !== "mdy") fail('hints.dateOrder must be "dmy" or "mdy"');
+        }
+        notes.forEach((x, i) => {
+            if (!x || typeof x !== "object" || typeof x.code !== "string") fail(`notes[${i}] has no code`);
+        });
+        // the limits a reader keeps while it reads, for a table built without createTable
+        checkFileLimit("rows", n, limits.rows, file, "rows");
+        checkFileLimit("columns", columns.length, limits.columns, file, "columns");
+        checkFileLimit("importCells", n * columns.length, limits.importCells, file, "values (rows x columns)");
+        // a text column's raw values are often its data: each array once
+        for (const column of new Set([...data, ...(raw ?? [])])) {
+            for (const v of column) {
+                if (typeof v === "string") checkFileLimit("textLength", v.length, limits.textLength, file, "characters in a value");
+            }
+        }
+        return {
+            ...table,
+            rowCount: n,
+            raw: raw ?? data,
+            detected: detected ?? types,
+            hints: tableHints(hints, locale),
+            notes: notes.map((x) => ({ code: x.code, params: x.params && typeof x.params === "object" ? x.params : {}, message: String(x.message ?? x.code) }))
+        };
+    } catch (e) {
+        if (e instanceof PivotkitError) throw e;
+        return fail(`reading it threw: ${e instanceof Error ? e.message : String(e)}`);
     }
-    const n = table.data[0]?.length ?? 0;
-    if (table.types.length !== table.columns.length || table.data.length !== table.columns.length) fail("columns, types and data differ in length");
-    if (!table.columns.every((c) => typeof c === "string")) fail("a column name is no string");
-    if (!table.types.every((t) => IMPORT_TYPES.includes(t))) fail("a type is none of string, number, date, boolean");
-    if (!table.data.every((c) => Array.isArray(c) && c.length === n)) fail("the columns differ in length");
-    return table;
 }

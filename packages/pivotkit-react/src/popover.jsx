@@ -135,6 +135,9 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         }
         /** @type {{ top: number, side: "below" | "above", anchorTop: number } | null} */
         let last = null;
+        // the content's height at the last placement: content that grows inside a popover already as
+        // tall as its room changes no box a ResizeObserver sees
+        let placedHeight = -1;
         const place = () => {
             const el = ref.current;
             const a = anchor.current;
@@ -144,7 +147,7 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
             const r = a.getBoundingClientRect();
             // its own width (max-content, styles.css), whatever room its last place left it: a size
             // measured at that place would narrow it a little on every placement
-            const size = { width: el.offsetWidth, height: el.scrollHeight };
+            const size = { width: el.offsetWidth, height: (placedHeight = el.scrollHeight) };
             const viewport = viewportOf(el.ownerDocument);
             // a level opening in a menu does not move it to the anchor's other side
             const place = keepPlace(last, placePopover(r, size, viewport, align, { fill }), r, size, viewport);
@@ -162,12 +165,13 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         }
         // the anchor can move or change size while the popover is open (the zones' open animation, a
         // transition of the host page, a move at once with reduced motion): its box is compared once a
-        // frame and the popover placed again when it changed. A sheet does not follow an anchor.
+        // frame and the popover placed again when it changed, as when its content grew or shrank. A
+        // sheet does not follow an anchor.
         let frame = 0;
         let rect = anchor.current?.getBoundingClientRect();
         const follow = () => {
             const next = anchor.current?.getBoundingClientRect();
-            if (next && rect && (next.x !== rect.x || next.y !== rect.y || next.width !== rect.width || next.height !== rect.height)) {
+            if ((next && rect && (next.x !== rect.x || next.y !== rect.y || next.width !== rect.width || next.height !== rect.height)) || ref.current?.scrollHeight !== placedHeight) {
                 place();
             }
             rect = next;
@@ -176,13 +180,18 @@ export function Popover({ open, anchor, onClose, label, role = "dialog", align =
         if (!sheet) {
             frame = requestAnimationFrame(follow);
         }
+        // a scroll of the page or of a box around the anchor moves the anchor; one inside the popover
+        // (its list, a level) does not, and placing the popover then would move it under the pointer
+        // between the press and the release of a click (#222)
+        // (a scroll event fired on the window has the window as its target, no node)
+        const onScroll = (/** @type {Event} */ e) => (e.target instanceof Node && ref.current?.contains(e.target)) || place();
         window.addEventListener("resize", place);
-        window.addEventListener("scroll", place, true);
+        window.addEventListener("scroll", onScroll, true);
         return () => {
             cancelAnimationFrame(frame);
             ro?.disconnect();
             window.removeEventListener("resize", place);
-            window.removeEventListener("scroll", place, true);
+            window.removeEventListener("scroll", onScroll, true);
         };
     }, [open, anchor, align, sheet, layer, fill]);
 

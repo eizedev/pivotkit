@@ -171,6 +171,13 @@ is blank, with a note that counts them.
 | `notes` | `{ code, params, message }` for each thing worth saying (table below). |
 | `hints` | How text was read (`decimal`, `dateOrder`), so `retype` reads it the same way. |
 
+A reader plugin's table built by hand may leave out `raw`, `detected`, `rowCount` and `hints`:
+`readFile` fills them in (`raw` as `data`, `detected` as `types`, the row count, `hints` as
+`createTable` sets them for the locale). Without `raw`, a type changed in the preview is read from
+the typed values, not from the text as the file had it. A field that is given must be right
+(`hints` too: `decimal` `"."` or `","`, `dateOrder` `"dmy"` or `"mdy"`), and the table counts
+against the limits below; otherwise `readFile` throws ([Errors](#errors)).
+
 | Note `code` | When | `params` |
 | --- | --- | --- |
 | `ENCODING` | Always, for text | `encoding` |
@@ -243,6 +250,10 @@ A file that cannot be read throws `PivotkitError` with the code `INVALID_FILE`, 
 | `XML_DECLARATION` | A part of a workbook declares a document type or entities, which a workbook never needs. |
 | `DAMAGED` | A workbook is damaged, cut off, a part unpacks to more than its directory states, or an XML part holds a text of more than 1 MiB or a tag of more than 256 KiB (an Excel cell holds at most 32,767 characters). |
 
+A reader plugin that returns a table of another shape, a field given wrong (`rowCount`, `raw`,
+`detected`, `hints`), a note without a `code`, or a table whose fields throw when read, is a bug of
+the plugin: `INVALID_ARGUMENT`, the message naming the plugin and the field.
+
 ## Progress, cancel and workers
 
 `onProgress({ phase, done, total })` reports `read` (bytes), `unpack` (a workbook's bytes), `parse`
@@ -274,5 +285,5 @@ origin).
 | `createTable`, `bytesOf`, `readOptions`, `fileName`, `fileError`, `limitError`, `checkFileLimit`, `dateToIso`, `noteMessage` | The shared part of every reader, for [plugins](write-a-plugin.md#the-helpers). |
 | `IMPORT_NOTE_CODES`, `IMPORT_TYPES` | The note codes and column types. |
 
-Types: `ImportTable`, `ImportNote`, `ImportType`, `ImportHints`, `ImportProgress`, `ReadOptions`,
-`ReaderPlugin`, `ReaderModule`, `SheetInfo`.
+Types: `ImportTable`, `PluginTable` (what a plugin's `read` returns), `ImportNote`, `ImportType`,
+`ImportHints`, `ImportProgress`, `ReadOptions`, `ReaderPlugin`, `ReaderModule`, `SheetInfo`.

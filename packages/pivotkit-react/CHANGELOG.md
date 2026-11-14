@@ -22,6 +22,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- An open menu no longer moves when its own content is scrolled: a click on a control reached by
+  scrolling (Rolling under More choices of a date's quick choices) could land beside it when the
+  menu was placed again between the press and the release. A menu whose content grew while it was
+  already as tall as its room is placed again in the next frame instead
+  ([#222](https://github.com/eizedev/pivotkit/issues/222)).
 - A workbook whose shared strings and formats reach `limits.importCells` is said as "more than …
   different texts and formats" (`labels.dataImport.workbookCells`), chosen by the reader's
   `details.what`, not as "values (rows x columns)", which stays for a table's own extent
@@ -58,6 +63,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
   days), compare such days in time order, and write years before 1 AD as the table does ("2 BC");
   Years combined keeps the first and last year a `Date` holds as far as it holds
   ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+- The import UI takes a plugin's table as pivotkit-core's `readFile` completes it; its own
+  `completeTable` is gone ([#130](https://github.com/eizedev/pivotkit/issues/130)).
 
 ## [0.6.0] - 2026-11-14
 

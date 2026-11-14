@@ -588,6 +588,22 @@ function cleanString(s, max, counts) {
 }
 
 /**
+ * The hints a table reads its text with: the given ones where they are valid, else "." and the
+ * locale's order of day and month (month first for en-US and without a locale).
+ * @param {Partial<ImportHints> | undefined} given
+ * @param {string} [locale]
+ * @returns {ImportHints}
+ */
+export function tableHints(given, locale) {
+    return {
+        decimal: given?.decimal === "," || given?.decimal === "." ? given.decimal : ".",
+        dateOrder: given?.dateOrder === "dmy" || given?.dateOrder === "mdy" ? given.dateOrder : !locale || /^en-US$/i.test(locale) ? "mdy" : "dmy",
+        ...(given?.serialDates ? { serialDates: true } : {}),
+        ...(given?.textNumbers === false ? { textNumbers: false } : {})
+    };
+}
+
+/**
  * Builds a table row by row. A reader calls `header()` when its format names the columns (JSON),
  * else the header is found in the first rows: the first row with at least half as many values as the
  * fullest of the first 50 rows; the rows above it are a title block and are skipped.
@@ -600,13 +616,7 @@ function cleanString(s, max, counts) {
  */
 export function createTable(options) {
     const { file, limits } = options;
-    /** @type {ImportHints} */
-    const hints = {
-        decimal: options.hints?.decimal ?? ".",
-        dateOrder: options.hints?.dateOrder ?? (!options.locale || /^en-US$/i.test(options.locale) ? "mdy" : "dmy"),
-        ...(options.hints?.serialDates ? { serialDates: true } : {}),
-        ...(options.hints?.textNumbers === false ? { textNumbers: false } : {})
-    };
+    const hints = tableHints(options.hints, options.locale);
     /** @type {ImportNote[]} */
     const notes = [];
     const counts = { removed: 0, cut: 0, empty: 0, extraRows: 0 };
