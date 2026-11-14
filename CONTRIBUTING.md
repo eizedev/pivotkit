@@ -202,8 +202,10 @@ For each release:
    (`tests/ci.test.js` fails on a range or devDependency that is not exactly the version in this
    repository, #206; `examples/reader-plugin/package.json` too, which takes pivotkit-core from npm);
    update the statements that name the current version, which `tests/ci.test.js`
-   checks against it: the pivotkit row of `docs/compare.md` (version and date) and the example's
-   `generator` in `docs/reference/view-file.md`. Docs and READMEs name no other version of their own.
+   checks against it: the pivotkit row of `docs/compare.md` (version and date), the example's
+   `generator` in `docs/reference/view-file.md` and the pivotkit-core minor that pivotkit-xlsx needs
+   in the official plugins table of `docs/reference/plugins.md`. Docs and READMEs name no other
+   version of their own.
    Merge that pull request.
 2. Wait for CI on main, then tag the merge commit `<package>@<version>` and push the tags one at a
    time in the publish order, each after the previous one is approved and published: the `build` job runs
