@@ -24,6 +24,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- In a time zone other than UTC, an instant before 1 AD keeps its year (the zone's era is read; 2 BC
+  became 2 AD), and a wall clock past what a `Date` holds is blank instead of a value that throws
+  when shown ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+- `toCsv` and `toJson` write a date value before year 0 or after 9999 in its signed ISO form
+  (`-000001-01-11`, was `00-1-01-11`), in the CSV with the formula guard
+  ([#349](https://github.com/eizedev/pivotkit/issues/349)).
 - The `week` and `yearWeek` groupings of the first days of the year -271820 (1 and 2 January,
   whose ISO week belongs to the year before, the first a `Date` holds) are their week instead of
   blank ([#97](https://github.com/eizedev/pivotkit/issues/97)).

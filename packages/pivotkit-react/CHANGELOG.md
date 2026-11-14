@@ -6,6 +6,13 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- The filter's texts and Years combined read and write years before 0 and after 9999 (signed ISO
+  days), compare such days in time order, and write years before 1 AD as the table does ("2 BC");
+  Years combined keeps the first and last year a `Date` holds as far as it holds
+  ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5

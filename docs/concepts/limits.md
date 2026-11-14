@@ -31,7 +31,9 @@ reader's zone.
 - A `Date`, epoch milliseconds, or an ISO string with an offset (`"2026-03-04T10:00:00Z"`) is an
   **instant**. It is read at the wall clock of the zone given to `encode(rows, { timeZone })`
   (`timeZone` prop or `time-zone` attribute in the UI): `"UTC"` by default, any IANA zone
-  (`"Europe/Berlin"`), or `"local"` for the machine's zone (resolved to its name).
+  (`"Europe/Berlin"`), or `"local"` for the machine's zone (resolved to its name). An instant before
+  1 AD keeps its year in every zone. One whose wall clock in the zone lies past what a `Date` holds
+  (the first or last hours of that range) is blank.
 
 The zone is in `data.timeZone`, `result.timeZone` and `grid.timeZone`. A view can carry
 `formatting.timeZone`, and `computePivot` reports an issue when it differs from the data's.

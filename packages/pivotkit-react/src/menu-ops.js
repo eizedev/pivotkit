@@ -5,9 +5,9 @@
  * what the first render and its clicks need (placing, moving, sorting by a header, the tips' actions).
  */
 
-import { CATALOG, MATCH_DEFAULTS, computePivot, isFormat } from "pivotkit-core";
+import { CATALOG, MATCH_DEFAULTS, MAX_DATE_MS, computePivot, isFormat } from "pivotkit-core";
 import { fill } from "./labels.js";
-import { itemRuleText, valueConditionText, wholeYears } from "./names.js";
+import { dayMs, isoDay, isoYear, itemRuleText, valueConditionText, wholeYears } from "./names.js";
 import { axisOf, clone, emptyPick, filterZoneFields, filtersOf, groupingOf, numericResult, opOf, pickFilter, same, sameRef, sourceOf } from "./view-ops.js";
 
 /** Aggregators whose result counts rows or items instead of being a value of the field (its unit). */
@@ -317,7 +317,7 @@ export function quickChoice(view, field, fk, all = []) {
 function yearsCombined(compared, all) {
     let kept = new Set(all);
     for (const f of compared) {
-        const [a, b] = /** @type {[string, string]} */ (wholeYears(f.value, f.value2)).map(Number);
+        const [a, b] = /** @type {[number, number]} */ (wholeYears(f.value, f.value2));
         kept = new Set([...kept].filter((y) => (a <= y && y <= b) !== f.not));
     }
     return kept.size ? [...kept].sort((x, y) => x - y) : null;
@@ -334,7 +334,11 @@ export function yearRules(field, years, all, blanks = "exclude") {
     if (!years.length || years.length === all.length) {
         return [];
     }
-    const day = (y, last) => `${String(y).padStart(4, "0")}-${last ? "12-31" : "01-01"}`;
+    const day = (y, last) => {
+        const iso = `${isoYear(y)}-${last ? "12-31" : "01-01"}`;
+        // the first and last year a Date holds have only part of the year: as far as it holds
+        return Number.isNaN(dayMs(iso)) ? isoDay(last ? MAX_DATE_MS : -MAX_DATE_MS) : iso;
+    };
     const rule = (not, from, to) => ({ field, type: "compare", op: "between", value: day(from, false), value2: day(to, true), not, blanks });
     const rules = [rule(false, years[0], years[years.length - 1])];
     for (let i = 1; i < years.length; i++) {
