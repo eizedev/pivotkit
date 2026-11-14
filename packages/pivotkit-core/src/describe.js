@@ -22,7 +22,7 @@ function valueText(value, type) {
     }
     if (type === "date" && typeof value === "number") {
         const iso = new Date(value).toISOString();
-        return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso.slice(0, 16);
+        return iso.endsWith("T00:00:00.000Z") ? iso.split("T")[0] : iso.slice(0, -8);
     }
     const text = String(value);
     return text.length > DESCRIBE_LIMITS.text ? `${text.slice(0, DESCRIBE_LIMITS.text - 1)}…` : text;

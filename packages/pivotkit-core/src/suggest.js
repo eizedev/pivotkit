@@ -109,7 +109,7 @@ const wordsOf = (locale) => (String(locale ?? "").split("-")[0].toLowerCase() ==
  * @param {unknown} text
  */
 function dateMs(text) {
-    if (typeof text !== "string" || !/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?)?$/.test(text)) {
+    if (typeof text !== "string" || text.startsWith("-000000-") || !/^(?:\d{4}|[+-]\d{6})-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?)?$/.test(text)) {
         return NaN;
     }
     return Date.parse(text.includes("T") ? `${text}Z` : text);

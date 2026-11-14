@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DESCRIBE_LIMITS, PivotkitError, describeSource, describeView, encode } from "../src/index.js";
+import { DESCRIBE_LIMITS, PivotkitError, describeSource, describeView, encode, suggestLayout } from "../src/index.js";
 import { SALES } from "./fixtures.js";
 
 const data = encode(SALES);
@@ -81,4 +81,16 @@ test("describeView: the view in parts, each with its words, and what is wrong wi
 
 test("describeSource counts in the singular for one row and one field", () => {
     assert.equal(describeSource(encode([{ A: 1 }])).text, "1 row, 1 field: A (number)");
+});
+
+
+test("expanded source description days and minutes remain usable for layout suggestions", () => {
+    for (const dates of [["+010000-02-29", "+010001-03-01"], ["-000001-01-01T12:30", "0002-01-01T14:15"]]) {
+        const description = describeSource(encode(dates.map((Date) => ({Date}))));
+        const field = description.fields[0];
+        assert.deepEqual(field.items, dates);
+        assert.equal(field.min, dates[0]);
+        assert.equal(field.max, dates[1]);
+        assert.ok(!suggestLayout(description).notes.some((n) => n.code === "noSuggestion"));
+    }
 });

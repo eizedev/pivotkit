@@ -6,6 +6,11 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve signed expanded-year days and minutes in descriptions, relative anchors and ranges.
+
+
 ## [0.6.1] - 2026-11-14
 
 ### Upgrading from 0.6.0

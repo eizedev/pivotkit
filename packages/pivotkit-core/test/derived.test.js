@@ -148,3 +148,18 @@ test("suggestDateUnit picks a grouping from the span of a date field", () => {
     assert.equal(suggestDateUnit(data, "missing"), null);
     assert.equal(suggestDateUnit(data, "date"), "yearMonth", "case-insensitive, SALES spans Dec 2025 to Apr 2026");
 });
+
+test("Date boundary groupings retain finite ISO weeks and month labels (#97)", () => {
+    assert.deepEqual(isoWeek(-8.64e15), {year: -271821, week: 16});
+    assert.deepEqual(isoWeek(8.64e15), {year: 275760, week: 37});
+    for (const by of ["yearMonth", "yearWeek", "week"]) {
+        const pivot = computePivot(encode([{Date: "-271821-04-20"}, {Date: "+275760-09-13"}]), {
+            derived: [{name: "G", field: "Date", by}], rows: ["G"], values: [{agg: "count"}]
+        });
+        assert.equal(pivot.rowRoot.children.length, 2);
+        for (const node of pivot.rowRoot.children) {
+            assert.ok(Number.isFinite(node.key));
+            assert.ok(pivot.label("rows", node));
+        }
+    }
+});
