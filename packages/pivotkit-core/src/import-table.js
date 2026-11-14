@@ -587,17 +587,6 @@ function cleanString(s, max, counts) {
 }
 
 /**
- * Builds a table row by row. A reader calls `header()` when its format names the columns (JSON),
- * else the header is found in the first rows: the first row with at least half as many values as the
- * fullest of the first 50 rows; the rows above it are a title block and are skipped.
- *
- * @param {object} options
- * @param {string} options.file  the file name for messages
- * @param {import("./limits.js").Limits} options.limits
- * @param {Partial<ImportHints>} [options.hints]
- * @param {string} [options.locale]
- */
-/**
  * The hints a table reads its text with: the given ones where they are valid, else "." and the
  * locale's order of day and month (month first for en-US and without a locale).
  * @param {Partial<ImportHints> | undefined} given
@@ -613,6 +602,17 @@ export function tableHints(given, locale) {
     };
 }
 
+/**
+ * Builds a table row by row. A reader calls `header()` when its format names the columns (JSON),
+ * else the header is found in the first rows: the first row with at least half as many values as the
+ * fullest of the first 50 rows; the rows above it are a title block and are skipped.
+ *
+ * @param {object} options
+ * @param {string} options.file  the file name for messages
+ * @param {import("./limits.js").Limits} options.limits
+ * @param {Partial<ImportHints>} [options.hints]
+ * @param {string} [options.locale]
+ */
 export function createTable(options) {
     const { file, limits } = options;
     const hints = tableHints(options.hints, options.locale);

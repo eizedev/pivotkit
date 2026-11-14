@@ -174,8 +174,9 @@ is blank, with a note that counts them.
 A reader plugin's table built by hand may leave out `raw`, `detected`, `rowCount` and `hints`:
 `readFile` fills them in (`raw` as `data`, `detected` as `types`, the row count, `hints` as
 `createTable` sets them for the locale). Without `raw`, a type changed in the preview is read from
-the typed values, not from the text as the file had it. A field that is given must be right, and the
-table counts against the limits below; otherwise `readFile` throws ([Errors](#errors)).
+the typed values, not from the text as the file had it. A field that is given must be right
+(`hints` too: `decimal` `"."` or `","`, `dateOrder` `"dmy"` or `"mdy"`), and the table counts
+against the limits below; otherwise `readFile` throws ([Errors](#errors)).
 
 | Note `code` | When | `params` |
 | --- | --- | --- |
@@ -281,5 +282,5 @@ origin).
 | `createTable`, `bytesOf`, `readOptions`, `fileName`, `fileError`, `limitError`, `checkFileLimit`, `dateToIso`, `noteMessage` | The shared part of every reader, for [plugins](write-a-plugin.md#the-helpers). |
 | `IMPORT_NOTE_CODES`, `IMPORT_TYPES` | The note codes and column types. |
 
-Types: `ImportTable`, `PluginTable` (what a plugin's `read` returns), `ImportNote`, `ImportType`, `ImportHints`, `ImportProgress`, `ReadOptions`,
-`ReaderPlugin`, `ReaderModule`, `SheetInfo`.
+Types: `ImportTable`, `PluginTable` (what a plugin's `read` returns), `ImportNote`, `ImportType`,
+`ImportHints`, `ImportProgress`, `ReadOptions`, `ReaderPlugin`, `ReaderModule`, `SheetInfo`.

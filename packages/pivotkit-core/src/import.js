@@ -222,7 +222,11 @@ function checkTable(table, plugin, { limits, locale, file }) {
             fail("detected must be one type per column: string, number, date or boolean");
         }
         if (rowCount !== undefined && rowCount !== n) fail(`rowCount must be the length of data's columns (${n})`);
-        if (hints !== undefined && (hints === null || typeof hints !== "object")) fail("hints must be an object");
+        if (hints !== undefined) {
+            if (hints === null || typeof hints !== "object" || Array.isArray(hints)) fail("hints must be an object");
+            if (hints.decimal !== undefined && hints.decimal !== "." && hints.decimal !== ",") fail('hints.decimal must be "." or ","');
+            if (hints.dateOrder !== undefined && hints.dateOrder !== "dmy" && hints.dateOrder !== "mdy") fail('hints.dateOrder must be "dmy" or "mdy"');
+        }
         notes.forEach((x, i) => {
             if (!x || typeof x !== "object" || typeof x.code !== "string") fail(`notes[${i}] has no code`);
         });

@@ -309,7 +309,8 @@ test("a plugin's hand-built table (columns, types, data, notes) gets the rest fr
     // the hints createTable takes: "." and the locale's order of day and month (month first for en-US and without a locale)
     assert.deepEqual(read.hints, { decimal: ".", dateOrder: "mdy" });
     assert.deepEqual((await readMini(MINIMAL, { locale: "de-DE" })).hints, { decimal: ".", dateOrder: "dmy" });
-    assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: "x", dateOrder: "ymd" } }, { locale: "de-DE" })).hints, { decimal: ".", dateOrder: "dmy" });
+    // a hint left out is derived
+    assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: "," } }, { locale: "de-DE" })).hints, { decimal: ",", dateOrder: "dmy" });
     assert.deepEqual((await readMini({ ...MINIMAL, hints: { decimal: ",", dateOrder: "mdy", textNumbers: false } })).hints, { decimal: ",", dateOrder: "mdy", textNumbers: false });
     assert.deepEqual(read.notes, [{ code: "SHEET", params: {}, message: "SHEET" }]);
     assert.deepEqual(retype(read, ["number", "string"]).data[0], [1, 2]);
@@ -332,7 +333,10 @@ test("a plugin's table with a field given but wrong is refused, naming the plugi
         [{ raw: [["1"], ["x", "y"]] }, /raw/],
         [{ notes: [{ code: "SHEET" }, { nope: 1 }] }, /notes\[1\]/],
         [{ notes: [null] }, /notes\[0\]/],
-        [{ hints: "dmy" }, /hints/]
+        [{ hints: "dmy" }, /hints/],
+        [{ hints: ["dmy"] }, /hints must be an object/],
+        [{ hints: { decimal: "x" } }, /hints\.decimal/],
+        [{ hints: { dateOrder: "ymd" } }, /hints\.dateOrder/]
     ]) {
         await assert.rejects(readMini({ ...MINIMAL, ...change }), refused(pattern), JSON.stringify(change));
     }
