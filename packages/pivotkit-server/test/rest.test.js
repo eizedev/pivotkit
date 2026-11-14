@@ -51,6 +51,20 @@ test("GET /sources lists the source; GET /sources/{id} and POST /sources/describ
     }
 });
 
+test("HEAD on a GET route answers as GET without a body; a HEAD on a POST route is 405", async () => {
+    const { server } = await salesServer();
+    try {
+        const head = await raw(`${server.api}/sources`, { method: "HEAD" });
+        assert.equal(head.status, 200);
+        assert.match(String(head.headers["content-type"]), /application\/json/);
+        assert.equal(head.data, "", "no body");
+        const post = await raw(`${server.api}/views/validate`, { method: "HEAD" });
+        assert.equal(post.status, 405);
+    } finally {
+        await server.close();
+    }
+});
+
 test("validate and describe: a misspelt name is an error with the name meant; a hidden field reads as a missing one", async () => {
     const { server } = await salesServer();
     try {

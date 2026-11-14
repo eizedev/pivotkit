@@ -148,6 +148,9 @@ error that names the key and the one probably meant.
 | `http.allowOrigins` | `--allow-origin name` | none | Browser origins (host names) allowed to call |
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
+| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (a token's name, an OAuth client id, or `local` without sign-in), with up to `burst` at once after a pause |
+| `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
+| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
@@ -199,7 +202,9 @@ front end over the same sources; it is `pivotkit-server/policy` under another na
 Views from the model are checked with pivotkit-core's limits for views from outside (`outsideLimits`),
 data with its [limits](../concepts/limits.md); the server's own default for files is 50 MiB
 (`fileBytes`, `unpackedBytes`). A call's input may hold at most 10,000 array elements and object
-members; an HTTP body at most 2 MiB.
+members; an HTTP body at most 2 MiB. Over HTTP a caller over a request limit (`mcp.rateLimit`,
+`mcp.concurrency`, the REST service's limits with their own counts) gets 429 with `Retry-After` and
+a JSON-RPC error; the counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
 refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its

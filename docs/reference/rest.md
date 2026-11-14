@@ -26,8 +26,9 @@ pivotkit-xlsx, ECharts 6.1.0 and jose (for OAuth); not the MCP SDK.
 
 ## Routes { #routes }
 
-Every route is under `/api/v1` and answers JSON. The routes are RPC-style (`POST /views/validate`),
-one per operation of the [operation table](report.md#operations):
+Every route is under `/api/v1` and answers JSON (a `GET` route answers `HEAD` too, without the
+body). The routes are RPC-style (`POST /views/validate`), one per operation of the
+[operation table](report.md#operations):
 
 | Route | Operation | What it does |
 | --- | --- | --- |
@@ -184,9 +185,10 @@ The output directory holds at most `output.maxFiles` files and `output.maxMb` me
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them: any
 token that may render can push other callers' older reports out, and a link to one of them
 (`output.baseUrl`) then answers 404. Schedule drafts are never deleted this way; they may take at
-most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT` while reports keep
-working, so give `draft_schedule` a scope of its own too and set `output.maxAgeDays`. A file you
-name with `.pivotkit-out.` yourself counts as pivotkit's and may be deleted. A quota per caller
+most half of `output.maxFiles` (none at 1), and a draft over that answers 409 `NO_OUTPUT` while
+reports keep working, so give `draft_schedule` a scope of its own too and set
+`output.maxAgeDays`. A file you name with `.pivotkit-out.` yourself counts as pivotkit's and may be
+deleted. A quota per caller
 was the other choice; it was not taken because a caller is no stable owner (with auth `none` every
 caller is the same, files written before a restart have none) and the directory would still need a
 total that, once reached, refuses everyone again. So set `output.maxFiles` well above what your
@@ -235,8 +237,9 @@ client id, or `local` without sign-in):
 | `rest.concurrency` | 4 | Requests of one caller at once |
 | `rest.inline` | false | csv and json results inline in the answer, where the policy allows |
 
-Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The counts live in the memory of
-one process: two instances behind a load balancer count on their own. The address is the socket's,
+Over a limit the answer is 429 `RATE_LIMITED` with `Retry-After`. The MCP endpoint has the same
+limits with counts of its own (`mcp.rateLimit`, `mcp.concurrency`, see [MCP](mcp.md#configuration)).
+A token is checked once per request. The counts live in the memory of one process: two instances behind a load balancer count on their own. The address is the socket's,
 or with `http.trustProxy` the last one in `X-Forwarded-For`.
 
 ## Errors { #errors }

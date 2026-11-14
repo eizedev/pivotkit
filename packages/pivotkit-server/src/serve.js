@@ -103,7 +103,7 @@ export async function createServerHandler(options, runtime) {
                     return rest.fetch(request, info);
                 }
                 if (mcp) {
-                    return mcp.fetch(request);
+                    return mcp.fetch(request, info);
                 }
                 const refused = hostRefusal(request, hosts);
                 return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");

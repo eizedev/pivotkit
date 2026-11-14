@@ -8,6 +8,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- `mcp.rateLimit` and `mcp.concurrency`: the MCP endpoint over HTTP limits each caller and refused
+  tokens per address as the REST service does, with counts of its own; `createLimits` is shared
+  ([#270](https://github.com/eizedev/pivotkit/issues/270)).
 - `output.maxMb` (default 1024): the megabytes of reports and drafts the output directory may hold
   ([#269](https://github.com/eizedev/pivotkit/issues/269)).
 - `check-config` warns of a policy rule that names no column of its source (a typo leaves the real
@@ -16,6 +19,14 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Changed
 
+- A token is checked once per request: the precheck's sign-in is kept for the route (REST and MCP).
+  A `GET` route answers `HEAD`; the OAuth protected-resource metadata no longer carries
+  `Access-Control-Allow-Origin: *`, which the Origin check made untrue. The Host list, the body cap,
+  the default port and the runners' common flags are defined once (`SHARED_FLAGS`)
+  ([#291](https://github.com/eizedev/pivotkit/issues/291)).
+- `output.maxFiles` 1 leaves no room for schedule drafts (a draft would block every render); the
+  hint for a full set of drafts names `output.maxFiles` and `output.maxAgeDays`
+  ([#288](https://github.com/eizedev/pivotkit/issues/288)).
 - Reports and schedule drafts are named `<name>.pivotkit-out.<format>` (`sales.pivotkit-out.xlsx`),
   so the server knows its own files: only those are counted, cleaned up by `output.maxAgeDays` and
   deleted to make room; the operator's files, and reports written by an earlier version, are not

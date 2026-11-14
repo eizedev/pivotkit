@@ -11,6 +11,29 @@ import { HOST_SYNTAX } from "./checks.js";
 /** Whether an address is loopback. */
 export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || host === "localhost" || /^127\./.test(host);
 
+/**
+ * Where a front end's precheck keeps a request's sign-in in the `info` object serveFetch hands to
+ * precheck and then to fetch, so a token is checked once; a symbol, so a host's own info cannot
+ * carry one by accident. Taken out when read.
+ */
+export const SIGNED_IN = Symbol("pivotkit.signedIn");
+
+/**
+ * The sign-in a precheck kept for this request, taken out of `info`, or undefined.
+ * @param {Record<string | symbol, any>} info
+ */
+export function takeSignIn(info) {
+    if (!Object.hasOwn(info, SIGNED_IN)) {
+        return undefined;
+    }
+    const kept = info[SIGNED_IN];
+    delete info[SIGNED_IN];
+    return kept;
+}
+
+/** The most bytes of a request body, REST's and MCP's. */
+export const BODY_BYTES = 2_097_152;
+
 /** How long close() waits for running requests by default. */
 export const GRACE_MS = 25_000;
 

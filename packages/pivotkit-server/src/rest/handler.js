@@ -20,15 +20,15 @@ import { REST_BASE, restResourceOf } from "../config.js";
 import { AuthRefusal, bearerOf, resourceMetadataUrlOf } from "../auth.js";
 import { allowedHosts, clientAddress, hostRefusal } from "../checks.js";
 import { callerOf } from "../context.js";
-import { isLoopback } from "../listen.js";
+import { BODY_BYTES, SIGNED_IN, isLoopback, takeSignIn } from "../listen.js";
 import { present, presentedInput, renderFile } from "../present.js";
-import { createLimits } from "./limits.js";
+import { createLimits } from "../limits.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, json, problem } from "./problem.js";
 import { REST_ROUTES } from "./routes.js";
 
-/** The most bytes of a request body. */
-export const REST_BODY_BYTES = 2_097_152;
+/** The most bytes of a request body (the server's, MCP's too). */
+export const REST_BODY_BYTES = BODY_BYTES;
 
 /** The headers a browser may read from an answer (CORS). */
 const EXPOSED = "content-disposition, retry-after, www-authenticate";
@@ -247,7 +247,7 @@ export async function createRestHandler(context, runtime = {}) {
         return json(result);
     }
 
-    /** @param {Request} request @param {{ address?: string }} info */
+    /** @param {Request} request @param {{ address?: string, [SIGNED_IN]?: any }} info */
     async function route(request, info) {
         const url = new URL(request.url);
         const refusedHost = hostRefusal(request, hosts);
@@ -273,7 +273,7 @@ export async function createRestHandler(context, runtime = {}) {
             if (!metadata) {
                 return problem("AUTH_NOT_READY", "", { headers: { "retry-after": "10" } });
             }
-            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(authOptions.scopesSupported?.length || requiredScopes.length ? { scopes_supported: authOptions.scopesSupported ?? requiredScopes } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/" }, 200, { "access-control-allow-origin": "*", "cache-control": "max-age=300" });
+            return json({ resource: resource.href, authorization_servers: [metadata.issuer], ...(authOptions.scopesSupported?.length || requiredScopes.length ? { scopes_supported: authOptions.scopesSupported ?? requiredScopes } : {}), resource_name: "pivotkit REST", resource_documentation: "https://pivotkit.eize.dev/reference/rest/" }, 200, { "cache-control": "max-age=300" });
         }
         if (path === "/openapi.json") {
             if ((rest.openapi ?? "auth") === "off" || request.method !== "GET") {
@@ -292,11 +292,14 @@ export async function createRestHandler(context, runtime = {}) {
         if (!candidates.length) {
             return problem("NOT_FOUND", "no such route; GET /openapi.json lists them");
         }
-        const match = candidates.find((m) => m.route.method === request.method);
+        // HEAD is GET without the body (node:http leaves it out)
+        const method = request.method === "HEAD" ? "GET" : request.method;
+        const match = candidates.find((m) => m.route.method === method);
         if (!match) {
             return problem("METHOD_NOT_ALLOWED", `use ${[...new Set(candidates.map((m) => m.route.method))].join(" or ")}`, { headers: { allow: [...new Set(candidates.map((m) => m.route.method))].join(", ") } });
         }
-        const who = await authenticate(request, address);
+        // the precheck of a POST signed it in already (serveFetch hands it the same info)
+        const who = takeSignIn(info) ?? (await authenticate(request, address));
         if ("refused" in who) {
             context.log.refused({ status: who.refused.status, path: REST_BASE });
             return who.refused;
@@ -341,7 +344,7 @@ export async function createRestHandler(context, runtime = {}) {
          * The checks a request's headers allow, before its body is read: Host, Origin, the declared
          * size and, for a POST to an operation, the token. A Response to send, or null to go on.
          * @param {Request} request  without its body
-         * @param {{ address?: string }} [info]
+         * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  serveFetch hands the same object to fetch: the sign-in is kept there
          */
         async precheck(request, info = {}) {
             const refusedHost = hostRefusal(request, hosts);
@@ -363,12 +366,13 @@ export async function createRestHandler(context, runtime = {}) {
                     context.log.refused({ status: who.refused.status, path: REST_BASE });
                     return withCors(who.refused, origin);
                 }
+                info[SIGNED_IN] = who;
             }
             return null;
         },
         /**
          * @param {Request} request
-         * @param {{ address?: string }} [info]  the client's address (listen() gives it), for the limits
+         * @param {{ address?: string, [SIGNED_IN]?: any }} [info]  the client's address (listen() gives it), for the limits
          */
         async fetch(request, info = {}) {
             const origin = request.headers.get("origin");
