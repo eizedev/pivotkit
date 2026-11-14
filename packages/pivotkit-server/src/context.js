@@ -9,7 +9,7 @@
  */
 
 import { createRequire } from "node:module";
-import { access, constants, realpath, stat } from "node:fs/promises";
+import { access, constants, mkdir, realpath, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, OUTPUT_DEFAULTS, pathOf, validateOptions } from "./config.js";
@@ -60,9 +60,21 @@ export async function createContext(options, runtime = {}) {
     });
     let output = null;
     if (options.output?.dir) {
-        const dir = await realpath(pathOf(options, options.output.dir)).catch(() => null);
+        const wanted = pathOf(options, options.output.dir);
+        if (!(await stat(wanted).catch(() => null))) {
+            if (options.output.create === false) {
+                throw new ConfigError("output.dir: not found (create it first, or leave output.create on)");
+            }
+            // reports may hold what a model may not see: only the server's user reads them, unless a
+            // web server serves the directory (output.baseUrl), where the umask decides as for any
+            await mkdir(wanted, { recursive: true, mode: options.output.baseUrl ? 0o777 : 0o700 }).catch((e) => {
+                throw new ConfigError(`output.dir: cannot be created: ${whyNot(e?.code)}`);
+            });
+            log.info(`the output directory did not exist and was created (${options.output.baseUrl ? "mode by the umask: output.baseUrl is served" : "mode 0700"})`);
+        }
+        const dir = await realpath(wanted).catch(() => null);
         if (!dir || !(await stat(dir)).isDirectory()) {
-            throw new ConfigError("output.dir: not found or not a directory (create it first)");
+            throw new ConfigError("output.dir: not a directory");
         }
         // a directory the model may read files from must not hold what it may not see: the results
         if (registry.allow.some((allowed) => isInside(dir, allowed) || isInside(allowed, dir))) {
@@ -159,6 +171,29 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
         return { scopes: null, client: String(authInfo.clientId ?? "token"), profile };
     }
     return { scopes: new Set(authInfo.scopes ?? []), client: String(authInfo.clientId ?? "client").slice(0, 80), profile };
+}
+
+/** Why a directory cannot be made or read, in words, from a file system error's code. */
+export const whyNot = (code) => (code === "EACCES" || code === "EPERM" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : code === "ENOTDIR" || code === "EEXIST" ? "a part of the path is a file" : code === "EROFS" ? "the file system is read-only" : String(code ?? "unknown error"));
+
+/**
+ * Whether a missing directory can be made with mkdir -p: the code that keeps it from being made
+ * (its nearest existing ancestor not a writable directory), or null.
+ * @param {string} path
+ * @returns {Promise<string | null>}
+ */
+export async function cannotCreate(path) {
+    for (let dir = dirname(path); ; ) {
+        const info = await stat(dir).catch(() => null);
+        if (info) {
+            return !info.isDirectory() ? "ENOTDIR" : (await writable(dir)) ? null : "EACCES";
+        }
+        const up = dirname(dir);
+        if (up === dir) {
+            return "ENOENT";
+        }
+        dir = up;
+    }
 }
 
 /** Whether the server's user may create files in a directory. */

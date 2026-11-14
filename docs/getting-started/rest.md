@@ -11,15 +11,15 @@ for the container image, see [Container image](../reference/container.md).
 
 ## 1. Install and start it { #start }
 
-Make a folder with the example data of the [command line](../reference/cli.md) and an output folder:
+Make a folder with the example data of the [command line](../reference/cli.md):
 
 ```bash
 mkdir pivotkit-rest && cd pivotkit-rest
 npx -y pivotkit-cli example
-mkdir reports
 ```
 
-Start the service with one source, `sales`, on 127.0.0.1:3333 (no sign-in on loopback):
+Start the service with one source, `sales`, on 127.0.0.1:3333 (no sign-in on loopback); it makes
+the folder `reports` for what it writes:
 
 ```bash
 npx -y pivotkit-server serve --source sales=sales.csv --output reports

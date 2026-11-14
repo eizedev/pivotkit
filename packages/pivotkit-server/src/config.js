@@ -52,7 +52,7 @@ export class ConfigError extends Error {
  * @typedef {object} ServerOptions
  * @property {Record<string, SourceOptions>} [sources]
  * @property {{ allowDirs?: string[], list?: boolean, hardLinks?: boolean, scopes?: string[], policy?: PolicyOptions }} [files]
- * @property {{ dir?: string, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number }} [output]
+ * @property {{ dir?: string, create?: boolean, baseUrl?: string, maxFiles?: number, maxMb?: number, maxAgeDays?: number }} [output]  create: make a missing dir at start (default true)
  * @property {PolicyOptions} [policy]
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [locale]
@@ -126,7 +126,7 @@ export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
 export const OPTION_KEYS = Object.freeze({
     sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: POLICY } } },
     files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
-    output: { object: { dir: "string", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" } },
+    output: { object: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" } },
     policy: SERVER_POLICY,
     limits: { map: "integer" },
     locale: "string",

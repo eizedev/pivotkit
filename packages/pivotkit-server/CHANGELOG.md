@@ -8,6 +8,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ### Added
 
+- A missing `output.dir` is made at start (with its parents, mode 0700, or by the umask when
+  `output.baseUrl` is set) and said once in the log; `output.create: false` keeps it an error.
+  `check-config` says whether the directory exists, will be made, or cannot be.
 - `mcp.rateLimit` and `mcp.concurrency`: the MCP endpoint over HTTP limits each caller and refused
   tokens per address as the REST service does, with counts of its own; `createLimits` is shared
   ([#270](https://github.com/eizedev/pivotkit/issues/270)).

@@ -21,7 +21,7 @@ import { ConfigError, loadConfig, validateOptions } from "./config.js";
 /** @type {Readonly<{ source: Flag, output: Flag, http: FlagTable, log: Flag, "check-config": Flag, help: Flag }>} */
 export const SHARED_FLAGS = Object.freeze({
     source: { type: "string", multiple: true, value: "id=file", text: "A source: its id and a CSV, TSV, JSON or XLSX file (may be given more than once)." },
-    output: { type: "string", value: "dir", text: "Write reports and drafts into this directory." },
+    output: { type: "string", value: "dir", text: "Write reports and drafts into this directory (made at start if missing)." },
     http: /** @type {FlagTable} */ (Object.freeze({
         host: { type: "string", value: "address", text: "The address to listen on (default 127.0.0.1)." },
         port: { type: "string", value: "n", text: "The port (default 3333)." },

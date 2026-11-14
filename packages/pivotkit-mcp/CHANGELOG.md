@@ -8,6 +8,7 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- A missing `--output` directory is made at start, as pivotkit-server does (`output.create`).
 - Request limits over HTTP, as the REST service has them: `mcp.rateLimit.perMinute`, `.burst`,
   `.failedAuthPerMinute` and `mcp.concurrency`; over a limit the answer is 429 with `Retry-After`
   ([#270](https://github.com/eizedev/pivotkit/issues/270)). `/mcp` answers a method other than
