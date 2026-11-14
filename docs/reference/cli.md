@@ -71,7 +71,7 @@ view does not apply to it.
 | `pivotkit render <view> --data <file> [-o <file>]` | Runs the view over the data and writes an HTML report, CSV, JSON, XLSX or SVG. |
 | `pivotkit render <data> --rows <field> --values <agg:field> [-o <file>]` | The same without a view file: the view from [layout flags](#a-view-from-the-datas-fields), or `--suggest` for the draft. |
 | `pivotkit validate <view> [--data <file>]` | Checks the view against the data, or against the fields its view file lists (`source.fields`). |
-| `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields. |
+| `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields (the data may be given with `--data` instead: `describe --data - --data-format csv`). |
 | `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
 | `pivotkit example [name] [--list]` | Writes an example's data and views into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
@@ -88,9 +88,9 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | --- | --- | --- |
 | `--data <file>` | render, validate, describe | CSV, TSV, JSON or XLSX, or `-` for stdin ([what is read](import.md)). |
 | `--data-format csv\|json\|xlsx` | | The data's format; needed for stdin, else the file's extension. |
-| `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one. [More](#the-sheet-of-a-workbook) |
+| `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one; for data that is no workbook a warning `ignoredOption`. [More](#the-sheet-of-a-workbook) |
 | `-f, --format html\|csv\|json\|xlsx\|svg` | render | Default: the extension of `-o` (`.htm` is `html`); another extension, or none, is a usage error. On stdout `html`. |
-| `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. |
+| `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. The data file, the view file and `-` are a usage error (stdout is where the output goes without `-o`). |
 | `--template <file>` | render | `html`: a [print template](print-template.md). |
 | `--title <text>` | render | `html`, `xlsx`: the report's title (default the view file's name). |
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
@@ -103,11 +103,11 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--filter <json>` | | A filter as a view writes it, as JSON text or `@file.json`; repeatable. |
 | `--chart-type <type>` | | Show the chart: `auto`, `bar`, `line`, `area`, `pie`, `donut`, `heatmap`. |
 | `--map <old=new>` | render, describe `--suggest` | The view's field `old` is the data's `new`, for a column renamed since the view was made; with a view file too. |
-| `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). |
-| `-o, --output <file>` | describe `--suggest` | The draft view file; without it the view file goes to stdout. |
+| `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). The data file is a usage error. |
+| `-o, --output <file>` | describe `--suggest` | The draft view file; without it the view file goes to stdout. The data file and `-` are a usage error. |
 | `--lenient` | render, describe `--suggest` | Write the output also when the view has errors, as the report shows it; still exit 1. `describe --suggest`: the draft also when there is nothing to group by. |
 | `--strict` | render, validate, describe | Warnings are findings too. |
-| `--as view\|data` | describe | Read the input as a view or as data (default: a view when it is one). |
+| `--as view\|data` | describe | Read the input as a view or as data (default: a view when it is one; `--data` alone is data). |
 | `--items <n>` | describe | Data: list up to n values of each field (default none). |
 | `--json` | all | One JSON object on stdout (render: needs `-o`). |
 | `-q, --quiet` | all | No warnings and no line saying what was written on stderr; errors still. |
@@ -121,8 +121,10 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 An option on the command line wins over its environment variable. Every command checks `--locale`,
 `--time-zone` and `--now` (from the command line or the environment, and the message names the
 variable), so a wrong value in a pipeline's environment fails in every step, not only in `render`. An
-option given for a format it does nothing in (`--width` with `csv`) is a warning `ignoredOption`. The
-CLI writes no colours.
+option given for a format it does nothing in (`--width` with `csv`), or `--sheet` for data that is no
+workbook, is a warning `ignoredOption`. A command a line on stderr suggests can be pasted into a
+shell as it is: a value with spaces is in double quotes, one with `!` in single quotes (bash expands
+`!` in double quotes). The CLI writes no colours.
 
 ## What it says
 
@@ -144,9 +146,13 @@ and `pivotkit help <command>` lists the ones that act in it.
 | `-o report.html -f csv` | a usage error: the name says HTML, `-f` CSV (an extension that is no format of pivotkit's, `-o out.txt -f csv`, is written as asked) |
 | an HTML report to the terminal (no `-o`) | the report on stdout, and `an HTML report was written to the terminal: add -o report.html to save it` |
 | title lines above the header were skipped | `warning LINES_SKIPPED: ...` (they may be data; a finding with `--strict`) |
-| the filters keep no row | `warning noRowsKept: the filters keep none of the 2,000 rows of sales.csv (a date filter counts from --now or today)` (a table of zeros otherwise; with `--strict` a finding) |
+| the filters keep no row | `warning noRowsKept: the filters keep none of the 2,000 rows of sales.csv` (a table of zeros otherwise; with `--strict` a finding); a view with a date filter adds `(a date filter counts from --now or today)` |
 | data or a view from stdin on a terminal | `reading the data from stdin: type or paste it, then Ctrl-D (Ctrl-Z, Enter on Windows)` |
 | a view that is not JSON | `not a view: not valid JSON at line 2, column 30` |
+| a data file where the view belongs (`validate sales.csv`) | `error viewFile: not a view: not valid JSON`, then `sales.csv looks like data, not a view: give it with --data (pivotkit validate <view> --data sales.csv), or describe it: pivotkit describe sales.csv` |
+| a view that is no file | `pivotkit: x: not found: the view is a view file, - for stdin, JSON text or --link` |
+| a view file where `--suggest` or a layout flag wants data | a usage error: `--suggest makes a view from a data file, and view.json is a view: give the data (pivotkit describe <data> --suggest), or describe the view with pivotkit describe view.json --data <data>` |
+| a grouping that cannot be made (`--group Region:yearMonth` on a text field) | `error groupingNeedsDate at derived[0]: date grouping needs a date field`, then `and 1 more error from it (--json lists it)`: the unknown field "Region by month" that follows is left out |
 
 ### When the data does not fit the view { #data-mismatch }
 
@@ -219,7 +225,8 @@ changes one part: every layout flag given with `--suggest` replaces that part of
 format 2: its name is `Draft: ` and what it shows, its description says where it came from, and it
 names the data as the report names a loaded file, with the sheet of a workbook (`source.params.sheet`),
 so **Views**, **Open view file** in the report opens it on that file and sheet. It is checked against
-the data as `validate --strict` would; same file, same draft on every machine (`--locale` changes the
+the data as `validate --strict` would (a field the data lacks, `--rows Nope`, is a
+[data mismatch](#data-mismatch) that lists the data's fields); same file, same draft on every machine (`--locale` changes the
 names of groupings and of the view).
 
 Without `-o`, the view file goes to stdout (`pivotkit describe x.csv --suggest > x.pivotkit.json`);
@@ -244,7 +251,9 @@ error noSuggestion: the sheet "Readme" of book.xlsx has nothing to group by (no 
 `render` with any of `--rows`, `--cols`, `--values`, `--group`, `--filter` or `--chart-type` (or
 `--suggest`) makes its view from the data's fields. The data is the argument or `--data` (both: a
 usage error); a view (the argument, `--link`) and layout flags together are a usage error too, so
-`pivotkit render sales.csv` alone still asks for a view. The view runs as a view file would: checked
+`pivotkit render sales.csv` alone still asks for a view. A view file given as the data (`pivotkit
+render view.json --rows Region`, `describe view.json --suggest`) is a usage error that says to give
+the data, or how to run the view. The view runs as a view file would: checked
 with "did you mean" hints, exit codes 0, 1 and 2 as for a view.
 
 - **One value names one thing**, and each flag may be repeated, outer first: `--rows Region --rows
@@ -310,7 +319,10 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   `dataMismatch`, `typeFromView`, `typeFromViewFailed`, and from a view made from the data's fields
   `noSuggestion`, `pivotResult`, `dateGrouped`, `unusedGroup`, `unusedMap`, `mapped`), `path`, `message` and, where there is one,
   `suggestion`. `dataMismatch` also has `missing`, `dataFields`, `pivotResult` and `details` (the lines
-  stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`.
+  stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`. An error that
+  names a grouping the view could not make (an unknown field "Region by month" after
+  `groupingNeedsDate`) has `followsFrom` with the grouping's code; stderr counts it on the grouping's
+  error instead of showing it.
 - `error` (exit 2): `{ kind, code, message }`, `kind` one of `usage`, `io`, `limit`, `template`,
   `internal` (more may come).
 - `pivotkit --version --json`: `{ "pivotkit-cli", "pivotkit-report", "pivotkit-core", environment }`,

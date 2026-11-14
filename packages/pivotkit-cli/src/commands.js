@@ -110,7 +110,7 @@ export const COMMANDS = Object.freeze({
     describe: {
         usage: "pivotkit describe <view | data> [options]\n       pivotkit describe <data> --suggest [-o <file>] [layout flags]",
         text: "Describe a view (what it shows and filters) or a data file (its fields, types and counts); --suggest writes a draft view of the data.",
-        args: [{ name: "input", text: "A view file or a data file (CSV, JSON, XLSX), or - for stdin.", complete: "file" }],
+        args: [{ name: "input", text: "A view file or a data file (CSV, JSON, XLSX), or - for stdin; data may be given with --data instead.", complete: "file" }],
         options: {
             ...DATA_OPTIONS,
             ...LAYOUT_OPTIONS,
