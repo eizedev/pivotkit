@@ -86,7 +86,7 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | --- | --- | --- |
 | `--data <file>` | render, validate, describe | CSV, TSV, JSON or XLSX, or `-` for stdin ([what is read](import.md)). |
 | `--data-format csv\|json\|xlsx` | | The data's format; needed for stdin, else the file's extension. |
-| `--sheet <name>` | | The sheet of a workbook. |
+| `--sheet <name>` | | The sheet of a workbook. Without it: the sheet the view names (`source.params.sheet`, written by the report for a view made on a workbook's sheet), else the first visible one. [More](#the-sheet-of-a-workbook) |
 | `-f, --format html\|csv\|json\|xlsx\|svg` | render | Default: the extension of `-o` (`.htm` is `html`); another extension, or none, is a usage error. On stdout `html`. |
 | `-o, --output <file>` | render | Write here instead of stdout. A regular file there is replaced whole; a link, a directory or a device is refused. Its directory must exist. |
 | `--template <file>` | render | `html`: a [print template](print-template.md). |
@@ -205,6 +205,28 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 - `validate`, `describe` and `render` are operations of pivotkit-report's
   [operation table](report.md#operations), which the [MCP server](mcp.md) shares: the same findings
   and the same output there.
+- `render`, `validate` and `describe`: `sheet`, the sheet of a workbook read (`null` for other data or
+  without data). `describe` of a workbook also gives `sheets`: `[{ name, index, visible }]` in the
+  workbook's order.
+
+## The sheet of a workbook
+
+A view made in the report on a workbook's sheet names that sheet in its view file and link
+(`source.params.sheet`, [view file](view-file.md)). `render`, `validate` and `describe` of such a view
+read that sheet of `--data` when `--sheet` is not given, and say so in an `info` finding `viewSheet`
+(in `--json`, and on stderr with `--verbose`); `--sheet` reads another. A view without a sheet reads the first visible sheet. Data
+that is no workbook does not use the view's sheet (an `info` finding `viewSheet` says so).
+
+A sheet the workbook does not have, named by `--sheet` or by the view, is an error (exit 2, `io`,
+`NO_SHEET`) that names the sheets there are:
+
+```text
+pivotkit: quarters.xlsx: the workbook has no sheet "Q4" (the view's source.params.sheet; give --sheet to read another); its sheets: "Q1", "Q2", "Q3"
+```
+
+`describe` of a workbook lists its sheets after its summary line, the one read marked:
+`sheets: "Q1" (read), "Q2", "Q3"`; a hidden one says `(hidden)` (`(read, hidden)` when it is read).
+Names are quoted as JSON text. An empty `--sheet ""` counts as not given.
 
 ## What describe shows
 

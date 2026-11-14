@@ -85,6 +85,8 @@ export { EVENTS };
  * @property {string} name
  * @property {PivotView} view  the normalized view to store
  * @property {"shared" | "user"} scope  where it goes: "user", the user's own views
+ * @property {{ id: string, name?: string, params?: Record<string, string> } | null} source  the data
+ *   shown, as a view file names it (a loaded workbook's sheet in `params.sheet`); null without a source id
  * @property {(result: unknown) => void} respondWith  call it in the listener with the promise of the
  *   host's save: "Saved" shows when it resolves, the error's message when it rejects
  */
@@ -101,6 +103,7 @@ export { EVENTS };
  * @typedef {object} TemplatePublish  the detail of pivot-template-publish (with `can-publish`)
  * @property {string} name
  * @property {PivotView} view  the user's view to publish as a shared view
+ * @property {{ id: string, name?: string, params?: Record<string, string> } | null} source  the data shown, as for pivot-template-save
  * @property {(result: unknown) => void} respondWith  as for pivot-template-save: "Published" shows
  *   when the promise resolves (the host then sets `templates` with the new shared entry)
  */
@@ -759,14 +762,14 @@ export class PivotReportElement extends Base {
         emit(this, EVENTS.cellClick, cell);
     };
 
-    /** @param {string} name @param {PivotView} view @param {{ scope: "shared" | "user" }} where */
-    #onSaveTemplate = (name, view, where) => request(this, EVENTS.templateSave, { name, view, scope: where.scope });
+    /** @param {string} name @param {PivotView} view @param {{ scope: "shared" | "user", source?: TemplateSave["source"] }} where */
+    #onSaveTemplate = (name, view, where) => request(this, EVENTS.templateSave, { name, view, scope: where.scope, source: where.source ?? null });
 
     /** @param {string} name @param {{ scope: "shared" | "user" }} where */
     #onDeleteTemplate = (name, where) => request(this, EVENTS.templateDelete, { name, scope: where.scope });
 
-    /** @param {string} name @param {PivotView} view */
-    #onPublishTemplate = (name, view) => request(this, EVENTS.templatePublish, { name, view });
+    /** @param {string} name @param {PivotView} view @param {{ source?: TemplatePublish["source"] }} [where] */
+    #onPublishTemplate = (name, view, where) => request(this, EVENTS.templatePublish, { name, view, source: where?.source ?? null });
 
     /** @param {TipDismiss} change */
     #onTipDismiss = (change) => {

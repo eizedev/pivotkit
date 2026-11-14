@@ -540,23 +540,43 @@ function viewActions(ctx, labels) {
         return run(
             () =>
                 target.kind === "publish"
-                    ? ctx.onPublish(name, ctx.view)
+                    ? ctx.onPublish(name, ctx.view, { source: ctx.source })
                     : target.kind === "host"
-                      ? ctx.onSave(name, ctx.view, { scope: "user" })
-                      : write({ name, view: ctx.view, sourceId: ctx.sourceId, replace: target.at }),
+                      ? ctx.onSave(name, ctx.view, { scope: "user", source: ctx.source })
+                      : write({ name, view: ctx.view, sourceId: ctx.sourceId, sheet: ctx.sheet, replace: target.at }),
             labels.toastSaved,
             labels.toastSaveFailed,
             labels.toastSaveRejected,
             name
-        ).then((ok) => ok && ctx.onSaved({ name, scope: target.kind === "publish" ? "shared" : "user", store: target.kind === "store", storeSource: target.kind === "store" ? target.storeSource : null }, key));
+        ).then((ok) => ok && ctx.onSaved({ name, scope: target.kind === "publish" ? "shared" : "user", store: target.kind === "store", storeSource: target.kind === "store" ? target.storeSource : null, storeSheet: target.kind === "store" ? storedSheet(target, ctx) : null }, key));
     };
     return {
         // Save and Save as: where to is view-save.js's (the host's onSaveTemplate wins over the store)
         save,
         remove: ctx.onDelete || ctx.store ? (t) => run(() => (t.at !== undefined ? write({ remove: t.at, removeName: t.name }) : ctx.onDelete(t.name, { scope: t.scope })), labels.toastDeleted, labels.toastDeleteFailed, labels.toastDeleteRejected, t.name) : null,
-        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view)), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
+        // a view of the menu is published with the data it was made for, not the data shown
+        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view), { source: entrySource(t) }), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
     };
 }
+
+/**
+ * The data an entry of the Views menu was made for, as the host's callbacks get a source: the browser
+ * store's by its id and sheet, a host's view file's sheet with its id; null when it names none.
+ * @param {{ sourceId?: string, sheetOf?: string, sheet?: string }} t
+ */
+const entrySource = (t) => {
+    const id = t.sourceId ?? t.sheetOf;
+    return id ? { id, ...(t.sheet ? { params: { sheet: t.sheet } } : {}) } : null;
+};
+
+/**
+ * The sheet a save into the browser store leaves its view with: the sheet shown when the view is
+ * stored for the data shown (a new one, or one saved before views named their sheet, which takes it:
+ * view-store.js), else the sheet it had.
+ * @param {{ storeSource: string | null, storeSheet?: string | null }} target
+ * @param {{ sourceId?: string, sheet?: string | null }} ctx
+ */
+const storedSheet = (target, ctx) => (target.storeSource && target.storeSource === ctx.sourceId ? (ctx.sheet ?? null) : (target.storeSheet ?? null));
 
 /**
  * The Views menu in levels: what persists, as one list to scan in groups - "This view" (Save the
@@ -575,7 +595,7 @@ function viewActions(ctx, labels) {
  */
 export function ViewsPanel({ templates, labels, onLoad, actions, close, share }) {
     const { save, remove: onDelete, publish: onPublish } = viewActions(actions, labels);
-    const can = { host: Boolean(actions.onSave), store: Boolean(actions.store), publish: Boolean(onPublish), sourceId: actions.sourceId };
+    const can = { host: Boolean(actions.onSave), store: Boolean(actions.store), publish: Boolean(onPublish), sourceId: actions.sourceId, sheet: actions.sheet ?? null };
     const target = saveTarget(actions.loaded, templates, can, actions.empty);
     // "My views" says where they are kept while the browser store takes the saves
     const store = actions.store && !actions.onSave;
@@ -602,6 +622,9 @@ export function ViewsPanel({ templates, labels, onLoad, actions, close, share })
             id,
             testId: `saved-view-${t.name}`,
             text: t.name,
+            // while a workbook's sheet is shown, a view made on a sheet says which (two views of a
+            // name can be kept, one per sheet; one of another sheet reads that sheet when opened)
+            hint: t.sheet && actions.sheet ? fill(labels.viewSheet, { sheet: t.sheet }) : undefined,
             icon: "bookmark",
             current: isLoadedEntry(t, actions.loaded),
             closes: true,

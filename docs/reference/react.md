@@ -24,9 +24,9 @@ Installation and a first example are in [Getting started with React](../getting-
 | `defaultView` | view | empty | Uncontrolled: the start view. |
 | `onViewChange` | `(view) => void` |  | Every change, as a normalized view. |
 | `templates` | `{ name?, view?, file?, scope?, deletable? }[]` | `[]` | The templates of the Views menu, in two groups by `scope`: "Shared views" (`"shared"`) and "My views" (`"user"`); without `scope` a `deletable` entry is the user's own, every other one shared. [More](#prop-templates) |
-| `onSaveTemplate` | `(name, view, { scope }) => unknown` |  | Save as and Save of the user's own views; gets the name (an existing one to replace), the view and `{ scope: "user" }`. [More](#prop-onsavetemplate) |
+| `onSaveTemplate` | `(name, view, { scope, source }) => unknown` |  | Save as and Save of the user's own views; gets the name (an existing one to replace), the view and `{ scope: "user", source }` (the data shown). [More](#prop-onsavetemplate) |
 | `onDeleteTemplate` | `(name, { scope }) => unknown` |  | Deletes a template marked `deletable`, after the user confirmed in the menu; `scope` is the entry's group. [More](#prop-ondeletetemplate) |
-| `onPublishTemplate` | `(name, view) => unknown` |  | With `canPublish`: "Publish as shared view" on the user's views and Save on a shared view, asked in place. [More](#prop-onpublishtemplate) |
+| `onPublishTemplate` | `(name, view, { source }) => unknown` |  | With `canPublish`: "Publish as shared view" on the user's views and Save on a shared view, asked in place. [More](#prop-onpublishtemplate) |
 | `canPublish` | `boolean` | `false` | The user may publish views for everyone (an admin, as the host decides). [More](#prop-canpublish) |
 | `templateStore` | `"browser"` | off | `"browser"`: the report keeps the user's own views (My views) in `localStorage` under `pivotkit:views:<storageKey>` (`pivotkit:views` without one), as view files that name their data (`source`). [More](#prop-templatestore) |
 | `fieldDefaults` | `{ [field]: { agg?, format?, drillFormat?, order?, label?, description?, href?, type? } }` |  | The aggregator and the format a field gets when it is added to Values (an average for a duration, say). [More](#prop-fielddefaults) |
@@ -85,9 +85,9 @@ The templates of the Views menu, in two groups by `scope`: "Shared views" (`"sha
 
 ### `onSaveTemplate` { #prop-onsavetemplate }
 
-Type: `(name, view, { scope }) => unknown`.
+Type: `(name, view, { scope, source }) => unknown`.
 
-Shows "Save current view" (Save as… once a view is loaded) under This view in the Views menu, and Save “…” for a user's view of `templates` that was loaded. Gets the name, the view as shown (normalized against the data, with the custom orders of `fieldDefaults`) and `{ scope: "user" }`.
+Shows "Save current view" (Save as… once a view is loaded) under This view in the Views menu, and Save “…” for a user's view of `templates` that was loaded. Gets the name, the view as shown (normalized against the data, with the custom orders of `fieldDefaults`) and `{ scope: "user", source }`: `source` is the data shown as a view file names it, `{ id, name, params }` (a loaded workbook's sheet in `params.sheet`), `null` without a source id ([keeping it](../concepts/templates.md#your-application-keeps-them-callbacks)).
 
 Replace by name (an upsert): Save sends the loaded view's own name, and Save as a name of one of the user's views once the user confirmed "“…” exists. Replace it?". Replace that view, do not add a second one. Then pass the new `templates`; until then the menu keeps the old entry, and the view shown carries the name. When the answer comes after the user changed the view (a slow server), the dot for unsaved changes stays; after New or another view was loaded the name goes to no view.
 
@@ -101,7 +101,7 @@ Deletes a template marked `deletable`, after the user confirmed in the menu; `sc
 
 ### `onPublishTemplate` { #prop-onpublishtemplate }
 
-Type: `(name, view) => unknown`.
+Type: `(name, view, { source }) => unknown`; `source` as for [`onSaveTemplate`](#prop-onsavetemplate).
 
 With `canPublish`: "Publish as shared view" (an arrow) next to each of the user's views, asked in place ("Publish “…” as a shared view? Everyone who uses this report sees it."), and Save “…” on a shared view that was loaded, asked in place ("Replace the shared view “…” for everyone?"). Both send the view in the same form: normalized against the data, with the custom orders of `fieldDefaults`. The host adds the view to its shared views, or replaces the shared view of that name (an upsert by name: Save sends the shared view's own name), and passes the new `templates`; "View “…” published" when it returns or its promise resolves, a failure as for `onSaveTemplate` (`labels.toastPublishRejected`).
 
@@ -334,7 +334,7 @@ The data shown changed, with what it is now:
 
 | Key | What |
 | --- | --- |
-| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone; `"restore"`: the report was mounted again and shows the file it had ([`allowImport`](#prop-allowimport)). |
+| `cause` | `"load"`: a file, before it is shown (returning `false` refuses it; the data stays), also another sheet of the workbook shown that a saved view opened (refused, the view is not opened and a note says so); `"original"`: the host's data again; `"undo"`, `"redo"`: one of those undone or redone; `"restore"`: the report was mounted again and shows the file it had ([`allowImport`](#prop-allowimport)). |
 | `source` | `{ id, name }` of the data shown: the file's, or the host's `source` (`null` without one). |
 | `file` | `{ name, size, type }` of the file shown, or `null` for the host's data. |
 | `sheet` | The sheet of a workbook, else `null`. |

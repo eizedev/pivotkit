@@ -11,16 +11,20 @@ import { DataPanel, DropOverlay, ImportDialog, SourceLine as Line } from "./impo
 import { importLabels } from "./import-labels.js";
 import { acceptOf } from "./import-run.js";
 import { backToOriginal, loadData } from "./import-steps.js";
+import { sheetPlan } from "./sheet-views.js";
+import { fill } from "./labels.js";
 import { useFormName } from "./dom.js";
 
 /**
  * @typedef {import("./import-steps.js").ImportContext & {
- *   job: { file: File, n: number } | null, setJob: React.Dispatch<React.SetStateAction<{ file: File, n: number } | null>>,
+ *   job: ImportJob | null, setJob: React.Dispatch<React.SetStateAction<ImportJob | null>>,
  *   dismiss?: (id: number) => void,
  *   dragging: boolean, encoded: import("pivotkit-core").Encoded, sourceName: string | undefined,
  *   plugins: any[], worker?: () => Worker, limits?: object, timeZone?: string,
- *   box: () => DOMRect | undefined, pick: () => void }} ImportApi
+ *   box: () => DOMRect | undefined, pick: () => void, afterData: (run: (() => void) | null) => void }} ImportApi
  *   `box`: the report's box on screen; `pick`: clicks the file input (ImportLayer's `input`)
+ * @typedef {{ file: File, n: number, sheet?: string, auto?: boolean, done?: (loaded: boolean, refused?: boolean) => void }} ImportJob
+ *   a file being read: `sheet` and `auto` as ImportDialog's job; `done` is told whether it was loaded
  */
 
 let jobs = 0;
@@ -51,15 +55,67 @@ function sayError(api, text) {
  * @param {File[]} files
  */
 export function startFiles(api, files) {
-    const dismiss = api.dismiss;
-    if (typeof dismiss === "function") {
-        (shownErrors.get(dismiss) ?? []).forEach((id) => dismiss(id));
-        shownErrors.delete(dismiss);
-    }
+    closeErrors(api);
     if (files.length === 1) {
         api.setJob({ file: files[0], n: ++jobs });
     } else if (files.length > 1) {
         sayError(api, importLabels(api.labels).dropOne);
+    }
+}
+
+/**
+ * Reads another sheet of the file shown and loads it at once (a saved view made on that sheet was
+ * opened, sheet-views.js): the dialog shows the progress and has Cancel, a sheet that cannot be read
+ * says why there. `done` is told whether the sheet was loaded (Cancel, a failure and a host's refusal
+ * are not).
+ * @param {ImportApi} api
+ * @param {string} sheet
+ * @param {(loaded: boolean, refused?: boolean) => void} done  `refused`: the host refused it (onDataLoad)
+ */
+export function loadSheet(api, sheet, done) {
+    const file = api.imported?.blob;
+    if (!file) {
+        done(false);
+        return;
+    }
+    closeErrors(api);
+    api.setJob({ file, n: ++jobs, sheet, auto: true, done });
+}
+
+/**
+ * A view that names a sheet (sheet-views.js: sheetPlan): another sheet of the workbook shown is read
+ * first (loadSheet), and `then` runs once its data is shown (the report's `afterData`); a sheet the
+ * workbook does not have is said, and the view loads on the sheet shown. A sheet the host refuses
+ * (onDataLoad) is said too; Cancel is not. Returns what the plan was.
+ * @param {ImportApi} api
+ * @param {{ id?: string | null, sheet?: string | null }} made  the data and sheet the view names
+ * @param {string} name  the view's name
+ * @param {() => void} then
+ */
+export function openOnSheet(api, made, name, then) {
+    const shown = api.imported;
+    const plan = sheetPlan(made, { id: shown?.source.id, sheet: shown?.sheet ?? null, sheets: shown?.sheets ?? [] });
+    const t = importLabels(api.labels);
+    if (plan.kind === "switch") {
+        api.afterData(null);
+        loadSheet(api, plan.sheet, (loaded, refused) => {
+            api.afterData(loaded ? then : null);
+            if (refused) {
+                sayError(api, fill(t.sheetRefused, { name, sheet: plan.sheet }));
+            }
+        });
+    } else if (plan.kind === "missing") {
+        sayError(api, fill(t.sheetMissing, { name, sheet: plan.sheet, file: shown?.file.name ?? "" }));
+    }
+    return plan.kind;
+}
+
+/** Closes the error notes of earlier files. @param {ImportApi} api */
+function closeErrors(api) {
+    const dismiss = api.dismiss;
+    if (typeof dismiss === "function") {
+        (shownErrors.get(dismiss) ?? []).forEach((id) => dismiss(id));
+        shownErrors.delete(dismiss);
     }
 }
 
@@ -107,10 +163,14 @@ export function ImportLayer({ api, input }) {
                     timeZone={api.timeZone}
                     announce={(text, extra) => (extra?.tone === "error" ? sayError(api, text) : api.announce(text, extra))}
                     // only this dialog's job: a file dropped meanwhile has its own
-                    onClose={() => api.setJob((j) => (j === job ? null : j))}
-                    onApply={(loaded) => {
-                        loadData(api, loaded);
+                    onClose={() => {
                         api.setJob((j) => (j === job ? null : j));
+                        job.done?.(false);
+                    }}
+                    onApply={(loaded) => {
+                        const ok = loadData(api, loaded);
+                        api.setJob((j) => (j === job ? null : j));
+                        job.done?.(ok, !ok);
                     }}
                 />
             ) : null}

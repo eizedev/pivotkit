@@ -8,6 +8,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Added
 
+- `onSaveTemplate(name, view, { scope, source })` and `onPublishTemplate(name, view, { source })`
+  get the data shown as a view file names it (`{ id, name, params }`, `null` without a source id),
+  so a host that keeps views can keep a workbook's sheet with them ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - `exportData` (default `false`): the Export menu's last group **Source data** with **All rows as CSV
   (.csv)** and **All rows as JSON (.json)**: every row of the data shown, every column except derived
   fields, under the fields' own names, values not formatted (`<fileName>-data.csv`,
@@ -22,6 +25,12 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- A view made on a sheet of a loaded workbook other than the first opens on that sheet again after
+  the same workbook is loaded anew: views saved, downloaded and linked from a workbook's sheet name it
+  in `source.params.sheet`; while a workbook is shown, Views lists the views of its other sheets with
+  "Sheet “…”" next to them, and opening one (or such a view file) reads that sheet of the file again
+  (a step Undo takes back) before the view is shown. The browser store keeps a view of a name per
+  sheet. A view whose sheet the workbook does not have says so ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - A rule on the name whose text is emptied (select all and delete, the field's ×, or only spaces)
   no longer keeps filtering by its last text while the field looks empty: the rule leaves the view
   a moment later, its row stays as a rule not yet complete, and a new text applies it again in its

@@ -175,6 +175,7 @@ export const de = {
     storeTooLarge: "die Ansichten bräuchten mehr als {max} Zeichen",
     storeRefused: "dieser Browser hat sie nicht behalten (Speicher gesperrt oder voll)",
     storeChanged: "die Ansichten wurden in einem anderen Tab geändert; das Menü neu öffnen",
+    viewSheet: "Blatt „{sheet}“",
     toastSaved: "Ansicht „{name}“ gespeichert",
     toastDeleted: "Ansicht „{name}“ gelöscht",
     toastPublished: "Ansicht „{name}“ veröffentlicht",

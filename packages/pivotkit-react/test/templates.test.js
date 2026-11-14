@@ -220,10 +220,10 @@ test("Save: where the loaded view is written, or why not; Save as: where it writ
     const none = { host: false, store: false, publish: false };
     assert.equal(saveTarget(null, entries, store), null, "nothing loaded: no Save");
     // a view of the store: the one of its name and its data, wherever it is now
-    assert.deepEqual(saveTarget({ name: "Stored", scope: "user", store: true, storeSource: "sales" }, entries, store), { kind: "store", at: 2, storeSource: "sales" });
-    assert.deepEqual(saveTarget({ name: "Stored", scope: "user", store: true, storeSource: null }, entries, store), { kind: "store", at: 0, storeSource: null });
+    assert.deepEqual(saveTarget({ name: "Stored", scope: "user", store: true, storeSource: "sales" }, entries, store), { kind: "store", at: 2, storeSource: "sales", storeSheet: null });
+    assert.deepEqual(saveTarget({ name: "Stored", scope: "user", store: true, storeSource: null }, entries, store), { kind: "store", at: 0, storeSource: null, storeSheet: null });
     // gone (deleted in another tab): added again for the data shown
-    assert.deepEqual(saveTarget({ name: "Gone", scope: "user", store: true, storeSource: null }, entries, store), { kind: "store", storeSource: "sales" });
+    assert.deepEqual(saveTarget({ name: "Gone", scope: "user", store: true, storeSource: null }, entries, store), { kind: "store", storeSource: "sales", storeSheet: null });
     // the host's own view: through onSaveTemplate; without it no Save
     assert.deepEqual(saveTarget({ name: "Host mine", scope: "user", store: false }, entries, host), { kind: "host" });
     assert.equal(saveTarget({ name: "Host mine", scope: "user", store: false }, entries, store), null);
@@ -239,9 +239,9 @@ test("Save: where the loaded view is written, or why not; Save as: where it writ
     assert.equal(MENU_LABELS.en.saveSharedLocked, "Shared view: you cannot change it. Use Save as.");
 
     // Save as: the store's view of that name for this data first, else the one without named data
-    assert.deepEqual(saveAsTarget("Stored", entries, store), { kind: "store", at: 2, storeSource: "sales", replaces: entries[4] });
-    assert.deepEqual(saveAsTarget("Stored", entries, { ...store, sourceId: "tickets" }), { kind: "store", at: 0, storeSource: null, replaces: entries[2] });
-    assert.deepEqual(saveAsTarget("New one", entries, store), { kind: "store", storeSource: "sales", replaces: null });
+    assert.deepEqual(saveAsTarget("Stored", entries, store), { kind: "store", at: 2, storeSource: "sales", storeSheet: null, replaces: entries[4] });
+    assert.deepEqual(saveAsTarget("Stored", entries, { ...store, sourceId: "tickets" }), { kind: "store", at: 0, storeSource: null, storeSheet: null, replaces: entries[2] });
+    assert.deepEqual(saveAsTarget("New one", entries, store), { kind: "store", storeSource: "sales", storeSheet: null, replaces: null });
     // the host takes the saves: its own view of that name; a shared view of that name stays
     assert.deepEqual(saveAsTarget("Host mine", entries, host), { kind: "host", replaces: entries[1] });
     assert.deepEqual(saveAsTarget("Team", entries, host), { kind: "host", replaces: null });

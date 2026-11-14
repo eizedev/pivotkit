@@ -100,6 +100,10 @@ The table's own CSV (**Export**, **Table as CSV**) is the result of the view, no
 `--data`, the CLI says so and names what to take instead
 ([when the data does not fit](../reference/cli.md#data-mismatch)).
 
+A view made on a sheet of an Excel workbook you loaded names that sheet; give the workbook as
+`--data` and the CLI reads that sheet (`--sheet` reads another; `pivotkit describe book.xlsx` lists
+the sheets) ([the sheet of a workbook](../reference/cli.md#the-sheet-of-a-workbook)).
+
 A view written by hand works too, as a file or as JSON text:
 
 ```bash

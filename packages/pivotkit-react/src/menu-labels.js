@@ -206,6 +206,8 @@ export const en = {
     storeTooLarge: "the views would take more than {max} characters",
     storeRefused: "this browser did not keep it (storage blocked or full)",
     storeChanged: "the views were changed in another tab; open the menu again",
+    // next to a saved view made on a workbook's sheet, while a workbook is shown
+    viewSheet: "Sheet “{sheet}”",
     // what a save, a delete or a publish in the Views menu came to; "Rejected": the host refused
     // without saying why (a rejected promise without a message)
     toastSaved: "View “{name}” saved",

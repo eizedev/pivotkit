@@ -119,7 +119,8 @@ reads a link with `readViewLink(location.hash, key, { allowParams })` of `pivotk
 view, its name, and `src`, the data source the link names. `src.id` is the host's opaque name of the
 data, never an address or a query; `src.params` are what the host needs besides it to find the data
 (a report's parameters, `toViewFile`'s `source.params`), and only those the host lists by name in
-`allowParams` come through (none by default). The page resolves the source itself, with the viewer's
+`allowParams` come through (none by default; `sheet`, the sheet of a workbook the user loaded in the
+report, is one of them: [view file](../reference/view-file.md#the-sheet-of-a-workbook)). The page resolves the source itself, with the viewer's
 own rights, and answers an unknown source and one the viewer may not see the same way. The view is
 user input from outside: normalize it with `outsideLimits()`.
 

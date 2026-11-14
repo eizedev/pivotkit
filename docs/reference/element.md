@@ -218,9 +218,9 @@ would for the data itself.
 | --- | --- |
 | `pivot-view-change` | Every change of the view, normalized.<br><small>`detail`: `{ view }`</small> |
 | `pivot-cell-click` | A click (or Enter) on a value or a chart point: key paths, the value, the number of source rows and the first `drillDownLimit` of them (the page's own row objects).<br><small>`detail`: `{ row, col, value, valueIndex, text, count, rows }`</small> |
-| `pivot-template-save` | "Save current view", Save as… and Save of a user's view (with `save-templates`); `scope` is `"user"`. The name may exist: replace that view (an upsert by name).<br><small>`detail`: `{ name, view, scope, respondWith }`</small> |
+| `pivot-template-save` | "Save current view", Save as… and Save of a user's view (with `save-templates`); `scope` is `"user"`. The name may exist: replace that view (an upsert by name).<br><small>`detail`: `{ name, view, scope, source, respondWith }`; `source` the data shown, `{ id, name, params }` (a loaded workbook's sheet in `params.sheet`), or `null`</small> |
 | `pivot-template-delete` | Delete of a template marked `deletable`, after the user confirmed in the menu; `scope` is its group (`"shared"` or `"user"`). Not sent for a view of the browser store.<br><small>`detail`: `{ name, scope, respondWith }`</small> |
-| `pivot-template-publish` | "Publish as shared view" on one of the user's views, or Save on a shared view (with `can-publish`), after the user confirmed: add it to the shared views, or replace the one of that name, and set `templates`.<br><small>`detail`: `{ name, view, respondWith }`</small> |
+| `pivot-template-publish` | "Publish as shared view" on one of the user's views, or Save on a shared view (with `can-publish`), after the user confirmed: add it to the shared views, or replace the one of that name, and set `templates`.<br><small>`detail`: `{ name, view, source, respondWith }`</small> |
 | `pivot-export` | Every exported file before its download and every copy before it goes on the clipboard; cancelable. [More](#event-pivot-export)<br><small>`detail`: `{ kind, fileName, blob, text, rows }`</small> |
 | `pivot-tip-dismiss` | A tip dismissed (`id`), all tips switched off (`id` `"*"`) or back on (`id` `null`), with every dismissed id, for a page that stores them itself and sets `dismissedTips`.<br><small>`detail`: `{ id, dismissed }`</small> |
 | `pivot-source-switch` | "Switch to “name” and load" for a view made for one of `sources`: show that data with `view` as its start view. [More](#event-pivot-source-switch)<br><small>`detail`: `{ source, view, name }`</small> |
@@ -269,7 +269,8 @@ Every exported file before its download and every copy before it goes on the cli
 `detail`: `{ cause, source, file, sheet, rows, columns, notes }`.
 
 `cause` is `"load"` for a file, sent before it is shown: `preventDefault()` refuses it and the data
-stays (cancelable for `"load"` only); `"original"` when "Back to original data" shows the page's
+stays (cancelable for `"load"` only); also for another sheet of the workbook shown that a saved view
+opened (refused, the view is not opened and a note says so); `"original"` when "Back to original data" shows the page's
 data; `"undo"` and `"redo"` when one of those steps is undone or redone; `"restore"` when an element
 with `storage-key` put back into the page shows the file it had. `source` is `{ id, name }` of
 the data shown now (the file's, or the element's `source-id` and `source-name`), `file` its

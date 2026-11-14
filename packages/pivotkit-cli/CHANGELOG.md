@@ -8,6 +8,8 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
+- `describe` of a workbook lists its sheets; `--json` gives `sheet` (the sheet read) for every
+  command with data and `sheets` for `describe` of a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - `--verbose`: how the data was read (encoding, separator, sheet) on stderr.
 - `pivotkit --version --json`: the versions with an `environment` block (Node, the locale, time zone
   and "now" the environment sets and whether Intl knows them, the default limits), for bug reports
@@ -34,6 +36,9 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- A view file or link that names a sheet the workbook given with `--data` does not have is an error
+  (exit 2, `NO_SHEET`) instead of a run on the first sheet; `--sheet` reads another
+  ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - The report's English words follow the report on a page (pivotkit-report's default labels): yes/no
   as "Yes" and "No" instead of "true" and "false", "Distinct count" instead of "Count Unique", and so
   on, in every format; a script that reads them must take the new words. `LINES_SKIPPED` (a warning
@@ -61,6 +66,11 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Fixed
 
+- `render`, `validate` and `describe` read the sheet of a workbook a view file or link names
+  (`source.params.sheet`, written by pivotkit-react) when `--sheet` is not given, instead of the first
+  sheet; `--sheet` overrides it. A sheet the workbook does not have, from `--sheet` or the view, is an
+  `io` error `NO_SHEET` that lists the sheets there are; a host's own `source.params.sheet` is read
+  the same way when such a view is rendered on a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - The help's examples name view files `.pivotkit.json`, as the report downloads them.
 
 ## [0.1.0] - 2026-11-13

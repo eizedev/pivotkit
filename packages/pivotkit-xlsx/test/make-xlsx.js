@@ -202,3 +202,28 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     writeFileSync(out, bytes);
     console.log(`${out}: ${bytes.length.toLocaleString("en-US")} bytes`);
 }
+
+/**
+ * The workbooks of the tests of a view made on another sheet than the first (issue #252), shared by
+ * the CLI's tests and the browser's: "quarters" has three sheets with other columns each (so each
+ * sheet is other data), "months" three sheets with the same columns and other values (so only the
+ * sheet tells them apart).
+ */
+export const SHEET_BOOKS = Object.freeze({
+    quarters: () =>
+        makeXlsx({
+            sheets: [
+                { name: "Q1", rows: [["Region", "Units"], ["North", 1], ["South", 2]] },
+                { name: "Q2", rows: [["Team", "Hours"], ["Network", 3], ["Server", 4]] },
+                { name: "Q3", rows: [["Product", "Revenue"], ["Alpha", 30], ["Beta", 70], ["Alpha", 5]] }
+            ]
+        }),
+    months: () =>
+        makeXlsx({
+            sheets: [
+                { name: "Jan", rows: [["Region", "Units"], ["North", 1], ["South", 2]] },
+                { name: "Feb", rows: [["Region", "Units"], ["North", 10], ["South", 20]] },
+                { name: "Mar", rows: [["Region", "Units"], ["North", 100], ["East", 300]] }
+            ]
+        })
+});
