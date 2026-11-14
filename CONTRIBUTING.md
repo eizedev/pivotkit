@@ -29,7 +29,10 @@ security reports privately (see [SECURITY.md](SECURITY.md)).
    `curl -fsSo docs/assets/site.css https://raw.githubusercontent.com/eizedev/brand/main/docs-site/site.css`
    and `uvx zensical@<version> serve` (the version is in eizedev/brand's
    `docs-site/requirements.txt`); `zensical build --strict` is what CI runs. A change of the UI takes
-   the screenshots again: `npm run docs:screenshots`.
+   the screenshots again: `npm run docs:screenshots`. A feature also updates the overview pages and
+   the quick starts (the README's top, the start page, the feature list, the comparison, the npm
+   READMEs, the getting-started pages), and a larger one is reviewed by a user, an operator and a
+   developer who run it from the packed packages (AGENTS.md, "Rules that matter here").
 5. Add an entry under `[Unreleased]` in the `CHANGELOG.md` of each package you changed.
 6. Open a pull request with a short description and what you tested; use Conventional Commits
    (`feat(core): ...`, `fix(react): ...`, `feat(element): ...`).
@@ -185,6 +188,8 @@ requires every range to be the version in this repository).
 
 For each release:
 
+0. A docs walkthrough first: `npm pack` every package, install the tarballs in fresh projects and
+   follow each getting-started page and the CLI's Try it exactly as written; fix what does not run.
 1. One pull request prepares it: move the `[Unreleased]` entries in `packages/<package>/CHANGELOG.md`
    under the new version and date; set `version` in `packages/<package>/package.json`, and in the
    same pull request the caret range or the devDependency of every package that uses it

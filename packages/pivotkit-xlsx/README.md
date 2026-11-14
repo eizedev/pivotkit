@@ -25,6 +25,7 @@ import { readFile } from "pivotkit-core/import";
 import { encode } from "pivotkit-core";
 import xlsxReader from "pivotkit-xlsx";
 
+// in the browser: a File from <input type="file"> or a drop; in Node: new File([bytes], "sales.xlsx")
 const table = await readFile(file, { plugins: [xlsxReader] }); // the first visible sheet
 const data = encode(table);                                      // typed columns for the report
 ```

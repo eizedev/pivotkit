@@ -201,7 +201,10 @@ it.
 - `docs/` - the documentation site (pivotkit.eize.dev): Zensical (`zensical.toml`) with the shared design
   of eizedev/brand (`docs-site/`), built and published by `.github/workflows/docs.yml`. Pages in
   Markdown, `docs/assets/icon.svg` from eizedev/brand, `docs/assets/screenshots/` taken by
-  `scripts/docs-screenshots.js` from the playground. `docs/playground/` (the live demo),
+  `scripts/docs-screenshots.js` from the playground, except `xlsx-result-light.png` and
+  `xlsx-result-dark.png` (one image twice: a workbook has no dark theme), the weather example's view
+  rendered to XLSX by the CLI and pictured by macOS Quick Look (`qlmanage -t -s 1600`, cropped to the
+  table), taken again by hand when the export's look changes. `docs/playground/` (the live demo),
   `docs/schema/`, `docs/assets/social-preview.png` and `docs/robots.txt` (all written by
   `scripts/docs-demo.js`) and `docs/assets/site.css` (the design) are build output, not committed. The theme's
   repository link in the header asks api.github.com for the repository's stars, forks and latest
@@ -378,6 +381,19 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   start page `docs/index.md` keeps the short version for both audiences. The package READMEs are
   short npm landing pages that link into the site and hold no details; a heading or anchor of the
   site that a README links to keeps its address (or gets a redirect), as for any page that moves.
+- A feature, or a change people see, also updates the overview pages and the quick starts: the
+  README's top, the start page `docs/index.md`, `docs/features.md`, `docs/compare.md` where it is a
+  row there, the npm READMEs and the getting-started pages, and their examples still run as written.
+  Reviews run the guides as a new user (packed tarballs in a fresh project, every command as the page
+  writes it), not only read them; before each release a docs walkthrough with the packed packages
+  (CONTRIBUTING.md, Releasing).
+- A new feature or a rework that is more than a small fix gets reviews from three roles besides code
+  review, usability, security and privacy where they apply: the USER (people who build reports, often
+  without technical knowledge), the OPERATOR (hosts who embed and configure pivotkit: React apps, the
+  web component, the PowerShell Universal module; what they can switch off, what data is exposed,
+  what breaks on an update) and the DEVELOPER (code against pivotkit-core, pivotkit-report,
+  pivotkit-cli and plugins; runnable examples, errors, types). Role reviews run the task with the
+  packed packages in fresh projects, not only read; the same roles shape a design before it is built.
 - Screenshots come in pairs, `<name>-light.png` and `<name>-dark.png` (`scripts/docs-screenshots.js`
   takes both), shown with `#only-light` and `#only-dark`. A page that moves keeps its address: a
   redirect in `zensical.toml` (`[project.plugins.redirects.redirect_maps]`, one entry per old section

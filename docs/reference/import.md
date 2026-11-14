@@ -32,6 +32,16 @@ const data = encode(table);                            // { columns, types, data
 const asText = retype(table, { Zip: "string" });       // another type, without reading the file again
 ```
 
+In Node, a file on disk becomes a `File` with its bytes and its name (the name picks the reader):
+
+```js
+import { readFile as readBytes } from "node:fs/promises";
+import { readFile } from "pivotkit-core/import";
+import xlsxReader from "pivotkit-xlsx";
+
+const table = await readFile(new File([await readBytes("sales.xlsx")], "sales.xlsx"), { plugins: [xlsxReader] });
+```
+
 ## Formats
 
 | Format | Reader | Files | What it reads |

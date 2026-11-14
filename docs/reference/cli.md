@@ -10,10 +10,14 @@ views in a pipeline before they go live, and describes views and data. It needs 
 `--now` its output is the same on every run.
 
 ```bash
-npm install --global pivotkit-cli     # or: npx pivotkit-cli <command>
+npm install --global pivotkit-cli     # the command pivotkit
 pivotkit example                      # writes sales.csv and two views into this directory
 pivotkit render sales.pivotkit.json --data sales.csv -o sales.html --now 2026-11-13
 ```
+
+Without installing, `npx pivotkit-cli <command>` runs it once (`npx pivotkit-cli example`); it does
+not put `pivotkit` on the `PATH`. In a project, `npm install --save-dev pivotkit-cli` and
+`npx pivotkit <command>`. Step by step: [getting started with the command line](../getting-started/cli.md).
 
 Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotkit-xlsx and ECharts
 6.1.0.
@@ -273,8 +277,18 @@ The scripts, like the help, are made from the CLI's one table of commands and op
 
 ## In CI
 
+With the example files committed to `reports/` (`pivotkit example`, then move them there):
+
 ```bash
 mkdir -p out
-pivotkit validate views/sales.pivot.json --data fixtures/sales.csv --strict
-pivotkit render views/sales.pivot.json --data fixtures/sales.csv -o out/sales.html --now 2026-01-01 --json > out/report.json
+pivotkit validate reports/sales.pivotkit.json --data reports/sales.csv --strict
+pivotkit render reports/sales.pivotkit.json --data reports/sales.csv -o out/sales.html --now 2026-11-13 --json > out/report.json
+```
+
+A GitHub Actions workflow with these steps is in [getting started](../getting-started/cli.md#ci).
+In PowerShell, `--json` gives an object:
+
+```powershell
+$result = pivotkit validate reports/sales.pivotkit.json --data reports/sales.csv --json | ConvertFrom-Json
+if (-not $result.ok) { $result.findings | Format-Table severity, code, message; exit $result.exitCode }
 ```
