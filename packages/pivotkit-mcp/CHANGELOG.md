@@ -6,6 +6,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- `create_link` and `draft_schedule` given a `layout` answer with one short error that says to make
+  the view with `validate_view` first, instead of the input schema's list of what is missing
+  ([#303](https://github.com/eizedev/pivotkit/issues/303)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.

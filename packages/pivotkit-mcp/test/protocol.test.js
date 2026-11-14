@@ -155,3 +155,25 @@ test("create_link: a link into the source's page; no link for a source without o
         await server.close();
     }
 });
+
+test("create_link and draft_schedule given a layout: one short error that says to make the view first, not a schema dump", async () => {
+    const dir = workspace();
+    const server = await httpServer({ sources: { sales: { file: "data/sales.csv", link: "https://reports.example.com/sales" } }, output: { dir: "out" }, baseDir: dir });
+    try {
+        const { client, close } = await httpClient(server.url);
+        const layout = { rows: ["Region"], values: [{ field: "Sales" }] };
+        const schedule = { name: "Weekly sales", formats: ["xlsx"], every: { unit: "week", weekday: "mon", at: "07:00" }, recipients: ["Sales team"] };
+        for (const [name, extra] of [["create_link", {}], ["draft_schedule", schedule]]) {
+            const r = await call(client, name, { source: "sales", layout, ...extra });
+            assert.equal(r.isError, true, name);
+            assert.equal(r.text, `INVALID_INPUT: ${name} takes a view, not a layout: give the layout to validate_view, which returns the view it makes, and pass that view here`);
+            // a view still works, and without either it is refused
+            const neither = await call(client, name, { source: "sales", ...extra });
+            assert.match(neither.text, /^INVALID_INPUT: input needs view$/, name);
+        }
+        assert.equal((await call(client, "create_link", { source: "sales", view: BY_REGION })).isError, false);
+        await close();
+    } finally {
+        await server.close();
+    }
+});

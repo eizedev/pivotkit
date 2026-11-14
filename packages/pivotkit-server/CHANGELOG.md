@@ -6,6 +6,12 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- A missing or short token of `$PIVOTKIT_TOKEN` (or `$PIVOTKIT_MCP_TOKEN`) is named by its variable
+  alone, not as `the token "token"`; a token of `auth.tokens` keeps its name in the message
+  ([#303](https://github.com/eizedev/pivotkit/issues/303)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.
