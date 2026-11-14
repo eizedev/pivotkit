@@ -6,13 +6,23 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+### Upgrading from 0.1
+
+What a script that reads the reports checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#report-words) has the details.
+
+- Without `labels`, the report's words follow its locale (German for `de-DE`) and, in English, the
+  report on a page: "Yes"/"No" instead of "true"/"false", "Distinct count" instead of "Count
+  Unique". `labels: DEFAULT_LABELS` keeps the engine's words.
+- The HTML report's details say "Rows: 8" (was "Rows: 8 rows").
+
 ### Added
 
 - Operations: `suggest_view` (a draft view file from a source's fields, with its `picks`), and a
   `layout` (a view by field names) instead of a `view` for `render_view` and `validate_view`, with the
   `view` it made in the result; `viewOfLayout` and `LAYOUT_NOTE_SEVERITY`, the one way the operations
   and the command line make a view from a layout ([#253](https://github.com/eizedev/pivotkit/issues/253)).
-
 - `pivotkit-report/operations`: the one table of operations the command line, the MCP server and a
   REST service share (`OPERATIONS`: list_sources, describe_source, get_view_guide, validate_view,
   describe_view, render_view, create_link, draft_schedule), each with its description, input and
@@ -30,6 +40,7 @@ All notable changes to `pivotkit-report` are documented in this file. The format
   where it wrote "Grand Total" next to German numbers), and in English the words the report on a page
   shows ("Distinct count", yes/no as "Yes" and "No"). Pass `labels: DEFAULT_LABELS` for the engine's
   own words.
+- Depends on `pivotkit-core` `^0.6.0` (was `^0.5.0`).
 
 ## [0.1.0] - 2026-11-13
 
@@ -72,5 +83,6 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.1.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.0...HEAD
+[0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.1.0...pivotkit-report@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-report@0.1.0

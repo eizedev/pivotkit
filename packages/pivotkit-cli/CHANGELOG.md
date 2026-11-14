@@ -6,6 +6,20 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+### Upgrading from 0.1
+
+What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-0-6) has the details.
+
+- A view file or link that names a workbook's sheet the data lacks is exit 2 `NO_SHEET`, not a run on
+  the first sheet.
+- `--strict` also fails on `LINES_SKIPPED` and `noRowsKept`.
+- `--json` of `validate`, `describe` and `render` has new members (`uses`, `sheet`; `describe` of a
+  view gives `findings` instead of `errors` and `warnings`).
+- The report's English words change ("Yes"/"No", "Distinct count"); `--locale de-DE` writes German.
+- `-o report.html -f csv` is a usage error.
+
 ### Added
 
 - `pivotkit describe <data> --suggest [-o draft.pivotkit.json]`: a draft view from the data's fields
@@ -20,7 +34,6 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   flags with `describe --suggest` replace a part of the draft ([#253](https://github.com/eizedev/pivotkit/issues/253)).
 - `--map Old=New` (render): a view's field renamed for data whose column was renamed, with a view
   file too; the data-mismatch hint for a renamed field names the flag ([#253](https://github.com/eizedev/pivotkit/issues/253)).
-
 - `describe` of a workbook lists its sheets; `--json` gives `sheet` (the sheet read) for every
   command with data and `sheets` for `describe` of a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - `--verbose`: how the data was read (encoding, separator, sheet) on stderr.
@@ -46,9 +59,6 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   `--json`: `validate` and `describe` of a view add `uses` (the data's fields the view uses);
   `describe` of a view gives `valid`, `name` and `description` without `errors` and `warnings`
   (they are the `findings`); `describe` of data gives `rows`, `fields` and `text`.
-
-### Changed
-
 - A view file or link that names a sheet the workbook given with `--data` does not have is an error
   (exit 2, `NO_SHEET`) instead of a run on the first sheet; `--sheet` reads another
   ([#252](https://github.com/eizedev/pivotkit/issues/252)).
@@ -76,6 +86,7 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   options that act in it; `-o` into a missing directory names it and the `mkdir` that makes it; an
   unknown `--limit` gives a hint and the page of the limits instead of all of them; reading from stdin
   on a terminal says so; `LINES_SKIPPED` (title lines skipped) is a warning.
+- Depends on `pivotkit-core` `^0.6.0`, `pivotkit-report` `^0.2.0` and `pivotkit-xlsx` `^0.3.0`.
 
 ### Fixed
 
@@ -109,5 +120,6 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...HEAD
+[0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...pivotkit-cli@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-cli@0.1.0

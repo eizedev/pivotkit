@@ -32,7 +32,7 @@ Files of format version 1 (pivotkit 0.4 and before) are read too; their schema s
   "name": "Revenue by region",
   "description": "For the monthly review",
   "createdAt": "2026-11-07T09:30:00.000Z",
-  "generator": { "name": "pivotkit-react", "version": "0.5.0" },
+  "generator": { "name": "pivotkit-react", "version": "0.6.0" },
   "source": {
     "id": "sales",
     "name": "Sales 2026",
