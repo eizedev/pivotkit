@@ -134,7 +134,7 @@ error that names the key and the one probably meant.
 | `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
 | `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
 | `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
-| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, at start and every hour (see [REST](rest.md#running)) |
+| `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, and the temporary files of writes the server was killed in (older than an hour), at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
 | `locale`, `timeZone` | - | en-US, UTC | Numbers and dates of reports; the time zone of dates in the data |
@@ -153,6 +153,11 @@ error that names the key and the one probably meant.
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
 | - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0) |
+
+A write the server is killed in leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`). It is not a report: neither counted toward
+`output.maxFiles` and `output.maxMb` nor deleted to make room. Without `output.maxAgeDays` it stays
+until you remove it.
 
 The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`
 too; pivotkit-mcp ignores them.

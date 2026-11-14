@@ -4,9 +4,10 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const port = Number(process.argv[2] ?? process.env.PORT ?? 4173);
-const root = process.argv[3] ? `${resolve(process.argv[3])}${sep}` : new URL("./dist/", import.meta.url).pathname;
+const root = process.argv[3] ? `${resolve(process.argv[3])}${sep}` : fileURLToPath(new URL("./dist/", import.meta.url));
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png" };
 
 /** The decoded path of a request; null when its percent-encoding is malformed. */

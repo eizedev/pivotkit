@@ -193,7 +193,9 @@ total that, once reached, refuses everyone again. So set `output.maxFiles` well 
 callers render between two clean-ups, give `render_view` a scope of its own (`auth.toolScopes`) when
 not every caller needs it, keep the per-caller rate limit ([limits](#limits)), set
 `output.maxAgeDays`, and run one server process per output directory (the count is kept within a
-process). The server
+process). A write the server is killed in leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`): it is neither counted nor deleted to make
+room, and without `output.maxAgeDays` it stays until you remove it. The server
 holds at most 256 connections and keeps 16 of them for loopback clients such as the health check or
 a proxy on the same host, and a client has 5 seconds to send its headers ([MCP](mcp.md#http) has the
 details); `http.maxConnectionsPerAddress` bounds the connections of one address. On a network you do
@@ -330,7 +332,7 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted); set it (e.g. 32) when clients reach the port directly with addresses of their own, not behind NAT, a published port or a proxy, where every client has one address |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`), at its top level. A new report deletes the oldest reports until it fits, one write at a time; drafts are counted but never deleted, and may take at most half of `output.maxFiles` (a draft over that answers 409 `NO_OUTPUT`). Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories; a file named with the mark by hand counts as pivotkit's. Where the output directory is the configuration file's directory or holds a source, print template or token file, nothing is deleted: a full directory answers 409 `NO_OUTPUT`, and the start warns (with `output.maxAgeDays` it does not start) |
-| `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour; other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
+| `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`

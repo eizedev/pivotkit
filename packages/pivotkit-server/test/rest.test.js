@@ -268,14 +268,28 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
     }
 });
 
-test("output.maxAgeDays: old reports and drafts go at start (and hourly); files pivotkit did not write, newer ones and subdirectories stay", async () => {
+test("output.maxAgeDays: old reports and drafts, and temporary files of killed writes after an hour, go at start (and hourly); files pivotkit did not write, newer ones and subdirectories stay", async () => {
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);
-    for (const name of ["old.pivotkit-out.xlsx", "old.pivotkit-out.report.json", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]) {
+    // a write's temporary file left by a server that was killed during the write: it goes after an
+    // hour, not after maxAgeDays; one of a write still running (recent) and one of a file pivotkit
+    // did not write stay
+    const hours = new Date(Date.now() - 2 * 3_600_000);
+    const ages = {
+        "old.pivotkit-out.xlsx": old,
+        "old.pivotkit-out.report.json": old,
+        "notes.txt": old,
+        "operator.csv": old,
+        ".a1b2-sales.pivotkit-out.xlsx.4242-k3j9x0qz.tmp": hours,
+        ".a1b2-sales.pivotkit-out.csv.4243-p0o9i8u7.tmp": null,
+        ".notes.txt.4244-a1b2c3d4.tmp": hours,
+        "recent.pivotkit-out.xlsx": null
+    };
+    for (const [name, time] of Object.entries(ages)) {
         writeFileSync(join(dir, "out", name), name);
-        if (name !== "recent.pivotkit-out.xlsx") {
-            utimesSync(join(dir, "out", name), old, old);
+        if (time) {
+            utimesSync(join(dir, "out", name), time, time);
         }
     }
     mkdirSync(join(dir, "out", "keep"));
@@ -283,7 +297,7 @@ test("output.maxAgeDays: old reports and drafts go at start (and hourly); files 
     utimesSync(join(dir, "out", "keep", "old.pivotkit-out.csv"), old, old);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
     try {
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["keep", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]);
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), [".a1b2-sales.pivotkit-out.csv.4243-p0o9i8u7.tmp", ".notes.txt.4244-a1b2c3d4.tmp", "keep", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]);
         assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.pivotkit-out.csv"]);
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(res.status, 200);

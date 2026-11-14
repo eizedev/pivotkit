@@ -32,6 +32,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A missing or short token of `$PIVOTKIT_TOKEN` (or `$PIVOTKIT_MCP_TOKEN`) is named by its variable
   alone, not as `the token "token"`; a token of `auth.tokens` keeps its name in the message
   ([#303](https://github.com/eizedev/pivotkit/issues/303)).
+- `output.maxAgeDays` also removes the temporary files of writes the server was killed in
+  (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); they are not reports,
+  so nothing else ever removed them ([#209](https://github.com/eizedev/pivotkit/issues/209)).
 - The file count of the output directory holds when many reports are written at once: writes into
   it run one at a time ([#269](https://github.com/eizedev/pivotkit/issues/269)).
 - An output directory the server cannot write is a problem in `check-config` and a warning at start,
