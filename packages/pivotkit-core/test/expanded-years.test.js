@@ -76,7 +76,8 @@ for (const expected of BCE) {
             assert.deepEqual(labels({ rows: ["G"], derived: [{ name: "G", field: "Date", by }] }), expected[by], by);
         }
         assert.equal(formatter("date", { locale })(dayMs(-1, 1, 11)), expected.day[0]);
-        assert.equal(formatter("datetime", { locale })(dayMs(-1, 1, 11) + 37_800_000), expected.datetime);
+        // ICU versions differ in the space before "AM" (U+0020 or U+202F)
+        assert.equal(formatter("datetime", { locale })(dayMs(-1, 1, 11) + 37_800_000).replace(/\s/gu, " "), expected.datetime);
         assert.equal(formatter("date", { locale })(dayMs(2, 1, 8)), expected.day[1]);
     });
 }
