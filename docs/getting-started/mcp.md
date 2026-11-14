@@ -176,8 +176,8 @@ opens it.
 ### A service account and its file rights { #psu-account }
 
 Run the server as an account of its own with no rights beyond its folders, never as PSU's account
-or as LocalSystem: a local or domain account (here `pivotkit-svc`) that is no administrator and has
-the right *Log on as a service*. What it needs:
+or as LocalSystem: a local or domain account (here `pivotkit-svc`) that is no administrator (NSSM gives
+it the right *Log on as a service*). What it needs:
 
 | Folder | The server's account | PSU's account |
 | --- | --- | --- |
@@ -185,18 +185,25 @@ the right *Log on as a service*. What it needs:
 | `data` | read | modify (the export script writes there) |
 | `secrets` | read | modify (the script that writes the token) |
 | `out` | modify (reports, drafts, `output.maxAgeDays` deletes old ones) | read, if a script hands the files on |
-| `logs` | none (the service manager writes the log) | read, to look at it |
+| `logs` | modify (NSSM runs as this account and writes and renames the log) | modify (the schedule that deletes old logs), or read when an administrator deletes them |
 
 For example:
 
 ```powershell
 icacls D:\pivotkit\app D:\pivotkit\data D:\pivotkit\secrets /grant "pivotkit-svc:(OI)(CI)RX"
 icacls D:\pivotkit\pivotkit.json /grant "pivotkit-svc:R"
-icacls D:\pivotkit\out /grant "pivotkit-svc:(OI)(CI)M"
+icacls D:\pivotkit\out D:\pivotkit\logs /grant "pivotkit-svc:(OI)(CI)M"
 ```
 
-Remove inherited rights of other users from `secrets` (`icacls D:\pivotkit\secrets /inheritance:r`,
-then grant the administrators, the server's and PSU's account). The server refuses to start when the
+`secrets` holds only what the two accounts and the administrators may read: remove the inherited
+rights, then grant them (`<PSU's account>` is the account the PSU service runs as):
+
+```powershell
+icacls D:\pivotkit\secrets /inheritance:r
+icacls D:\pivotkit\secrets /grant "Administrators:(OI)(CI)F" "pivotkit-svc:(OI)(CI)RX" "<PSU's account>:(OI)(CI)M"
+```
+
+The server refuses to start when the
 output folder is the configuration's folder or holds a source, a print template or a token file.
 Its checks of links and hard links are measured on Linux and macOS
 ([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).
@@ -216,7 +223,8 @@ PSU's scripts and apps send the same secret: `Authorization = "Bearer $Secret:Pi
 jobs ([PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables)), so
 the script that writes the file runs on a schedule only with a secret without roles. Without a
 token file, `$PIVOTKIT_TOKEN` in the service's environment works too; a service manager keeps it in
-its configuration (NSSM: in the registry), readable by administrators.
+its configuration (NSSM: in the service's registry key; check that key's rights before you put a
+token there).
 
 ### A Windows service with a rotated log { #psu-service }
 
@@ -225,7 +233,8 @@ Any service manager that restarts a process works. With [NSSM](https://nssm.cc/u
 ```powershell
 nssm install pivotkit "C:\Program Files\nodejs\node.exe" D:\pivotkit\app\node_modules\pivotkit-server\bin\pivotkit-server.js serve --config D:\pivotkit\pivotkit.json
 nssm set pivotkit AppDirectory D:\pivotkit
-nssm set pivotkit ObjectName .\pivotkit-svc <password>
+$account = Get-Credential '.\pivotkit-svc'
+nssm set pivotkit ObjectName $account.UserName $account.GetNetworkCredential().Password
 nssm set pivotkit AppStdout D:\pivotkit\logs\pivotkit.log
 nssm set pivotkit AppStderr D:\pivotkit\logs\pivotkit.log
 nssm set pivotkit AppRotateFiles 1
@@ -237,7 +246,8 @@ nssm start pivotkit
 The server writes one JSON line per event on stderr ([logging](../reference/rest.md#logging)): no
 view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
 `AppRotateOnline` renames the log once it is larger than `AppRotateBytes` (10 MiB here), also while
-the service runs; it keeps every renamed file, so a PSU schedule deletes old ones:
+the service runs. The password goes from `Get-Credential` to NSSM in a variable, so it is not in the
+shell's history. NSSM keeps every renamed file, so a PSU schedule deletes old ones:
 
 ```powershell
 Get-ChildItem 'D:\pivotkit\logs\pivotkit-*.log' | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
@@ -276,7 +286,10 @@ Application Request Routing (ARR), as in Microsoft's
 
 The server listens on 127.0.0.1, so only IIS reaches it. Set `http.trustProxy` only when ARR writes
 the client's address into `X-Forwarded-For`; the server then counts refused tokens per client and
-logs the client's address ([behind a reverse proxy](../reference/rest.md#running)).
+logs the client's address ([behind a reverse proxy](../reference/rest.md#running)). ARR ends a
+request that takes longer than its **Time-out** (in the same **Server Proxy Settings**); keep it
+above the 30 seconds a request to the server may take, so a long answer of `/mcp` is not cut off
+(not tested with ARR).
 
 A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command
 (`node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`, the token in
