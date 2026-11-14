@@ -178,7 +178,9 @@ test("check-release --published refuses a dependency that is not on npm and says
         writeFileSync(join(dir, "packages", pkg, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-01\n\n- old\n");
     }
     mkdirSync(join(dir, "scripts"));
-    copyFileSync(new URL("scripts/check-release.js", root), join(dir, "scripts", "check-release.js"));
+    for (const file of ["check-release.js", "is-main.js"]) {
+        copyFileSync(new URL(`scripts/${file}`, root), join(dir, "scripts", file));
+    }
     mkdirSync(join(dir, "bin"));
     // NPM_STUB_PUBLISHED: the published "<name>@<version>" (space-separated); NPM_STUB_OFFLINE=1: no registry
     writeFileSync(join(dir, "bin", "npm"), `#!/bin/sh

@@ -6,6 +6,7 @@
 //   node build.js            build
 //   node build.js --watch    rebuild on change
 import * as esbuild from "esbuild";
+import { isMain } from "../../scripts/is-main.js";
 
 const pkg = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./package.json", import.meta.url), "utf8"));
 const externals = [...Object.keys(pkg.peerDependencies ?? {}), ...Object.keys(pkg.dependencies ?? {})];
@@ -48,7 +49,7 @@ export const options = {
     logLevel: "warning"
 };
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     if (process.argv.includes("--watch")) {
         const ctx = await esbuild.context(options);
         await ctx.watch();

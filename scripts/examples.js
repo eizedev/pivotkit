@@ -16,6 +16,7 @@ import { encode, normalize, toViewFile, viewFileText } from "pivotkit-core";
 import { dataToCsvBytes } from "pivotkit-core/export";
 import { DATASETS, sales } from "../examples/playground/src/data.js";
 import { unpack } from "../examples/playground/data/sources.js";
+import { isMain } from "./is-main.js";
 
 const root = new URL("../", import.meta.url);
 // the repository's web address, from the CLI's package.json ("git+https://github.com/<owner>/<repo>.git")
@@ -132,7 +133,7 @@ export async function writeExamples(dir, built, { gzip = false } = {}) {
     await writeFile(new URL("examples.json", dir), built.manifest);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     const built = await buildExamples();
     const targets = [{ dir: new URL("packages/pivotkit-cli/examples/", root), gzip: true }, ...(process.argv.includes("--docs") ? [{ dir: new URL("docs/assets/examples/", root), gzip: false }] : [])];
     for (const { dir, gzip } of targets) {

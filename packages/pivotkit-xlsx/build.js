@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
+import { isMain } from "../../scripts/is-main.js";
 
 const here = new URL(".", import.meta.url).pathname;
 /** saxen as installed for read-excel-file: its license covers the copy read-excel-file carries. */
@@ -76,7 +77,7 @@ export async function sizes(metafile) {
     return out;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     const metafile = await build();
     if (process.argv.includes("--size")) {
         const kib = (n) => (n / 1024).toFixed(1);

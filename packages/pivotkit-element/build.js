@@ -22,6 +22,7 @@ import { options as reactOptions } from "../pivotkit-react/build.js";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
 export { bundledPackages } from "../../scripts/third-party-licenses.js";
 import { hostStyles } from "./src/host-css.js";
+import { isMain } from "../../scripts/is-main.js";
 
 const here = new URL(".", import.meta.url).pathname;
 const pkg = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
@@ -292,7 +293,7 @@ async function sizes(metafile) {
     return out;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     await esbuild.build(reactOptions);
     await rm(join(here, "dist"), { recursive: true, force: true });
     const result = await esbuild.build(options);

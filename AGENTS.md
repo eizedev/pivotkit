@@ -231,6 +231,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   `scripts/docs-demo.js`, `docs/assets/examples/` (build output, the site's stable addresses).
   `tests/examples.test.js` fails until the committed view files and `examples.json` are what it
   builds: run `node scripts/examples.js` after a change of the view file format or of a preset.
+- `scripts/is-main.js` - `isMain(import.meta.url)`: whether a script that can also be imported was
+  run (`node <script>`), comparing real paths so a checkout under a path with a space or behind a
+  symlink works; every such script of this repository uses it (`tests/is-main.test.js`).
 - `scripts/openapi.js` - writes `docs/openapi.json`, the REST service's OpenAPI document as
   pivotkit-server generates it (committed; served by the site; pivotkit-server's `test/openapi.test.js`
   fails until it is what the script writes).
