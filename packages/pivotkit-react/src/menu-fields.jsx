@@ -76,6 +76,15 @@ export function NumberField({ value, onChange, problem, label, testId, className
 }
 
 /**
+ * A menu's radio button, focused by a click: WebKit on macOS picks a radio on a click without focusing
+ * it, so the focus would land elsewhere after a pick (#148, #203).
+ * @param {React.InputHTMLAttributes<HTMLInputElement> & { "data-testid"?: string, "data-autofocus"?: string }} props
+ */
+export function Radio(props) {
+    return <input {...props} type="radio" onClick={(e) => e.currentTarget.focus()} />;
+}
+
+/**
  * The keys of a field that applies what is typed: Enter applies now; Escape gives back what applies,
  * or, when nothing was changed, goes back a level.
  * @param {{ now: () => void, restore: () => boolean, back: () => void }} actions

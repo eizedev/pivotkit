@@ -160,7 +160,8 @@ a rule of its own: Rules says "No rules" and shows it as a line, "Quick choice: 
 
 The last section of the Filter level, **Rules**, holds the rules: sentences that must all be true
 for an item to stay ("Keep the months for which all of these are true:"). Add one with a button under
-them; its **×** takes it away at once. Each rule has an **i** that explains what it compares, with an
+them; its **×** takes it away at once. Each button adds a row of its own, also while the row before
+is not complete yet. Each rule has an **i** that explains what it compares, with an
 example, and a line under it with what it keeps by itself: "Keeps 7 of 12 months".
 
 | Rule | Example | Offered for |
@@ -191,6 +192,10 @@ example, and a line under it with what it keeps by itself: "Keeps 7 of 12 months
   that combines the years "by its place in the year, over all the years combined"; a number "the
   value itself, not its total"; a date "by its calendar day".
 - The chip says it in short: "from 2022", "2022 to 2024", "≥ 10".
+- Emptying a number, a day or the count of **is in the last** takes the rule off; its row stays, says
+  "Applies once it is complete." and applies again with the next value, in its place among the
+  rules. A comparison changed to **is between** keeps the rule as it was until the second value is
+  there.
 
 ### Rule on the name
 
@@ -227,7 +232,8 @@ greater than 2,000,000".
 2. Pick the comparison: is, is not, is greater than, is at least, is less than, is at most, is
    between, is not between.
 3. Type the number, two for between. It applies a moment after you stop typing, or with Enter; the
-   value and the comparison apply at once once a number is there.
+   value and the comparison apply at once once a number is there. Emptying a number takes the rule off; its row
+   stays and applies again with the next number.
 
 ![The Filter level of Region scrolled to its rules: Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-light.png#only-light)
 ![The Filter level of Region scrolled to its rules: Sum of Revenue is greater than 2,000,000](../assets/screenshots/value-filter-dark.png#only-dark)

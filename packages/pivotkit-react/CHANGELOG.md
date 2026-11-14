@@ -6,6 +6,20 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- Filter level: emptying the value of a rule on the item or on its total takes the rule off, as
+  emptying the text of a rule on the name does; its row stays, says "Applies once it is complete."
+  and applies again with the next value, in its place among the rules. Before, the field looked empty
+  while the previous rule kept filtering ([#244](https://github.com/eizedev/pivotkit/issues/244)).
+- Filter level: a rule added while the text or number of a new rule still waits to apply is a row of
+  its own; the comparison and the value chosen next no longer change the first rule. The add buttons
+  keep the focus in the field until the click, and a new row not yet complete stays in its place when
+  another one is added ([#245](https://github.com/eizedev/pivotkit/issues/245)).
+- Filter level: a click on a date's quick choice (All, This, Last, …) focuses it in Safari too, as
+  Top items' choices do; both use one radio button that takes the focus on a click
+  ([#203](https://github.com/eizedev/pivotkit/issues/203)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
