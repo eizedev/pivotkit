@@ -255,7 +255,8 @@ every request gets a fresh server from the shared context. Behind a reverse prox
 on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
 `/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
 `--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
-header: client addresses are in the proxy's log. For nginx:
+header: client addresses are in the proxy's log. For IIS with ARR, see
+[PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
 
 ```nginx
 location ~ ^/(mcp|\.well-known/|healthz$|$) {

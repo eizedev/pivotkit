@@ -128,25 +128,159 @@ Its one static token is `$PIVOTKIT_TOKEN`.
 
 ## PowerShell Universal { #psu }
 
-PowerShell Universal runs scripts and apps but is no MCP client; it can host the server and its data:
+PowerShell Universal runs scripts and apps but is no MCP client; its server can host pivotkit and
+feed it data. Run `pivotkit-server serve` there with `pivotkit-mcp` installed beside it: one process
+on one port offers the [REST service](rest.md) at `/api/v1` for PSU's scripts and apps and the MCP
+endpoint at `/mcp` for AI clients, both behind the one token `$PIVOTKIT_TOKEN` (or the tokens of
+`auth.tokens`). The steps below use `D:\pivotkit` with the folders `app`, `data`, `out`, `logs`
+and `secrets`; any other place works the same.
 
-- **Data**: a scheduled script exports what a source shows into a data folder, written to a
-  temporary name first and then moved, so the server never reads half a file:
+### Install { #psu-install }
 
-  ```powershell
-  $rows = Invoke-Sqlcmd -Query 'SELECT Region, Product, Sales, OrderDate FROM dbo.Sales'
-  $rows | Export-Csv -Path 'D:\pivotkit\data\sales.tmp' -NoTypeInformation -Encoding utf8
-  Move-Item -Path 'D:\pivotkit\data\sales.tmp' -Destination 'D:\pivotkit\data\sales.csv' -Force
-  ```
+```powershell
+cd D:\pivotkit\app
+npm install pivotkit-server@<version> pivotkit-mcp@<version>
+```
 
-- **Server**: run `node <path>\node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config D:\pivotkit\pivotkit-mcp.json --http --auth token`
-  as a service that restarts it (a Windows service wrapper, or PowerShell Universal's own way of
-  keeping a process running), with `PIVOTKIT_MCP_TOKEN` from a secret. Install it once with
-  `npm install pivotkit-mcp@<version>` in that folder (or from a tarball on a machine without
-  internet).
-- **Links**: give a source `"link": "https://psu.example.com/reports/sales"`, the page of the app
-  that shows the report with pivotkit; `create_link` then makes links that open the view there, and
-  the page loads the data with the rights of the person who opens it.
+On a machine without internet, install from the packages' tarballs (`npm pack` on a machine with
+it). The configuration, `D:\pivotkit\pivotkit.json`:
+
+```json
+{
+  "sources": { "sales": { "file": "data/sales.csv", "link": "https://psu.example.com/reports/sales" } },
+  "output": { "dir": "out" },
+  "auth": { "mode": "token", "tokens": [{ "name": "psu", "file": "secrets/psu-token" }] },
+  "http": { "host": "127.0.0.1", "port": 3333, "publicUrl": "https://reports.example.com" }
+}
+```
+
+Relative paths start at the configuration file's folder. `pivotkit-server check-config --config
+D:\pivotkit\pivotkit.json` prints what the server would expose and says which file or folder is
+missing.
+
+### Data from a PSU script { #psu-data }
+
+A scheduled script exports what a source shows into the data folder, written to a temporary name
+first and then moved, so the server never reads half a file:
+
+```powershell
+$rows = Invoke-Sqlcmd -Query 'SELECT Region, Product, Sales, OrderDate FROM dbo.Sales'
+$rows | Export-Csv -Path 'D:\pivotkit\data\sales.tmp' -NoTypeInformation -Encoding utf8
+Move-Item -Path 'D:\pivotkit\data\sales.tmp' -Destination 'D:\pivotkit\data\sales.csv' -Force
+```
+
+A source's `"link"` is the page of a PSU app that shows the report with pivotkit; `create_link` then
+makes links that open the view there, and the page loads the data with the rights of the person who
+opens it.
+
+### A service account and its file rights { #psu-account }
+
+Run the server as an account of its own with no rights beyond its folders, never as PSU's account
+or as LocalSystem: a local or domain account (here `pivotkit-svc`) that is no administrator and has
+the right *Log on as a service*. What it needs:
+
+| Folder | The server's account | PSU's account |
+| --- | --- | --- |
+| `app`, `pivotkit.json` | read | none (an administrator updates them) |
+| `data` | read | modify (the export script writes there) |
+| `secrets` | read | modify (the script that writes the token) |
+| `out` | modify (reports, drafts, `output.maxAgeDays` deletes old ones) | read, if a script hands the files on |
+| `logs` | none (the service manager writes the log) | read, to look at it |
+
+For example:
+
+```powershell
+icacls D:\pivotkit\app D:\pivotkit\data D:\pivotkit\secrets /grant "pivotkit-svc:(OI)(CI)RX"
+icacls D:\pivotkit\pivotkit.json /grant "pivotkit-svc:R"
+icacls D:\pivotkit\out /grant "pivotkit-svc:(OI)(CI)M"
+```
+
+Remove inherited rights of other users from `secrets` (`icacls D:\pivotkit\secrets /inheritance:r`,
+then grant the administrators, the server's and PSU's account). The server refuses to start when the
+output folder is the configuration's folder or holds a source, a print template or a token file.
+Its checks of links and hard links are measured on Linux and macOS
+([#209](https://github.com/eizedev/pivotkit/issues/209) tracks junctions and hard links on Windows).
+
+### The token from a PSU secret { #psu-token }
+
+The server reads a token file on every request, so a new token takes effect without a restart. A
+PSU script writes the secret (here `PivotkitToken`, a string secret) into that file, at the start
+and whenever the token is changed:
+
+```powershell
+Set-Content -Path 'D:\pivotkit\secrets\psu-token' -Value $Secret:PivotkitToken -NoNewline
+```
+
+PSU's scripts and apps send the same secret: `Authorization = "Bearer $Secret:PivotkitToken"`
+([the calls in PowerShell](rest.md#powershell)). A secret with roles is not available to scheduled
+jobs ([PSU's variables](https://docs.devolutions.net/powershell-universal/platform/variables)), so
+the script that writes the file runs on a schedule only with a secret without roles. Without a
+token file, `$PIVOTKIT_TOKEN` in the service's environment works too; a service manager keeps it in
+its configuration (NSSM: in the registry), readable by administrators.
+
+### A Windows service with a rotated log { #psu-service }
+
+Any service manager that restarts a process works. With [NSSM](https://nssm.cc/usage), for example:
+
+```powershell
+nssm install pivotkit "C:\Program Files\nodejs\node.exe" D:\pivotkit\app\node_modules\pivotkit-server\bin\pivotkit-server.js serve --config D:\pivotkit\pivotkit.json
+nssm set pivotkit AppDirectory D:\pivotkit
+nssm set pivotkit ObjectName .\pivotkit-svc <password>
+nssm set pivotkit AppStdout D:\pivotkit\logs\pivotkit.log
+nssm set pivotkit AppStderr D:\pivotkit\logs\pivotkit.log
+nssm set pivotkit AppRotateFiles 1
+nssm set pivotkit AppRotateOnline 1
+nssm set pivotkit AppRotateBytes 10485760
+nssm start pivotkit
+```
+
+The server writes one JSON line per event on stderr ([logging](../reference/rest.md#logging)): no
+view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
+`AppRotateOnline` renames the log once it is larger than `AppRotateBytes` (10 MiB here), also while
+the service runs; it keeps every renamed file, so a PSU schedule deletes old ones:
+
+```powershell
+Get-ChildItem 'D:\pivotkit\logs\pivotkit-*.log' | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
+```
+
+### IIS with ARR in front { #psu-iis }
+
+When IIS serves the address (TLS, the certificate), let it forward to the server with URL Rewrite and
+Application Request Routing (ARR), as in Microsoft's
+[reverse proxy walkthrough](https://learn.microsoft.com/en-us/iis/extensions/url-rewrite-module/reverse-proxy-with-url-rewrite-v2-and-application-request-routing):
+
+1. In IIS Manager, on the server node, open **Application Request Routing**, **Server Proxy
+   Settings**: check **Enable proxy**, and set **Response Buffer Threshold (KB)** to 0, so
+   responses of `/mcp` are not held back
+   ([why](https://learn.microsoft.com/en-us/archive/blogs/asiatech/transfer-encoding-chunked-is-not-in-the-response-header-when-using-arr)).
+2. A site of its own for the address (`reports.example.com`, HTTPS binding) with this `web.config`:
+
+   ```xml
+   <configuration>
+     <system.webServer>
+       <rewrite>
+         <rules>
+           <rule name="pivotkit" stopProcessing="true">
+             <match url="(.*)" />
+             <action type="Rewrite" url="http://127.0.0.1:3333/{R:1}" />
+           </rule>
+         </rules>
+       </rewrite>
+     </system.webServer>
+   </configuration>
+   ```
+
+3. `http.publicUrl` in `pivotkit.json` is the address IIS serves. The server answers to its own
+   loopback names and the host of `http.publicUrl`, so it takes the request whether or not ARR keeps
+   the client's `Host` header.
+
+The server listens on 127.0.0.1, so only IIS reaches it. Set `http.trustProxy` only when ARR writes
+the client's address into `X-Forwarded-For`; the server then counts refused tokens per client and
+logs the client's address ([behind a reverse proxy](../reference/rest.md#running)).
+
+A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command
+(`node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`, the token in
+`$PIVOTKIT_MCP_TOKEN`).
 
 ## The skill { #skill }
 
