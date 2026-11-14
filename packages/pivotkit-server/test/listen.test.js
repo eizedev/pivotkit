@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
-import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf } from "../src/listen.js";
+import { CONNECTION_LIMITS, connectionGate, connectionLimitsOf, refusedText } from "../src/listen.js";
 import { serveFetch } from "pivotkit-server";
 import { BIN, TOKEN, call, restServer, workspace } from "./helpers.js";
 
@@ -41,9 +41,11 @@ test("connections: one address gets perAddress, the network gets all but the loo
     assert.equal(gate.admit("203.0.113.1"), true);
     assert.equal(gate.admit("203.0.113.1"), true);
     assert.equal(gate.admit("203.0.113.1"), false, "a third from one address");
+    assert.equal(gate.refusedBy, "perAddress");
     assert.equal(gate.admit("203.0.113.2"), true);
     assert.equal(gate.admit("::ffff:203.0.113.3"), true);
     assert.equal(gate.admit("203.0.113.4"), false, "the network may not take the loopback slots");
+    assert.equal(gate.refusedBy, "loopbackReserve");
     assert.equal(gate.admit("::ffff:127.0.0.1"), true, "a health check still gets in");
     assert.equal(gate.admit("::1"), true);
     assert.equal(gate.admit("127.0.0.1"), false, "every slot taken");
@@ -101,11 +103,17 @@ test("refused connections are told once a minute with the address and counts; ht
         assert.equal(told.length, 1, JSON.stringify(told));
         assert.equal(told[0].open, 1);
         assert.equal(told[0].fromAddress, 1);
+        assert.equal(told[0].refused, 1);
+        assert.deepEqual(told[0].limits, ["total"]);
         assert.match(told[0].address, /127\.0\.0\.1/);
     } finally {
         held.destroy();
         await listening.close();
     }
+    // the rest of the minute is told at close, not lost
+    assert.equal(told.length, 2, JSON.stringify(told));
+    assert.equal(told[1].refused, 2);
+    assert.match(refusedText(told[1]), /every connection the server may hold was open/);
     const dir = workspace();
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: -1 }, baseDir: dir }), /http\.maxConnectionsPerAddress/);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 300 }, baseDir: dir }), /http\.maxConnectionsPerAddress: 0 \(no bound, the default\) to 256/);

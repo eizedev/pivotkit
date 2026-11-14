@@ -36,8 +36,8 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 | `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
 | `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
-| `create_link` | A link that opens the view in the source's report page (only for sources with `link`) | - |
-| `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing | a new file |
+| `create_link` | A link that opens the view in the source's report page (only for sources with `link`); a view only, a `layout` is refused with the way to make one (`validate_view`) | - |
+| `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing; a view only, as `create_link` | a new file |
 
 Every tool has an input and an output JSON Schema (draft 2020-12) and returns its result as
 structured content and as one text block: a short sentence with counts and ids (never a name or value
@@ -149,6 +149,9 @@ error that names the key and the one probably meant.
 | `http.page` | - | on | The quick-start page; `{ "sources": true }` lists source ids on it; `false` turns it off |
 | `http.graceMs` | - | 25000 | How long a stop (SIGTERM) waits for running requests |
 | `http.maxConnectionsPerAddress` | - | 0 (no bound) | Connections one address may hold, loopback excepted ([Streamable HTTP](#http)) |
+| `mcp.rateLimit.perMinute`, `.burst` | - | 120, 30 | HTTP: requests per minute of one caller (a token's name, an OAuth client id, or `local` without sign-in), with up to `burst` at once after a pause |
+| `mcp.rateLimit.failedAuthPerMinute` | - | 30 | HTTP: refused tokens per address and minute; beyond, a wrong token from that address gets 429 instead of 401 (a right one still works) |
+| `mcp.concurrency` | - | 4 | HTTP: requests of one caller at once (an answer that streams holds its place until it ends) |
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
@@ -205,7 +208,9 @@ front end over the same sources; it is `pivotkit-server/policy` under another na
 Views from the model are checked with pivotkit-core's limits for views from outside (`outsideLimits`),
 data with its [limits](../concepts/limits.md); the server's own default for files is 50 MiB
 (`fileBytes`, `unpackedBytes`). A call's input may hold at most 10,000 array elements and object
-members; an HTTP body at most 2 MiB.
+members; an HTTP body at most 2 MiB. Over HTTP a caller over a request limit (`mcp.rateLimit`,
+`mcp.concurrency`, the REST service's limits with their own counts) gets 429 with `Retry-After` and
+a JSON-RPC error; the counts live in the memory of one process.
 
 A tool error is a result with `isError` and the text `CODE: message` (an input the tool's schema
 refuses is answered by the SDK before the tool runs, as `Input validation error: ...`); the message names a file by its
@@ -245,6 +250,9 @@ checks in order:
    is in `--allow-origin`; a client that sends none (every non-browser client) passes.
 3. **Authentication** for `/mcp` ([below](#auth)).
 
+`/mcp` takes `POST` only (the server keeps no sessions): another method, `HEAD` included, answers 405
+with `Allow: POST` after the token check and takes no request slot.
+
 Host, Origin, the declared size and the token are checked from the headers before the body is
 read. At most 256 connections are open at once, and 16 of them are kept for loopback clients
 such as the health check or a proxy on the same host, so clients on the network that hold
@@ -253,7 +261,8 @@ seconds for its headers and 30 for its request. `http.maxConnectionsPerAddress` 
 bound) caps the connections of one address; set it where clients reach the port directly with
 addresses of their own. Behind NAT, a published port or a proxy every client has one address, so
 leave it off there. An IPv6 address counts as it is, not by its network. Refused connections are
-logged at most once a minute, with the address and the counts. Behind a proxy (`http.trustProxy`)
+logged at most once a minute (the first at once, the rest when the minute ends), with the bound that
+refused them (`total`, `loopbackReserve`, `perAddress`), the last address and the counts. Behind a proxy (`http.trustProxy`)
 the protection comes from the proxy: its header and body timeouts, its limits per client, and the
 server's port reachable from the proxy only. A request target must be a path (or the absolute form `http://host/path`, read by its
 path): `OPTIONS *` answers 400. On SIGTERM the server
@@ -272,7 +281,8 @@ every request gets a fresh server from the shared context. Behind a reverse prox
 on 127.0.0.1 when the proxy runs on the same machine, terminate TLS at the proxy, forward `/mcp`,
 `/.well-known/` and `/`, keep the `Host` header (or add the proxy's name with `--allow-host`), set
 `--public-url`, and turn response buffering off for `/mcp`. The server reads no `X-Forwarded-*`
-header: client addresses are in the proxy's log. For nginx:
+header: client addresses are in the proxy's log. For IIS with ARR, see
+[PowerShell Universal](../getting-started/mcp.md#psu-iis). For nginx:
 
 ```nginx
 location ~ ^/(mcp|\.well-known/|healthz$|$) {
@@ -331,7 +341,8 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
   It reads the metadata again every hour, and when a token names a key the JWKS does not hold, so a
   moved `jwks_uri` works without a restart; after a read that found nothing new (or failed, which
   keeps what is loaded) the next such read waits a minute, so made-up key ids cannot hammer the
-  issuer nor hold back a real rotation for longer. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
+  issuer; one sent just before a rotation can delay picking up the moved `jwks_uri` by up to that
+  minute. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
   30 seconds. A token stays valid until it expires (no revocation check).
 
 | Key | Default | What it is |

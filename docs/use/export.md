@@ -24,7 +24,7 @@ it, **Source data** downloads all the rows behind the report instead of the tabl
 | **Print or save as PDF…** | The HTML report in the browser's print dialog: print it, or pick "Save as PDF" there. | Paper, or a PDF. |
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
-| **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis, or the [command line](../reference/cli.md) with the view. |
+| **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis, or a colleague who builds the report again with a script: give them this file and the view (**Views**, **Download view**), the two things the [command line](../reference/cli.md) needs. |
 | **All rows as JSON (.json)** | The same rows for a program: numbers as numbers, text as text, a blank as `null`. | A developer. |
 
 While no field is placed there is no table to export: its entries are greyed out with "Add a field

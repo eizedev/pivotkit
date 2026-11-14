@@ -24,6 +24,7 @@ import { writeFile } from "node:fs/promises";
 import * as echarts from "echarts";
 import { render } from "pivotkit-report";
 
+const rows = [{ Region: "North", Units: 3 }, { Region: "South", Units: 7 }, { Region: "North", Units: 2 }];   // your rows
 const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }], display: "chart" };
 const result = await render(view, rows, { format: "html", echarts, now: "2026-11-13", locale: "de-DE" });
 if (!result.ok) throw new Error(result.issues.map((i) => i.message).join("; "));   // a bad view never throws
@@ -150,7 +151,11 @@ it needs from its front end (`needs`), annotations, and `run(input, env)`:
 | `draft_schedule` | - | `POST /schedules/draft` | A draft report document (`pivotkit-report-draft`, version 0) for a person to approve |
 
 ```js
+import { encode } from "pivotkit-core";
 import { OPERATIONS } from "pivotkit-report/operations";
+
+const rows = [{ Region: "North", Units: 3 }, { Region: "South", Units: 7 }];   // your rows
+const view = { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] };
 const env = { data: async (source) => ({ data: encode(rows), name: source }) };
 const { result, file } = await OPERATIONS.render_view.run({ source: "sales", view, format: "csv" }, env);
 ```

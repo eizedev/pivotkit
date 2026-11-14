@@ -168,7 +168,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   before the body, every value of a repeated header, connections bounded in all and per address
   with slots kept for loopback (`connectionGate`), request targets read by their path, a graceful
   stop), `src/check.js` (`--check-config`
-  of both runners), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
+  of both runners), `src/limits.js` (`createLimits`: rate and concurrency limits in one process, one
+  set per front end: `rest.*`, `mcp.*`), `src/log.js`, `src/serve.js` (`serve`, `createServerHandler`: REST and, with
   pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, mcp, cli, healthcheck).
   `src/rest/` is `pivotkit-server/rest`: `handler.js` (`createRestHandler`: Host, CORS, routes,
@@ -176,7 +177,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   the file), `routes.js` (`REST_ROUTES`: a route per operation of pivotkit-report's table from its
   `http`, plus `GET /sources/{id}` and `POST /views/render/file`; neutral words and an example per
   operation), `openapi.js` (`openApiDocument`, pure, the view schema bundled), `problem.js` (RFC 9457
-  problems, `REST_ERRORS`), `limits.js` (rate and concurrency limits in one process). A new operation
+  problems, `REST_ERRORS`). A new operation
   gets its words and example in `routes.js`; `node scripts/openapi.js` writes `docs/openapi.json`
   again, which `test/openapi.test.js` compares. `test/` drives the service over HTTP: hostile inputs,
   tokens and a local OAuth issuer, profiles, CORS, the OpenAPI document against the OpenAPI 3.1

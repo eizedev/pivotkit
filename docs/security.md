@@ -298,7 +298,8 @@ and the sign-in above hold for it too. What differs:
 - **CORS** is off: a browser request is refused unless its origin is listed exactly
   (`rest.cors.origins`, never `*`).
 - **Limits** per caller (requests per minute, requests at once) and per address for refused tokens
-  slow down scripts and token guessing; they live in one process's memory.
+  slow down scripts and token guessing, on the REST service and the MCP endpoint alike (each with
+  its own counts); they live in one process's memory.
 - **Errors** are problem documents with a stable code; a message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.
 
