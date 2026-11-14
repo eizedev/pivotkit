@@ -225,13 +225,13 @@ test("filters that keep no row: a warning, not a silent table of zeros", async (
     assert.equal((await run(["render", "v.json", "--data", "d.csv", "-f", "csv", "--now", "2024-01-01", "--strict"], { cwd: dir })).code, 1);
 });
 
-test("a field of the view file missing, one new field of its type in the data: renamed?", async () => {
+test("a field of the view file missing, one new field of its type in the data: renamed? and the --map that says so", async () => {
     const dir = tempDir();
     writeFileSync(join(dir, "d.csv"), "Region,Turnover\nNorth,3\n");
     writeFileSync(join(dir, "v.json"), JSON.stringify({ format: "pivotkit-view", formatVersion: 2, name: "R", source: { fields: [{ name: "Region", type: "string" }, { name: "Revenue", type: "number" }] }, view: { rows: ["Region"], values: [{ field: "Revenue", agg: "sum" }] } }));
     const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
     assert.equal(r.code, 1);
-    assert.match(r.stderr, /^ {2}missing: "Revenue" \(number\); the data has a new number field "Turnover": renamed\?$/m);
+    assert.match(r.stderr, /^ {2}missing: "Revenue" \(number\); the data has a new number field "Turnover": renamed\? --map "Revenue=Turnover"$/m);
 });
 
 test("--lenient over a data mismatch: every error counted, and that the report cannot show the data", async () => {

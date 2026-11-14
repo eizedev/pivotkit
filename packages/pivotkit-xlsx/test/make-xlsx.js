@@ -210,6 +210,20 @@ if (import.meta.url === `file://${process.argv[1]}`) {
  * sheet tells them apart).
  */
 export const SHEET_BOOKS = Object.freeze({
+    // a note first (as people put a "Readme" sheet before the data), then the orders of two years
+    sales: () => {
+        const orders = (year, n) => [
+            ["Order date", "Region", "Category", "Units", "Revenue"],
+            ...Array.from({ length: n }, (_, i) => [{ date: new Date(Date.UTC(year, i % 12, 1 + ((i * 7) % 27))) }, ["North", "South", "East", "West"][i % 4], ["Hardware", "Software", "Services"][i % 3], (i % 5) + 1, 100 + i * 10])
+        ];
+        return makeXlsx({
+            sheets: [
+                { name: "Readme", rows: [["Note"], ["Sales test data."], ["The sheets 2025 and 2026 hold the orders of each year."], ["This sheet holds no data."]] },
+                { name: "2025", rows: orders(2025, 24) },
+                { name: "2026", rows: orders(2026, 20) }
+            ]
+        });
+    },
     quarters: () =>
         makeXlsx({
             sheets: [

@@ -8,6 +8,19 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Added
 
+- `pivotkit describe <data> --suggest [-o draft.pivotkit.json]`: a draft view from the data's fields
+  (a text field with few values on the rows, a date grouped by its span or another text field on the
+  columns, the first number that is no identifier summed), named `Draft: ...`, as a view file that
+  names the file and the workbook's sheet as the report does, so the report opens it on that file;
+  stderr says what each part took and what else it could take. Nothing to group by is the error
+  `noSuggestion`, which names a workbook's other sheets ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+- `render` without a view file: `--rows`, `--cols`, `--values sum:Field`, `--group Field:unit`,
+  `--filter <json | @file>` and `--chart-type`, with the data as the argument or `--data`; `render
+  <data> --suggest` renders the draft. `--save-view` writes the view used as a view file. The same
+  flags with `describe --suggest` replace a part of the draft ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+- `--map Old=New` (render): a view's field renamed for data whose column was renamed, with a view
+  file too; the data-mismatch hint for a renamed field names the flag ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+
 - `describe` of a workbook lists its sheets; `--json` gives `sheet` (the sheet read) for every
   command with data and `sheets` for `describe` of a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - `--verbose`: how the data was read (encoding, separator, sheet) on stderr.

@@ -14,12 +14,11 @@
 import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { encode } from "pivotkit-core";
-import { IMPORT_TYPES, fileName, retype } from "pivotkit-core/import";
+import { IMPORT_TYPES, fileName, retype, shownName, sourceIdOf } from "pivotkit-core/import";
 import { useFormName, useModal } from "./dom.js";
 import { Icon } from "./icons.jsx";
 import { errorText, importLabels, noteText } from "./import-labels.js";
 import { formatsOf, readImport, sheetsOf } from "./import-run.js";
-import { shownName, sourceIdOf } from "./import-source.js";
 import { fill, messageOf, plural } from "./labels.js";
 import { Group, LayerContext, Option, hasTopLayer, useTopLayer } from "./popover.jsx";
 
@@ -149,7 +148,7 @@ function cellText(value, type, t, locale) {
 /**
  * @typedef {object} LoadedData  what "Load data" hands the report
  * @property {import("pivotkit-core").Encoded} encoded
- * @property {{ id: string, name: string }} source  the id for the saved views (import-source.js), the name shown
+ * @property {{ id: string, name: string }} source  the id for the saved views (pivotkit-core/import's sourceIdOf), the name shown
  * @property {{ name: string, size: number, type: string }} file
  * @property {string | null} sheet
  * @property {readonly string[]} sheets  the names of the workbook's sheets ([] for a file with one table)

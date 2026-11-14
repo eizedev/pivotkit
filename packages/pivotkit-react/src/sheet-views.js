@@ -1,13 +1,13 @@
 /*
  * The sheet of a workbook a view was made on (issue #252). A view saved, downloaded or linked while a
  * loaded workbook's sheet is shown names it in its source (`source.params.sheet`); the source id
- * (import-source.js: the file's shown name, "#" and a hash of its name and columns) leaves the sheet
+ * (pivotkit-core/import's sourceIdOf: the file's shown name, "#" and a hash of its name and columns) leaves the sheet
  * out. These rules decide which views of the browser store a workbook's data lists and what opening
  * a view that names another sheet does. Pure, without a DOM; small, since the report's first load
  * holds it.
  */
 
-/** A loaded file's source id: its shown name, "#" and 16 hex digits (import-source.js). */
+/** A loaded file's source id: its shown name, "#" and 16 hex digits (pivotkit-core/import's sourceIdOf). */
 const FILE_ID = /^([^]*)#[0-9a-f]{16}$/;
 
 /**

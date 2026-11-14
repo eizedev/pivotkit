@@ -13,7 +13,7 @@
  * with errors is no error: `ok: false` with its findings.
  */
 
-import { CATALOG, OUTSIDE_LIMITS, describeSource, describeView, fromViewFile, normalize, outsideLimits, toViewFile, validate, viewFileFields, withLinkFragment } from "pivotkit-core";
+import { CATALOG, LAYOUT_LIMITS, OUTSIDE_LIMITS, PivotkitError, describeSource, describeView, fromViewFile, isIdentifierName, normalize, outsideLimits, suggestLayout, toViewFile, validate, viewFileFields, viewFromLayout, withLinkFragment } from "pivotkit-core";
 import { cleanText } from "pivotkit-core/import";
 import { encodeViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS, render } from "./render.js";
@@ -150,6 +150,23 @@ const VIEW = {
     type: ["object", "string"],
     description: "The view: a JSON object with rows, cols, values, filters, derived, sort, display (see get_view_guide), or a view file, or its JSON text."
 };
+const NAME = { type: "string", minLength: 1, maxLength: LAYOUT_LIMITS.name };
+const NAMES = { type: "array", maxItems: LAYOUT_LIMITS.entries, items: NAME };
+/** A layout (pivotkit-core's viewFromLayout): a view by field names, instead of a view. */
+const LAYOUT = {
+    type: "object",
+    additionalProperties: false,
+    description: 'A view by field names, instead of a view (give one of them, not both): { "rows": ["Region"], "cols": ["OrderDate"], "values": [{ "field": "Sales", "agg": "sum" }], "groups": [{ "field": "OrderDate", "by": "yearQuarter" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.',
+    properties: {
+        rows: { ...NAMES, description: "Fields (or groupings) on the rows, outer first." },
+        cols: { ...NAMES, description: "Fields on the columns." },
+        values: { type: "array", maxItems: LAYOUT_LIMITS.entries, items: { type: "object", additionalProperties: false, properties: { field: NAME, agg: { type: "string", maxLength: 40 } } } },
+        groups: { type: "array", maxItems: LAYOUT_LIMITS.entries, items: { type: "object", additionalProperties: false, required: ["field", "by"], properties: { field: NAME, by: { type: "string", maxLength: 40, description: "year, yearQuarter, yearMonth, yearWeek, day; quarter, month, week, weekday, hour (every year together); bin with size." }, size: { type: "number" } } } },
+        filters: { type: "array", maxItems: OUTSIDE_LIMITS.filters, items: { type: "object" }, description: "Filters as a view writes them (see get_view_guide)." },
+        chart: { enum: [...CATALOG.chartTypes], description: "Show the chart of this type." },
+        map: { type: "object", maxProperties: LAYOUT_LIMITS.entries, additionalProperties: { type: "string", minLength: 1, maxLength: LAYOUT_LIMITS.name }, description: "A field the layout names (key) is the data's field (value): for a column renamed since." }
+    }
+};
 const FINDING = {
     type: "object",
     required: ["severity", "code", "path", "message"],
@@ -220,15 +237,73 @@ const usesOf = (view, data, env) => viewFileFields(normalize(view, data, { limit
 /** Whether a source's data is encoded (rows) rather than a field list. */
 const isEncoded = (data) => Boolean(data && typeof data === "object" && !Array.isArray(data) && typeof (/** @type {any} */ (data).column) === "function");
 
+/** How a note of viewFromLayout or suggestLayout counts as a finding. */
+export const LAYOUT_NOTE_SEVERITY = Object.freeze({ noSuggestion: "error", dateGrouped: "info", unusedGroup: "warning", unusedMap: "warning" });
+
+/** A note of a layout as a finding. @param {{ code: string, message: string }} note */
+const noteFinding = (note) => ({ severity: /** @type {"error" | "warning" | "info"} */ (LAYOUT_NOTE_SEVERITY[note.code] ?? "warning"), code: note.code, path: "", message: findingText(note.message) });
+
 /**
- * Whether a number field's name says it is an identifier (an order number, a key), which is counted,
- * not summed: its last word is ID, Nr, No, Number, Key or "#". The short form of pivotkit-react's
- * `isIdentifierName` (field-info.js), which also reads "CustomerId" and "Serial#".
+ * A view from field names, the one way the operations and pivotkit-cli make one: pivotkit-core's
+ * viewFromLayout over the source's field description. With `suggest`, suggestLayout's picks come
+ * first and the layout's parts replace them (a suggested grouping stays only while its field stays
+ * where the suggestion put it); nothing to group by (noSuggestion) counts only while the layout places
+ * no field itself. A layout of another shape is INVALID_INPUT, one too large LIMIT_EXCEEDED.
+ * @param {ReturnType<typeof describeSource>} description
+ * @param {import("pivotkit-core").Layout} layout
+ * @param {{ suggest?: boolean, locale?: string }} [options]
+ * @returns {{ view: Record<string, any>, name: string, picks: import("pivotkit-core").LayoutPick[], notes: import("pivotkit-core").LayoutNote[] }}
  */
-const isIdentifier = (name) => {
-    const words = String(name).replace(/(\s*\([^()]*\))+\s*$/, "").replace(/\s*\d+$/, "");
-    return /(^|[\s_.\-/:])(id|nr|no|number|key)$/i.test(words) || /[a-z](Id|ID|Nr|NR|No|NO|Number|Key)$/.test(words) || /#$/.test(words);
-};
+export function viewOfLayout(description, layout = {}, options = {}) {
+    const locale = options.locale ? { locale: options.locale } : {};
+    const suggestion = options.suggest ? suggestLayout(description, locale) : null;
+    const merged = { ...(suggestion?.layout ?? {}), ...layout };
+    if (suggestion && layout.groups === undefined && (layout.rows || layout.cols) && merged.groups) {
+        const placed = new Set([...(merged.rows ?? []), ...(merged.cols ?? [])].map((n) => n.toLowerCase()));
+        merged.groups = merged.groups.filter((g) => placed.has(g.field.toLowerCase()));
+    }
+    let built;
+    try {
+        built = viewFromLayout(merged, description, locale);
+    } catch (e) {
+        if (e instanceof PivotkitError) {
+            throw new OperationError(e.code === "LIMIT_EXCEEDED" ? "LIMIT_EXCEEDED" : "INVALID_INPUT", `layout: ${String(e.message).replace(/^viewFromLayout: /, "")}`);
+        }
+        throw e;
+    }
+    const placed = Boolean(layout.rows?.length || layout.cols?.length);
+    const notes = [...(suggestion?.notes ?? []).filter((n) => !(n.code === "noSuggestion" && placed)), ...built.notes];
+    // a part the layout gives is no pick of the rules: said as "given", so picks and view agree
+    const given = /** @type {const} */ (["rows", "cols", "values"]).filter((part) => layout[part] !== undefined);
+    const picks = suggestion ? [...suggestion.picks.filter((p) => !given.includes(p.part)), ...given.map((part) => ({ part, code: /** @type {any} */ ("given"), others: [], text: `${part}: as given` }))] : [];
+    return { view: built.view, name: built.name, picks, notes };
+}
+
+/** An input gives a view or a layout: exactly one, checked before any data is read. */
+function checkViewOrLayout(input) {
+    if (input.view === undefined && input.layout === undefined) {
+        throw new OperationError("INVALID_INPUT", "input needs a view or a layout");
+    }
+    if (input.view !== undefined && input.layout !== undefined) {
+        throw new OperationError("INVALID_INPUT", "input takes a view or a layout, not both");
+    }
+}
+
+/**
+ * The view of an input that gives a view or a layout (exactly one): the layout's view as a view file
+ * with its name, and its notes as findings.
+ * @param {{ view?: unknown, layout?: any }} input
+ * @param {{ data: any }} source
+ * @param {OperationEnv} env
+ */
+function viewOrLayout(input, source, env) {
+    checkViewOrLayout(input);
+    if (input.view !== undefined) {
+        return { view: input.view, notes: [], fromLayout: false };
+    }
+    const built = viewOfLayout(describeSource(source.data, { items: 0 }), input.layout, env.locale ? { locale: env.locale } : {});
+    return { view: { format: "pivotkit-view", formatVersion: 2, name: built.name, view: built.view }, notes: built.notes.map(noteFinding), fromLayout: true };
+}
 
 /**
  * Two or three views built from a data set's own fields, for a model or a person to start from: a
@@ -237,7 +312,7 @@ const isIdentifier = (name) => {
  */
 export function exampleViews(fields) {
     const text = fields.filter((f) => f.type === "string");
-    const number = fields.filter((f) => f.type === "number" && !isIdentifier(f.name));
+    const number = fields.filter((f) => f.type === "number" && !isIdentifierName(f.name));
     const date = fields.filter((f) => f.type === "date");
     const out = [];
     const value = number[0] ? { field: number[0].name, agg: "sum" } : { agg: "count" };
@@ -291,7 +366,7 @@ export const VIEW_GUIDE = Object.freeze({
 /**
  * Checks an input against an operation's input schema, for the JSON Schema keywords the table uses
  * (type, enum, required, properties, additionalProperties: false, items, min/max length, items and
- * value, pattern, uniqueItems). Every `run` calls it first, so a front end without a validator of its
+ * value, pattern, uniqueItems, maxProperties, additionalProperties as a schema). Every `run` calls it first, so a front end without a validator of its
  * own (a REST service, a script) gets INVALID_INPUT naming the place, never a TypeError.
  * @param {Record<string, unknown>} schema
  * @param {unknown} value
@@ -328,15 +403,19 @@ export function checkInput(schema, value, path = "input") {
         if (s.uniqueItems && new Set(value.map((v) => JSON.stringify(v))).size !== value.length) fail("must not repeat an item");
         if (s.items) value.forEach((v, i) => checkInput(s.items, v, `${path}[${i}]`));
     }
-    if (s.properties && value && typeof value === "object" && !Array.isArray(value)) {
+    if ((s.properties || s.additionalProperties !== undefined) && value && typeof value === "object" && !Array.isArray(value)) {
+        const properties = s.properties ?? {};
+        if (s.maxProperties !== undefined && Object.keys(value).length > s.maxProperties) fail(`must have at most ${s.maxProperties} keys`);
         for (const key of s.required ?? []) {
             if (!Object.hasOwn(value, key) || value[key] === undefined) fail(`needs ${key}`);
         }
         for (const [key, v] of Object.entries(value)) {
-            if (Object.hasOwn(s.properties, key)) {
-                if (v !== undefined) checkInput(s.properties[key], v, `${path}.${key}`);
+            if (Object.hasOwn(properties, key)) {
+                if (v !== undefined) checkInput(properties[key], v, `${path}.${key}`);
             } else if (s.additionalProperties === false) {
                 fail(`has no key ${JSON.stringify(key.slice(0, 40))}`);
+            } else if (s.additionalProperties && typeof s.additionalProperties === "object") {
+                checkInput(s.additionalProperties, v, `${path}[${JSON.stringify(key.slice(0, 40))}]`);
             }
         }
     }
@@ -419,6 +498,51 @@ export const OPERATIONS = Object.freeze({
         }
     },
 
+    suggest_view: {
+        name: "suggest_view",
+        title: "Suggest a draft view",
+        description: "Makes a draft view from a source's fields, marked as a draft: rows the first text field with few values, columns a date grouped by its span (or the next such text field), values the first number that is no identifier, summed. A layout replaces the parts it gives (values: [{ field, agg: \"average\" }]). The rules read types and counts, not meaning: check the draft with the user before render_view.",
+        cli: "describe",
+        http: { method: "POST", path: "/views/suggest" },
+        needs: ["data"],
+        annotations: { readOnly: true, idempotent: true, writesFile: false },
+        input: object({ source: SOURCE, layout: LAYOUT }, ["source"]),
+        output: object(
+            {
+                ok: { type: "boolean" },
+                findings: FINDINGS,
+                view: { type: "object", description: "The draft as a view file (name \"Draft: ...\"), for validate_view, render_view or the user." },
+                name: { type: "string" },
+                picks: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        required: ["part", "code", "others", "text"],
+                        properties: { part: { enum: ["rows", "cols", "values"] }, code: { type: "string" }, field: { type: "string" }, agg: { type: "string" }, by: { type: "string" }, others: { type: "array", items: { type: "string" } }, text: { type: "string" } }
+                    },
+                    description: "What each part took, why (code), and the fields it could have taken instead."
+                },
+                uses: USES
+            },
+            ["ok", "findings", "view", "picks"]
+        ),
+        run: async (input, env) => {
+            const source = await sourceData(env, input.source);
+            const built = viewOfLayout(describeSource(source.data, { items: 0 }), input.layout ?? {}, { suggest: true, ...(env.locale ? { locale: env.locale } : {}) });
+            const limits = { limits: viewLimits(env) };
+            const { errors, warnings } = validate(built.view, source.data, limits);
+            const findings = [...(source.notes ?? []), ...built.notes.map(noteFinding), ...errors.map(findingOf), ...warnings.map(findingOf)];
+            const name = `Draft: ${built.name}`;
+            const view = toViewFile(normalize(built.view, source.data, limits).view, {
+                name,
+                description: `A draft suggested from the fields of ${source.name || input.source}: check what it shows before it is used.`,
+                source: { id: input.source },
+                ...(isEncoded(source.data) ? { data: /** @type {any} */ (source.data) } : {})
+            });
+            return { result: { ok: !findings.some((f) => f.severity === "error"), findings, view, name: findingText(name), picks: built.picks.map((p) => ({ ...p, text: findingText(p.text) })), uses: usesOf(built.view, source.data, env) } };
+        }
+    },
+
     get_view_guide: {
         name: "get_view_guide",
         title: "How to write a view",
@@ -435,21 +559,25 @@ export const OPERATIONS = Object.freeze({
     validate_view: {
         name: "validate_view",
         title: "Validate a view",
-        description: 'Checks a view against a source: errors and warnings with where they are and, for a misspelt name, the name meant ("suggestion"). Fix every error before render_view.',
+        description: 'Checks a view (or a layout: a view by field names) against a source: errors and warnings with where they are and, for a misspelt name, the name meant ("suggestion"). Fix every error before render_view.',
         cli: "validate",
         http: { method: "POST", path: "/views/validate" },
         needs: ["data"],
         annotations: { readOnly: true, idempotent: true, writesFile: false },
-        input: object({ source: SOURCE, view: VIEW }, ["source", "view"]),
-        output: object({ valid: { type: "boolean" }, findings: FINDINGS, uses: USES }, ["valid", "findings"]),
+        input: object({ source: SOURCE, view: VIEW, layout: LAYOUT }, ["source"]),
+        output: object({ valid: { type: "boolean" }, findings: FINDINGS, uses: USES, view: { type: "object", description: "With a layout: the view it makes (normalized)." } }, ["valid", "findings"]),
         run: async (input, env) => {
-            const read = readView(input.view);
+            checkViewOrLayout(input);
             const source = await sourceData(env, input.source);
+            const given = viewOrLayout(input, source, env);
+            const read = readView(given.view);
             if (read.failed) {
                 return { result: { valid: false, findings: [...(source.notes ?? []), unreadable(read)], uses: [] } };
             }
-            const { errors, warnings, valid } = validate(read.view, source.data, { limits: viewLimits(env) });
-            return { result: { valid, findings: [...(source.notes ?? []), ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)], uses: usesOf(read.view, source.data, env) } };
+            const { errors, warnings } = validate(read.view, source.data, { limits: viewLimits(env) });
+            const findings = [...(source.notes ?? []), ...given.notes, ...fileNotes(read), ...errors.map(findingOf), ...warnings.map(findingOf)];
+            const valid = !findings.some((f) => f.severity === "error");
+            return { result: { valid, findings, uses: usesOf(read.view, source.data, env), ...(given.fromLayout ? { view: normalize(read.view, source.data, { limits: viewLimits(env) }).view } : {}) } };
         }
     },
 
@@ -482,7 +610,7 @@ export const OPERATIONS = Object.freeze({
     render_view: {
         name: "render_view",
         title: "Render a view",
-        description: "Runs a view over a source and makes the report: xlsx (Excel, the default), html (a printable report), csv, json or svg (the chart). The file goes to the user (a path or a link); the result says what was made and any findings.",
+        description: "Runs a view (or a layout: a view by field names) over a source and makes the report: xlsx (Excel, the default), html (a printable report), csv, json or svg (the chart). The file goes to the user (a path or a link); the result says what was made and any findings.",
         cli: "render",
         http: { method: "POST", path: "/views/render" },
         needs: ["data"],
@@ -491,18 +619,20 @@ export const OPERATIONS = Object.freeze({
             {
                 source: SOURCE,
                 view: VIEW,
+                layout: LAYOUT,
                 format: { enum: FORMATS, default: "xlsx", description: "xlsx for Excel, html for a report to read or print, csv, json, svg for the chart." },
                 title: { type: "string", maxLength: 200, description: "The report's title (default the view's name)." },
                 chart: { enum: ["auto", "on", "off"], description: "html: the chart above the table (auto: when the view shows the chart)." },
                 name: { type: "string", maxLength: 80, description: "The file's name without extension (default from the title)." }
             },
-            ["source", "view"]
+            ["source"]
         ),
         output: object(
             {
                 ok: { type: "boolean" },
                 findings: FINDINGS,
                 uses: USES,
+                view: { type: "object", description: "With a layout: the view it made (normalized), to save or change." },
                 format: { enum: FORMATS },
                 mediaType: { type: "string" },
                 summary: { type: ["object", "null"], properties: { rows: { type: "integer" }, columns: { type: "integer" }, sourceRows: { type: "integer" }, keptRows: { type: "integer" }, truncated: { type: "boolean" } } }
@@ -514,14 +644,16 @@ export const OPERATIONS = Object.freeze({
             if (!Object.hasOwn(RENDER_FORMATS, format)) {
                 throw new OperationError("INVALID_INPUT", `format is one of ${FORMATS.join(", ")}`);
             }
-            const read = readView(input.view);
+            checkViewOrLayout(input);
             const source = await sourceData(env, input.source);
             if (!isEncoded(source.data)) {
                 throw new OperationError("INVALID_INPUT", "rendering needs the data, not only its fields");
             }
+            const given = viewOrLayout(input, source, env);
+            const read = readView(given.view);
             const template = env.template ? await env.template(input.source) : undefined;
             const extra = env.renderOptions ?? {};
-            const result = await render(input.view, source.data, {
+            const result = await render(given.view, source.data, {
                 format,
                 strict: true,
                 source: source.name,
@@ -535,12 +667,12 @@ export const OPERATIONS = Object.freeze({
                 ...(input.chart ? { chart: input.chart === "auto" ? "auto" : input.chart === "on" } : {}),
                 ...extra
             });
-            const findings = [...(source.notes ?? []), ...result.issues.map(findingOf)];
+            const findings = [...(source.notes ?? []), ...given.notes, ...result.issues.map(findingOf)];
             const kind = RENDER_FORMATS[format];
             // the file's name: the one asked for, else the title, the view's name, the data's name
             const name = input.name ?? input.title ?? (read.name || String(source.name || "report").replace(/\.[a-z0-9]+$/i, ""));
             return {
-                result: { ok: result.ok, findings, uses: result.view ? viewFileFields(result.view) : [], format, mediaType: kind.mediaType, summary: result.summary },
+                result: { ok: result.ok && !given.notes.some((f) => f.severity === "error"), findings, uses: result.view ? viewFileFields(result.view) : [], ...(given.fromLayout && result.view ? { view: result.view } : {}), format, mediaType: kind.mediaType, summary: result.summary },
                 ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {})
             };
         }

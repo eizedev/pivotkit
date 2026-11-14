@@ -175,3 +175,61 @@ test("every run checks its input against its schema first: a front end without a
     assert.ok(Object.isFrozen(OPERATIONS.render_view));
     assert.doesNotThrow(() => checkInput(OPERATIONS.render_view.input, { source: "s", view: "{}", format: "csv" }));
 });
+
+test("suggest_view: a draft view file from the source's fields, valid against it; a layout replaces the parts it gives", async () => {
+    const { result } = await OPERATIONS.suggest_view.run({ source: "sales" }, env);
+    conforms("suggest_view", result);
+    assert.equal(result.ok, true);
+    assert.equal(result.view.format, "pivotkit-view");
+    assert.equal(result.view.name, "Draft: Sum of Units by Region and Date by month");
+    assert.deepEqual(result.view.view.rows, ["Region"]);
+    assert.deepEqual(result.view.view.cols, ["Date by month"]);
+    assert.deepEqual(result.view.source.id, "sales");
+    assert.deepEqual(result.picks.map((p) => [p.part, p.code]), [["rows", "category"], ["cols", "date"], ["values", "firstNumber"]]);
+    // the picks name no value of the data (a date's span stays out), only field names
+    assert.ok(!JSON.stringify(result.picks).includes("2024-12-31"), JSON.stringify(result.picks));
+    const valid = await OPERATIONS.validate_view.run({ source: "sales", view: result.view }, env);
+    assert.equal(valid.result.valid, true, JSON.stringify(valid.result.findings));
+    const avg = await OPERATIONS.suggest_view.run({ source: "sales", layout: { values: [{ field: "Price", agg: "average" }] } }, env);
+    assert.deepEqual(avg.result.view.view.rows, ["Region"]);
+    assert.equal(avg.result.view.view.values[0].agg, "average");
+    // fields only (a view file's source.fields): a draft without counts or spans
+    const fieldsOnly = { ...env, data: async () => ({ data: [{ name: "Team", type: "string" }, { name: "Hours", type: "number" }], name: "fields", notes: [] }) };
+    const draft = await OPERATIONS.suggest_view.run({ source: "x" }, fieldsOnly);
+    assert.deepEqual(draft.result.view.view.rows, ["Team"]);
+    // nothing to group by: an error finding, still a view
+    const notes = { ...env, data: async () => ({ data: encode([{ Note: "a" }, { Note: "b" }]), name: "notes.csv", notes: [] }) };
+    const none = await OPERATIONS.suggest_view.run({ source: "notes" }, notes);
+    assert.equal(none.result.ok, false);
+    assert.equal(none.result.findings[0].code, "noSuggestion");
+});
+
+test("render_view and validate_view take a layout instead of a view: the view it makes comes back", async () => {
+    const csv = await OPERATIONS.render_view.run({ source: "sales", layout: { rows: ["region"], cols: ["OrderDate"], groups: [{ field: "OrderDate", by: "year" }], values: [{ field: "Sales" }] }, format: "csv" }, env);
+    conforms("render_view", csv.result);
+    assert.equal(csv.result.ok, true);
+    assert.deepEqual(csv.result.view.rows, ["Region"]);
+    assert.deepEqual(csv.result.view.cols, ["OrderDate by year"]);
+    assert.match(new TextDecoder().decode(csv.file.bytes), /^OrderDate by year,2024,2025,2026,Grand Total\r\nRegion,Sum of Sales,,,\r\nNorth,,90,40,130\r$/m);
+    const dated = await OPERATIONS.validate_view.run({ source: "sales", layout: { rows: ["Date"] } }, env);
+    conforms("validate_view", dated.result);
+    assert.deepEqual(dated.result.view.rows, ["Date by month"]);
+    assert.equal(dated.result.findings.find((f) => f.code === "dateGrouped")?.severity, "info");
+    const unknown = await OPERATIONS.validate_view.run({ source: "sales", layout: { rows: ["Regoin"] } }, env);
+    assert.equal(unknown.result.valid, false);
+    assert.equal(unknown.result.findings.find((f) => f.code === "unknownField")?.suggestion, "Region");
+    const code = async (input) => {
+        try {
+            await OPERATIONS.validate_view.run(input, env);
+        } catch (e) {
+            return e instanceof OperationError ? e.code : String(e);
+        }
+        return "no error";
+    };
+    assert.equal(await code({ source: "sales" }), "INVALID_INPUT");
+    assert.equal(await code({ source: "sales", view: { rows: ["Region"] }, layout: { rows: ["Region"] } }), "INVALID_INPUT");
+    assert.equal(await code({ source: "sales", layout: { rows: ["Region"], sql: "x" } }), "INVALID_INPUT");
+    assert.equal(await code({ source: "sales", layout: { map: { Region: 3 } } }), "INVALID_INPUT");
+    assert.equal(await code({ source: "sales", layout: { rows: Array.from({ length: 100 }, (_, i) => `F${i}`) } }), "INVALID_INPUT");
+    assert.equal(await code({ source: "sales", layout: { map: { Region: "Area", Product: "area" } } }), "INVALID_INPUT");
+});

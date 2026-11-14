@@ -8,6 +8,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Added
 
+- The tool `suggest_view`, and a `layout` (a view by field names) for `validate_view` and
+  `render_view`; the skill names both ([#253](https://github.com/eizedev/pivotkit/issues/253)).
+
 - The MCP server `pivotkit-mcp` ([#165](https://github.com/eizedev/pivotkit/issues/165), step 3):
   the tools `list_sources`, `describe_source`, `get_view_guide`, `validate_view`, `describe_view`,
   `render_view`, `create_link` and `draft_schedule` from pivotkit-report's operation table, over

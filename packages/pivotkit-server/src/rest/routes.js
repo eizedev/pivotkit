@@ -38,6 +38,21 @@ const WORDS = {
             }
         }
     },
+    suggest_view: {
+        summary: "Suggest a draft view",
+        description: "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span, values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
+        example: {
+            input: { source: "sales", layout: { values: [{ field: "Sales", agg: "average" }] } },
+            output: {
+                ok: true,
+                findings: [],
+                view: { format: "pivotkit-view", formatVersion: 2, name: "Draft: Average of Sales by Region", view: { version: 2, ...VIEW } },
+                name: "Draft: Average of Sales by Region",
+                picks: [{ part: "rows", code: "fewValues", field: "Region", others: ["Product"], text: "Region: the first text field with few values" }],
+                uses: ["Region", "Sales"]
+            }
+        }
+    },
     get_view_guide: {
         summary: "How to write a view",
         description: "The format of a view in short: its keys, the aggregators, filter types and date groupings, and example views.",
@@ -55,7 +70,7 @@ const WORDS = {
     },
     render_view: {
         summary: "Render a view into the output directory",
-        description: "Runs a view over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
+        description: "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
         example: { input: { source: "sales", view: VIEW, format: "xlsx" }, output: { ok: true, findings: [], uses: ["Region", "Sales"], format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", withheld: ["rows", "columns", "bytes", "content"], output: { name: "Sum of Sales by Region.xlsx", format: "xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, message: "The report is saved as Sum of Sales by Region.xlsx in the output directory." } }
     },
     create_link: {

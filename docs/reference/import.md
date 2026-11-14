@@ -105,7 +105,7 @@ file loaded again finds its views and other data does not. The rule, in this ord
    "team (2)"); nested JSON as `a.b`. A type picked in the preview changes nothing.
 3. **The hash**: SHA-256 of the UTF-8 bytes of the name and the column names in their order, joined
    with U+0000. The browser's `crypto.subtle` computes it; a page without it (plain `http` on a host
-   other than `localhost`) uses pivotkit-react's own implementation, which gives the same digest.
+   other than `localhost`) uses pivotkit-core's own implementation, which gives the same digest.
 4. **`source.id`** is the shown name, `#` and the first 16 hex digits of the hash.
    **`source.name`** is the shown name: the name itself, or, above 120 characters, its first 117
    followed by `...` (116 when the 117th is the first half of a surrogate pair, so no character is
@@ -124,6 +124,11 @@ in `source.params.sheet` ([view file](view-file.md#the-sheet-of-a-workbook)), so
 same columns keep their views apart, and a view of another sheet of the same file reads that sheet
 again when it is opened ([saved views](../use/load-data.md#after-loading)). The rows are not part of it
 either: a newer export of the same table keeps its views.
+
+`sourceIdOf(name, columns)` of `pivotkit-core/import` computes it (a promise of the id; `shownName`
+and `SHOWN_MAX` give the shown name). The command line names the files it writes a view for the same
+way (`describe --suggest`, `render --save-view`), so the report opens such a view as a view of that
+file, on its sheet.
 
 ## Types
 

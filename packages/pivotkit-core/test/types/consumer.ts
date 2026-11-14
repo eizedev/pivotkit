@@ -59,3 +59,27 @@ void srcId;
 void year;
 void warned;
 void folded;
+
+// a view from a layout and the data's field description; a file's source id
+import { describeSource, groupingName, isIdentifierName, renameFields, suggestLayout, viewFromLayout, dateUnitFor, GROUPING_NAMES } from "pivotkit-core";
+import { sourceIdOf } from "pivotkit-core/import";
+const described = describeSource(encode([{ Region: "North", Units: 3 }]));
+const suggestion = suggestLayout(described, { locale: "de-DE" });
+const pickCodes: string[] = suggestion.picks.map((p) => p.code);
+const built = viewFromLayout({ ...suggestion.layout, values: [{ field: "Units", agg: "average" }], groups: [{ field: "When", by: "yearMonth" }], map: { Units: "Stück" } }, described, { locale: "en-US" });
+const draftName: string = built.name;
+const noteCodes: string[] = built.notes.map((n) => n.code);
+const renamed: string[] = renameFields(built.view, { Region: "Area" }).unused;
+const unit: string | null = dateUnitFor(0, 86_400_000 * 90);
+const grouped: string = groupingName("Date", "yearMonth", { locale: "de-DE" }) + GROUPING_NAMES.en.name;
+const identifier: boolean = isIdentifierName("Order No");
+const sourceId: Promise<string> = sourceIdOf("sales.csv", ["Region", "Units"]);
+void normalize(built.view, data);
+void pickCodes;
+void draftName;
+void noteCodes;
+void renamed;
+void unit;
+void grouped;
+void identifier;
+void sourceId;

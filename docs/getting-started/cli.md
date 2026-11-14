@@ -1,6 +1,6 @@
 ---
 title: Getting started with the command line
-description: Install pivotkit-cli, write the example files with pivotkit example, render a view over data to an HTML report, CSV or Excel, render your own report from the files the report downloads, and check views in CI - with npx, a global install, PowerShell and GitHub Actions.
+description: Install pivotkit-cli, write the example files with pivotkit example, get a draft view from your own CSV or Excel file, render a view over data to an HTML report, CSV or Excel, render your own report from the files the report downloads, and check views in CI - with npx, a global install, PowerShell and GitHub Actions.
 ---
 
 # Getting started with the command line
@@ -9,8 +9,8 @@ description: Install pivotkit-cli, write the example files with pivotkit example
 to print or save as PDF, CSV, JSON, an Excel workbook or the chart as SVG. It also checks views in a
 pipeline before they go live. It needs Node 22 or later and no network.
 
-You get there in four steps: install it, try it on the example files, render your own report from the
-files the report downloads, then put it into CI.
+You get there in five steps: install it, try it on the example files, get a view from your own file,
+render a report from the files the report downloads, then put it into CI.
 
 ## 1. Install { #install }
 
@@ -80,7 +80,44 @@ curl -fsSLO https://pivotkit.eize.dev/assets/examples/sales.pivotkit.json
 
 ([all example files](../reference/cli.md#try-it))
 
-## 3. Render your own report { #your-own-report }
+## 3. A view from your own file { #from-your-file }
+
+Point it at a CSV, JSON or Excel file and it suggests a first view: text fields with few values as
+rows and columns, a date grouped by its span, the first number summed.
+
+```bash
+pivotkit describe sales.csv --suggest -o draft.pivotkit.json
+```
+
+```text
+draft: rows Region; columns Month by month; values Sum of Units
+  other text fields: Country, Product, Category, Channel
+  other numbers: Revenue, Discount
+  to change a part: pivotkit describe sales.csv --suggest --values sum:Revenue (or --rows, --cols, --group <field>:<unit>)
+wrote draft.pivotkit.json: a draft view of sales.csv
+next: pivotkit render draft.pivotkit.json --data sales.csv -o draft.html
+```
+
+The draft reads types and counts, not meaning, so check what it picked and change a part with a flag:
+
+```bash
+pivotkit describe sales.csv --suggest --values sum:Revenue -o draft.pivotkit.json
+pivotkit render draft.pivotkit.json --data sales.csv -o draft.html
+```
+
+Or say the whole layout yourself and render without a view file; `--save-view` keeps the view:
+
+```bash
+pivotkit render sales.csv --rows Region --cols Month --group Month:yearQuarter --values sum:Revenue -o by-quarter.html --save-view by-quarter.pivotkit.json
+```
+
+`pivotkit render sales.csv --suggest -o draft.html` does both in one step. For a workbook, `--sheet`
+picks the sheet (the first visible one otherwise; `pivotkit describe book.xlsx` lists them), and the
+view file names it. **Views**, **Open view file** in the report opens the view file on the same file
+and sheet, to go on there. Field names with spaces, the units of `--group`, `--filter` and `--map`:
+[a view from the data's fields](../reference/cli.md#a-view-from-the-datas-fields).
+
+## 4. Render a report from the browser's files { #your-own-report }
 
 A view applies to the data it was made on: the rows, with the fields under their own names. From a
 report in the browser (the [live demo](../demo.md) does it):
@@ -110,7 +147,7 @@ A view written by hand works too, as a file or as JSON text:
 pivotkit render '{"rows":["Region"],"values":[{"field":"Revenue","agg":"sum"}]}' --data sales.csv -f csv
 ```
 
-## 4. Check views in CI { #ci }
+## 5. Check views in CI { #ci }
 
 `validate` exits 1 when a view has an error (with `--strict` also a warning), so a pipeline stops
 before a broken view is published. With the example files committed to `reports/`:
@@ -156,5 +193,6 @@ in [the reference](../reference/cli.md#completion)).
 ## Next
 
 - Every command, option, exit code and message: [pivotkit-cli reference](../reference/cli.md).
+- A column renamed since the view was made: [`--map Old=New`](../reference/cli.md#map).
 - The same from your own code, in Node or the browser: [getting started with reports](report.md).
 - A print template with your logo and layout: [print template](../reference/print-template.md).

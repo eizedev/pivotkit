@@ -104,9 +104,26 @@ const SPAN_UNITS = Object.freeze([
 ]);
 
 /**
- * The date grouping a date field gets when it is placed on an axis, from the span of its values:
- * up to 62 days by day, up to two years by month, up to six years by quarter, longer by year. Null
- * for a field that is not a date, has fewer than two different days, or is missing.
+ * The date grouping for a span of dates (milliseconds since 1970, either order): up to 62 days by
+ * day, up to two years by month, up to six years by quarter, longer by year. Null for a span shorter
+ * than a day, or when either end is no finite number. The one table behind suggestDateUnit and the
+ * suggestions of suggestLayout (which read a field's span from describeSource).
+ * @param {number} min
+ * @param {number} max
+ * @returns {"day" | "yearMonth" | "yearQuarter" | "year" | null}
+ */
+export function dateUnitFor(min, max) {
+    const days = Math.abs(max - min) / MS_PER_DAY;
+    if (!(days >= 1) || !Number.isFinite(days)) {
+        return null;
+    }
+    return /** @type {any} */ (SPAN_UNITS.find((s) => days <= s.maxDays).unit);
+}
+
+/**
+ * The date grouping a date field gets when it is placed on an axis, from the span of its values
+ * (dateUnitFor). Null for a field that is not a date, has fewer than two different days, or is
+ * missing.
  * @param {import("./encode.js").Encoded} encoded
  * @param {string} field
  * @returns {"day" | "yearMonth" | "yearQuarter" | "year" | null}
@@ -124,11 +141,7 @@ export function suggestDateUnit(encoded, field) {
             max = Math.max(max, v);
         }
     }
-    const days = (max - min) / MS_PER_DAY;
-    if (!(days >= 1)) {
-        return null;
-    }
-    return /** @type {any} */ (SPAN_UNITS.find((s) => days <= s.maxDays).unit);
+    return dateUnitFor(min, max);
 }
 
 /**

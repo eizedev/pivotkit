@@ -9,7 +9,7 @@ import { OPERATION_NAMES, VIEW_GUIDE } from "pivotkit-report/operations";
 import { BY_REGION, SALES_CSV, call, httpClient, httpServer, stdioClient, workspace } from "./helpers.js";
 
 /** The tools in the table's order: a new tool is a change of this list, seen in review. */
-const TOOL_NAMES = ["list_sources", "describe_source", "get_view_guide", "validate_view", "describe_view", "render_view", "create_link", "draft_schedule"];
+const TOOL_NAMES = ["list_sources", "describe_source", "suggest_view", "get_view_guide", "validate_view", "describe_view", "render_view", "create_link", "draft_schedule"];
 
 /** The workflow a model runs, checked step by step. */
 async function workflow(client, dir) {
@@ -30,6 +30,17 @@ async function workflow(client, dir) {
     assert.deepEqual(described.data.fields.map((f) => [f.name, f.level]), [["Region", "summary"], ["Product", "summary"], ["Customer", "summary"], ["Sales", "summary"], ["OrderDate", "summary"], ["Q", "summary"]]);
     assert.ok(described.data.fields.every((f) => f.items === undefined && f.min === undefined), "no values at summary level");
     assert.ok(described.data.examples.length >= 2);
+
+    // a draft from the fields: valid, and nothing of the data's values in it at summary level
+    const draft = await call(client, "suggest_view", { source: "sales" });
+    assert.equal(draft.isError, false);
+    assert.equal(draft.data.ok, true);
+    assert.match(draft.data.view.name, /^Draft: /);
+    assert.deepEqual(draft.data.view.view.rows, ["Region"]);
+    assert.ok(!JSON.stringify(draft.data).includes("2025-"), "no dates of the data");
+    const fromLayout = await call(client, "validate_view", { source: "sales", layout: { rows: ["Region"], values: [{ field: "Sales" }] } });
+    assert.equal(fromLayout.data.valid, true);
+    assert.deepEqual([fromLayout.data.view.values[0].field, fromLayout.data.view.values[0].agg], ["Sales", "sum"]);
 
     const guide = await call(client, "get_view_guide");
     assert.match(guide.text, /yearQuarter/);

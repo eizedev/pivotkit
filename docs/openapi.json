@@ -218,6 +218,124 @@
         }
       }
     },
+    "/api/v1/views/suggest": {
+      "post": {
+        "operationId": "suggestView",
+        "summary": "Suggest a draft view",
+        "description": "A draft view made from a source's fields by fixed rules (rows a text field with few values, columns a date by its span, values the first number that is no identifier, summed), with what each part took and why (picks). A layout replaces the parts it gives. Check the draft before you render it.",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestViewInput"
+              },
+              "example": {
+                "source": "sales",
+                "layout": {
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "average"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Suggest a draft view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestViewOutput"
+                },
+                "example": {
+                  "ok": true,
+                  "findings": [],
+                  "view": {
+                    "format": "pivotkit-view",
+                    "formatVersion": 2,
+                    "name": "Draft: Average of Sales by Region",
+                    "view": {
+                      "version": 2,
+                      "rows": [
+                        "Region"
+                      ],
+                      "values": [
+                        {
+                          "field": "Sales",
+                          "agg": "sum"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "Draft: Average of Sales by Region",
+                  "picks": [
+                    {
+                      "part": "rows",
+                      "code": "fewValues",
+                      "field": "Region",
+                      "others": [
+                        "Product"
+                      ],
+                      "text": "Region: the first text field with few values"
+                    }
+                  ],
+                  "uses": [
+                    "Region",
+                    "Sales"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
     "/api/v1/views/guide": {
       "get": {
         "operationId": "getViewGuide",
@@ -484,7 +602,7 @@
       "post": {
         "operationId": "renderView",
         "summary": "Render a view into the output directory",
-        "description": "Runs a view over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
+        "description": "Runs a view (or a layout: a view by field names) over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
         "tags": [
           "views"
         ],
@@ -2339,6 +2457,232 @@
         ],
         "additionalProperties": true
       },
+      "SuggestViewInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "layout": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "A view by field names, instead of a view (give one of them, not both): { \"rows\": [\"Region\"], \"cols\": [\"OrderDate\"], \"values\": [{ \"field\": \"Sales\", \"agg\": \"sum\" }], \"groups\": [{ \"field\": \"OrderDate\", \"by\": \"yearQuarter\" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.",
+            "properties": {
+              "rows": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields (or groupings) on the rows, outer first."
+              },
+              "cols": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields on the columns."
+              },
+              "values": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "agg": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  }
+                }
+              },
+              "groups": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "by"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "by": {
+                      "type": "string",
+                      "maxLength": 40,
+                      "description": "year, yearQuarter, yearMonth, yearWeek, day; quarter, month, week, weekday, hour (every year together); bin with size."
+                    },
+                    "size": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "filters": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object"
+                },
+                "description": "Filters as a view writes them (see get_view_guide)."
+              },
+              "chart": {
+                "enum": [
+                  "auto",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap"
+                ],
+                "description": "Show the chart of this type."
+              },
+              "map": {
+                "type": "object",
+                "maxProperties": 64,
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "A field the layout names (key) is the data's field (value): for a column renamed since."
+              }
+            }
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "SuggestViewOutput": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "view": {
+            "type": "object",
+            "description": "The draft as a view file (name \"Draft: ...\"), for validate_view, render_view or the user."
+          },
+          "name": {
+            "type": "string"
+          },
+          "picks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "part",
+                "code",
+                "others",
+                "text"
+              ],
+              "properties": {
+                "part": {
+                  "enum": [
+                    "rows",
+                    "cols",
+                    "values"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "agg": {
+                  "type": "string"
+                },
+                "by": {
+                  "type": "string"
+                },
+                "others": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "What each part took, why (code), and the fields it could have taken instead."
+          },
+          "uses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          }
+        },
+        "required": [
+          "ok",
+          "findings",
+          "view",
+          "picks"
+        ],
+        "additionalProperties": true
+      },
       "GetViewGuideInput": {
         "type": "object",
         "properties": {},
@@ -2393,11 +2737,113 @@
                 "description": "A view or a view file as JSON text."
               }
             ]
+          },
+          "layout": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "A view by field names, instead of a view (give one of them, not both): { \"rows\": [\"Region\"], \"cols\": [\"OrderDate\"], \"values\": [{ \"field\": \"Sales\", \"agg\": \"sum\" }], \"groups\": [{ \"field\": \"OrderDate\", \"by\": \"yearQuarter\" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.",
+            "properties": {
+              "rows": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields (or groupings) on the rows, outer first."
+              },
+              "cols": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields on the columns."
+              },
+              "values": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "agg": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  }
+                }
+              },
+              "groups": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "by"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "by": {
+                      "type": "string",
+                      "maxLength": 40,
+                      "description": "year, yearQuarter, yearMonth, yearWeek, day; quarter, month, week, weekday, hour (every year together); bin with size."
+                    },
+                    "size": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "filters": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object"
+                },
+                "description": "Filters as a view writes them (see get_view_guide)."
+              },
+              "chart": {
+                "enum": [
+                  "auto",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap"
+                ],
+                "description": "Show the chart of this type."
+              },
+              "map": {
+                "type": "object",
+                "maxProperties": 64,
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "A field the layout names (key) is the data's field (value): for a column renamed since."
+              }
+            }
           }
         },
         "required": [
-          "source",
-          "view"
+          "source"
         ],
         "additionalProperties": false
       },
@@ -2448,6 +2894,10 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "view": {
+            "type": "object",
+            "description": "With a layout: the view it makes (normalized)."
           }
         },
         "required": [
@@ -2639,6 +3089,109 @@
               }
             ]
           },
+          "layout": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "A view by field names, instead of a view (give one of them, not both): { \"rows\": [\"Region\"], \"cols\": [\"OrderDate\"], \"values\": [{ \"field\": \"Sales\", \"agg\": \"sum\" }], \"groups\": [{ \"field\": \"OrderDate\", \"by\": \"yearQuarter\" }] }. A date on rows or cols is grouped by its span unless groups says how; a value without agg is summed when it is a number, else counted.",
+            "properties": {
+              "rows": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields (or groupings) on the rows, outer first."
+              },
+              "cols": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "Fields on the columns."
+              },
+              "values": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "agg": {
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  }
+                }
+              },
+              "groups": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "by"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "by": {
+                      "type": "string",
+                      "maxLength": 40,
+                      "description": "year, yearQuarter, yearMonth, yearWeek, day; quarter, month, week, weekday, hour (every year together); bin with size."
+                    },
+                    "size": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "filters": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object"
+                },
+                "description": "Filters as a view writes them (see get_view_guide)."
+              },
+              "chart": {
+                "enum": [
+                  "auto",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap"
+                ],
+                "description": "Show the chart of this type."
+              },
+              "map": {
+                "type": "object",
+                "maxProperties": 64,
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "description": "A field the layout names (key) is the data's field (value): for a column renamed since."
+              }
+            }
+          },
           "format": {
             "enum": [
               "json",
@@ -2670,8 +3223,7 @@
           }
         },
         "required": [
-          "source",
-          "view"
+          "source"
         ],
         "additionalProperties": false
       },
@@ -2722,6 +3274,10 @@
               "type": "string"
             },
             "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "view": {
+            "type": "object",
+            "description": "With a layout: the view it made (normalized), to save or change."
           },
           "format": {
             "enum": [

@@ -65,7 +65,8 @@ MIT · in the browser, nothing uploaded · React, web component, Node, command l
    ([keyboard and screen readers](use/keyboard.md)).
 5. **Safe views, reports without a browser.** A report is a small JSON view that holds names only and
    cannot run code ([security](security.md#views-are-untrusted-input)); `pivotkit render` makes the
-   same report from it on the command line or in CI, as HTML, CSV or Excel
+   same report from it on the command line or in CI, as HTML, CSV or Excel, and `pivotkit describe
+   --suggest` a first view from a CSV or Excel file's fields
    ([command line](getting-started/cli.md)).
 
 <div class="grid" markdown>

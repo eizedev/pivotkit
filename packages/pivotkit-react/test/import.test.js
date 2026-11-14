@@ -1,17 +1,14 @@
-// Loading data in the browser, the parts without a DOM: the source id of a file (import-source.js),
-// the data steps of the undo history (data-history.js, import-steps.js), the file kept over a new
+// Loading data in the browser, the parts without a DOM: the data steps of the undo history (data-history.js, import-steps.js), the file kept over a new
 // mount (data-keep.js), the limits a file is read with (import-limits.js), the texts of the import UI
 // and of the readers' notes (import-labels.js), and how a file is read: in the host's worker for the
 // built-in readers, on the page for a plugin or when the worker does not start (import-run.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { PivotkitError, encode } from "pivotkit-core";
 import { IMPORT_NOTE_CODES, limitError, readFile } from "pivotkit-core/import";
 import { DATA_STEPS, NO_DATA_STEPS, hostHistory, pushData, redoData, undoData, withoutFuture } from "../src/data-history.js";
 import { IMPORT_TEXTS, de, en, errorText, importLabels, noteText } from "../src/import-labels.js";
 import { acceptOf, completeTable, formatsOf, readImport, sheetsOf } from "../src/import-run.js";
-import { SHOWN_MAX, sha256Bytes, sha256Hex, shownName, sourceIdOf } from "../src/import-source.js";
 import { backToOriginal, loadData, moveData, restoreData } from "../src/import-steps.js";
 import { KEPT_REPORTS, forgetData, hostIdentity, keepData, keptData } from "../src/data-keep.js";
 import { importLimitsOf } from "../src/import-limits.js";
@@ -21,38 +18,6 @@ import { createState } from "../src/view-history.js";
 const keys = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" && !Array.isArray(v) ? keys(v, `${p}${k}.`) : [`${p}${k}`])).sort();
 const csv = (text, name = "tickets.csv") => new File([text], name, { type: "text/csv" });
 const TICKETS = "Id;Team;Opened;Hours\n1;Network;10.11.2026;1,5\n2;Server;11.11.2026;2,25\n3;Network;12.11.2026;4\n";
-
-test("SHA-256 of its own gives Node's digest, at every padding boundary and for text outside ASCII", async () => {
-    for (const text of ["", "abc", "a".repeat(55), "a".repeat(56), "a".repeat(63), "a".repeat(64), "a".repeat(119), "Größe\u0000Straße 😀", "x".repeat(5000)]) {
-        const want = createHash("sha256").update(text, "utf8").digest("hex");
-        assert.equal(Buffer.from(sha256Bytes(new TextEncoder().encode(text))).toString("hex"), want, `${text.length} characters`);
-        assert.equal(await sha256Hex(text, { subtle: null }), want, "without crypto.subtle");
-        assert.equal(await sha256Hex(text), want, "with crypto.subtle");
-    }
-});
-
-test("a file's source id is its name and 16 hex digits of the SHA-256 of its name and columns, as the PowerShell Universal demo builds it", async () => {
-    const columns = ["Id", "Team", "Opened"];
-    const want = `tickets.csv#${createHash("sha256").update(["tickets.csv", ...columns].join("\u0000"), "utf8").digest("hex").slice(0, 16)}`;
-    assert.equal(await sourceIdOf("tickets.csv", columns), want);
-    assert.equal(await sourceIdOf("tickets.csv", columns, { subtle: null }), want);
-    // other or reordered columns are other data; the same file again is the same
-    assert.notEqual(await sourceIdOf("tickets.csv", ["Team", "Id", "Opened"]), want);
-    assert.equal(await sourceIdOf("tickets.csv", [...columns]), want);
-    // the worked example of docs/reference/import.md ("How a loaded file is named")
-    assert.equal(await sourceIdOf("tickets.csv", ["Id", "Team", "Opened", "Hours", "Zip"]), "tickets.csv#e51bd4bc21e98ee8");
-    assert.equal(await sourceIdOf("tickets.csv", ["Team", "Id", "Opened", "Hours", "Zip"], { subtle: null }), "tickets.csv#d11fe64346f1d906");
-    // a long name is cut for people, the hash still covers all of it
-    const long = `${"a".repeat(130)}.csv`;
-    const other = `${"a".repeat(130)}x.csv`;
-    const id = await sourceIdOf(long, columns);
-    assert.equal(id.split("#")[0], `${"a".repeat(SHOWN_MAX - 3)}...`);
-    assert.notEqual(id, await sourceIdOf(other, columns));
-    // never cut inside a character outside the BMP
-    const emoji = `${"a".repeat(SHOWN_MAX - 4)}😀😀😀`;
-    assert.equal(shownName(emoji), `${"a".repeat(SHOWN_MAX - 4)}...`);
-    assert.equal(shownName("short.csv"), "short.csv");
-});
 
 test("data steps: a load goes back to the data before it with its view history, Redo forward again, a new step drops the redo", () => {
     const h = (present) => ({ ...createState("s", "start", present), past: [{ view: "older", note: "x", tag: null }] });

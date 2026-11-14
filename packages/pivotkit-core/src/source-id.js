@@ -8,7 +8,8 @@
  *
  * SHA-256 is the browser's (crypto.subtle) where the page has it; a page served over plain http on
  * another host than localhost has no crypto.subtle, so a small implementation of its own stands in
- * (FIPS 180-4; tested against Node's). Loaded with the import UI. Pure.
+ * (FIPS 180-4; tested against Node's). pivotkit-core/import exports sourceIdOf, shownName and
+ * SHOWN_MAX: the browser's report and pivotkit-cli name a file the same way. Pure.
  */
 
 /** Characters of a file name in the source id and the report's source line. */

@@ -6,6 +6,7 @@
  *   const table = await readFile(file, { plugins: [xlsxReader], signal, onProgress });
  *   const data = encode(table);               // { columns, types, data } is encode's columnar input
  *   const other = retype(table, { Zip: "string" }); // another type, without reading the file again
+ *   const id = await sourceIdOf(file.name, table.columns); // the source id a view file names it by
  *
  * Readers are plugins (contract v1 below): a small descriptor that names the file types it accepts
  * and loads its code on demand. The built-in CSV and JSON readers are plugins too, so this entry stays
@@ -17,6 +18,7 @@ import { PivotkitError } from "./errors.js";
 import { resolveLimits } from "./limits.js";
 import { IMPORT_TYPES, fileError, fileName, limitError } from "./import-table.js";
 
+export { SHOWN_MAX, shownName, sourceIdOf } from "./source-id.js";
 export { createTable, retype, noteMessage, cleanText, fileError, limitError, checkFileLimit, bytesOf, readOptions, fileName, dateToIso, IMPORT_NOTE_CODES, IMPORT_TYPES } from "./import-table.js";
 
 /**

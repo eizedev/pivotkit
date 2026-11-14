@@ -117,6 +117,32 @@ test("render inline: only with rest.inline and only when every field the view us
     }
 });
 
+test("suggest: a draft from the fields with its picks; a layout instead of a view renders and validates; not both", async () => {
+    const { server } = await salesServer();
+    try {
+        const draft = await call(`${server.api}/views/suggest`, { body: { source: "sales" } });
+        assert.equal(draft.status, 200, JSON.stringify(draft.data));
+        assert.equal(draft.data.ok, true);
+        assert.match(draft.data.name, /^Draft: /);
+        assert.ok(draft.data.picks.some((p) => p.part === "rows" && p.field === "Region"), JSON.stringify(draft.data.picks));
+        assert.ok(!JSON.stringify(draft.data).includes("Customer"), "a hidden field is never picked");
+        const rendered = await call(`${server.api}/views/render`, { body: { source: "sales", layout: { rows: ["Region"], values: [{ field: "Sales" }] }, format: "csv" } });
+        assert.equal(rendered.status, 200, JSON.stringify(rendered.data));
+        assert.equal(rendered.data.ok, true);
+        assert.deepEqual(rendered.data.view.rows, ["Region"], "the view the layout made");
+        const misspelt = await call(`${server.api}/views/validate`, { body: { source: "sales", layout: { rows: ["Regoin"] } } });
+        assert.equal(misspelt.status, 200);
+        assert.equal(misspelt.data.valid, false);
+        const both = await call(`${server.api}/views/validate`, { body: { source: "sales", view: BY_REGION, layout: { rows: ["Region"] } } });
+        assert.equal(both.status, 400);
+        assert.equal(both.data.code, "INVALID_INPUT");
+        const neither = await call(`${server.api}/views/render`, { body: { source: "sales" } });
+        assert.equal(neither.status, 400);
+    } finally {
+        await server.close();
+    }
+});
+
 test("create_link and draft_schedule answer as the operations do", async () => {
     const { server, dir } = await salesServer();
     try {

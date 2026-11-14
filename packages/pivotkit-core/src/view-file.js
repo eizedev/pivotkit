@@ -19,6 +19,7 @@
 
 import { LIMITS, resolveLimits } from "./limits.js";
 import { VIEW_VERSION } from "./view.js";
+import { PivotkitError } from "./errors.js";
 import { isPlainObject } from "./util.js";
 
 /** The value of `format` that marks an envelope. */
@@ -89,6 +90,62 @@ function plainText(value, max) {
 const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[key] : undefined);
 
 /**
+ * Every place a view names a field, in the order a reader meets them: rows, columns, values, filters
+ * (with the measure a top N or a value condition goes by), sort (with the measure it goes by), then
+ * the groupings' source fields. `visit(name, kind, set)` gets each name: kind "field" for a name that
+ * is no grouping's, "grouping" for a grouping's name, "source" for a grouping's source field; `set`
+ * writes another name there (only in the copy `mapFieldRefs` returns). The one list of these places:
+ * viewFileFields and renameFields both walk it.
+ * @param {unknown} view
+ * @param {(name: string, kind: "field" | "grouping" | "source", set: (name: string) => void) => void} visit
+ * @param {boolean} [copy]  walk a copy (JSON) that `set` writes into; without it, the view itself is
+ *   only read (a view that is no JSON, a cycle or a BigInt, is read without a throw)
+ * @returns {unknown} the copy with what `set` wrote, or the view
+ */
+function mapFieldRefs(view, visit, copy = false) {
+    if (!isPlainObject(view)) {
+        return view;
+    }
+    const out = copy ? JSON.parse(JSON.stringify(view)) : view;
+    const list = (key) => {
+        const v = own(out, key);
+        return Array.isArray(v) ? v : [];
+    };
+    const groupings = new Set(list("derived").map((d) => own(d, "name")).filter((n) => typeof n === "string").map((n) => n.toLowerCase()));
+    const kindOf = (name) => (groupings.has(name.toLowerCase()) ? "grouping" : "field");
+    const at = (obj, key) => {
+        const name = Array.isArray(obj) ? obj[key] : own(obj, key);
+        if (typeof name === "string" && name !== "") {
+            visit(name, kindOf(name), (next) => {
+                obj[key] = next;
+            });
+        }
+    };
+    for (const axis of ["rows", "cols"]) {
+        const names = list(axis);
+        names.forEach((_, i) => at(names, i));
+    }
+    list("values").forEach((v) => at(v, "field"));
+    for (const f of list("filters")) {
+        at(f, "field");
+        if (isPlainObject(own(f, "by"))) at(f.by, "field");
+    }
+    for (const s of list("sort")) {
+        at(s, "field");
+        if (isPlainObject(own(s, "value"))) at(s.value, "field");
+    }
+    for (const d of list("derived")) {
+        const name = own(d, "field");
+        if (typeof name === "string" && name !== "") {
+            visit(name, "source", (next) => {
+                d.field = next;
+            });
+        }
+    }
+    return out;
+}
+
+/**
  * The names of the data's fields a view uses, in the order they appear: rows, columns, values,
  * filters, sort (with the values a sort, a top N or a value condition goes by). A grouping (derived
  * field) counts as its source field. Names as the view writes them, each once (case-insensitive).
@@ -97,11 +154,8 @@ const own = (obj, key) => (isPlainObject(obj) && Object.hasOwn(obj, key) ? obj[k
  */
 export function viewFileFields(view) {
     const derived = new Map();
-    const list = (key) => {
-        const v = own(view, key);
-        return Array.isArray(v) ? v : [];
-    };
-    for (const d of list("derived")) {
+    const list = own(view, "derived");
+    for (const d of Array.isArray(list) ? list : []) {
         const name = own(d, "name");
         const field = own(d, "field");
         if (typeof name === "string" && typeof field === "string") {
@@ -110,8 +164,8 @@ export function viewFileFields(view) {
     }
     const out = [];
     const seen = new Set();
-    const add = (name) => {
-        if (typeof name !== "string" || name === "") {
+    mapFieldRefs(view, (name, kind) => {
+        if (kind === "source") {
             return;
         }
         const source = derived.get(name.toLowerCase()) ?? name;
@@ -119,20 +173,69 @@ export function viewFileFields(view) {
             seen.add(source.toLowerCase());
             out.push(source);
         }
-    };
-    const ref = (r) => add(own(r, "field"));
-    list("rows").forEach(add);
-    list("cols").forEach(add);
-    list("values").forEach(ref);
-    for (const f of list("filters")) {
-        add(own(f, "field"));
-        ref(own(f, "by"));
-    }
-    for (const s of list("sort")) {
-        add(own(s, "field"));
-        ref(own(s, "value"));
-    }
+    });
     return out;
+}
+
+/**
+ * A view with fields renamed: `map` names a field of the view (key, matched case-insensitively) and
+ * its new name (value), for data whose columns were renamed since the view was made. Every place the
+ * view names a data field is renamed (rows, columns, values, filters and their measures, sort and its
+ * measure, the groupings' source fields), all at once (a swap { A: "B", B: "A" } swaps); a grouping's
+ * own name is no data field and stays. `unused` lists the keys the view does not name. Own keys of
+ * `map` only. Two keys onto one new name, or a new name the view keeps as a field, would join two
+ * fields: INVALID_ARGUMENT.
+ * @param {unknown} view
+ * @param {Record<string, string>} map
+ * @returns {{ view: any, unused: string[] }}
+ */
+export function renameFields(view, map) {
+    if (!isPlainObject(map)) {
+        throw new PivotkitError("INVALID_ARGUMENT", "renameFields: map is an object { old name: new name }");
+    }
+    const to = new Map();
+    const targets = new Map();
+    for (const from of Object.keys(map)) {
+        const next = map[from];
+        if (typeof next !== "string" || next === "") {
+            throw new PivotkitError("INVALID_ARGUMENT", `renameFields: the new name of ${JSON.stringify(from.slice(0, 40))} is no text`);
+        }
+        const other = targets.get(next.toLowerCase());
+        if (other !== undefined && other.toLowerCase() !== from.toLowerCase()) {
+            throw new PivotkitError("INVALID_ARGUMENT", `renameFields: ${JSON.stringify(other.slice(0, 40))} and ${JSON.stringify(from.slice(0, 40))} cannot both become ${JSON.stringify(next.slice(0, 40))}`);
+        }
+        targets.set(next.toLowerCase(), from);
+        to.set(from.toLowerCase(), next);
+    }
+    // a field the view uses renamed to a field the view keeps would join two fields too
+    const used = new Set();
+    mapFieldRefs(view, (name, kind) => {
+        if (kind !== "grouping") used.add(name.toLowerCase());
+    });
+    for (const [target, from] of targets) {
+        if (used.has(from.toLowerCase()) && used.has(target) && !to.has(target)) {
+            throw new PivotkitError("INVALID_ARGUMENT", `renameFields: ${JSON.stringify(from.slice(0, 40))} cannot become ${JSON.stringify(map[from].slice(0, 40))}, a field the view keeps`);
+        }
+    }
+    const hit = new Set();
+    let out;
+    try {
+        out = mapFieldRefs(
+            view,
+            (name, kind, set) => {
+                const next = kind === "grouping" ? undefined : to.get(name.toLowerCase());
+                if (next !== undefined) {
+                    hit.add(name.toLowerCase());
+                    set(next);
+                }
+            },
+            true
+        );
+    } catch (e) {
+        if (e instanceof PivotkitError) throw e;
+        throw new PivotkitError("INVALID_ARGUMENT", "renameFields: the view is no JSON (a cycle or a value JSON does not hold)");
+    }
+    return { view: out, unused: Object.keys(map).filter((k) => !hit.has(k.toLowerCase())) };
 }
 
 /** The schema fields of an Encoded (or of anything with schema.fields), by lower-case name. */

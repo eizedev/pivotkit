@@ -5,6 +5,7 @@
  */
 
 import { createRequire } from "node:module";
+import { CATALOG } from "pivotkit-core";
 
 /**
  * @typedef {object} OptionSpec
@@ -29,7 +30,7 @@ export const GLOBAL_OPTIONS = Object.freeze({
     json: { type: "boolean", text: "Write the result as one JSON object on stdout (render: needs -o)." },
     quiet: { type: "boolean", short: "q", text: "Write no notes and warnings to stderr; errors still." },
     verbose: { type: "boolean", commands: ["render", "validate", "describe"], text: "Also write how the data was read (encoding, separator, sheet) to stderr." },
-    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", commands: ["render"], text: "Numbers, dates and the report's words in this locale when the view names none (default en-US; de-DE: German)." },
+    locale: { type: "string", value: "tag", env: "PIVOTKIT_LOCALE", commands: ["render", "describe"], text: "Numbers, dates and the report's words in this locale when the view names none, and the names of groupings (default en-US; de-DE: German)." },
     "time-zone": { type: "string", value: "zone", env: "PIVOTKIT_TIME_ZONE", commands: ["render", "validate", "describe"], text: "Time zone of the data's dates and of the generated time (default UTC)." },
     now: { type: "string", value: "date", env: "PIVOTKIT_NOW", commands: ["render"], text: 'The "today" of relative date filters and the generated time; fix it for the same output on every run.' },
     limit: { type: "string", multiple: true, value: "key=n", commands: ["render", "validate", "describe"], text: "Set one of pivotkit-core's limits (rows=200000); may be given more than once." },
@@ -51,6 +52,22 @@ const VIEW_OPTIONS = Object.freeze({
 });
 
 /**
+ * @type {Readonly<Record<string, OptionSpec>>} The layout flags: a view from field names, without a view
+ * file (render), or the parts of a suggested view to change (describe and render with --suggest). One
+ * value names one thing; each may be given again, outer first.
+ */
+const LAYOUT_OPTIONS = Object.freeze({
+    suggest: { type: "boolean", text: "A draft view from the data's fields: text fields with few values as rows and columns, a date grouped by its span, the first number summed." },
+    rows: { type: "string", multiple: true, value: "field", text: "A field on the rows (again for the next level); a date is grouped by its span unless --group says how." },
+    cols: { type: "string", multiple: true, value: "field", text: "A field on the columns." },
+    values: { type: "string", multiple: true, value: "agg:field", text: 'A value: sum:Revenue, "average:Mean °C", count (rows), or a field alone (a number summed, else counted).' },
+    group: { type: "string", multiple: true, value: "field:unit", text: "Group a field where it is placed: Date:yearMonth, Date:month (Jan to Dec of every year), Revenue:bin:500." },
+    filter: { type: "string", multiple: true, value: "json", text: 'A filter as a view writes it, as JSON or @file.json: {"field":"Region","type":"in","items":["North"]}.' },
+    "chart-type": { type: "string", value: "type", choices: [...CATALOG.chartTypes], text: "Show the chart of this type (with layout flags or --suggest)." },
+    map: { type: "string", multiple: true, value: "old=new", text: "The view's field old is the data's new (a column renamed since the view was made): --map Revenue=Turnover." }
+});
+
+/**
  * @typedef {object} CommandSpec
  * @property {string} usage
  * @property {string} text
@@ -62,12 +79,14 @@ const VIEW_OPTIONS = Object.freeze({
 /** @type {Readonly<Record<string, CommandSpec>>} */
 export const COMMANDS = Object.freeze({
     render: {
-        usage: "pivotkit render <view> --data <file> [-o <file>] [options]",
+        usage: "pivotkit render <view> --data <file> [-o <file>] [options]\n       pivotkit render <data> (--rows <field> ... --values <agg:field> | --suggest) [-o <file>] [options]",
         text: "Run a view over data and write the result: an HTML report, CSV, JSON, XLSX or the chart as SVG.",
-        args: [{ name: "view", text: "A view file, a view as JSON text, or - for stdin.", optional: true, complete: "file" }],
+        args: [{ name: "view", text: "A view file, a view as JSON text, or - for stdin; with layout flags or --suggest: the data.", optional: true, complete: "file" }],
         options: {
             ...VIEW_OPTIONS,
             ...DATA_OPTIONS,
+            ...LAYOUT_OPTIONS,
+            "save-view": { type: "string", value: "file", complete: "file", text: "Also write the view used as a view file (after --map; with layout flags or --suggest the view they make)." },
             format: { type: "string", short: "f", value: "format", choices: ["html", "csv", "json", "xlsx", "svg"], text: "The output's format; default -o's extension (another one is an error), html on stdout." },
             output: { type: "string", short: "o", value: "file", complete: "file", text: "Write to this file (replaced if it is a file) instead of stdout." },
             template: { type: "string", value: "file", complete: "file", formats: ["html"], text: "html: the print template with {{placeholders}} (default the built-in one)." },
@@ -79,7 +98,7 @@ export const COMMANDS = Object.freeze({
             lenient: { type: "boolean", text: "Write the output also when the view has errors (as the report shows it); the exit code is still 1." },
             strict: { type: "boolean", text: "Warnings are findings too (exit 1)." }
         },
-        examples: ["pivotkit render sales.pivotkit.json --data sales.csv -o sales.html", "pivotkit render view.json --data - --data-format csv --format csv < sales.csv > out.csv", "pivotkit render view.json --data sales.xlsx -o chart.svg --now 2026-11-13"]
+        examples: ["pivotkit render sales.pivotkit.json --data sales.csv -o sales.html", 'pivotkit render sales.xlsx --rows Region --cols Month --group Month:yearMonth --values sum:Revenue -o sales.html', "pivotkit render sales.csv --suggest -o draft.html --save-view draft.pivotkit.json", "pivotkit render view.json --data - --data-format csv --format csv < sales.csv > out.csv", "pivotkit render view.json --data sales.xlsx -o chart.svg --now 2026-11-13"]
     },
     validate: {
         usage: "pivotkit validate <view> [--data <file>] [options]",
@@ -89,15 +108,19 @@ export const COMMANDS = Object.freeze({
         examples: ["pivotkit validate sales.pivotkit.json --data sales.csv --strict"]
     },
     describe: {
-        usage: "pivotkit describe <view | data> [options]",
-        text: "Describe a view (what it shows and filters) or a data file (its fields, types and counts).",
+        usage: "pivotkit describe <view | data> [options]\n       pivotkit describe <data> --suggest [-o <file>] [layout flags]",
+        text: "Describe a view (what it shows and filters) or a data file (its fields, types and counts); --suggest writes a draft view of the data.",
         args: [{ name: "input", text: "A view file or a data file (CSV, JSON, XLSX), or - for stdin.", complete: "file" }],
         options: {
             ...DATA_OPTIONS,
+            ...LAYOUT_OPTIONS,
+            output: { type: "string", short: "o", value: "file", complete: "file", text: "--suggest: write the draft view file here (replaced if it is a file) instead of stdout." },
+            lenient: { type: "boolean", text: "--suggest: write the draft also when the data has nothing to group by (a count of rows); the exit code is still 1." },
+            strict: { type: "boolean", text: "Warnings are findings too (exit 1)." },
             as: { type: "string", value: "kind", choices: ["view", "data"], text: "Read the input as a view or as data (default: a view when it is one)." },
             items: { type: "string", value: "n", text: "data: list up to n values of each field (default none: names, types and counts only)." }
         },
-        examples: ["pivotkit describe sales.csv --json", "pivotkit describe sales.pivotkit.json --data sales.csv"]
+        examples: ["pivotkit describe sales.csv --json", "pivotkit describe sales.pivotkit.json --data sales.csv", "pivotkit describe sales.xlsx --suggest -o draft.pivotkit.json", 'pivotkit describe weather.csv --suggest --values "average:Mean °C"']
     },
     example: {
         usage: "pivotkit example [name] [--list]",

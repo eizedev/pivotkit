@@ -26,6 +26,10 @@
  * @typedef {import("./encode.js").SchemaField} SchemaField
  * @typedef {import("./encode.js").ColumnarData} ColumnarData
  * @typedef {import("./view.js").View} View
+ * @typedef {import("./suggest.js").Layout} Layout
+ * @typedef {import("./suggest.js").LayoutPick} LayoutPick
+ * @typedef {import("./suggest.js").LayoutNote} LayoutNote
+ * @typedef {import("./suggest.js").LayoutDescription} LayoutDescription
  * @typedef {import("./view.js").ValueSpec} ValueSpec
  * @typedef {import("./view.js").ValueRef} ValueRef
  * @typedef {import("./view.js").FilterSpec} FilterSpec
@@ -57,7 +61,7 @@ export { normalize, validate, migrate, emptyView, viewFields, VIEW_VERSION, VIEW
 export { computePivot } from "./pivot.js";
 export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
-export { suggestDateUnit } from "./derive.js";
+export { dateUnitFor, suggestDateUnit } from "./derive.js";
 export { relativeDateRange } from "./filters.js";
 export { foldText, MATCH_DEFAULTS } from "./text-match.js";
 export { closest, HINT_LIMITS } from "./hints.js";
@@ -69,10 +73,11 @@ export { formatter, isFormat } from "./format.js";
 export { aggregatorsFor } from "./aggregators.js";
 export { CATALOG } from "./catalog.js";
 export { describeSource, describeView, DESCRIBE_LIMITS } from "./describe.js";
-export { DEFAULT_LABELS, REPORT_LABELS, fieldLabel, reportLabels } from "./labels.js";
+export { DEFAULT_LABELS, GROUPING_NAMES, REPORT_LABELS, fieldLabel, groupingName, reportLabels } from "./labels.js";
 export { fieldDefaultsFromSchema } from "./schema.js";
 export { DEFAULT_THEME } from "./defaults.js";
 export { ISSUE_CAP, LIMITS, OUTSIDE_LIMITS, outsideLimits } from "./limits.js";
 export { PivotkitError } from "./errors.js";
 export { linkFragment, linkParam, withLinkFragment } from "./link-fragment.js";
-export { toViewFile, fromViewFile, viewFileText, viewFileName, viewFileFields, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, VIEW_FILE_SCHEMA, VIEW_FILE_LIMITS } from "./view-file.js";
+export { suggestLayout, viewFromLayout, isIdentifierName, SUGGEST_LIMITS, LAYOUT_LIMITS } from "./suggest.js";
+export { toViewFile, fromViewFile, viewFileText, viewFileName, viewFileFields, renameFields, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, VIEW_FILE_SCHEMA, VIEW_FILE_LIMITS } from "./view-file.js";

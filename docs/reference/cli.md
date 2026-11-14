@@ -1,6 +1,6 @@
 ---
 title: pivotkit-cli
-description: The pivotkit command line - render a view over CSV, JSON or Excel data to an HTML report, CSV, JSON, XLSX or SVG, validate and describe views in CI, with stable exit codes, --json, shell completion and safe file handling.
+description: The pivotkit command line - render a view over CSV, JSON or Excel data to an HTML report, CSV, JSON, XLSX or SVG, get a draft view from a file's fields or render from layout flags without a view file, validate and describe views in CI, with stable exit codes, --json, shell completion and safe file handling.
 ---
 
 # pivotkit-cli
@@ -69,8 +69,10 @@ view does not apply to it.
 | Command | What it does |
 | --- | --- |
 | `pivotkit render <view> --data <file> [-o <file>]` | Runs the view over the data and writes an HTML report, CSV, JSON, XLSX or SVG. |
+| `pivotkit render <data> --rows <field> --values <agg:field> [-o <file>]` | The same without a view file: the view from [layout flags](#a-view-from-the-datas-fields), or `--suggest` for the draft. |
 | `pivotkit validate <view> [--data <file>]` | Checks the view against the data, or against the fields its view file lists (`source.fields`). |
 | `pivotkit describe <view \| data>` | What a view shows and filters, or a data file's fields. |
+| `pivotkit describe <data> --suggest [-o <file>]` | A [draft view](#a-view-from-the-datas-fields) of the data as a view file: on stdout, or into `-o`. |
 | `pivotkit example [name] [--list]` | Writes an example's data and views into the current directory (default `sales`), never over a file, and says what to run next; `--list` names the examples ([Try it](#try-it)). |
 | `pivotkit completion bash \| zsh \| fish \| powershell` | The shell's completion script. |
 | `pivotkit help [command]`, `-h`, `--version` | Help; the versions of pivotkit-cli, pivotkit-report and pivotkit-core. |
@@ -94,14 +96,23 @@ read as JSON text: a file whose name starts with `{` is given as `./{name}.json`
 | `--chart auto\|on\|off` | render | `html`: the chart above the table (`auto`: when the view shows the chart). |
 | `--width`, `--height <px>` | render | `svg`, `html`: the chart's size (800 x 480). |
 | `--bom auto\|on\|off` | render | `csv`: a byte order mark first, so Excel reads the file as UTF-8. `auto`: in a file of `-o`, not on stdout, where a program would read it as part of the first header. |
-| `--lenient` | render | Write the output also when the view has errors, as the report shows it; still exit 1. |
-| `--strict` | render, validate | Warnings are findings too. |
+| `--suggest` | render, describe | A draft view from the data's fields ([below](#a-view-from-the-datas-fields)). |
+| `--rows`, `--cols <field>` | render, describe `--suggest` | A field on the rows or the columns, outer first; repeat the flag for the next level. |
+| `--values <agg:field>` | | `sum:Revenue`, `"average:Mean °C"`, `count` (the rows), or a field alone (a number summed, an identifier or another type counted); repeatable. |
+| `--group <field:unit>` | | Group a field where it is placed: `Date:yearMonth`, `Date:month` (Jan to Dec of every year), `Revenue:bin:500`; repeatable. |
+| `--filter <json>` | | A filter as a view writes it, as JSON text or `@file.json`; repeatable. |
+| `--chart-type <type>` | | Show the chart: `auto`, `bar`, `line`, `area`, `pie`, `donut`, `heatmap`. |
+| `--map <old=new>` | render, describe `--suggest` | The view's field `old` is the data's `new`, for a column renamed since the view was made; with a view file too. |
+| `--save-view <file>` | render | Also write the view used as a view file (after `--map`; the view the layout flags or `--suggest` made). |
+| `-o, --output <file>` | describe `--suggest` | The draft view file; without it the view file goes to stdout. |
+| `--lenient` | render, describe `--suggest` | Write the output also when the view has errors, as the report shows it; still exit 1. `describe --suggest`: the draft also when there is nothing to group by. |
+| `--strict` | render, validate, describe | Warnings are findings too. |
 | `--as view\|data` | describe | Read the input as a view or as data (default: a view when it is one). |
 | `--items <n>` | describe | Data: list up to n values of each field (default none). |
 | `--json` | all | One JSON object on stdout (render: needs `-o`). |
 | `-q, --quiet` | all | No warnings and no line saying what was written on stderr; errors still. |
 | `--verbose` | render, validate, describe | Also how the data was read: encoding, separator, sheet (the reader's `info` notes) on stderr. |
-| `--locale <tag>` | render (taken and checked by all) | Default `en-US`; environment `PIVOTKIT_LOCALE`. The locale also picks the CSV separator (`;` where the decimal mark is a comma) and the report's words: German ones ("Gesamtergebnis", "Summe von Units") for a German locale, as the report on a page writes them, English for any other. |
+| `--locale <tag>` | render, describe `--suggest` (taken and checked by all) | Default `en-US`; environment `PIVOTKIT_LOCALE`. The locale also picks the CSV separator (`;` where the decimal mark is a comma) and the report's words: German ones ("Gesamtergebnis", "Summe von Units") for a German locale, as the report on a page writes them, English for any other. |
 | `--time-zone <zone>` | all | The data's dates; default `UTC`; environment `PIVOTKIT_TIME_ZONE`. |
 | `--now <date>` | render (taken and checked by all) | "Today" of relative filters and the generated time; environment `PIVOTKIT_NOW`. |
 | `--limit key=n` | all | One of pivotkit-core's [limits](../concepts/limits.md) (`--limit rows=200000`); repeatable. |
@@ -161,11 +172,119 @@ fields is cut ("… and 12 more"; `dataFields` in `--json` has all). Messages qu
 names and at most one cell value, cut at 20 characters; a file is named by its base name. A field the data has under a near name is named
 (`missing: "Mean °C" (did you mean "Mean C"?)`); a field the view file lists with its type that the
 data has as the one new field of that type is named as a rename (`missing: "Revenue" (number); the
-data has a new number field "Turnover": renamed?`); an unknown field lists the fields the data has; a
+data has a new number field "Turnover": renamed? --map "Revenue=Turnover"`, the flag that renders the
+view on the renamed column, [below](#map); with two or three such fields it names them and
+`--map "Revenue=<its new name>"`); an unknown field lists the fields the data has; a
 value refused on a text field names the value and row that made it text (`its value "n/a" in row 2 is
 no number`); an aggregator as other tools name it gets ours as the hint (`avg`: did you mean
 `average`?). `--lenient` writes the report all the same and says how many errors it has, and when the
 data lacks the view's fields that the report shows none of them.
+
+## A view from the data's fields { #a-view-from-the-datas-fields }
+
+Point the command line at a file and get a view without opening the browser: `describe --suggest`
+writes a draft view file, `render` with layout flags renders without a view file, and `render
+--suggest` renders the draft at once.
+
+```bash
+pivotkit describe sales.xlsx --suggest -o draft.pivotkit.json       # a draft view file
+pivotkit render draft.pivotkit.json --data sales.xlsx -o draft.html  # the report of it
+pivotkit render sales.xlsx --suggest -o draft.html                   # both in one step
+pivotkit render sales.xlsx --rows Region --cols "Order date" --group "Order date:yearQuarter" \
+  --values sum:Revenue -o by-quarter.html --save-view by-quarter.pivotkit.json
+```
+
+```text
+$ pivotkit describe sales.csv --suggest -o draft.pivotkit.json
+draft: rows Region; columns Month by month; values Sum of Units
+  other text fields: Country, Product, Category, Channel
+  other numbers: Revenue, Discount
+  to change a part: pivotkit describe sales.csv --suggest --values sum:Revenue (or --rows, --cols, --group <field>:<unit>)
+wrote draft.pivotkit.json: a draft view of sales.csv
+next: pivotkit render draft.pivotkit.json --data sales.csv -o draft.html
+```
+
+### What --suggest picks { #suggest }
+
+| Part | Rule |
+| --- | --- |
+| Rows | The first text field with 2 to 50 values that repeat (not every row its own value) and no identifier's name. |
+| Columns | The first date, grouped by its span: up to 62 days by day, up to two years by month, up to six years by quarter, longer by year, named as the report names a date it groups (`Order date by month`). Without a date: the next text field with up to 12 values. Without a text field on the rows, the date goes to the rows. |
+| Values | The first number field whose name is no identifier (its last word ID, Nr, No, Number, Key or `#`), summed; none: the count of rows. |
+
+The rules read the fields' types and counts, not what they mean: a temperature or a price is summed
+like revenue. The lines on stderr name the other fields a part could take and a line to paste that
+changes one part: every layout flag given with `--suggest` replaces that part of the draft
+(`--values "average:Mean °C"` keeps the suggested rows and columns). The draft is a view file of
+format 2: its name is `Draft: ` and what it shows, its description says where it came from, and it
+names the data as the report names a loaded file, with the sheet of a workbook (`source.params.sheet`),
+so **Views**, **Open view file** in the report opens it on that file and sheet. It is checked against
+the data as `validate --strict` would; same file, same draft on every machine (`--locale` changes the
+names of groupings and of the view).
+
+Without `-o`, the view file goes to stdout (`pivotkit describe x.csv --suggest > x.pivotkit.json`);
+with `--json` it is the `view` key of the object instead, and with `-o` and `--json` the object has
+`output` (`{ file, bytes }`) and no `view`. `describe` without `--suggest` writes nothing, and its
+layout flags and `-o` are a usage error there.
+
+A file that looks like an exported pivot result (a `Grand Total` column, `Sum of …` headers) is
+said with what to take instead, as for a view that [does not fit](#data-mismatch).
+
+Nothing to group by (a workbook whose first sheet is a note, a file of one column of different
+values) is an error, `noSuggestion` (exit 1), and nothing is written unless `--lenient`. For a
+workbook it names the other sheets and the command for one:
+
+```text
+error noSuggestion: the sheet "Readme" of book.xlsx has nothing to group by (no text field with 2 to 50 values that repeat, and no date)
+  the workbook's other sheets: "2025", "2026"; try: pivotkit describe book.xlsx --suggest --sheet 2025
+```
+
+### Layout flags { #layout-flags }
+
+`render` with any of `--rows`, `--cols`, `--values`, `--group`, `--filter` or `--chart-type` (or
+`--suggest`) makes its view from the data's fields. The data is the argument or `--data` (both: a
+usage error); a view (the argument, `--link`) and layout flags together are a usage error too, so
+`pivotkit render sales.csv` alone still asks for a view. The view runs as a view file would: checked
+with "did you mean" hints, exit codes 0, 1 and 2 as for a view.
+
+- **One value names one thing**, and each flag may be repeated, outer first: `--rows Region --rows
+  Product`. There are no comma lists, so a field name may hold commas, spaces and colons (`--rows
+  "Revenue, EUR"`). Names match in any case and are written as the data spells them.
+- **`--values`**: `<agg>:<field>` splits at the first colon only when what is before it is an
+  aggregator (`sum`, `average`, `count`, `countUnique`, `median`, `min`, `max`, …, any case), so
+  `"sum:Time: start"` sums the field `Time: start`; a field named exactly as the whole value wins.
+  A misspelt aggregator before a field of the data (`summ:Revenue`) is a usage error with the one
+  meant.
+  `count` alone counts the rows.
+- **`--group`**: `<field>:<unit>`, the unit after the last colon, or `<field>:bin:<size>` for number
+  ranges. The units are the view file's: `year`, `yearQuarter`, `yearMonth`, `yearWeek`, `day` along
+  the time line (Jan 2025, Feb 2025), `quarter`, `month`, `week`, `weekday`, `hour` repeating (Jan to
+  Dec of every year together). The grouping takes its field's place on the axes; a grouping whose
+  field is on no axis is a warning `unusedGroup`. A date on an axis without `--group` is grouped by
+  its span as the report groups a date it places, said in an `info` finding `dateGrouped`.
+- **`--filter`**: a filter as a [view](view-file.md) writes it, as JSON (`'{"field":"Region","type":"in","items":["North"]}'`)
+  or `@file.json` (PowerShell: `--filter '@north.json'`, where quoting JSON is awkward); a list of
+  filters in one file works too.
+- **`--chart-type`** shows the chart of that type (the SVG, and the HTML report above the table);
+  `--chart auto|on|off` keeps its meaning. With a view file it is a usage error: the view sets its chart.
+- **`--save-view <file>`** writes the view used as a view file (named as `describe --suggest` names
+  the data), only when nothing failed (or with `--lenient`); `-o` and `--save-view` naming one file is
+  a usage error. `pivotkit render <saved> --data <file>` gives the same report.
+
+### --map { #map }
+
+`--map Old=New` says that the view's field `Old` is the data's `New`: a column renamed since the view
+was made. Every place the view names the field is renamed (rows, columns, values, filters and the
+measures they go by, sort, a grouping's field), the types the view file lists too; a grouping's own
+name stays. It works with a view file, a link and the layout flags, and with `--save-view` it keeps
+the renamed view. The `=` that splits is the one whose left part the view uses, so a name may hold
+`=`. Each name mapped is an `info` finding `mapped` (`--verbose`, `--json`); a name the view does not use
+is a warning `unusedMap`; two names mapped onto one, or a name mapped onto a field the view keeps,
+is a usage error.
+
+```bash
+pivotkit render revenue.pivotkit.json --data new-export.csv --map Revenue=Turnover -o report.html --save-view revenue-turnover.pivotkit.json
+```
 
 ## Exit codes
 
@@ -188,7 +307,8 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 
 - `findings`: each with `severity` (`error`, `warning`, or `info` for a reader's note on how a file was
   read), `code` ([the view's issue codes](core.md), the reader's note codes, `viewFile`,
-  `dataMismatch`, `typeFromView`, `typeFromViewFailed`), `path`, `message` and, where there is one,
+  `dataMismatch`, `typeFromView`, `typeFromViewFailed`, and from a view made from the data's fields
+  `noSuggestion`, `pivotResult`, `dateGrouped`, `unusedGroup`, `unusedMap`, `mapped`), `path`, `message` and, where there is one,
   `suggestion`. `dataMismatch` also has `missing`, `dataFields`, `pivotResult` and `details` (the lines
   stderr shows); an error that follows from it has `followsFrom: "dataMismatch"`.
 - `error` (exit 2): `{ kind, code, message }`, `kind` one of `usage`, `io`, `limit`, `template`,
@@ -198,7 +318,9 @@ One object on stdout, for scripts and for the PowerShell Universal module:
   variable or the default, and whether Node's Intl knows it), `now` (`{ value, from }`) and pivotkit-core's
   default `limits`: for a bug report or a CI log.
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
-  written). `validate`: `valid` and `uses` (the data's fields the view uses). `describe`: `kind`
+  written); with `--save-view` also `savedView` (`{ file, bytes }`); with `--suggest`, `draft: true`
+  and `picks`. `describe --suggest`: `draft: true`, `picks` (each `{ part, code, field, agg, by,
+  others, text }`), `view` or `output`, `sheet` and, for a workbook, `sheets`. `validate`: `valid` and `uses` (the data's fields the view uses). `describe`: `kind`
   (`view` or `data`) and `description` (pivotkit-core's [`describeView`](core.md) without its
   `errors` and `warnings`, which are the `findings`, plus `valid`, `name` and `uses`; or
   [`describeSource`](core.md)'s `rows`, `fields` and `text`).

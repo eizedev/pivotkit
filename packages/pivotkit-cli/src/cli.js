@@ -11,18 +11,20 @@
 import { createRequire } from "node:module";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, closest, encode, fromViewFile, viewFileFields } from "pivotkit-core";
+import { DEFAULT_LABELS, LIMITS, OUTSIDE_LIMITS, PivotkitError, REPORT_LABELS, VIEW_FILE_FORMAT, VIEW_FILE_VERSION, closest, encode, fromViewFile, outsideLimits, renameFields, validate, viewFileFields, viewFileText } from "pivotkit-core";
 import { IMPORT_TYPES, readFile, retype } from "pivotkit-core/import";
 import xlsxReader from "pivotkit-xlsx";
 import { readViewLink } from "pivotkit-core/link";
 import { RENDER_FORMATS } from "pivotkit-report";
-import { OPERATIONS } from "pivotkit-report/operations";
+import { OPERATIONS, findingOf } from "pivotkit-report/operations";
 import { COMMANDS, DOCS, SHELLS, optionsOf } from "./commands.js";
 import { CliError, asCliError, printable, shortName } from "./errors.js";
 import { examples, tryLine, writeExample } from "./examples.js";
 import { completionScript, helpText } from "./help.js";
 import { INFO_NOTES } from "./files.js";
+import { fromFields, hasLayoutFlags, layoutView, mapOf, normalized, pickLines, quoteArg, viewFileFor } from "./layout-view.js";
 import { allowedDirs, readSafe, readStdin, writeSafe } from "./safe-files.js";
+import { resolve as resolvePath } from "node:path";
 
 /**
  * @typedef {object} Io
@@ -520,6 +522,12 @@ function nameList(names) {
     return names.length > shown.length ? `${shown.join(", ")} and ${names.length - shown.length} more` : shown.join(", ");
 }
 
+/** What to take instead of an exported pivot result. */
+const PIVOT_RESULT_ADVICE = Object.freeze(["in the report, take Export → Source data → All rows as CSV, and give that file to --data", "or give --data the file the report was made from, if you have it"]);
+
+/** At most this many fields of a missing field's type are named as the one it may have been renamed to. */
+const RENAME_CANDIDATES = 3;
+
 /** The words of a value's name in a pivot result's header ("Sum of", "Summe von"), every language's. */
 const VALUE_NAME = (() => {
     const words = new Set();
@@ -599,7 +607,11 @@ function explain(findings, viewText, data) {
             if (near) return `missing: "${cut(name, NAME_LENGTH)}" (did you mean "${cut(near, NAME_LENGTH)}"?)`;
             const type = typeOf.get(String(name).toLowerCase());
             const fresh = type ? newOfType(type) : [];
-            return fresh.length === 1 ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed?` : null;
+            if (fresh.length === 1) {
+                return `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed? --map ${quoteArg(`${name}=${fresh[0]}`)}`;
+            }
+            // a few candidates: name them and the flag to give
+            return fresh.length > 1 && fresh.length <= RENAME_CANDIDATES ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has ${type} fields the view does not use: ${fresh.map((f) => JSON.stringify(cut(f, NAME_LENGTH))).join(", ")}: one of them renamed? --map ${quoteArg(`${name}=<its new name>`)}` : null;
         })
         .filter(Boolean);
     const signText = signs.map((s) => JSON.stringify(s)).join(", ");
@@ -610,8 +622,7 @@ function explain(findings, viewText, data) {
         ...(signs.length
             ? [
                   `it ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result (${signText}), not the rows the report was made from:`,
-                  "in the report, take Export → Source data → All rows as CSV, and give that file to --data",
-                  "or give --data the file the report was made from, if you have it"
+                  ...PIVOT_RESULT_ADVICE
               ]
             : []),
         ...(followers.length ? [`and ${followers.length} more error${followers.length === 1 ? "" : "s"} from the missing fields (--json lists them)`] : [])
@@ -673,12 +684,14 @@ async function renderCommand(positionals, values, ctx) {
     if (!values.output && format === "xlsx" && ctx.io.stdout.isTTY) {
         throw new CliError("usage", "BINARY_TO_TERMINAL", "an XLSX file is not shown in a terminal: write it to a file with -o, or redirect stdout");
     }
-    const view = await readView(positionals, values, ctx);
-    const data = withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
+    checkSaveView(values);
+    const made = fromFields(values) ? await viewFromData(positionals, values, ctx, "render") : null;
+    const view = made ? made.read : withMap(await readView(positionals, values, ctx), values);
+    const data = made ? made.data : withViewTypes(await readData(values, ctx, view.sheet), viewFields(view.view));
     if (!data) {
         throw new CliError("usage", "MISSING_DATA", "render needs data: --data <file> or --data -");
     }
-    const findings = [...data.notes, ...ignoredOptions(values, format)];
+    const findings = [...data.notes, ...(made?.findings ?? /** @type {any} */ (view).findings ?? []), ...ignoredOptions(values, format)];
     const template = values.template !== undefined ? textOf(await ctx.readInput(values.template, "the template", TEMPLATE_BYTES, "template")) : undefined;
     const echarts = format === "svg" || format === "html" ? await import("echarts") : undefined;
     const width = intOption("width", values.width, 100, 8000);
@@ -711,7 +724,11 @@ async function renderCommand(positionals, values, ctx) {
     }
     const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
     /** @type {any} */
-    const extra = { summary: result.summary, sheet: data.sheet };
+    const extra = { summary: result.summary, sheet: data.sheet, ...(made?.picks.length ? { draft: true, picks: made.picks } : {}) };
+    const saved = rendered && values["save-view"] !== undefined && !(failed && !values.lenient) ? await saveView(view, data, values, ctx, made?.built.encoded) : null;
+    if (saved) {
+        extra.savedView = saved;
+    }
     if (rendered && !(failed && !values.lenient)) {
         if (values.output) {
             try {
@@ -735,14 +752,130 @@ async function renderCommand(positionals, values, ctx) {
         return { findings, extra, note: "nothing written: the view has errors.", noteIsError: true };
     }
     if (!extra.output) {
-        return { findings, extra, note: null };
+        const lines = [...(made?.lines ?? []), ...(saved ? [`wrote ${saved.file}: the view, to render again with pivotkit render ${quoteArg(saved.file)} --data ${quoteArg(data.name)}`] : [])];
+        return { findings, extra, note: lines.length ? lines.join("\n") : null };
     }
     const file = extra.output.file;
     if (failed) {
         return { findings, extra, note: `wrote ${file} despite ${errors} error${errors === 1 ? "" : "s"} (--lenient)${mismatch ? ": the data lacks the view's fields, so the report shows none of them" : ""}` };
     }
     const summary = result.summary;
-    return { findings, extra, note: `wrote ${file}: ${FORMAT_NAMES[format]}${summary ? `, ${summary.rows} rows x ${summary.columns} columns, from ${summary.sourceRows.toLocaleString("en-US")} rows of ${data.name}` : ""}` };
+    const lines = [...(made?.lines ?? []), `wrote ${file}: ${FORMAT_NAMES[format]}${summary ? `, ${summary.rows} rows x ${summary.columns} columns, from ${summary.sourceRows.toLocaleString("en-US")} rows of ${data.name}` : ""}`, ...(saved ? [`wrote ${saved.file}: the view, to render again with pivotkit render ${quoteArg(saved.file)} --data ${quoteArg(data.name)}`] : [])];
+    return { findings, extra, note: lines.join("\n") };
+}
+
+/** -o and --save-view naming the same file would write the view over the report: refused first. */
+function checkSaveView(values) {
+    const save = values["save-view"];
+    if (save === undefined) {
+        return;
+    }
+    if (values.output !== undefined && resolvePath(values.output) === resolvePath(save)) {
+        throw new CliError("usage", "SAME_FILE", "-o and --save-view name the same file: give the view file another name");
+    }
+    if (!/\.json$/i.test(save)) {
+        throw new CliError("usage", "UNKNOWN_EXTENSION", `--save-view ${shortName(save)}: a view file is JSON: name it <name>.pivotkit.json`);
+    }
+}
+
+/**
+ * --save-view: the view rendered (normalized) as a view file for the data it ran on, the source named
+ * as the browser names the file, with the workbook's sheet.
+ */
+async function saveView(view, data, values, ctx, known) {
+    const encoded = known ?? encode(data.table, { ...(ctx.timeZone ? { timeZone: ctx.timeZone } : {}), ...(Object.keys(ctx.limits).length ? { limits: ctx.limits } : {}) });
+    const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
+    const viewUsed = normalized(/** @type {any} */ (read.view ?? {}), encoded, outsideLimits(ctx.limits));
+    const name = values.title ?? (read.name || "");
+    const file = await viewFileFor(viewUsed, data, encoded, { name, ...(read.description ? { description: read.description } : {}), version: versions()["pivotkit-cli"] });
+    const bytes = new TextEncoder().encode(viewFileText(file));
+    try {
+        await writeSafe(values["save-view"], bytes, { cwd: ctx.io.cwd, allow: ctx.allow });
+    } catch (e) {
+        throw asCliError(e, values["save-view"]);
+    }
+    return { file: shortName(values["save-view"]), bytes: bytes.length };
+}
+
+/**
+ * --map on a view read from a file, a link or the argument: its fields renamed (renameFields), the
+ * types its view file lists too; a name the view does not use is a warning (unusedMap).
+ * @param {{ view: unknown, name: string, source: string, sheet: string | null }} view
+ * @param {Record<string, any>} values
+ */
+function withMap(view, values) {
+    if (!values.map?.length) {
+        return view;
+    }
+    const read = fromViewFile(typeof view.view === "string" ? view.view : JSON.stringify(view.view));
+    if (read.failed || !read.view) {
+        return view;
+    }
+    const map = /** @type {Record<string, string>} */ (mapOf(values.map, [...viewFileFields(read.view), ...(read.source?.fields ?? []).map((f) => f.name)]));
+    let renamed;
+    try {
+        renamed = renameFields(read.view, map);
+    } catch (e) {
+        throw new CliError("usage", "BAD_VALUE", `--map: ${printable(String(e.message).replace(/^renameFields: /, ""))}`);
+    }
+    const lower = new Map(Object.entries(map).map(([from, to]) => [from.toLowerCase(), to]));
+    const fields = (read.source?.fields ?? []).map((f) => ({ ...f, name: lower.get(f.name.toLowerCase()) ?? f.name }));
+    // a name the file lists among its fields (the view itself may not use it): renamed there, no warning
+    const listedInFile = new Set((read.source?.fields ?? []).map((f) => f.name.toLowerCase()));
+    const file = { format: VIEW_FILE_FORMAT, formatVersion: VIEW_FILE_VERSION, name: read.name, ...(read.description ? { description: read.description } : {}), source: { ...(read.source ?? {}), fields }, view: renamed.view };
+    const findings = [
+        ...renamed.unused.filter((n) => !listedInFile.has(n.toLowerCase())).map((n) => ({ severity: "warning", code: "unusedMap", path: "", message: printable(`--map ${n}=...: the view uses no field ${JSON.stringify(n)}`) })),
+        ...Object.entries(map)
+            .filter(([from]) => !renamed.unused.includes(from))
+            .map(([from, to]) => ({ severity: "info", code: "mapped", path: "", message: printable(`--map: the view's ${JSON.stringify(from)} is read as ${JSON.stringify(to)}`) }))
+    ];
+    return { ...view, view: JSON.stringify(file), findings };
+}
+
+/**
+ * render or describe with layout flags or --suggest: the data (the argument or --data), the view made
+ * from its fields, the findings that came with it, and the lines that say what was picked.
+ * @param {string[]} positionals
+ * @param {Record<string, any>} values
+ * @param {any} ctx
+ * @param {"render" | "describe"} command
+ */
+async function viewFromData(positionals, values, ctx, command) {
+    const flag = ["suggest", "rows", "cols", "values", "group", "filter", "chart-type"].find((f) => values[f] !== undefined);
+    const notBoth = () => new CliError("usage", "VIEW_AND_LAYOUT", `--${flag} makes the view from the data's fields: give a view or layout flags, not both (to change a view file, edit it, or start from pivotkit describe <data> --suggest)`);
+    if (values.link !== undefined) {
+        throw notBoth();
+    }
+    if (positionals.length > 1) {
+        throw new CliError("usage", "EXTRA_ARGUMENT", `${command} takes one data file, not ${positionals.length}`);
+    }
+    const arg = positionals[0];
+    if (arg !== undefined && values.data !== undefined) {
+        const dataLike = ["csv", "tsv", "txt", "xlsx"].includes(extname(arg).slice(1).toLowerCase()) || resolvePath(arg) === resolvePath(values.data);
+        throw dataLike ? new CliError("usage", "DATA_TWICE", `the data twice: give it as the argument (${shortName(arg)}) or with --data, not both`) : notBoth();
+    }
+    const input = arg ?? values.data;
+    if (input === undefined) {
+        throw new CliError("usage", "MISSING_DATA", `--${flag} needs the data: pivotkit ${command} <data> --${flag} ...`);
+    }
+    const data = await readData({ ...values, data: input }, ctx);
+    const built = await layoutView(data, values, ctx, { sheets: data.sheets, command, input });
+    // an exported pivot result is no data to make a view of: said as for a view that does not fit
+    const signs = pivotResultSigns(data.table);
+    if (signs.length > 0) {
+        const lines = [`it ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result (${signs.map((t) => JSON.stringify(t)).join(", ")}), not the rows a report is made from:`, ...PIVOT_RESULT_ADVICE].map(printable);
+        const none = built.findings.find((f) => f.code === "noSuggestion");
+        if (none) none.details = [...lines, ...(none.details ?? [])];
+        else built.findings.unshift({ severity: "warning", code: "pivotResult", path: "", message: printable(`${data.name} ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result, not the rows a report is made from`), details: PIVOT_RESULT_ADVICE.map(printable) });
+    }
+    const draft = Boolean(values.suggest);
+    const tool = `pivotkit ${command} --suggest`;
+    const name = draft ? `Draft: ${built.name}` : built.name;
+    const description = draft ? `A draft suggested by ${tool} from the fields of ${data.name}: check what it shows, then change it in the report or with the layout flags.` : "";
+    const fields = data.table.columns.map((c, i) => ({ name: String(c), type: data.table.types[i] }));
+    const lines = draft ? pickLines(built.view, `pivotkit ${command} ${quoteArg(shortName(input))} --suggest`, fields) : [];
+    const file = { format: VIEW_FILE_FORMAT, formatVersion: VIEW_FILE_VERSION, name, ...(description ? { description } : {}), view: built.view };
+    return { data, built, findings: built.findings, picks: built.picks, lines, name, description, read: { view: JSON.stringify(file), name, source: "layout", sheet: data.sheet } };
 }
 
 /** What each output format is, for the line that says what was written. */
@@ -845,6 +978,13 @@ function listedFields(view) {
 }
 
 async function describeCommand(positionals, values, ctx) {
+    if (values.suggest) {
+        return suggestCommand(positionals, values, ctx);
+    }
+    const onlySuggest = ["output", "lenient", "map", "save-view"].find((f) => values[f] !== undefined) ?? (hasLayoutFlags(values) ? ["rows", "cols", "values", "group", "filter", "chart-type"].find((f) => values[f] !== undefined) : undefined);
+    if (onlySuggest) {
+        throw new CliError("usage", "NEEDS_SUGGEST", `--${onlySuggest} acts with --suggest only: pivotkit describe <data> --suggest --${onlySuggest} ...`);
+    }
     const input = positionals[0];
     if (input === undefined) {
         throw new CliError("usage", "MISSING_INPUT", "describe needs a view or a data file");
@@ -905,6 +1045,62 @@ async function describeCommand(positionals, values, ctx) {
         }
     }
     return { findings: data.notes, extra: { kind: "data", description: summary, sheet: data.sheet, ...(sheets ? { sheets } : {}) } };
+}
+
+/**
+ * describe <data> --suggest: a draft view of the data as a view file, on stdout or into -o; what was
+ * picked and what to run next on stderr. Nothing to group by is an error (noSuggestion): no file
+ * without --lenient.
+ */
+async function suggestCommand(positionals, values, ctx) {
+    if (values.as === "view") {
+        throw new CliError("usage", "BAD_VALUE", "--suggest makes a view from data: leave out --as view");
+    }
+    if (values.output !== undefined) {
+        const input = positionals[0] ?? values.data;
+        if (values.output === "-") {
+            throw new CliError("usage", "BAD_VALUE", "-o -: the draft goes to stdout when -o is left out");
+        }
+        if (!/\.json$/i.test(values.output)) {
+            throw new CliError("usage", "UNKNOWN_EXTENSION", `-o ${shortName(values.output)}: a view file is JSON: name it <name>.pivotkit.json`);
+        }
+        if (input !== undefined && input !== "-" && resolvePath(ctx.io.cwd, input) === resolvePath(ctx.io.cwd, values.output)) {
+            throw new CliError("usage", "SAME_FILE", "-o names the data file: the draft would replace the data; give it another name");
+        }
+    }
+    const made = await viewFromData(positionals, values, ctx, "describe");
+    const { data, built } = made;
+    const { errors, warnings } = validate(built.view, built.encoded, { limits: outsideLimits(ctx.limits) });
+    const findings = [...data.notes, ...made.findings, ...errors.map(findingOf), ...warnings.map(findingOf)];
+    const failed = findings.some((f) => f.severity === "error" || (values.strict && f.severity === "warning"));
+    const file = await viewFileFor(normalized(built.view, built.encoded, outsideLimits(ctx.limits)), data, built.encoded, { name: made.name, description: made.description, version: versions()["pivotkit-cli"] });
+    const text = viewFileText(file);
+    const sheets = data.sheets ? await data.sheets() : null;
+    /** @type {any} */
+    const extra = { kind: "data", draft: true, picks: built.picks, sheet: data.sheet, ...(sheets ? { sheets } : {}) };
+    const input = shortName(positionals[0] ?? values.data);
+    if (failed && !values.lenient) {
+        return { findings, extra: { ...extra, output: null }, note: "nothing written: the draft has errors.", noteIsError: true };
+    }
+    if (values.output !== undefined) {
+        const bytes = new TextEncoder().encode(text);
+        try {
+            await writeSafe(values.output, bytes, { cwd: ctx.io.cwd, allow: ctx.allow });
+        } catch (e) {
+            throw asCliError(e, values.output);
+        }
+        const out = shortName(values.output);
+        extra.output = { file: out, bytes: bytes.length };
+        const report = out.replace(/(\.pivotkit)?\.json$/i, "") + ".html";
+        return { findings, extra, note: [...made.lines, `wrote ${out}: a draft view of ${data.name}${failed ? " despite its errors (--lenient)" : ""}`, `next: pivotkit render ${quoteArg(out)} --data ${quoteArg(input)} -o ${quoteArg(report)}`].join("\n") };
+    }
+    if (values.json) {
+        extra.view = file;
+    } else {
+        ctx.io.stdout.write(text);
+    }
+    const save = input.replace(/\.[^.]+$/, "") + ".pivotkit.json";
+    return { findings, extra, note: [...made.lines, `next: pivotkit describe ${quoteArg(input)} --suggest -o ${quoteArg(save)}`].join("\n") };
 }
 
 /** A context whose reader hands back the bytes already read (stdin is read once). */

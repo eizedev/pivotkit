@@ -7,7 +7,7 @@
  * that is an identifier (fieldDefaultsFor): counted, shown as it is. Pure, tested without a DOM.
  */
 
-import { fieldDefaultsFromSchema } from "pivotkit-core";
+import { fieldDefaultsFromSchema, isIdentifierName } from "pivotkit-core";
 
 /** @typedef {{ label?: string, description?: string, href?: string }} FieldInfo */
 
@@ -126,32 +126,8 @@ export function fieldMatches(field, query, info) {
     return [field, info?.label, info?.description].some((t) => typeof t === "string" && t.toLowerCase().includes(query));
 }
 
-/** The last word of a field's name that makes a number field an identifier ("ID", "Order No", "asset_nr", "Serial #"). */
-const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key", "#"]);
-
-/**
- * Whether a field's name says it is an identifier: its last word is ID, Nr, No, Number, Key or "#",
- * in any case. Words are split at a space, "_", "-", ".", "/", ":", a change from a small letter to
- * a capital ("CustomerId", "CustomerID") and from a letter to a digit; a "#" is a word of its own
- * ("Serial#" as "Serial #"). Before the last word is read, a part in parentheses at the end ("ID
- * (Asset)") and digits at the end ("userID2") are left out. "Paid", "PAID" and "UUID" are one word,
- * not one ending in "id"; "Number of items" ends in "items".
- * @param {string} name
- */
-export function isIdentifierName(name) {
-    const words = String(name)
-        .replace(/(\s*\([^()]*\))+\s*$/, "")
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/([A-Za-z])(\d)/g, "$1 $2")
-        .replace(/#/g, " # ")
-        .split(/[\s_.\-/:()]+/)
-        .filter(Boolean);
-    while (words.length > 1 && /^\d+$/.test(words[words.length - 1])) {
-        words.pop();
-    }
-    const last = words[words.length - 1];
-    return last !== undefined && IDENTIFIER_WORDS.includes(last.toLowerCase());
-}
+/** Whether a field's name says it is an identifier: pivotkit-core's rule, which its suggestions share. */
+export { isIdentifierName };
 
 /** isIdentifier's answer per column: a column's values do not change, its dictionary is read once. */
 const identifierColumns = new WeakMap();

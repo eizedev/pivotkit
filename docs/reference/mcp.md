@@ -31,10 +31,11 @@ holds what it shares with the REST service (sources, policy, workers, output, si
 | --- | --- | --- |
 | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works | - |
 | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views from its own fields | - |
+| `suggest_view` | A draft view from a source's fields (marked `Draft:`), with what each part took and could take instead (`picks`); a `layout` replaces parts of it | - |
 | `get_view_guide` | How to write a view: its keys, the vocabulary (aggregators, filter types, date groupings), five example views | - |
-| `validate_view` | Errors and warnings of a view against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
+| `validate_view` | Errors and warnings of a view (or a `layout`: a view by field names) against a source, each with its place and, for a misspelt name, the name meant (`suggestion`) | - |
 | `describe_view` | A view in plain parts (rows, columns, values, filters in words) with the same findings | - |
-| `render_view` | The report as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
+| `render_view` | The report of a view or a `layout` as `xlsx` (default), `html`, `csv`, `json` or `svg`, into the output directory; inline where the policy allows | a new file |
 | `create_link` | A link that opens the view in the source's report page (only for sources with `link`) | - |
 | `draft_schedule` | A draft of a report that runs on a schedule (when, formats, recipients by name), for a person to approve in the host; runs and sends nothing | a new file |
 
@@ -97,6 +98,10 @@ A view that uses a field the model may not see in full (rows, columns, values, f
 date grouping's source field) has its result **withheld**: `render_view` writes the file and returns
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
+
+`suggest_view` reads only what is not hidden. Its draft and `picks` name fields, never values or
+counts; the one thing they tell about a field's values is the date grouping its span gives (a span
+of up to two years is grouped by month), as a `layout` with a date on an axis does.
 
 !!! warning "summary is not confidentiality"
     `summary` keeps values out of what the model reads directly. A model that writes filters over
