@@ -222,7 +222,7 @@ function App() {
                     <div>
                         <h1>pivotkit playground</h1>
                         {file !== null ? (
-                            <p data-testid="pg-file">Your file {file}, read in this browser: nothing is uploaded. Back to original data (Data menu) shows the playground's data again.</p>
+                            <p data-testid="pg-file">Your file {file}, read in this browser: nothing is uploaded. Data → Back to original data shows the playground's again.</p>
                         ) : source ? (
                             <p data-testid="pg-source">
                                 Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>
@@ -247,7 +247,7 @@ function App() {
                             </optgroup>
                         </select>
                     </label>
-                    {DATASETS[dataset].make ? (
+                    {DATASETS[dataset].make && file === null ? (
                         <label>
                             Rows
                             <select value={size} onChange={(e) => { history.replaceState(history.state, "", address({ rows: e.target.value }, { keepView: false })); setSize(Number(e.target.value)); }} data-testid="pg-size">

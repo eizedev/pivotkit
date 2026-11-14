@@ -211,11 +211,12 @@ The import worker is a file of its own that a bundler does not copy: copy it as 
 ```
 
 The element looks for it at `../import-worker.js` from the file its code is in, which from Angular's
-`main-*.js` is `/import-worker.js` of the site: an app served under a path of its own (a `baseHref`
-such as `/reports/`) copies it under its own path instead (`"output": "/assets"`) and tells the
-element where, with `[importWorkerUrl]="'assets/import-worker.js'"` on the element (relative to
-the page, so under the base href). Without the worker the element reads the file on the page, and Firefox and WebKit log
-the worker that failed to load in the console.
+`main-*.js` is `/import-worker.js` of the site. An app served under a path of its own (a `baseHref`
+such as `/reports/`) copies it under that path instead (`"output": "/assets"`) and tells the element
+where, with `[importWorkerUrl]="'assets/import-worker.js'"` on the element: relative to the page, so
+under the base href, and of the page's origin (a URL of another origin is refused, and the element
+reads on the page). Without the worker the element reads the file on the page, and Firefox and
+WebKit log the worker that failed to load in the console.
 
 Binding the stored view back as `[defaultView]` is fine: the element ignores the view it reported
 itself. For the controlled form bind `[view]` and set it in the handler. An app that still runs in

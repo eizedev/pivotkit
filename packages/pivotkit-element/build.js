@@ -212,9 +212,10 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * (pivotkit-core's mapFieldRefs, shared by viewFileFields of the first load and renameFields) and the
  * grouping names and identifier rule now in pivotkit-core: first load 172.9 on a Mac (172.5 before;
  * CI about 173.5), budget 174. The layout code itself stays out (its constants are marked pure).
- * The encode issue codes (#261) and the element's importWorkerUrl (#194, a property the first load
- * reads when a file is read): first load 173.4 on a Mac, 174.0 in CI run 43604441863 (over 174),
- * budget 175 (1 KiB above CI, the first load's rule).
+ * After the encode issue codes (#261) main's first load is 173.36 on a Mac, about 173.95 in CI (CI
+ * measured 174.0 for 173.4 on a Mac in run 43604441863): at the budget of 174 already. The element's
+ * importWorkerUrl with its origin check (#194) adds about 0.2. Budget 175, about 1 KiB above what CI
+ * measures, the first load's rule.
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
 export const SIZE_BUDGET_KIB = { initial: 175, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 21.5, report: 22 };

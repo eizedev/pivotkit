@@ -66,6 +66,11 @@ el.addEventListener("pivot-source-switch", (e) => {
 // loading data: the attribute's property, the limits of a loaded file, reader plugins, columnar data, the event of the data shown
 el.allowImport = true;
 el.importLimits = { rows: 1_000 };
+// the import worker at an app's own path (#194): a URL as text or object, null for the default
+el.importWorkerUrl = "assets/import-worker.js";
+el.importWorkerUrl = new URL("https://example.com/assets/import-worker.js");
+el.importWorkerUrl = null;
+const workerUrl: string | URL | null = el.importWorkerUrl;
 const importRows: number | undefined = el.importLimits?.rows;
 el.plugins = [{ apiVersion: 1, kind: "reader", name: "jsonl", label: "JSON Lines", accept: [".jsonl"], load: () => import("./consumer.js") }];
 el.data = { columns: ["Team", "Hours"], types: ["string", "number"], data: [["A"], [1]] };

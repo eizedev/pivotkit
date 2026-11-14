@@ -371,6 +371,22 @@ strict("the element's importWorkerUrl: the worker starts from the app's own path
     expect(await page.evaluate(() => document.querySelector("pivot-report").importWorkerUrl)).toBe("app-assets/pk-import-worker.js");
 });
 
+plain("the element's importWorkerUrl of another origin: refused, the file read on the page, said once, no browser error (#194)", async ({ page, browserName }) => {
+    const problems = [];
+    page.on("console", (m) => (m.type() === "error" || m.type() === "warning") && problems.push(m.text()));
+    page.on("pageerror", (e) => problems.push(e.message));
+    let workers = 0;
+    page.on("worker", () => workers++);
+    const report = await elementPage(page, "?workerurl=https://example.com/import-worker.js");
+    await expect(report.getByTestId("pivot-table")).toBeVisible();
+    await dropFiles(page, report.getByTestId("pivot-table"), [{ name: "tickets.csv", type: CSV, text: TICKETS }]);
+    await report.getByTestId("import-apply").click();
+    await expect.poll(() => fieldNames(report)).toEqual(["Id", "Team", "Opened", "Hours", "Zip"]);
+    expect(workers).toBe(0);
+    const own = (text) => browserName === "webkit" && text.startsWith("Refused to apply a stylesheet because its hash");
+    expect(problems.filter((p) => !own(p))).toEqual(['pivotkit: importWorkerUrl "https://example.com/import-worker.js" is not of the page\'s origin; files are read on the page']);
+});
+
 strict("the element: preventDefault() on pivot-data-load refuses the file, the data stays", async ({ page }) => {
     const report = await elementPage(page, "?refuse");
     await expect(report.getByTestId("pivot-table")).toBeVisible();
@@ -870,6 +886,8 @@ test("the playground with a loaded file: its name under Data, no start view or s
     // the top bar names the file; the data set's start view is no choice for it
     await expect(page.getByTestId("pg-dataset").locator("option:checked")).toHaveText("quarter.csv");
     await expect(page.getByTestId("pg-preset")).toHaveCount(0);
+    // the generated rows' count is no choice for it either
+    await expect(page.getByTestId("pg-size")).toHaveCount(0);
     await expect(page.getByTestId("pg-file")).toContainText("Your file quarter.csv");
     // the Views menu lists no view of the data set
     await toolbar(page, "views");
@@ -884,6 +902,7 @@ test("the playground with a loaded file: its name under Data, no start view or s
     await page.getByTestId("back-to-original").click();
     await expect(page.getByTestId("pg-dataset").locator("option:checked")).toHaveText("IT tickets");
     await expect(page.getByTestId("pg-preset")).toBeVisible();
+    await expect(page.getByTestId("pg-size")).toBeVisible();
     await toolbar(page, "export");
     const [again] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-data-csv").click()]);
     expect(again.suggestedFilename()).toBe("pivotkit-tickets-data.csv");

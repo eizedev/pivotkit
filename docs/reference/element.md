@@ -76,7 +76,7 @@ supported.
 | `allowImport` | `allow-import` (boolean) | `boolean` | `false` | People may load a file into the report in the browser: a **Data** button, a file dropped onto the report, a preview first; nothing is uploaded. [More](#prop-allowimport) |
 | `importLimits` |  | `Partial<Limits>` | `limits` | The limits of a file loaded with `allow-import`, merged key by key over `limits`; the page's data keeps `limits`. As the [`importLimits`](react.md#prop-importlimits) prop. |
 | `plugins` |  | `ReaderPlugin[]` |  | Reader plugins for more formats with `allow-import`: [pivotkit-xlsx](plugins.md#pivotkit-xlsx) for Excel. CSV, TSV, text and JSON are built in. |
-| `importWorkerUrl` |  | `string \| URL` | next to the element's code | Where the import worker of `allow-import` (`dist/import-worker.js`) is served, relative to the page: for an app that bundles the element and serves the file at a path of its own. [More](#prop-allowimport) |
+| `importWorkerUrl` |  | `string \| URL \| null` | `null`: next to the element's code | Where the import worker of `allow-import` (`dist/import-worker.js`) is served, relative to the page and of the page's origin: for an app that bundles the element and serves the file at a path of its own. A URL of another origin is refused (said once in the console), and files are read on the page. [More](#prop-allowimport) |
 
 Properties with an attribute reflect it, as native elements do: `report.theme = "dark"` sets
 `theme="dark"`, `null` removes it. `view` and `default-view` are parsed as JSON objects (a text that
@@ -167,7 +167,8 @@ output layout. For Angular's flat output it is the site's root, with `angular.js
 as an asset: [Angular](../getting-started/web-component.md#angular). An app that serves the worker
 at a path of its own (under a base href such as `/reports/`) sets the property `importWorkerUrl`
 to that URL, relative to the page (`report.importWorkerUrl = "assets/import-worker.js"`); a property
-only, read when a file is read. The import UI is the load group
+only, read when a file is read. It must be of the page's origin, as every module worker: the element
+refuses another origin (said once in the console) and reads the file on the page. The import UI is the load group
 "import", loaded on first use ([Bundle size](#bundle-size)).
 
 ```html

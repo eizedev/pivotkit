@@ -155,11 +155,24 @@ export { EVENTS };
  * Starts the import worker: the package's (dist/import-worker.js, next to this module's chunk), or
  * the app's own copy at `url` (importWorkerUrl, relative to the page) where a bundle moved the module
  * away from it (#194). CSV and JSON files are read off the page. A file of the page's origin, never
- * blob:, so a policy with script-src 'self' allows it; where it cannot start, the report reads on the
- * page.
- * @param {string | URL | undefined} url
+ * blob:, so a policy with script-src 'self' allows it; a URL of another origin is refused here (a
+ * browser would refuse it too, Firefox with a SecurityError in the console). Where it cannot start,
+ * the report reads on the page.
+ * @param {string | URL | null | undefined} url
  */
-const startImportWorker = (url) => new Worker(url ? new URL(String(url), document.baseURI) : new URL(IMPORT_WORKER, import.meta.url), { type: "module" });
+const startImportWorker = (url) => {
+    const at = url ? new URL(String(url), document.baseURI) : new URL(IMPORT_WORKER, import.meta.url);
+    if (url && at.origin !== location.origin) {
+        if (!refusedWorkers.has(at.href)) {
+            refusedWorkers.add(at.href);
+            console.warn(`pivotkit: importWorkerUrl ${JSON.stringify(at.href.slice(0, 80))} is not of the page's origin; files are read on the page`);
+        }
+        throw new Error("import worker of another origin");
+    }
+    return new Worker(at, { type: "module" });
+};
+/** The worker URLs of another origin said once in the console. */
+const refusedWorkers = new Set();
 
 /** Where the worker is from the module this code lands in (build.js: the bundle's layout). */
 const IMPORT_WORKER = typeof __PIVOTKIT_IMPORT_WORKER__ === "string" ? __PIVOTKIT_IMPORT_WORKER__ : "./import-worker.js";
@@ -580,13 +593,14 @@ export class PivotReportElement extends Base {
     }
 
     /**
-     * Where the import worker of allow-import is served (a URL, relative to the page): for an app
-     * that bundles the element and serves dist/import-worker.js at a path of its own (a base href).
-     * Default: next to the element's own module. A property only.
+     * Where the import worker of allow-import is served (a URL, relative to the page, of the page's
+     * origin): for an app that bundles the element and serves dist/import-worker.js at a path of its
+     * own (a base href). Default (null): next to the element's own module. A property only.
      */
     get importWorkerUrl() {
-        return /** @type {string | URL | undefined} */ (this.#values.importWorkerUrl);
+        return /** @type {string | URL | null} */ (this.#values.importWorkerUrl ?? null);
     }
+    /** @param {string | URL | null | undefined} value */
     set importWorkerUrl(value) {
         this.#set("importWorkerUrl", value);
     }
@@ -767,7 +781,7 @@ export class PivotReportElement extends Base {
     }
 
     /** The import worker, from importWorkerUrl as it is when a file is read. */
-    #startImportWorker = () => startImportWorker(/** @type {string | URL | undefined} */ (this.#values.importWorkerUrl));
+    #startImportWorker = () => startImportWorker(/** @type {string | URL | null | undefined} */ (this.#values.importWorkerUrl));
 
     /** @param {PivotView} view */
     #onViewChange = (view) => {
