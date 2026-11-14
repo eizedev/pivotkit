@@ -4,9 +4,7 @@
  * expose and exits. The flags are one table (FLAGS): the parser and the help are made from it.
  */
 
-import { parseArgs } from "node:util";
-import { closest } from "pivotkit-core";
-import { ConfigError, loadConfig, validateOptions } from "./config.js";
+import { ConfigError, flagLines, optionsFrom as sharedOptionsFrom } from "pivotkit-server";
 import { VERSION, createMcpContext } from "./context.js";
 
 /** @type {Readonly<Record<string, { type: "string" | "boolean", multiple?: boolean, value?: string, text: string }>>} */
@@ -32,7 +30,7 @@ export const FLAGS = Object.freeze({
 
 /** The help text, from the table. */
 export function helpText() {
-    const lines = Object.entries(FLAGS).map(([name, f]) => `  --${name}${f.value ? ` <${f.value}>` : ""}`.padEnd(32) + f.text);
+    const lines = flagLines(FLAGS);
     return `pivotkit-mcp ${VERSION}: an MCP server for pivotkit reports.\n\nUsage: pivotkit-mcp [options]\n\n${lines.join("\n")}\n\nDocs: https://pivotkit.eize.dev/reference/mcp/\n`;
 }
 
@@ -42,50 +40,7 @@ export function helpText() {
  * @param {Record<string, string | undefined>} env
  */
 export async function optionsFrom(argv, env) {
-    let parsed;
-    try {
-        parsed = parseArgs({ args: argv, options: /** @type {any} */ (FLAGS), allowPositionals: false, strict: true });
-    } catch (e) {
-        const flag = /'(-{1,2}[^'\s]+)'/.exec(String(e.message))?.[1] ?? "";
-        const near = closest(flag.replace(/^-+/, ""), Object.keys(FLAGS));
-        throw new ConfigError(`${String(e.message).split("\n")[0]}${near ? `; did you mean --${near}?` : ""}`);
-    }
-    const values = /** @type {Record<string, any>} */ (parsed.values);
-    const file = values.config ?? env.PIVOTKIT_MCP_CONFIG;
-    /** @type {any} */
-    const options = file ? await loadConfig(file) : {};
-    for (const entry of values.source ?? []) {
-        const at = entry.indexOf("=");
-        if (at < 1) {
-            throw new ConfigError(`--source takes id=file, not ${JSON.stringify(entry.slice(0, 80))}`);
-        }
-        options.sources = { ...options.sources, [entry.slice(0, at)]: { file: entry.slice(at + 1) } };
-    }
-    if (values["allow-dir"] || values["list-files"]) {
-        options.files = { ...options.files, allowDirs: [...(options.files?.allowDirs ?? []), ...(values["allow-dir"] ?? [])], ...(values["list-files"] ? { list: true } : {}) };
-    }
-    if (values.output) {
-        options.output = { ...options.output, dir: values.output };
-    }
-    const http = { ...options.http };
-    if (values.host) http.host = values.host;
-    if (values.port) {
-        if (!/^\d{1,5}$/.test(values.port) || Number(values.port) > 65535) {
-            throw new ConfigError("--port takes a port number");
-        }
-        http.port = Number(values.port);
-    }
-    if (values["public-url"]) http.publicUrl = values["public-url"];
-    if (values["allow-host"]) http.allowHosts = [...(http.allowHosts ?? []), ...values["allow-host"]];
-    if (values["allow-origin"]) http.allowOrigins = [...(http.allowOrigins ?? []), ...values["allow-origin"]];
-    if (Object.keys(http).length) options.http = http;
-    if (values.auth || values["allow-unauthenticated"]) {
-        options.auth = { ...options.auth, ...(values.auth ? { mode: values.auth } : {}), ...(values["allow-unauthenticated"] ? { allowUnauthenticated: true } : {}) };
-    }
-    if (values.log) options.log = values.log;
-    options.baseDir ??= process.cwd();
-    validateOptions(options);
-    return { options, values };
+    return sharedOptionsFrom(argv, env, { flags: FLAGS, configEnv: "PIVOTKIT_MCP_CONFIG" });
 }
 
 /**
@@ -107,7 +62,7 @@ export async function run(argv, io) {
         }
         const { options, values } = await optionsFrom(argv, io.env);
         if (values["check-config"]) {
-            const { checkConfig } = await import("./check.js");
+            const { checkConfig } = await import("pivotkit-server");
             const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env });
             io.stdout.write(text);
             return problems ? 1 : 0;

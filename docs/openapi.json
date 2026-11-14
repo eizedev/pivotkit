@@ -1,0 +1,3299 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "pivotkit REST",
+    "version": "0.1.0",
+    "summary": "Describe data sources, validate and render pivot views, make links and draft schedules.",
+    "description": "The operations of pivotkit's MCP server over HTTP for programs. Errors are RFC 9457 problem details. The routes are RPC-style (POST /views/validate); /api/v1 changes only with a breaking change. Docs: https://pivotkit.eize.dev/reference/rest/",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "sources",
+      "description": "The data sources a caller may use."
+    },
+    {
+      "name": "views",
+      "description": "Views: the guide, validation, description, rendering and links."
+    },
+    {
+      "name": "schedules",
+      "description": "Drafts of scheduled reports for a person to approve."
+    }
+  ],
+  "paths": {
+    "/api/v1/sources": {
+      "get": {
+        "operationId": "listSources",
+        "summary": "List the data sources",
+        "description": "The data sources this caller may use: id, title, whether a link or a schedule works for them.",
+        "tags": [
+          "sources"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List data sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSourcesOutput"
+                },
+                "example": {
+                  "sources": [
+                    {
+                      "id": "sales",
+                      "title": "Sales",
+                      "kind": "source",
+                      "link": true,
+                      "schedulable": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        }
+      }
+    },
+    "/api/v1/sources/describe": {
+      "post": {
+        "operationId": "describeSource",
+        "summary": "Describe a data source",
+        "description": "A source's fields: name, type, level, counts, the aggregators and filter types each works with, and example views. Values (items, smallest and largest) only for fields the policy shows.",
+        "tags": [
+          "sources"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescribeSourceInput"
+              },
+              "example": {
+                "source": "sales"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Describe a data source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescribeSourceOutput"
+                },
+                "example": {
+                  "rows": 2000,
+                  "fields": [
+                    {
+                      "name": "Region",
+                      "type": "string",
+                      "level": "show",
+                      "distinct": 4,
+                      "blanks": 0,
+                      "items": [
+                        "North",
+                        "South",
+                        "East",
+                        "West"
+                      ],
+                      "aggregators": [
+                        "count",
+                        "countDistinct"
+                      ],
+                      "filters": [
+                        "in",
+                        "text"
+                      ],
+                      "text": "Region: string, show, 4 distinct, 0 blank"
+                    },
+                    {
+                      "name": "Sales",
+                      "type": "number",
+                      "level": "summary",
+                      "distinct": 1850,
+                      "blanks": 0,
+                      "aggregators": [
+                        "sum",
+                        "avg",
+                        "min",
+                        "max"
+                      ],
+                      "filters": [
+                        "compare",
+                        "between"
+                      ],
+                      "text": "Sales: number, summary, 1850 distinct, 0 blank"
+                    }
+                  ],
+                  "hiddenFields": 1,
+                  "text": "2000 rows, 2 fields (1 more hidden by the operator)",
+                  "examples": [
+                    {
+                      "title": "Sum of Sales by Region",
+                      "view": {
+                        "version": 2,
+                        "rows": [
+                          "Region"
+                        ],
+                        "values": [
+                          {
+                            "field": "Sales",
+                            "agg": "sum"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "notes": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/views/guide": {
+      "get": {
+        "operationId": "getViewGuide",
+        "summary": "How to write a view",
+        "description": "The format of a view in short: its keys, the aggregators, filter types and date groupings, and example views.",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How to write a view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetViewGuideOutput"
+                },
+                "example": {
+                  "text": "A view is JSON: rows, cols, values, filters, ...",
+                  "catalog": {},
+                  "examples": [
+                    {
+                      "title": "Sum of Sales by Region",
+                      "view": {
+                        "version": 2,
+                        "rows": [
+                          "Region"
+                        ],
+                        "values": [
+                          {
+                            "field": "Sales",
+                            "agg": "sum"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        }
+      }
+    },
+    "/api/v1/views/validate": {
+      "post": {
+        "operationId": "validateView",
+        "summary": "Validate a view",
+        "description": "Checks a view against a source: errors and warnings with where they are and, for a misspelt name, the name meant (suggestion).",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateViewInput"
+              },
+              "example": {
+                "source": "sales",
+                "view": {
+                  "rows": [
+                    "Regoin"
+                  ],
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "sum"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validate a view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateViewOutput"
+                },
+                "example": {
+                  "valid": false,
+                  "findings": [
+                    {
+                      "severity": "error",
+                      "code": "fieldMissing",
+                      "path": "rows.0",
+                      "message": "no field \"Regoin\"",
+                      "suggestion": "Region"
+                    }
+                  ],
+                  "uses": [
+                    "Sales"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/views/describe": {
+      "post": {
+        "operationId": "describeView",
+        "summary": "Describe a view",
+        "description": "What a view shows and filters, in plain parts, with the same findings as validate.",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescribeViewInput"
+              },
+              "example": {
+                "source": "sales",
+                "view": {
+                  "rows": [
+                    "Region"
+                  ],
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "sum"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Describe a view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescribeViewOutput"
+                },
+                "example": {
+                  "valid": true,
+                  "name": "",
+                  "description": {
+                    "text": "Sum of Sales by Region",
+                    "valid": true,
+                    "rows": {
+                      "fields": [
+                        "Region"
+                      ],
+                      "text": "Region"
+                    }
+                  },
+                  "findings": [],
+                  "uses": [
+                    "Region",
+                    "Sales"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/views/render": {
+      "post": {
+        "operationId": "renderView",
+        "summary": "Render a view into the output directory",
+        "description": "Runs a view over a source and saves the report (xlsx by default; html, csv, json, svg) in the server's output directory. A view with errors answers 200 with ok: false and its findings. csv and json come back inline only where the operator allows it (rest.inline).",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderViewInput"
+              },
+              "example": {
+                "source": "sales",
+                "view": {
+                  "rows": [
+                    "Region"
+                  ],
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "sum"
+                    }
+                  ]
+                },
+                "format": "xlsx"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Render a view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderViewOutput"
+                },
+                "example": {
+                  "ok": true,
+                  "findings": [],
+                  "uses": [
+                    "Region",
+                    "Sales"
+                  ],
+                  "format": "xlsx",
+                  "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                  "withheld": [
+                    "rows",
+                    "columns",
+                    "bytes",
+                    "content"
+                  ],
+                  "output": {
+                    "name": "Sum of Sales by Region.xlsx",
+                    "format": "xlsx",
+                    "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  },
+                  "message": "The report is saved as Sum of Sales by Region.xlsx in the output directory."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/views/link": {
+      "post": {
+        "operationId": "createLink",
+        "summary": "Create a link to a view",
+        "description": "A link that opens the view in the source's report page, where a person sees the data with their own rights. Only for sources with link: true; a view with errors gets no link.",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLinkInput"
+              },
+              "example": {
+                "source": "sales",
+                "view": {
+                  "rows": [
+                    "Region"
+                  ],
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "sum"
+                    }
+                  ]
+                },
+                "name": "Sales by region"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Create a link to a view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateLinkOutput"
+                },
+                "example": {
+                  "ok": true,
+                  "url": "https://reports.example.com/sales#pk=...",
+                  "findings": [],
+                  "uses": [
+                    "Region",
+                    "Sales"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/schedules/draft": {
+      "post": {
+        "operationId": "draftSchedule",
+        "summary": "Draft a schedule",
+        "description": "Writes a draft for a report that runs on a schedule. It runs nothing and sends nothing: a person approves the draft in the host. Recipients are names the host knows, never addresses.",
+        "tags": [
+          "schedules"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftScheduleInput"
+              },
+              "example": {
+                "source": "sales",
+                "view": {
+                  "rows": [
+                    "Region"
+                  ],
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "sum"
+                    }
+                  ]
+                },
+                "name": "Weekly sales",
+                "formats": [
+                  "xlsx"
+                ],
+                "every": {
+                  "unit": "week",
+                  "at": "07:00",
+                  "weekday": "mon",
+                  "timeZone": "Europe/Berlin"
+                },
+                "recipients": [
+                  "Sales team"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft a schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftScheduleOutput"
+                },
+                "example": {
+                  "ok": true,
+                  "findings": [],
+                  "uses": [
+                    "Region",
+                    "Sales"
+                  ],
+                  "draft": {
+                    "format": "pivotkit-report-draft",
+                    "status": "draft",
+                    "name": "Weekly sales"
+                  },
+                  "output": {
+                    "name": "Weekly sales.report.json",
+                    "format": "json",
+                    "mediaType": "application/json"
+                  },
+                  "message": "The draft \"Weekly sales\" is ready for approval, saved as Weekly sales.report.json in the output directory. Nothing runs until a person approves it in the host."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/sources/{id}": {
+      "get": {
+        "operationId": "getSource",
+        "summary": "Describe a data source by its id",
+        "description": "A source's fields: name, type, level, counts, the aggregators and filter types each works with, and example views. Values (items, smallest and largest) only for fields the policy shows. The same as POST /sources/describe.",
+        "tags": [
+          "sources"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "A source id from GET /sources.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Describe a data source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescribeSourceOutput"
+                },
+                "example": {
+                  "rows": 2000,
+                  "fields": [
+                    {
+                      "name": "Region",
+                      "type": "string",
+                      "level": "show",
+                      "distinct": 4,
+                      "blanks": 0,
+                      "items": [
+                        "North",
+                        "South",
+                        "East",
+                        "West"
+                      ],
+                      "aggregators": [
+                        "count",
+                        "countDistinct"
+                      ],
+                      "filters": [
+                        "in",
+                        "text"
+                      ],
+                      "text": "Region: string, show, 4 distinct, 0 blank"
+                    },
+                    {
+                      "name": "Sales",
+                      "type": "number",
+                      "level": "summary",
+                      "distinct": 1850,
+                      "blanks": 0,
+                      "aggregators": [
+                        "sum",
+                        "avg",
+                        "min",
+                        "max"
+                      ],
+                      "filters": [
+                        "compare",
+                        "between"
+                      ],
+                      "text": "Sales: number, summary, 1850 distinct, 0 blank"
+                    }
+                  ],
+                  "hiddenFields": 1,
+                  "text": "2000 rows, 2 fields (1 more hidden by the operator)",
+                  "examples": [
+                    {
+                      "title": "Sum of Sales by Region",
+                      "view": {
+                        "version": 2,
+                        "rows": [
+                          "Region"
+                        ],
+                        "values": [
+                          {
+                            "field": "Sales",
+                            "agg": "sum"
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "notes": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    },
+    "/api/v1/views/render/file": {
+      "post": {
+        "operationId": "renderViewFile",
+        "summary": "Render a view and download the file",
+        "description": "Runs a view over a source and answers with the file itself (Content-Disposition: attachment). Allowed only for callers whose policy profile has results: true; a view with errors answers 422 with its findings.",
+        "tags": [
+          "views"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderViewInput"
+              },
+              "example": {
+                "source": "sales",
+                "view": {
+                  "rows": [
+                    "Region"
+                  ],
+                  "values": [
+                    {
+                      "field": "Sales",
+                      "agg": "sum"
+                    }
+                  ]
+                },
+                "format": "csv"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The file (json, csv, xlsx, svg, html), as an attachment.",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/json"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "text/csv"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "image/svg+xml"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "text/html"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Problem415"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          },
+          "504": {
+            "$ref": "#/components/responses/Problem504"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "description": "An error (RFC 9457 problem details).",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "detail"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri",
+            "description": "The address that names the error's code."
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "enum": [
+              "INVALID_INPUT",
+              "FILES_NOT_ALLOWED",
+              "NOT_ALLOWED",
+              "SOURCE_NOT_FOUND",
+              "FILE_NOT_AVAILABLE",
+              "NO_OUTPUT",
+              "NO_LINK",
+              "NOT_SCHEDULABLE",
+              "LIMIT_EXCEEDED",
+              "UNSUPPORTED_FORMAT",
+              "INVALID_FILE",
+              "NOT_REGULAR_FILE",
+              "HARD_LINK",
+              "INVALID_TEMPLATE",
+              "BUSY",
+              "NOT_READY",
+              "TIMEOUT",
+              "INTERNAL",
+              "INVALID_TOKEN",
+              "INSUFFICIENT_SCOPE",
+              "FORBIDDEN_HOST",
+              "FORBIDDEN_ORIGIN",
+              "NOT_FOUND",
+              "METHOD_NOT_ALLOWED",
+              "BODY_TOO_LARGE",
+              "UNSUPPORTED_MEDIA_TYPE",
+              "VIEW_HAS_ERRORS",
+              "RATE_LIMITED",
+              "AUTH_NOT_READY"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "description": "What went wrong and what to do; never file content."
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "The view's findings (422 of the file route)."
+          }
+        }
+      },
+      "View": {
+        "title": "pivotkit view, version 2",
+        "description": "A pivotkit view: the report's layout as JSON. Names are resolved against the data by pivotkit-core's normalize(), which also checks what a schema cannot (a field's name and type, an aggregator for a field). Built by scripts/schemas.js from pivotkit-core's tables. See https://pivotkit.eize.dev/concepts/views/",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": 2,
+            "description": "A view without a version is read as version 1."
+          },
+          "rows": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/View_fieldName"
+            }
+          },
+          "cols": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/View_fieldName"
+            }
+          },
+          "values": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/View_value"
+            }
+          },
+          "filters": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "in",
+                    "blank",
+                    "text",
+                    "compare",
+                    "relative",
+                    "top",
+                    "value"
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "in"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type",
+                      "items"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "in"
+                      },
+                      "items": {
+                        "type": "array",
+                        "maxItems": 100000,
+                        "items": {
+                          "$ref": "#/components/schemas/View_item"
+                        },
+                        "description": "The items, as the data has them; a blank is no item (see blanks)."
+                      },
+                      "not": {
+                        "type": "boolean",
+                        "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                      },
+                      "blanks": {
+                        "enum": [
+                          "exclude",
+                          "include",
+                          "only"
+                        ],
+                        "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "blank"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "blank"
+                      },
+                      "not": {
+                        "type": "boolean",
+                        "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "text"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type",
+                      "op",
+                      "value"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "text"
+                      },
+                      "op": {
+                        "enum": [
+                          "equals",
+                          "contains",
+                          "beginsWith",
+                          "endsWith"
+                        ]
+                      },
+                      "value": {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      "on": {
+                        "enum": [
+                          "value",
+                          "label"
+                        ],
+                        "description": "value: a text field's own value; label: the label the table shows (any field)."
+                      },
+                      "match": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "case": {
+                            "enum": [
+                              "insensitive",
+                              "sensitive"
+                            ]
+                          },
+                          "whitespace": {
+                            "enum": [
+                              "collapse",
+                              "exact"
+                            ]
+                          }
+                        },
+                        "description": "How text is folded before it is compared; default insensitive and collapse."
+                      },
+                      "not": {
+                        "type": "boolean",
+                        "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                      },
+                      "blanks": {
+                        "enum": [
+                          "exclude",
+                          "include",
+                          "only"
+                        ],
+                        "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "compare"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type",
+                      "op",
+                      "value"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "compare"
+                      },
+                      "op": {
+                        "enum": [
+                          "=",
+                          ">",
+                          ">=",
+                          "<",
+                          "<=",
+                          "between"
+                        ]
+                      },
+                      "value": {
+                        "type": [
+                          "number",
+                          "string"
+                        ],
+                        "description": "A number (also as text, \"2022\") or a date \"2022-03-01\"."
+                      },
+                      "value2": {
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      "precision": {
+                        "enum": [
+                          "year",
+                          "quarter",
+                          "month",
+                          "day",
+                          "hour"
+                        ],
+                        "description": "Dates only: both sides as the start of their unit; default day."
+                      },
+                      "not": {
+                        "type": "boolean",
+                        "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                      },
+                      "blanks": {
+                        "enum": [
+                          "exclude",
+                          "include",
+                          "only"
+                        ],
+                        "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "op": {
+                              "const": "between"
+                            }
+                          },
+                          "required": [
+                            "op"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "value2"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "relative"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type",
+                      "unit"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "relative"
+                      },
+                      "direction": {
+                        "enum": [
+                          "last",
+                          "next",
+                          "this",
+                          "before"
+                        ],
+                        "description": "Default last."
+                      },
+                      "unit": {
+                        "enum": [
+                          "hour",
+                          "day",
+                          "week",
+                          "month",
+                          "quarter",
+                          "year"
+                        ]
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 500
+                      },
+                      "calendar": {
+                        "type": "boolean",
+                        "description": "true (the default): whole units; false: rolling from now."
+                      },
+                      "includeCurrent": {
+                        "type": "boolean",
+                        "description": "With calendar: whether the current unit counts; default true."
+                      },
+                      "anchor": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "today",
+                              "latest",
+                              "first"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^[+-]?\\d{4,6}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:?\\d{2})?)?$"
+                          }
+                        ],
+                        "description": "What the range counts from: today (the default), latest, first, or a date."
+                      },
+                      "not": {
+                        "type": "boolean",
+                        "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                      },
+                      "blanks": {
+                        "enum": [
+                          "exclude",
+                          "include",
+                          "only"
+                        ],
+                        "description": "What happens to blank items: exclude (the default) drops them, include keeps them too, only keeps them alone."
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "direction": {
+                              "const": "this"
+                            }
+                          },
+                          "required": [
+                            "direction"
+                          ]
+                        },
+                        "then": {
+                          "not": {
+                            "required": [
+                              "count"
+                            ]
+                          }
+                        },
+                        "else": {
+                          "required": [
+                            "count"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "top"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type",
+                      "count"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "top"
+                      },
+                      "by": {
+                        "$ref": "#/components/schemas/View_valueRef"
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000000
+                      },
+                      "bottom": {
+                        "type": "boolean"
+                      },
+                      "ties": {
+                        "enum": [
+                          "first",
+                          "all"
+                        ],
+                        "description": "first (the default): exactly count groups; all: every group tied at the cut too."
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "value"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "then": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "field",
+                      "type",
+                      "op",
+                      "value"
+                    ],
+                    "properties": {
+                      "field": {
+                        "$ref": "#/components/schemas/View_fieldName"
+                      },
+                      "type": {
+                        "const": "value"
+                      },
+                      "by": {
+                        "$ref": "#/components/schemas/View_valueRef"
+                      },
+                      "op": {
+                        "enum": [
+                          "=",
+                          ">",
+                          ">=",
+                          "<",
+                          "<=",
+                          "between"
+                        ]
+                      },
+                      "value": {
+                        "type": "number"
+                      },
+                      "value2": {
+                        "type": "number"
+                      },
+                      "not": {
+                        "type": "boolean",
+                        "description": "Inverts which items with a value the filter keeps; blanks are decided by blanks alone."
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "op": {
+                              "const": "between"
+                            }
+                          },
+                          "required": [
+                            "op"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "value2"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "description": "The filters, applied together (and)."
+          },
+          "derived": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/View_derived"
+            }
+          },
+          "sort": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/View_sort"
+            }
+          },
+          "totals": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "grandTotalRow": {
+                "type": "boolean"
+              },
+              "grandTotalColumn": {
+                "type": "boolean"
+              },
+              "rowSubtotals": {
+                "type": "boolean"
+              },
+              "colSubtotals": {
+                "type": "boolean"
+              }
+            }
+          },
+          "collapsed": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rows": {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "array",
+                  "maxItems": 8,
+                  "items": {
+                    "$ref": "#/components/schemas/View_item"
+                  },
+                  "minItems": 1
+                }
+              },
+              "cols": {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "array",
+                  "maxItems": 8,
+                  "items": {
+                    "$ref": "#/components/schemas/View_item"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          "display": {
+            "enum": [
+              "table",
+              "chart"
+            ]
+          },
+          "chart": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "auto",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap"
+                ]
+              },
+              "stacked": {
+                "type": "boolean"
+              },
+              "horizontal": {
+                "type": "boolean"
+              },
+              "valueLabels": {
+                "enum": [
+                  "auto",
+                  "off",
+                  "value",
+                  "percent",
+                  "both"
+                ]
+              },
+              "legend": {
+                "enum": [
+                  "auto",
+                  "bottom",
+                  "right",
+                  "off"
+                ]
+              },
+              "title": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "smooth": {
+                "type": "boolean"
+              },
+              "axisLabels": {
+                "enum": [
+                  "auto",
+                  "all",
+                  "nth"
+                ]
+              },
+              "groupLabels": {
+                "enum": [
+                  "auto",
+                  "on",
+                  "off"
+                ]
+              },
+              "labelPosition": {
+                "enum": [
+                  "outside",
+                  "inside"
+                ]
+              }
+            }
+          },
+          "formatting": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "locale": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "timeZone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "weekStart": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7
+              }
+            }
+          }
+        }
+      },
+      "View_fieldName": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "\\S"
+      },
+      "View_item": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "maxLength": 10000
+      },
+      "View_valueRef": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agg"
+        ],
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View_fieldName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "agg": {
+            "enum": [
+              "count",
+              "countUnique",
+              "listUnique",
+              "sum",
+              "average",
+              "median",
+              "min",
+              "max",
+              "stdev",
+              "stdevp",
+              "var",
+              "varp",
+              "first",
+              "last"
+            ]
+          }
+        },
+        "if": {
+          "properties": {
+            "agg": {
+              "not": {
+                "const": "count"
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "field"
+          ],
+          "properties": {
+            "field": {
+              "$ref": "#/components/schemas/View_fieldName"
+            }
+          }
+        }
+      },
+      "View_value": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agg"
+        ],
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View_fieldName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "agg": {
+            "enum": [
+              "count",
+              "countUnique",
+              "listUnique",
+              "sum",
+              "average",
+              "median",
+              "min",
+              "max",
+              "stdev",
+              "stdevp",
+              "var",
+              "varp",
+              "first",
+              "last"
+            ]
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "showAs": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "percentOfGrandTotal",
+                      "percentOfRowTotal",
+                      "percentOfColumnTotal",
+                      "percentOfParentRow",
+                      "percentOfParentColumn",
+                      "differenceFromPrevious",
+                      "percentDifferenceFromPrevious",
+                      "runningTotal",
+                      "percentRunningTotal",
+                      "rankAscending",
+                      "rankDescending"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "percentOfGrandTotal",
+                          "percentOfRowTotal",
+                          "percentOfColumnTotal",
+                          "percentOfParentRow",
+                          "percentOfParentColumn",
+                          "differenceFromPrevious",
+                          "percentDifferenceFromPrevious",
+                          "runningTotal",
+                          "percentRunningTotal",
+                          "rankAscending",
+                          "rankDescending"
+                        ]
+                      },
+                      "axis": {
+                        "enum": [
+                          "rows",
+                          "cols"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conditional": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "const": "colorScale"
+                      },
+                      "colors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+                        },
+                        "anyOf": [
+                          {
+                            "maxItems": 0
+                          },
+                          {
+                            "minItems": 2,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "type"
+                    ],
+                    "properties": {
+                      "type": {
+                        "const": "dataBar"
+                      },
+                      "color": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "if": {
+          "properties": {
+            "agg": {
+              "not": {
+                "const": "count"
+              }
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "field"
+          ],
+          "properties": {
+            "field": {
+              "$ref": "#/components/schemas/View_fieldName"
+            }
+          }
+        }
+      },
+      "View_derived": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "field",
+          "by"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/View_fieldName"
+          },
+          "field": {
+            "$ref": "#/components/schemas/View_fieldName"
+          },
+          "by": {
+            "enum": [
+              "year",
+              "quarter",
+              "month",
+              "week",
+              "day",
+              "hour",
+              "weekday",
+              "yearQuarter",
+              "yearMonth",
+              "yearWeek",
+              "bin"
+            ]
+          },
+          "size": {
+            "type": "number",
+            "minimum": 1e-9
+          },
+          "origin": {
+            "type": "number"
+          }
+        },
+        "if": {
+          "properties": {
+            "by": {
+              "const": "bin"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "size"
+          ]
+        }
+      },
+      "View_sort": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field"
+        ],
+        "properties": {
+          "field": {
+            "$ref": "#/components/schemas/View_fieldName"
+          },
+          "by": {
+            "enum": [
+              "label",
+              "value",
+              "custom"
+            ]
+          },
+          "order": {
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "$ref": "#/components/schemas/View_item"
+            }
+          },
+          "value": {
+            "$ref": "#/components/schemas/View_valueRef"
+          }
+        },
+        "if": {
+          "properties": {
+            "by": {
+              "const": "custom"
+            }
+          },
+          "required": [
+            "by"
+          ]
+        },
+        "then": {
+          "required": [
+            "items"
+          ]
+        }
+      },
+      "ListSourcesInput": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "ListSourcesOutput": {
+        "type": "object",
+        "properties": {
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "title",
+                "kind",
+                "link",
+                "schedulable"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "source",
+                    "file"
+                  ]
+                },
+                "link": {
+                  "type": "boolean"
+                },
+                "schedulable": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "additionalProperties": true
+      },
+      "DescribeSourceInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "DescribeSourceOutput": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "type"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "distinct": {
+                  "type": "integer"
+                },
+                "blanks": {
+                  "type": "integer"
+                },
+                "items": {
+                  "type": "array"
+                },
+                "min": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                },
+                "max": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                },
+                "aggregators": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "filters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "text": {
+            "type": "string"
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "view": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "hiddenFields": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fields",
+          "text"
+        ],
+        "additionalProperties": true
+      },
+      "GetViewGuideInput": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "GetViewGuideOutput": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "catalog": {
+            "type": "object"
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "text",
+          "catalog",
+          "examples"
+        ],
+        "additionalProperties": true
+      },
+      "ValidateViewInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "view"
+        ],
+        "additionalProperties": false
+      },
+      "ValidateViewOutput": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "uses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          }
+        },
+        "required": [
+          "valid",
+          "findings"
+        ],
+        "additionalProperties": true
+      },
+      "DescribeViewInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "view"
+        ],
+        "additionalProperties": false
+      },
+      "DescribeViewOutput": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "valid": {
+                "type": "boolean"
+              },
+              "rows": {
+                "type": "object",
+                "properties": {
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              },
+              "cols": {
+                "type": "object",
+                "properties": {
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "filters": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "derived": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "sort": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "display": {
+                "type": "object"
+              }
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "uses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          }
+        },
+        "required": [
+          "valid",
+          "findings"
+        ],
+        "additionalProperties": true
+      },
+      "RenderViewInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv",
+              "xlsx",
+              "svg",
+              "html"
+            ],
+            "default": "xlsx",
+            "description": "xlsx for Excel, html for a report to read or print, csv, json, svg for the chart."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The report's title (default the view's name)."
+          },
+          "chart": {
+            "enum": [
+              "auto",
+              "on",
+              "off"
+            ],
+            "description": "html: the chart above the table (auto: when the view shows the chart)."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "The file's name without extension (default from the title)."
+          }
+        },
+        "required": [
+          "source",
+          "view"
+        ],
+        "additionalProperties": false
+      },
+      "RenderViewOutput": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "uses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv",
+              "xlsx",
+              "svg",
+              "html"
+            ]
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "rows": {
+                "type": "integer"
+              },
+              "columns": {
+                "type": "integer"
+              },
+              "sourceRows": {
+                "type": "integer"
+              },
+              "keptRows": {
+                "type": "integer"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            }
+          },
+          "output": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              }
+            }
+          },
+          "inline": {
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          },
+          "withheld": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What is not shown because the view uses a field whose values the operator does not show."
+          },
+          "message": {
+            "type": "string",
+            "description": "One sentence to tell the user."
+          }
+        },
+        "required": [
+          "ok",
+          "findings",
+          "format"
+        ],
+        "additionalProperties": true
+      },
+      "CreateLinkInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The view's name, shown on the page."
+          }
+        },
+        "required": [
+          "source",
+          "view"
+        ],
+        "additionalProperties": false
+      },
+      "CreateLinkOutput": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "uses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          }
+        },
+        "required": [
+          "ok",
+          "findings"
+        ],
+        "additionalProperties": true
+      },
+      "DraftScheduleInput": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "A source id from GET /sources.",
+            "pattern": "^(?!file:)"
+          },
+          "view": {
+            "description": "The view: a JSON object with rows, cols, values, filters, derived, sort, display; or a view file; or either as JSON text.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/View"
+              },
+              {
+                "type": "object",
+                "description": "A view file (format pivotkit-view)."
+              },
+              {
+                "type": "string",
+                "description": "A view or a view file as JSON text."
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "formats": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "json",
+                "csv",
+                "xlsx",
+                "svg",
+                "html"
+              ]
+            }
+          },
+          "every": {
+            "type": "object",
+            "properties": {
+              "unit": {
+                "enum": [
+                  "day",
+                  "week",
+                  "month"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                "description": "HH:MM, 24 hours"
+              },
+              "weekday": {
+                "enum": [
+                  "mon",
+                  "tue",
+                  "wed",
+                  "thu",
+                  "fri",
+                  "sat",
+                  "sun"
+                ],
+                "description": "week: the day"
+              },
+              "day": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 28,
+                "description": "month: the day of the month"
+              },
+              "timeZone": {
+                "type": "string",
+                "maxLength": 64,
+                "description": "IANA time zone, e.g. Europe/Berlin (default UTC)"
+              }
+            },
+            "required": [
+              "unit",
+              "at"
+            ],
+            "additionalProperties": false
+          },
+          "recipients": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Names of people or groups the host knows; never addresses."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "source",
+          "view",
+          "name",
+          "formats",
+          "every",
+          "recipients"
+        ],
+        "additionalProperties": false
+      },
+      "DraftScheduleOutput": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "code",
+                "path",
+                "message"
+              ],
+              "properties": {
+                "severity": {
+                  "enum": [
+                    "error",
+                    "warning",
+                    "info"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Where in the view, e.g. filters.0.items"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "suggestion": {
+                  "type": "string",
+                  "description": "The name or item meant"
+                }
+              }
+            }
+          },
+          "uses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The data fields the view uses (rows, columns, values, filters, sort; a grouping as its source field)."
+          },
+          "draft": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "output": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              }
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "findings",
+          "draft"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "responses": {
+      "Problem400": {
+        "description": "The input is not valid (INVALID_INPUT).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem401": {
+        "description": "No token, or one the service does not accept (INVALID_TOKEN).",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem403": {
+        "description": "Not allowed: a scope missing, files by path, a host or origin refused.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem404": {
+        "description": "No such source or route.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem409": {
+        "description": "The server cannot do this: no output directory, no link page, not schedulable.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem413": {
+        "description": "A limit: the body, the file or the result is too large.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem415": {
+        "description": "The body is not JSON, or the file's format is not read.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem422": {
+        "description": "The file cannot be read, or (file route) the view has errors.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem429": {
+        "description": "Too many requests: wait as Retry-After says.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem503": {
+        "description": "Busy or not ready: try again as Retry-After says.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Problem504": {
+        "description": "The report took longer than the server allows.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "A static token the operator gives you: Authorization: Bearer <token>."
+      }
+    }
+  }
+}

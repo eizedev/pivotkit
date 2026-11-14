@@ -16,7 +16,7 @@ import { codeData } from "./data.js";
  */
 export function createComputer(options = {}) {
     const { workers: size, timeMs, memoryMb, queueMs } = { ...COMPUTE_DEFAULTS, ...options };
-    /** @type {Array<{ worker: Worker, busy: boolean }>} */
+    /** @type {Array<{ worker: Worker, busy: boolean, exited: boolean, ready: Promise<unknown> }>} */
     const pool = [];
     /** @type {Array<() => void>} calls waiting for a free worker */
     const waiting = [];
@@ -155,7 +155,15 @@ export function createComputer(options = {}) {
             worker.on("message", onMessage);
             worker.once("error", onError);
             worker.once("exit", onExit);
-            worker.postMessage({ id, op, input, ...job });
+            try {
+                worker.postMessage({ id, op, input, ...job });
+            } catch {
+                // an input the structured clone cannot copy (nested thousands of levels deep): the
+                // worker never got it, so it is free at once rather than after compute.timeMs
+                done();
+                release(slot);
+                reject(new OperationError("INVALID_INPUT", "the input is nested too deeply"));
+            }
         });
     }
 
@@ -188,6 +196,8 @@ export function createComputer(options = {}) {
          * @param {{ load: () => Promise<any>, version?: () => unknown }} [source]  a code source
          */
         run: (op, input, job, source) => (source ? inThread(op, input, job, source) : inWorker(op, input, job)),
+        /** The workers alive (0 once closed). */
+        size: () => (closed ? 0 : pool.filter((s) => !s.exited).length),
         async close() {
             closed = true;
             await Promise.all(pool.map((s) => s.worker.terminate().catch(() => undefined)));

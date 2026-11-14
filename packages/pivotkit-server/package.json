@@ -1,0 +1,78 @@
+{
+  "name": "pivotkit-server",
+  "version": "0.1.0",
+  "description": "pivotkit's reports over HTTP: a REST service with an OpenAPI 3.1 document, and the shared core of the MCP server (sources, exposure policy with profiles, workers, output, token or OAuth sign-in). One command for the REST service, the MCP server and the CLI.",
+  "license": "MIT",
+  "author": "eizedev <oss@eize.dev>",
+  "homepage": "https://pivotkit.eize.dev/reference/rest/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eizedev/pivotkit.git",
+    "directory": "packages/pivotkit-server"
+  },
+  "bugs": "https://github.com/eizedev/pivotkit/issues",
+  "keywords": [
+    "pivotkit",
+    "rest",
+    "openapi",
+    "pivot-table",
+    "reporting",
+    "report",
+    "excel",
+    "api"
+  ],
+  "type": "module",
+  "bin": {
+    "pivotkit-server": "bin/pivotkit-server.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./rest": {
+      "types": "./types/rest/index.d.ts",
+      "default": "./src/rest/index.js"
+    },
+    "./policy": {
+      "types": "./types/policy.d.ts",
+      "default": "./src/policy.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "types",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" \"test/*.test.js\"",
+    "types": "tsc -p .",
+    "test:types": "tsc -p test/types",
+    "prepack": "npm run types && node -e \"require('node:fs').copyFileSync('../../LICENSE', 'LICENSE')\""
+  },
+  "dependencies": {
+    "echarts": "6.1.0",
+    "jose": "6.2.17",
+    "pivotkit-cli": "^0.1.0",
+    "pivotkit-core": "^0.5.0",
+    "pivotkit-report": "^0.1.0",
+    "pivotkit-xlsx": "^0.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/node": "22.20.4",
+    "pivotkit-mcp": "0.1.0"
+  },
+  "types": "./types/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  }
+}

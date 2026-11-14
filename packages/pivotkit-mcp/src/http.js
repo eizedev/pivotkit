@@ -11,9 +11,8 @@
  * No sessions: the SDK builds a server per request from the shared context.
  */
 
-import { createServer } from "node:http";
 import { createMcpHandler, hostHeaderValidationResponse, localhostAllowedHostnames, originValidationResponse } from "@modelcontextprotocol/server";
-import { ConfigError } from "./config.js";
+import { ConfigError, isLoopback, serveFetch } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
 import { createAuth } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -27,8 +26,7 @@ export const ENDPOINT = "/mcp";
 /** The default port. */
 export const DEFAULT_PORT = 3333;
 
-/** Whether an address is loopback. */
-export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || host === "localhost" || /^127\./.test(host);
+export { isLoopback };
 
 /** The headers every answer of this server carries. */
 const SAFE_HEADERS = { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
@@ -60,7 +58,7 @@ export async function createHttpHandler(context, runtime = {}) {
     const publicUrl = http.publicUrl ? new URL(http.publicUrl) : null;
     const hosts = [...localhostAllowedHostnames(), ...(publicUrl ? [publicUrl.hostname] : []), ...(http.allowHosts ?? [])];
     const origins = http.allowOrigins ?? [];
-    const auth = await createAuth(context.options, { env: runtime.env ?? process.env, log: context.log, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
+    const auth = await createAuth(context, { env: runtime.env ?? process.env, loopback: runtime.loopback ?? isLoopback(http.host ?? "127.0.0.1") });
     // the SDK reports requests it refused (no JSON, a wrong protocol header) here: a client's mistake, a warning
     const handler = createMcpHandler((ctx) => context.server(ctx), { legacy: "stateless", maxRequestBodySize: BODY_BYTES, onerror: (e) => context.log.warn(`request refused by the protocol layer: ${String(e?.message ?? e).slice(0, 200)}`) });
     const page = http.page === false ? null : { sources: typeof http.page === "object" && http.page.sources !== undefined ? http.page.sources : auth.mode === "none" };
@@ -140,40 +138,12 @@ export async function createHttpHandler(context, runtime = {}) {
     };
 }
 
-/**
- * Reads a node:http request's body, at most `max` bytes, while it streams. Beyond that it rejects
- * with status 413 and drains what follows (up to 4 x max, then the connection is cut), so the client
- * gets the answer instead of a reset connection.
- */
-function readBody(req, max) {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        let size = 0;
-        let over = false;
-        req.on("data", (chunk) => {
-            size += chunk.length;
-            if (over) {
-                if (size > max * 4) {
-                    req.destroy();
-                }
-                return;
-            }
-            if (size > max) {
-                over = true;
-                chunks.length = 0;
-                reject(Object.assign(new Error("too large"), { status: 413 }));
-                return;
-            }
-            chunks.push(chunk);
-        });
-        req.on("end", () => resolve(Buffer.concat(chunks)));
-        req.on("error", reject);
-    });
-}
+/** The answer for a body that cannot be read: a JSON-RPC error. */
+const bodyProblem = (status) => Response.json({ jsonrpc: "2.0", error: { code: -32600, message: status === 413 ? "request body too large" : "bad request" }, id: null }, { status });
 
 /**
  * The runner's HTTP server: builds the context and the handler and listens.
- * @param {import("./config.js").McpOptions} options
+ * @param {import("pivotkit-server").ServerOptions} options
  * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown } }} runtime
  * @returns {Promise<{ port: number, url: string, close(): Promise<void>, context: any }>}
  */
@@ -185,91 +155,23 @@ export async function listen(options, runtime) {
     }
     const context = await createMcpContext(options, { showPaths: false, stderr: runtime.stderr });
     let handler;
+    let listening;
     try {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
+        listening = await serveFetch({ precheck: (request) => handler.precheck(request), fetch: (request) => handler.fetch(request), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs });
     } catch (e) {
+        await handler?.close();
         await context.close();
         throw e;
     }
-    const server = createServer({ maxHeaderSize: 16_384, requestTimeout: 30_000, headersTimeout: 15_000 }, async (req, res) => {
-        const abort = new AbortController();
-        res.on("close", () => abort.abort());
-        try {
-            const headers = new Headers();
-            for (const [k, v] of Object.entries(req.headers)) {
-                if (v !== undefined) {
-                    headers.set(k, Array.isArray(v) ? v.join(", ") : v);
-                }
-            }
-            // the address as the client asked for it; the Host check decides whether it is allowed
-            const url = `http://${req.headers.host ?? "localhost"}${req.url ?? "/"}`;
-            // what the headers tell is checked before a byte of the body is read
-            const early = await handler.precheck(new Request(url, { method: req.method, headers }));
-            if (early) {
-                // the body that follows is drained, not read, so the client gets the answer rather than a
-                // reset connection; one that keeps sending past 4 x the cap is cut off
-                let drained = 0;
-                req.on("data", (chunk) => {
-                    drained += chunk.length;
-                    if (drained > BODY_BYTES * 4) {
-                        req.destroy();
-                    }
-                });
-                res.writeHead(early.status, Object.fromEntries(early.headers));
-                res.end(Buffer.from(await early.arrayBuffer()));
-                return;
-            }
-            const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, BODY_BYTES);
-            const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
-            const response = await handler.fetch(request);
-            res.writeHead(response.status, Object.fromEntries(response.headers));
-            if (response.body) {
-                // a client that leaves stops the stream; a full socket is waited for
-                abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
-                for await (const chunk of response.body) {
-                    if (!res.write(chunk)) {
-                        await new Promise((resolve) => res.once("drain", resolve));
-                    }
-                }
-            }
-            res.end();
-        } catch (e) {
-            if (res.headersSent) {
-                // a part of the answer is out: end the connection rather than add to it
-                res.destroy();
-                return;
-            }
-            if (!res.headersSent) {
-                res.writeHead(e?.status === 413 ? 413 : 400, { "content-type": "application/json", connection: "close" });
-            }
-            res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32600, message: e?.status === 413 ? "request body too large" : "bad request" }, id: null }));
-        }
-    });
-    server.keepAliveTimeout = 5_000;
-    // a bound on open connections: slow clients cannot hold every socket
-    server.maxConnections = 256;
-    try {
-        await new Promise((resolve, reject) => {
-            server.once("error", reject);
-            server.listen(port, host, () => resolve(undefined));
-        });
-    } catch (e) {
-        await handler.close();
-        await context.close();
-        throw e;
-    }
-    const address = server.address();
-    const actual = typeof address === "object" && address ? address.port : port;
-    const url = `http://${host.includes(":") ? `[${host}]` : host}:${actual}${ENDPOINT}`;
+    const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}${ENDPOINT}`;
     context.log.info("started", { version: context.version, transport: "http", url, auth: handler.auth.mode, sources: context.registry.ids().length, files: context.registry.allow.length > 0, output: Boolean(context.output) });
     return {
-        port: actual,
+        port: listening.port,
         url,
         context,
         async close() {
-            const closed = new Promise((resolve) => server.close(() => resolve(undefined)));
-            server.closeAllConnections();
-            await closed;
+            await listening.close();
             await handler.close();
             await context.close();
         }

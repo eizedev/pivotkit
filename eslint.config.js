@@ -35,8 +35,8 @@ export default [
         languageOptions: { globals: { ...globals["shared-node-browser"] } }
     },
     {
-        // the command line and the MCP server run in Node only
-        files: ["packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js", "packages/pivotkit-mcp/src/**/*.js", "packages/pivotkit-mcp/bin/**/*.js"],
+        // the command line, the REST service and the MCP server run in Node only
+        files: ["packages/pivotkit-cli/src/**/*.js", "packages/pivotkit-cli/bin/**/*.js", "packages/pivotkit-server/src/**/*.js", "packages/pivotkit-server/bin/**/*.js", "packages/pivotkit-mcp/src/**/*.js", "packages/pivotkit-mcp/bin/**/*.js"],
         languageOptions: { globals: { ...globals.node } }
     },
     {

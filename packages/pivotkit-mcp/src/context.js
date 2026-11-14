@@ -1,23 +1,20 @@
 /*
- * The server's context: what every request shares (the options, the source registry, the compute
- * pool with its caches, the output directory, the log, the skill) and the factory that builds a
- * fresh McpServer for one request (HTTP) or one connection (stdio), as the SDK's serving entries
- * expect. Build the context once; hand `context.server` to the SDK.
+ * The MCP server's context: pivotkit-server's shared context (options, sources, policy, workers,
+ * output, log, authentication) plus what MCP adds: the skill and the factory that builds a fresh
+ * McpServer for one request (HTTP) or one connection (stdio), as the SDK's serving entries expect.
+ * Build the context once; hand `context.server` to the SDK.
  *
  *   const context = await createMcpContext(options);
  *   serveStdio((ctx) => context.server(ctx));
  */
 
 import { createRequire } from "node:module";
-import { realpath, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { McpServer, fromJsonSchema } from "@modelcontextprotocol/server";
-import { isInside } from "pivotkit-cli/files";
-import { ConfigError, pathOf, validateOptions } from "./config.js";
-import { createComputer } from "./compute.js";
-import { createLog } from "./log.js";
-import { createRegistry } from "./registry.js";
+import { callerOf, createContext } from "pivotkit-server";
 import { registerTools } from "./tools.js";
+
+export { callerOf };
 
 /** The package's version. */
 export const VERSION = createRequire(import.meta.url)("../package.json").version;
@@ -38,43 +35,21 @@ export const INSTRUCTIONS = [
 const PROMPT_ARGS = { type: "object", properties: { request: { type: "string", description: "What report the user wants" } }, required: ["request"] };
 
 /**
- * Builds the shared context.
- * @param {import("./config.js").McpOptions} options
- * @param {{ showPaths?: boolean, stderr?: { write(text: string): unknown } }} [runtime]  `showPaths`: tell the model a written file's full path (a local stdio server)
+ * Builds the shared context with the MCP server's factory.
+ * @param {import("pivotkit-server").ServerOptions} options
+ * @param {import("pivotkit-server").ContextRuntime} [runtime]  `showPaths`: tell the model a written file's full path (a local stdio server)
+ * @returns {Promise<import("pivotkit-server").ServerContext & { server(requestContext?: { authInfo?: import("@modelcontextprotocol/server").AuthInfo }): McpServer }>}
  */
 export async function createMcpContext(options, runtime = {}) {
-    validateOptions(options);
-    const log = createLog(options.log ?? "info", runtime.stderr ?? process.stderr);
-    const registry = await createRegistry(options).catch((e) => {
-        throw e?.code === "ALLOW_DIR_NOT_FOUND" || e?.code === "ALLOW_DIR_NOT_DIRECTORY" ? new ConfigError(`files.allowDirs: ${e.message.replace(/^--allow-dir /, "")}`) : e;
-    });
-    let output = null;
-    if (options.output?.dir) {
-        const dir = await realpath(pathOf(options, options.output.dir)).catch(() => null);
-        if (!dir || !(await stat(dir)).isDirectory()) {
-            throw new ConfigError("output.dir: not found or not a directory (create it first)");
-        }
-        // a directory the model may read files from must not hold what it may not see: the results
-        if (registry.allow.some((allowed) => isInside(dir, allowed) || isInside(allowed, dir))) {
-            throw new ConfigError("output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them");
-        }
-        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? 1000, showPath: runtime.showPaths ?? false };
-    }
-    const computer = createComputer(options.compute);
+    const shared = await createContext(options, runtime);
     let skills = null;
     try {
         const { loadSkills } = await import("@modelcontextprotocol/server/ext/skills/node");
-        skills = await loadSkills(SKILLS_DIR, { onWarning: (w) => log.warn(`skill: ${w.message ?? w}`) });
+        skills = await loadSkills(SKILLS_DIR, { onWarning: (w) => shared.log.warn(`skill: ${w.message ?? w}`) });
     } catch (e) {
-        log.warn(`the skill is not served: ${String(e?.message ?? e).slice(0, 200)}`);
+        shared.log.warn(`the skill is not served: ${String(e?.message ?? e).slice(0, 200)}`);
     }
-    const context = {
-        options,
-        registry,
-        computer,
-        output,
-        log,
-        authMode: options.auth?.mode ?? "none",
+    const context = Object.assign(shared, {
         version: VERSION,
 
         /**
@@ -83,7 +58,7 @@ export async function createMcpContext(options, runtime = {}) {
          */
         server(requestContext = {}) {
             const server = new McpServer({ name: "pivotkit-mcp", title: "pivotkit", version: VERSION }, { instructions: INSTRUCTIONS, maxToolInputElements: 10_000 });
-            registerTools(server, context, callerOf(context.authMode, requestContext.authInfo));
+            registerTools(server, context, callerOf(context.authMode, requestContext.authInfo, options.auth));
             server.registerPrompt(
                 "pivotkit_report",
                 { title: "Make a pivot report", description: "Build a report over a pivotkit source: describe, write a view, validate, render.", argsSchema: fromJsonSchema(/** @type {any} */ (PROMPT_ARGS)) },
@@ -91,31 +66,7 @@ export async function createMcpContext(options, runtime = {}) {
             );
             skills?.attach(server);
             return server;
-        },
-
-        async close() {
-            await computer.close();
         }
-    };
+    });
     return context;
-}
-
-/**
- * Who calls, from the request's verified token: its scopes and how the log names it.
- * @param {string} mode
- * @param {any} authInfo
- * @returns {import("./registry.js").Caller}
- */
-export function callerOf(mode, authInfo) {
-    if (mode === "none") {
-        return { scopes: null, client: "local" };
-    }
-    if (!authInfo) {
-        // a request that reached a tool without a verified token holds no scope: closed, not open
-        return { scopes: new Set(), client: "unknown" };
-    }
-    if (authInfo.extra?.allScopes) {
-        return { scopes: null, client: String(authInfo.clientId ?? "token") };
-    }
-    return { scopes: new Set(authInfo.scopes ?? []), client: String(authInfo.clientId ?? "client").slice(0, 80) };
 }

@@ -4,19 +4,19 @@
  */
 
 import { stat } from "node:fs/promises";
-import { pathOf } from "./config.js";
+import { pathOf, restResourceOf } from "./config.js";
 import { createRegistry } from "./registry.js";
 import { resolvePolicy } from "./policy.js";
 
 /**
- * @param {import("./config.js").McpOptions} options
- * @param {{ http: boolean, env: Record<string, string | undefined> }} runtime
+ * @param {import("./config.js").ServerOptions} options
+ * @param {{ http: boolean, env?: Record<string, string | undefined>, name?: string, tokenEnv?: string, rest?: boolean }} runtime  name: the runner's; rest: the REST service is served too
  * @returns {Promise<{ text: string, problems: number }>}  problems: what would keep the server from starting or a source from working
  */
-export async function checkConfig(options, { http }) {
+export async function checkConfig(options, { http, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false }) {
     let problems = 0;
     const registry = await createRegistry(options);
-    const lines = ["pivotkit-mcp: the configuration is valid.", ""];
+    const lines = [`${name}: the configuration is valid.`, ""];
     const sources = await registry.check();
     lines.push(`Sources (${sources.length}):`);
     for (const s of sources) {
@@ -37,8 +37,8 @@ export async function checkConfig(options, { http }) {
     lines.push(`HTTP${http ? "" : " (with --http)"}: ${options.http?.host ?? "127.0.0.1"}:${options.http?.port ?? 3333}; quick-start page ${options.http?.page === false ? "off" : "on"}`);
     lines.push(`Auth: ${mode}${mode === "none" && auth.allowUnauthenticated ? " (also off loopback)" : ""}`);
     if (mode === "token") {
-        for (const t of auth.tokens?.length ? auth.tokens : [{ name: "token", env: "PIVOTKIT_MCP_TOKEN" }]) {
-            lines.push(`  token ${t.name} from ${t.env ? `$${t.env}` : t.file}: scopes ${t.scopes ? t.scopes.join(" ") || "none" : "all"}`);
+        for (const t of auth.tokens?.length ? auth.tokens : [{ name: "token", env: tokenEnv }]) {
+            lines.push(`  token ${t.name} from ${t.env ? `$${t.env}` : t.file}: scopes ${t.scopes ? t.scopes.join(" ") || "none" : "all"}${t.profile ? `, profile ${t.profile}` : ""}`);
         }
     }
     if (mode === "oauth") {
@@ -47,6 +47,19 @@ export async function checkConfig(options, { http }) {
             problems += 1;
             lines.push("  PROBLEM: the issuer must be https:// (auth.allowInsecureIssuer is for tests only)");
         }
+    }
+    for (const [kind, map] of /** @type {Array<[string, Record<string, string> | undefined]>} */ ([["client", auth.clientProfiles], ["scope", auth.scopeProfiles]])) {
+        for (const [key, profile] of Object.entries(map ?? {})) {
+            lines.push(`  ${kind} ${key}: profile ${profile}`);
+        }
+    }
+    for (const [profile, p] of Object.entries(options.policy?.profiles ?? {})) {
+        const fields = Object.entries(p.fields ?? {});
+        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; file downloads (REST) ${p.results ? "allowed" : "off"}`);
+    }
+    if (rest) {
+        const r = options.rest ?? {};
+        lines.push(`REST: /api/v1${mode === "oauth" ? `, resource ${restResourceOf(options)}` : ""}; files by path refused; inline results ${r.inline ? "on" : "off"}; CORS ${r.cors?.origins?.length ? r.cors.origins.join(" ") : "off"}; /openapi.json ${r.openapi ?? "auth"}; file downloads ${options.policy?.results ? "allowed by default" : "only for profiles with results: true"}`);
     }
     if (auth.toolScopes) {
         lines.push(`  tool scopes: ${Object.entries(auth.toolScopes).map(([t, s]) => `${t} ${s.join(" ")}`).join("; ")}`);
@@ -63,6 +76,6 @@ export async function checkConfig(options, { http }) {
     if (problems) {
         lines.push("", `${problems} problem${problems === 1 ? "" : "s"}: see NOT FOUND above.`);
     }
-    lines[0] = problems ? "pivotkit-mcp: the configuration is valid, but not everything it names is there." : lines[0];
+    lines[0] = problems ? `${name}: the configuration is valid, but not everything it names is there.` : lines[0];
     return { text: `${lines.join("\n")}\n`, problems };
 }

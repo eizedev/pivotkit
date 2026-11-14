@@ -1,9 +1,9 @@
 /*
- * The server's options: one table of every key with its type, default and words (OPTION_KEYS), the
- * check of an options object against it (validateOptions: an unknown key is an error with "did you
- * mean"), and the configuration file (loadConfig: JSON, paths relative to the file). The runner's
- * flags are made from the same table (runner.js), so the docs' configuration reference, the help and
- * the checks cannot drift apart.
+ * The server's options, shared by the MCP server and the REST service: one table of every key with
+ * its type (OPTION_KEYS), the check of an options object against it (validateOptions: an unknown key
+ * is an error with "did you mean"), and the configuration file (loadConfig: JSON, paths relative to
+ * the file). The runners' flags are made from the same table, so the docs' configuration reference,
+ * the help and the checks cannot drift apart.
  */
 
 import { readFile } from "node:fs/promises";
@@ -29,6 +29,8 @@ export class ConfigError extends Error {
  * @property {boolean} [rows]  show the row count (default true)
  * @property {boolean} [counts]  show distinct and blank counts (default true)
  * @property {{ cells?: number, bytes?: number } | false} [inline]  results that may come back in the tool result (default 500 cells, 32 KiB)
+ * @property {boolean} [results]  REST: the caller may download a rendered file (POST /api/v1/views/render/file; default false)
+ * @property {Record<string, PolicyOptions>} [profiles]  server level only: named policies bound to tokens or OAuth clients (auth.tokens[].profile, auth.clientProfiles, auth.scopeProfiles)
  */
 
 /**
@@ -47,26 +49,41 @@ export class ConfigError extends Error {
  */
 
 /**
- * @typedef {object} McpOptions
+ * @typedef {object} ServerOptions
  * @property {Record<string, SourceOptions>} [sources]
  * @property {{ allowDirs?: string[], list?: boolean, hardLinks?: boolean, scopes?: string[], policy?: PolicyOptions }} [files]
- * @property {{ dir?: string, baseUrl?: string, maxFiles?: number }} [output]
+ * @property {{ dir?: string, baseUrl?: string, maxFiles?: number, maxAgeDays?: number }} [output]
  * @property {PolicyOptions} [policy]
  * @property {Partial<import("pivotkit-core").Limits>} [limits]
  * @property {string} [locale]
  * @property {string} [timeZone]
  * @property {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [compute]
- * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean } }} [http]
+ * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number }} [http]
  * @property {AuthOptions} [auth]
+ * @property {RestOptions} [rest]
  * @property {"info" | "debug" | "off"} [log]
  * @property {string} [baseDir]  where relative paths start (loadConfig sets the config file's directory; default the working directory)
+ */
+
+/** @typedef {ServerOptions} McpOptions  the same options under the MCP server's name */
+
+/**
+ * @typedef {object} RestOptions
+ * @property {string} [resource]  OAuth: the REST service's resource (default the origin of auth.resource with /api/v1)
+ * @property {string[]} [audience]  OAuth: the audiences a REST token may carry (default the resource)
+ * @property {string[]} [requiredScopes]  OAuth: scopes every REST call needs (default auth.requiredScopes)
+ * @property {{ origins?: string[], maxAge?: number }} [cors]  browser origins allowed to call (exact origins; none by default)
+ * @property {"auth" | "public" | "off"} [openapi]  /openapi.json: for authenticated callers (default), for anyone, or not served
+ * @property {boolean} [inline]  csv and json results may come back in the JSON answer (default false)
+ * @property {{ perMinute?: number, burst?: number, failedAuthPerMinute?: number }} [rateLimit]  per caller, and per address for refused tokens
+ * @property {number} [concurrency]  requests of one caller at once (default 4)
  */
 
 /**
  * @typedef {object} AuthOptions
  * @property {"none" | "token" | "oauth"} [mode]
  * @property {boolean} [allowUnauthenticated]  "none" on an address other than loopback
- * @property {Array<{ name: string, env?: string, file?: string, scopes?: string[] }>} [tokens]
+ * @property {Array<{ name: string, env?: string, file?: string, scopes?: string[], profile?: string }>} [tokens]
  * @property {string} [issuer]
  * @property {string} [resource]
  * @property {string[]} [audience]
@@ -79,6 +96,8 @@ export class ConfigError extends Error {
  * @property {number} [clockTolerance]
  * @property {string} [requireTyp]
  * @property {boolean} [allowInsecureIssuer]
+ * @property {Record<string, string>} [clientProfiles]  OAuth client id to policy profile
+ * @property {Record<string, string>} [scopeProfiles]  OAuth scope to policy profile
  */
 
 /** The import limits a server uses unless the operator sets them: lower than a command line's. */
@@ -92,24 +111,29 @@ export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdD
 
 // A small schema language for the options: "string", "boolean", "integer", "strings" (array of
 // strings), "function", { enum: [...] }, { object: {...} } (known keys), { map: <schema> } (any keys)
-const POLICY = { object: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] } } };
+const POLICY = { object: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" } };
+/** The server's policy: a source's, plus the named profiles. */
+const SERVER_POLICY = { object: { ...POLICY.object, profiles: { map: POLICY } } };
+
+/** The parts of the HTTP server the runner of pivotkit-server can serve. */
+export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
 
 /** Every option, nested as the options object is. */
 export const OPTION_KEYS = Object.freeze({
     sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: POLICY } } },
     files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
-    output: { object: { dir: "string", baseUrl: "string", maxFiles: "integer" } },
-    policy: POLICY,
+    output: { object: { dir: "string", baseUrl: "string", maxFiles: "integer", maxAgeDays: "integer" } },
+    policy: SERVER_POLICY,
     limits: { map: "integer" },
     locale: "string",
     timeZone: "string",
     compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } },
-    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] } } },
+    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer" } },
     auth: {
         object: {
             mode: { enum: ["none", "token", "oauth"] },
             allowUnauthenticated: "boolean",
-            tokens: { list: { object: { name: "string", env: "string", file: "string", scopes: "strings" } } },
+            tokens: { list: { object: { name: "string", env: "string", file: "string", scopes: "strings", profile: "string" } } },
             issuer: "string",
             resource: "string",
             audience: "strings",
@@ -121,7 +145,21 @@ export const OPTION_KEYS = Object.freeze({
             scopeClaim: "string",
             clockTolerance: "integer",
             requireTyp: "string",
-            allowInsecureIssuer: "boolean"
+            allowInsecureIssuer: "boolean",
+            clientProfiles: { map: "string" },
+            scopeProfiles: { map: "string" }
+        }
+    },
+    rest: {
+        object: {
+            resource: "string",
+            audience: "strings",
+            requiredScopes: "strings",
+            cors: { object: { origins: "strings", maxAge: "integer" } },
+            openapi: { enum: ["auth", "public", "off"] },
+            inline: "boolean",
+            rateLimit: { object: { perMinute: "integer", burst: "integer", failedAuthPerMinute: "integer" } },
+            concurrency: "integer"
         }
     },
     log: { enum: ["info", "debug", "off"] },
@@ -194,8 +232,8 @@ function check(value, schema, path) {
 /**
  * Checks an options object: every key known, every value of its type, and the rules between keys.
  * Throws ConfigError with the key's path and what to do.
- * @param {McpOptions} options
- * @returns {McpOptions}  the same object
+ * @param {ServerOptions} options
+ * @returns {ServerOptions}  the same object
  */
 export function validateOptions(options) {
     check(options, { object: OPTION_KEYS }, "");
@@ -241,6 +279,36 @@ export function validateOptions(options) {
             }
         }
     }
+    const profiles = Object.keys(options.policy?.profiles ?? {});
+    const profileRefs = [...(options.auth?.tokens ?? []).map((t, i) => [`auth.tokens[${i}].profile`, t.profile]), ...Object.entries(options.auth?.clientProfiles ?? {}).map(([k, v]) => [`auth.clientProfiles.${k}`, v]), ...Object.entries(options.auth?.scopeProfiles ?? {}).map(([k, v]) => [`auth.scopeProfiles.${k}`, v])];
+    for (const [path, name] of profileRefs) {
+        if (name !== undefined && !profiles.includes(name)) {
+            const near = closest(String(name), profiles);
+            throw new ConfigError(`${path}: no profile "${String(name).slice(0, 60)}" in policy.profiles${near ? `; did you mean "${near}"?` : ""}`);
+        }
+    }
+    for (const [name, profile] of Object.entries(options.policy?.profiles ?? {})) {
+        if (!SOURCE_ID.test(name)) {
+            throw new ConfigError(`policy.profiles.${name.slice(0, 60)}: a profile's name is letters, digits, "_", "-" and "." (at most 64)`);
+        }
+        if (profile.default === "hide") {
+            throw new ConfigError(`policy.profiles.${name}.default: "hide" would drop every field; list the fields to hide in fields`);
+        }
+    }
+    if (options.rest?.resource) {
+        urlOf(options.rest.resource, "rest.resource");
+    }
+    for (const [i, origin] of (options.rest?.cors?.origins ?? []).entries()) {
+        let url = null;
+        try {
+            url = new URL(origin);
+        } catch {
+            // reported below
+        }
+        if (!url || url.origin !== origin || (url.protocol !== "https:" && url.protocol !== "http:")) {
+            throw new ConfigError(`rest.cors.origins[${i}]: an origin is scheme, host and port as a browser sends it (https://app.example.com), without a path; "*" is not accepted`);
+        }
+    }
     if (options.http?.publicUrl) {
         urlOf(options.http.publicUrl, "http.publicUrl");
     }
@@ -250,7 +318,7 @@ export function validateOptions(options) {
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");
     }
-    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
+    for (const [path, value] of /** @type {Array<[string, number | undefined]>} */ ([["compute.workers", options.compute?.workers], ["compute.timeMs", options.compute?.timeMs], ["compute.memoryMb", options.compute?.memoryMb], ["output.maxFiles", options.output?.maxFiles], ["output.maxAgeDays", options.output?.maxAgeDays], ["rest.concurrency", options.rest?.concurrency], ["rest.rateLimit.perMinute", options.rest?.rateLimit?.perMinute], ["rest.rateLimit.burst", options.rest?.rateLimit?.burst], ["http.port", options.http?.port === 0 ? undefined : options.http?.port]])) {
         if (value !== undefined && value < 1) {
             throw new ConfigError(`${path}: must be 1 or more`);
         }
@@ -276,7 +344,7 @@ function urlOf(text, path) {
  * Reads a configuration file (JSON) into options: checked, `baseDir` set to the file's directory so
  * relative paths start there.
  * @param {string} file
- * @returns {Promise<McpOptions>}
+ * @returns {Promise<ServerOptions>}
  */
 export async function loadConfig(file) {
     let text;
@@ -294,6 +362,16 @@ export async function loadConfig(file) {
     validateOptions(options);
     return { ...options, baseDir: options.baseDir ? resolve(dirname(resolve(file)), options.baseDir) : dirname(resolve(file)) };
 }
+
+/** The REST service's path. */
+export const REST_BASE = "/api/v1";
+
+/**
+ * The REST service's OAuth resource: rest.resource, else the origin of auth.resource with /api/v1
+ * (an audience of its own, so a token for the MCP endpoint does not reach REST).
+ * @param {ServerOptions} options
+ */
+export const restResourceOf = (options) => options.rest?.resource ?? new URL(REST_BASE, options.auth?.resource ?? options.http?.publicUrl ?? "http://localhost").href;
 
 /** A path of the options, relative to `baseDir` (or the working directory). */
 export const pathOf = (options, path) => (isAbsolute(path) ? path : resolve(options.baseDir ?? process.cwd(), path));
