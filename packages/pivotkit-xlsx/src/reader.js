@@ -158,9 +158,9 @@ export async function read(file, options) {
     const sheet = pickSheet(list, o.sheet, name);
 
     const entry = entries.get(sheet.path);
-    if (!entry) throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is missing; open the workbook in Excel and save it again.`);
-    if (sheet.path === shared.sharedStrings || sheet.path === shared.styles) {
-        throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is also named as the workbook's shared strings or styles; the workbook is refused.`);
+    // a sheet that is also the shared strings or styles would reach the parser uncounted
+    if (!entry || sheet.path === shared.sharedStrings || sheet.path === shared.styles) {
+        throw fileError("DAMAGED", name, `the part of sheet "${shown(sheet.name)}" is missing or not a sheet; open the workbook in Excel and save it again.`);
     }
     // shared strings and styles stream from the workbook into the ZIP below, never held whole
     const streamed = [shared.sharedStrings, shared.styles].filter((path, k, all) => entries.has(path) && !parts.has(path) && all.indexOf(path) === k);
@@ -192,9 +192,7 @@ export async function read(file, options) {
     // read-excel-file keeps an entry per string item and per format: counted against the cells a table
     // may have, and only the strings up to the highest one a cell names go on
     const counted = (path, out) =>
-        path === shared.sharedStrings || path === shared.styles
-            ? createEntryCount(out, { file: name, sharedStrings: path === shared.sharedStrings, styles: path === shared.styles, keep: trimmed.shared + 1, max: maxCells })
-            : { write: (/** @type {Uint8Array} */ data) => out.write(data), end() {} };
+        createEntryCount(out, { file: name, keep: path === shared.sharedStrings ? trimmed.shared + 1 : Infinity, max: path === shared.sharedStrings || path === shared.styles ? maxCells : Infinity });
     for (const [path, data] of parts) {
         const part = zip.begin(path);
         const out = counted(path, createXmlGuard(part, name, path));

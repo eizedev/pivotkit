@@ -408,20 +408,15 @@ function cellExtent(buf, from, to) {
     let column = 0;
     let row = 0;
     let shared = -1;
-    let open = -1; // where the tag of the last shared-string cell ended, until its <v> is looked for
-    let v = -1; // the "<v>" found last; searched again only once a cell lies past it, so linear
-    /** The value of that cell, when its <v> comes before `next` (the next cell's tag). */
+    let open = -1; // where the tag of the last shared-string cell ended, until its value is read
+    /** That cell's value: its <v> before `next` (the next cell's tag), so each stretch is searched once. */
     const value = (next) => {
-        if (open === -1) return;
-        if (v < open) {
-            v = indexOf(buf, VALUE, open, to);
-            if (v === -1) v = to;
-        }
-        if (v < next) {
-            let n = 0;
+        const v = open === -1 ? -1 : indexOf(buf, VALUE, open, next);
+        if (v !== -1) {
             let k = v + 3;
-            while (k < to && isSpace(buf[k])) k++;
-            for (; k < to && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
+            while (k < next && isSpace(buf[k])) k++;
+            let n = 0;
+            for (; k < next && buf[k] >= 0x30 && buf[k] <= 0x39 && n <= 1e12; k++) n = n * 10 + (buf[k] - 0x30);
             shared = Math.max(shared, n);
         }
         open = -1;
@@ -446,13 +441,14 @@ function cellExtent(buf, from, to) {
     return { column, row, shared };
 }
 
-/** Index of the next "<" followed by `second` ("!", "?") in buf[from, to), or -1: searched by that rarer byte. */
-function markupAt(buf, from, to, second) {
-    const view = buf.subarray(0, to);
-    for (let i = view.indexOf(second, from + 1); i !== -1; i = view.indexOf(second, i + 1)) {
-        if (buf[i - 1] === LT) return i - 1;
-    }
-    return -1;
+/**
+ * Where the comment, CDATA section, processing instruction or other markup starting at buf[at] ("<")
+ * ends, where the parser ends it (just after its "-->", "]]>", "?>" or ">"), or -1 if not in `buf`.
+ */
+function markupEnd(buf, at) {
+    const close = buf[at + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, at, at + 4) === at ? COMMENT_END : indexOf(buf, CDATA_START, at, at + 9) === at ? CDATA_END : GT;
+    const end = indexOf(buf, close, at + 1);
+    return end === -1 ? -1 : end + close.length;
 }
 
 /**
@@ -461,24 +457,17 @@ function markupAt(buf, from, to, second) {
  * skips it, so a `</row>` inside one does not end the row (Excel writes none of them).
  */
 function rowEndAt(buf, from) {
-    let end = indexOf(buf, ROW_END, from);
-    // the next "<!" and "<?" before `end` (-1: none, -2: not searched yet), each searched again only
-    // once passed, so the time stays linear
-    let bang = -2;
-    let pi = -2;
-    for (let k = from; end !== -1; ) {
-        if (bang !== -1 && bang < k) bang = markupAt(buf, k, end, BANG);
-        if (pi !== -1 && pi < k) pi = markupAt(buf, k, end, 0x3f);
-        const at = bang === -1 ? pi : pi === -1 ? bang : Math.min(bang, pi);
-        if (at === -1) return end;
-        const close = at === pi ? PI_END : indexOf(buf, COMMENT_START, at, at + 4) === at ? COMMENT_END : indexOf(buf, CDATA_START, at, at + 9) === at ? CDATA_END : GT;
-        const stop = indexOf(buf, close, at + 1);
-        if (stop === -1) return -1;
-        k = stop + close.length;
-        if (k > end) {
-            end = indexOf(buf, ROW_END, k);
-            bang = pi = -2;
-        }
+    const end = indexOf(buf, ROW_END, from);
+    if (end === -1) return end;
+    // no "!" or "?" in the row: no markup ends it early (both are rare in a sheet's rows)
+    const row = buf.subarray(from, end);
+    if (row.indexOf(BANG) === -1 && row.indexOf(0x3f) === -1) return end;
+    // else one pass from tag to tag, each section skipped whole
+    for (let k = buf.indexOf(LT, from); k !== -1; k = buf.indexOf(LT, k + 1)) {
+        if (buf[k + 1] === BANG || buf[k + 1] === 0x3f) {
+            k = markupEnd(buf, k) - 1;
+            if (k < 0) return -1;
+        } else if (indexOf(buf, ROW_END, k, k + 6) === k) return k;
     }
     return -1;
 }
@@ -568,13 +557,12 @@ export function createSheetFilter(out, limits = {}) {
                 // anything else in sheetData (a comment, say) is left out: read-excel-file reads rows
                 // only. A comment, CDATA section or processing instruction ends where the parser ends
                 // it, so a row inside one stays out too.
-                const close = buf[lt + 1] === 0x3f ? PI_END : indexOf(buf, COMMENT_START, lt, lt + 4) === lt ? COMMENT_END : indexOf(buf, CDATA_START, lt, lt + 9) === lt ? CDATA_END : GT;
-                const end = indexOf(buf, close, lt + 1);
+                const end = markupEnd(buf, lt);
                 if (end === -1) {
                     i = lt;
                     break;
                 }
-                i = end + close.length;
+                i = end;
                 continue;
             }
             const tagEnd = buf.indexOf(0x3e, lt);
@@ -664,34 +652,33 @@ export function createSheetFilter(out, limits = {}) {
 }
 
 const STRING_ITEM = ascii("<si");
-const STYLE_NAMES = [ascii("<xf"), ascii("<numFmt")];
+const ENTRY_NAMES = [STRING_ITEM, ascii("<xf"), ascii("<numFmt")];
 const SST_END = ascii("</sst>");
 const HOLD = 8; // the longest name above and the byte after it
 
 /**
- * Passes the shared strings or the styles of a workbook (or a part that is both) on to `out` and
- * counts what read-excel-file keeps one entry of each for: string items (`<si>`), cell formats
- * (`<xf>`) and number formats (`<numFmt>`). More than `max` stop the read with LIMIT_EXCEEDED, before
- * the parser makes millions of entries from a small file. Of the string items only the first `keep`
- * go on (the strings the sheet's cells name): the rest is left out and `</sst>` ends the part.
+ * Passes the shared strings or the styles of a workbook on to `out` and counts what read-excel-file
+ * keeps one entry of each for: string items (`<si>`), cell formats (`<xf>`) and number formats
+ * (`<numFmt>`), in either part. More than `max` stop the read with LIMIT_EXCEEDED, before the parser
+ * makes millions of entries from a small file. Of the string items only the first `keep` go on (the
+ * strings the sheet's cells name; Infinity for the styles): the rest is left out and `</sst>` ends
+ * the part.
  * @param {{ write: (bytes: Uint8Array, from?: number, to?: number) => void }} out
- * @param {{ file: string, sharedStrings: boolean, styles: boolean, keep: number, max: number }} options
+ * @param {{ file: string, keep: number, max: number }} options
  */
-export function createEntryCount(out, { file, sharedStrings, styles, keep, max }) {
-    const names = [...(sharedStrings ? [STRING_ITEM] : []), ...(styles ? STYLE_NAMES : [])];
-    const what = sharedStrings ? (styles ? "shared strings and cell formats" : "shared strings") : "cell formats";
+export function createEntryCount(out, { file, keep, max }) {
     let carry = new Uint8Array(0); // the last bytes, held back: a name may go on in the next piece
     let items = 0;
     let count = 0;
     let cut = false;
     /** At a "<" at buf[i]: whether the bytes there are the string item past `keep` (the place to cut). */
     const at = (buf, i) => {
-        for (const name of names) {
+        for (const name of ENTRY_NAMES) {
             let k = 1;
             while (k < name.length && buf[i + k] === name[k]) k++;
             const b = buf[i + k];
             if (k === name.length && (b === 0x3e || b === 0x2f || isSpace(b))) {
-                if (++count > max) throw limitError("importCells", count, max, file, what);
+                if (++count > max) throw limitError("importCells", count, max, file, "shared strings and formats");
                 return name === STRING_ITEM && ++items > keep;
             }
         }
@@ -712,12 +699,7 @@ export function createEntryCount(out, { file, sharedStrings, styles, keep, max }
         /** @param {Uint8Array} chunk */
         write(chunk) {
             if (cut) return;
-            if (carry.length && chunk.length >= HOLD) {
-                // the held bytes, each with enough of this piece after it to tell a name
-                if (scan(concat(carry, chunk.subarray(0, HOLD)), carry.length)) return;
-            } else if (carry.length) {
-                chunk = concat(carry, chunk);
-            }
+            if (carry.length) chunk = concat(carry, chunk);
             const pass = Math.max(0, chunk.length - HOLD);
             if (!scan(chunk, pass)) carry = chunk.slice(pass);
         },

@@ -562,7 +562,7 @@ test("shared strings: only those up to the highest one a cell names are kept, an
     assert.deepEqual(t.columns, ["a"]);
     assert.deepEqual(col(t, "a"), ["a"]);
     // a cell naming the last one: all 50,000 are needed, more than the limit
-    await assert.rejects(read(fileOf(book(sheetNaming(49_998, 49_999), strings(50_000))), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.max === 11_000 && /shared strings/.test(e.message));
+    await assert.rejects(read(fileOf(book(sheetNaming(49_998, 49_999), strings(50_000))), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.max === 11_000 && /shared strings and formats/.test(e.message));
     // under the default limits the strings the cells name are read as before
     const all = await read(fileOf(book(sheetNaming(49_998, 49_999), strings(50_000))));
     assert.deepEqual(col(all, "name"), ["x"]);
@@ -577,7 +577,7 @@ test("styles: cell and number formats count against importCells", async () => {
     const book = (n) => rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], level: 0 }), { "xl/styles.xml": styles(n) });
     const limits = { importCells: 1_000, columns: 10 };
     assert.equal((await read(fileOf(book(10_999)), { limits })).rowCount, 1);
-    await assert.rejects(read(fileOf(book(11_000)), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.value === 11_001 && /cell formats/.test(e.message));
+    await assert.rejects(read(fileOf(book(11_000)), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.value === 11_001 && /shared strings and formats/.test(e.message));
 });
 
 test("the count of shared strings and formats gives the same XML however the part arrives in pieces", async () => {
@@ -585,7 +585,7 @@ test("the count of shared strings and formats gives the same XML however the par
     const sst = '<?xml version="1.0"?><sst count="4"><si><t>a</t></si><si/><si\n><r><t>b</t></r></si><si><t>c</t></si></sst>';
     const through = (text, size, keep, options = {}) => {
         const parts = [];
-        const count = createEntryCount({ write: (b, from = 0, to = b.length) => parts.push(new TextDecoder().decode(b.slice(from, to))) }, { file: "s.xlsx", sharedStrings: true, styles: false, keep, max: 100, ...options });
+        const count = createEntryCount({ write: (b, from = 0, to = b.length) => parts.push(new TextDecoder().decode(b.slice(from, to))) }, { file: "s.xlsx", keep, max: 100, ...options });
         const bytes = strToU8(text);
         for (let at = 0; at < bytes.length; at += size) count.write(bytes.subarray(at, at + size));
         count.end();
@@ -597,11 +597,11 @@ test("the count of shared strings and formats gives the same XML however the par
         assert.equal(through(sst, size, 0), '<?xml version="1.0"?><sst count="4"></sst>', `none kept, pieces of ${size} bytes`);
         assert.throws(() => through(sst, size, 4, { max: 3 }), (e) => e.details?.limit === "importCells" && e.details.value === 4);
     }
-    // <sheet>, <numFmts> and <xfs> are no entries; <xf> and <numFmt> are, in styles
+    // <sheet>, <numFmts> and <xfs> are no entries; <xf> and <numFmt> are
     const xml = '<styleSheet><numFmts count="1"><numFmt numFmtId="164"/></numFmts><cellXfs><xf/><xf\tnumFmtId="1"></xf></cellXfs><xfs/><sheet/></styleSheet>';
     for (const size of [1, 3, 8, xml.length]) {
-        assert.equal(through(xml, size, 0, { sharedStrings: false, styles: true, max: 3 }), xml);
-        assert.throws(() => through(xml, size, 0, { sharedStrings: false, styles: true, max: 2 }), (e) => e.details?.value === 3);
+        assert.equal(through(xml, size, Infinity, { max: 3 }), xml);
+        assert.throws(() => through(xml, size, Infinity, { max: 2 }), (e) => e.details?.value === 3);
     }
 });
 
@@ -610,6 +610,6 @@ test("a sheet named as the shared strings or the styles of its workbook is refus
     const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     const rels = (type) => strToU8(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${REL}/${type}" Target="worksheets/sheet1.xml"/></Relationships>`);
     for (const type of ["sharedStrings", "styles"]) {
-        await rejects(read(fileOf(rebuild(base, { "xl/_rels/workbook.xml.rels": rels(type) }))), "DAMAGED", (e) => /shared strings or styles/.test(e.message));
+        await rejects(read(fileOf(rebuild(base, { "xl/_rels/workbook.xml.rels": rels(type) }))), "DAMAGED", (e) => /missing or not a sheet/.test(e.message));
     }
 });
