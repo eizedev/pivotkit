@@ -49,11 +49,12 @@ count or show is treated as an identifier when
 How the last word is found:
 
 - Words are split at a space, `_`, `-`, `.`, `/`, `:`, a change from a small letter (or a digit)
-  to a capital (`CustomerId`, `CustomerID`) and from a letter to a digit (`userID2`); a `#` is a word
-  of its own (`Serial#` is `Serial #`).
+  to a capital (`CustomerId`, `CustomerID`), before the last capital of a run that a small letter
+  follows (`HTTPId` is `HTTP Id`) and from a letter to a digit (`userID2`); a `#` is a word of its
+  own (`Serial#` is `Serial #`).
 - A part in parentheses at the end and digits at the end are left out first: `ID (Asset)`,
   `Asset ID (old) (2)`, `userID2`, `user_id_2`, `Ticket No.2` end in their identifier word.
-- Identifiers: `ID`, `id`, `CustomerId`, `CustomerID`, `customer_id`, `Asset Nr.`, `Order No`,
+- Identifiers: `ID`, `id`, `CustomerId`, `CustomerID`, `HTTPId`, `customer_id`, `Asset Nr.`, `Order No`,
   `OrderNumber`, `Primary key`, `Serial #`, `#`.
 - Not identifiers: `Paid`, `PAID`, `UUID`, `UUID2` (one word, not one ending in "id"), `Keys`,
   `Number of items` and `Number of items (total)` (they end in "items"), `#items`, `Paid (EUR)`.

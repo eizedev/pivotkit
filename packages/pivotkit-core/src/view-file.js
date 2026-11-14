@@ -294,7 +294,7 @@ export function toViewFile(view, meta = {}, options = {}) {
         ...(description ? { description } : {}),
         ...(created ? { createdAt: created } : {}),
         ...(generator ? { generator } : {}),
-        source: { ...(sourceId ? { id: sourceId } : {}), ...(sourceName ? { name: sourceName } : {}), ...(fields ? { fields } : {}), ...withParams },
+        ...(sourceId || sourceName || fields ? { source: { ...(sourceId ? { id: sourceId } : {}), ...(sourceName ? { name: sourceName } : {}), ...(fields ? { fields } : {}), ...withParams } } : {}),
         extensions: {},
         view
     };
