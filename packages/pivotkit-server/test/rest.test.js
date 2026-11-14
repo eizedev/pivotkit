@@ -268,23 +268,23 @@ test("the Host check refuses a name the server does not answer to (DNS rebinding
     }
 });
 
-test("output.maxAgeDays: old reports and drafts go at start (and hourly); other files, newer ones and subdirectories stay", async () => {
+test("output.maxAgeDays: old reports and drafts go at start (and hourly); files pivotkit did not write, newer ones and subdirectories stay", async () => {
     const dir = workspace();
     const { utimesSync } = await import("node:fs");
     const old = new Date(Date.now() - 3 * 86_400_000);
-    for (const name of ["old.xlsx", "old.report.json", "notes.txt", "recent.xlsx"]) {
+    for (const name of ["old.pivotkit-out.xlsx", "old.pivotkit-out.report.json", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]) {
         writeFileSync(join(dir, "out", name), name);
-        if (name !== "recent.xlsx") {
+        if (name !== "recent.pivotkit-out.xlsx") {
             utimesSync(join(dir, "out", name), old, old);
         }
     }
     mkdirSync(join(dir, "out", "keep"));
-    writeFileSync(join(dir, "out", "keep", "old.csv"), "x");
-    utimesSync(join(dir, "out", "keep", "old.csv"), old, old);
+    writeFileSync(join(dir, "out", "keep", "old.pivotkit-out.csv"), "x");
+    utimesSync(join(dir, "out", "keep", "old.pivotkit-out.csv"), old, old);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxAgeDays: 2 }, baseDir: dir });
     try {
-        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["keep", "notes.txt", "recent.xlsx"]);
-        assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.csv"]);
+        assert.deepEqual(readdirSync(join(dir, "out")).sort(), ["keep", "notes.txt", "operator.csv", "recent.pivotkit-out.xlsx"]);
+        assert.deepEqual(readdirSync(join(dir, "out", "keep")), ["old.pivotkit-out.csv"]);
         const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION } });
         assert.equal(res.status, 200);
         assert.ok(readdirSync(join(dir, "out")).includes(res.data.output.name));

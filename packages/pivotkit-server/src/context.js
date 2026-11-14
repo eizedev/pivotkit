@@ -12,7 +12,7 @@ import { createRequire } from "node:module";
 import { access, constants, realpath, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { isInside } from "pivotkit-cli/files";
-import { ConfigError, pathOf, validateOptions } from "./config.js";
+import { ConfigError, OUTPUT_DEFAULTS, pathOf, validateOptions } from "./config.js";
 import { createComputer } from "./compute.js";
 import { createLog } from "./log.js";
 import { createRegistry } from "./registry.js";
@@ -37,7 +37,7 @@ export const VERSION = createRequire(import.meta.url)("../package.json").version
  * @property {import("./config.js").ServerOptions} options
  * @property {any} registry  the sources (registry.js)
  * @property {any} computer  the compute pool (compute.js)
- * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxAgeDays: number, showPath: boolean } | null} output
+ * @property {{ dir: string, baseUrl: string | null, maxFiles: number, maxMb: number, maxAgeDays: number, cleanUp: boolean, showPath: boolean } | null} output  cleanUp: the oldest reports may be deleted to make room (not where the operator's own files lie)
  * @property {any} log  the log (log.js)
  * @property {string} authMode
  * @property {string} version
@@ -70,10 +70,17 @@ export async function createContext(options, runtime = {}) {
         }
         // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
         // own files lie, which have such names too
-        if (options.output.maxAgeDays && (await ownFileDirs(options)).includes(dir)) {
+        const shared = (await ownFileDirs(options)).includes(dir);
+        if (options.output.maxAgeDays && shared) {
             throw new ConfigError("output.dir: is the configuration's directory or holds a source, template or token file, which output.maxAgeDays could delete with the old reports; give the reports a directory of their own");
         }
-        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? 1000, maxAgeDays: options.output.maxAgeDays ?? 0, showPath: runtime.showPaths ?? false };
+        if (shared) {
+            log.warn("output.dir is the configuration's directory or holds a source, template or token file: reports there are never deleted to make room, so a full directory refuses new ones; give the reports a directory of their own");
+        }
+        if (!(await writable(dir))) {
+            log.warn("output.dir is not writable by the server's user: every report will fail with NO_OUTPUT until its owner or mode is fixed");
+        }
+        output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? OUTPUT_DEFAULTS.maxFiles, maxMb: options.output.maxMb ?? OUTPUT_DEFAULTS.maxMb, maxAgeDays: options.output.maxAgeDays ?? 0, cleanUp: !shared, showPath: runtime.showPaths ?? false };
     }
     const computer = createComputer(options.compute);
     /** @type {Promise<any> | null} */
@@ -107,7 +114,7 @@ export async function createContext(options, runtime = {}) {
             const checks = {
                 auth: core ? core.ready() : !auth,
                 workers: computer.size() > 0,
-                output: output ? await access(output.dir, constants.W_OK).then(() => true, () => false) : true
+                output: output ? await writable(output.dir) : true
             };
             return { ok: Object.values(checks).every(Boolean), checks };
         },
@@ -154,13 +161,16 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
     return { scopes: new Set(authInfo.scopes ?? []), client: String(authInfo.clientId ?? "client").slice(0, 80), profile };
 }
 
+/** Whether the server's user may create files in a directory. */
+export const writable = (dir) => access(dir, constants.W_OK).then(() => true, () => false);
+
 /**
  * The real directories that hold the operator's own files: each source file, print template and
  * token file, and the base directory (a configuration file's directory, unless it sets baseDir).
  * @param {import("./config.js").ServerOptions} options
  * @returns {Promise<string[]>}
  */
-async function ownFileDirs(options) {
+export async function ownFileDirs(options) {
     const files = [...Object.values(options.sources ?? {}).flatMap((s) => [s.file, s.template]), ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
     const dirs = await Promise.all(files.map((f) => realpath(pathOf(options, f)).then(dirname, () => null)));
     const base = options.baseDir ? await realpath(options.baseDir).catch(() => null) : null;

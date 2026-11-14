@@ -6,6 +6,29 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Added
+
+- `MAX_DATE_MS` and `isDateMs(ms)`: the range a `Date` holds, exported once for hosts and the other
+  packages ([#226](https://github.com/eizedev/pivotkit/issues/226)).
+
+### Changed
+
+- A year before 1 AD is written with its era in every date label: `year` "2 BC", `yearQuarter`
+  "Q1 2 BC" (was "Q1 -1"), `yearWeek` "2 BC-W02", a date and the `date` and `datetime` formats
+  "Jan 11, 2 BC" (was "Jan 11, 2", the same as 2 AD), as `yearMonth` already did ("Jan 2 BC")
+  ([#225](https://github.com/eizedev/pivotkit/issues/225)).
+
+### Fixed
+
+- ISO dates with a year before 0 or after 9999 in ECMAScript's form (a sign and six digits,
+  `"+010000-01-01"`) are dates, so a compare filter's day at the edge of the `Date` range, which
+  `normalize` writes so, reads the same in a saved or shared view instead of reporting
+  `filterCompareValue` ([#97](https://github.com/eizedev/pivotkit/issues/97)).
+- The `yearWeek` grouping of the years 0 to 99 and before year 0 is the ISO week and its year (was
+  1902-W02 for a day of the year 2, -1-W-98 for one of 2 BC; blank in the first year a `Date`
+  holds), and the month grouping of the first month a `Date` holds no longer throws
+  ([#225](https://github.com/eizedev/pivotkit/issues/225)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Added

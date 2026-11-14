@@ -1,6 +1,6 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the public API as a TypeScript user sees it.
-import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, normalize, PivotkitError, relativeDateRange, toEChartsOption, toGrid, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
+import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, isDateMs, MAX_DATE_MS, normalize, PivotkitError, relativeDateRange, toEChartsOption, toGrid, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
 import { rowsToCsv, rowsToXlsx, toCsv, toJson, toTsv, toXlsx } from "pivotkit-core/export";
 import { parseTemplates, templatesFromSchema, TEMPLATE_LIMITS, TEMPLATES_EXTENSION } from "pivotkit-core/templates";
 
@@ -32,6 +32,10 @@ const anchored: { from: string | null; to: string } | null = relativeDateRange("
 const latest: PivotResult = computePivot(encode([{ d: "2026-01-01" }]), { filters: [{ field: "d", type: "relative", unit: "year", count: 1, anchor: "latest" }] });
 void range;
 void today;
+// the Date limit: a number a Date holds, narrowed by the guard
+const edge: unknown = MAX_DATE_MS;
+const edgeMs: number = isDateMs(edge) ? edge : 0;
+void edgeMs;
 void anchored;
 void latest;
 

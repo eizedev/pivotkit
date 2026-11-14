@@ -2,7 +2,10 @@
 // to one Playwright version, which must be the version of @playwright/test the tests are run with.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { releaseProblems, unreleasedEntries } from "../scripts/check-release.js";
 
@@ -149,6 +152,94 @@ test("check-release refuses a package whose own dependency has unreleased change
     assert.deepEqual(unreleasedEntries("## [Unreleased]\n\nFirst release.\n\n### Added\n\n- a\n- b\n"), ["- a", "- b"]);
 });
 
+// --published asks npm (`npm view <dep>@<version> version`). The test runs the script in a copy of
+// a small repository, with a stub `npm` first on PATH that answers like the registry: the version for a
+// published one, E404 (as npm 11 does for an unknown package or version) or a network error. No network.
+// The script is run through a symlink to that directory, which its main guard must follow (else it
+// checks nothing and exits 0).
+test("check-release --published refuses a dependency that is not on npm and says when npm cannot tell", { skip: process.platform === "win32" && "the stub npm is a POSIX shell script; releases run on Linux" }, (t) => {
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "pivotkit-check-release-"));
+    const link = `${dir}-link`;
+    t.after(() => {
+        rmSync(link, { force: true });
+        rmSync(dir, { recursive: true, force: true });
+    });
+    const files = {
+        "package.json": { type: "module", workspaces: ["packages/pivotkit-core", "packages/pivotkit-report", "packages/pivotkit-react"] },
+        "packages/pivotkit-core/package.json": { name: "pivotkit-core", version: "0.6.0" },
+        "packages/pivotkit-report/package.json": { name: "pivotkit-report", version: "0.3.1", dependencies: { "pivotkit-core": "^0.6.0" } },
+        "packages/pivotkit-react/package.json": { name: "pivotkit-react", version: "0.6.2", dependencies: { "pivotkit-core": "^0.6.0", "pivotkit-report": "^0.3.1", fflate: "0.8.3" } }
+    };
+    for (const [file, json] of Object.entries(files)) {
+        mkdirSync(join(dir, file, ".."), { recursive: true });
+        writeFileSync(join(dir, file), JSON.stringify(json));
+    }
+    for (const pkg of ["pivotkit-core", "pivotkit-report"]) {
+        writeFileSync(join(dir, "packages", pkg, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 2026-10-01\n\n- old\n");
+    }
+    mkdirSync(join(dir, "scripts"));
+    copyFileSync(new URL("scripts/check-release.js", root), join(dir, "scripts", "check-release.js"));
+    mkdirSync(join(dir, "bin"));
+    // NPM_STUB_PUBLISHED: the published "<name>@<version>" (space-separated); NPM_STUB_OFFLINE=1: no registry
+    writeFileSync(join(dir, "bin", "npm"), `#!/bin/sh
+echo "$*" >> "${join(dir, "npm-calls.log")}"
+test "$1 $3" = "view version" || { echo "unexpected npm call: $*" >&2; exit 99; }
+if [ -n "$NPM_STUB_OFFLINE" ]; then echo "npm error code ENOTFOUND" >&2; echo "npm error network request failed" >&2; exit 1; fi
+for p in $NPM_STUB_PUBLISHED; do
+    if [ "$p" = "$2" ]; then echo "\${2##*@}"; exit 0; fi
+done
+echo "npm error code E404" >&2
+echo "npm error 404 No match found for version \${2##*@}" >&2
+exit 1
+`);
+    chmodSync(join(dir, "bin", "npm"), 0o755);
+    symlinkSync(dir, link, "dir");
+    const run = (env, ...args) => {
+        rmSync(join(dir, "npm-calls.log"), { force: true });
+        const result = spawnSync(process.execPath, [join(link, "scripts", "check-release.js"), "pivotkit-react", ...args], {
+            encoding: "utf8",
+            env: { ...process.env, PATH: `${join(dir, "bin")}${delimiter}${process.env.PATH}`, NPM_STUB_PUBLISHED: "", NPM_STUB_OFFLINE: "", ...env }
+        });
+        let calls = [];
+        try {
+            calls = readFileSync(join(dir, "npm-calls.log"), "utf8").trim().split("\n");
+        } catch {
+            // npm was not called
+        }
+        return { status: result.status, stderr: result.stderr, calls };
+    };
+
+    // both dependencies published at the versions of this commit: it passes, after asking for each
+    let r = run({ NPM_STUB_PUBLISHED: "pivotkit-core@0.6.0 pivotkit-report@0.3.1" }, "--published");
+    assert.equal(r.stderr, "");
+    assert.equal(r.status, 0);
+    assert.deepEqual(r.calls, ["view pivotkit-core@0.6.0 version", "view pivotkit-report@0.3.1 version"]);
+
+    // pivotkit-report 0.3.1 is not on npm (only an older version is): refused, with the publish order
+    r = run({ NPM_STUB_PUBLISHED: "pivotkit-core@0.6.0 pivotkit-report@0.3.0" }, "--published");
+    assert.equal(r.status, 1);
+    assert.equal(r.stderr, "pivotkit-react depends on pivotkit-report 0.3.1, which is not on npm: publish pivotkit-report first (CONTRIBUTING.md, \"Releasing\")\n");
+
+    // npm cannot reach the registry: refused for each dependency, with npm's error, not as "not published"
+    r = run({ NPM_STUB_PUBLISHED: "pivotkit-core@0.6.0 pivotkit-report@0.3.1", NPM_STUB_OFFLINE: "1" }, "--published");
+    assert.equal(r.status, 1);
+    assert.deepEqual(r.stderr.trim().split("\n"), [
+        "pivotkit-react: npm could not tell whether pivotkit-core 0.6.0 is published: npm error code ENOTFOUND",
+        "pivotkit-react: npm could not tell whether pivotkit-report 0.3.1 is published: npm error code ENOTFOUND"
+    ]);
+
+    // without --published, npm is not asked
+    r = run({});
+    assert.equal(r.status, 0);
+    assert.deepEqual(r.calls, []);
+
+    // an unreleased CHANGELOG entry is reported beside the npm check
+    writeFileSync(join(dir, "packages", "pivotkit-core", "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n- `chartPlan`\n");
+    r = run({ NPM_STUB_PUBLISHED: "pivotkit-core@0.6.0 pivotkit-report@0.3.1" }, "--published");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /^pivotkit-react depends on pivotkit-core, whose CHANGELOG has 1 unreleased entry: release pivotkit-core first/);
+});
+
 test("the release workflow runs check-release for the tagged package before it packs", () => {
     const release = readFileSync(new URL(".github/workflows/release.yml", root), "utf8");
     const check = release.indexOf("node scripts/check-release.js");
@@ -244,7 +335,9 @@ test("the release workflow publishes the tarball by a path npm reads as a file",
 // are listed here, each with the package whose version it names, and in CONTRIBUTING.md's release steps.
 const VERSION_STATEMENTS = [
     { file: "docs/compare.md", pattern: /^\| \*\*pivotkit\*\* \| [^|]+ \| (\d+\.\d+\.\d+) on \d{4}-\d{2}-\d{2} \|/m, pkg: "pivotkit-core" },
-    { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" }
+    { file: "docs/reference/view-file.md", pattern: /"generator": \{ "name": "pivotkit-react", "version": "(\d+\.\d+\.\d+)" \}/, pkg: "pivotkit-react" },
+    // the official plugins table: the pivotkit-core version pivotkit-xlsx needs (its caret range on core)
+    { file: "docs/reference/plugins.md", pattern: /^\| <span id="pivotkit-xlsx"><\/span>.*\| (\d+\.\d+(?:\.\d+)?) \(plugin API \d+\) \|$/m, pkg: "pivotkit-core" }
 ];
 const minorOf = (version) => version.split(".").slice(0, 2).join(".");
 

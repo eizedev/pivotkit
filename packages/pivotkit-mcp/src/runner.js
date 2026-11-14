@@ -23,7 +23,7 @@ export const FLAGS = Object.freeze({
     "allow-host": { type: "string", multiple: true, value: "name", text: "HTTP: a host name clients use (besides localhost and the public URL's)." },
     "allow-origin": { type: "string", multiple: true, value: "name", text: "HTTP: a browser origin's host name allowed to call (none by default)." },
     log: { type: "string", value: "level", text: "info (default), debug or off; the log is JSON lines on stderr." },
-    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing)." },
+    "check-config": { type: "boolean", text: "Print what the server would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable)." },
     version: { type: "boolean", short: "v", text: "Print the version and exit." },
     help: { type: "boolean", short: "h", text: "Print this help and exit." }
 });

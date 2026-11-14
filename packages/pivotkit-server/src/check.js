@@ -1,15 +1,20 @@
 /*
  * --check-config: what the server would expose with these options, for the operator to read before a
- * client connects. Reads no data file, only whether each exists.
+ * client connects. Reads each source file once for its column names (a policy rule that names no
+ * column is a typo), never to show a value.
  */
 
-import { stat } from "node:fs/promises";
-import { readFile } from "node:fs/promises";
-import { pathOf, restResourceOf } from "./config.js";
+import { readFile, realpath, stat } from "node:fs/promises";
+import { basename } from "node:path";
+import { closest } from "pivotkit-core";
+import { readSafe, readTable } from "pivotkit-cli/files";
+import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
 import { TOKEN_MIN, TOKEN_SYNTAX, TOKEN_SYNTAX_TEXT } from "./auth.js";
+import { ownFileDirs, writable } from "./context.js";
+import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
-import { resolvePolicy } from "./policy.js";
+import { fieldKey, resolvePolicy } from "./policy.js";
 
 /**
  * @param {import("./config.js").ServerOptions} options
@@ -18,24 +23,74 @@ import { resolvePolicy } from "./policy.js";
  */
 export async function checkConfig(options, { http, env = {}, name = "pivotkit-mcp", tokenEnv = "PIVOTKIT_MCP_TOKEN", rest = false }) {
     let problems = 0;
+    let unwritable = 0;
     let other = 0;
     const registry = await createRegistry(options);
     const lines = [`${name}: the configuration is valid.`, ""];
     const sources = await registry.check();
+    // every column of every source by its policy key, in the data's spelling; null: not all known
+    /** @type {Map<string, string> | null} */
+    let everyColumn = registry.allow.length ? null : new Map();
+    // a rule's name as the configuration spells it, by its key: shown where no column has it
+    const configured = new Map([options.policy?.fields, ...Object.values(options.sources ?? {}).map((s) => s.policy?.fields)].flatMap((f) => Object.keys(f ?? {})).map((n) => [fieldKey(n), n]));
     lines.push(`Sources (${sources.length}):`);
     for (const s of sources) {
         const fields = Object.entries(s.policy.fields);
         problems += s.exists ? 0 : 1;
+        const columns = s.file && s.exists ? await columnsOf(s.file, options.sources?.[s.id]?.sheet, options) : { names: null, why: null };
+        const byKey = new Map((columns.names ?? []).map((c) => [fieldKey(c), c]));
+        for (const [key, name] of byKey) {
+            everyColumn?.set(key, name);
+        }
+        if (!columns.names) {
+            everyColumn = null;
+        }
         lines.push(`  ${s.id}: ${s.file ? `${s.file}${s.exists ? "" : "  (NOT FOUND)"}` : "a code source"}`);
-        lines.push(`    fields: ${s.policy.default} by default${fields.length ? `; ${fields.map(([n, l]) => `${n} ${l}`).join(", ")}` : ""}; values listed per shown field: ${s.policy.items}; inline results: ${s.policy.inline ? `up to ${s.policy.inline.cells} cells` : "off"}`);
+        lines.push(`    fields: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}; values listed per shown field: ${s.policy.items}; inline results: ${s.policy.inline ? `up to ${s.policy.inline.cells} cells` : "off"}`);
         if (s.scopes.length) lines.push(`    scopes: ${s.scopes.join(" ")}`);
         if (s.link) lines.push(`    link: ${s.link}`);
+        if (columns.why) {
+            lines.push(`    warning: its columns could not be read to check the policy (${columns.why})`);
+        }
+        if (columns.names) {
+            for (const name of Object.keys(options.sources?.[s.id]?.policy?.fields ?? {})) {
+                if (!byKey.has(fieldKey(name))) {
+                    const near = closest(name, columns.names);
+                    lines.push(`    warning: sources.${s.id}.policy.fields.${name}: no column of ${basename(s.file ?? "")} has this name${near ? `; did you mean "${near}"?` : ""}`);
+                }
+            }
+        }
+    }
+    // the server's rules and the profiles' hold for every source: a typo matches none of them
+    if (everyColumn) {
+        const rules = [["policy.fields", options.policy?.fields], ...Object.entries(options.policy?.profiles ?? {}).map(([p, profile]) => [`policy.profiles.${p}.fields`, profile.fields])];
+        for (const [path, map] of /** @type {Array<[string, Record<string, string> | undefined]>} */ (rules)) {
+            for (const name of Object.keys(map ?? {})) {
+                if (!everyColumn.has(fieldKey(name))) {
+                    const near = closest(name, [...everyColumn.values()]);
+                    lines.push(`  warning: ${path}.${name}: no column of any source has this name${near ? `; did you mean "${near}"?` : ""}`);
+                }
+            }
+        }
     }
     const filePolicy = resolvePolicy(options.policy, options.files?.policy);
     lines.push("", registry.allow.length ? `Files by path: allowed in ${registry.allow.join(", ")}${options.files?.list ? " (listed)" : ""}; fields ${filePolicy.default} by default; hard links ${options.files?.hardLinks ? "read" : "refused"}` : "Files by path: off");
-    const outputOk = options.output?.dir ? await stat(pathOf(options, options.output.dir)).then((i) => i.isDirectory()).catch(() => false) : true;
-    problems += outputOk ? 0 : 1;
-    lines.push(`Output: ${options.output?.dir ?? "none (only inline csv/json where the policy allows)"}${outputOk ? "" : "  (NOT FOUND: create the directory first)"}${options.output?.baseUrl ? `, served at ${options.output.baseUrl}` : ""}`);
+    const outputDir = options.output?.dir ? pathOf(options, options.output.dir) : null;
+    const outputFound = outputDir ? await stat(outputDir).then((i) => i.isDirectory()).catch(() => false) : true;
+    const outputWritable = outputDir && outputFound ? await writable(outputDir) : true;
+    problems += outputFound ? 0 : 1;
+    unwritable += outputWritable ? 0 : 1;
+    lines.push(`Output: ${options.output?.dir ?? "none (only inline csv/json where the policy allows)"}${outputFound ? "" : "  (NOT FOUND: create the directory first)"}${outputWritable ? "" : `  (NOT WRITABLE by the user ${process.getuid?.() ?? ""} the server runs as: every report would fail)`}${options.output?.baseUrl ? `, served at ${options.output.baseUrl}` : ""}`);
+    if (outputDir && outputFound) {
+        const real = await realpath(outputDir).catch(() => outputDir);
+        const shared = (await ownFileDirs(options)).includes(real);
+        const maxFiles = options.output?.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
+        lines.push(`  at most ${maxFiles} files of pivotkit's (of them ${draftCap(maxFiles)} schedule drafts) and ${options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB; ${shared ? "it holds the configuration or a source, template or token file, so nothing there is deleted and a full directory refuses new reports" : "when full, the oldest reports are deleted to make room, drafts are kept"}${options.output?.maxAgeDays && !shared ? `; reports and drafts older than ${options.output.maxAgeDays} days are deleted` : ""}`);
+        if (options.output?.maxAgeDays && shared) {
+            other += 1;
+            lines.push("  PROBLEM: output.maxAgeDays in a directory that holds the configuration or a source, template or token file: the server will not start; give the reports a directory of their own");
+        }
+    }
     const auth = options.auth ?? {};
     const mode = auth.mode ?? "none";
     lines.push(`HTTP${http ? "" : " (with --http)"}: ${options.http?.host ?? "127.0.0.1"}:${options.http?.port ?? 3333}; quick-start page ${options.http?.page === false ? "off" : "on"}`);
@@ -70,7 +125,7 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     }
     for (const [profile, p] of Object.entries(options.policy?.profiles ?? {})) {
         const fields = Object.entries(p.fields ?? {});
-        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; file downloads (REST) ${p.results ? "allowed" : "off"}`);
+        lines.push(`Profile ${profile}: fields ${p.default ?? "as each source"} by default${fields.length ? `; ${fields.map(([n, l]) => `${everyColumn?.get(fieldKey(n)) ?? n} ${l}`).join(", ")}` : ""}; a field a source hides stays hidden; file downloads (REST) ${p.results ? "allowed" : "off"}`);
     }
     if (rest) {
         const r = options.rest ?? {};
@@ -88,11 +143,11 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
             }
         }
     }
-    const total = problems + other;
+    const total = problems + unwritable + other;
     if (total) {
-        lines.push("", `${total} problem${total === 1 ? "" : "s"}: see ${[problems ? "NOT FOUND" : "", other ? "PROBLEM" : ""].filter(Boolean).join(" and ")} above.`);
+        lines.push("", `${total} problem${total === 1 ? "" : "s"}: see ${[problems ? "NOT FOUND" : "", unwritable ? "NOT WRITABLE" : "", other ? "PROBLEM" : ""].filter(Boolean).join(" and ")} above.`);
     }
-    lines[0] = other ? `${name}: the configuration is valid, but the server would not start with it as it is.` : problems ? `${name}: the configuration is valid, but not everything it names is there.` : lines[0];
+    lines[0] = other ? `${name}: the configuration is valid, but the server would not start with it as it is.` : problems ? `${name}: the configuration is valid, but not everything it names is there.` : unwritable ? `${name}: the configuration is valid, but the server could not write its reports.` : lines[0];
     return { text: `${lines.join("\n")}\n`, problems: total };
 }
 
@@ -107,5 +162,20 @@ async function tokenProblem(token, env, options) {
         return value.length < TOKEN_MIN ? `(${token.file}) is shorter than ${TOKEN_MIN} characters` : TOKEN_SYNTAX.test(value) ? null : `(${token.file}) ${TOKEN_SYNTAX_TEXT}`;
     } catch (e) {
         return `(${token.file}) cannot be read: ${e?.code === "ENOENT" ? "no such file" : e?.code === "EACCES" ? `permission denied for the user ${process.getuid?.() ?? ""} the server runs as` : "unreadable"}`;
+    }
+}
+
+/**
+ * The column names of a source file as the server reads them, or why they could not be read.
+ * @returns {Promise<{ names: string[] | null, why: string | null }>}
+ */
+async function columnsOf(path, sheet, options) {
+    const limits = { ...SERVER_LIMITS, ...(options.limits ?? {}) };
+    try {
+        const bytes = await readSafe(path, { cwd: "/", allow: [], maxBytes: limits.fileBytes, hardLinks: true });
+        const { table } = await readTable(bytes, basename(path), { ...(sheet ? { sheet } : {}), ...(options.timeZone ? { timeZone: options.timeZone } : {}), limits });
+        return { names: table.columns, why: null };
+    } catch (e) {
+        return { names: null, why: String(e?.message ?? e).slice(0, 200) };
     }
 }

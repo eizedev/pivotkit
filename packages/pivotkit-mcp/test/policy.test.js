@@ -63,7 +63,7 @@ test("show: values listed, and a small csv or json result comes back inline (and
         assert.match(rendered.data.inline.text, /^Region,Sum of Sales\r?\n/);
         assert.match(rendered.data.inline.text, /North,15/);
         assert.deepEqual(rendered.data.summary, { rows: 5, columns: 2, sourceRows: 5, keptRows: 5, truncated: false });
-        assert.equal(rendered.data.output.name, "sales.csv");
+        assert.equal(rendered.data.output.name, "sales.pivotkit-out.csv");
         const xlsx = await call(client, "render_view", { source: "sales", view: BY_REGION });
         assert.equal(xlsx.data.inline, undefined, "only csv and json come back inline");
     }));
@@ -85,7 +85,7 @@ test("policy switches: no counts, no row count, default hide with one shown fiel
         assert.equal(described.data.fields[0].distinct, undefined);
         const rendered = await call(client, "render_view", { source: "sales", view: { rows: ["Region"] }, format: "csv" });
         assert.equal(rendered.data.inline, undefined);
-        assert.equal(rendered.data.output.name, "sales.csv");
+        assert.equal(rendered.data.output.name, "sales.pivotkit-out.csv");
     }));
 
 test("without an output directory: a withheld result is refused, not shown; a shown one comes back inline", async () => {

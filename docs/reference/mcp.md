@@ -132,7 +132,8 @@ error that names the key and the one probably meant.
 | `files.scopes`, `files.policy` | - | none, the server's | Scopes and policy of `file:` sources |
 | `output.dir` | `--output dir` | none | Where reports and drafts are written |
 | `output.baseUrl` | - | none | The address the directory is served at: results carry a `url`, file names start with 22 random characters |
-| `output.maxFiles` | - | 1000 | Files the directory may hold before render_view refuses (`NO_OUTPUT`) |
+| `output.maxFiles` | - | 1000 | Reports and drafts (named `<name>.pivotkit-out.<format>`) the directory may hold; a new report deletes the oldest reports, whoever made them; drafts are never deleted this way (see [REST](rest.md#running) for the trade-off) |
+| `output.maxMb` | - | 1024 | Megabytes of reports and drafts the directory may hold; a new report deletes the oldest reports until it fits |
 | `output.maxAgeDays` | - | none | Delete reports and drafts older than this from the top level of the output directory, at start and every hour (see [REST](rest.md#running)) |
 | `policy` | - | see above | The server's exposure policy, with its `profiles` |
 | `limits` | - | pivotkit-core's, files 50 MiB | pivotkit-core's [limits](../concepts/limits.md) (`rows`, `fileBytes`, `unpackedBytes`, ...) |
@@ -150,7 +151,7 @@ error that names the key and the one probably meant.
 | `auth.*` | `--auth mode` | none | See [Authentication](#auth) |
 | `log` | `--log level` | info | `info`, `debug` or `off` |
 | - | `--config file` | `$PIVOTKIT_MCP_CONFIG` | The configuration file |
-| - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit |
+| - | `--check-config` | - | Print what would be exposed (sources, fields by level, files, output, auth) and exit; 1 when a file or directory it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0) |
 
 The same file configures [pivotkit-server](rest.md#running), which reads `rest.*` and `http.enable`
 too; pivotkit-mcp ignores them.
@@ -213,7 +214,7 @@ base name only and holds no file content.
 | `NOT_REGULAR_FILE`, `HARD_LINK`, `UNSUPPORTED_FORMAT`, `INVALID_FILE` | The file is a directory or special file, has a second name, is no data format, or cannot be read |
 | `LIMIT_EXCEEDED` | A file, a view or the work over a limit; the worker's memory |
 | `NOT_ALLOWED` | A tool the caller's token has no scope for |
-| `NO_OUTPUT` | No output directory for a file that must go there, or the directory is full |
+| `NO_OUTPUT` | No output directory for a file that must go there, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | `NO_LINK`, `NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a `file:` source |
 | `BUSY`, `TIMEOUT` | No worker free within `queueMs`; a call over `timeMs` |
 | `INTERNAL` | Anything else: "internal error", the details only in the log with `--log debug` |

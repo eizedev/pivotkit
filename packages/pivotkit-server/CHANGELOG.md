@@ -6,8 +6,34 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `output.maxMb` (default 1024): the megabytes of reports and drafts the output directory may hold
+  ([#269](https://github.com/eizedev/pivotkit/issues/269)).
+- `check-config` warns of a policy rule that names no column of its source (a typo leaves the real
+  column at the default level), with the name probably meant, and prints field names in the data's
+  spelling ([#298](https://github.com/eizedev/pivotkit/issues/298)).
+
+### Changed
+
+- Reports and schedule drafts are named `<name>.pivotkit-out.<format>` (`sales.pivotkit-out.xlsx`),
+  so the server knows its own files: only those are counted, cleaned up by `output.maxAgeDays` and
+  deleted to make room; the operator's files, and reports written by an earlier version, are not
+  (remove those by hand once) ([#288](https://github.com/eizedev/pivotkit/issues/288)).
+- A full output directory (`output.maxFiles`, `output.maxMb`) deletes its oldest reports to make room
+  instead of refusing every caller, so one token can no longer stop rendering for everyone; any token
+  that may render can push other callers' older reports out. Schedule drafts awaiting approval are
+  never deleted this way and may take at most half of `output.maxFiles` (a draft over that is refused
+  with 409 `NO_OUTPUT`), and nothing is deleted where the directory holds the configuration or a
+  source, template or token file ([#288](https://github.com/eizedev/pivotkit/issues/288)).
+
 ### Fixed
 
+- The file count of the output directory holds when many reports are written at once: writes into
+  it run one at a time ([#269](https://github.com/eizedev/pivotkit/issues/269)).
+- An output directory the server cannot write is a problem in `check-config` and a warning at start,
+  and a report answers 409 `NO_OUTPUT` with a hint instead of 500 `INTERNAL`
+  ([#297](https://github.com/eizedev/pivotkit/issues/297)).
 - Connections are bounded per address (32) besides in all (256), and 16 are kept for loopback, so
   clients that hold connections without sending cannot lock out the health check; a client has 5
   seconds for its headers (was 15, and checked only every 30 seconds)

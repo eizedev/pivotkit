@@ -41,7 +41,7 @@ test("a configuration file: paths relative to it, flags add to it, --check-confi
     const check = runner(["--config", join(dir, "pivotkit-mcp.json"), "--source", "more=data/none.csv", "--allow-dir", "data", "--check-config"], other);
     assert.equal(check.status, 1, "a missing file is a problem: exit 1");
     assert.match(check.stdout, /1 problem: see NOT FOUND above/);
-    assert.match(check.stdout, /sales: .*data\/sales\.csv\n {4}fields: summary by default; region show, customer hide/);
+    assert.match(check.stdout, /sales: .*data\/sales\.csv\n {4}fields: summary by default; Region show, Customer hide/);
     assert.match(check.stdout, /more: .*none\.csv {2}\(NOT FOUND\)/);
     assert.match(check.stdout, /Files by path: allowed in .*data/);
     assert.match(check.stdout, /Output: out\n/);
