@@ -32,7 +32,7 @@
     "docs:data": "node scripts/docs-data.js"
   },
   "devDependencies": {
-    "@cfworker/json-schema": "4.1.1",
+    "@cfworker/json-schema": "4.1.6",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
     "@types/react": "18.3.31",
