@@ -397,7 +397,8 @@ const STEPS = {
             out.withheld = ["rows", "columns", "bytes", "content"];
         } else {
             // the row count of the whole source is the operator's to show (policy.rows)
-            out.summary = result.summary && !policy.rows ? { ...result.summary, sourceRows: undefined } : result.summary;
+            // without a filter the kept rows are all of them: withheld with the source's count
+            out.summary = result.summary && !policy.rows ? { ...result.summary, sourceRows: undefined, keptRows: undefined } : result.summary;
         }
         if (!file) {
             out.output = null;

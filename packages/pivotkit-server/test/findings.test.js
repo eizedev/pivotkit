@@ -41,7 +41,24 @@ test("a filter that keeps no rows: a finding for a view of shown fields, none fo
     }
 });
 
-test("suggest_view: a summary date field's grouping and a draft under counts: false do not change with the data", async () => {
+test("suggest_view: under the default policy the draft reads counts as describe_source shows them", async () => {
+    // Customer (many values) comes first: with the counts describe_source shows, the draft takes Region
+    const lines = ["Customer,Region,Sales"];
+    for (let i = 0; i < 300; i++) {
+        lines.push(`C${i},${["North", "South", "West"][i % 3]},${i}`);
+    }
+    const dir = workspace({ "sales.csv": `${lines.join("\n")}\n` });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
+    try {
+        const draft = await call(`${server.api}/views/suggest`, { body: { source: "sales" } });
+        assert.equal(draft.status, 200, JSON.stringify(draft.data));
+        assert.equal(draft.data.picks.find((p) => p.part === "rows")?.field, "Region");
+    } finally {
+        await server.close();
+    }
+});
+
+test("suggest_view: a summary date field's grouping, and the fields a draft takes under counts: false, do not change with the data (a shown date's grouping still follows its span)", async () => {
     const short = orders({ from: "2026-01-01", to: "2026-02-15", products: 3 });
     const long = orders({ from: "2020-01-01", to: "2025-12-31", products: 200 });
     const drafts = [];
@@ -60,7 +77,7 @@ test("suggest_view: a summary date field's grouping and a draft under counts: fa
     }
     const [a, b] = drafts;
     assert.deepEqual(a.dated.view.view.derived, b.dated.view.view.derived, "the grouping of a summary date says nothing of its span");
-    assert.equal(a.dated.name, b.dated.name);
+    assert.match(JSON.stringify(a.dated.view.view.derived), /yearQuarter/, "by quarter, whatever the span");
     // the date is shown here, so its grouping may follow its span: the fields picked may not follow the counts
     const fieldsOf = (d) => d.counted.picks.map((p) => [p.part, p.field]);
     assert.deepEqual(fieldsOf(a), fieldsOf(b), "the draft does not depend on counts the policy keeps back");

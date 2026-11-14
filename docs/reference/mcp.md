@@ -83,7 +83,7 @@ server's `policy`; field names are matched without regard to case.
 | `default` | `"summary"` | The level of a field without its own |
 | `fields` | `{}` | Levels by field name: `{ "Region": "show", "Customer": "hide" }` |
 | `items` | `20` | Values listed per `show` field |
-| `rows` | `true` | Show the number of rows |
+| `rows` | `true` | Show the number of rows (`false` also keeps a render's `sourceRows` and `keptRows` back) |
 | `counts` | `true` | Show distinct and blank counts per field |
 | `inline` | `{ "cells": 500, "bytes": 32768 }` | The largest csv or json result that may come back inline; `false`: never |
 | `results` | `false` | The REST service's file route may hand out the rendered file ([downloads](rest.md#downloads)) |
@@ -99,9 +99,11 @@ date grouping's source field) has its result **withheld**: `render_view` writes 
 its name, `withheld: ["rows", "columns", "bytes", "content"]` and a `message` for the user, but no
 count, size or content, since even a row count could answer "is this person in the data?".
 
-`suggest_view` reads only what is not hidden. Its draft and `picks` name fields, never values or
-counts; the one thing they tell about a field's values is the date grouping its span gives (a span
-of up to two years is grouped by month), as a `layout` with a date on an axis does.
+`suggest_view` reads what `describe_source` shows. Its draft and `picks` name fields, never values
+or counts; the one thing they tell about a shown field's values is the date grouping its span gives
+(a span of up to two years is grouped by month), as a `layout` with a date on an axis does. A date
+field that is not shown is grouped by quarter whatever its span, and with `counts: false` the draft
+does not read counts (a shown date's grouping still follows its span).
 
 !!! warning "summary is not confidentiality"
     `summary` keeps values out of what the model reads directly. A model that writes filters over
