@@ -7,49 +7,49 @@
     {
       "labels": [
         "2025",
-        "Sum of Units"
+        "Summe von Units"
       ],
-      "value": "Sum of Units",
+      "value": "Summe von Units",
       "total": 0
     },
     {
       "labels": [
         "2025",
-        "% of column total of Average of Price"
+        "% der Spaltensumme von Durchschnitt von Price"
       ],
-      "value": "% of column total of Average of Price",
+      "value": "% der Spaltensumme von Durchschnitt von Price",
       "total": 0
     },
     {
       "labels": [
         "2026",
-        "Sum of Units"
+        "Summe von Units"
       ],
-      "value": "Sum of Units",
+      "value": "Summe von Units",
       "total": 0
     },
     {
       "labels": [
         "2026",
-        "% of column total of Average of Price"
+        "% der Spaltensumme von Durchschnitt von Price"
       ],
-      "value": "% of column total of Average of Price",
+      "value": "% der Spaltensumme von Durchschnitt von Price",
       "total": 0
     },
     {
       "labels": [
-        "Grand Total",
-        "Sum of Units"
+        "Gesamtergebnis",
+        "Summe von Units"
       ],
-      "value": "Sum of Units",
+      "value": "Summe von Units",
       "total": 2
     },
     {
       "labels": [
-        "Grand Total",
-        "% of column total of Average of Price"
+        "Gesamtergebnis",
+        "% der Spaltensumme von Durchschnitt von Price"
       ],
-      "value": "% of column total of Average of Price",
+      "value": "% der Spaltensumme von Durchschnitt von Price",
       "total": 2
     }
   ],
@@ -88,7 +88,7 @@
     },
     {
       "labels": [
-        "North Total",
+        "North gesamt",
         ""
       ],
       "total": 1,
@@ -136,7 +136,7 @@
     },
     {
       "labels": [
-        "South Total",
+        "South gesamt",
         ""
       ],
       "total": 1,
@@ -168,7 +168,7 @@
     },
     {
       "labels": [
-        "Grand Total",
+        "Gesamtergebnis",
         ""
       ],
       "total": 2,

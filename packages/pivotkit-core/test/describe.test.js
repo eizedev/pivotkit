@@ -78,3 +78,7 @@ test("describeView: the view in parts, each with its words, and what is wrong wi
     assert.deepEqual(bad.warnings.map((w) => [w.code, w.params?.suggestion]), [["itemCase", "North"], ["blanksUnspecified", undefined]]);
     assert.equal(bad.text, '(invalid: 1 error, the parts they name are left out) count of rows where Region is one of "north" (blanks dropped)');
 });
+
+test("describeSource counts in the singular for one row and one field", () => {
+    assert.equal(describeSource(encode([{ A: 1 }])).text, "1 row, 1 field: A (number)");
+});

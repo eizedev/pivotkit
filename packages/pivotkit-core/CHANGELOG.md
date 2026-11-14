@@ -6,8 +6,17 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+### Changed
+
+- An unknown aggregator named as other tools name it gets ours as the hint: `avg` and `mean`
+  ("did you mean average?"), `cnt` (count), `total` (sum), `distinct` (countUnique), `stddev`
+  (stdev); they are still refused. `describeSource` counts in the singular for one row or field
+  ("1 row, 1 field").
+
 ### Added
 
+- `REPORT_LABELS` and `reportLabels(locale)`: the report's own words per language (English and
+  German), as pivotkit-react's report shows them; pivotkit-report writes them for its locale.
 - `dataToCsv`, `dataToCsvBytes` and `dataToJson` in `pivotkit-core/export`: the data itself as a file
   to read again, every row with its values as they are and the fields under their own names, so a
   view file applies to it as it is (`pivotkit render <view> --data <file>` gives the report again).

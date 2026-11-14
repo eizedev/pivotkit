@@ -1,10 +1,10 @@
-﻿;Year;2025;;2026;;Grand Total;
-Region;Product;Sum of Units;% of column total of Average of Price;Sum of Units;% of column total of Average of Price;Sum of Units;% of column total of Average of Price
+﻿;Year;2025;;2026;;Gesamtergebnis;
+Region;Product;Summe von Units;% der Spaltensumme von Durchschnitt von Price;Summe von Units;% der Spaltensumme von Durchschnitt von Price;Summe von Units;% der Spaltensumme von Durchschnitt von Price
 North;A;8;100%;;;8;65,3%
 North;B;;;2;104,2%;2;118,6%
-North Total;;8;100%;2;104,2%;10;83,1%
+North gesamt;;8;100%;2;104,2%;10;83,1%
 South;A;;;7;52,1%;7;59,3%
 South;B;;;5;143,2%;5;163,1%
-South Total;;;;12;112,8%;12;128,5%
+South gesamt;;;;12;112,8%;12;128,5%
 West;A;;;4;57,3%;4;65,3%
-Grand Total;;8;100%;18;100%;26;100%
+Gesamtergebnis;;8;100%;18;100%;26;100%
