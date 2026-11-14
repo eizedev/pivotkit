@@ -239,7 +239,11 @@ checks in order:
 3. **Authentication** for `/mcp` ([below](#auth)).
 
 Host, Origin, the declared size and the token are checked from the headers before the body is
-read; at most 256 connections are open at once, and a request has 30 seconds. On SIGTERM the server
+read. At most 256 connections are open at once, at most 32 from one address (no such bound with `http.trustProxy`, where every client is the proxy), and 16 of them are
+kept for loopback (a health check, a proxy on the same host), so clients that hold connections
+without sending cannot lock the server out; a client has 5 seconds for its headers and 30 for its
+request. A request target must be a path (or the absolute form `http://host/path`, read by its
+path): `OPTIONS *` answers 400. On SIGTERM the server
 takes no new connection and lets running requests finish for up to `http.graceMs`.
 
 Without authentication: `/healthz` (`{ "ok": true }`, for a supervisor or a proxy), the OAuth
@@ -279,7 +283,8 @@ location ~ ^/(mcp|\.well-known/|healthz$|$) {
 The token comes from `$PIVOTKIT_MCP_TOKEN`, or several named tokens from `auth.tokens`, each from
 an environment variable or a file (read on every request, so a token is rotated without a restart),
 each with its own `scopes` (a token without `scopes` holds every scope). A token has at least 32
-characters; make one with
+characters, only those a bearer token can carry (letters, digits, `-._~+/`, `=` at the end; the
+start refuses another); make one with
 `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Tokens are compared
 as SHA-256 digests in constant time, never logged, and refused in the address (`?access_token=`) and
 when a request carries two `Authorization` headers.
@@ -310,8 +315,10 @@ The server follows the [MCP authorization spec](https://modelcontextprotocol.io/
 - At start the server reads the issuer's metadata (RFC 8414, then OpenID Connect discovery; its
   `issuer` must match exactly, its `jwks_uri` must be on the issuer's origin unless `jwksUri` is set),
   with a time limit and no redirects. Until it has it, `/mcp` answers 503 and the server keeps trying.
-  Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every 30
-  seconds. A token stays valid until it expires (no revocation check).
+  It reads the metadata again every hour, and when a token names a key the JWKS does not hold (at
+  most once a minute), so a moved `jwks_uri` works without a restart; a failed read keeps what is
+  loaded. Keys are fetched from the JWKS and kept for 10 minutes; a new key is fetched at most every
+  30 seconds. A token stays valid until it expires (no revocation check).
 
 | Key | Default | What it is |
 | --- | --- | --- |

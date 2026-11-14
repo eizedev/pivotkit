@@ -182,8 +182,11 @@ token with the right audience is refused.
 Every token that may render can fill the output directory up to `output.maxFiles`; then rendering
 into it answers 409 `NO_OUTPUT` for everyone until files are removed. Set `output.maxAgeDays`, and
 give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it. The server
-holds at most 256 connections, and a client has 15 seconds to send its headers: on a network you do
-not trust, put a reverse proxy in front.
+holds at most 256 connections, at most 32 from one address, and keeps 16 for loopback (the health
+check), and a client has 5 seconds to send its headers ([MCP](mcp.md#http) has the details): on
+a network you do not trust, put a reverse proxy in front. With `auth.mode: oauth` and neither
+required scopes nor `auth.toolScopes`, the start warns: any token of the issuer for the REST
+audience then gets everything its profile allows.
 
 Scopes per operation (`auth.toolScopes`, e.g. `{ "render_view": ["pivotkit:render"] }`) and per
 source (`sources.<id>.scopes`) hold as for MCP; a source the caller may not use answers as a missing

@@ -10,7 +10,7 @@ import { TOKEN_ENV, VERSION, createContext } from "./context.js";
 
 export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
-import { isLoopback, serveFetch } from "./listen.js";
+import { connectionLimitsOf, isLoopback, serveFetch } from "./listen.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
 
@@ -136,7 +136,7 @@ export async function serve(options, runtime) {
     const handler = await createServerHandler(options, { ...runtime, loopback: isLoopback(host) });
     let listening;
     try {
-        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs });
+        listening = await serveFetch(handler, { host, port, bodyBytes: REST_BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options) });
     } catch (e) {
         await handler.close();
         throw e;

@@ -21,7 +21,17 @@ export const GRACE_MS = 25_000;
  * headers and for its whole request (checked every checkMs: node:http's default, 30 seconds, would
  * let a stalled client stay six times as long).
  */
+/** @typedef {{ total: number, perAddress: number, loopback: number, headersMs: number, requestMs: number, checkMs: number }} ConnectionLimits */
+/** @type {Readonly<ConnectionLimits>} */
 export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 32, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
+
+/**
+ * The connection limits for a server's options: behind a proxy it trusts (http.trustProxy) every
+ * client comes from the proxy's address, so there is no bound per address.
+ * @param {{ http?: { trustProxy?: boolean } }} options
+ * @returns {Partial<ConnectionLimits>}
+ */
+export const connectionLimitsOf = (options) => (options.http?.trustProxy ? { perAddress: Infinity } : {});
 
 /** A socket's address as a loopback check reads it ("::ffff:127.0.0.1" is 127.0.0.1). */
 const plainAddress = (address) => String(address ?? "").replace(/^::ffff:/i, "");
@@ -139,7 +149,7 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
 /**
  * Serves a fetch handler on node:http.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<typeof CONNECTION_LIMITS> }} options  limits: CONNECTION_LIMITS's (tests)
+ * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits> }} options  limits: CONNECTION_LIMITS's (tests)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
 export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {} }) {

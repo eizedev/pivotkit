@@ -6,6 +6,22 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- Connections are bounded per address (32) besides in all (256), and 16 are kept for loopback, so
+  clients that hold connections without sending cannot lock out the health check; a client has 5
+  seconds for its headers (was 15, and checked only every 30 seconds)
+  ([#289](https://github.com/eizedev/pivotkit/issues/289)).
+- A request target in the absolute form (`GET http://host/path`) is read by its path, and `OPTIONS *`
+  answers 400, instead of both reaching `/` ([#299](https://github.com/eizedev/pivotkit/issues/299)).
+- A static token with characters a bearer token cannot carry is refused at start and in
+  `check-config` (no request could send it); with OAuth and neither required scopes nor
+  `auth.toolScopes`, the REST service warns at start as MCP does
+  ([#299](https://github.com/eizedev/pivotkit/issues/299)).
+- The issuer's metadata is read again every hour and when a token names an unknown key (at most once
+  a minute), so a changed `jwks_uri` works without a restart
+  ([#271](https://github.com/eizedev/pivotkit/issues/271)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.

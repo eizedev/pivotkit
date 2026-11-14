@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
-import { connectionGate } from "../src/listen.js";
+import { connectionGate, connectionLimitsOf } from "../src/listen.js";
 import { serveFetch } from "pivotkit-server";
 import { BIN, TOKEN, call, restServer, workspace } from "./helpers.js";
 
@@ -47,6 +47,9 @@ test("connections: one address gets perAddress, the network gets all but the loo
     assert.equal(gate.admit("203.0.113.1"), true, "a freed slot of the network");
     assert.equal(gate.admit("127.0.0.1"), false);
     assert.equal(gate.open(), 6);
+    // behind a proxy the server trusts, every client has the proxy's address: no bound per address
+    assert.deepEqual(connectionLimitsOf({ http: { trustProxy: true } }), { perAddress: Infinity });
+    assert.deepEqual(connectionLimitsOf({}), {});
 });
 
 test("serveFetch: stalled sockets past the limit are cut; a client that sends no headers is cut after headersMs", async () => {

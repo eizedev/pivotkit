@@ -12,7 +12,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, localhostAllowedHostnames, originValidationResponse } from "@modelcontextprotocol/server";
-import { ConfigError, isLoopback, serveFetch } from "pivotkit-server";
+import { ConfigError, connectionLimitsOf, isLoopback, serveFetch } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
 import { createAuth } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -160,7 +160,7 @@ export async function listen(options, runtime) {
     let listening;
     try {
         handler = await createHttpHandler(context, { env: runtime.env, loopback: isLoopback(host) });
-        listening = await serveFetch({ precheck: (request) => handler.precheck(request), fetch: (request) => handler.fetch(request), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs });
+        listening = await serveFetch({ precheck: (request) => handler.precheck(request), fetch: (request) => handler.fetch(request), problem: bodyProblem }, { host, port, bodyBytes: BODY_BYTES, graceMs: options.http?.graceMs, limits: connectionLimitsOf(options) });
     } catch (e) {
         await handler?.close();
         await context.close();

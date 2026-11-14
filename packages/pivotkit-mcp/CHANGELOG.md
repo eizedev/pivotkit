@@ -6,6 +6,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- The HTTP server's connection limits, request targets, start-time token checks and issuer
+  metadata refresh follow pivotkit-server's ([#289](https://github.com/eizedev/pivotkit/issues/289),
+  [#299](https://github.com/eizedev/pivotkit/issues/299), [#271](https://github.com/eizedev/pivotkit/issues/271)).
+
 ## [0.1.0] - 2026-11-14
 
 First release.
