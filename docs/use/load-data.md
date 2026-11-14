@@ -72,6 +72,13 @@ shown; the others keep the type found.
   file, or columns renamed, added or in another order, make it other data, and the application's data
   and other files do not show them ([saved views](views.md);
   [how a file is named](../reference/import.md#how-a-loaded-file-is-named)).
+- A view saved on a sheet of a workbook remembers the sheet. While a workbook of that name is shown,
+  **Views** lists the views of its other sheets too, with the sheet next to each ("Sheet “Q3”"). Opening
+  one reads that sheet of the file again and shows the view on it, so after a reload you load the
+  workbook as it comes (the preview starts on the first sheet) and open the view. Reading the sheet
+  is a step **Undo** takes back. A view whose sheet the workbook no longer has says so ("“Q3 by
+  region” was made for the sheet “Q3”, which quarters.xlsx does not have.") and is shown on the
+  sheet you have. A view file or link made on a sheet does the same under **Open view file…**.
 
 ## Back to the original data
 

@@ -6,7 +6,15 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- `pivot-template-save` and `pivot-template-publish` carry `source` in `detail`: the data shown, with
+  a loaded workbook's sheet in `params.sheet` ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+
 ### Fixed
+
+- The element bundles pivotkit-react's fix of views made on a workbook's sheet other than the first:
+  they open on that sheet again after the workbook is loaded anew ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 
 - The element bundles pivotkit-react's fix of a rule on the name whose text is emptied: the rule
   stops filtering ([#159](https://github.com/eizedev/pivotkit/issues/159)).

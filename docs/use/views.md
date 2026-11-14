@@ -143,6 +143,10 @@ line: "None yet. Saved views stay in this browser only." At most 100 views are k
 changed in another tab since you opened the menu, a delete here deletes nothing and says so: "The view
 could not be deleted: the views were changed in another tab; open the menu again".
 
+Views saved on a file you loaded belong to that file, and on a workbook to its sheet: while that
+workbook is shown, a view of another of its sheets says which ("Sheet “Q3”") and opens on that sheet
+([Load your own data](load-data.md#after-loading)).
+
 ## Share a view
 
 **Share this view**, the last group of the Views menu, has:

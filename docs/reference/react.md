@@ -84,9 +84,9 @@ The templates of the Views menu, in two groups by `scope`: "Shared views" (`"sha
 
 ### `onSaveTemplate` { #prop-onsavetemplate }
 
-Type: `(name, view, { scope }) => unknown`.
+Type: `(name, view, { scope, source }) => unknown`.
 
-Shows "Save current view" (Save as… once a view is loaded) under This view in the Views menu, and Save “…” for a user's view of `templates` that was loaded. Gets the name, the view as shown (normalized against the data, with the custom orders of `fieldDefaults`) and `{ scope: "user" }`.
+Shows "Save current view" (Save as… once a view is loaded) under This view in the Views menu, and Save “…” for a user's view of `templates` that was loaded. Gets the name, the view as shown (normalized against the data, with the custom orders of `fieldDefaults`) and `{ scope: "user", source }`: `source` is the data shown as a view file names it, `{ id, name, params }` (a loaded workbook's sheet in `params.sheet`), `null` without a source id ([keeping it](../concepts/templates.md#your-application-keeps-them-callbacks)).
 
 Replace by name (an upsert): Save sends the loaded view's own name, and Save as a name of one of the user's views once the user confirmed "“…” exists. Replace it?". Replace that view, do not add a second one. Then pass the new `templates`; until then the menu keeps the old entry, and the view shown carries the name. When the answer comes after the user changed the view (a slow server), the dot for unsaved changes stays; after New or another view was loaded the name goes to no view.
 
@@ -100,7 +100,7 @@ Deletes a template marked `deletable`, after the user confirmed in the menu; `sc
 
 ### `onPublishTemplate` { #prop-onpublishtemplate }
 
-Type: `(name, view) => unknown`.
+Type: `(name, view, { source }) => unknown`; `source` as for [`onSaveTemplate`](#prop-onsavetemplate).
 
 With `canPublish`: "Publish as shared view" (an arrow) next to each of the user's views, asked in place ("Publish “…” as a shared view? Everyone who uses this report sees it."), and Save “…” on a shared view that was loaded, asked in place ("Replace the shared view “…” for everyone?"). Both send the view in the same form: normalized against the data, with the custom orders of `fieldDefaults`. The host adds the view to its shared views, or replaces the shared view of that name (an upsert by name: Save sends the shared view's own name), and passes the new `templates`; "View “…” published" when it returns or its promise resolves, a failure as for `onSaveTemplate` (`labels.toastPublishRejected`).
 

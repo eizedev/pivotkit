@@ -6,6 +6,18 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+### Fixed
+
+- `render`, `validate` and `describe` read the sheet of a workbook a view file or link names
+  (`source.params.sheet`, written by pivotkit-react) when `--sheet` is not given, instead of the first
+  sheet; `--sheet` overrides it. A sheet the workbook does not have, from `--sheet` or the view, is an
+  `io` error `NO_SHEET` that lists the sheets there are ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+
+### Added
+
+- `describe` of a workbook lists its sheets; `--json` gives `sheet` (the sheet read) for every
+  command with data and `sheets` for `describe` of a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+
 ## [0.1.0] - 2026-11-13
 
 First release.

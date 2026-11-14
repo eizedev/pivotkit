@@ -50,9 +50,16 @@ You keep the templates where you keep other data (a database, a settings service
 
 | React | Element | When |
 | --- | --- | --- |
-| `onSaveTemplate(name, view, { scope })` | `save-templates`, event `pivot-template-save` (`{ name, view, scope }`) | **Save current view** and **Save as…**; **Save** on one of the user's own views of `templates`; `scope` is `"user"`. |
+| `onSaveTemplate(name, view, { scope, source })` | `save-templates`, event `pivot-template-save` (`{ name, view, scope, source }`) | **Save current view** and **Save as…**; **Save** on one of the user's own views of `templates`; `scope` is `"user"`, `source` the data shown (below). |
 | `onDeleteTemplate(name, { scope })` | event `pivot-template-delete` (`{ name, scope }`) | Delete of a `deletable` entry, after the user confirmed; `scope` is its group. |
-| `onPublishTemplate(name, view)` with `canPublish` | `can-publish`, event `pivot-template-publish` (`{ name, view }`) | **Publish as shared view** on one of the user's views, and **Save** on a shared view loaded, each after the user confirmed. |
+| `onPublishTemplate(name, view, { source })` with `canPublish` | `can-publish`, event `pivot-template-publish` (`{ name, view, source }`) | **Publish as shared view** on one of the user's views, and **Save** on a shared view loaded, each after the user confirmed. |
+
+`source` is the data the view was made on, as a [view file](../reference/view-file.md) names it:
+`{ id, name, params }` - your `source`, or a file the user loaded in the report (`allowImport`), whose
+`params.sheet` is the sheet of a workbook; `null` without a source id. To have a view of a workbook's
+sheet open on that sheet again, keep `source` with the view and pass it back as a view file:
+`{ name, file: toViewFile(view, { name, source }) }` in `templates` (an entry `{ name, view }` names no
+data and opens on the data shown). Views you kept without it work as before.
 
 Each callback may return a promise (the element: `event.detail.respondWith(promise)`): the report
 says "saved", "deleted" or "published" when it resolves, and the error's message when it rejects.
@@ -123,6 +130,12 @@ Without a server of your own, the report can keep the user's own views itself:
   not read at all (one console warning) and the next save replaces it. A delete whose view was
   changed in another tab meanwhile says so and deletes nothing. Saving a view under a name it
   already has for the same data replaces it.
+- A file the user loaded (`allowImport`) is data of its own ([how a loaded file is
+  named](../reference/import.md#how-a-loaded-file-is-named)); a view saved on a workbook's sheet also
+  names the sheet, so the store keeps a view of a name per sheet. While a workbook is shown, the views
+  of its other sheets are listed too, with their sheet, and open on it
+  ([Load your own data](../use/load-data.md#after-loading)). A view stored before views named their
+  sheet gets it when it is saved again on its sheet.
 - What is stored is read as user input (`parseTemplates`), and it is read after the first render, so a
   report rendered on the server hydrates without a mismatch.
 - `onSaveTemplate` wins: with it, saves go to your application, and views stored earlier are still

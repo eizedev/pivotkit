@@ -59,9 +59,31 @@ The `view` is abbreviated here; a written file holds the whole normalized view.
 | `description` | no | More about it; plain text, at most 2,000 characters; left out when empty. |
 | `createdAt` | no | When the file was written, in UTC (ISO 8601). pivotkit-react writes it; `toViewFile` leaves it out unless it is given. |
 | `generator` | no | `{ name, version }` of the program that wrote it: `pivotkit-react` and its version from its `package.json`. |
-| `source` | no | The data the view was made for: `id` (the host's stable name, pivotkit-react's `source.id`), `name` (for people), `fields` (`[{ name, type }]`, the fields of the data the view uses - rows, columns, values, filters, sort, a grouping as its source field - with their type: `string`, `number`, `date`, `boolean` or `null`; derived fields are not listed), `params` (what the host needs besides the id to find the data, a report's parameters: text by name, at most 16 of at most 256 characters each, `LIMITS.srcParams` and `srcParamLength`; opaque, never an address or a query; written with an id only). |
+| `source` | no | The data the view was made for: `id` (the host's stable name, pivotkit-react's `source.id`), `name` (for people), `fields` (`[{ name, type }]`, the fields of the data the view uses - rows, columns, values, filters, sort, a grouping as its source field - with their type: `string`, `number`, `date`, `boolean` or `null`; derived fields are not listed), `params` (what the host needs besides the id to find the data, a report's parameters: text by name, at most 16 of at most 256 characters each, `LIMITS.srcParams` and `srcParamLength`; opaque, never an address or a query; written with an id only; `sheet` is the sheet of a workbook, [below](#the-sheet-of-a-workbook)). |
 | `extensions` | no | Reserved for hosts (below); pivotkit ignores it and writes `{}`. |
 | `view` | yes | The view itself, with its own `version` ([Views](../concepts/views.md)). |
+
+### The sheet of a workbook { #the-sheet-of-a-workbook }
+
+A view made on a sheet of a workbook loaded in the report names that sheet in `source.params.sheet`
+(the sheet's name), next to the file's `source.id` ([how a loaded file is named](import.md#how-a-loaded-file-is-named)):
+
+```json
+"source": { "id": "quarters.xlsx#3c1f0a9b2d4e5f60", "name": "quarters.xlsx", "params": { "sheet": "Q3" } }
+```
+
+- pivotkit-react writes it for a loaded workbook's sheet only, in the browser store, the files and the
+  links; a host's own `source` is written as the host gives it. Opening such a view while another
+  sheet of a file of that name is shown reads that sheet first; a sheet the workbook does not have is
+  said, and the view loads on the sheet shown.
+- [pivotkit-cli](cli.md#the-sheet-of-a-workbook) reads that sheet of `--data` unless `--sheet` says
+  another.
+- `sheet` is the one parameter name pivotkit itself reads; a host that names a parameter of its own
+  data `sheet` gets it read as a workbook's sheet by the CLI when it renders a workbook.
+- A view file without it, as every file written before, is read as before: on the sheet shown in the
+  report, on the first visible sheet in the CLI. To give such a file its sheet, open it in the report
+  on that sheet and download it again (or Save a view of the browser store there), or add
+  `"params": { "sheet": "<name>" }` to its `source` by hand. The format version stays 2.
 
 ## Writing a view file
 

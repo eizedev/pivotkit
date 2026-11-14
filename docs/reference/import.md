@@ -109,8 +109,11 @@ file loaded again finds its views and other data does not. The rule, in this ord
 The first row is SHA-256 of `tickets.csv\0Id\0Team\0Opened\0Hours\0Zip`
 (`e51bd4bc21e98ee818b3a8efcb49347b…`). Reordered, renamed or added columns, or another file name
 (`Tickets.csv` too: the name is compared as it is), make other data. The sheet of a workbook is not
-part of it: two sheets with the same columns share their views. The rows are not part of it either: a
-newer export of the same table keeps its views.
+part of it: the views saved, downloaded and linked from a workbook name their sheet next to the id,
+in `source.params.sheet` ([view file](view-file.md#the-sheet-of-a-workbook)), so two sheets with the
+same columns keep their views apart, and a view of another sheet of the same file reads that sheet
+again when it is opened ([saved views](../use/load-data.md#after-loading)). The rows are not part of it
+either: a newer export of the same table keeps its views.
 
 ## Types
 
