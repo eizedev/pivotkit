@@ -281,7 +281,7 @@ root `package.json`: `npm run types` and the builds depend on it.
 npm ci                              # install all workspaces from the lock file
 npm run lint                        # ESLint recommended rules and React's hook rules (as CI)
 npm run types                       # tsc with checkJs, generated .d.ts, TypeScript consumer (as CI)
-npm test                            # node --test in every workspace (as CI)
+npm test                            # node --test in every workspace (as CI; pivotkit-cli's also on Windows)
 npm run coverage                    # the tests with a coverage report (as CI); pivotkit-react: its .js modules only
 npm run pack:check                  # npm pack --dry-run of every package, checked (as CI)
 npm run size -w pivotkit-element    # build the element and print what a page loads, gzip (with the group "report": HTML report, SVG, print)

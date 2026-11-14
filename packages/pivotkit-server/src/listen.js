@@ -59,14 +59,15 @@ export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerA
 
 /**
  * What serveFetch's onRefused is told: the last refused connection's address, every bound that
- * refused one since the last report (`total`: every slot taken; `loopbackReserve`: the network's slots taken, the rest kept
- * for loopback; `perAddress`: http.maxConnectionsPerAddress), the connections open then in all and
- * from that address, and how many were refused since the last report.
+ * refused one since the last report (`total`: every slot taken; `loopbackReserve`: the network's
+ * slots taken, the rest kept for loopback; `perAddress`: http.maxConnectionsPerAddress), the
+ * connections open then in all and from that address, and how many were refused since the last
+ * report.
  * @typedef {{ address: string, limits: Array<"total" | "loopbackReserve" | "perAddress">, open: number, fromAddress: number, refused: number }} RefusedConnections
  */
 
 /**
- * The log line for refused connections: which bound refused them.
+ * The log line for refused connections: every bound that refused one since the last line.
  * @param {RefusedConnections} entry
  */
 export function refusedText(entry) {
