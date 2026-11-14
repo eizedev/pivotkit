@@ -74,6 +74,9 @@ jobs:
           test "$runs" -gt 0 || { echo "no successful CI run for $GITHUB_SHA"; exit 1; }
       - name: Install
         run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Registry signatures
+        # every installed package carries the registry's signature (and its attestation where it has one)
+        run: npm audit signatures
       - name: Lint, types, tests
         run: npm run lint && npm run types && npm test
       - name: Package contents

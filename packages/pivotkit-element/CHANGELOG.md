@@ -6,6 +6,13 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Added
+
+- `importWorkerUrl` (a property, no attribute): where an app serves the import worker of
+  `allow-import` (`dist/import-worker.js`), relative to the page, for an app that bundles the element
+  under a base href such as `/reports/`. Without it the worker is next to the element's own code
+  ([#194](https://github.com/eizedev/pivotkit/issues/194)).
+
 ### Fixed
 
 - The element bundles pivotkit-react's fix of a saved view that reads another sheet of the loaded

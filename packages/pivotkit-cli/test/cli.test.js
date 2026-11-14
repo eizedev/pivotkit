@@ -81,9 +81,10 @@ test("an option that does nothing in the format is a warning (exit 1 with --stri
     assert.match(r.stderr, /warning ignoredOption: --title does nothing in csv \(only in html, xlsx\)/);
     assert.match(r.stderr, /warning ignoredOption: --width does nothing in csv \(only in svg, html\)/);
     assert.equal((await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "--width", "800", "--strict"], { cwd: dir })).code, 1);
-    const device = await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "-o", "/dev/null"], { cwd: dir });
+    // a device: /dev/null, on Windows the name NUL in any directory
+    const device = await run(["render", "view.json", "--data", "sales.csv", "-f", "csv", "-o", process.platform === "win32" ? "NUL" : "/dev/null"], { cwd: dir });
     assert.equal(device.code, 2);
-    assert.match(device.stderr, /null: exists and is a device or another special file; not replaced; to write to stdout, leave out -o/);
+    assert.match(device.stderr, /(null|NUL): exists and is a device or another special file; not replaced; to write to stdout, leave out -o/);
 });
 
 test("--locale, --time-zone and --now are checked by every command, and name the variable they came from", async () => {
@@ -219,10 +220,13 @@ test("--allow-dir is a hard limit: a link out of it, .. and an output outside ar
 
 test("only regular files: a FIFO is refused without waiting for a writer, a directory as data, a link as output", async () => {
     const dir = fixtureDir();
-    execFileSync("mkfifo", [join(dir, "pipe.csv")]);
-    const fifo = await run(["describe", "pipe.csv"], { cwd: dir, timeout: 10_000 });
-    assert.equal(fifo.code, 2);
-    assert.match(fifo.stderr, /pipe\.csv: not a regular file/);
+    // Windows has no FIFO in the file system (named pipes live under \\.\pipe\)
+    if (process.platform !== "win32") {
+        execFileSync("mkfifo", [join(dir, "pipe.csv")]);
+        const fifo = await run(["describe", "pipe.csv"], { cwd: dir, timeout: 10_000 });
+        assert.equal(fifo.code, 2);
+        assert.match(fifo.stderr, /pipe\.csv: not a regular file/);
+    }
     mkdirSync(join(dir, "folder.csv"));
     const folder = await run(["describe", "folder.csv"], { cwd: dir });
     assert.equal(folder.code, 2);

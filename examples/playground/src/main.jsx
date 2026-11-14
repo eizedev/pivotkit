@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
-import { toViewFile } from "pivotkit-core";
+import { toViewFile, viewFileName } from "pivotkit-core";
 import { encodeViewLink } from "pivotkit-core/link";
 import xlsxReader from "pivotkit-xlsx";
 import "pivotkit-react/styles.css";
@@ -167,6 +167,9 @@ function App() {
     const [published, setPublished] = useState(() => stored(`pivotkit-published-${dataset}`, []));
     const [lastClick, setLastClick] = useState(null);
     const [lastLoad, setLastLoad] = useState(null);
+    // the name of a file loaded into the report (onDataLoad), null while the data set shows: the top
+    // bar names it, the data set's start view and shared views go, files are named after it (#295)
+    const [file, setFile] = useState(null);
     const timings = useTimings();
 
     const { rows, fetched } = useRows(dataset, size);
@@ -174,7 +177,7 @@ function App() {
     // the host decides what can be deleted: the published views (the playground's user is its admin),
     // not the presets; the user's own views are the report's browser store. A view published under a
     // preset's name (Save on a shared view) takes the preset's place until it is deleted
-    const templates = useMemo(() => [...sharedViews(dataset, presets).filter((p) => !published.some((t) => t.name === p.name)), ...published.map((t) => ({ ...t, scope: "shared", deletable: true }))], [dataset, presets, published]);
+    const templates = useMemo(() => file !== null ? [] : [...sharedViews(dataset, presets).filter((p) => !published.some((t) => t.name === p.name)), ...published.map((t) => ({ ...t, scope: "shared", deletable: true }))], [dataset, presets, published, file]);
     const start = switched?.dataset === dataset ? switched.view : preset >= 0 ? presets[preset].view : undefined;
     // the address says which data and template the report starts from, in words (the view stays)
     const startName = preset >= 0 ? slug(presets[preset].name) : "empty";
@@ -212,13 +215,15 @@ function App() {
     const ms = (k) => (timings[k] === undefined ? "–" : `${timings[k].toFixed(1)} ms`);
 
     return (
-        <div className={source?.credit ? "pg pg-has-credit" : "pg"}>
+        <div className={source?.credit && file === null ? "pg pg-has-credit" : "pg"}>
             <header className="pg-head">
                 <div className="pg-title">
                     <img className="pg-logo" src="./icon.svg" alt="" width="34" height="34" />
                     <div>
                         <h1>pivotkit playground</h1>
-                        {source ? (
+                        {file !== null ? (
+                            <p data-testid="pg-file">Your file {file}, read in this browser: nothing is uploaded. Data → Back to original data shows the playground's again.</p>
+                        ) : source ? (
                             <p data-testid="pg-source">
                                 Data: <a href={source.href} target="_blank" rel="noopener">{source.text}</a>, <a href={source.licenceHref} target="_blank" rel="noopener">{source.licence}</a>
                                 {fetched ? <span data-testid="pg-as-of">, as of {fetched}</span> : null}. Pick a question under Start, then change it.
@@ -232,7 +237,8 @@ function App() {
                 <div className="pg-controls">
                     <label>
                         Data
-                        <select value={dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSwitched(null); setPublished(stored(`pivotkit-published-${e.target.value}`, [])); }} data-testid="pg-dataset">
+                        <select value={file !== null ? "" : dataset} onChange={(e) => { history.replaceState(history.state, "", address({ data: e.target.value, start: null, preset: null, rows: null, empty: null }, { keepView: false })); setDataset(e.target.value); setPreset(0); setSwitched(null); setPublished(stored(`pivotkit-published-${e.target.value}`, [])); setFile(null); }} data-testid="pg-dataset">
+                            {file !== null ? <option value="" disabled>{file}</option> : null}
                             <optgroup label="Real data">
                                 {Object.keys(REAL).map((k) => <option key={k} value={k}>{DATASETS[k].label}</option>)}
                             </optgroup>
@@ -241,7 +247,7 @@ function App() {
                             </optgroup>
                         </select>
                     </label>
-                    {DATASETS[dataset].make ? (
+                    {DATASETS[dataset].make && file === null ? (
                         <label>
                             Rows
                             <select value={size} onChange={(e) => { history.replaceState(history.state, "", address({ rows: e.target.value }, { keepView: false })); setSize(Number(e.target.value)); }} data-testid="pg-size">
@@ -249,13 +255,13 @@ function App() {
                             </select>
                         </label>
                     ) : null}
-                    <label>
+                    {file !== null ? null : <label>
                         Start
                         <select value={preset} onChange={(e) => { const p = Number(e.target.value); history.replaceState(history.state, "", address({ start: p < 0 ? "empty" : slug(presets[p].name), preset: null, empty: null }, { keepView: false })); setPreset(p); setSwitched(null); }} data-testid="pg-preset">
                             <option value={-1}>Empty report</option>
                             {presets.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
                         </select>
-                    </label>
+                    </label>}
                     <label>
                         Language
                         <select value={lang} onChange={(e) => setLang(e.target.value)} data-testid="pg-lang">
@@ -302,11 +308,14 @@ function App() {
                 height={fixedHeight ?? "calc(100vh - var(--pg-head-h))"}
                 grow={grow}
                 className={fixedHeight ? "pg-fixed" : undefined}
-                fileName={`pivotkit-${dataset}`}
+                fileName={file !== null ? viewFileName(file).replace(/\.pivotkit\.json$/, "") : `pivotkit-${dataset}`}
                 // Export → Source data: the rows a view file renders again on the command line
                 exportData
                 {...IMPORT}
-                onDataLoad={(d) => setLastLoad({ cause: d.cause, name: d.source?.name ?? null, rows: d.rows, columns: d.columns.length })}
+                onDataLoad={(d) => {
+                    setLastLoad({ cause: d.cause, name: d.source?.name ?? null, rows: d.rows, columns: d.columns.length });
+                    setFile(d.file ? d.file.name : null);
+                }}
             />
             <footer className="pg-foot" aria-live="off">
                 <span data-testid="pg-timings">encode {ms("encode")} · computePivot {ms("computePivot")} · toGrid {ms("toGrid")}</span>
