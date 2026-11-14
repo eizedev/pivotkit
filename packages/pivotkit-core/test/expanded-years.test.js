@@ -87,3 +87,17 @@ test("a calendar that writes its own era keeps its form", () => {
     const own = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(dayMs(-1, 1, 11));
     assert.equal(formatter("date", { locale })(dayMs(-1, 1, 11)), own);
 });
+
+test("the first and last years a Date holds group by month and week without a throw or a blank", () => {
+    const group = (day, by) => {
+        const r = computePivot(encode([{ D: day }]), { rows: ["G"], derived: [{ name: "G", field: "D", by }], values: [{ agg: "count" }] });
+        return r.rowRoot.children.map((n) => [n.key, r.label("rows", n)]);
+    };
+    // the first month a Date holds starts on April 20
+    assert.deepEqual(group("-271821-04-20", "yearMonth"), [[-27182096, "Apr 271822 BC"]]);
+    // weekdays repeat every 400 years: -271821-04-20 is a Tuesday as 2179-04-20 is, in week 16
+    assert.deepEqual(group("-271821-04-20", "yearWeek"), [[-27182084, "271822 BC-W16"]]);
+    assert.deepEqual(group("-271821-04-20", "week"), [[16, "W16"]]);
+    assert.deepEqual(group("-271821-12-31", "yearWeek"), [[-27182048, "271822 BC-W52"]]);
+    assert.deepEqual(group("+275760-09-13", "yearWeek"), [[27576037, "275760-W37"]]);
+});

@@ -25,7 +25,8 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
   `normalize` writes so, reads the same in a saved or shared view instead of reporting
   `filterCompareValue` ([#97](https://github.com/eizedev/pivotkit/issues/97)).
 - The `yearWeek` grouping of the years 0 to 99 and before year 0 is the ISO week and its year (was
-  1902-W02 for a day of the year 2, -1-W-98 for one of 2 BC)
+  1902-W02 for a day of the year 2, -1-W-98 for one of 2 BC; blank in the first year a `Date`
+  holds), and the month grouping of the first month a `Date` holds no longer throws
   ([#225](https://github.com/eizedev/pivotkit/issues/225)).
 
 ## [0.6.0] - 2026-11-14

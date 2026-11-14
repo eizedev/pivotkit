@@ -10,6 +10,7 @@
  */
 
 import { dateFormatter, dateTimeFormat, numberFormat, yearText } from "./intl.js";
+import { MAX_DATE_MS } from "./time.js";
 import { MS_PER_DAY, decimalsOf, pad } from "./util.js";
 
 /** Bins smaller than this are refused: their labels and keys would no longer be exact. */
@@ -25,9 +26,19 @@ function utcDay(year, month, day) {
 /** The remainder of a key's period ("Q1" of 20261, but also of -9, the first quarter of 2 BC). */
 const periodOf = (key, base) => key - Math.floor(key / base) * base;
 
+/** 400 Gregorian years: after them weekdays and leap days repeat. */
+const CYCLE_MS = 146_097 * MS_PER_DAY;
+
 /** ISO 8601 week and its year for wall-clock milliseconds. */
 export function isoWeek(ms) {
     const d = new Date(ms);
+    // the first and last years a Date holds lack the days a week is counted from (4 January, the
+    // Thursday after): the same day 400 years on or back is in the same week
+    const shift = d.getUTCFullYear() <= -271821 ? 1 : d.getUTCFullYear() >= 275760 ? -1 : 0;
+    if (shift !== 0) {
+        const w = isoWeek(ms + shift * CYCLE_MS);
+        return { year: w.year - shift * 400, week: w.week };
+    }
     const day = (d.getUTCDay() + 6) % 7; // Monday = 0
     const thursday = utcDay(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 3);
     const year = new Date(thursday).getUTCFullYear();
@@ -44,7 +55,10 @@ const monthName = (month, locale) =>
 /** "Jan 2025" in English, "Jan. 2025" in German, "Jan 2 BC": the month of a year, as the locale writes it. */
 const yearMonthName = (v, locale) => {
     const year = Math.floor(v / 100);
-    return dateFormatter(locale, { month: "short", year: "numeric", timeZone: "UTC" })(new Date(utcDay(year, periodOf(v, 100) - 1, 1)));
+    const first = utcDay(year, periodOf(v, 100) - 1, 1);
+    // the first month a Date holds starts on 20 April: its 1st is no Date
+    const start = Number.isNaN(first) && year < 0 ? -MAX_DATE_MS : first;
+    return dateFormatter(locale, { month: "short", year: "numeric", timeZone: "UTC" })(new Date(start));
 };
 
 // 2024-01-01 was a Monday
