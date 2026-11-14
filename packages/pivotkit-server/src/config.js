@@ -58,7 +58,7 @@ export class ConfigError extends Error {
  * @property {string} [locale]
  * @property {string} [timeZone]
  * @property {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [compute]
- * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number }} [http]
+ * @property {{ host?: string, port?: number, publicUrl?: string, allowHosts?: string[], allowOrigins?: string[], page?: boolean | { sources?: boolean }, enable?: Array<"mcp" | "rest">, trustProxy?: boolean, graceMs?: number, maxConnectionsPerAddress?: number }} [http]
  * @property {AuthOptions} [auth]
  * @property {RestOptions} [rest]
  * @property {"info" | "debug" | "off"} [log]
@@ -131,7 +131,7 @@ export const OPTION_KEYS = Object.freeze({
     locale: "string",
     timeZone: "string",
     compute: { object: { workers: "integer", timeMs: "integer", memoryMb: "integer", queueMs: "integer" } },
-    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer" } },
+    http: { object: { host: "string", port: "integer", publicUrl: "string", allowHosts: "strings", allowOrigins: "strings", page: { or: [{ const: false }, { const: true }, { object: { sources: "boolean" } }] }, enable: { list: { enum: ENDPOINTS } }, trustProxy: "boolean", graceMs: "integer", maxConnectionsPerAddress: "integer" } },
     auth: {
         object: {
             mode: { enum: ["none", "token", "oauth"] },
@@ -317,6 +317,9 @@ export function validateOptions(options) {
     }
     if (options.output?.baseUrl) {
         urlOf(options.output.baseUrl, "output.baseUrl");
+    }
+    if (options.http?.maxConnectionsPerAddress !== undefined && options.http.maxConnectionsPerAddress > 256) {
+        throw new ConfigError("http.maxConnectionsPerAddress: 0 (no bound, the default) to 256");
     }
     if (options.compute?.workers !== undefined && options.compute.workers > 16) {
         throw new ConfigError("compute.workers: at most 16");

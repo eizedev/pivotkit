@@ -16,6 +16,9 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ### Fixed
 
+- The HTTP server's connection limits, request targets, start-time token checks and issuer
+  metadata refresh follow pivotkit-server's ([#289](https://github.com/eizedev/pivotkit/issues/289),
+  [#299](https://github.com/eizedev/pivotkit/issues/299), [#271](https://github.com/eizedev/pivotkit/issues/271)).
 - `render_view` says `noRowsKept` when the filters of a view of shown fields keep no rows, and
   `suggest_view` reads no counts or span the policy keeps back (pivotkit-server's,
   [#302](https://github.com/eizedev/pivotkit/issues/302), [#296](https://github.com/eizedev/pivotkit/issues/296)).

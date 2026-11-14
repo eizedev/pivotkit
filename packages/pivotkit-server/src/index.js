@@ -16,7 +16,7 @@ export { ConfigError, loadConfig, validateOptions, pathOf, restResourceOf, OPTIO
 export { POLICY_LEVELS, POLICY_DEFAULTS } from "./policy.js";
 export { createAuthCore, AuthRefusal, bearerOf, discover, scopesOf, profileOf, resourceMetadataUrlOf, TOKEN_MIN } from "./auth.js";
 export { allowedHosts, hostRefusal, clientAddress, LOCAL_HOSTS } from "./checks.js";
-export { serveFetch, isLoopback, GRACE_MS } from "./listen.js";
+export { serveFetch, isLoopback, connectionLimitsOf, GRACE_MS, CONNECTION_LIMITS } from "./listen.js";
 export { checkConfig } from "./check.js";
 export { OperationError } from "pivotkit-report/operations";
 export { optionsFrom, flagLines, SERVER_FLAGS } from "./flags.js";
