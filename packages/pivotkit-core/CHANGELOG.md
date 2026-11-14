@@ -24,6 +24,9 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- The `week` and `yearWeek` groupings of the first days of the year -271820 (1 and 2 January,
+  whose ISO week belongs to the year before, the first a `Date` holds) are their week instead of
+  blank ([#97](https://github.com/eizedev/pivotkit/issues/97)).
 - ISO dates with a year before 0 or after 9999 in ECMAScript's form (a sign and six digits,
   `"+010000-01-01"`) are dates, so a compare filter's day at the edge of the `Date` range, which
   `normalize` writes so, reads the same in a saved or shared view instead of reporting

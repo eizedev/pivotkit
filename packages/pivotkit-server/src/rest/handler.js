@@ -114,6 +114,9 @@ export async function createRestHandler(context, runtime = {}) {
     const audience = rest.audience?.length ? rest.audience : [resource.href.replace(/\/$/, ""), resource.href];
     const requiredScopes = rest.requiredScopes ?? authOptions.requiredScopes ?? [];
     const metadataUrl = mode === "oauth" ? resourceMetadataUrlOf(resource) : null;
+    if (mode === "oauth" && !requiredScopes.length && !Object.keys(authOptions.toolScopes ?? {}).length) {
+        context.log.warn("REST: no required scopes (rest.requiredScopes, auth.requiredScopes) and no auth.toolScopes: any token of the issuer for the REST audience gets everything its profile allows");
+    }
     const limits = createLimits(rest);
     let warnedAddress = false;
     const trustProxy = options.http?.trustProxy ?? false;
