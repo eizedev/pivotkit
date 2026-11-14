@@ -57,6 +57,7 @@ test("serveFetch: stalled sockets past the limit are cut; a client that sends no
             const socket = connect(listening.port, "127.0.0.1");
             await new Promise((r) => socket.once("connect", r));
             socket.write("GET / HTTP/1.1\r\n");
+            socket.resume();
             stalled.push(socket);
         }
         // a fourth is cut at once
@@ -71,7 +72,7 @@ test("serveFetch: stalled sockets past the limit are cut; a client that sends no
     }
 });
 
-test("a request target that is not a path: the absolute form by its path, '*' and the authority form 400", async () => {
+test("a request target that is not a path: the absolute form by its path, '*' 400, a tunnel nothing", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, baseDir: dir });
     try {
@@ -81,8 +82,9 @@ test("a request target that is not a path: the absolute form by its path, '*' an
         assert.match(absolute, /"id":"sales"/);
         const star = await rawExchange(port, `OPTIONS * HTTP/1.1\r\nHost: localhost:${port}\r\nConnection: close\r\n\r\n`);
         assert.match(star, /^HTTP\/1\.1 400/);
+        // a tunnel (CONNECT host:port) nobody listens for: node:http closes the connection, nothing is served
         const authority = await rawExchange(port, `CONNECT localhost:${port} HTTP/1.1\r\nHost: localhost:${port}\r\n\r\n`);
-        assert.match(authority, /^HTTP\/1\.1 400/);
+        assert.doesNotMatch(authority, /^HTTP\/1\.1 [23]/);
     } finally {
         await server.close();
     }
