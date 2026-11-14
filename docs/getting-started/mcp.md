@@ -248,11 +248,18 @@ nssm start pivotkit
 The server writes one JSON line per event on stderr ([logging](../reference/rest.md#logging)): no
 view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
 `AppRotateOnline` renames the log once it is larger than `AppRotateBytes` (10 MiB here), also while
-the service runs. The password goes from `Get-Credential` to NSSM in a variable, so it is not in the
-shell's history, but it is an argument of `nssm`, visible in the process list while that command
-runs. To avoid that, leave out the `ObjectName` line and set the account in the service's
-properties instead (`services.msc`, **Log On**), or install with NSSM's dialog
-(`nssm install pivotkit` without a program), whose **Log on** tab takes the account. NSSM keeps every renamed file, so a PSU schedule deletes old ones:
+the service runs.
+
+Set the account before `nssm start pivotkit`: without `ObjectName` the service runs as LocalSystem.
+The password goes from `Get-Credential` to NSSM in a variable, so it is not in the shell's history,
+but it is an argument of `nssm`, visible in the process list while that command runs. To avoid
+that, leave out the `ObjectName` line and set the account in the service's properties instead
+(`services.msc`, **Log On**) before you start it, or install with NSSM's dialog (`nssm install
+pivotkit` without a program), whose **Log on** tab takes the account. A service set up in the dialog
+still needs the folder, the log and its rotation: the `nssm set` lines above, or the dialog's
+**Application** (its **Startup directory**), **I/O** and **File rotation** tabs.
+
+NSSM keeps every renamed file, so a PSU schedule deletes old ones:
 
 ```powershell
 Get-ChildItem 'D:\pivotkit\logs\pivotkit-*.log' | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
