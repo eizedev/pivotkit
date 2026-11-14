@@ -6,6 +6,18 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-14
+
+### Upgrading from 0.1.0
+
+What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-0) has the details.
+
+- Over HTTP, each caller is limited (`mcp.rateLimit`: 120 per minute, burst 30; `mcp.concurrency`: 4);
+  over a limit the answer is 429 with `Retry-After`. A method other than `POST` on `/mcp` is 405.
+- Reports and drafts are named `<name>.pivotkit-out.<format>`; reports written by 0.1.0 are neither
+  counted nor deleted: remove them by hand once. `output.maxMb` (default 1024) is new.
+- A static token with characters a bearer token cannot carry is refused at start.
+
 ### Added
 
 - Request limits over HTTP, as the REST service has them: `mcp.rateLimit.perMinute`, `.burst`,
@@ -70,5 +82,6 @@ First release.
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.1...HEAD
+[0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...pivotkit-mcp@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-mcp@0.1.0

@@ -6,6 +6,8 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-14
+
 ### Added
 
 - `env.drafting`: a front end narrows what a draft (`suggest_view`, a layout) reads of the data's
@@ -89,6 +91,7 @@ First release.
   (`chart`, `chartEmbed`, `bom`, `strict`, `trusted`) takes only those, and `chart: true` without
   `echarts` is an error. `bom: false` writes CSV without a byte order mark.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.1...HEAD
+[0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.2.0...pivotkit-report@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-report@0.1.0...pivotkit-report@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-report@0.1.0

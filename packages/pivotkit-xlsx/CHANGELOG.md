@@ -6,6 +6,8 @@ All notable changes to `pivotkit-xlsx` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-14
+
 ### Fixed
 
 - A workbook of a few hundred kilobytes with millions of shared strings or cell formats made
@@ -81,7 +83,8 @@ First release.
   worker is started and a strict Content-Security-Policy works. `dist/` holds a bundle for pages
   without a bundler, with `THIRD_PARTY_LICENSES.txt`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.1...HEAD
+[0.3.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.3.0...pivotkit-xlsx@0.3.1
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.2.0...pivotkit-xlsx@0.3.0
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-xlsx@0.1.0...pivotkit-xlsx@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-xlsx@0.1.0

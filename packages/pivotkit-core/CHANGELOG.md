@@ -6,6 +6,16 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-14
+
+### Upgrading from 0.6.0
+
+The [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#bce-0-6-1) has the details.
+
+- Date labels of years before 1 AD carry the era ("Q1 2 BC", was "Q1 -1"); `toCsv` and `toJson`
+  write dates before year 0 or after 9999 in signed ISO form.
+- `isIdentifierName` takes `HTTPId` and `ABCId` as identifiers.
+
 ### Added
 
 - The type `EncodeIssue`: an issue of `encode()` (`columnCase`, `columnCaseValue`,
@@ -453,7 +463,8 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.1...HEAD
+[0.6.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.0...pivotkit-core@0.6.1
 [0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.5.0...pivotkit-core@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.4.0...pivotkit-core@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.3.0...pivotkit-core@0.4.0

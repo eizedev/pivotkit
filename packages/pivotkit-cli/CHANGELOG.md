@@ -6,6 +6,17 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-14
+
+### Upgrading from 0.2.0
+
+What a script that runs `pivotkit` checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#cli-0-6-1) has the details.
+
+- `--sheet` for data that is no workbook is a warning `ignoredOption` (exit 1 with `--strict`).
+- `-o` naming the data or the view file, `--save-view` naming the data file, `-o -` and, on Windows,
+  a device name as `-o` are usage errors (exit 2).
+- `--json`: an error that follows from a grouping the view cannot make has `followsFrom`.
+
 ### Added
 
 - `pivotkit-cli/files` exports `TEMP_FILE_NAME`, the pattern of the temporary files `writeSafe`
@@ -153,6 +164,7 @@ First release.
   usage error instead of HTML in a `.pdf`.
 - An option that does nothing in the chosen format (`--width` with `csv`) is a warning `ignoredOption`.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.1...HEAD
+[0.2.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.2.0...pivotkit-cli@0.2.1
 [0.2.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-cli@0.1.0...pivotkit-cli@0.2.0
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-cli@0.1.0

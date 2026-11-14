@@ -6,6 +6,21 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-14
+
+### Upgrading from 0.1.0
+
+What an operator checks; the [upgrade page](https://pivotkit.eize.dev/getting-started/upgrading/#from-0-6-0) has the details.
+
+- Reports and drafts are named `<name>.pivotkit-out.<format>`; reports written by 0.1.0 are neither
+  counted nor deleted: remove them from the output directory by hand once.
+- `output.maxMb` (default 1024) is new: a full directory deletes its oldest reports. Drafts may take
+  at most half of `output.maxFiles` (none at 1).
+- The MCP endpoint over HTTP has request limits (`mcp.rateLimit`, `mcp.concurrency`; 429 over them);
+  `http.maxConnectionsPerAddress` is new; a client has 5 seconds for its headers.
+- A static token with characters a bearer token cannot carry, and an output directory the server
+  cannot write, are problems in `check-config`; a policy rule that names no column is a warning.
+
 ### Added
 
 - `mcp.rateLimit` and `mcp.concurrency`: the MCP endpoint over HTTP limits each caller and refused
@@ -114,5 +129,6 @@ First release.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.1...HEAD
+[0.1.1]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.0...pivotkit-server@0.1.1
 [0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-server@0.1.0
