@@ -193,10 +193,12 @@ For example:
 icacls D:\pivotkit\app D:\pivotkit\data D:\pivotkit\secrets /grant "pivotkit-svc:(OI)(CI)RX"
 icacls D:\pivotkit\pivotkit.json /grant "pivotkit-svc:R"
 icacls D:\pivotkit\out D:\pivotkit\logs /grant "pivotkit-svc:(OI)(CI)M"
+icacls D:\pivotkit\data D:\pivotkit\logs /grant "<PSU's account>:(OI)(CI)M"
+icacls D:\pivotkit\out /grant "<PSU's account>:(OI)(CI)RX"
 ```
 
-`secrets` holds only what the two accounts and the administrators may read: remove the inherited
-rights, then grant them (`<PSU's account>` is the account the PSU service runs as):
+`<PSU's account>` is the account the PSU service runs as. `secrets` holds only what the two
+accounts and the administrators may read: remove the inherited rights, then grant them:
 
 ```powershell
 icacls D:\pivotkit\secrets /inheritance:r
@@ -233,7 +235,7 @@ Any service manager that restarts a process works. With [NSSM](https://nssm.cc/u
 ```powershell
 nssm install pivotkit "C:\Program Files\nodejs\node.exe" D:\pivotkit\app\node_modules\pivotkit-server\bin\pivotkit-server.js serve --config D:\pivotkit\pivotkit.json
 nssm set pivotkit AppDirectory D:\pivotkit
-$account = Get-Credential '.\pivotkit-svc'
+$account = Get-Credential -Credential '.\pivotkit-svc'
 nssm set pivotkit ObjectName $account.UserName $account.GetNetworkCredential().Password
 nssm set pivotkit AppStdout D:\pivotkit\logs\pivotkit.log
 nssm set pivotkit AppStderr D:\pivotkit\logs\pivotkit.log
@@ -247,7 +249,10 @@ The server writes one JSON line per event on stderr ([logging](../reference/rest
 view, value, token or path. NSSM restarts the process when it ends, and with `AppRotateFiles` and
 `AppRotateOnline` renames the log once it is larger than `AppRotateBytes` (10 MiB here), also while
 the service runs. The password goes from `Get-Credential` to NSSM in a variable, so it is not in the
-shell's history. NSSM keeps every renamed file, so a PSU schedule deletes old ones:
+shell's history, but it is an argument of `nssm`, visible in the process list while that command
+runs. To avoid that, leave out the `ObjectName` line and set the account in the service's
+properties instead (`services.msc`, **Log On**), or install with NSSM's dialog
+(`nssm install pivotkit` without a program), whose **Log on** tab takes the account. NSSM keeps every renamed file, so a PSU schedule deletes old ones:
 
 ```powershell
 Get-ChildItem 'D:\pivotkit\logs\pivotkit-*.log' | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
@@ -288,8 +293,8 @@ The server listens on 127.0.0.1, so only IIS reaches it. Set `http.trustProxy` o
 the client's address into `X-Forwarded-For`; the server then counts refused tokens per client and
 logs the client's address ([behind a reverse proxy](../reference/rest.md#running)). ARR ends a
 request that takes longer than its **Time-out** (in the same **Server Proxy Settings**); keep it
-above the 30 seconds a request to the server may take, so a long answer of `/mcp` is not cut off
-(not tested with ARR).
+above the longest a request to the server may take (an HTTP request to `/mcp` has 30 seconds,
+[MCP server](../reference/mcp.md#http)), so a long answer is not cut off (not tested with ARR).
 
 A server that offers MCP alone runs the same way with `pivotkit-mcp`'s own command
 (`node_modules\pivotkit-mcp\bin\pivotkit-mcp.js --config ... --http --auth token`, the token in
