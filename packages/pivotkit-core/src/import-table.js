@@ -117,14 +117,15 @@ export function fileError(reason, file, message, params = {}) {
  * @param {number} value
  * @param {number} max
  * @param {string} file
- * @param {string} what  "rows", "columns", ...
+ * @param {string} what  what was counted, in English ("rows", "columns", "shared strings and
+ *   formats"): in the message and in `details.what`, so a UI can tell two counts of one limit apart
  */
 export function limitError(limit, value, max, file, what) {
     const n = (x) => x.toLocaleString("en-US");
     return new PivotkitError(
         "LIMIT_EXCEEDED",
         `"${file}" has more than ${n(max)} ${what} (limits.${limit}): load a smaller extract of it, or a host can raise this limit`,
-        { limit, value, max, file }
+        { limit, value, max, file, what }
     );
 }
 

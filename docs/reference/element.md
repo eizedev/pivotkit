@@ -55,7 +55,7 @@ supported.
 | `fileName` | `file-name` | `string` | `"pivot"` | Name of exported files, without the extension; made safe. |
 | `label` | `label` | `string` | `labels.report` | The name of the report's region landmark; give each report on a page its own (`label="Tickets"`). |
 | `drillDown` | `drill-down` | `boolean` | `true` | The panel with the rows behind a clicked value; `drill-down="false"` turns it off. |
-| `exportData` | `export-data` | `boolean` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line; a boolean attribute (`<pivot-report export-data>`). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
+| `exportData` | `export-data` | `boolean \| { columns?: string[] }` | `false` | Export → Source data: every row and column of the data as a CSV or JSON file (`pivot-data.csv`), for the user's own analysis or the command line; present as a boolean attribute (`<pivot-report export-data>`), or a JSON object for some columns only, which the drill-down's exports keep to as well (`export-data='{"columns":["Region","Revenue"]}'`, or the property); text it cannot read is off and said once in the console. As the React prop [`exportData`](react.md#prop-exportdata). It holds columns no view places and rows the filters leave out: [Security](../security.md#source-data). |
 | `drillDownLimit` | `drill-down-limit` | `number` | `1000` | Rows passed to the panel and to `pivot-cell-click`; the panel's exports hold these rows and say when there are more ("1,000 of 4,212 rows"). |
 | `tips` | `tips` | `string` | `"on"` | The tips above the result: `"on"`, `"off"` (none, and no switch in Options) or the tip ids allowed, comma-separated (`tips="top,cells"`); the ids are in the [React reference](react.md#tips). |
 | `storageKey` | `storage-key` | `string` |  | Remembers dismissed tips and the help switches in `localStorage` under `pivotkit:tips:<key>`; give each element on a page its own. [More](#prop-storagekey) |
@@ -399,16 +399,16 @@ above.
 
 ## Bundle size
 
-What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-13
+What a page loads, measured with `npm run size -w pivotkit-element` on one Mac on 2026-11-14
 (esbuild 0.28.2, gzip level 9 per file, sizes add up per group; approximate, they change with every
 dependency update). CI runs the same command; it fails when a group is over `SIZE_BUDGET_KIB` in
-`build.js` (173 KiB for the first load, about 0.3 above what CI measures; 1 to 7 per cent
+`build.js` (175 KiB for the first load, about 0.5 above what CI measures; 1 to 7 per cent
 above what CI measures for the groups loaded later; CI reads up to about 0.7 KiB more than these
 numbers):
 
 | Loaded | Files | Size | gzip |
 | --- | ---: | ---: | ---: |
-| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 528 KiB | 172 KiB |
+| First (`index.js` and its static imports: React, ReactDOM, pivotkit-react, pivotkit-core, @dnd-kit, styles) | 11 | 533 KiB | 174 KiB |
 | On the first chart (ECharts with bar, line, pie (also the donut), heatmap, the components they use, the title among them, the canvas renderer, and the layout of the chart's labels) | 2 | 631 KiB | 216 KiB |
 | On the first export or copy (pivotkit-core's export, and fflate as a chunk it shares with the link; the Export menu and the drill-down's start loading it when they open) | 3 | 27 KiB | 12 KiB |
 | On the first shared link, Copy link or loaded link (pivotkit-core's link with fflate) | 2 | 15 KiB | 7 KiB |

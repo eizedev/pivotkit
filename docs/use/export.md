@@ -31,7 +31,8 @@ While no field is placed there is no table to export: its entries are greyed out
 first." under them, and nothing is downloaded or copied. The source data is there all the same.
 
 The menu has three titled groups, **Download**, **Print** and **Copy**, and a fourth, **Source data**,
-last, where the application turns it on (the playground does). The drill-down's Export menu
+last, where the application turns it on (the playground does); it may hold only some of the
+fields. The drill-down's Export menu
 has **Download** and **Copy** with the rows behind a number; it has no HTML report, SVG or print. An
 **i** next to Excel, Table as CSV, HTML report, Print, Copy table, Copy data as JSON and the two
 source data entries says what each holds; its text opens above
@@ -148,8 +149,9 @@ note says so: "This page does not allow copying. Download a file instead."
     keep it or print it its own way ([React props](../reference/react.md#props)). Source data is off
     unless the host sets `exportData` ([React](../reference/react.md#prop-exportdata),
     [web component](../reference/element.md): `export-data`); it holds every row and column the report
-    has, also those it does not show ([security](../security.md#source-data)). Its files are
-    pivotkit-core's `dataToCsvBytes` and `dataToJson` ([pivotkit-core](../reference/core.md)). The HTML report and the SVG are
+    has (or the columns `exportData` names, which the drill-down's exports keep to as well), also
+    those it does not show ([security](../security.md#source-data)). Its files are
+    pivotkit-core's `dataToCsvParts` and `dataToJson` ([pivotkit-core](../reference/core.md)). The HTML report and the SVG are
     [pivotkit-report](../reference/report.md)'s, the same as the command line's
     ([pivotkit-cli](../reference/cli.md)). The shape of Copy data as JSON is
     [pivotkit-core's `toJson`](../reference/core.md); how formats reach Excel and CSV is in

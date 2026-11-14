@@ -1,6 +1,6 @@
 // Compiled by `npm run test:types` against the generated declarations, through the package's own
 // exports map: the published types must describe the public API as a TypeScript user sees it.
-import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, isDateMs, MAX_DATE_MS, normalize, PivotkitError, relativeDateRange, toEChartsOption, toGrid, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
+import { computePivot, encode, fieldDefaultsFromSchema, fieldLabel, isDateMs, MAX_DATE_MS, normalize, PivotkitError, relativeDateRange, toEChartsOption, toGrid, type EncodeIssue, type Grid, type PivotResult, type SchemaFieldDefaults, type View } from "pivotkit-core";
 import { rowsToCsv, rowsToXlsx, toCsv, toJson, toTsv, toXlsx } from "pivotkit-core/export";
 import { parseTemplates, templatesFromSchema, TEMPLATE_LIMITS, TEMPLATES_EXTENSION } from "pivotkit-core/templates";
 
@@ -19,8 +19,12 @@ const firstName: string | undefined = read.templates[0]?.name;
 const fromSchema = templatesFromSchema({ [TEMPLATES_EXTENSION]: [] }, {});
 const rowsCsv: string = rowsToCsv(data, [0], { columns: ["Units"], formats: { Units: "integer" }, labels: { fields: { Units: "Units sold" } } });
 const rowsBytes: Uint8Array = rowsToXlsx(data, new Int32Array([0]), { sheetName: "Rows", locale: "de-DE" });
+// encode()'s own issues: a column name in two spellings, the row 0-based where there is one
+const caseIssues: EncodeIssue[] = encode([{ Team: "A" }, { team: "B" }]).issues;
+const caseCode: "columnCase" | "columnCaseValue" | "columnCaseLeftOut" | undefined = caseIssues[0]?.code;
+const caseRow: number | undefined = caseIssues[0]?.params.row;
 const pasted: string = toTsv(grid) + toTsv([["a", "b"]]) + toJson(grid, { space: 0 });
-export const all = [firstName, read.issues.length, fromSchema.templates.length, TEMPLATE_LIMITS.count, issues.length, bytes.length, csv.length, rowsCsv.length, rowsBytes.length, pasted.length, option, code, grid.locale, shown, schemaIssues.length];
+export const all = [firstName, read.issues.length, fromSchema.templates.length, TEMPLATE_LIMITS.count, issues.length, bytes.length, csv.length, rowsCsv.length, rowsBytes.length, pasted.length, option, code, grid.locale, shown, schemaIssues.length, caseCode, caseRow];
 
 // relative date ranges: today from options.now, the range as ISO days or null; "before" has no start
 const range: { from: string | null; to: string } | null = relativeDateRange("year", 5, { now: new Date(), timeZone: "UTC" });

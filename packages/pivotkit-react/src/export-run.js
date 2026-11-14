@@ -11,6 +11,7 @@
  */
 
 import { chartThemeFrom, toGrid } from "pivotkit-core";
+import { dataExportFor } from "./export-scope.js";
 import { copyText, dataUrlToBlob, safeFileName, saveBlob } from "./files.js";
 import { printHtml } from "./print-frame.js";
 import { lightTokens } from "./light-tokens.js";
@@ -170,13 +171,14 @@ function reportTokens(root, report, chart) {
 }
 
 /**
- * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, encoded?: import("pivotkit-core").Encoded | null, exportData?: boolean, locale: string,
+ * @typedef {{ fileName: string, result: import("pivotkit-core").PivotResult | null, encoded?: import("pivotkit-core").Encoded | null, exportData?: unknown, locale: string,
  *   labels: import("./labels.js").UiLabels, limits: object | undefined, root: React.RefObject<HTMLElement | null>,
  *   chartRef: React.RefObject<any>, announce: (text: string, extra?: { tone?: "error" }) => void,
  *   onExport?: (file: ExportFile) => unknown, title?: string | null, source?: string | null, loadECharts?: () => Promise<any> }} ExportContext
  *   `title`: the report's title in an HTML report (the loaded view's name); `source`: the data's name;
  *   `encoded`: the data shown (the host's or a loaded file's), which the source data exports, only
- *   with `exportData` (the host's prop: the menu hides it otherwise, and no other way reaches it);
+ *   with the host's `exportData` (read by export-scope.js: the menu hides it otherwise, and no other
+ *   way reaches it; `{ columns }`: only those);
  *   `loadECharts`: chart.jsx's loader of dist/echarts.js (passed in: a module of the menus that
  *   imported chart.jsx would move it out of the first load into a shared chunk)
  */
@@ -206,13 +208,19 @@ export async function runExport(kind, { fileName, result, encoded, exportData, l
         if (kind === "data-csv" || kind === "data-json") {
             // every row as it is, also while no field is placed: what a view file is applied to
             const data = encoded ?? result?.encoded;
-            if (!exportData || !data) {
+            if (!data) {
+                return;
+            }
+            const scope = dataExportFor(exportData, data);
+            if (!scope.source) {
                 return;
             }
             const m = exporters ?? (await loadExporters());
             const csv = kind === "data-csv";
             const file = `${base}-data.${csv ? "csv" : "json"}`;
-            const blob = csv ? new Blob([/** @type {BlobPart} */ (m.dataToCsvBytes(data, limits ? { limits } : {}))], { type: "text/csv;charset=utf-8" }) : new Blob([m.dataToJson(data, limits ? { limits } : {})], { type: "application/json" });
+            const options = { ...(limits ? { limits } : {}), ...(scope.columns ? { columns: scope.columns } : {}) };
+            // the CSV in pieces of whole lines: the text is never held whole (#260)
+            const blob = csv ? new Blob(/** @type {BlobPart[]} */ (m.dataToCsvParts(data, options)), { type: "text/csv;charset=utf-8" }) : new Blob([m.dataToJson(data, options)], { type: "application/json" });
             if (deliver(blob, { kind, fileName: file, doc, onExport })) {
                 announce(fill(labels.toastExported, { file }));
             }

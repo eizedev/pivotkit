@@ -34,14 +34,16 @@ column of the data the report holds, as CSV or JSON: also the columns no view pl
 report's filters leave out, and a field the host only relabels or describes (`fieldDefaults` changes
 how a field is shown, not whether it is there). It makes one click of what the browser's developer
 tools already reach, so turn it on only where the viewer may take every row home, and keep rows
-the viewer must not have off the page (aggregate on your server). The drill-down hands out rows too:
+the viewer must not have off the page (aggregate on your server). `exportData={{ columns }}` keeps
+the files, and the drill-down's copies and files, to the columns you name. The drill-down hands out rows too:
 up to `drillDownLimit` rows behind a value (the grand total's are every row), with every column, in
 its panel, its exports and `onCellClick`; turn it off with `drillDown={false}` where rows must stay
 in. `onExport` (the element's `pivot-export`) sees the file first (`kind` `"data-csv"` or
 `"data-json"`) and can log it, upload it or refuse it (`false`); it is a hook for your own code, not a
 barrier against a person with developer tools. Nothing is stored or sent: the file is made in the
 browser. Its size counts against `limits.cells` (rows times fields, default 2,000,000), checked before
-the file is built; the browser holds a few times the file's size while it is made.
+the file is built; the browser holds about twice the CSV's size while it is made (the JSON a few times
+its size).
 
 ## Views are untrusted input
 

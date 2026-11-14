@@ -184,6 +184,24 @@ test("a workbook over the archive limits of pivotkit-xlsx is said in the report'
     }
 });
 
+test("importCells: a workbook's shared strings and formats are said as such, by what the reader names, not by the file's name (issue #325)", () => {
+    const en_ = { lang: "en", locale: "en-US" };
+    const de_ = { lang: "de", locale: "de-DE" };
+    // as pivotkit-xlsx throws it for a workbook's shared strings and formats (#314)
+    const strings = limitError("importCells", 11_000_001, 11_000_000, "book.xlsx", "shared strings and formats");
+    assert.equal(strings.details.what, "shared strings and formats", "limitError keeps what the reader counted");
+    assert.equal(errorText(strings, "book.xlsx", en, en_), "it has more than 11,000,000 different texts and formats (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    assert.equal(errorText(strings, "book.xlsx", de, de_), "sie hat mehr als 11.000.000 verschiedene Texte und Formate (limits.importCells): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+    // a workbook taken by its media type, without an extension: the same words
+    const unnamed = limitError("importCells", 11_000_001, 11_000_000, "export", "shared strings and formats");
+    assert.equal(errorText(unnamed, "export", en, en_), "it has more than 11,000,000 different texts and formats (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    // a sheet whose values span too much is rows x columns, workbook or not
+    const extent = limitError("importCells", 11_000_001, 11_000_000, "book.xlsx", "values (rows x columns)");
+    assert.equal(errorText(extent, "book.xlsx", en, en_), "it has more than 11,000,000 values (rows x columns) (limits.importCells): load a smaller extract of it, or a host can raise this limit");
+    const cells = limitError("importCells", 6, 5, "cells.csv", "values (rows x columns)");
+    assert.equal(errorText(cells, "cells.csv", de, de_), "sie hat mehr als 5 Werte (Zeilen x Spalten) (limits.importCells): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben");
+});
+
 test("a host's texts for loading data (labels.dataImport) win over the defaults, of the right kind only", () => {
     const labels = resolveLabels("de-DE", { dataImport: { loadFile: "Datei öffnen…", rows: { one: "{count} Datensatz", other: "{count} Datensätze" }, cancel: 3 } });
     const t = importLabels(labels);

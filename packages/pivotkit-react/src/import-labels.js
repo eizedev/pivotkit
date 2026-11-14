@@ -47,6 +47,9 @@ export const en = {
     overLimit: "it has more than {max} {what} ({key}): load a smaller extract of it, or a host can raise this limit",
     // the limits a reader stops a file at (archiveEntries and unpackedBytes: pivotkit-xlsx's ZIP checks)
     limitWhat: { rows: "rows", columns: "columns", fileBytes: "bytes", importCells: "values (rows x columns)", archiveEntries: "parts in its ZIP directory", unpackedBytes: "bytes unpacked" },
+    // importCells reached by a workbook's shared strings and formats (pivotkit-xlsx's details.what),
+    // not by its rows x columns
+    workbookCells: "different texts and formats",
     sourceLine: "{name}, only in this browser",
     sourceSheet: "{name}, sheet “{sheet}”, only in this browser",
     // a saved view made on a workbook's sheet that the workbook loaded now does not have (it loads on the sheet shown)
@@ -120,6 +123,7 @@ export const de = {
     refused: "{name} wurde nicht geladen: {message}",
     overLimit: "sie hat mehr als {max} {what} ({key}): eine kleinere Auswahl daraus laden, oder eine Anwendung kann diese Grenze anheben",
     limitWhat: { rows: "Zeilen", columns: "Spalten", fileBytes: "Bytes", importCells: "Werte (Zeilen x Spalten)", archiveEntries: "Teile in ihrem ZIP-Verzeichnis", unpackedBytes: "entpackte Bytes" },
+    workbookCells: "verschiedene Texte und Formate",
     sourceLine: "{name}, nur in diesem Browser",
     sourceSheet: "{name}, Blatt „{sheet}“, nur in diesem Browser",
     sheetMissing: "„{name}“ wurde für das Blatt „{sheet}“ gemacht, das {file} nicht hat.",
@@ -205,9 +209,11 @@ export function noteText(note, texts, where) {
 
 /**
  * Why a file could not be read, after "{name} could not be loaded:", which names the file: a limit of
- * pivotkit-core (`LIMIT_EXCEEDED` with a limit this version has words for) in the report's language
- * with its key (`limits.rows`, whose words fit `importLimits` too), else the reader's own English
- * message without the file's name in front (`"name": ` of `fileError`, `"name" ` of `limitError`).
+ * pivotkit-core (`LIMIT_EXCEEDED` with a limit this version has words for; `importCells` reached
+ * by a workbook's shared strings and formats, as `details.what` says, in the words of
+ * `workbookCells`) in the report's language with its key (`limits.rows`, whose words fit
+ * `importLimits` too), else the reader's own English message without the file's name in front
+ * (`"name": ` of `fileError`, `"name" ` of `limitError`).
  * @param {unknown} error
  * @param {string} name  the file's name
  * @param {ImportTexts} texts
@@ -217,7 +223,12 @@ export function errorText(error, name, texts, where) {
     const e = /** @type {any} */ (error);
     const d = e && typeof e === "object" && e.code === "LIMIT_EXCEEDED" && e.details && typeof e.details === "object" ? e.details : null;
     if (d && typeof d.limit === "string" && Object.hasOwn(texts.limitWhat, d.limit) && typeof d.max === "number") {
-        return fill(texts.overLimit, { max: d.max.toLocaleString(where.locale), what: /** @type {any} */ (texts.limitWhat)[d.limit], key: `limits.${d.limit}` });
+        // importCells counts a workbook's shared strings and formats too: the reader's `what` says
+        // which of the two counts it reached
+        const counted = typeof d.what === "string" ? d.what : "";
+        const strings = d.limit === "importCells" && /shared strings/i.test(counted);
+        const what = strings ? texts.workbookCells : /** @type {any} */ (texts.limitWhat)[d.limit];
+        return fill(texts.overLimit, { max: d.max.toLocaleString(where.locale), what, key: `limits.${d.limit}` });
     }
     const text = messageOf(error);
     for (const prefix of [`"${name}": `, `"${name}" `]) {

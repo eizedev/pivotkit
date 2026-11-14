@@ -19,7 +19,8 @@ export class PivotkitError extends Error {
     /**
      * @param {PivotkitErrorCode} code
      * @param {string} message
-     * @param {Record<string, unknown>} [details]  for LIMIT_EXCEEDED: { limit, value, max }; for INVALID_FILE: { reason, file }
+     * @param {Record<string, unknown>} [details]  for LIMIT_EXCEEDED: { limit, value, max }, for a file also
+     *   { file, what } (what was counted, in English); for INVALID_FILE: { reason, file }
      */
     constructor(code, message, details = {}) {
         super(message);
