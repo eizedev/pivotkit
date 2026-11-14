@@ -136,10 +136,10 @@ test("draft_schedule: a draft document and its file, never an address as recipie
 
 test("findings carry no control or direction characters and are capped; every error code has an HTTP status", () => {
     for (const text of HOSTILE) {
-        const f = findingOf({ severity: "warning", code: "x", path: text, message: `${text}‮${"y".repeat(500)}`, params: { suggestion: text } });
+        const f = findingOf({ severity: "warning", code: "x", path: text, message: `${text}\u202e${"y".repeat(500)}`, params: { suggestion: text } });
         for (const part of [f.path, f.message, f.suggestion]) {
             // eslint-disable-next-line no-control-regex
-            assert.doesNotMatch(part, /[\u0000-\u001f\u007f‮]/);
+            assert.doesNotMatch(part, /[\u0000-\u001f\u007f\u202e]/);
             assert.ok(part.length <= 200);
         }
     }

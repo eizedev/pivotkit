@@ -22,6 +22,7 @@ import { RENDER_FORMATS, render } from "./render.js";
 export const OPERATION_ERRORS = Object.freeze({
     INVALID_INPUT: 400,
     FILES_NOT_ALLOWED: 403,
+    NOT_ALLOWED: 403,
     SOURCE_NOT_FOUND: 404,
     FILE_NOT_AVAILABLE: 404,
     NO_OUTPUT: 409,
@@ -123,7 +124,7 @@ export function findingOf(issue) {
 
 /**
  * @typedef {object} OperationOutcome
- * @property {Record<string, unknown>} result  what the output schema describes
+ * @property {Record<string, any>} result  what the output schema describes
  * @property {{ bytes: Uint8Array, mediaType: string, extension: string, name: string }} [file]  a file the front end writes, sends or shows
  */
 
@@ -465,7 +466,8 @@ export const OPERATIONS = Object.freeze({
             });
             const findings = [...(source.notes ?? []), ...result.issues.map(findingOf)];
             const kind = RENDER_FORMATS[format];
-            const name = input.name ?? input.title ?? (read.name || "report");
+            // the file's name: the one asked for, else the title, the view's name, the data's name
+            const name = input.name ?? input.title ?? (read.name || String(source.name || "report").replace(/\.[a-z0-9]+$/i, ""));
             return {
                 result: { ok: result.ok, findings, uses: result.view ? viewFileFields(result.view) : [], format, mediaType: kind.mediaType, summary: result.summary },
                 ...(result.body ? { file: { bytes: result.body, mediaType: kind.mediaType, extension: kind.extension, name } } : {})
