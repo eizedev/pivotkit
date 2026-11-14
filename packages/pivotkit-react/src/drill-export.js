@@ -8,9 +8,25 @@
  */
 
 import { decodeRow } from "./drill.js";
+import { pickColumns } from "./export-scope.js";
 import { safeFileName } from "./files.js";
 import { fill, messageOf, plural } from "./labels.js";
 import { XLSX_TYPE, copyOut, deliver, exportersNow, loadExporters } from "./export-run.js";
+
+/**
+ * A row's values of the given columns only, in their order (no prototype: a field named "__proto__"
+ * is a key like any other).
+ * @param {Record<string, unknown>} row
+ * @param {Array<{ name: string }>} columns
+ */
+function pick(row, columns) {
+    /** @type {Record<string, unknown>} */
+    const out = Object.create(null);
+    for (const c of columns) {
+        out[c.name] = row[c.name];
+    }
+    return out;
+}
 
 /** @typedef {"drill-copy" | "drill-json" | "drill-csv" | "drill-xlsx"} DrillExportKind */
 
@@ -31,22 +47,25 @@ export function rowsText({ shown, count }, labels, locale) {
  * @param {DrillExportKind} kind
  * @param {{ drill: { name: string, count: number, locale: string, indices: ArrayLike<number>, formats: Record<string, string>,
  *     columns: Array<{ name: string, label?: string }>, rows: string[][] },
- *   encoded: import("pivotkit-core").Encoded, labels: import("./labels.js").UiLabels,
+ *   encoded: import("pivotkit-core").Encoded, labels: import("./labels.js").UiLabels, columns?: string[],
  *   onExport?: (file: import("./export-run.js").ExportFile) => unknown,
  *   announce: (text: string, extra?: { tone?: "error" }) => void, root: HTMLElement | null }} context
  */
-export async function exportDrill(kind, { drill, encoded, labels, onExport, announce, root }) {
+export async function exportDrill(kind, { drill, encoded, labels, columns, onExport, announce, root }) {
     const { locale } = drill;
     const part = { shown: drill.rows.length, count: drill.count };
     const rows = rowsText(part, labels, locale);
     const base = safeFileName(drill.name);
     try {
         const m = exportersNow() ?? (await loadExporters());
+        // the host's exportData columns (#259), else every column the panel shows
+        const picked = pickColumns(drill.columns.map((c) => c.name), columns);
+        const shown = picked.map((c) => drill.columns[c]);
         if (kind === "drill-copy" || kind === "drill-json") {
             const json = kind === "drill-json";
             const text = json
-                ? JSON.stringify(Array.from(drill.indices, (i) => decodeRow(encoded, i)), null, 2)
-                : m.toTsv([drill.columns.map((c) => c.label ?? c.name), ...drill.rows]);
+                ? JSON.stringify(Array.from(drill.indices, (i) => (columns ? pick(decodeRow(encoded, i), shown) : decodeRow(encoded, i))), null, 2)
+                : m.toTsv([shown.map((c) => c.label ?? c.name), ...drill.rows.map((row) => picked.map((c) => row[c]))]);
             const done = await copyOut(text, { kind, fileName: `${base}.${json ? "json" : "tsv"}`, type: json ? "application/json" : "text/tab-separated-values", container: root, onExport, rows: part });
             if (done !== "kept") {
                 announce(done === "copied" ? fill(json ? labels.drillCopiedJson : labels.drillCopied, { rows }) : labels.toastCopyBlocked, done === "copied" ? undefined : { tone: "error" });
@@ -55,8 +74,8 @@ export async function exportDrill(kind, { drill, encoded, labels, onExport, anno
         }
         const xlsx = kind === "drill-xlsx";
         // the headers as the panel shows them, yes/no in the report's words
-        const fields = Object.fromEntries(drill.columns.map((c) => [c.name, c.label ?? c.name]));
-        const options = { locale, formats: drill.formats, labels: { fields, true: labels.core.true, false: labels.core.false } };
+        const fields = Object.fromEntries(shown.map((c) => [c.name, c.label ?? c.name]));
+        const options = { locale, formats: drill.formats, columns: shown.map((c) => c.name), labels: { fields, true: labels.core.true, false: labels.core.false } };
         const file = `${base}.${xlsx ? "xlsx" : "csv"}`;
         const bytes = xlsx ? m.rowsToXlsx(encoded, drill.indices, { ...options, sheetName: drill.name }) : m.rowsToCsvBytes(encoded, drill.indices, options);
         const blob = new Blob([/** @type {BlobPart} */ (bytes)], { type: xlsx ? XLSX_TYPE : "text/csv;charset=utf-8" });

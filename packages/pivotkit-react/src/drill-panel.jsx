@@ -25,7 +25,8 @@ import { prepareExporters } from "./export-run.js";
 /**
  * @param {{ drill: import("./drill-table.js").DrillSource | null, onClose: () => void, labels: import("./labels.js").UiLabels, locale: string,
  *   exportContext?: { encoded: import("pivotkit-core").Encoded, onExport?: (file: import("./export-run.js").ExportFile) => unknown,
- *     announce: (text: string, extra?: { tone?: "error" }) => void, root: React.RefObject<HTMLElement | null> } }} props
+ *     announce: (text: string, extra?: { tone?: "error" }) => void, root: React.RefObject<HTMLElement | null>, columns?: string[] } }} props
+ *   `exportContext`: the panel's exports, only with the host's exportData (`columns`: only those)
  */
 export function DrillPanel({ drill: source, onClose, labels, locale, exportContext }) {
     const id = useId();

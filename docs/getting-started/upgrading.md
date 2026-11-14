@@ -1,12 +1,27 @@
 ---
 title: Upgrading
-description: What a host or a script checks when it moves to the next release of pivotkit - from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
+description: What a host or a script checks when it moves to the next release of pivotkit - from 0.6.0 to 0.6.1 (the drill-down's exports come with exportData), from 0.5 to 0.6 (Table as CSV, Source data, the report's words and the command line) and from 0.4 to 0.5 (view and file format 2, dark theme selectors, the colour scale, labels, font weights, chart text and column subtotals).
 ---
 
 # Upgrading
 
 Each section lists what changes between two releases and whom it concerns; **Breaking** marks a
 change that needs your action when it applies.
+
+## From 0.6.0 to 0.6.1 { #from-0-6-0 }
+
+| Change | Applies to you when | Action |
+| --- | --- | --- |
+| [The drill-down's exports](#drill-exports) | your users copy or download the rows of a drill-down, and `exportData` is off | turn `exportData` on (or `exportData={{ columns }}` with the columns they may take) |
+
+### The drill-down's exports { #drill-exports }
+
+**Breaking** for hosts whose users copy or download a drill-down's rows. The drill-down panel's
+Export menu (Copy, Copy as JSON, Download CSV, Download Excel) now comes with `exportData`
+(`export-data`), as Source data does: off by default, so a host that keeps rows in does not hand them
+out from the panel. The panel still shows its rows, and `onCellClick` still gets them.
+`exportData={{ columns: [...] }}` keeps both to those columns
+([React](../reference/react.md#prop-exportdata), [Security](../security.md#source-data)).
 
 ## From 0.5 to 0.6 { #from-0-5 }
 

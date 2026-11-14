@@ -36,7 +36,8 @@ rows or download them.
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-light.png#only-light)
 ![The rows behind the grand total, enlarged, with the Export menu open: Copy, Copy as JSON, Download CSV, Download Excel, and the note that it holds the first 1,000 of 4,000 rows](../assets/screenshots/drill-export-dark.png#only-dark)
 
-The panel's **Export** menu, in two groups, **Copy** and **Download**:
+The panel's **Export** menu, in two groups, **Copy** and **Download**, where the application turns
+the source data on (the playground does); without it the panel shows the rows and has no Export menu:
 
 | Entry | Gives |
 | --- | --- |
@@ -56,4 +57,5 @@ The panel's **Export** menu, in two groups, **Copy** and **Download**:
     `drillDown` turns the panel off, `drillDownLimit` sets how many rows it gets, `onCellClick` gives
     the host the clicked cell and its rows, and `fieldDefaults.drillFormat` a field's format in the
     panel; every copy and file passes `onExport` first (`drill-copy`, `drill-json`, `drill-csv`,
-    `drill-xlsx`). See the [pivotkit-react reference](../reference/react.md#props).
+    `drill-xlsx`). The Export menu comes with `exportData`, and `exportData={{ columns }}` keeps its
+    copies and files to those columns. See the [pivotkit-react reference](../reference/react.md#props).

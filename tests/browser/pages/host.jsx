@@ -19,7 +19,8 @@
 // onDataLoad ("data:<cause>") and onViewChange ("view") in their order. window.__chartOption() reads the option
 // the chart draws, from the ECharts the report loaded (the same module through the import map). ?importlimits
 // sets importLimits rows 1,000 and cells 100 and limits columns 4: the host's 2,000 rows and its grid of more
-// than 100 cells stay, a file gets all three.
+// than 100 cells stay, a file gets all three. ?exportcolumns=A,B sets exportData to { columns: ["A", "B"] };
+// without it exportData is off, as by default.
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PivotReport } from "pivotkit-react";
@@ -98,6 +99,8 @@ function Host() {
         ...(query.has("xss") ? { chartOptions: { tooltip: { formatter: '<img src="x" onerror="window.__xss = true">' }, series: { barMaxWidth: 10 } } } : {}),
         ...(query.has("import") ? { allowImport: true, plugins: [xlsxReader], onDataLoad: (d) => (window.__loads.push(d), window.__order.push(`data:${d.cause}`)), templateStore: "browser", storageKey: "host-import", source: { id: "sales", name: "Sales" } } : {}),
         ...(query.has("nokey") ? { storageKey: undefined } : {}),
+        // Source data and the drill-down's exports with only these columns (a new object on every render)
+        ...(query.has("exportcolumns") ? { exportData: { columns: query.get("exportcolumns").split(",") } } : {}),
         // a host that keeps uploads small without capping its own 2,000 rows (new objects on every render)
         ...(query.has("importlimits") ? { importLimits: { rows: 1000, cells: 100 }, limits: { columns: 4 } } : {})
     };

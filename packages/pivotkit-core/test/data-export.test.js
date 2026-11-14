@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computePivot, encode } from "../src/index.js";
-import { dataToCsv, dataToCsvBytes, dataToJson } from "../src/export.js";
+import { dataToCsv, dataToCsvBytes, dataToCsvParts, dataToJson } from "../src/export.js";
 import { readFile } from "../src/import.js";
 
 const ROWS = [
@@ -59,6 +59,28 @@ test("dataToCsvBytes: UTF-8 with a byte order mark unless bom is false", () => {
     const bytes = dataToCsvBytes(data, { columns: ["Code"] });
     assert.deepEqual([...bytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);
     assert.equal(new TextDecoder().decode(dataToCsvBytes(data, { columns: ["Code"], bom: false })), "Code\r\n007\r\n12\r\nA-1\r\n");
+});
+
+test("dataToCsvParts: the file in pieces of whole lines, together the bytes of dataToCsvBytes (#260)", () => {
+    // enough rows for several pieces, with text that needs quotes and characters of more than one byte
+    const many = encode(Array.from({ length: 25_000 }, (_, i) => ({ Name: i % 7 ? `Zürich, ${i}` : `line\n${i}`, Amount: i / 3, Day: `2026-07-${String((i % 28) + 1).padStart(2, "0")}` })));
+    const parts = dataToCsvParts(many);
+    assert.ok(parts.length > 1, `${parts.length} piece`);
+    assert.ok(parts.every((p) => p instanceof Uint8Array));
+    const joined = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) {
+        joined.set(p, at);
+        at += p.length;
+    }
+    assert.deepEqual(joined, dataToCsvBytes(many));
+    assert.equal(new TextDecoder("utf-8", { ignoreBOM: true }).decode(joined), `\uFEFF${dataToCsv(many)}`);
+    // each piece ends with a line: no character and no quoted value is cut between two pieces
+    for (const p of parts) {
+        assert.equal(new TextDecoder().decode(p).slice(-2), "\r\n");
+    }
+    // the options as dataToCsvBytes takes them
+    assert.equal(new TextDecoder().decode(dataToCsvParts(data, { columns: ["Code"], bom: false })[0]), "Code\r\n007\r\n12\r\nA-1\r\n");
 });
 
 test("dataToJson: an array of row objects with typed values, null for a blank, no formula guard", () => {

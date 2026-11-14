@@ -6,6 +6,18 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Upgrading from 0.6.0
+
+- The drill-down panel's Export menu comes with `export-data` now, as in pivotkit-react: off by
+  default. A page whose users copy or download a drill-down's rows sets `export-data`
+  ([#263](https://github.com/eizedev/pivotkit/issues/263)).
+
+### Added
+
+- `export-data` takes a JSON object for some columns only (`export-data='{"columns":["Region","Revenue"]}'`,
+  or the `exportData` property as an object): Source data and the drill-down's exports hold those
+  columns. Text it cannot read is off ([#259](https://github.com/eizedev/pivotkit/issues/259)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5

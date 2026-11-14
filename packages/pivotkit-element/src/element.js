@@ -309,9 +309,12 @@ export class PivotReportElement extends Base {
         this.#write("drill-down", value);
     }
 
-    /** Export → Source data: every row of the data as a CSV or JSON file (default false; boolean attribute export-data). */
+    /**
+     * Export → Source data and the drill-down's exports: true for every column, `{ columns }` for
+     * those only (default false; attribute export-data, present or a JSON object).
+     */
     get exportData() {
-        return /** @type {boolean} */ (this.#read("export-data"));
+        return /** @type {boolean | { columns?: string[] }} */ (this.#read("export-data"));
     }
     set exportData(value) {
         this.#write("export-data", value);

@@ -7,13 +7,15 @@
  *   with a native element: setting the property sets the attribute, null or undefined removes it.
  * - "flag": a boolean attribute (present = true). "on-unless-false": true unless the attribute is
  *   "false" (drill-down defaults to on). "flag-or-url": present = true, a value other than "" and
- *   "true" is a URL ("false" turns it off).
+ *   "true" is a URL ("false" turns it off). "flag-or-json": present = true, "false" off, a JSON object
+ *   that object (Source data's `{ "columns": [...] }`); any other text is off, so a mistake hands
+ *   out nothing.
  * - "json": the attribute is parsed into the property (a view); setting the property does not write
  *   the attribute back, since a view is an object.
  */
 
 /**
- * @typedef {"string" | "number" | "theme" | "height" | "flag" | "on-unless-false" | "flag-or-url" | "session" | "on-off" | "json"} AttributeKind
+ * @typedef {"string" | "number" | "theme" | "height" | "flag" | "on-unless-false" | "flag-or-url" | "flag-or-json" | "session" | "on-off" | "json"} AttributeKind
  * @typedef {{ attr: string, prop: string, kind: AttributeKind }} AttributeDef
  */
 
@@ -27,7 +29,7 @@ export const ATTRIBUTES = Object.freeze([
     { attr: "label", prop: "label", kind: "string" },
     { attr: "drill-down", prop: "drillDown", kind: "on-unless-false" },
     { attr: "drill-down-limit", prop: "drillDownLimit", kind: "number" },
-    { attr: "export-data", prop: "exportData", kind: "flag" },
+    { attr: "export-data", prop: "exportData", kind: "flag-or-json" },
     { attr: "save-templates", prop: "saveTemplates", kind: "flag" },
     { attr: "template-store", prop: "templateStore", kind: "string" },
     { attr: "can-publish", prop: "canPublish", kind: "flag" },
@@ -66,6 +68,13 @@ export function fromAttribute(def, value) {
             return value !== null;
         case "on-unless-false":
             return value === null || value.trim().toLowerCase() !== "false";
+        case "flag-or-json": {
+            const text = value?.trim() ?? null;
+            if (text === null || text.toLowerCase() === "false") {
+                return false;
+            }
+            return text === "" || text.toLowerCase() === "true" ? true : (parseJson(text) ?? false);
+        }
         case "flag-or-url": {
             const text = value?.trim() ?? null;
             if (text === null || text.toLowerCase() === "false") {
@@ -116,6 +125,8 @@ export function toAttribute(def, value) {
             return value === false ? "false" : null;
         case "flag-or-url":
             return value === true ? "" : typeof value === "string" && value.trim() ? value.trim() : null;
+        case "flag-or-json":
+            return value === true ? "" : value && typeof value === "object" ? JSON.stringify(value) : null;
         case "number":
         case "height":
             return value === null || value === undefined || value === "" ? null : String(value);

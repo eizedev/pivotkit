@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cellRows, computePivot, encode } from "pivotkit-core";
 import { exportDrill, rowsText } from "../src/drill-export.js";
+import { dataExportOf, pickColumns } from "../src/export-scope.js";
 import { drillTable } from "../src/drill-table.js";
 import { LABELS } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
@@ -254,4 +255,17 @@ test("the new export texts exist in English and German", () => {
     }
     assert.equal(en.exportPrint, "Print or save as PDF…");
     assert.equal(de.exportPrint, "Drucken oder als PDF speichern…");
+});
+
+test("exportData: off unless the host says so; columns picked as the core's exporters pick them (#259, #263)", () => {
+    for (const off of [undefined, false, null, 0, "", "yes", ["Region"], { columns: "Region" }]) {
+        assert.equal(dataExportOf(off), null, JSON.stringify(off));
+    }
+    assert.deepEqual(dataExportOf(true), {});
+    assert.deepEqual(dataExportOf({}), {});
+    assert.deepEqual(dataExportOf({ columns: ["Revenue", 3, "Region"] }), { columns: ["Revenue", "Region"] });
+    const names = ["Region", "Country", "Revenue"];
+    assert.deepEqual(pickColumns(names, undefined), [0, 1, 2]);
+    assert.deepEqual(pickColumns(names, ["revenue", "Nope", "REGION", "Revenue"]), [2, 0]);
+    assert.deepEqual(pickColumns(names, []), []);
 });

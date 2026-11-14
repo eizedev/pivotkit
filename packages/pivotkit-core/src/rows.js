@@ -232,7 +232,7 @@ function dataColumns(data, options, fn) {
  */
 export function dataToCsv(data, options) {
     options = optionsOf(options, "dataToCsv");
-    return dataCsv(data, options, "dataToCsv");
+    return [...dataCsv(data, options, "dataToCsv")].join("");
 }
 
 /**
@@ -242,17 +242,52 @@ export function dataToCsv(data, options) {
  * @returns {Uint8Array}
  */
 export function dataToCsvBytes(data, options) {
-    options = optionsOf(options, "dataToCsvBytes");
-    return new TextEncoder().encode((options.bom === false ? "" : "﻿") + dataCsv(data, options, "dataToCsvBytes"));
+    const parts = csvParts(data, optionsOf(options, "dataToCsvBytes"), "dataToCsvBytes");
+    const bytes = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let at = 0;
+    for (const p of parts) {
+        bytes.set(p, at);
+        at += p.length;
+    }
+    return bytes;
 }
 
-function dataCsv(data, options, fn) {
+/**
+ * The bytes of dataToCsvBytes in pieces of whole lines, for a Blob (`new Blob(parts)`): the text is
+ * never held whole, so a large file takes about its own size while it is made, not a few times it.
+ * @param {import("./encode.js").Encoded} data
+ * @param {DataOptions & { bom?: boolean }} [options]
+ * @returns {Uint8Array[]}
+ */
+export function dataToCsvParts(data, options) {
+    return csvParts(data, optionsOf(options, "dataToCsvParts"), "dataToCsvParts");
+}
+
+/** Lines per piece of the CSV: a few MB of text at most for ordinary rows. */
+const CSV_PIECE_LINES = 10_000;
+
+function csvParts(data, options, fn) {
+    const encoder = new TextEncoder();
+    const parts = [];
+    let first = true;
+    for (const piece of dataCsv(data, options, fn)) {
+        parts.push(encoder.encode(first && options.bom !== false ? `\uFEFF${piece}` : piece));
+        first = false;
+    }
+    return parts;
+}
+
+/**
+ * The CSV of the data in pieces of whole lines (CSV_PIECE_LINES each), each ending with "\r\n".
+ * @returns {Generator<string>}
+ */
+function* dataCsv(data, options, fn) {
     const { columns, cell } = dataColumns(data, options, fn);
     const text = (v) => {
         const safe = exportText(String(v));
         return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
-    const lines = [columns.map((c) => text(c.name)).join(",")];
+    let lines = [columns.map((c) => text(c.name)).join(",")];
     // a blank is empty, except as the only value of a line: an empty line is skipped by every reader
     const blank = columns.length === 1 ? '""' : "";
     for (let i = 0; i < data.length; i++) {
@@ -262,8 +297,14 @@ function dataCsv(data, options, fn) {
             line[c] = v === null ? blank : typeof v === "string" ? text(v) : String(v);
         }
         lines.push(line.join(","));
+        if (lines.length === CSV_PIECE_LINES) {
+            yield lines.join("\r\n") + "\r\n";
+            lines = [];
+        }
     }
-    return lines.join("\r\n") + "\r\n";
+    if (lines.length) {
+        yield lines.join("\r\n") + "\r\n";
+    }
 }
 
 /**
