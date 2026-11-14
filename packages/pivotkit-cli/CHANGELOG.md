@@ -19,12 +19,19 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
   inferred another one (text such as `1e3` in a CSV stays text): an `info` finding `typeFromView`;
   a type the column's values do not fit is not applied (`typeFromViewFailed`, a warning).
 
+### Changed
+
+- A view file or link that names a sheet the workbook given with `--data` does not have is an error
+  (exit 2, `NO_SHEET`) instead of a run on the first sheet; `--sheet` reads another
+  ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+
 ### Fixed
 
 - `render`, `validate` and `describe` read the sheet of a workbook a view file or link names
   (`source.params.sheet`, written by pivotkit-react) when `--sheet` is not given, instead of the first
   sheet; `--sheet` overrides it. A sheet the workbook does not have, from `--sheet` or the view, is an
-  `io` error `NO_SHEET` that lists the sheets there are ([#252](https://github.com/eizedev/pivotkit/issues/252)).
+  `io` error `NO_SHEET` that lists the sheets there are; a host's own `source.params.sheet` is read
+  the same way when such a view is rendered on a workbook ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - The help's examples name view files `.pivotkit.json`, as the report downloads them.
 
 ## [0.1.0] - 2026-11-13

@@ -49,6 +49,10 @@ export const en = {
     limitWhat: { rows: "rows", columns: "columns", fileBytes: "bytes", importCells: "values (rows x columns)", archiveEntries: "parts in its ZIP directory", unpackedBytes: "bytes unpacked" },
     sourceLine: "{name}, only in this browser",
     sourceSheet: "{name}, sheet “{sheet}”, only in this browser",
+    // a saved view made on a workbook's sheet that the workbook loaded now does not have (it loads on the sheet shown)
+    sheetMissing: "“{name}” was made for the sheet “{sheet}”, which {file} does not have.",
+    // the host refused the sheet a saved view was made on (onDataLoad): the view is not opened
+    sheetRefused: "“{name}” was not opened: the sheet “{sheet}” was not loaded.",
     notes: {
         ENCODING: "Read as {encoding}.",
         SEPARATOR: "Values separated by {name}.",
@@ -115,6 +119,8 @@ export const de = {
     limitWhat: { rows: "Zeilen", columns: "Spalten", fileBytes: "Bytes", importCells: "Werte (Zeilen x Spalten)", archiveEntries: "Teile in ihrem ZIP-Verzeichnis", unpackedBytes: "entpackte Bytes" },
     sourceLine: "{name}, nur in diesem Browser",
     sourceSheet: "{name}, Blatt „{sheet}“, nur in diesem Browser",
+    sheetMissing: "„{name}“ wurde für das Blatt „{sheet}“ gemacht, das {file} nicht hat.",
+    sheetRefused: "„{name}“ wurde nicht geöffnet: das Blatt „{sheet}“ wurde nicht geladen.",
     notes: {
         ENCODING: "Gelesen als {encoding}.",
         SEPARATOR: "Werte getrennt durch {name}.",

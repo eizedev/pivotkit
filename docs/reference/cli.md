@@ -135,8 +135,9 @@ One object on stdout, for scripts and for the PowerShell Universal module:
 - `render`: `summary` and `output` (`{ file, format, mediaType, bytes }`, or `null` when nothing was
   written). `validate`: `valid`. `describe`: `kind` (`view` or `data`) and `description`
   (pivotkit-core's [`describeView` or `describeSource`](core.md)).
-- With data: `sheet`, the sheet of a workbook read (`null` for other data). `describe` of a workbook
-  also gives `sheets`: `[{ name, index, visible }]` in the workbook's order.
+- `render`, `validate` and `describe`: `sheet`, the sheet of a workbook read (`null` for other data or
+  without data). `describe` of a workbook also gives `sheets`: `[{ name, index, visible }]` in the
+  workbook's order.
 
 ## The sheet of a workbook
 
@@ -153,8 +154,9 @@ A sheet the workbook does not have, named by `--sheet` or by the view, is an err
 pivotkit: quarters.xlsx: the workbook has no sheet "Q4" (the view's source.params.sheet; give --sheet to read another); its sheets: "Q1", "Q2", "Q3"
 ```
 
-`describe` of a workbook lists its sheets after its fields' summary, the one read marked:
-`sheets: "Q1" (read), "Q2", "Q3"`; a hidden one says `(hidden)`.
+`describe` of a workbook lists its sheets after its summary line, the one read marked:
+`sheets: "Q1" (read), "Q2", "Q3"`; a hidden one says `(hidden)` (`(read, hidden)` when it is read).
+Names are quoted as JSON text. An empty `--sheet ""` counts as not given.
 
 ## What describe shows
 

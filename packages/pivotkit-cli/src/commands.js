@@ -33,7 +33,7 @@ export const GLOBAL_OPTIONS = Object.freeze({
 const DATA_OPTIONS = Object.freeze({
     data: { type: "string", value: "file", complete: "file", text: "The data: a CSV, JSON or XLSX file, or - for stdin." },
     "data-format": { type: "string", value: "format", choices: ["csv", "json", "xlsx"], text: "The data's format; needed for stdin, else taken from the file's extension." },
-    sheet: { type: "string", value: "name", text: "The sheet of a workbook to read (default the first visible one)." }
+    sheet: { type: "string", value: "name", text: "The sheet of a workbook to read (default the one the view names, else the first visible one)." }
 });
 
 /** @type {Readonly<Record<string, OptionSpec>>} Options of commands that read a view. */

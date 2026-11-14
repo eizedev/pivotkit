@@ -5,7 +5,6 @@
  */
 
 import { fieldDefaultsFromSchema, fromViewFile } from "pivotkit-core";
-import { sheetOfSource } from "./sheet-views.js";
 
 /** Whether the console was told once that a deletable entry without a scope counts as the user's own. */
 let warnedScope = false;
@@ -65,7 +64,9 @@ export function templateEntries(templates, stored, hostDeletes) {
             const read = fromViewFile(t.file);
             view = read.view;
             name = typeof name === "string" && name ? name : read.name;
-            const sheet = sheetOfSource(read.source);
+            // the sheet of a workbook it was made on (sheet-views.js reads it the same way; that module
+            // loads with the menus, this one with the first render)
+            const sheet = read.source?.params?.sheet;
             made = sheet && read.source?.id ? { sheet, sheetOf: read.source.id } : {};
         }
         if (typeof name === "string" && name && view && typeof view === "object") {

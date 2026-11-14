@@ -11,6 +11,8 @@ import { DataPanel, DropOverlay, ImportDialog, SourceLine as Line } from "./impo
 import { importLabels } from "./import-labels.js";
 import { acceptOf } from "./import-run.js";
 import { backToOriginal, loadData } from "./import-steps.js";
+import { sheetPlan } from "./sheet-views.js";
+import { fill } from "./labels.js";
 import { useFormName } from "./dom.js";
 
 /**
@@ -19,9 +21,9 @@ import { useFormName } from "./dom.js";
  *   dismiss?: (id: number) => void,
  *   dragging: boolean, encoded: import("pivotkit-core").Encoded, sourceName: string | undefined,
  *   plugins: any[], worker?: () => Worker, limits?: object, timeZone?: string,
- *   box: () => DOMRect | undefined, pick: () => void }} ImportApi
+ *   box: () => DOMRect | undefined, pick: () => void, afterData: (run: (() => void) | null) => void }} ImportApi
  *   `box`: the report's box on screen; `pick`: clicks the file input (ImportLayer's `input`)
- * @typedef {{ file: File, n: number, sheet?: string, auto?: boolean, done?: (loaded: boolean) => void }} ImportJob
+ * @typedef {{ file: File, n: number, sheet?: string, auto?: boolean, done?: (loaded: boolean, refused?: boolean) => void }} ImportJob
  *   a file being read: `sheet` and `auto` as ImportDialog's job; `done` is told whether it was loaded
  */
 
@@ -68,7 +70,7 @@ export function startFiles(api, files) {
  * are not).
  * @param {ImportApi} api
  * @param {string} sheet
- * @param {(loaded: boolean) => void} done
+ * @param {(loaded: boolean, refused?: boolean) => void} done  `refused`: the host refused it (onDataLoad)
  */
 export function loadSheet(api, sheet, done) {
     const file = api.imported?.blob;
@@ -78,6 +80,34 @@ export function loadSheet(api, sheet, done) {
     }
     closeErrors(api);
     api.setJob({ file, n: ++jobs, sheet, auto: true, done });
+}
+
+/**
+ * A view that names a sheet (sheet-views.js: sheetPlan): another sheet of the workbook shown is read
+ * first (loadSheet), and `then` runs once its data is shown (the report's `afterData`); a sheet the
+ * workbook does not have is said, and the view loads on the sheet shown. A sheet the host refuses
+ * (onDataLoad) is said too; Cancel is not. Returns what the plan was.
+ * @param {ImportApi} api
+ * @param {{ id?: string | null, sheet?: string | null }} made  the data and sheet the view names
+ * @param {string} name  the view's name
+ * @param {() => void} then
+ */
+export function openOnSheet(api, made, name, then) {
+    const shown = api.imported;
+    const plan = sheetPlan(made, { id: shown?.source.id, sheet: shown?.sheet ?? null, sheets: shown?.sheets ?? [] });
+    const t = importLabels(api.labels);
+    if (plan.kind === "switch") {
+        api.afterData(null);
+        loadSheet(api, plan.sheet, (loaded, refused) => {
+            api.afterData(loaded ? then : null);
+            if (refused) {
+                sayError(api, fill(t.sheetRefused, { name, sheet: plan.sheet }));
+            }
+        });
+    } else if (plan.kind === "missing") {
+        sayError(api, fill(t.sheetMissing, { name, sheet: plan.sheet, file: shown?.file.name ?? "" }));
+    }
+    return plan.kind;
 }
 
 /** Closes the error notes of earlier files. @param {ImportApi} api */
@@ -140,7 +170,7 @@ export function ImportLayer({ api, input }) {
                     onApply={(loaded) => {
                         const ok = loadData(api, loaded);
                         api.setJob((j) => (j === job ? null : j));
-                        job.done?.(ok);
+                        job.done?.(ok, !ok);
                     }}
                 />
             ) : null}

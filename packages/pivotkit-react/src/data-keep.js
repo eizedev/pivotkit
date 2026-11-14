@@ -5,7 +5,8 @@
  * in the report's state alone (import-steps.js, data-history.js).
  *
  * In memory only, in this module, never in localStorage or sessionStorage: a file's data must not
- * outlive the page. One entry per storageKey, the report's latest state (the file shown, the data
+ * outlive the page (nor the File it was read from, which a data step keeps to read another of its
+ * sheets: sheet-views.js). One entry per storageKey, the report's latest state (the file shown, the data
  * steps, at most DATA_STEPS of them, the view history), written while a file is shown and dropped
  * once the host's data is shown again (Back to original data, Undo of the load). At most KEPT_REPORTS
  * keys, the one written longest ago going first, so reports that never come back free their data.

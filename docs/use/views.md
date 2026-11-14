@@ -145,7 +145,8 @@ could not be deleted: the views were changed in another tab; open the menu again
 
 Views saved on a file you loaded belong to that file, and on a workbook to its sheet: while that
 workbook is shown, a view of another of its sheets says which ("Sheet “Q3”") and opens on that sheet
-([Load your own data](load-data.md#after-loading)).
+([Load your own data](load-data.md#after-loading)). The file's name decides which views belong to it:
+another workbook of the same name offers them too (its own sheets are read).
 
 ## Share a view
 

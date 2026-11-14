@@ -554,9 +554,20 @@ function viewActions(ctx, labels) {
         // Save and Save as: where to is view-save.js's (the host's onSaveTemplate wins over the store)
         save,
         remove: ctx.onDelete || ctx.store ? (t) => run(() => (t.at !== undefined ? write({ remove: t.at, removeName: t.name }) : ctx.onDelete(t.name, { scope: t.scope })), labels.toastDeleted, labels.toastDeleteFailed, labels.toastDeleteRejected, t.name) : null,
-        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view), { source: ctx.source }), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
+        // a view of the menu is published with the data it was made for, not the data shown
+        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view), { source: entrySource(t) }), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
     };
 }
+
+/**
+ * The data an entry of the Views menu was made for, as the host's callbacks get a source: the browser
+ * store's by its id and sheet, a host's view file's sheet with its id; null when it names none.
+ * @param {{ sourceId?: string, sheetOf?: string, sheet?: string }} t
+ */
+const entrySource = (t) => {
+    const id = t.sourceId ?? t.sheetOf;
+    return id ? { id, ...(t.sheet ? { params: { sheet: t.sheet } } : {}) } : null;
+};
 
 /**
  * The sheet a save into the browser store leaves its view with: the sheet shown when the view is

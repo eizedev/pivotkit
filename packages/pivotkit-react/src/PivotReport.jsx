@@ -34,7 +34,6 @@ import { PivotTable } from "./table.jsx";
 import { Toasts, useToasts } from "./toasts.jsx";
 import { localStore, readItem, subscribeItem, writeItem } from "./storage.js";
 import { templateEntries, viewsName } from "./templates.js";
-import { sheetPlan } from "./sheet-views.js";
 import { ALL_TIPS, FIELDS_COLLAPSED, fieldsCollapsed, NO_EXPLANATIONS, activeTips, helpSwitch, allowedTips, cleanDismissed, keptOnReset, parseStored, readStored, subscribeStored, tipActionText, tipContext, tipText, withoutFilters, writeDismissed } from "./tips.js";
 import { Tips } from "./tip-list.jsx";
 import { Unused } from "./unused.jsx";
@@ -145,6 +144,8 @@ const rowsOf = (d) => (Array.isArray(d) ? d.length : (d?.data?.[0]?.length ?? 0)
 const NO_STEPS = Object.freeze({ past: [], future: [] });
 /** @type {readonly string[]} */
 const NO_SHEETS = Object.freeze([]);
+/** The sheet of a stored view loaded on another sheet (its own is gone): no entry is that view. */
+const SHEET_GONE = "\u0000";
 
 /**
  * The issues of a view loaded from outside as the warning's notes, with the view as given; a
@@ -334,6 +335,9 @@ function Report(props) {
     // dragged over the report, and the import UI once loaded (lazy-import.jsx); the file's data shown
     // and the data steps further down, with the host's data
     const [job, setJob] = useState(/** @type {import("./import-host.jsx").ImportJob | null} */ (null));
+    // what waits for another sheet of the file shown to be read (a view made on it, viaSheet below):
+    // it runs once that sheet's data is shown
+    const afterSheet = useRef(/** @type {(() => void) | null} */ (null));
     const [dragging, setDragging] = useState(false);
     const dragDepth = useRef(0);
     const [importMod, setImportMod] = useState(importNow);
@@ -988,7 +992,9 @@ function Report(props) {
         undo: () => undoLater.current(),
         box: () => root.current?.getBoundingClientRect(),
         pick: () => importMod?.pickFile(fileInput.current),
-        load: requestImport
+        load: requestImport,
+        // what waits for another sheet of the file to be read (openOnSheet): it runs once that data is shown
+        afterData: (/** @type {(() => void) | null} */ run) => void (afterSheet.current = run)
     };
     useEffect(() => {
         apiNow.current = api;
@@ -1081,32 +1087,15 @@ function Report(props) {
     };
 
     /**
-     * A view that names a sheet of the workbook shown other than the one shown (sheet-views.js): that
-     * sheet of the same file is read and loaded first (a data step, which the host may refuse and the
-     * person may cancel), and `then` runs once its data is shown; true when that started. A sheet the
-     * workbook does not have is said, and false lets the view load on the data shown.
+     * A view that names another sheet of the workbook shown is opened on that sheet (the import UI's
+     * openOnSheet, sheet-views.js): "switch" when reading that sheet started (`then` runs once its
+     * data is shown), "missing" when the workbook has no such sheet (said; the view loads on the sheet
+     * shown), else "none". A file's data is shown only through the import UI, so it is loaded then.
      * @param {{ id?: string | null, sheet?: string | null }} made  the data and sheet the view names
-     * @param {string} name  the view's name, for the note
+     * @param {string} name  the view's name, for the note when the sheet is gone
      * @param {() => void} then
      */
-    const viaSheet = (made, name, then) => {
-        const plan = sheetPlan(made, { id: sourceId, sheet: shownSheet, sheets: shownSheets });
-        if (plan.kind === "switch") {
-            afterSheet.current = null;
-            requestImport().then(
-                (m) => m.loadSheet(apiNow.current, plan.sheet, (loaded) => void (afterSheet.current = loaded ? then : null)),
-                () => announce(labels.menuFailed, { tone: "error" })
-            );
-            return true;
-        }
-        if (plan.kind === "missing") {
-            announce(fill(labels.sheetMissing, { name, sheet: plan.sheet, file: imported?.file.name ?? "" }), { tone: "error" });
-        }
-        return false;
-    };
-    // what waits for the sheet read by viaSheet: it runs once that sheet's data is shown
-    const afterSheet = useRef(/** @type {(() => void) | null} */ (null));
-
+    const viaSheet = (made, name, then) => (imported && importMod ? importMod.openOnSheet(apiNow.current, made, name, then) : "none");
     const loadTemplate = useCallback(
         (t) => {
             // which saved view this is: its group, the browser store's entry (by its name, the data and
@@ -1130,8 +1119,11 @@ function Report(props) {
     );
     /** A saved view chosen in the menu or on the start screen: on its sheet of the workbook first. */
     const openTemplate = (t) => {
-        if (!viaSheet({ id: t.sourceId ?? t.sheetOf, sheet: t.sheet }, t.name, () => loadLater.current?.({ template: t }))) {
-            loadTemplate(t);
+        const how = viaSheet({ id: t.sourceId ?? t.sheetOf, sheet: t.sheet }, t.name, () => loadLater.current?.({ template: t }));
+        if (how !== "switch") {
+            // on a sheet it was not made for, the view is not that saved view: Save adds one for this
+            // sheet instead of moving the saved one here
+            loadTemplate(how === "missing" ? { ...t, sheet: SHEET_GONE } : t);
         }
     };
     // the view that waited for its sheet, once that sheet is shown (this render's loadTemplate and data)

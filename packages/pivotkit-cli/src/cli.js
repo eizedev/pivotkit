@@ -283,24 +283,28 @@ async function readView(positionals, values, ctx) {
         throw new CliError("usage", "MISSING_VIEW", "a view is needed: a file, - for stdin, JSON text or --link");
     }
     if (arg.trimStart().startsWith("{")) {
-        return { view: arg, name: "", source: "argument", sheet: sheetOf(arg) };
+        return { view: arg, name: "", source: "argument", sheet: sheetOf(arg, ctx.limits) };
     }
     const text = textOf(await ctx.readInput(arg, "the view", VIEW_BYTES, "json"));
-    return { view: text, name: "", source: arg, sheet: sheetOf(text) };
+    return { view: text, name: "", source: arg, sheet: sheetOf(text, ctx.limits) };
 }
 
 /**
  * The sheet of a workbook a view file names (source.params.sheet, written by pivotkit-react for a
  * loaded workbook's sheet), or null.
  * @param {string} text
+ * @param {object} limits  --limit's (srcParams and srcParamLength)
  */
-function sheetOf(text) {
-    const sheet = fromViewFile(text).source?.params?.sheet;
+function sheetOf(text, limits) {
+    const sheet = fromViewFile(text, { limits }).source?.params?.sheet;
     return typeof sheet === "string" && sheet ? sheet : null;
 }
 
-/** A sheet name in a message, quoted. */
-const quoted = (name) => `"${printable(name)}"`;
+/** " (read, hidden)": the words given, or "" for none. @param {...string} words */
+const tags = (...words) => (words.some(Boolean) ? ` (${words.filter(Boolean).join(", ")})` : "");
+
+/** A sheet name in a message, quoted as JSON text (a quote in it escaped). */
+const quoted = (name) => JSON.stringify(printable(name));
 
 /**
  * The sheets of a workbook for a message: "Q1", "Q2", "Hidden" (hidden). Empty when they cannot be read.
@@ -311,7 +315,7 @@ async function sheetList(file, limits) {
     try {
         const reader = await xlsxReader.load();
         const list = await reader.sheets(file, { name: file.name, limits });
-        return list.map((s) => `${quoted(s.name)}${s.visible ? "" : " (hidden)"}`).join(", ");
+        return list.map((s) => `${quoted(s.name)}${tags(s.visible ? "" : "hidden")}`).join(", ");
     } catch {
         return "";
     }
@@ -338,8 +342,10 @@ async function readData(values, ctx, viewSheet = null) {
     const name = path === "-" ? `stdin.${format}` : basename(path).endsWith(`.${format}`) ? basename(path) : `${basename(path)}.${format}`;
     const file = new File([/** @type {BlobPart} */ (bytes)], name);
     const workbook = format === "xlsx";
-    const fromView = workbook && !values.sheet && viewSheet ? viewSheet : null;
-    const sheet = workbook ? (values.sheet ?? fromView) : values.sheet;
+    // an empty --sheet (an unset variable in a pipeline: --sheet "$SHEET") counts as not given
+    const given = values.sheet ? String(values.sheet) : null;
+    const fromView = workbook && !given && viewSheet ? viewSheet : null;
+    const sheet = workbook ? (given ?? fromView) : given;
     /** @type {any[]} */
     const notes = [];
     if (fromView) {
@@ -353,8 +359,10 @@ async function readData(values, ctx, viewSheet = null) {
         return {
             table,
             name: path === "-" ? "stdin" : basename(path),
-            sheet: typeof read === "string" ? read : null,
-            sheets: workbook ? await sheetInfo(file, ctx.limits) : null,
+            // as printed, so it matches the names of `sheets`
+            sheet: typeof read === "string" ? printable(read) : null,
+            // the workbook's sheets, read again only for describe (render and validate do not need them)
+            sheets: workbook ? () => sheetInfo(file, ctx.limits) : null,
             notes: [...notes, ...table.notes.map((n) => ({ severity: INFO_NOTES.has(n.code) ? "info" : "warning", code: n.code, path: "", message: printable(`${shortName(path)}: ${n.message}`) }))]
         };
     } catch (e) {
@@ -570,7 +578,7 @@ async function validateCommand(positionals, values, ctx) {
     }
     const { errors, warnings, valid } = validate(read.view, schema, { limits: outsideLimits(ctx.limits) });
     const fileNotes = read.issues.map((i) => ({ severity: "warning", code: "viewFile", path: printable(i.path ?? ""), message: printable(i.message) }));
-    return { findings: [...(data?.notes ?? []), ...fileNotes, ...errors.map(findingOf), ...warnings.map(findingOf)], extra: { valid, ...(data ? { sheet: data.sheet } : {}) } };
+    return { findings: [...(data?.notes ?? []), ...fileNotes, ...errors.map(findingOf), ...warnings.map(findingOf)], extra: { valid, sheet: data?.sheet ?? null } };
 }
 
 async function describeCommand(positionals, values, ctx) {
@@ -612,7 +620,7 @@ async function describeCommand(positionals, values, ctx) {
         if (!values.json) {
             ctx.io.stdout.write(`${printable(read.name || "view")}: ${printable(described.text)}\n`);
         }
-        return { findings: [...(data?.notes ?? []), ...[...described.errors, ...described.warnings].map(findingOf)], extra: { kind, name: printable(read.name), description: described, ...(data ? { sheet: data.sheet } : {}) } };
+        return { findings: [...(data?.notes ?? []), ...[...described.errors, ...described.warnings].map(findingOf)], extra: { kind, name: printable(read.name), description: described, sheet: data?.sheet ?? null } };
     }
     // data: the bytes or the text read above (JSON that is no view), else the file
     const known = bytes ?? (text !== null ? new TextEncoder().encode(text) : null);
@@ -621,17 +629,18 @@ async function describeCommand(positionals, values, ctx) {
     const full = describeSource(encoded, { items });
     // what is shown by default is names, types and counts: values (items, the smallest and largest) only with --items
     const summary = items > 0 ? full : { ...full, fields: full.fields.map(({ min: _min, max: _max, ...f }) => ({ ...f, text: f.text.replace(/, from .*$/, "") })) };
+    const sheets = data.sheets ? await data.sheets() : null;
     if (!values.json) {
         ctx.io.stdout.write(`${printable(summary.text)}\n`);
         // a workbook: its sheets, the one read marked
-        if (data.sheets && data.sheets.length > 0) {
-            ctx.io.stdout.write(`  sheets: ${data.sheets.map((s) => `${quoted(s.name)}${s.name === data.sheet ? " (read)" : ""}${s.visible ? "" : " (hidden)"}`).join(", ")}\n`);
+        if (sheets && sheets.length > 0) {
+            ctx.io.stdout.write(`  sheets: ${sheets.map((s) => `${quoted(s.name)}${tags(s.name === data.sheet ? "read" : "", s.visible ? "" : "hidden")}`).join(", ")}\n`);
         }
         for (const f of summary.fields) {
             ctx.io.stdout.write(`  ${printable(f.text)}${f.items?.length ? `; e.g. ${f.items.map((v) => printable(JSON.stringify(v))).join(", ")}` : ""}\n`);
         }
     }
-    return { findings: data.notes, extra: { kind: "data", description: summary, ...(data.sheets ? { sheet: data.sheet, sheets: data.sheets } : {}) } };
+    return { findings: data.notes, extra: { kind: "data", description: summary, sheet: data.sheet, ...(sheets ? { sheets } : {}) } };
 }
 
 /** A context whose reader hands back the bytes already read (stdin is read once). */

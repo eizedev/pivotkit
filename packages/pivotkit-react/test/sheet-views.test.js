@@ -92,3 +92,10 @@ test("a host's view file names its sheet in the Views menu's entry", () => {
     const [plain] = templateEntries([{ name: "Plain", view: VIEW }], [], false);
     assert.equal(plain.sheet, undefined);
 });
+
+test("the file's shown name decides: two long names cut alike at 120 characters count as one file", () => {
+    const a = `${"x".repeat(117)}...#1111111111111111`;
+    assert.equal(fileOfId(a), `${"x".repeat(117)}...`);
+    // two files whose names differ only after the cut show the same name, so their sheets are offered to each other
+    assert.deepEqual(sheetPlan({ id: a, sheet: "Q3" }, { id: `${"x".repeat(117)}...#2222222222222222`, sheet: "Q1", sheets: SHEETS }), { kind: "switch", sheet: "Q3" });
+});

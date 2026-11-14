@@ -116,3 +116,14 @@ test("data that is no workbook: the view's sheet is not used, and --json says so
     assert.equal(out.sheet, null);
     assert.ok(out.findings.some((f) => f.code === "viewSheet" && f.severity === "info" && /no workbook/.test(f.message)));
 });
+
+test("an empty --sheet counts as not given: the view's sheet is read; describe of a CSV gives sheet null", async () => {
+    const dir = books();
+    const r = await run(["render", "q3.pivotkit.json", "--data", "quarters.xlsx", "--sheet", "", "-o", "out.csv", "--json"], { cwd: dir });
+    assert.equal(r.code, 0, r.stdout);
+    assert.equal(JSON.parse(r.stdout).sheet, "Q3");
+    writeFileSync(join(dir, "d.csv"), "A,B\nx,1\n");
+    const csv = JSON.parse((await run(["describe", "d.csv", "--json"], { cwd: dir })).stdout);
+    assert.equal(csv.sheet, null);
+    assert.equal(csv.sheets, undefined);
+});

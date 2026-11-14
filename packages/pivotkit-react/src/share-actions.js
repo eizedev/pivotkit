@@ -24,8 +24,8 @@ const here = () => (typeof location !== "undefined" ? location.href : undefined)
  * @property {string | undefined} sourceId
  * @property {string | undefined} sourceName
  * @property {Record<string, string> | undefined} sourceParams  the source's params the files and links carry (a loaded workbook's sheet)
- * @property {((made: { id?: string | null, sheet?: string | null }, name: string, file: object) => boolean) | undefined} viaSheet
- *   a view file made on another sheet of the workbook shown: reads that sheet, then loads `file` on it (true when that started)
+ * @property {((made: { id?: string | null, sheet?: string | null }, name: string, file: object) => "switch" | "missing" | "none") | undefined} viaSheet
+ *   a view file made on another sheet of the workbook shown: reads that sheet, then loads `file` on it ("switch" when that started)
  * @property {string | null | undefined} schemaUrl  the `$schema` of the view files (the prop)
  * @property {import("pivotkit-core").Encoded} encoded
  * @property {boolean | string | undefined} shareLink  the prop: the base of the link
@@ -110,7 +110,7 @@ export function shareActions(ctx, labels) {
             const ready = /** @type {import("./share.js").LoadedView} */ (loaded);
             // made on another sheet of the workbook shown: that sheet first, then the view on it
             const made = ready.file?.source;
-            if (made && ready.file?.view && ctx.viaSheet?.({ id: made.id, sheet: sheetOfSource(made) }, ready.file.name || viewName || "", toViewFile(ready.file.view, { name: ready.file.name, source: made }))) {
+            if (made && ready.file?.view && ctx.viaSheet?.({ id: made.id, sheet: sheetOfSource(made) }, ready.file.name || viewName || "", toViewFile(ready.file.view, { name: ready.file.name, source: made })) === "switch") {
                 return null;
             }
             const check = loadCheck(ready, labels, Array.isArray(ctx.sources) ? ctx.sources : []);
