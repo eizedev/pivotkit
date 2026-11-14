@@ -1,4 +1,4 @@
-// The example files (scripts/examples.js): the committed view files and examples.json are what the
+// The example files (scripts/examples.js): the committed view files, source notes and examples.json are what the
 // script builds from the playground's presets with toViewFile, so a change of the view file format or
 // of a preset turns this red until `node scripts/examples.js` writes them again; and each example's
 // data, read as the CLI reads --data, renders its views as the playground's rows do.
@@ -13,10 +13,11 @@ import { buildExamples } from "../scripts/examples.js";
 const SHIPPED = new URL("../packages/pivotkit-cli/examples/", import.meta.url);
 const built = await buildExamples();
 
-test("the committed view files and examples.json are what scripts/examples.js builds", () => {
-    const views = [...built.files.keys()].filter((name) => name.endsWith(".pivotkit.json"));
-    assert.ok(views.length >= 3);
-    for (const name of views) {
+test("the committed view files, the source notes and examples.json are what scripts/examples.js builds", () => {
+    // every file but the data (build output)
+    const committed = [...built.files.keys()].filter((name) => !name.endsWith(".csv"));
+    assert.ok(committed.filter((name) => name.endsWith(".pivotkit.json")).length >= 3);
+    for (const name of committed) {
         assert.equal(readFileSync(new URL(name, SHIPPED), "utf8"), built.files.get(name), `${name}: run node scripts/examples.js`);
     }
     assert.equal(readFileSync(new URL("examples.json", SHIPPED), "utf8"), built.manifest, "examples.json: run node scripts/examples.js");
