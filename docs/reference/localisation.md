@@ -53,7 +53,7 @@ lines of one name apart (`"{subject} (no. {n} in {part})"`).
 The texts of [loading data](../use/load-data.md) (`labels.dataImport`: the Data menu, the drop
 overlay, the preview, the notes of the readers per note code in `labels.dataImport.notes`, a file
 over a limit in `overLimit` with the limit's words in `limitWhat`, and `workbookCells` for
-`importCells` of a workbook) load with
+`importCells` reached by a workbook's texts and formats) load with
 the import UI, English and German in one file; a language of a host's own takes English there unless
 its `labels` give `dataImport`. The Data button's text (`data`), its dot's words for a screen reader
 (`dataLoaded`) and the empty report's lines and button (`emptyLoad`, `emptyNoData`, `emptyDrop`,
