@@ -554,19 +554,26 @@ function viewActions(ctx, labels) {
         // Save and Save as: where to is view-save.js's (the host's onSaveTemplate wins over the store)
         save,
         remove: ctx.onDelete || ctx.store ? (t) => run(() => (t.at !== undefined ? write({ remove: t.at, removeName: t.name }) : ctx.onDelete(t.name, { scope: t.scope })), labels.toastDeleted, labels.toastDeleteFailed, labels.toastDeleteRejected, t.name) : null,
-        // a view of the menu is published with the data it was made for, not the data shown
-        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view), { source: entrySource(t) }), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
+        // a view of the menu is published with the data it was made for, which is the data shown unless
+        // the entry names other data (a view of the browser store kept for another file or sheet)
+        publish: ctx.onPublish ? (t) => run(() => ctx.onPublish(t.name, ctx.normalized(t.view), { source: entrySource(t, ctx.source) }), labels.toastPublished, labels.toastPublishFailed, labels.toastPublishRejected, t.name) : null
     };
 }
 
 /**
  * The data an entry of the Views menu was made for, as the host's callbacks get a source: the browser
- * store's by its id and sheet, a host's view file's sheet with its id; null when it names none.
+ * store's by its id and sheet, a host's view file's sheet with its id (named as the data shown when it
+ * is that data); the data shown when the entry names none (a host's view, which the host lists for
+ * the data shown), as onSaveTemplate gets it.
  * @param {{ sourceId?: string, sheetOf?: string, sheet?: string }} t
+ * @param {{ id: string, name?: string, params?: Record<string, string> } | null | undefined} shown
  */
-const entrySource = (t) => {
+const entrySource = (t, shown) => {
     const id = t.sourceId ?? t.sheetOf;
-    return id ? { id, ...(t.sheet ? { params: { sheet: t.sheet } } : {}) } : null;
+    if (!id) {
+        return shown ?? null;
+    }
+    return { id, ...(shown?.id === id && shown.name ? { name: shown.name } : {}), ...(t.sheet ? { params: { sheet: t.sheet } } : {}) };
 };
 
 /**

@@ -28,6 +28,8 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- `onPublishTemplate` carries the data shown as `source` for a host's view, which names no data of its own,
+  as `onSaveTemplate` does; it carried `null`.
 - A view made on a sheet of a loaded workbook other than the first opens on that sheet again after
   the same workbook is loaded anew: views saved, downloaded and linked from a workbook's sheet name it
   in `source.params.sheet`; while a workbook is shown, Views lists the views of its other sheets with

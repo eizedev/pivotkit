@@ -101,7 +101,7 @@ Deletes a template marked `deletable`, after the user confirmed in the menu; `sc
 
 ### `onPublishTemplate` { #prop-onpublishtemplate }
 
-Type: `(name, view, { source }) => unknown`; `source` as for [`onSaveTemplate`](#prop-onsavetemplate).
+Type: `(name, view, { source }) => unknown`; `source` as for [`onSaveTemplate`](#prop-onsavetemplate): the data shown, `{ id, name, params }`, or `null`; for a view of the browser store kept for other data (another file or sheet), that data's `id` and sheet.
 
 With `canPublish`: "Publish as shared view" (an arrow) next to each of the user's views, asked in place ("Publish “…” as a shared view? Everyone who uses this report sees it."), and Save “…” on a shared view that was loaded, asked in place ("Replace the shared view “…” for everyone?"). Both send the view in the same form: normalized against the data, with the custom orders of `fieldDefaults`. The host adds the view to its shared views, or replaces the shared view of that name (an upsert by name: Save sends the shared view's own name), and passes the new `templates`; "View “…” published" when it returns or its promise resolves, a failure as for `onSaveTemplate` (`labels.toastPublishRejected`).
 

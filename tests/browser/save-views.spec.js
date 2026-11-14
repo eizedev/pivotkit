@@ -405,6 +405,8 @@ test("web component: Publish and Save over a shared view hand over the view in t
         const el = document.getElementById("views");
         const regions = [...new Set(el.data.map((r) => r.Region))].reverse();
         el.fieldDefaults = { Region: { order: regions } };
+        el.sourceId = "sales";
+        el.sourceName = "Sales";
         // a user's view of the host without a sort of its own: Publish sends it as the report shows it
         el.templates = [...el.templates, { name: "Plain", view: { rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }, scope: "user" }];
     });
@@ -424,6 +426,9 @@ test("web component: Publish and Save over a shared view hand over the view in t
     expect(regionSort(published.detail.view)).toEqual(expect.objectContaining({ by: "custom" }));
     expect(regionSort(saved.detail.view)).toEqual(regionSort(published.detail.view));
     expect(saved.detail.view).toEqual(published.detail.view);
+    // a host's view names no data of its own: both carry the data shown, as pivot-template-save does
+    expect(published.detail.source).toEqual({ id: "sales", name: "Sales" });
+    expect(saved.detail.source).toEqual({ id: "sales", name: "Sales" });
 });
 
 test("the view's name is a button of the toolbar: Tab reaches it, Enter opens Views", async ({ page, browserName }) => {

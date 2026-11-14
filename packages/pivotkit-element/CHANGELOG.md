@@ -20,6 +20,8 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The element bundles pivotkit-react's fix: `pivot-template-publish` carries the data shown as `source` for a host's view, which names no data of its own,
+  as `pivot-template-save` does; it carried `null`.
 - The element bundles pivotkit-react's fix of views made on a workbook's sheet other than the first:
   they open on that sheet again after the workbook is loaded anew ([#252](https://github.com/eizedev/pivotkit/issues/252)).
 - The element bundles pivotkit-react's fix of a rule on the name whose text is emptied: the rule
