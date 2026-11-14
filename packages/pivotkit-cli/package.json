@@ -1,6 +1,6 @@
 {
   "name": "pivotkit-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The pivotkit command line: render views over CSV, JSON or Excel data to HTML reports, CSV, JSON, XLSX and SVG, and validate or describe views in CI.",
   "license": "MIT",
   "author": "eizedev <oss@eize.dev>",
@@ -60,9 +60,9 @@
   },
   "dependencies": {
     "echarts": "6.1.0",
-    "pivotkit-core": "^0.5.0",
-    "pivotkit-report": "^0.1.0",
-    "pivotkit-xlsx": "^0.2.0"
+    "pivotkit-core": "^0.6.0",
+    "pivotkit-report": "^0.2.0",
+    "pivotkit-xlsx": "^0.3.0"
   },
   "types": "./types/cli.d.ts",
   "publishConfig": {

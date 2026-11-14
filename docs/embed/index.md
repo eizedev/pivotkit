@@ -35,7 +35,7 @@ then follow its getting-started page step by step.
 
 </div>
 
-Coming from 0.4? [Upgrading from 0.4](../getting-started/upgrading.md) lists what a host checks.
+Coming from an earlier release? [Upgrading](../getting-started/upgrading.md) lists what a host checks.
 
 
 ## A first report

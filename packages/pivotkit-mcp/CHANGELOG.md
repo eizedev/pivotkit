@@ -6,11 +6,14 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
+First release.
+
 ### Added
 
 - The tool `suggest_view`, and a `layout` (a view by field names) for `validate_view` and
   `render_view`; the skill names both ([#253](https://github.com/eizedev/pivotkit/issues/253)).
-
 - The MCP server `pivotkit-mcp` ([#165](https://github.com/eizedev/pivotkit/issues/165), step 3):
   the tools `list_sources`, `describe_source`, `get_view_guide`, `validate_view`, `describe_view`,
   `render_view`, `create_link` and `draft_schedule` from pivotkit-report's operation table, over
@@ -36,3 +39,6 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - On SIGTERM the HTTP server lets running requests finish (`http.graceMs`, 25 seconds by default);
   two `Authorization` headers are refused, also when node:http would keep only the first; an input
   nested deeper than 64 levels is `INVALID_INPUT` before it reaches a worker.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-mcp@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-mcp@0.1.0

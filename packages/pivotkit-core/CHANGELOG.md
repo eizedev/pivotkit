@@ -6,12 +6,7 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ## [Unreleased]
 
-### Changed
-
-- An unknown aggregator named as other tools name it gets ours as the hint: `avg` and `mean`
-  ("did you mean average?"), `cnt` (count), `total` (sum), `distinct` (countUnique), `stddev`
-  (stdev); they are still refused. `describeSource` counts in the singular for one row or field
-  ("1 row, 1 field").
+## [0.6.0] - 2026-11-14
 
 ### Added
 
@@ -24,12 +19,18 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 - `pivotkit-core/import`: `sourceIdOf(name, columns)`, `shownName` and `SHOWN_MAX`, the id a loaded
   file's views name it by (moved from pivotkit-react), so the command line names a file as the
   report does ([#253](https://github.com/eizedev/pivotkit/issues/253)).
-
 - `REPORT_LABELS` and `reportLabels(locale)`: the report's own words per language (English and
   German), as pivotkit-react's report shows them; pivotkit-report writes them for its locale.
 - `dataToCsv`, `dataToCsvBytes` and `dataToJson` in `pivotkit-core/export`: the data itself as a file
   to read again, every row with its values as they are and the fields under their own names, so a
   view file applies to it as it is (`pivotkit render <view> --data <file>` gives the report again).
+
+### Changed
+
+- An unknown aggregator named as other tools name it gets ours as the hint: `avg` and `mean`
+  ("did you mean average?"), `cnt` (count), `total` (sum), `distinct` (countUnique), `stddev`
+  (stdev); they are still refused. `describeSource` counts in the singular for one row or field
+  ("1 row, 1 field").
 
 ## [0.5.0] - 2026-11-13
 
@@ -392,7 +393,8 @@ First release.
   a cell, so a UI can leave a blank cell without rows unclickable.
 - `grid.showAs`: per value its "show values as" type, or null.
 
-[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.5.0...HEAD
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.6.0...HEAD
+[0.6.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.5.0...pivotkit-core@0.6.0
 [0.5.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.4.0...pivotkit-core@0.5.0
 [0.4.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.3.0...pivotkit-core@0.4.0
 [0.3.0]: https://github.com/eizedev/pivotkit/compare/pivotkit-core@0.2.0...pivotkit-core@0.3.0

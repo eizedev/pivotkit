@@ -6,6 +6,10 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
+First release.
+
 ### Added
 
 - The package `pivotkit-server` ([#165](https://github.com/eizedev/pivotkit/issues/165), step 4;
@@ -34,3 +38,6 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `X-Forwarded-For`.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.
+
+[Unreleased]: https://github.com/eizedev/pivotkit/compare/pivotkit-server@0.1.0...HEAD
+[0.1.0]: https://github.com/eizedev/pivotkit/releases/tag/pivotkit-server@0.1.0
