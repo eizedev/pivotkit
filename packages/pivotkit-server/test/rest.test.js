@@ -51,7 +51,7 @@ test("GET /sources lists the source; GET /sources/{id} and POST /sources/describ
     }
 });
 
-test("HEAD on a GET route answers as GET without a body; a HEAD on a POST route is 405", async () => {
+test("HEAD on a GET route, /healthz and /readyz answers as GET without a body; a HEAD on a POST route is 405", async () => {
     const { server } = await salesServer();
     try {
         const head = await raw(`${server.api}/sources`, { method: "HEAD" });
@@ -60,6 +60,9 @@ test("HEAD on a GET route answers as GET without a body; a HEAD on a POST route 
         assert.equal(head.data, "", "no body");
         const post = await raw(`${server.api}/views/validate`, { method: "HEAD" });
         assert.equal(post.status, 405);
+        // a health check may ask with HEAD
+        assert.equal((await raw(`${server.url}/healthz`, { method: "HEAD" })).status, 200);
+        assert.equal((await raw(`${server.url}/readyz`, { method: "HEAD" })).status, 200);
     } finally {
         await server.close();
     }

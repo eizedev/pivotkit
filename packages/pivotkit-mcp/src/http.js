@@ -115,14 +115,12 @@ export async function createHttpHandler(context, runtime = {}) {
         const wait = address && auth.mode !== "none" ? limits.blocked(address) : 0;
         const authInfo = await auth.gate(request);
         if (authInfo instanceof Response) {
-            context.log.refused({ status: authInfo.status, path: ENDPOINT });
-            if (authInfo.status !== 401) {
-                return authInfo;
-            }
-            if (wait) {
+            if (authInfo.status === 401 && wait) {
+                context.log.refused({ status: 429, path: ENDPOINT });
                 return rpcError(429, -32000, "too many refused tokens from this address; wait before you try again", { "retry-after": String(wait) });
             }
-            if (address) {
+            context.log.refused({ status: authInfo.status, path: ENDPOINT });
+            if (authInfo.status === 401 && address) {
                 limits.failed(address);
             }
         }
@@ -161,6 +159,11 @@ export async function createHttpHandler(context, runtime = {}) {
         const authInfo = kept !== undefined ? kept.authInfo : await signIn(request, clientAddress(request, info.address ?? "", trustProxy));
         if (authInfo instanceof Response) {
             return authInfo;
+        }
+        // stateless: only POST reaches the protocol layer; any other method is answered here, as the
+        // SDK would, before it takes a caller's slot (a HEAD's answer is never read to its end)
+        if (request.method !== "POST") {
+            return rpcError(405, -32000, "Method not allowed.", { allow: "POST" });
         }
         const client = authInfo ? String(authInfo.clientId ?? "client") : "local";
         const wait = limits.take(client);

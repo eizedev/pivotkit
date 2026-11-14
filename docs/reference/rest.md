@@ -321,7 +321,8 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise. An output directory the
+loaded, workers up, the output directory writable) and 503 otherwise; both answer `HEAD` too. An
+output directory the
 server's user cannot write is also a warning at start, a problem in `check-config`, and 409
 `NO_OUTPUT` for a report. On SIGTERM the server takes no
 new connection and lets running requests finish for up to `http.graceMs` (25 seconds by default).

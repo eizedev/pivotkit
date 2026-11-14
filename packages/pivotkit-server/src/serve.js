@@ -61,7 +61,7 @@ export async function createServerHandler(options, runtime) {
         /** /healthz and /readyz, after the Host check. */
         async function health(request) {
             const path = new URL(request.url).pathname;
-            if (request.method !== "GET" || (path !== "/healthz" && path !== "/readyz")) {
+            if ((request.method !== "GET" && request.method !== "HEAD") || (path !== "/healthz" && path !== "/readyz")) {
                 return null;
             }
             const refused = hostRefusal(request, hosts);

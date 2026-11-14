@@ -27,9 +27,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - `output.maxFiles` 1 leaves no room for schedule drafts (a draft would block every render); the
   hint for a full set of drafts names `output.maxFiles` and `output.maxAgeDays`
   ([#288](https://github.com/eizedev/pivotkit/issues/288)).
-- The log of refused connections names the bound that refused them (`total`, `loopbackReserve`,
+- The log of refused connections names every bound that refused one (`total`, `loopbackReserve`,
   `perAddress`) and reports the refusals of the rest of the minute when it ends or at close, instead
-  of dropping them ([#289](https://github.com/eizedev/pivotkit/issues/289)).
+  of dropping them; `/healthz` and `/readyz` answer `HEAD` ([#289](https://github.com/eizedev/pivotkit/issues/289)).
 - Reports and schedule drafts are named `<name>.pivotkit-out.<format>` (`sales.pivotkit-out.xlsx`),
   so the server knows its own files: only those are counted, cleaned up by `output.maxAgeDays` and
   deleted to make room; the operator's files, and reports written by an earlier version, are not

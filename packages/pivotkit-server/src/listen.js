@@ -58,11 +58,11 @@ export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 0, loop
 export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerAddress ? { perAddress: options.http.maxConnectionsPerAddress } : {});
 
 /**
- * What serveFetch's onRefused is told: the last refused connection's address and the bound that
- * refused it (`total`: every slot taken; `loopbackReserve`: the network's slots taken, the rest kept
+ * What serveFetch's onRefused is told: the last refused connection's address, every bound that
+ * refused one since the last report (`total`: every slot taken; `loopbackReserve`: the network's slots taken, the rest kept
  * for loopback; `perAddress`: http.maxConnectionsPerAddress), the connections open then in all and
  * from that address, and how many were refused since the last report.
- * @typedef {{ address: string, limit: "total" | "loopbackReserve" | "perAddress", open: number, fromAddress: number, refused: number }} RefusedConnections
+ * @typedef {{ address: string, limits: Array<"total" | "loopbackReserve" | "perAddress">, open: number, fromAddress: number, refused: number }} RefusedConnections
  */
 
 /**
@@ -70,8 +70,8 @@ export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerA
  * @param {RefusedConnections} entry
  */
 export function refusedText(entry) {
-    const why = { total: "every connection the server may hold is open", loopbackReserve: "the network holds every slot not kept for loopback", perAddress: "this address holds as many as http.maxConnectionsPerAddress allows" }[entry.limit];
-    return `connections refused since the last report: ${why}`;
+    const why = { total: "every connection the server may hold was open", loopbackReserve: "the network held every slot not kept for loopback", perAddress: "an address held as many as http.maxConnectionsPerAddress allows" };
+    return `connections refused since the last report: ${entry.limits.map((l) => why[l]).join("; ")}`;
 }
 
 /** A socket's address as a loopback check reads it ("::ffff:127.0.0.1" is 127.0.0.1). */
@@ -259,7 +259,10 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await handler.fetch(request, info);
             res.writeHead(response.status, Object.fromEntries(response.headers));
-            if (response.body && req.method !== "HEAD") {
+            if (response.body && req.method === "HEAD") {
+                // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
+                await response.body.cancel().catch(() => undefined);
+            } else if (response.body) {
                 // a client that leaves stops the stream; a full socket is waited for
                 abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
                 for await (const chunk of response.body) {
@@ -327,7 +330,8 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         const address = socket.remoteAddress;
         if (!gate.admit(address)) {
             socket.destroy();
-            pending = { address: String(address ?? ""), limit: /** @type {any} */ (gate.refusedBy), ...gate.counts(address), refused: (pending?.refused ?? 0) + 1 };
+            const bounds = new Set([...(pending?.limits ?? []), /** @type {any} */ (gate.refusedBy)]);
+            pending = { address: String(address ?? ""), limits: [...bounds], ...gate.counts(address), refused: (pending?.refused ?? 0) + 1 };
             if (Date.now() - toldAt >= 60_000) {
                 tell();
             } else if (!flush) {

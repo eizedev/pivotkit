@@ -104,7 +104,7 @@ test("refused connections are told once a minute with the address and counts; ht
         assert.equal(told[0].open, 1);
         assert.equal(told[0].fromAddress, 1);
         assert.equal(told[0].refused, 1);
-        assert.equal(told[0].limit, "total");
+        assert.deepEqual(told[0].limits, ["total"]);
         assert.match(told[0].address, /127\.0\.0\.1/);
     } finally {
         held.destroy();
@@ -113,7 +113,7 @@ test("refused connections are told once a minute with the address and counts; ht
     // the rest of the minute is told at close, not lost
     assert.equal(told.length, 2, JSON.stringify(told));
     assert.equal(told[1].refused, 2);
-    assert.match(refusedText(told[1]), /every connection the server may hold is open/);
+    assert.match(refusedText(told[1]), /every connection the server may hold was open/);
     const dir = workspace();
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: -1 }, baseDir: dir }), /http\.maxConnectionsPerAddress/);
     await assert.rejects(restServer({ sources: { sales: { file: "data/sales.csv" } }, http: { maxConnectionsPerAddress: 300 }, baseDir: dir }), /http\.maxConnectionsPerAddress: 0 \(no bound, the default\) to 256/);

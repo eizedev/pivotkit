@@ -73,3 +73,73 @@ test("mcp.concurrency: a finished request gives its slot back, also when the ans
         await server.close();
     }
 });
+
+/** A code source whose load waits until `release()`: a call over it holds its caller's slot. */
+function slowSource() {
+    let release;
+    const gate = new Promise((resolve) => {
+        release = resolve;
+    });
+    return { source: { load: async () => (await gate, [{ Region: "North", Sales: 1 }]) }, release: () => release() };
+}
+
+const DESCRIBE = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "describe_source", arguments: { source: "slow" } } });
+
+/** A POST that is sent and then left: its socket is destroyed after `ms`. */
+function leave(url, headers, body, ms) {
+    return new Promise((resolve) => {
+        const req = httpRequest(url, { method: "POST", headers });
+        req.on("error", () => resolve(undefined));
+        req.on("response", (res) => res.resume());
+        req.end(body);
+        setTimeout(() => {
+            req.destroy();
+            resolve(undefined);
+        }, ms);
+    });
+}
+
+for (const accept of ["application/json, text/event-stream", "text/event-stream, application/json"]) {
+    test(`mcp.concurrency: a call holds its slot while it runs (${accept.split(",")[0]}); the next is told 429, then it is free again`, async () => {
+        const slow = slowSource();
+        const server = await httpServer({ sources: { slow: slow.source }, ...TOKENS, mcp: { concurrency: 1, rateLimit: { perMinute: 600, burst: 50 } } }, ENV);
+        try {
+            const running = raw(server.url, { method: "POST", headers: { ...as(TOKEN), accept }, body: DESCRIBE });
+            await new Promise((r) => setTimeout(r, 200));
+            const second = await raw(server.url, { method: "POST", headers: as(TOKEN), body: LIST });
+            assert.equal(second.status, 429, second.body);
+            assert.match(JSON.parse(second.body).error.message, /too many requests at once/);
+            assert.equal(second.headers["retry-after"], "1");
+            slow.release();
+            assert.equal((await running).status, 200);
+            assert.equal((await raw(server.url, { method: "POST", headers: as(TOKEN), body: LIST })).status, 200);
+        } finally {
+            slow.release();
+            await server.close();
+        }
+    });
+}
+
+test("mcp.concurrency: a client that leaves gives its slot back; HEAD and other methods take none", async () => {
+    const slow = slowSource();
+    const server = await httpServer({ sources: { slow: slow.source }, ...TOKENS, mcp: { concurrency: 2, rateLimit: { perMinute: 600, burst: 50 } } }, ENV);
+    try {
+        // the answer streams: the client that leaves while the call runs gives its slot back at once
+        await leave(server.url, { ...as(TOKEN), accept: "text/event-stream, application/json" }, DESCRIBE, 200);
+        await leave(server.url, { ...as(TOKEN), accept: "text/event-stream, application/json" }, DESCRIBE, 200);
+        await new Promise((r) => setTimeout(r, 100));
+        assert.equal((await raw(server.url, { method: "POST", headers: as(TOKEN), body: LIST })).status, 200, "the slots of the two who left are free while their calls still run");
+        slow.release();
+        for (const method of ["HEAD", "HEAD", "GET", "DELETE", "PUT"]) {
+            const res = await raw(server.url, { method, headers: as(TOKEN) });
+            assert.equal(res.status, 405, method);
+            assert.equal(res.headers.allow, "POST");
+        }
+        await new Promise((r) => setTimeout(r, 100));
+        const both = await Promise.all([1, 2].map(() => raw(server.url, { method: "POST", headers: as(TOKEN), body: LIST })));
+        assert.deepEqual(both.map((r) => r.status), [200, 200], "both slots are free");
+    } finally {
+        slow.release();
+        await server.close();
+    }
+});

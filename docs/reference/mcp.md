@@ -245,6 +245,9 @@ checks in order:
    is in `--allow-origin`; a client that sends none (every non-browser client) passes.
 3. **Authentication** for `/mcp` ([below](#auth)).
 
+`/mcp` takes `POST` only (the server keeps no sessions): another method, `HEAD` included, answers 405
+with `Allow: POST` after the token check and takes no request slot.
+
 Host, Origin, the declared size and the token are checked from the headers before the body is
 read. At most 256 connections are open at once, and 16 of them are kept for loopback clients
 such as the health check or a proxy on the same host, so clients on the network that hold
