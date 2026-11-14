@@ -22,8 +22,10 @@ import { options as reactOptions } from "../pivotkit-react/build.js";
 import { thirdPartyLicenses } from "../../scripts/third-party-licenses.js";
 export { bundledPackages } from "../../scripts/third-party-licenses.js";
 import { hostStyles } from "./src/host-css.js";
+import { isMain } from "../../scripts/is-main.js";
+import { fileURLToPath } from "node:url";
 
-const here = new URL(".", import.meta.url).pathname;
+const here = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
 
 /** pivotkit-react/styles.css as a JS string for the shadow root. */
@@ -212,9 +214,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * (pivotkit-core's mapFieldRefs, shared by viewFileFields of the first load and renameFields) and the
  * grouping names and identifier rule now in pivotkit-core: first load 172.9 on a Mac (172.5 before;
  * CI about 173.5), budget 174. The layout code itself stays out (its constants are marked pure).
+ * The Filter level's rules (#203, #244, #245: one radio that takes the focus on a click, an emptied
+ * value that takes its rule off, a second rule added while the first one waits): the menus 45.96 on a
+ * Mac (45.87 before; CI 46.0, over the budget of 46 that had about 0.1 left), budget 47 (2 % above
+ * CI, below the rule's 3 % to keep the menus in check).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 21.5, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 47, texts: 7, unused: 5.5, import: 21.5, report: 22 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
@@ -292,7 +298,7 @@ async function sizes(metafile) {
     return out;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
     await esbuild.build(reactOptions);
     await rm(join(here, "dist"), { recursive: true, force: true });
     const result = await esbuild.build(options);

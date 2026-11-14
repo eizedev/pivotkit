@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { readSheet } from "read-excel-file/node";
+import { encodeViewLink } from "pivotkit-core/link";
 import { chipMenu, chips, expect, openLevel, tableRows, test } from "./fixtures.js";
 import { unpack } from "../../examples/playground/data/sources.js";
 
@@ -667,4 +668,23 @@ test("Top choices explicitly keep focus when mouse clicks do not focus radios (#
     await expect(off).toBeFocused();
     await page.getByTestId("top-5").check();
     await expect(page.getByTestId("top-5")).toBeFocused();
+});
+
+test("the date quick choices keep focus when mouse clicks do not focus radios (#203)", async ({ page }) => {
+    const MONTH = "Date by month";
+    const view = { derived: [{ name: MONTH, field: "Date", by: "yearMonth" }], rows: [MONTH], values: [{ field: "Mean °C", agg: "average" }] };
+    await page.goto(`?data=weather&empty&lang=en#pivot-playground=${encodeViewLink(view)}`);
+    await chipMenu(page, MONTH, "filter");
+    const menu = page.locator(".pk-chip-menu");
+    // as WebKit on macOS: the click picks a radio but does not focus it by default
+    await page.evaluate(() => document.addEventListener("mousedown", (event) => {
+        if (event.target instanceof HTMLInputElement && event.target.type === "radio") event.preventDefault();
+    }));
+    const last = menu.getByTestId("quick-last");
+    await last.check();
+    await expect(last).toBeChecked();
+    await expect(last).toBeFocused();
+    await menu.getByTestId("quick-all").check();
+    await expect(menu.getByTestId("quick-all")).toBeChecked();
+    await expect(menu.getByTestId("quick-all")).toBeFocused();
 });

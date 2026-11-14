@@ -180,6 +180,23 @@ test.describe("a rule on the name, typed (#159)", () => {
         await expect.poll(() => values(texts)).toEqual(["b", "m"]);
     });
 
+    test("a second rule added while the first one's text still waits (#245): the second gets its own comparison and text", async ({ page }) => {
+        const menu = await beginsWith(page);
+        const texts = menu.getByTestId("filter-condition-text");
+        await texts.click();
+        await page.keyboard.type("s");
+        // no wait for the first text to apply: Add at once
+        await menu.getByTestId("rule-add-name").click();
+        await expect(menu.getByTestId("rule")).toHaveCount(2);
+        await expect(menu.getByTestId("filter-condition-op").last()).toBeFocused();
+        await menu.getByTestId("filter-condition-op").last().selectOption({ label: "ends with" });
+        await texts.last().click();
+        await page.keyboard.type("a");
+        await expect.poll(() => bodyRows(page)).toEqual(shown((c) => c.startsWith("s") && c.endsWith("a")));
+        await expect.poll(() => values(menu.getByTestId("filter-condition-op"))).toEqual(["beginsWith", "endsWith"]);
+        await expect.poll(() => values(texts)).toEqual(["s", "a"]);
+    });
+
     // passes without the fix as well (#167 folds the ends of the text); it guards the case the owner asked about
     test("a space typed at the end: the items that begin with the words stay, none is lost", async ({ page }) => {
         const menu = await beginsWith(page);

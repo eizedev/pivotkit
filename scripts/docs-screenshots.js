@@ -14,12 +14,13 @@ import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { toViewFile } from "pivotkit-core";
 import { encodeViewLink as encodeLink } from "pivotkit-core/link";
+import { fileURLToPath } from "node:url";
 
 /** A view as the playground's links carry it: the link profile of a view file. */
 const encodeViewLink = (view) => encodeLink(toViewFile(view, {}, { link: true }));
 
 const root = new URL("../", import.meta.url);
-const out = new URL("docs/assets/screenshots/", root).pathname;
+const out = fileURLToPath(new URL("docs/assets/screenshots/", root));
 const port = Number(process.env.PLAYGROUND_PORT ?? 4174);
 const base = `http://127.0.0.1:${port}/`;
 
@@ -595,7 +596,7 @@ const SHOTS = [
     }
 ];
 
-const server = spawn(process.execPath, [new URL("examples/playground/serve.js", root).pathname, String(port)], { stdio: "ignore" });
+const server = spawn(process.execPath, [fileURLToPath(new URL("examples/playground/serve.js", root)), String(port)], { stdio: "ignore" });
 try {
     await mkdir(out, { recursive: true });
     const browser = await chromium.launch();

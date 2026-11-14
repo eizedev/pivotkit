@@ -168,6 +168,8 @@ test("oauth: the REST resource's metadata names it and the issuer; a token for t
         assert.equal(prm.status, 200);
         assert.equal(prm.data.resource, REST_RESOURCE);
         assert.deepEqual(prm.data.authorization_servers, [issuer]);
+        // a foreign origin is refused before this route, so a wildcard CORS header would say what is not so
+        assert.equal(prm.headers.get("access-control-allow-origin"), null);
         const none = await call(`${server.api}/sources`);
         assert.equal(none.status, 401);
         assert.match(none.headers.get("www-authenticate"), /^Bearer error="invalid_token".*resource_metadata="https:\/\/pk\.example\.com\/\.well-known\/oauth-protected-resource\/api\/v1"/);

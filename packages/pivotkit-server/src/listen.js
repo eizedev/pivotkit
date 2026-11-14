@@ -1,8 +1,9 @@
 /*
  * A fetch handler (Request in, Response out) on node:http: the headers checked before a byte of the
  * body is read (precheck), the body read up to a cap while it streams, the answer streamed with
- * back-pressure, a bound on connections and slow clients, and a close that lets running requests
- * finish for a while (SIGTERM in a container) before it cuts them off.
+ * back-pressure, a bound on connections (in all and per address, with room kept for loopback, so a
+ * health check gets in while others hold every socket) and slow clients, and a close that lets
+ * running requests finish for a while (SIGTERM in a container) before it cuts them off.
  */
 
 import { createServer } from "node:http";
@@ -11,8 +12,151 @@ import { HOST_SYNTAX } from "./checks.js";
 /** Whether an address is loopback. */
 export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || host === "localhost" || /^127\./.test(host);
 
+/**
+ * Where a front end's precheck keeps a request's sign-in in the `info` object serveFetch hands to
+ * precheck and then to fetch, so a token is checked once; a symbol, so a host's own info cannot
+ * carry one by accident. Taken out when read.
+ */
+export const SIGNED_IN = Symbol("pivotkit.signedIn");
+
+/**
+ * The sign-in a precheck kept for this request, taken out of `info`, or undefined.
+ * @param {Record<string | symbol, any>} info
+ */
+export function takeSignIn(info) {
+    if (!Object.hasOwn(info, SIGNED_IN)) {
+        return undefined;
+    }
+    const kept = info[SIGNED_IN];
+    delete info[SIGNED_IN];
+    return kept;
+}
+
+/** The most bytes of a request body, REST's and MCP's. */
+export const BODY_BYTES = 2_097_152;
+
 /** How long close() waits for running requests by default. */
 export const GRACE_MS = 25_000;
+
+/**
+ * The bounds on connections: open at once in all; from one address other than loopback (0: no
+ * bound, the default, since behind a published port, NAT or a proxy every client has one address);
+ * the ones kept for loopback clients (the health check, a proxy on the same host: they protect
+ * against the network, not against a local process); and how long a client may take for its
+ * headers and for its whole request (checked every checkMs: node:http's default, 30 seconds, would
+ * let a stalled client stay six times as long).
+ */
+/** @typedef {{ total: number, perAddress: number, loopback: number, headersMs: number, requestMs: number, checkMs: number }} ConnectionLimits */
+/** @type {Readonly<ConnectionLimits>} */
+export const CONNECTION_LIMITS = Object.freeze({ total: 256, perAddress: 0, loopback: 16, headersMs: 5_000, requestMs: 30_000, checkMs: 1_000 });
+
+/**
+ * The connection limits a server's options set: http.maxConnectionsPerAddress.
+ * @param {{ http?: { maxConnectionsPerAddress?: number } }} options
+ * @returns {Partial<ConnectionLimits>}
+ */
+export const connectionLimitsOf = (options) => (options.http?.maxConnectionsPerAddress ? { perAddress: options.http.maxConnectionsPerAddress } : {});
+
+/**
+ * What serveFetch's onRefused is told: the last refused connection's address, every bound that
+ * refused one since the last report (`total`: every slot taken; `loopbackReserve`: the network's slots taken, the rest kept
+ * for loopback; `perAddress`: http.maxConnectionsPerAddress), the connections open then in all and
+ * from that address, and how many were refused since the last report.
+ * @typedef {{ address: string, limits: Array<"total" | "loopbackReserve" | "perAddress">, open: number, fromAddress: number, refused: number }} RefusedConnections
+ */
+
+/**
+ * The log line for refused connections: which bound refused them.
+ * @param {RefusedConnections} entry
+ */
+export function refusedText(entry) {
+    const why = { total: "every connection the server may hold was open", loopbackReserve: "the network held every slot not kept for loopback", perAddress: "an address held as many as http.maxConnectionsPerAddress allows" };
+    return `connections refused since the last report: ${entry.limits.map((l) => why[l]).join("; ")}`;
+}
+
+/** A socket's address as a loopback check reads it ("::ffff:127.0.0.1" is 127.0.0.1). */
+const plainAddress = (address) => String(address ?? "").replace(/^::ffff:/i, "");
+
+/**
+ * Who may open a connection: a count in all and per address. A connection from loopback may use
+ * every slot; one from another address only those not kept for loopback, and with `perAddress` at
+ * most that many from one address (an IPv6 address counts as it is, not by its network), so stalled
+ * sockets from the network cannot lock out the health check, and one address cannot take them all.
+ * @param {{ total: number, perAddress: number, loopback: number }} limits
+ */
+export function connectionGate(limits) {
+    const byAddress = new Map();
+    let open = 0;
+    let network = 0;
+    return {
+        /** Which bound refused the last connection: "total", "loopbackReserve" or "perAddress". */
+        refusedBy: /** @type {"total" | "loopbackReserve" | "perAddress" | null} */ (null),
+        /** Takes a slot for a new connection from `address`, or returns false (refusedBy says why). */
+        admit(address) {
+            const plain = plainAddress(address);
+            if (isLoopback(plain)) {
+                if (open >= limits.total) {
+                    this.refusedBy = "total";
+                    return false;
+                }
+            } else if (open >= limits.total) {
+                this.refusedBy = "total";
+                return false;
+            } else if (network >= limits.total - limits.loopback) {
+                this.refusedBy = "loopbackReserve";
+                return false;
+            } else if (limits.perAddress > 0 && (byAddress.get(plain) ?? 0) >= limits.perAddress) {
+                this.refusedBy = "perAddress";
+                return false;
+            } else {
+                network++;
+            }
+            open++;
+            byAddress.set(plain, (byAddress.get(plain) ?? 0) + 1);
+            return true;
+        },
+        /** Gives a connection's slot back. */
+        release(address) {
+            const plain = plainAddress(address);
+            open--;
+            if (!isLoopback(plain)) {
+                network--;
+            }
+            const left = (byAddress.get(plain) ?? 1) - 1;
+            if (left > 0) {
+                byAddress.set(plain, left);
+            } else {
+                byAddress.delete(plain);
+            }
+        },
+        open: () => open,
+        /** The connections open in all and from one address. */
+        counts: (address) => ({ open, fromAddress: byAddress.get(plainAddress(address)) ?? 0 })
+    };
+}
+
+/**
+ * The path and query of a request target: the origin form ("/x?y") as it is, the absolute form
+ * ("http://host/x?y", which a proxy may send) by its path; anything else ("*", "host:443") is null.
+ * @param {string | undefined} target
+ */
+export function pathOfTarget(target) {
+    if (!target) {
+        return null;
+    }
+    if (target.startsWith("/")) {
+        return target;
+    }
+    if (/^https?:\/\//i.test(target)) {
+        try {
+            const url = new URL(target);
+            return `${url.pathname}${url.search}`;
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
 
 /**
  * @typedef {object} FetchHandler
@@ -58,15 +202,25 @@ const defaultProblem = (status) => Response.json({ error: status === 413 ? "requ
 /**
  * Serves a fetch handler on node:http.
  * @param {FetchHandler} handler
- * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number }} options
+ * @param {{ host: string, port: number, bodyBytes: number, graceMs?: number, limits?: Partial<ConnectionLimits>, onRefused?: (entry: RefusedConnections) => void }} options  limits: over CONNECTION_LIMITS; onRefused: told of refused connections at most once a minute: the first at once, the rest of the minute when it ends (or at close)
  * @returns {Promise<{ port: number, server: import("node:http").Server, close(): Promise<void> }>}
  */
-export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS }) {
+export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRACE_MS, limits: given = {}, onRefused }) {
     const problem = handler.problem ?? defaultProblem;
+    const limits = { ...CONNECTION_LIMITS, ...given };
+    const gate = connectionGate(limits);
     let running = 0;
     /** @type {Array<() => void>} */
     let idle = [];
-    const server = createServer({ maxHeaderSize: 16_384, requestTimeout: 30_000, headersTimeout: 15_000 }, async (req, res) => {
+    const server = createServer({ maxHeaderSize: 16_384, requestTimeout: limits.requestMs, headersTimeout: limits.headersMs, connectionsCheckingInterval: limits.checkMs }, async (req, res) => {
+        const path = pathOfTarget(req.url);
+        if (path === null) {
+            // "OPTIONS *", "CONNECT host:443": no resource of this server
+            const answer = problem(400, "/");
+            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close" });
+            res.end(Buffer.from(await answer.arrayBuffer()));
+            return;
+        }
         running++;
         const abort = new AbortController();
         res.on("close", () => abort.abort());
@@ -84,7 +238,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             // path is the request line's alone: a Host header with a path in it ("localhost/x?") is not
             // put in front of it, so it cannot change the route
             const host = req.headers.host ?? "localhost";
-            const url = `http://${HOST_SYNTAX.test(host) ? host : "invalid.invalid"}${req.url?.startsWith("/") ? req.url : "/"}`;
+            const url = `http://${HOST_SYNTAX.test(host) ? host : "invalid.invalid"}${path}`;
             // what the headers tell is checked before a byte of the body is read
             const early = handler.precheck ? await handler.precheck(new Request(url, { method: req.method, headers }), info) : null;
             if (early) {
@@ -105,7 +259,10 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
             const request = new Request(url, { method: req.method, headers, body, signal: abort.signal });
             const response = await handler.fetch(request, info);
             res.writeHead(response.status, Object.fromEntries(response.headers));
-            if (response.body && req.method !== "HEAD") {
+            if (response.body && req.method === "HEAD") {
+                // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
+                await response.body.cancel().catch(() => undefined);
+            } else if (response.body) {
                 // a client that leaves stops the stream; a full socket is waited for
                 abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
                 for await (const chunk of response.body) {
@@ -150,8 +307,41 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         }
     });
     server.keepAliveTimeout = 5_000;
-    // a bound on open connections: slow clients cannot hold every socket
-    server.maxConnections = 256;
+    // a bound on open connections, in all and per address, with slots kept for loopback
+    // refused connections are told at most once a minute, so a flood does not flood the log too: the
+    // first at once, those of the rest of the minute when it ends (or at close)
+    /** @type {RefusedConnections | null} */
+    let pending = null;
+    let toldAt = 0;
+    /** @type {NodeJS.Timeout | null} */
+    let flush = null;
+    const tell = () => {
+        if (flush) {
+            clearTimeout(flush);
+            flush = null;
+        }
+        if (pending && onRefused) {
+            toldAt = Date.now();
+            onRefused(pending);
+        }
+        pending = null;
+    };
+    server.on("connection", (socket) => {
+        const address = socket.remoteAddress;
+        if (!gate.admit(address)) {
+            socket.destroy();
+            const bounds = new Set([...(pending?.limits ?? []), /** @type {any} */ (gate.refusedBy)]);
+            pending = { address: String(address ?? ""), limits: [...bounds], ...gate.counts(address), refused: (pending?.refused ?? 0) + 1 };
+            if (Date.now() - toldAt >= 60_000) {
+                tell();
+            } else if (!flush) {
+                flush = setTimeout(tell, 60_000 - (Date.now() - toldAt));
+                flush.unref();
+            }
+            return;
+        }
+        socket.once("close", () => gate.release(address));
+    });
     await new Promise((resolve, reject) => {
         server.once("error", reject);
         server.listen(port, host, () => resolve(undefined));
@@ -161,6 +351,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
         port: typeof address === "object" && address ? address.port : port,
         server,
         async close() {
+            tell();
             const closed = new Promise((resolve) => server.close(() => resolve(undefined)));
             // no new connections; idle ones go now, running requests get graceMs to finish
             server.closeIdleConnections();

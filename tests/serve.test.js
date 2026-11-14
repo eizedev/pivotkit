@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { fileURLToPath } from "node:url";
 
 /** Starts the playground's static server on a free port; resolves with its base URL and the process. */
 async function startServer() {
-    const child = spawn(process.execPath, [new URL("../examples/playground/serve.js", import.meta.url).pathname, "0"], { stdio: ["ignore", "pipe", "inherit"] });
+    const child = spawn(process.execPath, [fileURLToPath(new URL("../examples/playground/serve.js", import.meta.url)), "0"], { stdio: ["ignore", "pipe", "inherit"] });
     let out = "";
     child.stdout.setEncoding("utf8");
     for await (const chunk of child.stdout) {
