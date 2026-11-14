@@ -82,7 +82,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   mapping from response to rows (used by `scripts/docs-data.js` and shown on the docs page
   `learn.md`), `data/SOURCES.md` the licences and attribution. The page never calls the sources.
   Loading data is on (`allowImport`, pivotkit-xlsx, its own `import-worker.js`, `onDataLoad` in the
-  footer); `?import=off` turns it off, so the toolbar has no Data button, as for a host without it.
+  footer; a loaded file's name stands under Data, without the data set's start view and shared views,
+  and names the exported files); `?import=off` turns it off, so the toolbar has no Data button, as for a host without it.
 - `examples/playground/validator.html` (`src/validator.js`) - the view file check the docs page
   `reference/view-file.md` embeds: pivotkit-core in the browser, nothing uploaded.
 - `examples/element/` - a plain HTML page with `<pivot-report>`, no build step; `npm run
