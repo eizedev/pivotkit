@@ -4,7 +4,12 @@
 // view of the same name each; a view whose sheet the workbook no longer has says so.
 //
 // The workbooks are pivotkit-xlsx's test generator's SHEET_BOOKS, the same the CLI's tests read.
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { toViewFile } from "pivotkit-core";
 import { chips, drag, expect, tableRows, test, toolbar } from "./fixtures.js";
 import { SHEET_BOOKS, makeXlsx } from "../../packages/pivotkit-xlsx/test/make-xlsx.js";
@@ -132,4 +137,27 @@ test("Open view file… with a view file made on another sheet of the workbook s
     await expect(page.getByTestId("source-line")).toHaveText("quarters.xlsx, sheet “Q3”, only in this browser");
     await expect.poll(() => chips(page, "rows")).toEqual(["Product"]);
     await expect.poll(async () => (await tableRows(page)).map((r) => r.slice(0, 2))).toEqual([["Alpha", "35"], ["Beta", "70"], ["Grand Total", "105"]]);
+});
+
+test("a draft view the command line made for a workbook's sheet opens in the report on that sheet, as a view of this file", async ({ page }) => {
+    // pivotkit describe book.xlsx --suggest --sheet 2025, run as a user runs it
+    const dir = mkdtempSync(join(tmpdir(), "pivotkit-draft-"));
+    writeFileSync(join(dir, "book.xlsx"), SHEET_BOOKS.sales());
+    const cli = fileURLToPath(new URL("../../packages/pivotkit-cli/bin/pivotkit.js", import.meta.url));
+    const draft = JSON.parse(execFileSync(process.execPath, [cli, "describe", "book.xlsx", "--suggest", "--sheet", "2025"], { cwd: dir, encoding: "utf8" }));
+    await page.goto("?data=sales&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    await load(page, fileOf("book.xlsx", XLSX, SHEET_BOOKS.sales()));
+    await expect(page.getByTestId("source-line")).toHaveText("book.xlsx, sheet “Readme”, only in this browser");
+    await toolbar(page, "views");
+    await page.getByTestId("load-view").click();
+    await page.getByTestId("load-view-text").fill(JSON.stringify(draft));
+    await page.getByTestId("load-view-apply").click();
+    // no question about other data: the sheet the draft names is read, then the draft shown
+    await expect(page.getByTestId("source-line")).toHaveText("book.xlsx, sheet “2025”, only in this browser");
+    await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
+    await expect.poll(() => chips(page, "cols")).toEqual(["Order date by month"]);
+    await expect(page.getByTestId("view-name")).toContainText("Draft: Sum of Units by Region and Order date by month");
+    const rows = await tableRows(page);
+    expect(rows.map((r) => r[0])).toEqual(expect.arrayContaining(["North", "South", "East", "West", "Grand Total"]));
 });
