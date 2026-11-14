@@ -2,7 +2,7 @@
  * Display labels of dimension values and the natural sort order of a column's dictionary.
  */
 
-import { collator, dateTimeFormat } from "./intl.js";
+import { collator, dateFormatter } from "./intl.js";
 
 /** @type {Intl.DateTimeFormatOptions} */
 const DATE = { dateStyle: "medium", timeZone: "UTC" };
@@ -240,7 +240,7 @@ export function labelOf(column, value, locale, labels = DEFAULT_LABELS) {
     }
     switch (column.type) {
         case "date":
-            return dateTimeFormat(locale, column.dateOnly ? DATE : DATE_TIME).format(new Date(Number(value)));
+            return dateFormatter(locale, column.dateOnly ? DATE : DATE_TIME)(new Date(Number(value)));
         case "boolean":
             return value ? (labels.true ?? "true") : (labels.false ?? "false");
         default:

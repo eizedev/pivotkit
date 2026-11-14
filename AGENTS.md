@@ -336,7 +336,8 @@ node scripts/check-readme-links.js site   # after `zensical build`: the READMEs'
   versions only (`^0.y.z` is 0.y.z and later 0.y patches), so a host that also uses pivotkit-core
   directly must use a version inside the range; npm shares one copy only when the ranges overlap.
   Docs and READMEs name no version of their own; the few statements that must (`docs/compare.md`, the
-  example of `docs/reference/view-file.md`) are in CONTRIBUTING.md's release steps and checked by
+  example of `docs/reference/view-file.md`, the pivotkit-core column of `docs/reference/plugins.md`)
+  are in CONTRIBUTING.md's release steps and checked by
   `tests/ci.test.js`. Chart wrapper packages have been hijacked on npm
   before: prefer a small own wrapper over a wrapper package.
 - A loaded file is user input like a view: every reader counts what a file can make grow against

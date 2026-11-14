@@ -125,8 +125,15 @@ export async function layoutView(data, values, ctx, where) {
     return { view: built.view, name: built.name, picks: built.picks, findings, encoded, layout };
 }
 
-/** A word as a shell takes it: as it is when it is plain, else in double quotes. */
-export const quoteArg = (word) => (/^[\w.,:/@%+-]+$/.test(word) ? word : `"${String(word).replace(/(["\\$`])/g, "\\$1")}"`);
+/**
+ * A word as a shell takes it: as it is when it is plain, else in double quotes; with a "!" in single
+ * quotes (an interactive bash expands "!" in double quotes from its history), a "'" in it as '\''.
+ */
+export const quoteArg = (word) => {
+    const text = String(word);
+    if (/^[\w.,:/@%+-]+$/.test(text)) return text;
+    return text.includes("!") ? `'${text.replaceAll("'", "'\\''")}'` : `"${text.replace(/(["\\$`])/g, "\\$1")}"`;
+};
 
 /**
  * What the draft shows, in lines for stderr: its parts (as --suggest picked them and the flags given

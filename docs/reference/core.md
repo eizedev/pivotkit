@@ -382,6 +382,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 | --- | --- |
 | `createHistory(startView, { limit })` | Undo, redo and reset for views: `current`, `canUndo`, `canRedo`, `push(view)` (an unchanged view is not a step; returns whether it was one), `undo()`, `redo()`, `reset()` (back to the start view as one step that can be undone). `limit` defaults to 100 steps. |
 | `formatter(format, { locale })` | A named [format](../concepts/values.md#formats) as a function from a value to text. |
+| `MAX_DATE_MS`, `isDateMs(ms)` | The most milliseconds from the epoch a `Date` holds either way (`8.64e15`, the years -271821 to 275760), and whether a value is a number within it: `new Date(ms)` of any other is invalid and formatting it throws. For a host that builds dates or a `now` of its own. |
 | `isFormat(format)` | Whether a name is a known format. |
 | `CATALOG` | Every name a view accepts, for a UI's menus: `aggregators`, `commonAggregators`, `columnTypes`, `deriveUnits`, `timelineUnits`, `cyclicUnits`, `filterTypes`, `filterFields` (per filter type, the field types it works on), `filterBlanks`, `textOps`, `textOn`, `matchCases`, `matchWhitespace`, `compareOps`, `comparePrecisions`, `topTies`, `relativeUnits`, `relativeDirections`, `relativeMaxCount`, `relativeAnchors`, `formats`, `showAs`, `showAsAlongAxis`, `chartTypes`, `chartValueLabels`, `chartLegends`, `chartAxisLabels`, `chartGroupLabels`, `chartLabelPositions`, `displayModes`, `conditionalTypes`. |
 | `aggregatorsFor(type)` | The aggregators that fit a field type. |

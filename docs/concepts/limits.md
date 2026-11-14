@@ -24,6 +24,10 @@ Dates are **wall-clock time**: a value is grouped and shown as it was written, n
 reader's zone.
 
 - An ISO string without an offset (`"2026-03-04T10:00"`, `"2026-03-04"`) is taken as written.
+- A year before 0 or after 9999 is written as ECMAScript writes it, with a sign and six digits
+  (`"+010000-01-01"`, `"-000001-12-31"` for 2 BC), within what a `Date` holds (`MAX_DATE_MS`: the
+  years -271821 to 275760); a compare filter's day at the edges of that range is written so too and
+  reads the same when the view is saved and loaded again.
 - A `Date`, epoch milliseconds, or an ISO string with an offset (`"2026-03-04T10:00:00Z"`) is an
   **instant**. It is read at the wall clock of the zone given to `encode(rows, { timeZone })`
   (`timeZone` prop or `time-zone` attribute in the UI): `"UTC"` by default, any IANA zone

@@ -63,6 +63,7 @@ export { findNode, cellRows } from "./tree.js";
 export { fieldItems } from "./items.js";
 export { dateUnitFor, suggestDateUnit } from "./derive.js";
 export { relativeDateRange } from "./filters.js";
+export { MAX_DATE_MS, isDateMs } from "./time.js";
 export { foldText, MATCH_DEFAULTS } from "./text-match.js";
 export { closest, HINT_LIMITS } from "./hints.js";
 export { toGrid } from "./grid.js";
