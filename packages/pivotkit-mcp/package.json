@@ -20,7 +20,9 @@
     "reporting",
     "report",
     "excel",
-    "llm"
+    "llm",
+    "ai",
+    "pivottable"
   ],
   "type": "module",
   "bin": {

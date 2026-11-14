@@ -19,7 +19,11 @@
     "reporting",
     "report",
     "excel",
-    "api"
+    "api",
+    "mcp",
+    "docker",
+    "container",
+    "oauth"
   ],
   "type": "module",
   "bin": {
