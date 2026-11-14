@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -155,10 +155,15 @@ test("check-release refuses a package whose own dependency has unreleased change
 // --published asks npm (`npm view <dep>@<version> version`). The test runs the script in a copy of
 // a small repository, with a stub `npm` first on PATH that answers like the registry: the version for a
 // published one, E404 (as npm 11 does for an unknown package or version) or a network error. No network.
-// On macOS the temporary directory is a symlink, which the script's main guard must follow.
+// The script is run through a symlink to that directory, which its main guard must follow (else it
+// checks nothing and exits 0).
 test("check-release --published refuses a dependency that is not on npm and says when npm cannot tell", { skip: process.platform === "win32" && "the stub npm is a POSIX shell script; releases run on Linux" }, (t) => {
-    const dir = mkdtempSync(join(tmpdir(), "pivotkit-check-release-"));
-    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "pivotkit-check-release-"));
+    const link = `${dir}-link`;
+    t.after(() => {
+        rmSync(link, { force: true });
+        rmSync(dir, { recursive: true, force: true });
+    });
     const files = {
         "package.json": { type: "module", workspaces: ["packages/pivotkit-core", "packages/pivotkit-report", "packages/pivotkit-react"] },
         "packages/pivotkit-core/package.json": { name: "pivotkit-core", version: "0.6.0" },
@@ -188,9 +193,10 @@ echo "npm error 404 No match found for version \${2##*@}" >&2
 exit 1
 `);
     chmodSync(join(dir, "bin", "npm"), 0o755);
+    symlinkSync(dir, link, "dir");
     const run = (env, ...args) => {
         rmSync(join(dir, "npm-calls.log"), { force: true });
-        const result = spawnSync(process.execPath, [join(dir, "scripts", "check-release.js"), "pivotkit-react", ...args], {
+        const result = spawnSync(process.execPath, [join(link, "scripts", "check-release.js"), "pivotkit-react", ...args], {
             encoding: "utf8",
             env: { ...process.env, PATH: `${join(dir, "bin")}${delimiter}${process.env.PATH}`, NPM_STUB_PUBLISHED: "", NPM_STUB_OFFLINE: "", ...env }
         });
