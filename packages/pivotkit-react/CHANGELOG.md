@@ -6,6 +6,15 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- A controlled report whose host does not pass its views back (it rejects or ignores
+  `onViewChange`) keeps at most 100 of the views it told the host waiting, the newest ones, instead
+  of one more with every change ([#204](https://github.com/eizedev/pivotkit/issues/204)).
+- The dashed rule between the parts of a menu's group (the chart's Display: Value labels, Legend,
+  Title) uses `--pk-rule`, 3:1 against the menu as the rule between groups, instead of `--pk-border`
+  (about 1.3:1) ([#205](https://github.com/eizedev/pivotkit/issues/205)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5

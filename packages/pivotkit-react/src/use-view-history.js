@@ -31,7 +31,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { emptyView, normalize } from "pivotkit-core";
-import { createState, record, redo as redoStep, reset as resetStep, settle, undo as undoStep } from "./view-history.js";
+import { answered, createState, record, redo as redoStep, reset as resetStep, settle, told, undo as undoStep } from "./view-history.js";
 import { withHostOrders } from "./view-ops.js";
 
 /**
@@ -72,13 +72,12 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
     const [state, setState] = useState(() => initialState ?? createState(schema, start));
 
     const viewKey = controlled ? JSON.stringify(view) : null;
-    // Keep every outgoing view until the host acknowledges it. Intermediate echoes belong to
+    // Keep every outgoing view (at most HISTORY_LIMIT) until the host acknowledges it. Intermediate echoes belong to
     // this sequence, not to a new outside edit. Rendering still uses the host's view (#142).
     const [echo, setEcho] = useState(() => ({ over: viewKey, pending: initialState ? [initialState.present] : [] }));
     let pending = echo.pending;
     if (viewKey !== echo.over) {
-        const index = viewKey === null ? -1 : pending.indexOf(json(JSON.parse(viewKey)));
-        pending = index < 0 ? [] : pending.slice(index + 1);
+        pending = viewKey === null ? [] : answered(pending, json(JSON.parse(viewKey)));
         setEcho({ over: viewKey, pending });
     }
     const shown = useMemo(() => {
@@ -96,7 +95,7 @@ export function useViewHistory({ encoded, view, defaultView, onViewChange, limit
         (next) => {
             setState(next);
             if (viewKey !== null) {
-                setEcho((previous) => ({ over: viewKey, pending: [...(previous.over === viewKey ? previous.pending : pending), next.present] }));
+                setEcho((previous) => ({ over: viewKey, pending: told(previous.over === viewKey ? previous.pending : pending, next.present) }));
             }
             onViewChange?.(JSON.parse(next.present));
         },
