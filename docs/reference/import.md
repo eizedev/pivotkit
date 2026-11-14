@@ -212,15 +212,16 @@ step it guards, so a file that is too large costs no memory first:
 | `unpackedBytes` | 500 MiB | What the parts unpack to, from the directory, before anything is unpacked (a ZIP bomb). |
 
 A file over a limit throws `PivotkitError` `LIMIT_EXCEEDED` with `details` `{ limit, value, max,
-file, what }` (`what`: what was counted, in English, as the message says it) and a message that names the file, the limit and what to change: `"tickets.csv" has more than
-1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this limit`. The
-previous data stays. pivotkit-react says it in the report's language from `details` (the limits
-`rows`, `columns`, `fileBytes`, `importCells`, `archiveEntries` and `unpackedBytes`;
-`labels.dataImport.overLimit` and `limitWhat`; `importCells` reached by a workbook's shared strings
-and formats, which `details.what` names, in the words of `workbookCells`, "different texts and
-formats"), after the file's name: "big.csv could not be
-loaded: it has more than 1,000 rows (limits.rows): …"; the key is the one of `limits` also where the
-host set `importLimits`. Any other error is the reader's message without the file's name in front.
+file, what }` and a message that names the file, the limit and what to change: `"tickets.csv" has
+more than 1,000,000 rows (limits.rows): load a smaller extract of it, or a host can raise this
+limit`. `what` is what was counted, in English, as the message says it. The previous data stays.
+pivotkit-react says it in the report's language from `details` (the limits `rows`, `columns`,
+`fileBytes`, `importCells`, `archiveEntries` and `unpackedBytes`; `labels.dataImport.overLimit` and
+`limitWhat`; `importCells` reached by a workbook's shared strings and formats, which `details.what`
+names, in the words of `workbookCells`, "different texts and formats"), after the file's name:
+"big.csv could not be loaded: it has more than 1,000 rows (limits.rows): …"; the key is the one of
+`limits` also where the host set `importLimits`. Any other error is the reader's message without the
+file's name in front.
 
 ## Errors
 
