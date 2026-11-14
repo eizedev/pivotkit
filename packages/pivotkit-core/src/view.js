@@ -687,7 +687,10 @@ function context(schema, limits, add, strict) {
         },
         /** An unknown field, with the closest field's name when one is close. */
         suggest,
-        unknownField: (path, name) => ctx.issue(path, `unknown field ${JSON.stringify(name)}`, "unknownField", { field: shown(name), ...suggest(name, [...fields.values()].map((f) => f.name)) }),
+        unknownField: (path, name) =>
+            name === undefined
+                ? ctx.issue(path, "names no field", "unknownField", { field: "" })
+                : ctx.issue(path, `unknown field ${JSON.stringify(name)}`, "unknownField", { field: shown(name), ...suggest(name, [...fields.values()].map((f) => f.name)) }),
         /** Warns about each key of `obj` (a part of the view) that is not of `allowed`. */
         keys: (obj, allowed, path) => {
             if (!isPlainObject(obj)) {

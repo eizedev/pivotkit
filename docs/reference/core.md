@@ -37,7 +37,11 @@ dictionaries for labels, Float64 for measures. Returns `Encoded`.
 `Encoded` has `length`, `columns`, `schema.fields` (name, type, and `detected` when a text column
 holds only numbers, so a UI can offer `inferNumbers` or a `types` override), `column(name)` (a
 case-insensitive lookup), `timeZone`, and `issues` (column names that collide case-insensitively).
-Names match case-insensitively; the data's own spelling is kept for display.
+Names match case-insensitively; the data's own spelling is kept for display. Each issue has a `code`
+and `params` (`column`: the name kept, `spelling`: the other one): `columnCase`, another spelling
+joined to the column (rows with `Team` and rows with `team`); `columnCaseValue`, a row with both
+spellings, whose later value is used and the other lost (`row`); `columnCaseLeftOut`, a column of
+columnar data left out for an earlier one.
 
 #### Columnar input
 
@@ -146,7 +150,7 @@ const { valid, errors } = validate(view, data);
 
 | Function | Returns | What |
 | --- | --- | --- |
-| `viewFromLayout(layout, description, { locale })` | `{ view, name, notes }` | `layout`: `{ rows, cols, values: [{ field, agg }], groups: [{ field, by, size }], filters, chart, map }`, every key optional. Names match the description case-insensitively and are written in its spelling; a grouping takes its field's place on the axes and is named as the report names one (`Date by month`, German `Date nach Monat`: `GROUPING_NAMES`); a date on an axis without a grouping is grouped by its span (`dateUnitFor`, note `dateGrouped`); a value without `agg` is summed when its field is a number that is no identifier (`isIdentifierName`), else counted; `chart` shows that chart type; `map` renames the layout's names first (the rules of `renameFields`), so a mapped number is summed and a mapped date grouped. A grouping of a field the description does not have is left out, so `normalize` names the field itself with the name meant. Names are German for a `de` locale, English for any other. An unknown field, aggregator or unit passes through, so `normalize` names it with "did you mean". `name` says what the view shows (`Sum of Revenue by Region and Date by month`). A layout of another shape throws `INVALID_ARGUMENT`, one beyond `LAYOUT_LIMITS` (64 entries per list, 1,024 characters per name) `LIMIT_EXCEEDED`. `notes`: `dateGrouped`, `unusedGroup` (a grouping on no axis and in no filter), `unusedMap`. |
+| `viewFromLayout(layout, description, { locale })` | `{ view, name, notes }`: `view` a `LayoutView`, raw; `normalize(view, data).view` is the `View` | `layout`: `{ rows, cols, values: [{ field, agg }], groups: [{ field, by, size }], filters, chart, map }`, every key optional. Names match the description case-insensitively and are written in its spelling; a grouping takes its field's place on the axes and is named as the report names one (`Date by month`, German `Date nach Monat`: `GROUPING_NAMES`); a date on an axis without a grouping is grouped by its span (`dateUnitFor`, note `dateGrouped`); a value without `agg` is summed when its field is a number that is no identifier (`isIdentifierName`), else counted; `chart` shows that chart type; `map` renames the layout's names first (the rules of `renameFields`), so a mapped number is summed and a mapped date grouped. A grouping of a field the description does not have is left out, so `normalize` names the field itself with the name meant. Names are German for a `de` locale, English for any other. An unknown field, aggregator or unit passes through, so `normalize` names it with "did you mean". `name` says what the view shows (`Sum of Revenue by Region and Date by month`). A layout of another shape throws `INVALID_ARGUMENT`, one beyond `LAYOUT_LIMITS` (64 entries per list, 1,024 characters per name) `LIMIT_EXCEEDED`. `notes`: `dateGrouped`, `unusedGroup` (a grouping on no axis and in no filter), `unusedMap`. |
 | `suggestLayout(description, { locale })` | `{ layout, picks, notes }` | A first layout: rows the first text field that is a category (no identifier's name; with counts, 2 to 50 values that repeat), columns the first date grouped by its span or, without a date, the next category of up to 12 values (`SUGGEST_LIMITS`), values the first number that is no identifier, summed (none: the count of rows). Without a category the date goes to rows. `picks`: per part its `code` (`category`, `date`, `secondCategory`, `firstNumber`, `countRows`), the field, and `others`, the fields it could have taken. Nothing to group by: the note `noSuggestion`. The rules read types and counts, not meaning: a temperature is summed like revenue. |
 | `renameFields(view, map)` | `{ view, unused }` | Every reference to a data field renamed (rows, columns, values, filters and their measures, sort and its measure, the groupings' source fields), all at once, case-insensitively; a grouping's own name stays. Two old names onto one new name, or a used field renamed to a field the view keeps, would join two fields: `INVALID_ARGUMENT`. |
 | `dateUnitFor(min, max)` | unit or `null` | The grouping for a span of dates (ms, the latest minus the earliest; 1 Jan to 4 Mar is 62 days): up to 62 days `day`, up to two years `yearMonth`, up to six `yearQuarter`, longer `year`; what `suggestDateUnit` returns for a field. |
@@ -404,7 +408,7 @@ What the files contain, and where Excel's number formats cannot follow the grid,
 `View`, `ValueSpec`, `ValueRef`, `FilterSpec`, `DerivedSpec`, `SortSpec`, `Issue`, `IssueParams`, `Encoded`, `Column`,
 `ColumnType`, `ColumnarData`, `SchemaField`, `PivotResult`, `PivotNode`, `Grid`, `GridCell`, `FieldItem`, `ChartTheme`,
 `Formatter`, `Limits`, `Labels`, `SchemaFieldDefaults`, `PivotkitErrorCode`, `ViewFileMeta`, `ViewFileRead`,
-`ViewFileCompatibility`, `ViewFileSource` and `TextMatch`, from `pivotkit-core`.
+`ViewFileCompatibility`, `ViewFileSource`, `LayoutView` and `TextMatch`, from `pivotkit-core`.
 
 ## Performance
 

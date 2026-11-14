@@ -34,6 +34,17 @@ import { renameFields } from "./view-file.js";
  * @property {string} [chart]  a chart type (CHART_TYPES): the view shows the chart
  * @property {Record<string, string>} [map]  a field the layout names (key) is the data's field (value)
  *
+ * @typedef {object} LayoutView  viewFromLayout's view: raw, with the layout's names and filters as
+ *   given; normalize() it against the data for a View
+ * @property {2} version
+ * @property {string[]} rows
+ * @property {string[]} cols
+ * @property {Array<{ field?: string, agg: string }>} values
+ * @property {Array<{ name: string, field: string, by: string, size?: number }>} [derived]
+ * @property {object[]} [filters]
+ * @property {"chart"} [display]
+ * @property {{ type: string }} [chart]
+ *
  * @typedef {object} LayoutPick  why suggestLayout chose a part
  * @property {"rows" | "cols" | "values"} part
  * @property {"category" | "date" | "secondCategory" | "firstNumber" | "countRows" | "given"} code  "given": a part the layout gave (pivotkit-report's viewOfLayout)
@@ -63,7 +74,8 @@ const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key", "#"])
 /**
  * Whether a field's name says it is an identifier: its last word is ID, Nr, No, Number, Key or "#",
  * in any case. Words are split at a space, "_", "-", ".", "/", ":", a change from a small letter to
- * a capital ("CustomerId", "CustomerID") and from a letter to a digit; a "#" is a word of its own
+ * a capital ("CustomerId", "CustomerID"), before the last capital of a run followed by a small letter
+ * ("HTTPId" as "HTTP Id") and from a letter to a digit; a "#" is a word of its own
  * ("Serial#" as "Serial #"). Before the last word is read, a part in parentheses at the end ("ID
  * (Asset)") and digits at the end ("userID2") are left out. "Paid", "PAID" and "UUID" are one word,
  * not one ending in "id"; "Number of items" ends in "items". A number field named so is counted, not
@@ -73,6 +85,7 @@ const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key", "#"])
 export function isIdentifierName(name) {
     const words = String(name)
         .replace(/(\s*\([^()]*\))+\s*$/, "")
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
         .replace(/([A-Za-z])(\d)/g, "$1 $2")
         .replace(/#/g, " # ")
@@ -277,7 +290,7 @@ const copy = (value) => JSON.parse(JSON.stringify(value));
  * @param {Layout} layout
  * @param {LayoutDescription} description
  * @param {{ locale?: string }} [options]  the names' language: German for a "de" locale, English for any other
- * @returns {{ view: Record<string, any>, name: string, notes: LayoutNote[] }}
+ * @returns {{ view: LayoutView, name: string, notes: LayoutNote[] }}
  */
 export function viewFromLayout(layout, description, options) {
     options = optionsOf(options, "viewFromLayout");
@@ -372,7 +385,7 @@ export function viewFromLayout(layout, description, options) {
             notes.push({ code: "unusedGroup", field: d.field, message: `the grouping ${d.name} is on no axis and in no filter: put ${d.field} on rows or columns` });
         }
     }
-    /** @type {Record<string, any>} */
+    /** @type {LayoutView} */
     const view = { version: 2, rows, cols, values, ...(derived.length ? { derived } : {}), ...(filters.length ? { filters } : {}) };
     if (layout.chart !== undefined) {
         view.display = "chart";
