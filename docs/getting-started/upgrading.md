@@ -24,9 +24,10 @@ line write check the last two rows. Each package's `CHANGELOG.md` has the full l
 
 ### Versions move together { #versions-0-6 }
 
-pivotkit-react 0.6 depends on `pivotkit-core` `^0.6.0` and `pivotkit-report` `^0.2.0`; in 0.x a caret
-range admits that minor only. A host that also lists pivotkit-core (or pivotkit-xlsx, now `^0.3.0`
-for the command line) updates it to the same release, or npm installs two copies.
+Each package depends on the others of the same release, and in 0.x a caret range admits one minor
+only. A host that also lists pivotkit-core, pivotkit-report or pivotkit-xlsx itself updates them to
+the versions released with pivotkit-react 0.6 (their CHANGELOGs say which), or npm installs two
+copies.
 
 ### Export → Table as CSV { #table-as-csv }
 
