@@ -343,7 +343,7 @@ function withViewTypes(data, fields) {
         const name = table.columns[c];
         const next = retype(table, { [name]: /** @type {any} */ (f.type) });
         const raw = table.raw[c];
-        const lost = raw.findIndex((v, i) => v !== null && v !== "" && (next.data[c][i] === null || next.data[c][i] === undefined));
+        const lost = raw.findIndex((v, i) => v !== null && String(v).trim() !== "" && (next.data[c][i] === null || next.data[c][i] === undefined));
         if (lost >= 0) {
             findings.push({ severity: "warning", code: "typeFromViewFailed", path: "", message: printable(`${data.name}: "${name}" is ${f.type} in the view file, but its value ${JSON.stringify(String(raw[lost]))} (row ${lost + 1}) is none; read as ${table.types[c]}`) });
             continue;
@@ -451,6 +451,9 @@ async function exampleCommand(positionals, values, ctx) {
         throw new CliError("usage", "EXTRA_ARGUMENT", `example takes one name, not ${positionals.length}`);
     }
     const all = examples();
+    if (values.list && positionals.length) {
+        throw new CliError("usage", "EXTRA_ARGUMENT", "--list writes nothing: give it without a name");
+    }
     if (values.list) {
         if (!values.json) {
             const width = Math.max(...all.map((e) => e.name.length));

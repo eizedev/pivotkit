@@ -25,7 +25,7 @@ it, **Source data** downloads all the rows behind the report instead of the tabl
 | **Copy table** | The table as it is shown, tab-separated. | Pasting into Excel, Numbers or Google Sheets. |
 | **Copy data as JSON** | The table's data for a program. | A developer. |
 | **All rows as CSV (.csv)** | All the original rows behind the report, before grouping, filters and totals, with every field. | Your own analysis, or the [command line](../reference/cli.md) with the view. |
-| **All rows as JSON (.json)** | The same rows for a program, every value exactly as it is. | A developer. |
+| **All rows as JSON (.json)** | The same rows for a program: numbers as numbers, text as text, a blank as `null`. | A developer. |
 
 While no field is placed there is no table to export: its entries are greyed out with "Add a field
 first." under them, and nothing is downloaded or copied. The source data is there all the same.
@@ -110,8 +110,8 @@ The rows behind ONE number (a cell's drill-down) are in the [drill-down](drill-d
     decimal mark (a machine format: Excel set to a comma decimal opens it with **Data**, **From
     Text/CSV**), numbers with all their digits, dates as `2026-07-03` or `2026-07-03T08:15:00`,
     yes/no as `true` and `false`, a blank empty. A text or a field name a spreadsheet would run as a
-    formula gets a leading `'`, as in every CSV (see below); the JSON keeps every value exactly as it
-    is. A very large data set (more than 2,000,000 values, rows times fields) is refused with a note;
+    formula gets a leading `'`, as in every CSV (see below); the JSON keeps text as it is (no `'`),
+    numbers as numbers and a blank as `null`. A very large data set (more than 2,000,000 values, rows times fields) is refused with a note;
     the application can raise that limit.
 
 ??? info "Copy data as JSON"

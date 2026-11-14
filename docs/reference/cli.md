@@ -23,7 +23,8 @@ Node 22 or later. It brings [pivotkit-report](report.md), pivotkit-core, pivotki
 `pivotkit example` writes the default example, `sales`, into the current directory, says what each
 file is and what to run next; `pivotkit example weather` writes the other one, `pivotkit example
 --list` names them all and writes nothing. It never writes over a file: when one of its files is
-there, it writes nothing (exit 2).
+there, it writes nothing (exit 2, `EXISTS`); each file is linked into place, so one that appears
+while it writes is not replaced either.
 
 ```text
 $ pivotkit example

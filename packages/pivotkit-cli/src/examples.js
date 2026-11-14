@@ -75,8 +75,9 @@ export async function writeExample(example, { cwd, allow }) {
     }
     // every file read before the first is written: a missing one writes nothing
     const bodies = example.files.map((name) => ({ name, body: shipped(name) }));
+    // linked into place: a file that appeared since the check is never replaced
     for (const { name, body } of bodies) {
-        await writeSafe(name, body, { cwd, allow });
+        await writeSafe(name, body, { cwd, allow, exclusive: true });
     }
     return example.files;
 }

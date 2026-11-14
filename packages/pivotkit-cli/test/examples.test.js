@@ -21,6 +21,9 @@ test("pivotkit example --list: the examples with their files, the default marked
     }
     assert.match(r.stdout, /^ {2}sales .*\(the default\)$/m);
     assert.deepEqual(readdirSync(dir), []);
+    const both = await run(["example", "weather", "--list"], { cwd: dir });
+    assert.equal(both.code, 2);
+    assert.deepEqual(readdirSync(dir), []);
     const json = JSON.parse((await run(["example", "--list", "--json"], { cwd: tempDir() })).stdout);
     assert.deepEqual(json.examples.map((e) => e.name), MANIFEST.examples.map((e) => e.name));
     assert.equal(json.ok, true);
@@ -104,3 +107,13 @@ for (const example of MANIFEST.examples) {
         }
     });
 }
+
+test("the example writer (writeSafe exclusive) refuses a file that is there with EXISTS and leaves it as it was", async () => {
+    const { writeSafe } = await import("../src/safe-files.js");
+    const dir = tempDir();
+    writeFileSync(join(dir, "late.csv"), "mine");
+    // (the link() into place refuses one that appears after this check, too)
+    await assert.rejects(writeSafe("late.csv", new TextEncoder().encode("theirs"), { cwd: dir, allow: [], exclusive: true }), { code: "EXISTS" });
+    assert.equal(readFileSync(join(dir, "late.csv"), "utf8"), "mine");
+    assert.deepEqual(readdirSync(dir), ["late.csv"]);
+});

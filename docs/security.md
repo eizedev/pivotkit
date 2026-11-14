@@ -107,7 +107,7 @@ reference depth and the number of schema objects it reads.
   out, so a name cannot read as another one and no formula hides behind one.
 - **Source data as CSV**: the same guard on every value and on the field names of its header, so
   a field named `=x` is written `'=x` and a script reading the file gets that name; **as JSON**:
-  every value and name exactly as it is (no guard, no bidi controls removed: JSON is read by programs,
+  every text and name as it is (no guard, no bidi controls removed: JSON is read by programs,
   not run by a spreadsheet; a program that turns it into CSV applies its own guard).
 - **Copies** (Copy table, the drill-down's Copy): the same guard on every cell, since a spreadsheet
   runs a pasted formula too. Copy as JSON writes values, never markup or code.

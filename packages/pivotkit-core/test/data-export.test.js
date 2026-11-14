@@ -41,6 +41,20 @@ test("dataToCsv: a derived field of a view is no column of the data file", () =>
     assert.deepEqual(Object.keys(JSON.parse(dataToJson(data))[0]), ["Name", "Amount", "Tiny", "Huge", "Day", "At", "Ok", "Code"]);
 });
 
+test("dataToCsv: a blank as the only value of a line is written \"\", so the line holds a row for any reader", async () => {
+    const one = encode([{ A: 1 }, { A: null }, { A: 3 }]);
+    assert.equal(dataToCsv(one), 'A\r\n1\r\n""\r\n3\r\n');
+    // pivotkit's own reader skips a row without any value, as it does for every format (documented)
+    const back = await readFile(new File([dataToCsv(one)], "one.csv"));
+    assert.equal(back.rowCount, 2);
+    assert.ok(back.notes.some((n) => n.code === "ROWS_EMPTY"));
+});
+
+test("columns: a name given twice is written once (CSV and JSON agree); a name of no column is left out", () => {
+    assert.equal(csvLines(dataToCsv(data, { columns: ["Amount", "amount", "nope"] }))[0], "Amount");
+    assert.deepEqual(Object.keys(JSON.parse(dataToJson(data, { columns: ["Amount", "amount"] }))[0]), ["Amount"]);
+});
+
 test("dataToCsvBytes: UTF-8 with a byte order mark unless bom is false", () => {
     const bytes = dataToCsvBytes(data, { columns: ["Code"] });
     assert.deepEqual([...bytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);

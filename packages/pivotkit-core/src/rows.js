@@ -206,7 +206,9 @@ function dataColumns(data, options, fn) {
     let columns = data.columns.filter((c) => !c.derived);
     if (options.columns !== undefined) {
         expect(Array.isArray(options.columns), `${fn}: options.columns must be an array of field names`);
-        columns = options.columns.map((name) => columns.find((c) => c.key === String(name).toLowerCase())).filter((c) => c !== undefined);
+        // a name that matches no column is left out, one named twice is written once
+        const wanted = new Set(options.columns.map((name) => String(name).toLowerCase()));
+        columns = [...wanted].map((key) => columns.find((c) => c.key === key)).filter((c) => c !== undefined);
     }
     checkLimit("cells", (data.length + 1) * columns.length, resolveLimits(options).cells, "rows x columns of the data export");
     const valueOf = columns.map((column) => (column.type === "date" ? (v) => isoWall(/** @type {number} */ (v), Boolean(column.dateOnly)) : (v) => v));
@@ -251,11 +253,13 @@ function dataCsv(data, options, fn) {
         return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
     const lines = [columns.map((c) => text(c.name)).join(",")];
+    // a blank is empty, except as the only value of a line: an empty line is skipped by every reader
+    const blank = columns.length === 1 ? '""' : "";
     for (let i = 0; i < data.length; i++) {
         const line = new Array(columns.length);
         for (let c = 0; c < columns.length; c++) {
             const v = cell(i, c);
-            line[c] = v === null ? "" : typeof v === "string" ? text(v) : String(v);
+            line[c] = v === null ? blank : typeof v === "string" ? text(v) : String(v);
         }
         lines.push(line.join(","));
     }
