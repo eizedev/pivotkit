@@ -194,7 +194,9 @@ async function reportsIn(dir) {
 export async function prune(context) {
     const days = context.output?.maxAgeDays;
     const dir = outputDir(context);
-    if (!days || !dir || Date.now() - (pruned.get(dir) ?? 0) < 3_590_000) {
+    // a directory that holds the operator's own files is never cleaned (createContext refuses
+    // maxAgeDays there; a context built another way is held to the same rule)
+    if (!days || !dir || context.output.cleanUp === false || Date.now() - (pruned.get(dir) ?? 0) < 3_590_000) {
         return;
     }
     pruned.set(dir, Date.now());
@@ -240,17 +242,22 @@ function outputError(e) {
  * of pivotkit's files or output.maxMb, its oldest reports are deleted, whoever made them; so a caller
  * that renders without pause shortens how long the reports stay, but never stops the others from
  * rendering. Schedule drafts count but are never deleted to make room (a person has yet to approve
- * them): when only drafts are left, it refuses. A directory that holds the operator's own files
+ * them): when only drafts are left, it refuses. Drafts may take at most half of output.maxFiles
+ * (draftCap), so callers who may draft cannot fill the directory and stop every render. A directory that holds the operator's own files
  * (output.cleanUp false) is never cleaned: a full one refuses.
  * @returns {Promise<number>}  the files deleted
  */
-async function makeRoom(context, dir, bytes) {
+async function makeRoom(context, dir, bytes, draft) {
     const { maxFiles, maxMb, cleanUp } = context.output;
     const maxBytes = maxMb * 1_048_576;
     if (bytes > maxBytes) {
         throw new OperationError("NO_OUTPUT", `the report is larger than the output directory may hold (output.maxMb: ${maxMb})`);
     }
     const files = await reportsIn(dir);
+    const drafts = files.filter((f) => f.draft).length;
+    if (draft && drafts + 1 > draftCap(maxFiles)) {
+        throw new OperationError("NO_OUTPUT", `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first`);
+    }
     let count = files.length;
     let total = files.reduce((sum, f) => sum + f.size, 0);
     const reports = files.filter((f) => !f.draft);
@@ -270,8 +277,14 @@ async function makeRoom(context, dir, bytes) {
     return deleted;
 }
 
-/** Writes a file an operation made into the output directory; its name, path and address. */
-async function writeOutput(context, file) {
+/** The most schedule drafts the output directory may hold: half of output.maxFiles, at least 1. */
+export const draftCap = (maxFiles) => Math.max(1, Math.floor(maxFiles / 2));
+
+/**
+ * Writes a file an operation made into the output directory; its name, path and address.
+ * @param {boolean} [draft]  a schedule draft (draftCap holds), not a report
+ */
+async function writeOutput(context, file, draft = false) {
     const dir = outputDir(context);
     if (!dir) {
         return null;
@@ -280,7 +293,7 @@ async function writeOutput(context, file) {
     // a directory a web server serves gets names nobody can guess
     const prefix = context.output.baseUrl ? `${randomBytes(16).toString("base64url")}-` : "";
     const name = await oneAtATime(dir, async () => {
-        const deleted = await makeRoom(context, dir, file.bytes.length);
+        const deleted = await makeRoom(context, dir, file.bytes.length, draft);
         if (deleted) {
             context.log.info("output directory full: the oldest reports deleted", { deleted });
         }
@@ -403,7 +416,7 @@ const STEPS = {
         if (!outcome.file) {
             return { text: findingsText(false, result.findings), result: { ...result, output: null } };
         }
-        const output = await writeOutput(context, outcome.file);
+        const output = await writeOutput(context, outcome.file, true);
         const message = `The draft "${result.draft?.name}" is ready for approval${output ? `, saved as ${whereText(output)}` : ""}. Nothing runs until a person approves it in the host.`;
         return { text: message, result: { ...result, output: output ? { ...output, format: "json" } : null, message } };
     }

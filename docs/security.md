@@ -231,8 +231,10 @@ may try to steer it:
   reports and drafts carry `.pivotkit-out.` in their names; other files are neither counted nor
   deleted). When it is full, a new report deletes the oldest reports, so one caller cannot stop
   rendering for everyone, but any token that may render can push other callers' reports out (a link
-  to one then answers 404); drafts awaiting approval are never deleted this way. Set `maxFiles`
-  high, give `render_view` its own scope and keep the rate limits ([REST](reference/rest.md#auth)).
+  to one then answers 404); drafts awaiting approval are never deleted this way and may take at most
+  half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
+  as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
+  set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over

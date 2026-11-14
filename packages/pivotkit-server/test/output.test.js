@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, readdirSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { prune } from "../src/present.js";
 import { BIN, BY_REGION, call, restServer, workspace } from "./helpers.js";
 
 const run = (args) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, timeout: 30_000 });
@@ -27,7 +28,8 @@ function place(dir, files) {
 test("a full output directory makes room by deleting its oldest reports: one caller cannot stop rendering for everyone", async () => {
     const dir = workspace();
     const out = join(dir, "out");
-    // the operator's own files, a report-like one among them, years old: neither counted nor deleted
+    // pivotkit's file goes; the operator's own files, a report-like one among them, years old, are
+    // neither counted nor deleted (a hand-written name with ".pivotkit-out." would count as pivotkit's)
     place(out, [["Secret plan.pivotkit-out.xlsx", 10, 300], ["operator-data.json", 10, 200_000_000], ["notes.txt", 10, 400]]);
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxFiles: 3 }, baseDir: dir });
     try {
@@ -54,22 +56,47 @@ test("schedule drafts awaiting approval count but are never deleted to make room
     const dir = workspace();
     const out = join(dir, "out");
     place(out, [["Weekly.pivotkit-out.report.json", 10, 300], ["Monthly.pivotkit-out.report.json", 10, 200]]);
-    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxFiles: 3 }, baseDir: dir });
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxFiles: 4 }, baseDir: dir });
     try {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 4; i++) {
             const res = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
             assert.equal(res.status, 200, JSON.stringify(res.data));
         }
-        assert.equal(reports(out).length, 3);
+        // two reports and both drafts: the drafts stayed while the older reports went
+        assert.equal(reports(out).length, 4);
         assert.ok(readdirSync(out).includes("Weekly.pivotkit-out.report.json") && readdirSync(out).includes("Monthly.pivotkit-out.report.json"));
-        const draft = await call(`${server.api}/schedules/draft`, { body: { source: "sales", view: BY_REGION, name: "Daily", formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Sales team"] } });
-        // a draft takes the place of the last report; then only drafts are left
-        assert.equal(draft.status, 200, JSON.stringify(draft.data));
-        const full = await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
-        assert.equal(full.status, 409, JSON.stringify(full.data));
-        assert.equal(full.data.code, "NO_OUTPUT");
-        assert.match(full.data.detail, /schedule drafts awaiting approval/);
-        assert.equal(reports(out).filter((n) => n.endsWith(".report.json")).length, 3);
+    } finally {
+        await server.close();
+    }
+    // drafts written while output.maxFiles was larger fill a directory alone: a render refuses
+    const full = workspace();
+    place(join(full, "out"), [["A.pivotkit-out.report.json", 10, 300], ["B.pivotkit-out.report.json", 10, 200]]);
+    const small = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxFiles: 2 }, baseDir: full });
+    try {
+        const res = await call(`${small.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } });
+        assert.equal(res.status, 409, JSON.stringify(res.data));
+        assert.match(res.data.detail, /schedule drafts awaiting approval, which are not deleted/);
+        assert.equal(reports(join(full, "out")).length, 2);
+    } finally {
+        await small.close();
+    }
+});
+
+test("schedule drafts take at most half of output.maxFiles: more are refused, renders keep working", async () => {
+    const dir = workspace();
+    const out = join(dir, "out");
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "out", maxFiles: 3 }, baseDir: dir });
+    const draft = (name) => call(`${server.api}/schedules/draft`, { body: { source: "sales", view: BY_REGION, name, formats: ["xlsx"], every: { unit: "day", at: "07:00" }, recipients: ["Sales team"] } });
+    try {
+        assert.equal((await draft("One")).status, 200);
+        const second = await draft("Two");
+        assert.equal(second.status, 409, JSON.stringify(second.data));
+        assert.equal(second.data.code, "NO_OUTPUT");
+        assert.match(second.data.detail, /schedule drafts awaiting approval, the most it may/);
+        for (let i = 0; i < 4; i++) {
+            assert.equal((await call(`${server.api}/views/render`, { body: { source: "sales", view: BY_REGION, format: "csv" } })).status, 200);
+        }
+        assert.equal(reports(out).filter((n) => n.endsWith(".report.json")).length, 1);
     } finally {
         await server.close();
     }
@@ -141,6 +168,22 @@ test("an output directory the server cannot write: a warning at start, 409 NO_OU
     } finally {
         chmodSync(out, 0o755);
     }
+});
+
+test("output.maxAgeDays never cleans a directory of the operator's own files: check-config names it, a context held to it deletes nothing", async () => {
+    const dir = workspace();
+    place(join(dir, "data"), [["old.pivotkit-out.csv", 10, 5 * 86_400]]);
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data", maxAgeDays: 1 } }));
+    const check = run(["check-config", "--config", config]);
+    assert.equal(check.status, 1, check.stdout);
+    assert.match(check.stdout, /PROBLEM: output\.maxAgeDays in a directory that holds the configuration or a source/);
+    assert.doesNotMatch(check.stdout, /older than 1 days are deleted/);
+    // createContext refuses this; a context built another way is held to the same rule
+    await prune({ output: { dir: join(dir, "data"), maxAgeDays: 1, cleanUp: false } });
+    assert.deepEqual(readdirSync(join(dir, "data")).sort(), ["old.pivotkit-out.csv", "sales.csv"]);
+    await prune({ output: { dir: join(dir, "data"), maxAgeDays: 1, cleanUp: true } });
+    assert.deepEqual(readdirSync(join(dir, "data")), ["sales.csv"]);
 });
 
 test("check-config warns of a policy rule that matches no column and prints the data's spelling", () => {

@@ -23,7 +23,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
 - A full output directory (`output.maxFiles`, `output.maxMb`) deletes its oldest reports to make room
   instead of refusing every caller, so one token can no longer stop rendering for everyone; any token
   that may render can push other callers' older reports out. Schedule drafts awaiting approval are
-  never deleted this way, and nothing is deleted where the directory holds the configuration or a
+  never deleted this way and may take at most half of `output.maxFiles` (a draft over that is refused
+  with 409 `NO_OUTPUT`), and nothing is deleted where the directory holds the configuration or a
   source, template or token file ([#288](https://github.com/eizedev/pivotkit/issues/288)).
 
 ### Fixed

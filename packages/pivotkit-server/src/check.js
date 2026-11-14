@@ -11,6 +11,7 @@ import { readSafe, readTable } from "pivotkit-cli/files";
 import { OUTPUT_DEFAULTS, SERVER_LIMITS, pathOf, restResourceOf } from "./config.js";
 import { TOKEN_MIN } from "./auth.js";
 import { ownFileDirs, writable } from "./context.js";
+import { draftCap } from "./present.js";
 import { isLoopback } from "./listen.js";
 import { createRegistry } from "./registry.js";
 import { fieldKey, resolvePolicy } from "./policy.js";
@@ -83,7 +84,12 @@ export async function checkConfig(options, { http, env = {}, name = "pivotkit-mc
     if (outputDir && outputFound) {
         const real = await realpath(outputDir).catch(() => outputDir);
         const shared = (await ownFileDirs(options)).includes(real);
-        lines.push(`  at most ${options.output?.maxFiles ?? OUTPUT_DEFAULTS.maxFiles} reports and ${options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB; ${shared ? "it holds the configuration or a source, template or token file, so nothing there is deleted and a full directory refuses new reports" : "when full, the oldest reports are deleted to make room"}${options.output?.maxAgeDays ? `; reports older than ${options.output.maxAgeDays} days are deleted` : ""}`);
+        const maxFiles = options.output?.maxFiles ?? OUTPUT_DEFAULTS.maxFiles;
+        lines.push(`  at most ${maxFiles} files of pivotkit's (of them ${draftCap(maxFiles)} schedule drafts) and ${options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb} MB; ${shared ? "it holds the configuration or a source, template or token file, so nothing there is deleted and a full directory refuses new reports" : "when full, the oldest reports are deleted to make room, drafts are kept"}${options.output?.maxAgeDays && !shared ? `; reports and drafts older than ${options.output.maxAgeDays} days are deleted` : ""}`);
+        if (options.output?.maxAgeDays && shared) {
+            other += 1;
+            lines.push("  PROBLEM: output.maxAgeDays in a directory that holds the configuration or a source, template or token file: the server will not start; give the reports a directory of their own");
+        }
     }
     const auth = options.auth ?? {};
     const mode = auth.mode ?? "none";
