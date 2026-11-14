@@ -50,11 +50,12 @@ import { renameFields } from "./view-file.js";
  *   result (or its fields): counts and spans where it has them
  */
 
+// the constants are marked pure, so a bundle that takes only isIdentifierName (the report's first load) leaves them out
 /** What suggestLayout takes for a category: at most this many values (rows), and on columns at most `cols`. */
-export const SUGGEST_LIMITS = Object.freeze({ rows: 50, cols: 12 });
+export const SUGGEST_LIMITS = /* @__PURE__ */ Object.freeze({ rows: 50, cols: 12 });
 
 /** How large a layout may be: entries per list (rows, values, groups, ...), characters per name. */
-export const LAYOUT_LIMITS = Object.freeze({ entries: 64, name: 1024 });
+export const LAYOUT_LIMITS = /* @__PURE__ */ Object.freeze({ entries: 64, name: 1024 });
 
 /** The last word of a field's name that makes a number field an identifier ("ID", "Order No", "asset_nr", "Serial #"). */
 const IDENTIFIER_WORDS = Object.freeze(["id", "nr", "no", "number", "key", "#"]);
@@ -85,7 +86,7 @@ export function isIdentifierName(name) {
 }
 
 /** The words a view's name is made of, by language (the value names come from REPORT_LABELS). */
-const NAME_WORDS = Object.freeze({ en: Object.freeze({ by: "by", and: "and" }), de: Object.freeze({ by: "nach", and: "und" }) });
+const NAME_WORDS = /* @__PURE__ */ Object.freeze({ en: /* @__PURE__ */ Object.freeze({ by: "by", and: "and" }), de: /* @__PURE__ */ Object.freeze({ by: "nach", and: "und" }) });
 const wordsOf = (locale) => (String(locale ?? "").split("-")[0].toLowerCase() === "de" ? NAME_WORDS.de : NAME_WORDS.en);
 
 /**

@@ -208,9 +208,13 @@ answers checked, a plugin's minimal table completed, failed sheets, the host's e
  * the budget of 172.5), budget 173.
  * Bidi controls left out of the HTML report and the SVG (pivotkit-report) and the CSV and XLSX
  * (pivotkit-core): report 21.0 on a Mac (CI 21.1, 20.9 before), budget 21.5.
+ * A view from field names (#253): the one walk over the places a view names a field
+ * (pivotkit-core's mapFieldRefs, shared by viewFileFields of the first load and renameFields) and the
+ * grouping names and identifier rule now in pivotkit-core: first load 172.9 on a Mac (172.5 before;
+ * CI about 173.5), budget 174. The layout code itself stays out (its constants are marked pure).
  * `--size` fails above it; raise it on purpose, with the reason in the commit.
  */
-export const SIZE_BUDGET_KIB = { initial: 173.5, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 21.5, report: 22 };
+export const SIZE_BUDGET_KIB = { initial: 174, chart: 222.5, export: 12, link: 7.5, menus: 46, texts: 7, unused: 5.5, import: 21.5, report: 22 };
 
 /**
  * What a page loads, from the build's metafile: the entry with its static imports ("initial"), and
