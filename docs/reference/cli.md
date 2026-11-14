@@ -392,26 +392,28 @@ for a report that is the same on every run.
   it is read; a view file has at most 4 MB, a template 1 MB.
 - **Workbooks you did not make**: by default a workbook may unpack to 500 MiB (`unpackedBytes`).
   Whitespace padding costs little (a 54 KB file padded to 50 MiB reads in about 0.4 s with about
-  200 MB), but content that is kept costs a few times its size: 100 MiB of shared strings took about
-  2.4 s and 660 MB (Node 26, Apple M4; approximate), 500 MiB would take gigabytes. For untrusted files
-  lower the limit to what your workbooks need and give the run a time limit:
+  200 MB), but content that is kept costs a few times its size: the shared strings and formats kept
+  count against `importCells`, and 11 million of them, under the defaults, took about 1 to 1.3 GB
+  (Node 26, Apple M4; approximate). For untrusted files lower the limits to what your workbooks need
+  and give the run a time limit:
   `timeout 60 pivotkit describe upload.xlsx --limit unpackedBytes=104857600` (`timeout` is GNU
   coreutils; `gtimeout` on macOS with Homebrew's coreutils). See
   [Untrusted workbooks](../security.md#untrusted-workbooks).
 - **Output** goes to a new temporary file next to the target, then replaces it: no half-written
   file. A link, a directory or another non-regular file at the target is never replaced; for stdout
   leave out `-o` (`-o /dev/stdout` is a device). The directory is not created. A run killed between
-  the two steps leaves the temporary file (`.<name>.<pid>-<random>.tmp`).
+  the two steps leaves the temporary file (`.<name>.<pid>-<random>.tmp`); the CLI does not remove it
+  later, delete it by hand.
 - A file that has more bytes when it is read than its size said (it grew, or a `/proc` file that
   says 0) is refused, never cut.
 - **`--allow-dir`** is a hard limit: every file read or written must lie inside one of the
-  directories after its real path is resolved (symbolic links and `..` followed), checked on the
-  path and again on the opened file. Without it the CLI reads and writes with your own rights, as any
-  command-line tool does. It narrows what a mistake or a hostile view file name can reach; it is
-  **not a sandbox**: not against another process of the same user that changes the directories while
-  it runs, and a hard link inside an allowed directory to a file outside it reads that file (no path
-  check can tell a hard link apart). Run the CLI as a user that can only reach what it should, or in
-  a container, where that matters.
+  directories after its real path is resolved (symbolic links, Windows junctions and `..`
+  followed), checked on the path and again on the opened file. Without it the CLI reads and writes
+  with your own rights, as any command-line tool does. It narrows what a mistake or a hostile view
+  file name can reach; it is **not a sandbox**: not against another process of the same user that
+  changes the directories while it runs, and a hard link inside an allowed directory to a file
+  outside it reads that file (no path check can tell a hard link apart). Run the CLI as a user that
+  can only reach what it should, or in a container, where that matters.
 - **Messages** name a file by its base name and never print a file's content; names and messages
   from a view or the data are cleaned of control characters and cut at 200 characters.
 - **`pivotkit example`** writes its files the same way, in the current directory, after checking that

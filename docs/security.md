@@ -34,14 +34,16 @@ column of the data the report holds, as CSV or JSON: also the columns no view pl
 report's filters leave out, and a field the host only relabels or describes (`fieldDefaults` changes
 how a field is shown, not whether it is there). It makes one click of what the browser's developer
 tools already reach, so turn it on only where the viewer may take every row home, and keep rows
-the viewer must not have off the page (aggregate on your server). The drill-down hands out rows too:
+the viewer must not have off the page (aggregate on your server). `exportData={{ columns }}` keeps
+the files, and the drill-down's copies and files, to the columns you name. The drill-down hands out rows too:
 up to `drillDownLimit` rows behind a value (the grand total's are every row), with every column, in
 its panel, its exports and `onCellClick`; turn it off with `drillDown={false}` where rows must stay
 in. `onExport` (the element's `pivot-export`) sees the file first (`kind` `"data-csv"` or
 `"data-json"`) and can log it, upload it or refuse it (`false`); it is a hook for your own code, not a
 barrier against a person with developer tools. Nothing is stored or sent: the file is made in the
 browser. Its size counts against `limits.cells` (rows times fields, default 2,000,000), checked before
-the file is built; the browser holds a few times the file's size while it is made.
+the file is built; the browser holds about twice the CSV's size while it is made (the JSON a few times
+its size).
 
 ## Views are untrusted input
 
@@ -173,18 +175,34 @@ reads (rows without a value, anything between rows that is no row, what follows 
 runs of whitespace to 128 KiB and refuses a text of more than 1 MiB or a tag of more than 256 KiB as `DAMAGED`, so a small
 file padded with whitespace costs time in proportion to its unpacked size, and memory mostly for the
 pieces being unpacked, which the garbage collector frees as it goes (up to about 2 to 3 times the
-unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large. Measured with Node 26 on an
-Apple M4, peak memory of the whole process (approximate; machines differ):
+unpacked size at its peak). What is kept costs a few times its size, as for any workbook that large.
+
+read-excel-file keeps an entry for each shared string and each cell or number format, which costs
+about 100 bytes even for a string of one letter. Of the shared strings, pivotkit-xlsx keeps only
+those up to the highest one a cell of the sheet names (strings that only other sheets use are left
+out), and it counts the strings and formats it keeps, together and with a namespace prefix too,
+against `importCells` (plus 1,000 rows for a title block): more stop the read with `LIMIT_EXCEEDED`,
+so they cost no more than a table at that limit. Shared strings are numbered across the whole
+workbook, so a small sheet whose cell names a string past that limit (a workbook whose other sheets
+hold millions of strings) is refused too. When the sheet names its strings in a way the filter does
+not read (a prefix, a value that is no plain number), all strings are kept, up to the same limit. A
+comment, CDATA section or processing instruction in a row or in the shared strings is skipped as the
+parser skips it. Measured with Node 26 on an Apple M4, peak memory of the whole process (approximate; machines
+differ):
 
 | Workbook | Unpacked | Time | Memory |
 | --- | --- | --- | --- |
 | 54 KB, sheet XML padded with whitespace | 50 MiB | 0.4 s | about 200 MB |
 | 105 KB, whitespace before, in and after the rows, in a tag, in shared strings | 100 MiB | 0.4 to 0.8 s | about 190 to 310 MB |
-| 257 KB, 6 million one-letter shared strings | 100 MiB | 2.4 s | about 660 MB |
+| 257 KB, 6 million one-letter shared strings, a sheet of two cells | 100 MiB | 0.3 s | about 120 MB |
+| 1.3 MB, 30 million one-letter shared strings, a sheet of two cells | 495 MiB | 1.3 s | about 120 MB |
+| 455 KB, 11 million one-letter shared strings, a cell naming the last one | 178 MiB | 5 to 8 s | about 1 GB |
+| 81 KB, 11 million cell formats (`<xf/>`) | 52 MiB | 2 s | about 1.3 GB |
+| 1.3 MB, 30 million one-letter shared strings, a cell naming the last one | 495 MiB | refused after 2 to 3 s | about 300 MB |
 
-At the default 500 MiB, content of the last kind would take several gigabytes (extrapolated, not
-measured). For workbooks from people you do not trust, lower `unpackedBytes` to what your workbooks
-need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
+The last three are what the defaults still allow: lowering `importCells` lowers them in proportion.
+For workbooks from people you do not trust, lower `unpackedBytes` and `importCells` to what your
+workbooks need (`importLimits` in the report, `--limit unpackedBytes=104857600` on the
 [command line](reference/cli.md#files)) and run a server-side read with a time and memory limit of
 its own (a worker or a container).
 
@@ -208,7 +226,8 @@ may try to steer it:
   of fields marked `hide`, which are dropped when the data is read. A view that touches a field whose
   values are not shown has its result written to a file, and its row count, size and content are
   withheld from the model. Findings that would tell whether an item exists are left out for such
-  fields.
+  fields. A draft (`suggest_view`, a layout) reads no counts or span of a field that is not shown, nor
+  counts where `counts` is false: a date field there is grouped by quarter, whatever its span.
 - **The policy is not confidentiality.** A model can still learn from what it may see (results over
   `show` fields, counts), every number in a report is real (a small group can identify a person), and
   field names are data too. Leave out of the data, or `hide`, what the model must not learn about.
@@ -237,6 +256,10 @@ may try to steer it:
   set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
+- **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
+  for the headers; `http.maxConnectionsPerAddress` bounds one address where clients reach the port
+  directly. Behind a proxy the proxy must guard the connections and the port be reachable from it
+  only.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
   it is stopped), at most a few at once, with pivotkit-core's [limits](concepts/limits.md) and a
   default of 50 MiB per file.
@@ -278,7 +301,8 @@ and the sign-in above hold for it too. What differs:
 - **CORS** is off: a browser request is refused unless its origin is listed exactly
   (`rest.cors.origins`, never `*`).
 - **Limits** per caller (requests per minute, requests at once) and per address for refused tokens
-  slow down scripts and token guessing; they live in one process's memory.
+  slow down scripts and token guessing, on the REST service and the MCP endpoint alike (each with
+  its own counts); they live in one process's memory.
 - **Errors** are problem documents with a stable code; a message names no file content, and a 5xx
   carries a fixed text. A source the caller may not use answers as a missing one.
 

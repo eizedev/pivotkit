@@ -152,11 +152,27 @@ export { EVENTS };
  */
 
 /**
- * Starts the import worker of the package (dist/import-worker.js, next to this module's chunk): CSV
- * and JSON files are read off the page. A file of the page's origin, never blob:, so a policy with
- * script-src 'self' allows it; where it cannot start, the report reads on the page.
+ * Starts the import worker: the package's (dist/import-worker.js, next to this module's chunk), or
+ * the app's own copy at `url` (importWorkerUrl, relative to the page) where a bundle moved the module
+ * away from it (#194). CSV and JSON files are read off the page. A file of the page's origin, never
+ * blob:, so a policy with script-src 'self' allows it; a URL of another origin is refused here (a
+ * browser would refuse it too, Firefox with a SecurityError in the console). Where it cannot start,
+ * the report reads on the page.
+ * @param {string | URL | null | undefined} url
  */
-const startImportWorker = () => new Worker(new URL(IMPORT_WORKER, import.meta.url), { type: "module" });
+const startImportWorker = (url) => {
+    const at = url ? new URL(String(url), document.baseURI) : new URL(IMPORT_WORKER, import.meta.url);
+    if (url && at.origin !== location.origin) {
+        if (!refusedWorkers.has(at.href)) {
+            refusedWorkers.add(at.href);
+            console.warn(`pivotkit: importWorkerUrl ${JSON.stringify(at.href.slice(0, 80))} is not of the page's origin; files are read on the page`);
+        }
+        throw new Error("import worker of another origin");
+    }
+    return new Worker(at, { type: "module" });
+};
+/** The worker URLs of another origin said once in the console. */
+const refusedWorkers = new Set();
 
 /** Where the worker is from the module this code lands in (build.js: the bundle's layout). */
 const IMPORT_WORKER = typeof __PIVOTKIT_IMPORT_WORKER__ === "string" ? __PIVOTKIT_IMPORT_WORKER__ : "./import-worker.js";
@@ -309,9 +325,12 @@ export class PivotReportElement extends Base {
         this.#write("drill-down", value);
     }
 
-    /** Export → Source data: every row of the data as a CSV or JSON file (default false; boolean attribute export-data). */
+    /**
+     * Export → Source data and the drill-down's exports: true for every column, `{ columns }` for
+     * those only (default false; attribute export-data, present or a JSON object).
+     */
     get exportData() {
-        return /** @type {boolean} */ (this.#read("export-data"));
+        return /** @type {boolean | { columns?: string[] }} */ (this.#read("export-data"));
     }
     set exportData(value) {
         this.#write("export-data", value);
@@ -577,6 +596,19 @@ export class PivotReportElement extends Base {
     }
 
     /**
+     * Where the import worker of allow-import is served (a URL, relative to the page, of the page's
+     * origin): for an app that bundles the element and serves dist/import-worker.js at a path of its
+     * own (a base href). Default (null): next to the element's own module. A property only.
+     */
+    get importWorkerUrl() {
+        return /** @type {string | URL | null} */ (this.#values.importWorkerUrl ?? null);
+    }
+    /** @param {string | URL | null | undefined} value */
+    set importWorkerUrl(value) {
+        this.#set("importWorkerUrl", value);
+    }
+
+    /**
      * Reader plugins for more formats with allow-import (pivotkit-xlsx for Excel workbooks); CSV, TSV,
      * text and JSON are built in.
      */
@@ -747,9 +779,12 @@ export class PivotReportElement extends Base {
             allowImport: this.allowImport,
             plugins: Array.isArray(v.plugins) ? v.plugins : undefined,
             onDataLoad: this.#onDataLoad,
-            importWorker: startImportWorker
+            importWorker: this.#startImportWorker
         };
     }
+
+    /** The import worker, from importWorkerUrl as it is when a file is read. */
+    #startImportWorker = () => startImportWorker(/** @type {string | URL | null | undefined} */ (this.#values.importWorkerUrl));
 
     /** @param {PivotView} view */
     #onViewChange = (view) => {

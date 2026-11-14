@@ -213,7 +213,7 @@ step it guards, so a file that is too large costs no memory first:
 | `fileBytes` | 100 MiB | The file's size, before a byte is read. |
 | `rows` | 1,000,000 | Rows of the table, counted as they are read. |
 | `columns` | 1,000 | Columns, as they appear. |
-| `importCells` | 10,000,000 | Rows x columns, counted as they are read. |
+| `importCells` | 10,000,000 | Rows x columns, counted as they are read; a workbook's shared strings and formats too. |
 | `textLength` | 32,767 | Characters of one value (Excel's cell limit); longer text is cut, with a note. |
 | `archiveEntries` | 10,000 | Parts of an archive (an `.xlsx` is a ZIP), from its directory, before anything is unpacked. |
 | `unpackedBytes` | 500 MiB | What the parts unpack to, from the directory, before anything is unpacked (a ZIP bomb). |

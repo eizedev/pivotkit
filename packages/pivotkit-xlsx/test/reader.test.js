@@ -336,7 +336,7 @@ test("the sheet filter gives the same XML however the sheet arrives in pieces", 
         const stats = filter.end();
         const out = new TextDecoder().decode(Uint8Array.from(parts.flatMap((p) => [...p])));
         assert.equal(out, expected, `pieces of ${size} bytes`);
-        assert.deepEqual(stats, { lastRow: 9, lastValueRow: 4, dropped: 3, errors: 1 }, `pieces of ${size} bytes`);
+        assert.deepEqual(stats, { lastRow: 9, lastValueRow: 4, dropped: 3, errors: 1, shared: 0 }, `pieces of ${size} bytes`);
     }
     // the guard: whitespace runs cut, over-long tokens refused, the same however the XML is split
     const { createXmlGuard, SPACE_RUN, MAX_TOKEN, MAX_TAG } = await import("../src/xml.js");
@@ -515,4 +515,197 @@ test("rows inside a comment or CDATA section between rows are not read", async (
     );
     const t = await read(fileOf(book));
     assert.deepEqual(col(t, "n").filter((v) => v !== null), [1, 2]);
+});
+
+// a row holds a comment, CDATA section or processing instruction with "</row>" in it: the filter ends
+// the row where the parser does, not at that "</row>" (#238)
+test("a </row> inside a comment, CDATA section or processing instruction in a row does not end the row", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const head = '<row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c><c r="B1" t="inlineStr"><is><t>m</t></is></c></row>';
+    const hidden = '</row><row r="3"><c r="A3"><v>9</v></c><c r="B3"><v>9</v></c></row>';
+    for (const markup of [`<![CDATA[ ${hidden} ]]>`, `<!-- ${hidden} -->`, `<?pi ${hidden} ?>`]) {
+        const book = makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData>${head}<row r="2"><c r="A2"><v>1</v></c>${markup}<c r="B2"><v>2</v></c></row><row r="4"><c r="A4"><v>3</v></c><c r="B4"><v>4</v></c></row></sheetData></worksheet>`);
+        const t = await read(fileOf(book));
+        assert.deepEqual(col(t, "n"), [1, 3], markup.slice(0, 4));
+        assert.deepEqual(col(t, "m"), [2, 4], markup.slice(0, 4));
+    }
+    // the same in the filter however the sheet arrives in pieces, and a row with many sections in it
+    // ends in linear time
+    const { createSheetFilter } = await import("../src/xml.js");
+    const xml = `<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c><t><![CDATA[</row>]]></t><!--</row>--><?x </row>?></row></sheetData></worksheet>`;
+    for (const size of [1, 2, 5, 13, xml.length]) {
+        const parts = [];
+        const filter = createSheetFilter({ write: (b, from = 0, to = b.length) => parts.push(new TextDecoder().decode(b.slice(from, to))) });
+        const bytes = strToU8(xml);
+        for (let at = 0; at < bytes.length; at += size) filter.push(bytes.subarray(at, at + size));
+        assert.deepEqual(filter.end(), { lastRow: 1, lastValueRow: 1, dropped: 0, errors: 0, shared: -1 }, `pieces of ${size} bytes`);
+        assert.equal(parts.join(""), xml, `pieces of ${size} bytes`);
+    }
+    const many = `<row r="1"><c r="A1"><v>1</v></c></row><row r="2"><c r="A2"><v>2</v></c>${"<!----><?a?>".repeat(150_000)}</row>`;
+    const started = performance.now();
+    const t = await read(fileOf(makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData>${many}</sheetData></worksheet>`)));
+    assert.deepEqual(t.columns, ["1"]);
+    assert.ok(performance.now() - started < 3_000, `${Math.round(performance.now() - started)} ms`);
+});
+
+// 100 MiB of one-letter shared strings fit in a workbook of 257 KB, and read-excel-file keeps an entry
+// for each: hundreds of megabytes for a sheet of two cells (#237)
+test("shared strings: only those up to the highest one a cell names are kept, and they count against importCells", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const strings = (n) => strToU8(`<?xml version="1.0"?>\n<sst ${NS}>${"<si><t>a</t></si>".repeat(n - 2)}<si><t>name</t></si><si><t>x</t></si></sst>`);
+    const book = (sheetXml, sst) => rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/worksheets/sheet1.xml": strToU8(sheetXml), "xl/sharedStrings.xml": sst });
+    const sheetNaming = (a, b) => `<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s"><v>${a}</v></c></row><row r="2"><c r="A2" t="s"><v>${b}</v></c></row></sheetData></worksheet>`;
+    const limits = { importCells: 1_000, columns: 10 }; // 11,000 cells with the rows of a title block
+    // a sheet of two cells naming the first two of 50,000 strings: read under the low limit
+    const near = book(sheetNaming(0, 1), strings(50_000));
+    const t = await read(fileOf(near), { limits });
+    assert.deepEqual(t.columns, ["a"]);
+    assert.deepEqual(col(t, "a"), ["a"]);
+    // a cell naming the last one: all 50,000 are needed, more than the limit
+    await assert.rejects(read(fileOf(book(sheetNaming(49_998, 49_999), strings(50_000))), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.max === 11_000 && /shared strings and formats/.test(e.message));
+    // under the default limits the strings the cells name are read as before
+    const all = await read(fileOf(book(sheetNaming(49_998, 49_999), strings(50_000))));
+    assert.deepEqual(col(all, "name"), ["x"]);
+    // a sheet without shared strings keeps none of them
+    const inline = await read(fileOf(book(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>v</t></is></c></row><row r="2"><c r="A2"><v>5</v></c></row></sheetData></worksheet>`, strings(50_000))), { limits });
+    assert.deepEqual(col(inline, "v"), [5]);
+});
+
+test("styles: cell and number formats count against importCells, together with the shared strings", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const styles = (n) => strToU8(`<?xml version="1.0"?>\n<styleSheet ${NS}><numFmts><numFmt numFmtId="164" formatCode="0.0"/></numFmts><cellXfs>${'<xf numFmtId="0"/>'.repeat(n)}</cellXfs></styleSheet>`);
+    const book = (n) => rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], level: 0 }), { "xl/styles.xml": styles(n) });
+    const limits = { importCells: 1_000, columns: 10 };
+    // the sheet's one shared string ("A") and the one number format count too: 11,000 in all
+    assert.equal((await read(fileOf(book(10_998)), { limits })).rowCount, 1);
+    await assert.rejects(read(fileOf(book(10_999)), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells" && e.details.value === 11_001 && /shared strings and formats/.test(e.message));
+});
+
+test("the count of shared strings and formats gives the same XML however the part arrives in pieces", async () => {
+    const { createEntryCount } = await import("../src/xml.js");
+    const sst = '<?xml version="1.0"?><sst count="4"><si><t>a</t></si><si/><si\n><r><t>b</t></r></si><si><t>c</t></si></sst>';
+    const through = (text, size, keep, options = {}) => {
+        const parts = [];
+        const count = createEntryCount({ write: (b, from = 0, to = b.length) => parts.push(new TextDecoder().decode(b.slice(from, to))) }, { file: "s.xlsx", part: "p", keep, max: 100, total: { count: 0 }, ...options });
+        const bytes = strToU8(text);
+        for (let at = 0; at < bytes.length; at += size) count.write(bytes.subarray(at, at + size));
+        count.end();
+        return parts.join("");
+    };
+    for (const size of [1, 2, 3, 7, 8, 9, 30, sst.length]) {
+        assert.equal(through(sst, size, 4), sst, `all kept, pieces of ${size} bytes`);
+        assert.equal(through(sst, size, 2), '<?xml version="1.0"?><sst count="4"><si><t>a</t></si><si/></sst>', `two kept, pieces of ${size} bytes`);
+        assert.equal(through(sst, size, 0), '<?xml version="1.0"?><sst count="4"></sst>', `none kept, pieces of ${size} bytes`);
+        assert.throws(() => through(sst, size, 4, { max: 3 }), (e) => e.details?.limit === "importCells" && e.details.value === 4);
+    }
+    // <sheet>, <numFmts> and <xfs> are no entries; <xf> and <numFmt> are, with a prefix too; in a
+    // comment, CDATA section or processing instruction they are not (the parser skips those)
+    const xml = '<styleSheet><numFmts count="1"><numFmt numFmtId="164"/></numFmts><cellXfs><xf/><x:xf\tnumFmtId="1"></x:xf><!-- <xf/> --><?pi <xf/> ?></cellXfs><xfs/><sheet/></styleSheet>';
+    for (const size of [1, 3, 8, xml.length]) {
+        assert.equal(through(xml, size, Infinity, { max: 3 }), xml);
+        assert.throws(() => through(xml, size, Infinity, { max: 2 }), (e) => e.details?.value === 3);
+    }
+    // a string item in a CDATA section is text, not an item: the cut comes after the real ones
+    const cdata = '<sst><si><t><![CDATA[<si>]]></t></si><si><t>second</t></si><si><t>third</t></si></sst>';
+    for (const size of [1, 2, 5, 9, cdata.length]) {
+        assert.equal(through(cdata, size, 3), cdata, `pieces of ${size} bytes`);
+        assert.equal(through(cdata, size, 2), '<sst><si><t><![CDATA[<si>]]></t></si><si><t>second</t></si></sst>', `pieces of ${size} bytes`);
+    }
+    // parts counted with one total share the limit: strings and formats together
+    const total = { count: 0 };
+    through('<sst><si/><si/></sst>', 4, Infinity, { max: 3, total });
+    assert.throws(() => through('<styleSheet><xf/><xf/></styleSheet>', 4, Infinity, { max: 3, total }), (e) => e.details?.value === 4);
+});
+
+// review findings of #314: a namespace prefix, markup in the shared strings, a value written otherwise
+test("shared strings with a prefix count, markup in them does not, and a value not written as <v>n</v> keeps them all", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const XNS = 'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const book = (sheetXml, sst) => rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), { "xl/worksheets/sheet1.xml": strToU8(sheetXml), "xl/sharedStrings.xml": strToU8(sst) });
+    const sheetOf = (a, b) => `<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s">${a}</c></row><row r="2"><c r="A2" t="s">${b}</c></row></sheetData></worksheet>`;
+    const limits = { importCells: 1_000, columns: 10 };
+    // 50,000 string items with a prefix, a cell naming the last: counted as without one
+    const prefixed = `<x:sst ${XNS}>${"<x:si><x:t>a</x:t></x:si>".repeat(49_998)}<x:si><x:t>name</x:t></x:si><x:si><x:t>x</x:t></x:si></x:sst>`;
+    await assert.rejects(read(fileOf(book(sheetOf("<v>49998</v>", "<v>49999</v>"), prefixed)), { limits }), (e) => e.code === "LIMIT_EXCEEDED" && e.details.limit === "importCells");
+    assert.deepEqual(col(await read(fileOf(book(sheetOf("<v>49998</v>", "<v>49999</v>"), prefixed))), "name"), ["x"]);
+    // a sheet with a prefix too: which strings it names is not known, all are kept
+    const both = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), {
+        "xl/worksheets/sheet1.xml": strToU8(`<x:worksheet ${XNS}><x:sheetData><x:row r="1"><x:c r="A1" t="s"><x:v>0</x:v></x:c></x:row><x:row r="2"><x:c r="A2" t="s"><x:v>1</x:v></x:c></x:row></x:sheetData></x:worksheet>`),
+        "xl/sharedStrings.xml": strToU8(`<x:sst ${XNS}><x:si><x:t>n</x:t></x:si><x:si><x:t>v</x:t></x:si></x:sst>`)
+    });
+    assert.deepEqual(col(await read(fileOf(both)), "n"), ["v"]);
+    // "<si>" in a CDATA section is text: the strings the cells name are all there
+    const cdata = `<sst ${NS}><si><t><![CDATA[<si>]]></t></si><si><t>second</t></si><si><t>third</t></si></sst>`;
+    assert.deepEqual(col(await read(fileOf(book(sheetOf("<v>1</v>", "<v>2</v>"), cdata))), "second"), ["third"]);
+    // <v > is a value to the parser; CDATA in it reads as empty: neither is cut short
+    const two = `<sst ${NS}><si><t>n</t></si><si><t>v</t></si></sst>`;
+    assert.deepEqual(col(await read(fileOf(book(sheetOf("<v>0</v>", "<v >1</v>"), two))), "n"), ["v"]);
+    assert.deepEqual((await read(fileOf(book(sheetOf("<v>0</v>", "<v><![CDATA[1]]></v>"), two)))).columns, ["n"]);
+    // strings cut after the one a cell names end with the root's own end tag, prefix and all
+    const pfxRoot = `<x:sst ${XNS}><x:si><x:t>hello</x:t></x:si><x:si><x:t>w</x:t></x:si><x:si><x:t>z</x:t></x:si></x:sst>`;
+    const named = book(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>5</v></c></row></sheetData></worksheet>`, pfxRoot);
+    assert.deepEqual(col(await read(fileOf(named)), "hello"), [5]);
+});
+
+// the parser ends a name at any of 0x09-0x0D (form feed and vertical tab too), as at a space
+test("whitespace 0x09-0x0D after a name: <xf\\f/> and <si\\v/> are counted as entries", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const limits = { importCells: 1_000, columns: 10 };
+    const styled = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], level: 0 }), { "xl/styles.xml": strToU8(`<styleSheet ${NS}><cellXfs>${"<xf\f/>".repeat(12_000)}</cellXfs></styleSheet>`) });
+    await assert.rejects(read(fileOf(styled), { limits }), (e) => e.details?.limit === "importCells" && /shared strings and formats/.test(e.message));
+    const strings = rebuild(makeXlsx({ sheets: [{ name: "S", rows: [["A"]] }], level: 0 }), {
+        "xl/worksheets/sheet1.xml": strToU8(`<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="s"><v>11999</v></c></row></sheetData></worksheet>`),
+        "xl/sharedStrings.xml": strToU8(`<sst ${NS}>${"<si\v/>".repeat(12_000)}</sst>`)
+    });
+    await assert.rejects(read(fileOf(strings), { limits }), (e) => e.details?.limit === "importCells" && /shared strings and formats/.test(e.message));
+});
+
+// the extents below pass the table's own checks (the empty rows and columns between are left out),
+// so only the filter's check before parsing refuses them: it must see the cell and the row
+test("whitespace 0x09-0x0D after a name: <c\\f r> and <row\\v r> are checked before parsing", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const sheet = (rows) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c></row>${rows}</sheetData></worksheet>`);
+    // 2,000 rows x 10 columns is more than 1,000 + 10 x 1,000 cells
+    await assert.rejects(read(fileOf(sheet('<row r="2000"><c\fr="J2000"><v>1</v></c></row>')), { limits: { importCells: 1_000, columns: 10 } }), (e) => e.details?.limit === "importCells" && e.details.value === 20_000);
+    // row 5,000 is past 100 + 1,000 rows
+    await assert.rejects(read(fileOf(sheet('<row\vr="5000"><c><v>1</v></c></row>')), { limits: { rows: 100 } }), (e) => e.details?.limit === "rows" && e.details.value === 5_000);
+});
+
+test("whitespace 0x09-0x0D: the guard cuts a long run of form feeds or vertical tabs as of spaces", async () => {
+    const { createXmlGuard, SPACE_RUN } = await import("../src/xml.js");
+    const parts = [];
+    createXmlGuard({ write: (b, from = 0, to = b.length) => parts.push(b.slice(from, to)) }, "s.xlsx", "sheet").write(strToU8(`<a${"\f".repeat(SPACE_RUN + 9)}b="1">${"\v".repeat(SPACE_RUN + 9)}</a>`));
+    assert.equal(parts.reduce((n, p) => n + p.length, 0), `<ab="1"></a>`.length + 2 * SPACE_RUN);
+});
+
+test("a sheet named as the shared strings or the styles of its workbook is refused", async () => {
+    const base = makeXlsx({ sheets: [{ name: "S", rows: [["A"], [1]] }], level: 0 });
+    const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    const rels = (type) => strToU8(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${REL}/${type}" Target="worksheets/sheet1.xml"/></Relationships>`);
+    for (const type of ["sharedStrings", "styles"]) {
+        await rejects(read(fileOf(rebuild(base, { "xl/_rels/workbook.xml.rels": rels(type) }))), "DAMAGED", (e) => /missing or not a sheet/.test(e.message));
+    }
+});
+
+// #324: the end of a row tag was found by its first ">", so a quoted ">" or "/>" in it cut the tag
+test("a quoted '>' or '/>' in a row tag does not end the tag: the row is read and checked", async () => {
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+    const sheet = (row2) => makeXlsxWithSheet(`<?xml version="1.0"?>\n<worksheet ${NS}><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>n</t></is></c></row>${row2}</sheetData></worksheet>`);
+    for (const tag of ['<row r="2" x="/>">', "<row r='2' x='a>b'>"]) {
+        const t = await read(fileOf(sheet(`${tag}<c r="A2"><v>1</v></c></row>`)));
+        assert.deepEqual(col(t, "n"), [1], tag);
+    }
+    await assert.rejects(read(fileOf(sheet('<row r="2" x="/>"><c r="XFD2"><v>1</v></c></row>'))), (e) => e.details?.limit === "columns");
+    // the filter gives the same XML however the sheet arrives in pieces
+    const { createSheetFilter } = await import("../src/xml.js");
+    const xml = '<worksheet><sheetData><row r="1" q="/>"><c r="A1"><v>1</v></c></row><row r="2" q=\'>\'><c r="A2" s="1"/></row></sheetData><pageMargins/></worksheet>';
+    const expected = '<worksheet><sheetData><row r="1" q="/>"><c r="A1"><v>1</v></c></row></sheetData></worksheet>';
+    for (const size of [1, 2, 5, 13, xml.length]) {
+        const parts = [];
+        const filter = createSheetFilter({ write: (b, from = 0, to = b.length) => parts.push(new TextDecoder().decode(b.slice(from, to))) });
+        const bytes = strToU8(xml);
+        for (let at = 0; at < bytes.length; at += size) filter.push(bytes.subarray(at, at + size));
+        assert.deepEqual(filter.end(), { lastRow: 2, lastValueRow: 1, dropped: 1, errors: 0, shared: -1 }, `pieces of ${size} bytes`);
+        assert.equal(parts.join(""), expected, `pieces of ${size} bytes`);
+    }
 });

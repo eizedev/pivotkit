@@ -8,6 +8,13 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Added
 
+- `dataToCsvParts(data, options)` in `pivotkit-core/export`: the bytes of `dataToCsvBytes` in pieces
+  of whole lines, for a Blob; the text is never held whole, so a large file takes about twice its size
+  while it is made, not about five times. `dataToCsv` and `dataToCsvBytes` build their output from
+  the same pieces ([#260](https://github.com/eizedev/pivotkit/issues/260)).
+- `suggestLayout` and `viewFromLayout` take a date field's own `by` from the description instead of
+  the grouping its span would give, for a front end that keeps the span back
+  ([#296](https://github.com/eizedev/pivotkit/issues/296)).
 - `MAX_DATE_MS` and `isDateMs(ms)`: the range a `Date` holds, exported once for hosts and the other
   packages ([#226](https://github.com/eizedev/pivotkit/issues/226)).
 - `encode`'s `issues` have a `code` and `params`: `columnCase`, `columnCaseValue` (a row with two
@@ -24,6 +31,12 @@ All notable changes to `pivotkit-core` are documented in this file. The format i
 
 ### Fixed
 
+- In a time zone other than UTC, an instant before 1 AD keeps its year (the zone's era is read; 2 BC
+  became 2 AD), and a wall clock past what a `Date` holds is blank instead of a value that throws
+  when shown ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+- `toCsv` and `toJson` write a date value before year 0 or after 9999 in its signed ISO form
+  (`-000001-01-11`, was `00-1-01-11`), in the CSV with the formula guard
+  ([#349](https://github.com/eizedev/pivotkit/issues/349)).
 - A reader plugin's table built by hand (`columns`, `types`, `data`, `notes`) gets `rowCount`, `raw`,
   `detected` and `hints` from `readFile`, so `retype` works on it; a field given wrong, a note
   without a code or a field that throws is `INVALID_ARGUMENT` naming the plugin, and the table counts

@@ -2,7 +2,7 @@
 // worker (dist/import-worker.js) for CSV and JSON, pivotkit-xlsx's dist/ as a plugin (the property
 // `plugins`), every pivot-data-load in window.__loads, every violation of the policy in
 // window.__violations. ?refuse prevents the loads, ?columnar sets the data as columns, ?empty sets
-// none, ?limits sets limits.importCells to 10 (a workbook's larger sheet fails), ?importlimits sets
+// none, ?workerurl=<url> sets importWorkerUrl, ?limits sets limits.importCells to 10 (a workbook's larger sheet fails), ?importlimits sets
 // importLimits.rows to 3 (the page's 1,000 rows show, a file of 4 rows is refused). ?key sets storageKey. ?controlled
 // controls the view (set again from every pivot-view-change) and starts it again at the start view
 // whenever the element is put back, as a host that renders it anew. window.__putBackTwice() takes the
@@ -66,6 +66,10 @@ window.__putBackTwice = () =>
     });
 if (query.has("limits")) {
     el.limits = { importCells: 10 };
+}
+// the worker where an app serves it (#194): a URL relative to the page, as under a base href
+if (query.has("workerurl")) {
+    el.importWorkerUrl = query.get("workerurl");
 }
 if (query.has("importlimits")) {
     // uploads of at most 3 rows; the page's own 1,000 rows are not capped by it

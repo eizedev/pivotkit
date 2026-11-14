@@ -54,3 +54,19 @@ for (const [name, theme] of [["light", light], ["dark", dark]]) {
         }
     });
 }
+
+// the rules that tell a menu's groups and their subgroups apart (the chart's Display: Value labels,
+// Legend, Title) are drawn in a colour of 3:1 on the menu's surface, as the rule between groups (#128, #205)
+for (const selector of [".pk-section:not(:first-child)", ".pk-subsection + .pk-subsection"]) {
+    test(`${selector}: its rule 3:1 on the menu in both themes`, () => {
+        const start = css.indexOf(`${selector} {`);
+        assert.ok(start !== -1, `no block ${selector}`);
+        const block = css.slice(start, css.indexOf("}", start));
+        const token = block.match(/border-top:[^;]*var\((--pk-[\w-]+)\)/)?.[1];
+        assert.ok(token, `${selector} draws no rule from a token`);
+        for (const [name, theme] of [["light", light], ["dark", dark]]) {
+            const ratio = contrast(theme[token], theme["--pk-surface-raised"]);
+            assert.ok(ratio >= 3, `${name}: ${token} on --pk-surface-raised: ${ratio.toFixed(2)}`);
+        }
+    });
+}

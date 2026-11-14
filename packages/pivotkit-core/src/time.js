@@ -149,6 +149,8 @@ export function wallClock(timeZone) {
     const dtf = new Intl.DateTimeFormat("en-US", {
         timeZone,
         hourCycle: "h23",
+        // the era too: without it 2 BC reads as the year 2
+        era: "short",
         year: "numeric",
         month: "numeric",
         day: "numeric",
@@ -158,11 +160,17 @@ export function wallClock(timeZone) {
     });
     const offsetAt = (t) => {
         const p = {};
+        let beforeCommonEra = false;
         for (const part of dtf.formatToParts(new Date(t))) {
-            p[part.type] = Number(part.value);
+            if (part.type === "era") {
+                beforeCommonEra = part.value === "BC";
+            } else {
+                p[part.type] = Number(part.value);
+            }
         }
         const whole = t - (((t % 1000) + 1000) % 1000);
-        return utc(p.year, p.month, p.day, p.hour, p.minute, p.second) - whole;
+        // 1 BC is the year 0, 2 BC the year -1
+        return utc(beforeCommonEra ? 1 - p.year : p.year, p.month, p.day, p.hour, p.minute, p.second) - whole;
     };
     const days = new Map();
     return (t) => {
@@ -176,7 +184,9 @@ export function wallClock(timeZone) {
             offset = start === end ? start : NaN;
             days.set(day, offset);
         }
-        return t + (Number.isNaN(offset) ? offsetAt(t) : offset);
+        const wall = t + (Number.isNaN(offset) ? offsetAt(t) : offset);
+        // near either end of what a Date holds, the wall clock can lie past it: no date then (blank)
+        return isDateMs(wall) ? wall : NaN;
     };
 }
 

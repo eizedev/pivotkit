@@ -42,6 +42,23 @@ test("drill-down is on unless it says false; save-templates is a boolean attribu
     assert.equal(fromAttribute(def("export-data"), ""), true);
     assert.equal(toAttribute(def("export-data"), true), "");
     assert.equal(toAttribute(def("export-data"), false), null);
+    // with some columns only (#259): a JSON object as the attribute; anything else it cannot read is off
+    assert.equal(fromAttribute(def("export-data"), "true"), true);
+    assert.equal(fromAttribute(def("export-data"), "false"), false);
+    assert.deepEqual(fromAttribute(def("export-data"), '{"columns":["Region","Revenue"]}'), { columns: ["Region", "Revenue"] });
+    const warnings = [];
+    const warn = console.warn;
+    console.warn = (text) => warnings.push(text);
+    try {
+        assert.equal(fromAttribute(def("export-data"), "{broken"), false);
+        assert.equal(fromAttribute(def("export-data"), "Region"), false);
+        assert.equal(fromAttribute(def("export-data"), "Region"), false);
+    } finally {
+        console.warn = warn;
+    }
+    // said once per text
+    assert.deepEqual(warnings, ['pivotkit: export-data="{broken" is neither true, false nor a JSON object; it stays off', 'pivotkit: export-data="Region" is neither true, false nor a JSON object; it stays off']);
+    assert.equal(toAttribute(def("export-data"), { columns: ["Region"] }), '{"columns":["Region"]}');
     assert.equal(fromAttribute(def("save-templates"), ""), true);
     assert.equal(fromAttribute(def("save-templates"), null), false);
     assert.equal(toAttribute(def("save-templates"), true), "");
@@ -133,6 +150,7 @@ test("allow-import is a boolean attribute; the plugins are a property", () => {
     assert.equal(toAttribute(def("allow-import"), false), null);
     assert.equal(def("allow-import").prop, "allowImport");
     assert.ok(OBJECT_PROPS.includes("plugins"), "plugins hold functions: a property only");
+    assert.ok(OBJECT_PROPS.includes("importWorkerUrl"), "the worker's URL: a property only, set by the app's code (#194)");
     assert.ok(OBJECT_PROPS.includes("importLimits"), "the limits of a loaded file are an object: a property only, as limits");
     assert.ok(OBJECT_PROPS.includes("limits"));
 });

@@ -13,7 +13,7 @@
 import { readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { writeNew } from "pivotkit-cli/files";
+import { TEMP_FILE_NAME, writeNew } from "pivotkit-cli/files";
 import { OPERATIONS, OperationError, findingText } from "pivotkit-report/operations";
 import { exposeFindings, exposeSource, levelOf, touchesClosed } from "./policy.js";
 
@@ -186,9 +186,26 @@ async function reportsIn(dir) {
     return /** @type {Array<{ path: string, size: number, mtimeMs: number, draft: boolean }>} */ (files.filter(Boolean)).sort((a, b) => a.mtimeMs - b.mtimeMs);
 }
 
+/** A write's temporary file older than this was left by a server killed during the write. */
+const TEMP_MAX_AGE_MS = 3_600_000;
+
+/**
+ * The temporary files of pivotkit's writes into the output directory (pivotkit-cli/files'
+ * TEMP_FILE_NAME of a name with the mark): left there by a server killed between creating one and
+ * renaming it. They are not reports: neither counted nor deleted to make room.
+ * @param {string} dir
+ * @returns {Promise<Array<{ path: string, mtimeMs: number }>>}
+ */
+async function leftoverTempFiles(dir) {
+    const entries = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((e) => e.isFile() && TEMP_FILE_NAME.test(e.name) && e.name.includes(`.${OUTPUT_MARK}.`));
+    const files = await Promise.all(entries.map((e) => stat(join(dir, e.name)).then((info) => ({ path: join(dir, e.name), mtimeMs: info.mtimeMs }), () => null)));
+    return /** @type {Array<{ path: string, mtimeMs: number }>} */ (files.filter(Boolean));
+}
+
 /**
  * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
- * level; a file of another kind and a subdirectory stay), at most once an hour.
+ * level; a file of another kind and a subdirectory stay), and the temporary files of its writes
+ * older than an hour, at most once an hour.
  * @param {any} context
  */
 export async function prune(context) {
@@ -200,9 +217,15 @@ export async function prune(context) {
         return;
     }
     pruned.set(dir, Date.now());
-    const before = Date.now() - days * 86_400_000;
+    const now = Date.now();
+    const before = now - days * 86_400_000;
     for (const file of await reportsIn(dir)) {
         if (file.mtimeMs < before) {
+            await unlink(file.path).catch(() => undefined);
+        }
+    }
+    for (const file of await leftoverTempFiles(dir)) {
+        if (file.mtimeMs < now - TEMP_MAX_AGE_MS) {
             await unlink(file.path).catch(() => undefined);
         }
     }
@@ -243,8 +266,9 @@ function outputError(e) {
  * that renders without pause shortens how long the reports stay, but never stops the others from
  * rendering. Schedule drafts count but are never deleted to make room (a person has yet to approve
  * them): when only drafts are left, it refuses. Drafts may take at most half of output.maxFiles
- * (draftCap), so callers who may draft cannot fill the directory and stop every render. A directory that holds the operator's own files
- * (output.cleanUp false) is never cleaned: a full one refuses.
+ * (draftCap), so callers who may draft cannot fill the directory and stop every render. A
+ * directory that holds the operator's own files (output.cleanUp false) is never cleaned: a full one
+ * refuses.
  * @returns {Promise<number>}  the files deleted
  */
 async function makeRoom(context, dir, bytes, draft) {
@@ -256,7 +280,7 @@ async function makeRoom(context, dir, bytes, draft) {
     const files = await reportsIn(dir);
     const drafts = files.filter((f) => f.draft).length;
     if (draft && drafts + 1 > draftCap(maxFiles)) {
-        throw new OperationError("NO_OUTPUT", `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first`);
+        throw new OperationError("NO_OUTPUT", draftCap(maxFiles) === 0 ? "output.maxFiles 1 leaves no room for drafts; the operator raises it" : `the output directory holds ${drafts} schedule drafts awaiting approval, the most it may (half of output.maxFiles); a person must approve or remove some first, or the operator raises output.maxFiles or sets output.maxAgeDays`);
     }
     let count = files.length;
     let total = files.reduce((sum, f) => sum + f.size, 0);
@@ -277,8 +301,11 @@ async function makeRoom(context, dir, bytes, draft) {
     return deleted;
 }
 
-/** The most schedule drafts the output directory may hold: half of output.maxFiles, at least 1. */
-export const draftCap = (maxFiles) => Math.max(1, Math.floor(maxFiles / 2));
+/**
+ * The most schedule drafts the output directory may hold: half of output.maxFiles, rounded down
+ * (none at 1, so a draft never takes the one place a render needs).
+ */
+export const draftCap = (maxFiles) => Math.floor(maxFiles / 2);
 
 /**
  * Writes a file an operation made into the output directory; its name, path and address.
@@ -305,6 +332,23 @@ async function writeOutput(context, file, draft = false) {
         ...(context.output.baseUrl ? { url: new URL(encodeURIComponent(name), context.output.baseUrl.endsWith("/") ? context.output.baseUrl : `${context.output.baseUrl}/`).href } : {}),
         mediaType: file.mediaType
     };
+}
+
+/**
+ * A render's findings with "the filters keep no rows" added where the data kept none, so a caller
+ * can tell why the report is empty (the command line says the same). Only for a view whose fields
+ * are all shown: for one that touches a field whose values are not shown it would tell whether an
+ * item of the filter exists, so it stays out (as itemCase and filterEmpty do).
+ * @param {any[]} findings
+ * @param {any} result  render_view's result
+ * @param {boolean} closed
+ */
+function withEmptyFilter(findings, result, closed) {
+    const s = result.summary;
+    if (closed || !s || !(s.sourceRows > 0) || s.keptRows !== 0 || findings.some((f) => f.severity === "error")) {
+        return findings;
+    }
+    return [...findings, { severity: "warning", code: "noRowsKept", path: "", message: "the filters keep none of the source's rows: check their items against the values the source describes" }];
 }
 
 /** Where the user finds a written file, in words. */
@@ -373,14 +417,15 @@ const STEPS = {
         const { outcome } = await compute(context, "render_view", { ...args, format }, resolved);
         const { result, file } = outcome;
         const closed = touchesClosed(policy, result.uses);
-        const findings = exposeFindings(result.findings, policy, result.uses);
+        const findings = withEmptyFilter(exposeFindings(result.findings, policy, result.uses), result, closed);
         /** @type {Record<string, unknown>} */
         const out = { ok: result.ok, findings, uses: result.uses, ...(result.view ? { view: result.view } : {}), format: result.format, mediaType: result.mediaType };
         if (closed) {
             out.withheld = ["rows", "columns", "bytes", "content"];
         } else {
             // the row count of the whole source is the operator's to show (policy.rows)
-            out.summary = result.summary && !policy.rows ? { ...result.summary, sourceRows: undefined } : result.summary;
+            // without a filter the kept rows are all of them: withheld with the source's count
+            out.summary = result.summary && !policy.rows ? { ...result.summary, sourceRows: undefined, keptRows: undefined } : result.summary;
         }
         if (!file) {
             out.output = null;
@@ -458,6 +503,6 @@ export async function renderFile(context, input, caller) {
     const format = input.format ?? "xlsx";
     const { outcome } = await compute(context, "render_view", { ...input, format }, resolved);
     const { result, file } = outcome;
-    const findings = exposeFindings(result.findings, resolved.policy, result.uses);
+    const findings = withEmptyFilter(exposeFindings(result.findings, resolved.policy, result.uses), result, touchesClosed(resolved.policy, result.uses));
     return { result: { ok: result.ok, findings, uses: result.uses, format: result.format, mediaType: result.mediaType }, file: file ?? null };
 }

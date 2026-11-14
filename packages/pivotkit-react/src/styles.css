@@ -1266,7 +1266,8 @@
 }
 
 /* the groups inside a group (the chart's Display: Value labels, Legend, Title, ...): a dashed rule
-   between them, so they do not run together and still read as parts of their group */
+   between them in the colour of the rule between groups (3:1), so they do not run together and still
+   read as parts of their group */
 .pk-subsection {
     display: flex;
     flex-direction: column;
@@ -1274,7 +1275,7 @@
 }
 
 .pk-subsection + .pk-subsection {
-    border-top: 1px dashed var(--pk-border);
+    border-top: 1px dashed var(--pk-rule);
     margin-top: 4px;
     padding-top: 4px;
 }

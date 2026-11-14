@@ -53,6 +53,9 @@ export const en = {
     sheetMissing: "“{name}” was made for the sheet “{sheet}”, which {file} does not have.",
     // the host refused the sheet a saved view was made on (onDataLoad): the view is not opened
     sheetRefused: "“{name}” was not opened: the sheet “{sheet}” was not loaded.",
+    // the preview of a sheet a saved view needs: which view and sheet; another sheet loaded there does not open the view
+    sheetForView: "Opening “{name}” needs the sheet “{sheet}”.",
+    sheetOther: "“{name}” was not opened: it was made for the sheet “{sheet}”.",
     notes: {
         ENCODING: "Read as {encoding}.",
         SEPARATOR: "Values separated by {name}.",
@@ -121,6 +124,8 @@ export const de = {
     sourceSheet: "{name}, Blatt „{sheet}“, nur in diesem Browser",
     sheetMissing: "„{name}“ wurde für das Blatt „{sheet}“ gemacht, das {file} nicht hat.",
     sheetRefused: "„{name}“ wurde nicht geöffnet: das Blatt „{sheet}“ wurde nicht geladen.",
+    sheetForView: "Zum Öffnen von „{name}“ wird das Blatt „{sheet}“ gebraucht.",
+    sheetOther: "„{name}“ wurde nicht geöffnet: es wurde für das Blatt „{sheet}“ gemacht.",
     notes: {
         ENCODING: "Gelesen als {encoding}.",
         SEPARATOR: "Werte getrennt durch {name}.",
