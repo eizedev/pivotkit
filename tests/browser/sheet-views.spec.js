@@ -183,9 +183,18 @@ function bigBook() {
  * Runs `act` in the page the moment the dialog shows its progress: pivotkit-xlsx reads on the page, in
  * steps, and a fast browser reads a large sheet before a test could click (a MutationObserver sees the
  * progress in the same task React shows it). `act` is "cancel" or a file to drop onto the report.
+ * The AbortControllers made from now until `act` (the reads of the sheet) are kept for readsStopped().
  */
 async function whenReading(page, act) {
     await page.evaluate((what) => {
+        const Base = window.AbortController;
+        window.__controllers = [];
+        window.AbortController = class extends Base {
+            constructor() {
+                super();
+                window.__controllers.push(this);
+            }
+        };
         const run = () => {
             if (what === "cancel") {
                 document.querySelector('[data-testid="import-cancel"]').click();
@@ -199,6 +208,7 @@ async function whenReading(page, act) {
         const watch = new MutationObserver(() => {
             if (document.querySelector('[data-testid="import-progress"]')) {
                 watch.disconnect();
+                window.__reads = window.__controllers.slice();
                 window.__acted = true;
                 run();
             }
@@ -206,6 +216,9 @@ async function whenReading(page, act) {
         watch.observe(document.body, { childList: true, subtree: true });
     }, act);
 }
+
+/** Whether every read started for the sheet (whenReading) was stopped, and there was one. */
+const readsStopped = (page) => page.evaluate(() => window.__reads.length > 0 && window.__reads.every((c) => c.signal.aborted));
 
 /** Opens a view file made on `sheet` of the workbook `file` through Open view file…. */
 async function openViewFile(page, name, file, sheet, rows = ["Region"], value = "Units") {
@@ -224,6 +237,7 @@ test("a sheet the reader has notes on is not loaded by itself: the preview shows
     await load(page, fileOf("notes.xlsx", XLSX, book));
     await openViewFile(page, "Messy units", "notes.xlsx", "Messy");
     const dialog = page.getByTestId("import-dialog");
+    await expect(dialog.getByTestId("import-for-view")).toHaveText("Opening “Messy units” needs the sheet “Messy”.");
     await expect(dialog.getByTestId("import-notes")).toContainText("Column 2 has no name; it is named “Column 2”.");
     await expect(dialog.getByTestId("import-apply")).toBeFocused();
     // nothing is loaded yet
@@ -234,6 +248,28 @@ test("a sheet the reader has notes on is not loaded by itself: the preview shows
     await expect.poll(() => chips(page, "rows")).toEqual(["Region"]);
     await expect.poll(async () => (await tableRows(page)).sort()).toEqual([["Grand Total", "10"], ["North", "4"], ["South", "6"]]);
     await expect(page.getByTestId("view-name")).toContainText("Messy units");
+});
+
+test("in the preview of a view's sheet, another sheet picked does not load by itself, and loaded it does not open the view", async ({ page }) => {
+    await page.goto("?data=sales&import");
+    await expect(page.getByTestId("pivot-table")).toBeVisible();
+    const book = makeXlsx({ sheets: [{ name: "Plain", rows: [["Region", "Units"], ["North", 1]] }, { name: "Messy", rows: [["Region", null, "Units"], ["North", "x", 4]] }, { name: "Other", rows: [["Team", "Hours"], ["Network", 3]] }] });
+    await load(page, fileOf("notes.xlsx", XLSX, book));
+    await openViewFile(page, "Messy units", "notes.xlsx", "Messy");
+    const dialog = page.getByTestId("import-dialog");
+    await expect(dialog.getByTestId("import-notes")).toBeVisible();
+    // "Other" has no notes: picked here, it waits for Load data
+    await dialog.getByTestId("import-sheet").selectOption({ label: "Other" });
+    await expect(dialog.locator("li[data-code='SHEET']")).toContainText("“Other”");
+    await expect(dialog.getByTestId("import-apply")).toBeEnabled();
+    await expect(page.getByTestId("source-line")).toHaveText("notes.xlsx, sheet “Plain”, only in this browser");
+    await dialog.getByTestId("import-apply").click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId("source-line")).toHaveText("notes.xlsx, sheet “Other”, only in this browser");
+    await expect(page.locator(".pk-toasts")).toContainText("“Messy units” was not opened: it was made for the sheet “Messy”.");
+    await expect.poll(() => fieldNames(page)).toEqual(["Team", "Hours"]);
+    await expect.poll(() => chips(page, "rows")).toEqual([]);
+    await expect(page.getByTestId("view-name")).toHaveCount(0);
 });
 
 // follow-ups of #254 (#277): Cancel, a host's refusal, another file and an empty sheet while a view reads its sheet
@@ -247,12 +283,17 @@ test("Cancel while the sheet of a view is read leaves the sheet and the view sho
     const dialog = page.getByTestId("import-dialog");
     await expect.poll(() => page.evaluate(() => window.__acted)).toBe(true);
     await expect(dialog).toHaveCount(0);
-    // the read was stopped: the sheet never loads afterwards (it would by itself)
-    await page.waitForTimeout(2_000);
+    // the read of the sheet was stopped
+    await expect.poll(() => readsStopped(page)).toBe(true);
     await expect(page.getByTestId("source-line")).toHaveText("big.xlsx, sheet “Small”, only in this browser");
     await expect.poll(() => fieldNames(page)).toEqual(["Region", "Units"]);
     await expect(page.getByTestId("view-name")).toHaveCount(0);
     await expect(page.locator(".pk-toasts")).not.toContainText("was not opened");
+    // the view is dropped: loading that sheet by hand afterwards does not open it
+    await load(page, fileOf("big.xlsx", XLSX, book), "Big");
+    await expect(page.getByTestId("source-line")).toHaveText("big.xlsx, sheet “Big”, only in this browser");
+    await expect.poll(() => chips(page, "rows")).toEqual([]);
+    await expect(page.getByTestId("view-name")).toHaveCount(0);
 });
 
 test("another file dropped while the sheet of a view is read: its preview takes over, and the view is not opened on it", async ({ page }) => {
@@ -270,10 +311,8 @@ test("another file dropped while the sheet of a view is read: its preview takes 
     await expect(dialog).toHaveCount(0);
     await expect(page.getByTestId("source-line")).toHaveText("teams.csv, only in this browser");
     await expect.poll(() => fieldNames(page)).toEqual(["Team", "Hours"]);
-    // the read of the sheet was stopped: it never loads over the file (it would by itself), and the
-    // view stays unopened
-    await page.waitForTimeout(3_000);
-    await expect(page.getByTestId("source-line")).toHaveText("teams.csv, only in this browser");
+    // the read of the sheet was stopped, and the view is not opened on the file loaded instead
+    await expect.poll(() => readsStopped(page)).toBe(true);
     await expect.poll(() => chips(page, "rows")).toEqual([]);
     await expect(page.getByTestId("view-name")).toHaveCount(0);
 });

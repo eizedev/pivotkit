@@ -10,7 +10,9 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 - A saved view that reads another sheet of the loaded workbook no longer loads that sheet unseen when
   the reader has notes on it (a used range, values not read, columns renamed): the preview stays
-  open with the notes, and **Load data** loads the sheet and opens the view
+  open with the notes and a line naming the view that needs the sheet, and **Load data** loads the
+  sheet and opens the view. Another sheet picked in that preview does not load by itself, and loaded
+  it does not open the view; a note says so
   ([#274](https://github.com/eizedev/pivotkit/issues/274)). Browser tests cover Cancel, a host's
   refusal, another file dropped during the read and a sheet without rows
   ([#277](https://github.com/eizedev/pivotkit/issues/277)).

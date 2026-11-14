@@ -165,8 +165,9 @@ function cellText(value, type, t, locale) {
  * that cannot be read closes it with a note; the report's data stays. A job with `sheet` starts on that
  * sheet (a name); with `auto` it loads as soon as the sheet is read, without waiting for "Load data"
  * (a saved view opened on another sheet of the file shown: the person asked for that sheet already),
- * unless the reader has notes about it or it has no rows: then the preview stays, as for a file.
- * @param {{ job: { file: File, n: number, sheet?: string, auto?: boolean }, labels: any, locale: string, plugins: any[], worker?: () => Worker,
+ * unless the reader has notes about it or it has no rows: then the preview stays, as for a file, and
+ * says which view needs that sheet (`view`); another sheet picked there never loads by itself.
+ * @param {{ job: { file: File, n: number, sheet?: string, auto?: boolean, view?: string }, labels: any, locale: string, plugins: any[], worker?: () => Worker,
  *   limits?: object, timeZone?: string, onApply: (data: LoadedData) => void, onClose: () => void,
  *   announce: (text: string, extra?: { tone?: "error" }) => void }} props
  */
@@ -331,7 +332,7 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
     // it is read before "Load data" (the sheet's name alone is no reason)
     const autoDone = useRef(false);
     useEffect(() => {
-        if (job.auto && ready && shown && shown.rowCount > 0 && !typed.error && shown.notes.every((n) => n.code === "SHEET") && !autoDone.current) {
+        if (job.auto && sheet === job.sheet && ready && shown && shown.rowCount > 0 && !typed.error && shown.notes.every((n) => n.code === "SHEET") && !autoDone.current) {
             autoDone.current = true;
             void apply();
         }
@@ -360,6 +361,11 @@ export function ImportDialog({ job, labels, locale, plugins, worker, limits, tim
                     </div>
                 </div>
                 <div className="pk-import-body">
+                    {job.view && job.sheet ? (
+                        <p className="pk-hint" data-testid="import-for-view">
+                            {fill(t.sheetForView, { name: job.view, sheet: job.sheet })}
+                        </p>
+                    ) : null}
                     {sheets.length > 1 ? (
                         <label className="pk-inline-form">
                             {t.sheet}
