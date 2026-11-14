@@ -6,6 +6,12 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ## [Unreleased]
 
+### Changed
+
+- The first load grows by about 0.3 KiB gzip with pivotkit-react's dates before year 1 and after
+  9999 in the filter's texts (173.7 KiB measured on a Mac, CI 174.3); its budget to 174.75
+  ([#349](https://github.com/eizedev/pivotkit/issues/349)).
+
 ## [0.6.0] - 2026-11-14
 
 ### Upgrading from 0.5
