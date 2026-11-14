@@ -8,6 +8,9 @@ All notable changes to `pivotkit-element` are documented in this file. The forma
 
 ### Fixed
 
+- The element bundles pivotkit-react's fix of an open menu that moved when its own content was
+  scrolled, so a click could land beside the control aimed at
+  ([#222](https://github.com/eizedev/pivotkit/issues/222)).
 - The element bundles pivotkit-react's fix of a saved view that reads another sheet of the loaded
   workbook: a sheet the reader has notes on shows them in the preview before it is loaded
   ([#274](https://github.com/eizedev/pivotkit/issues/274)).

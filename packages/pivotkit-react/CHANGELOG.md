@@ -8,6 +8,11 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ### Fixed
 
+- An open menu no longer moves when its own content is scrolled: a click on a control reached by
+  scrolling (Rolling under More choices of a date's quick choices) could land beside it when the
+  menu was placed again between the press and the release. A menu whose content grew while it was
+  already as tall as its room is placed again in the next frame instead
+  ([#222](https://github.com/eizedev/pivotkit/issues/222)).
 - A saved view that reads another sheet of the loaded workbook no longer loads that sheet unseen when
   the reader has notes on it (a used range, values not read, columns renamed): the preview stays
   open with the notes and a line naming the view that needs the sheet, and **Load data** loads the
