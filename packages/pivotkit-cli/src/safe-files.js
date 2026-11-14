@@ -165,11 +165,14 @@ export const TEMP_FILE_NAME = /^\..+\.\d+-[0-9a-z]{1,8}\.tmp$/;
 /**
  * A temporary file's name for the target `name` (TEMP_FILE_NAME). It stays within a file name's 255
  * bytes, however long the target's name is: 50 characters of at most 4 bytes each, then about 25 for
- * the process, a random part and ".tmp".
+ * the process, a random part and ".tmp". A longer name keeps its first and its last 25 characters,
+ * so the temporary file still shows where it belongs and what it is (pivotkit-server's random
+ * prefix, its ".pivotkit-out.<format>" mark).
  * @param {string} name  the target's base name
  */
 export function tempFileName(name) {
-    const stem = Array.from(name).slice(0, 50).join("");
+    const chars = Array.from(name);
+    const stem = chars.length <= 50 ? name : [...chars.slice(0, 25), ...chars.slice(-25)].join("");
     return `.${stem}.${process.pid}-${Math.random().toString(36).slice(2, 10) || "0"}.tmp`;
 }
 

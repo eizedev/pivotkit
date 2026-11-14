@@ -226,9 +226,21 @@ may try to steer it:
   becomes field names the model sees, so keep only data files there.
 - **Output** goes only to the operator's output directory, as new files that never replace one,
   with names cleaned to letters, digits, spaces, dots and dashes. A directory a web server serves
-  gets names that start with 22 random characters; protect that server as you would the data.
+  gets names that start with 22 random characters; protect that server as you would the data. The
+  directory holds at most `output.maxFiles` files and `output.maxMb` megabytes of pivotkit's (its
+  reports and drafts carry `.pivotkit-out.` in their names; other files are neither counted nor
+  deleted). When it is full, a new report deletes the oldest reports, so one caller cannot stop
+  rendering for everyone, but any token that may render can push other callers' reports out (a link
+  to one then answers 404); drafts awaiting approval are never deleted this way and may take at most
+  half of `maxFiles`, a draft over that is refused. A file named with `.pivotkit-out.` by hand counts
+  as pivotkit's. Set `maxFiles` high, give `render_view` and `draft_schedule` scopes of their own,
+  set `output.maxAgeDays` and keep the rate limits ([REST](reference/rest.md#auth)).
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.
+- **Connections**: at most 256 at once, 16 kept for loopback clients (the health check), 5 seconds
+  for the headers; `http.maxConnectionsPerAddress` bounds one address where clients reach the port
+  directly. Behind a proxy the proxy must guard the connections and the port be reachable from it
+  only.
 - **Resources**: reports are computed in worker threads with a memory and a time limit (a run over
   it is stopped), at most a few at once, with pivotkit-core's [limits](concepts/limits.md) and a
   default of 50 MiB per file.

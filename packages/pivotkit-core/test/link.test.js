@@ -124,8 +124,8 @@ test("source params are text within the limits; what does not fit is left out", 
     const read = fromViewFile({ format: "pivotkit-view", formatVersion: 2, source: { id: "s", params: { a: "1", b: 2, ["x".repeat(300)]: "y" } }, view });
     assert.deepEqual(read.source, { id: "s", params: { a: "1" } });
     assert.equal(read.issues.length, 2);
-    // without an id there is no source to parameterize
-    assert.equal(toViewFile(view, { source: { params: { a: "1" } } }).source.params, undefined);
+    // without an id there is no source to parameterize, and a source of params only is left out
+    assert.equal(toViewFile(view, { source: { params: { a: "1" } } }).source, undefined);
 });
 
 test("links of view format version 1 decode and read as they did (golden texts of pivotkit-core 0.4.0)", () => {

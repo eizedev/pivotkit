@@ -20,7 +20,7 @@ export const CONFIG_ENV = "PIVOTKIT_CONFIG";
 /** The subcommands, for the help. */
 const COMMANDS = Object.freeze({
     serve: "Serve REST (and MCP, when pivotkit-mcp is installed) over HTTP.",
-    "check-config": "Print what serve would expose and exit (1 when a file or directory it names is missing).",
+    "check-config": "Print what serve would expose and exit (1 when a file or directory it names is missing, or the output directory is not writable).",
     mcp: "Run pivotkit-mcp (stdio by default; its own flags, pivotkit-mcp --help).",
     cli: "Run the command line pivotkit (pivotkit-server cli --help).",
     healthcheck: `Exit 0 when the server answers GET /healthz (default http://127.0.0.1:${DEFAULT_PORT}/healthz).`

@@ -85,6 +85,9 @@ test("TEMP_FILE_NAME matches the temporary files writeSafe makes, not the files 
     for (const name of ["Sales.csv", "report.json", "a1b2-Sales.xlsx", "notes.tmp", ".hidden.tmp", "Sales.csv.tmp", ".Sales.csv.tmp"]) {
         assert.doesNotMatch(name, TEMP_FILE_NAME, name);
     }
+    // a long name keeps its start and its end (the server's random prefix, its output mark)
+    const long = `${"r".repeat(22)}-${"Quarterly sales by region and product ".repeat(3)}.pivotkit-out.report.json`;
+    assert.match(tempFileName(long), /^\.r{22}-Q.*\.pivotkit-out\.report\.json\.\d+-[0-9a-z]+\.tmp$/);
 });
 
 test("readSafe with hardLinks: false refuses a file with a second name; the default reads it", { skip: process.platform === "win32" ? "hard links differ on Windows" : false }, async () => {

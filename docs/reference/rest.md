@@ -62,14 +62,15 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 { "ok": true, "findings": [], "uses": ["Region", "Sales"], "format": "xlsx",
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "withheld": ["rows", "columns", "bytes", "content"],
-  "output": { "name": "sales.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as sales.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales." }
+  "output": { "name": "sales.pivotkit-out.xlsx", "format": "xlsx", "mediaType": "..." },
+  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales." }
 ```
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where
 (`output.name`, and `output.url` when `output.baseUrl` is set). The file's name is `name` from the
-input, else `title`, else the view's name, else the source's; a name that is taken gets `-2`, `-3`
-and so on, since no file is ever replaced. Check `ok` in the answer: a view with errors answers 200
+input, else `title`, else the view's name, else the source's, with `.pivotkit-out.` before the
+format (`sales.pivotkit-out.xlsx`), the mark by which the server knows its own files; a name that is
+taken gets `-2`, `-3` and so on, since no file is ever replaced. Check `ok` in the answer: a view with errors answers 200
 with `ok: false` and `output: null`. The caller fetches the file from there or
 uses the [file route](#downloads). The field names in these examples are made up: the fields of your
 source and views built from them are in `GET /sources/{id}` (`fields`, `examples`).
@@ -179,13 +180,28 @@ error="insufficient_scope", scope="..."` naming them.
 Set `auth.requireTyp: "at+jwt"` where the provider marks its access tokens so (RFC 9068), so an ID
 token with the right audience is refused.
 
-Every token that may render can fill the output directory up to `output.maxFiles`; then rendering
-into it answers 409 `NO_OUTPUT` for everyone until files are removed. Without `output.maxAgeDays`
-nothing there is deleted, also not the temporary file of a write the server was killed in
-(`.<name>.<pid>-<random>.tmp`), which counts toward `output.maxFiles`. Set `output.maxAgeDays`, and
-give `render_view` a scope of its own (`auth.toolScopes`) when not every caller needs it. The server
-holds at most 256 connections, and a client has 15 seconds to send its headers: on a network you do
-not trust, put a reverse proxy in front.
+The output directory holds at most `output.maxFiles` files and `output.maxMb` megabytes that
+pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them: any
+token that may render can push other callers' older reports out, and a link to one of them
+(`output.baseUrl`) then answers 404. Schedule drafts are never deleted this way; they may take at
+most half of `output.maxFiles`, and a draft over that answers 409 `NO_OUTPUT` while reports keep
+working, so give `draft_schedule` a scope of its own too and set `output.maxAgeDays`. A file you
+name with `.pivotkit-out.` yourself counts as pivotkit's and may be deleted. A quota per caller
+was the other choice; it was not taken because a caller is no stable owner (with auth `none` every
+caller is the same, files written before a restart have none) and the directory would still need a
+total that, once reached, refuses everyone again. So set `output.maxFiles` well above what your
+callers render between two clean-ups, give `render_view` a scope of its own (`auth.toolScopes`) when
+not every caller needs it, keep the per-caller rate limit ([limits](#limits)), set
+`output.maxAgeDays`, and run one server process per output directory (the count is kept within a
+process). A write the server is killed in leaves its temporary file
+(`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`): it is neither counted nor deleted to make
+room, and without `output.maxAgeDays` it stays until you remove it. The server
+holds at most 256 connections and keeps 16 of them for loopback clients such as the health check or
+a proxy on the same host, and a client has 5 seconds to send its headers ([MCP](mcp.md#http) has the
+details); `http.maxConnectionsPerAddress` bounds the connections of one address. On a network you do
+not trust, put a reverse proxy in front. With `auth.mode: oauth` and neither
+required scopes nor `auth.toolScopes`, the start warns: any token of the issuer for the REST
+audience then gets everything its profile allows.
 
 Scopes per operation (`auth.toolScopes`, e.g. `{ "render_view": ["pivotkit:render"] }`) and per
 source (`sources.<id>.scopes`) hold as for MCP; a source the caller may not use answers as a missing
@@ -256,7 +272,7 @@ carry `Retry-After`.
 | 404 | <a id="error-source-not-found"></a>`SOURCE_NOT_FOUND` | No such source, or one the caller lacks the scopes for |
 | 404 | <a id="error-file-not-available"></a>`FILE_NOT_AVAILABLE` | The source's file is missing or changed while read |
 | 405 | <a id="error-method-not-allowed"></a>`METHOD_NOT_ALLOWED` | GET for a POST route or the other way round (`Allow` names the method) |
-| 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, or the directory is full |
+| 409 | <a id="error-no-output"></a>`NO_OUTPUT` | No output directory for a file, the directory not writable by the server's user, or full where the server deletes nothing (it holds the operator's own files) |
 | 409 | <a id="error-no-link"></a>`NO_LINK`, <a id="error-not-schedulable"></a>`NOT_SCHEDULABLE` | A link for a source without a page; a schedule over a source that cannot have one |
 | 413 | <a id="error-body-too-large"></a>`BODY_TOO_LARGE`, <a id="error-limit-exceeded"></a>`LIMIT_EXCEEDED` | The body over 2 MiB; a file, a view or the work over a limit |
 | 415 | <a id="error-unsupported-media-type"></a>`UNSUPPORTED_MEDIA_TYPE`, <a id="error-unsupported-format"></a>`UNSUPPORTED_FORMAT` | A POST whose `Content-Type` is not `application/json` (curl's `-d` alone sends a form); a source file in no data format |
@@ -290,7 +306,7 @@ pivotkit-server's.
 | Command | What it does |
 | --- | --- |
 | `pivotkit-server serve [flags]` | HTTP on one port: `/api/v1`, `/openapi.json`, and with pivotkit-mcp installed `/mcp` and its quick-start page; `/healthz` and `/readyz` |
-| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, fields by level, profiles, REST settings), then exit; 1 when a file it names is missing |
+| `pivotkit-server check-config [flags]` | What `serve` would expose (sources, fields by level, profiles, output, REST settings), then exit; 1 when a file it names is missing or the output directory is not writable. A policy rule that names no column of the data is a warning (exit 0), with the name probably meant |
 | `pivotkit-server mcp [flags]` | [pivotkit-mcp](mcp.md)'s runner (stdio by default) |
 | `pivotkit-server cli <command> ...` | The [command line](cli.md) `pivotkit` |
 | `pivotkit-server healthcheck [url]` | Exit 0 when `GET /healthz` answers (default `http://127.0.0.1:$PIVOTKIT_PORT/healthz`) |
@@ -304,15 +320,19 @@ the REST service only, `http.page` and `http.allowOrigins` by the MCP endpoint o
 
 `/healthz` answers `{ "ok": true }` while the process runs; `/readyz` answers 200 when it can take
 work (`{ "ok": true, "checks": { "auth": true, "workers": true, "output": true } }`: the OAuth issuer
-loaded, workers up, the output directory writable) and 503 otherwise. On SIGTERM the server takes no
+loaded, workers up, the output directory writable) and 503 otherwise. An output directory the
+server's user cannot write is also a warning at start, a problem in `check-config`, and 409
+`NO_OUTPUT` for a report. On SIGTERM the server takes no
 new connection and lets running requests finish for up to `http.graceMs` (25 seconds by default).
 
 | Key | Default | What it is |
 | --- | --- | --- |
 | `http.enable` | `["rest"]`, plus `"mcp"` when installed | What `serve` serves |
 | `http.trustProxy` | false | Read the client's address from `X-Forwarded-For` (the last entry) for the limits and the log |
+| `http.maxConnectionsPerAddress` | 0 (no bound) | Connections one address may hold (loopback excepted); set it (e.g. 32) when clients reach the port directly with addresses of their own, not behind NAT, a published port or a proxy, where every client has one address |
 | `http.graceMs` | 25000 | How long a stop waits for running requests |
-| `output.maxAgeDays` | none | Delete reports and drafts (`.xlsx`, `.html`, `.csv`, `.json`, `.svg`) older than this from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
+| `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`), at its top level. A new report deletes the oldest reports until it fits, one write at a time; drafts are counted but never deleted, and may take at most half of `output.maxFiles` (a draft over that answers 409 `NO_OUTPUT`). Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories; a file named with the mark by hand counts as pivotkit's. Where the output directory is the configuration file's directory or holds a source, print template or token file, nothing is deleted: a full directory answers 409 `NO_OUTPUT`, and the start warns (with `output.maxAgeDays` it does not start) |
+| `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
 Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`

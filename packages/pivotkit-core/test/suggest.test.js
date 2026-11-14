@@ -241,10 +241,10 @@ test("renameFields: every reference to a data field is renamed at once, case-ins
 });
 
 test("isIdentifierName: the one rule pivotkit-react and the suggestions share", () => {
-    for (const name of ["ID", "OrderId", "CustomerID", "Order No", "asset_nr", "Serial #", "Serial#", "userID2", "ID (Asset)", "Key"]) {
+    for (const name of ["ID", "OrderId", "CustomerID", "Order No", "asset_nr", "Serial #", "Serial#", "userID2", "ID (Asset)", "Key", "HTTPId", "ABCId", "SKUNumber", "XMLKey"]) {
         assert.equal(isIdentifierName(name), true, name);
     }
-    for (const name of ["Paid", "PAID", "UUID", "Number of items", "Revenue", "Units"]) {
+    for (const name of ["Paid", "PAID", "UUID", "Number of items", "Revenue", "Units", "HTTPStatus", "ABCIdea"]) {
         assert.equal(isIdentifierName(name), false, name);
     }
 });
