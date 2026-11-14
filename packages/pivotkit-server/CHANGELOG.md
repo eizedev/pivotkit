@@ -19,6 +19,9 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   `POST /views/render/file`), errors as RFC 9457 problem documents, `/openapi.json`, and
   `openApiDocument()`, the OpenAPI 3.1 document made from the same table (published as
   `docs/openapi.json`).
+- A policy names a field without regard to case, Unicode form or the kind of whitespace (a no-break
+  space in a header). A Host header that is not a host name and port is refused, and the path of a
+  request comes from its request line only.
 - Policy profiles (`policy.profiles`), bound to static tokens, OAuth clients or scopes; downloads only
   with `results: true`; files by path refused over REST; inline results off by default.
 - A REST resource of its own for OAuth (`rest.resource`, its Protected Resource Metadata), CORS off
@@ -26,7 +29,8 @@ All notable changes to `pivotkit-server` are documented in this file. The format
   (`rest.rateLimit`, `rest.concurrency`).
 - The command `pivotkit-server`: `serve` (REST and, with pivotkit-mcp installed, MCP on one port,
   `/healthz`, `/readyz`, a graceful stop), `check-config`, `mcp`, `cli`, `healthcheck`.
-- `output.maxAgeDays` deletes old reports; `http.trustProxy` reads the client's address from
+- `output.maxAgeDays` deletes old reports, and refuses an output directory that holds a source file, a
+  token file or the configuration; `http.trustProxy` reads the client's address from
   `X-Forwarded-For`.
 - The container image `ghcr.io/eizedev/pivotkit` (distroless Node 22, non-root, read-only), built
   and signed on each release of this package.

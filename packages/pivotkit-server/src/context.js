@@ -10,6 +10,7 @@
 
 import { createRequire } from "node:module";
 import { access, constants, realpath, stat } from "node:fs/promises";
+import { dirname } from "node:path";
 import { isInside } from "pivotkit-cli/files";
 import { ConfigError, pathOf, validateOptions } from "./config.js";
 import { createComputer } from "./compute.js";
@@ -66,6 +67,11 @@ export async function createContext(options, runtime = {}) {
         // a directory the model may read files from must not hold what it may not see: the results
         if (registry.allow.some((allowed) => isInside(dir, allowed) || isInside(allowed, dir))) {
             throw new ConfigError("output.dir: lies inside a directory of files.allowDirs (or holds one): the model could read the reports it was not shown; use a directory outside them");
+        }
+        // old reports are deleted by their extension (.csv, .json, ...): never where the operator's
+        // own files lie, which have such names too
+        if (options.output.maxAgeDays && (await ownFileDirs(options)).includes(dir)) {
+            throw new ConfigError("output.dir: holds a source file, a token file or the configuration, which output.maxAgeDays would delete with the old reports; give the reports a directory of their own");
         }
         output = { dir, baseUrl: options.output.baseUrl ?? null, maxFiles: options.output.maxFiles ?? 1000, maxAgeDays: options.output.maxAgeDays ?? 0, showPath: runtime.showPaths ?? false };
     }
@@ -146,4 +152,17 @@ export function callerOf(mode, authInfo, authOptions = undefined) {
         return { scopes: null, client: String(authInfo.clientId ?? "token"), profile };
     }
     return { scopes: new Set(authInfo.scopes ?? []), client: String(authInfo.clientId ?? "client").slice(0, 80), profile };
+}
+
+/**
+ * The real directories that hold the operator's own files: each source file, each token file and,
+ * for a configuration file, its directory (options.baseDir).
+ * @param {import("./config.js").ServerOptions} options
+ * @returns {Promise<string[]>}
+ */
+async function ownFileDirs(options) {
+    const files = [...Object.values(options.sources ?? {}).map((s) => s.file), ...(options.auth?.tokens ?? []).map((t) => t.file)].filter((f) => typeof f === "string");
+    const dirs = await Promise.all(files.map((f) => realpath(pathOf(options, f)).then(dirname, () => null)));
+    const base = options.baseDir ? await realpath(options.baseDir).catch(() => null) : null;
+    return [...dirs, base].filter((d) => d !== null);
 }

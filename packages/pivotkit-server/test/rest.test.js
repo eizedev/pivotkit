@@ -380,3 +380,61 @@ test("limits: requests of one caller at once, the client's address behind a prox
         await busy.close();
     }
 });
+
+test("a Host header cannot change the path a request is routed to", async () => {
+    const { server } = await salesServer();
+    try {
+        const health = new URL(server.url);
+        // the request line asks for /healthz; the Host header smuggles another path
+        const res = await raw(`${health.origin}/healthz`, { headers: { host: "localhost/api/v1/sources?x=" } });
+        assert.equal(res.status, 403, JSON.stringify(res.data));
+        assert.equal(res.data.code, "FORBIDDEN_HOST");
+        assert.equal(res.data.sources, undefined);
+        const other = await raw(`${server.api}/sources`, { headers: { host: "localhost/healthz#" } });
+        assert.equal(other.status, 403, JSON.stringify(other.data));
+        assert.notDeepEqual(other.data, { ok: true });
+    } finally {
+        await server.close();
+    }
+});
+
+test("hide matches a column whose name differs in whitespace only (no-break, ideographic, doubled spaces)", async () => {
+    for (const header of ["Customer Name", "Customer  Name", "Customer　Name", " Customer Name "]) {
+        const dir = workspace({ "sales.csv": `Region,${header},Sales\nNorth,Alice Example,10\n` });
+        const server = await restServer({ sources: { sales: { file: "data/sales.csv", policy: { default: "show", fields: { "Customer Name": "hide" } } } }, output: { dir: "out" }, baseDir: dir });
+        try {
+            const res = await call(`${server.api}/sources/sales`);
+            assert.equal(res.status, 200, JSON.stringify(res.data));
+            const names = res.data.fields.map((f) => f.name);
+            assert.deepEqual(names, ["Region", "Sales"], `${JSON.stringify(header)} is hidden`);
+            assert.equal(res.data.hiddenFields, 1);
+            assert.ok(!JSON.stringify(res.data).includes("Alice"), "no value of the hidden column");
+        } finally {
+            await server.close();
+        }
+    }
+});
+
+test("output.maxAgeDays refuses an output directory that holds a source, a token file or the configuration", async () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "token.txt"), "a-test-token-that-is-long-enough-0123456789");
+    const cases = [
+        { output: { dir: "data", maxAgeDays: 1 } },
+        { output: { dir: ".", maxAgeDays: 1 } },
+        { output: { dir: "out", maxAgeDays: 1 }, extra: "token" }
+    ];
+    for (const { output, extra } of cases) {
+        const tokens = extra === "token" ? { auth: { mode: "token", tokens: [{ name: "t", file: "out/token.txt" }] } } : {};
+        if (extra === "token") {
+            writeFileSync(join(dir, "out", "token.txt"), "a-test-token-that-is-long-enough-0123456789");
+        }
+        // a server that starts anyway is closed, so a failing case does not keep the test running
+        const started = restServer({ sources: { sales: { file: "data/sales.csv" } }, output, baseDir: dir, ...tokens });
+        started.then((s) => s.close(), () => undefined);
+        await assert.rejects(started, (e) => /output\.dir/.test(e.message) && /maxAgeDays/.test(e.message), JSON.stringify(output));
+    }
+    assert.deepEqual(readdirSync(join(dir, "data")), ["sales.csv"]);
+    // without maxAgeDays nothing is deleted, so a shared directory stays allowed
+    const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "data" }, baseDir: dir });
+    await server.close();
+});

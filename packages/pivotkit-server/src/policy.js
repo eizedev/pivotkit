@@ -85,7 +85,9 @@ export function resolvePolicy(server = {}, source = {}, profile = undefined) {
 
 /** A field's level. */
 /** A field name as the policy matches it: Unicode NFC (a file from macOS may write "ö" as two code points), trimmed, lower case. */
-export const fieldKey = (name) => String(name).normalize("NFC").trim().toLowerCase();
+// whitespace counts as one space, whichever kind (a no-break or ideographic space, a doubled one: an
+// Excel header often has them), so a rule on "Customer Name" also matches such a column
+export const fieldKey = (name) => String(name).normalize("NFC").replace(/\s+/gu, " ").trim().toLowerCase();
 
 /** A reader's name for a repeated header ("Email (2)", "email (3)"): the part before it is the first one's name. */
 const REPEATED = /^(.*\S) \(\d+\)$/;

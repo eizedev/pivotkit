@@ -38,7 +38,8 @@ the data is read. Leaving a column out of the data file is safer still.
   this policy: whoever may open them sees the values. Keep those pages behind your own sign-in.
 - **Downloads**: a caller whose policy has `results: true` may read every value of every field that
   is not hidden, in a file, whatever level the field has.
-- **Names match** without regard to case or Unicode form; a column the reader renamed because its
+- **Names match** without regard to case, Unicode form or the kind of whitespace (a no-break space or
+  doubled spaces in a header match one space in the policy); a column the reader renamed because its
   header repeats a hidden one ("Email (2)") is hidden too. Other columns the reader names itself
   ("Column 8" for cells without a header) take the default level: for a source of personal data,
   start from `"default": "hide"` and list the fields to show.

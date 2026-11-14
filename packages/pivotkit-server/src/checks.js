@@ -4,6 +4,9 @@
  * browser's Origin against an allow list.
  */
 
+/** A Host header as RFC 9110 allows it: a name or an IP address (IPv6 in brackets), and a port. */
+export const HOST_SYNTAX = /^(?:[A-Za-z0-9._~%!$&'()*+,;=-]+|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$/;
+
 /** The host names every server answers to: loopback. */
 export const LOCAL_HOSTS = Object.freeze(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -26,6 +29,9 @@ export function hostRefusal(request, hosts) {
     const header = request.headers.get("host") ?? new URL(request.url).host;
     if (!header) {
         return "Missing Host header";
+    }
+    if (!HOST_SYNTAX.test(header)) {
+        return "Invalid Host header";
     }
     let hostname;
     try {

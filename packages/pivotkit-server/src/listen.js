@@ -6,6 +6,7 @@
  */
 
 import { createServer } from "node:http";
+import { HOST_SYNTAX } from "./checks.js";
 
 /** Whether an address is loopback. */
 export const isLoopback = (host) => host === "127.0.0.1" || host === "::1" || host === "localhost" || /^127\./.test(host);
@@ -79,8 +80,11 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                     headers.append(k, v);
                 }
             }
-            // the address as the client asked for it; the Host check decides whether it is allowed
-            const url = `http://${req.headers.host ?? "localhost"}${req.url ?? "/"}`;
+            // the address as the client asked for it; the Host check decides whether it is allowed. The
+            // path is the request line's alone: a Host header with a path in it ("localhost/x?") is not
+            // put in front of it, so it cannot change the route
+            const host = req.headers.host ?? "localhost";
+            const url = `http://${HOST_SYNTAX.test(host) ? host : "invalid.invalid"}${req.url?.startsWith("/") ? req.url : "/"}`;
             // what the headers tell is checked before a byte of the body is read
             const early = handler.precheck ? await handler.precheck(new Request(url, { method: req.method, headers }), info) : null;
             if (early) {
