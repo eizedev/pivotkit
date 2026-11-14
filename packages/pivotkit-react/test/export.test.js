@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { cellRows, computePivot, encode } from "pivotkit-core";
 import { exportDrill, rowsText } from "../src/drill-export.js";
 import { dataExportOf, pickColumns } from "../src/export-scope.js";
+import { strFromU8, unzipSync } from "fflate";
 import { drillTable } from "../src/drill-table.js";
 import { LABELS } from "../src/labels.js";
 import { de as menuDe } from "../src/menu-labels-de.js";
@@ -33,10 +34,10 @@ function drillOf(limit, locale = "en-US", labels = en) {
 }
 
 /** Runs one export with an onExport that keeps everything, and returns what it got and what was said. */
-async function run(kind, drill, labels = en) {
+async function run(kind, drill, labels = en, columns = undefined) {
     const seen = [];
     const said = [];
-    await exportDrill(kind, { drill, encoded, labels, onExport: (file) => (seen.push(file), false), announce: (text, extra) => said.push({ text, extra }), root: null });
+    await exportDrill(kind, { drill, encoded, labels, columns, onExport: (file) => (seen.push(file), false), announce: (text, extra) => said.push({ text, extra }), root: null });
     return { file: seen[0], said };
 }
 
@@ -77,6 +78,27 @@ test("drill-down downloads: CSV with the panel's headers and formats, an Excel w
     assert.equal(xlsx.file.fileName, "Central – Jul 2026.xlsx");
     assert.equal(xlsx.file.blob.type, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     assert.ok(xlsx.file.blob.size > 0);
+});
+
+test("drill-down exports with the host's exportData columns: only those, in that order, in every export (#259)", async () => {
+    // as PivotReport resolves them against the data: the data's own names
+    const columns = dataExportOf({ columns: ["Units", "region"] }, encoded.columns.map((c) => c.name)).columns;
+    assert.deepEqual(columns, ["Units", "Region"]);
+    const copy = await run("drill-copy", drillOf(1000), en, columns);
+    assert.deepEqual(copy.file.text.trimEnd().split("\r\n"), ["Units sold\tRegion", "1,234.5\tCentral", "2\tCentral"]);
+    const json = await run("drill-json", drillOf(1000), en, columns);
+    assert.deepEqual(JSON.parse(json.file.text), [{ Units: 1234.5, Region: "Central" }, { Units: 2, Region: "Central" }]);
+    const csv = await run("drill-csv", drillOf(1000), en, columns);
+    assert.equal(new TextDecoder().decode(await csv.file.blob.arrayBuffer()), "Units sold,Region\r\n1234.5,Central\r\n2,Central\r\n");
+    const xlsx = await run("drill-xlsx", drillOf(1000), en, columns);
+    const files = unzipSync(new Uint8Array(await xlsx.file.blob.arrayBuffer()));
+    const sheet = Object.entries(files).filter(([name]) => name.startsWith("xl/")).map(([, bytes]) => strFromU8(bytes)).join("\n");
+    for (const kept of ["Units sold", "Region", "Central"]) {
+        assert.ok(sheet.includes(kept), kept);
+    }
+    for (const left of ["Note", "Paid", "Month", "plain"]) {
+        assert.ok(!sheet.includes(`>${left}<`), left);
+    }
 });
 
 test("drill-down exports of the first of more rows hold those rows and say so", async () => {
@@ -134,6 +156,25 @@ test("Export → Source data: only with exportData; then every row through onExp
     const csv = new TextDecoder("utf-8", { ignoreBOM: true }).decode(await files[0].blob.arrayBuffer());
     assert.equal(csv, "\uFEFFRegion,Month,Units,Note,Paid\r\nCentral,2026-07-01,1234.5,'=cmd(),true\r\nCentral,2026-07-01,2,plain,false\r\nNorth,2026-08-01,3,,true\r\n");
     assert.equal(JSON.parse(await files[1].blob.text()).length, 3);
+    // the host's columns (#259): only those; none that matches, nothing at all
+    files.length = 0;
+    await runExport("data-csv", { ...base, exportData: { columns: ["units", "Region"] } });
+    assert.equal(new TextDecoder().decode(await files[0].blob.arrayBuffer()), "Units,Region\r\n1234.5,Central\r\n2,Central\r\n3,North\r\n");
+    const warn = console.warn;
+    const warnings = [];
+    console.warn = (text) => warnings.push(text);
+    try {
+        await runExport("data-json", { ...base, exportData: { columns: ["Nope"] } });
+        await runExport("data-json", { ...base, exportData: { columns: ["Nope"] } });
+        await runExport("data-csv", { ...base, exportData: { columns: [] } });
+    } finally {
+        console.warn = warn;
+    }
+    assert.equal(files.length, 1);
+    assert.deepEqual(warnings, [
+        'pivotkit: exportData.columns names no column of the data: "Nope"; no column is left, so Source data and the drill-down\'s exports are off',
+        "pivotkit: exportData.columns is empty; no column is left, so Source data and the drill-down's exports are off"
+    ]);
 });
 
 test("the menus' export texts exist in English and German, distinct from the view's copy", () => {
@@ -257,14 +298,20 @@ test("the new export texts exist in English and German", () => {
     assert.equal(de.exportPrint, "Drucken oder als PDF speichern…");
 });
 
-test("exportData: off unless the host says so; columns picked as the core's exporters pick them (#259, #263)", () => {
-    for (const off of [undefined, false, null, 0, "", "yes", ["Region"], { columns: "Region" }]) {
-        assert.equal(dataExportOf(off), null, JSON.stringify(off));
-    }
-    assert.deepEqual(dataExportOf(true), {});
-    assert.deepEqual(dataExportOf({}), {});
-    assert.deepEqual(dataExportOf({ columns: ["Revenue", 3, "Region"] }), { columns: ["Revenue", "Region"] });
+test("exportData against the data's columns: off, every column, or the host's columns; none left is off (#259)", () => {
     const names = ["Region", "Country", "Revenue"];
+    for (const off of [undefined, false, null, 0, "", "yes", ["Region"], { columns: "Region" }]) {
+        assert.deepEqual(dataExportOf(off, names), { source: false, unknown: [] }, JSON.stringify(off));
+    }
+    assert.deepEqual(dataExportOf(true, names), { source: true, unknown: [] });
+    assert.deepEqual(dataExportOf({}, names), { source: true, unknown: [] });
+    // the data's own names, in the host's order, each once; the names it lacks said
+    assert.deepEqual(dataExportOf({ columns: ["revenue", 3, "Nope", "REGION", "Revenue"] }, names), { source: true, columns: ["Revenue", "Region"], unknown: ["Nope"] });
+    // nothing to export: off, the drill-down's exports too (no column)
+    assert.deepEqual(dataExportOf({ columns: [] }, names), { source: false, columns: [], unknown: [] });
+    assert.deepEqual(dataExportOf({ columns: ["Nope"] }, names), { source: false, columns: [], unknown: ["Nope"] });
+    // a function, a symbol or a bigint in the prop: no throw, plain JSON out
+    assert.doesNotThrow(() => JSON.stringify(dataExportOf({ columns: ["Region"], extra: 1n, f: () => 1, s: Symbol("x") }, names)));
     assert.deepEqual(pickColumns(names, undefined), [0, 1, 2]);
     assert.deepEqual(pickColumns(names, ["revenue", "Nope", "REGION", "Revenue"]), [2, 0]);
     assert.deepEqual(pickColumns(names, []), []);

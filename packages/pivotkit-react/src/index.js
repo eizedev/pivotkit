@@ -149,10 +149,10 @@
  *   every copy before it goes on the clipboard; returning false skips the download or the copy (the
  *   host keeps the file or the text, for example to upload it)
  * @property {boolean | { columns?: string[] }} [exportData]  the Export menu's "Source data": every row
- *   of the data shown, as a CSV or JSON file, for the user's own analysis or the command line; also
- *   the drill-down panel's exports and copies of its rows. `true`: every column; `{ columns }`: only
- *   these, in this order. Default false: neither, since the rows may hold more than the report shows
- *   (docs/security.md); the drill-down still shows its rows
+ *   of the data shown, as a CSV or JSON file, for the user's own analysis or the command line.
+ *   `true`: every column; `{ columns }`: only these, in this order, which the drill-down panel's
+ *   copies and files keep to as well (none left: both off). Default false: the rows may hold more
+ *   than the report shows (docs/security.md)
  * @property {"on" | "off" | string | string[]} [tips]  the tips above the result: "on" (default), "off"
  *   (none, and no switch in Options), or the ids of the tips allowed (an array, or a comma-separated text)
  * @property {string} [storageKey]  remembers dismissed tips in localStorage under this key (one per

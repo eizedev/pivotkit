@@ -6,25 +6,17 @@ All notable changes to `pivotkit-react` are documented in this file. The format 
 
 ## [Unreleased]
 
-### Upgrading from 0.6.0
-
-- The drill-down panel's Export menu (Copy, Copy as JSON, Download CSV, Download Excel) comes with
-  `exportData` now, as Source data does: off by default. A host whose users copy or download a
-  drill-down's rows turns `exportData` on. The panel still shows the rows, `onCellClick` still gets them
-  ([#263](https://github.com/eizedev/pivotkit/issues/263)).
-
 ### Added
 
-- `exportData={{ columns: [...] }}`: Source data and the drill-down's exports hold only those columns,
-  in that order (matched case-insensitively, a name the data lacks left out); a value of another shape
-  is off ([#259](https://github.com/eizedev/pivotkit/issues/259)).
+- `exportData={{ columns: [...] }}`: Source data and the drill-down's copies and files hold only
+  those columns, in that order (matched case-insensitively, derived fields never). A name the data
+  lacks is left out and said once in the console; with no column left, or a value of another shape,
+  Source data and the drill-down's Export menu are off ([#259](https://github.com/eizedev/pivotkit/issues/259)).
 
 ### Changed
 
-- The drill-down's exports and copies follow `exportData` (see Upgrading)
-  ([#263](https://github.com/eizedev/pivotkit/issues/263)).
 - Source data as CSV is built in pieces of whole lines (pivotkit-core's `dataToCsvParts`), so the
-  browser holds about the file's size while it is made, not a few times it
+  browser holds about twice the file's size while it is made, not about five times
   ([#260](https://github.com/eizedev/pivotkit/issues/260)).
 
 ## [0.6.0] - 2026-11-14

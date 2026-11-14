@@ -1,6 +1,6 @@
-// What exportData lets out (#259, #263): off (the default), neither Source data nor the drill-down's
-// exports and copies; with { columns }, both hold only those columns, in that order. The drill-down
-// panel itself still shows its rows. A host page (tests/browser/pages/host.jsx) with 2,000 sales rows.
+// What exportData lets out (#259): off (the default), no Source data, and the drill-down's exports
+// hold every column as before; with { columns }, both hold only those columns, in that order, and
+// with none that matches both are off. A host page (tests/browser/pages/host.jsx) with 2,000 sales rows.
 import { readFile } from "node:fs/promises";
 import { captureClipboard, copied, expect, test, toolbar } from "./fixtures.js";
 
@@ -12,9 +12,13 @@ async function openDrill(page) {
     await expect(panel.locator(".pk-drill-table tbody tr").first()).toBeVisible();
     return panel;
 }
+// the console warning these tests ask for (they check it themselves)
+test.use({ ignoreConsole: [/^pivotkit: exportData\.columns names no column of the data: "Nope"/] });
+
 const csvLines = async (download) => (await readFile(await download.path(), "utf8")).replace(/^\uFEFF/, "").trimEnd().split("\r\n");
 
-test("exportData off (the default): no Source data, and the drill-down shows its rows without exports", async ({ page }) => {
+test("exportData off (the default): no Source data; the drill-down's exports hold every column", async ({ page }) => {
+    await captureClipboard(page);
     await page.goto("pages/host.html");
     await expect(page.locator(".pk-root")).toBeVisible();
     await toolbar(page, "export");
@@ -22,12 +26,32 @@ test("exportData off (the default): no Source data, and the drill-down shows its
     await expect(page.getByTestId("export-data-csv")).toHaveCount(0);
     await page.keyboard.press("Escape");
     const panel = await openDrill(page);
+    await panel.getByTestId("drill-export").click();
+    await page.getByTestId("drill-copy").click();
+    expect((await copied(page)).split("\r\n")[0].split("\t")).toEqual(["Region", "Country", "Product", "Category", "Channel", "Month", "Units", "Revenue", "Discount"]);
+});
+
+test("exportData with columns that name nothing of the data: off, the drill-down's Export menu too, said once in the console", async ({ page }) => {
+    const warnings = [];
+    page.on("console", (m) => m.type() === "warning" && m.text().startsWith("pivotkit:") && warnings.push(m.text()));
+    await page.goto("pages/host.html?exportcolumns=Nope");
+    await expect(page.locator(".pk-root")).toBeVisible();
+    await toolbar(page, "export");
+    await expect(page.getByTestId("export-csv")).toBeVisible();
+    await expect(page.getByTestId("export-data-csv")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    const panel = await openDrill(page);
     await expect(panel.getByTestId("drill-export")).toHaveCount(0);
+    // the host page renders again every 200 ms with a new object: still said once
+    await page.waitForTimeout(500);
+    expect(warnings).toEqual(['pivotkit: exportData.columns names no column of the data: "Nope"; no column is left, so Source data and the drill-down\'s exports are off']);
 });
 
 test("exportData with columns: Source data and the drill-down's exports hold those columns only, in that order", async ({ page }) => {
     await captureClipboard(page);
     // a name in another case and one the data lacks: matched as the core's exporters match, the unknown left out
+    const warnings = [];
+    page.on("console", (m) => m.type() === "warning" && m.text().startsWith("pivotkit:") && warnings.push(m.text()));
     await page.goto("pages/host.html?exportcolumns=Revenue,region,Nope");
     await expect(page.locator(".pk-root")).toBeVisible();
     await toolbar(page, "export");
@@ -54,4 +78,5 @@ test("exportData with columns: Source data and the drill-down's exports hold tho
     await panel.getByTestId("drill-export").click();
     await page.getByTestId("drill-json").click();
     expect(Object.keys(JSON.parse(await copied(page))[0])).toEqual(["Revenue", "Region"]);
+    expect(warnings).toEqual(['pivotkit: exportData.columns names no column of the data: "Nope"']);
 });

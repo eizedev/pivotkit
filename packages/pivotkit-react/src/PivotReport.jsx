@@ -18,7 +18,6 @@ import { MAX_CATEGORIES, chartPlan } from "./chart-types.js";
 import { groupingName, layoutSummary, valueLabel } from "./names.js";
 import { PivotDnd } from "./dnd.jsx";
 import { DRILL_LIMIT, drillRows } from "./drill.js";
-import { dataExportOf } from "./export-scope.js";
 import { displayNames, fieldDefaultsFor, fieldInfoOf, typesOf } from "./field-info.js";
 import { FieldPanel } from "./fields.jsx";
 import { Icon, TYPE_ICON } from "./icons.jsx";
@@ -980,10 +979,6 @@ function Report(props) {
         [result, encodedProp, imported, data, drillDownLimit, onCellClick, drillDown, defaultsOf, nameOf, infoOf]
     );
 
-    // what exportData lets out: Source data and the drill-down's exports, off unless the host says so
-    // (#259, #263); the prop may be a new object on every render
-    const exportDataKey = JSON.stringify(exportData ?? null);
-    const dataExport = useMemo(() => dataExportOf(JSON.parse(exportDataKey)), [exportDataKey]);
     const doExport = useExport({ fileName, result, encoded, exportData, locale, labels, limits, root, chartRef, announce, onExport, title: viewName, source: sourceName, loadECharts });
 
     // loading data (allowImport): the import UI (import-host.jsx) loads on first use (the Data menu, a
@@ -1489,7 +1484,7 @@ function Report(props) {
                                 templateActions={templateActions}
                                 onExport={doExport}
                                 prepareExport={prepareExporters}
-                                dataExport={dataExport !== null}
+                                dataExport={{ exportData, encoded }}
                                 chartReady={view.display === "chart" && chartReady}
                                 empty={empty}
                                 onShowFields={() => setDrawer(true)}
@@ -1628,7 +1623,7 @@ function Report(props) {
                             </div>
                         </div>
                         {/* inside the layout: clipped to the report's box with it (its slide-in too) */}
-                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: dataExport ? { encoded, onExport, announce, root, columns: dataExport.columns } : undefined }} /> : null}
+                        {drill ? <MenuPanel name="DrillPanel" props={{ drill, onClose: () => setDrill(null), labels, locale, exportContext: { encoded, onExport, announce, root, exportData } }} /> : null}
                     </div>
                     {/* the filter and the drill-down load with the menus (lazy-menus.jsx) */}
                     {filterTarget ? <MenuPanel name="FilterPopover" props={{ target: filterTarget, onClose: closeFilter, view, encoded, locale, labels, commit }} /> : null}

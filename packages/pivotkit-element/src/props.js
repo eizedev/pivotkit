@@ -9,7 +9,7 @@
  *   "false" (drill-down defaults to on). "flag-or-url": present = true, a value other than "" and
  *   "true" is a URL ("false" turns it off). "flag-or-json": present = true, "false" off, a JSON object
  *   that object (Source data's `{ "columns": [...] }`); any other text is off, so a mistake hands
- *   out nothing.
+ *   out nothing, and said once in the console.
  * - "json": the attribute is parsed into the property (a view); setting the property does not write
  *   the attribute back, since a view is an object.
  */
@@ -56,6 +56,16 @@ export const OBJECT_PROPS = Object.freeze(["data", "dataKey", "templates", "labe
 
 const THEMES = new Set(["auto", "light", "dark"]);
 
+/** What the console was told already, so a page's mistake is said once. */
+const warned = new Set();
+/** @param {string} text */
+function warnOnce(text) {
+    if (!warned.has(text)) {
+        warned.add(text);
+        console.warn(text);
+    }
+}
+
 /**
  * The property value of an attribute value.
  * @param {AttributeDef} def
@@ -73,7 +83,14 @@ export function fromAttribute(def, value) {
             if (text === null || text.toLowerCase() === "false") {
                 return false;
             }
-            return text === "" || text.toLowerCase() === "true" ? true : (parseJson(text) ?? false);
+            if (text === "" || text.toLowerCase() === "true") {
+                return true;
+            }
+            const parsed = parseJson(text);
+            if (parsed === undefined) {
+                warnOnce(`pivotkit: ${def.attr}=${JSON.stringify(text.slice(0, 40))} is neither true, false nor a JSON object; it stays off`);
+            }
+            return parsed ?? false;
         }
         case "flag-or-url": {
             const text = value?.trim() ?? null;

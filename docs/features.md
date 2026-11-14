@@ -71,9 +71,8 @@ the short version, the [comparison](compare.md) sets it beside other pivot compo
 
 ## The rows behind a number { #drill-down }
 
-- Click a value or a chart mark: the rows behind it in a panel, enlarged on request; where the
-  application turns the source data on, to copy, copy as JSON, or download as CSV or Excel
-  ([the rows behind a number](use/drill-down.md)).
+- Click a value or a chart mark: the rows behind it in a panel, enlarged on request, to copy, copy as
+  JSON, or download as CSV or Excel ([the rows behind a number](use/drill-down.md)).
 - Developers: `drillDown`, `drillDownLimit`, `onCellClick` with the rows ([React props](reference/react.md#props)).
 
 ## Charts { #chart }
