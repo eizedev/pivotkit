@@ -26,6 +26,9 @@
  * @typedef {import("./encode.js").SchemaField} SchemaField
  * @typedef {import("./encode.js").ColumnarData} ColumnarData
  * @typedef {import("./view.js").View} View
+ * @typedef {import("./suggest.js").Layout} Layout
+ * @typedef {import("./suggest.js").LayoutPick} LayoutPick
+ * @typedef {import("./suggest.js").LayoutNote} LayoutNote
  * @typedef {import("./view.js").ValueSpec} ValueSpec
  * @typedef {import("./view.js").ValueRef} ValueRef
  * @typedef {import("./view.js").FilterSpec} FilterSpec
