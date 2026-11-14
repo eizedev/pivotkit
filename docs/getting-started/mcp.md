@@ -64,9 +64,8 @@ npx -y pivotkit-mcp --source sales=$HOME/reports/sales.csv --output ~/reports/ou
 
 Use absolute paths: a client may start the server in another directory, and create the output
 directory first (the server does not). VS Code also reads the newer `.mcp.json` with `mcpServers`, as
-under "Other clients".
- Pin a version for a setup
-others rely on (`pivotkit-mcp@0.1.0`): `npx` without one takes the newest at each start.
+under "Other clients". Pin a version for a setup others rely on (`pivotkit-mcp@<version>`): `npx`
+without one takes the newest at each start.
 
 Then ask: "Which sources does pivotkit have?", "Make an Excel report of sales by region per quarter",
 "Make a link to that report". The server answers with the file's place; when the report uses fields
@@ -84,7 +83,7 @@ fields it must not know about as `hide` (dropped when the data is read). In a co
     "sales": {
       "file": "/Users/you/reports/sales.csv",
       "title": "Sales",
-      "policy": { "fields": { "Region": "show", "Product": "show", "Customer": "hide" } }
+      "policy": { "fields": { "Region": "show", "Product": "show", "Discount": "hide" } }
     }
   },
   "output": { "dir": "/Users/you/reports/out" }
@@ -121,7 +120,7 @@ For sign-in with your identity provider (Authentik, Keycloak, Microsoft Entra ID
 OpenID Connect provider), see [OAuth](../reference/mcp.md#oauth); scopes then decide who sees which
 source and may use which tool.
 
-To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json` (with
+To serve programs too, run `pivotkit-server serve --config pivotkit-mcp.json --auth token` (with
 `pivotkit-mcp` installed beside it) instead: the same `/mcp` endpoint and the
 [REST service](rest.md) at `/api/v1` on one port, also as a [container image](../reference/container.md).
 Its one static token is `$PIVOTKIT_TOKEN`.
