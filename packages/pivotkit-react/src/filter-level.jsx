@@ -15,7 +15,7 @@
  * with the menus (menus.js).
  */
 
-import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CATALOG, LIMITS, fieldItems, fieldLabel, formatter, relativeDateRange } from "pivotkit-core";
 import { ClearInput } from "./clear-input.jsx";
 import { activeIn, useFormName } from "./dom.js";
@@ -1104,6 +1104,13 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     // the rows whose × was clicked: what still waits in them (a value typed a moment ago, applied
     // when the row goes) applies nothing (#320)
     const removed = useRef(/** @type {Set<string>} */ (new Set()));
+    // the view shown now: a value that waits in a row applies to it, also when it applies as its row
+    // goes after a change above it (another rule's ×), so the row's older view does not bring back
+    // what that change took away (#320)
+    const viewNow = useRef(view);
+    useLayoutEffect(() => {
+        viewNow.current = view;
+    });
     useEffect(() => {
         if (focusAdd.current) {
             focusAdd.current = false;
@@ -1177,14 +1184,14 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
             }
             // in its place: before the next row's rule
             const before = isHeld ? (rows.slice(i + 1).find((x) => x.rule)?.rule ?? null) : null;
-            commitOwn(setRule(view, field, rule, own, before));
+            commitOwn(setRule(viewNow.current, field, rule, own, before));
         };
         // the value emptied: the rule leaves the view, its row stays (the sections stay as they are)
         const unset = () => {
             if (rule && !removed.current.has(key)) {
                 setHeld([...held, { at: i, kind, blanks: rule.blanks }].sort((a, b) => a.at - b.at));
                 ctx.keepSections();
-                commitOwn(setRule(view, field, rule, null));
+                commitOwn(setRule(viewNow.current, field, rule, null));
             }
         };
         const remove = () => {
@@ -1245,6 +1252,15 @@ function RuleEditor({ ctx, rules, focusFirst, quickLine, results, blanks }) {
     if (draft) {
         rows.push({ rule: null, kind: draft, isHeld: false });
     }
+    // a removed row is gone once this commit is done (what waited in it was dropped as it unmounted,
+    // before this effect): its key is free again for a row that takes its place later
+    useEffect(() => {
+        for (const key of removed.current) {
+            if (!rows.some((_r, i) => key === `${gen}:${i}`)) {
+                removed.current.delete(key);
+            }
+        }
+    });
     return (
         <fieldset ref={box} className="pk-condition pk-rules" data-testid="rules">
             <legend className="pk-sr">{labels.rulesTitle}</legend>

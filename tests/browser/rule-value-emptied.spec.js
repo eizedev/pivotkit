@@ -207,4 +207,25 @@ test.describe("a rule's × clicked while its value still waits (#320)", () => {
         await expect.poll(() => years(page)).toEqual(nobelYears);
         await expect(badge(page, "Year")).toHaveCount(0);
     });
+
+    test("two rules, B waits, × on A: A goes, B applies on its own, A never comes back", async ({ page }) => {
+        await openView(page, "nobel", { rows: ["Year"], values: [{ agg: "count" }] });
+        await chipMenu(page, "Year", "filter");
+        const menu = page.locator(".pk-chip-menu");
+        await openRules(menu);
+        // A: from 2000, applied
+        await menu.getByTestId("rule-add-item").click();
+        await menu.getByTestId("rule-item-value").click();
+        await page.keyboard.type("2000");
+        await expect.poll(() => years(page)).toEqual(nobelYears.filter((y) => y >= 2000));
+        // B: up to 2010, its value still waiting when A's × is clicked
+        await menu.getByTestId("rule-add-item").click();
+        await menu.getByTestId("rule-item-op").last().selectOption("<=");
+        await menu.getByTestId("rule-item-value").last().click();
+        await page.keyboard.type("2010");
+        await menu.getByTestId("rule-remove").first().click();
+        await expect(menu.getByTestId("rule")).toHaveCount(1);
+        await expect.poll(() => menu.getByTestId("rule-item-op").evaluateAll((list) => list.map((c) => c.value))).toEqual(["<="]);
+        await expect.poll(() => years(page)).toEqual(nobelYears.filter((y) => y <= 2010));
+    });
 });
