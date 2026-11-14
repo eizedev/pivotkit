@@ -143,6 +143,12 @@ export const REPORT_LABELS = Object.freeze({
     })
 });
 
+// their nested tables too: a report shares them, nobody may change them in place
+for (const labels of Object.values(REPORT_LABELS)) {
+    Object.freeze(labels.aggregators);
+    Object.freeze(labels.showAs);
+}
+
 /**
  * The REPORT_LABELS of a locale's language ("de-DE": German), English for any other.
  * @param {string} [locale]

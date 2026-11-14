@@ -159,8 +159,10 @@ export async function writeSafe(path, bytes, { cwd, allow, exclusive = false }) 
     try {
         dir = await realpath(dirname(full));
     } catch {
-        const parent = relative(cwd, dirname(full)) || dirname(full);
-        throw new CliError("io", "NOT_FOUND", `${shortName(path)}: the directory ${JSON.stringify(printable(parent))} does not exist: create it first (mkdir -p ${printable(parent)})`);
+        // below the working directory: name it as typed and how to make it; elsewhere no path at all
+        const parent = relative(cwd, dirname(full));
+        const inside = parent !== "" && !parent.startsWith("..") && !isAbsolute(parent);
+        throw new CliError("io", "NOT_FOUND", inside ? `${shortName(path)}: the directory ${JSON.stringify(printable(parent))} does not exist: create it first (mkdir -p ${printable(parent)})` : `${shortName(path)}: its directory does not exist`);
     }
     const target = join(dir, basename(full));
     checkAllowed(target, allow, path);

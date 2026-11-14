@@ -125,9 +125,10 @@ and `pivotkit help <command>` lists the ones that act in it.
 | the view has errors | the errors, then `nothing written: the view has errors.` |
 | `validate` found nothing | `valid: no errors, no warnings (with sales.csv)`, or without `--data`: `valid against the fields the view file lists (source.fields), not against data: give --data to check it with the data` |
 | a usage error | `pivotkit: ...; see "pivotkit help render"` |
-| `-o` into a directory that does not exist | `the directory "out" does not exist: create it first (mkdir -p out)` |
+| `-o` into a directory that does not exist | below the working directory `the directory "out" does not exist: create it first (mkdir -p out)`, elsewhere `its directory does not exist` |
 | `-o report.html -f csv` | a usage error: the name says HTML, `-f` CSV (an extension that is no format of pivotkit's, `-o out.txt -f csv`, is written as asked) |
 | an HTML report to the terminal (no `-o`) | the report on stdout, and `an HTML report was written to the terminal: add -o report.html to save it` |
+| title lines above the header were skipped | `warning LINES_SKIPPED: ...` (they may be data; a finding with `--strict`) |
 | the filters keep no row | `warning noRowsKept: the filters keep none of the 2,000 rows of sales.csv (a date filter counts from --now or today)` (a table of zeros otherwise; with `--strict` a finding) |
 | data or a view from stdin on a terminal | `reading the data from stdin: type or paste it, then Ctrl-D (Ctrl-Z, Enter on Windows)` |
 | a view that is not JSON | `not a view: not valid JSON at line 2, column 30` |
@@ -141,7 +142,7 @@ there and listed in `--json`:
 ```text
 error dataMismatch: pivotkit-weather.csv does not have the fields the view uses
   the view uses: City, Date, Mean °C
-  the data has: Date by month of year, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov and 2 more
+  the data has: Date by month of year, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Grand Total
   it looks like an exported pivot result ("Grand Total", "Average of Mean °C"), not the rows the report was made from:
   in the report, take Export → Source data → All rows as CSV, and give that file to --data
   or give --data the file the report was made from, if you have it
@@ -150,7 +151,10 @@ nothing written: the view has errors.
 ```
 
 That is the table's own CSV (Export, **Table as CSV**): the result of a view, not the data a view
-applies to ([Try it](#try-it)). A field the data has under a near name is named
+applies to ([Try it](#try-it)). With both signs (a "Grand Total" column and a value's name such as
+"Average of …") the message says it looks like one, with one sign that it may be one. A long list of
+fields is cut ("… and 12 more"; `dataFields` in `--json` has all). Messages quote the data's field
+names and at most one cell value, cut at 20 characters; a file is named by its base name. A field the data has under a near name is named
 (`missing: "Mean °C" (did you mean "Mean C"?)`); a field the view file lists with its type that the
 data has as the one new field of that type is named as a rename (`missing: "Revenue" (number); the
 data has a new number field "Turnover": renamed?`); an unknown field lists the fields the data has; a

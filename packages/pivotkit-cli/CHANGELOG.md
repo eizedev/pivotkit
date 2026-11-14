@@ -23,6 +23,10 @@ All notable changes to `pivotkit-cli` are documented in this file. The format is
 
 ### Changed
 
+- The report's English words follow the report on a page (pivotkit-report's default labels): yes/no
+  as "Yes" and "No" instead of "true" and "false", "Distinct count" instead of "Count Unique", and so
+  on, in every format; a script that reads them must take the new words. `LINES_SKIPPED` (a warning
+  now) and the new `noRowsKept` count as findings with `--strict`.
 - A view file's field that the data lacks, with exactly one new field of its type in the data, is
   named as a rename; filters that keep no row give the warning `noRowsKept`; an HTML report written
   to the terminal says how to save it; `--lenient` counts every error and says when the report cannot

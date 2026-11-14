@@ -26,8 +26,7 @@ test("the table's own CSV as --data: one error first, the view's fields and the 
     const lines = r.stderr.trimEnd().split("\n");
     assert.match(lines[0], /^error dataMismatch: pivotkit-weather\.csv does not have the fields the view uses$/);
     assert.match(r.stderr, /^ {2}the view uses: City, Date, Mean °C$/m);
-    // a wide table's names are cut after 12
-    assert.match(r.stderr, /^ {2}the data has: Date by month of year, Jan, Feb, .*, Nov and 2 more$/m);
+    assert.match(r.stderr, /^ {2}the data has: Date by month of year, Jan, Feb, .*, Dec, Grand Total$/m);
     assert.match(r.stderr, /looks like an exported pivot result \("Grand Total", "Average of Mean °C"\), not the rows the report was made from/);
     assert.match(r.stderr, /^ {2}in the report, take Export → Source data → All rows as CSV, and give that file to --data$/m);
     // the errors that follow from it are counted, not repeated
@@ -87,7 +86,7 @@ test("-o with the extension of another format than -f is a usage error; nothing 
     writeFileSync(join(dir, "v.json"), JSON.stringify({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }));
     const r = await run(["render", "v.json", "--data", "d.csv", "-o", "t.html", "-f", "csv"], { cwd: dir });
     assert.equal(r.code, 2);
-    assert.match(r.stderr, /t\.html is an html file, -f asks for csv: name it t\.csv, or leave out -f/);
+    assert.match(r.stderr, /t\.html names an HTML report, -f asks for a CSV file: name it t\.csv, or leave out -f/);
     assert.equal(existsSync(join(dir, "t.html")), false);
     // an extension that is no format of pivotkit's, with -f: written as asked
     assert.equal((await run(["render", "v.json", "--data", "d.csv", "-o", "t.txt", "-f", "csv"], { cwd: dir })).code, 0);
@@ -253,4 +252,61 @@ test("an HTML report on the terminal: a hint to save it", async () => {
     const code = await main(["render", '{"rows":["Region"],"values":[{"field":"Units","agg":"sum"}]}', "--data", "d.csv"], { stdin, stdout: { write: (c) => out.push(c), isTTY: true }, stderr: { write: (c) => err.push(c) }, env: {}, cwd: dir });
     assert.equal(code, 0);
     assert.match(err.join(""), /an HTML report was written to the terminal: add -o report\.html to save it/);
+});
+
+test("a field the view file lists but the view does not use is no mismatch", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "d.csv"), "Product,Units\nA,3\n");
+    writeFileSync(join(dir, "v.json"), JSON.stringify({ format: "pivotkit-view", formatVersion: 2, name: "P", source: { fields: [{ name: "Product", type: "string" }, { name: "Units", type: "number" }, { name: "Region", type: "string" }] }, view: { rows: ["Product"], values: [{ field: "Units", agg: "sum" }] } }));
+    const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
+    assert.equal(r.code, 0, r.stderr);
+    assert.doesNotMatch(r.stderr, /dataMismatch/);
+});
+
+test("an error that does not follow from the missing fields is shown, not counted under them", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "d.csv"), "Region,Units\nNorth,3\n");
+    writeFileSync(join(dir, "v.json"), JSON.stringify({ rows: ["Regionn"], cols: ["Gone"], values: [{ field: "Units", agg: "sum" }] }));
+    const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
+    assert.equal(r.code, 1);
+    // both are missing fields of the view: each named with its hint where there is one
+    assert.match(r.stderr, /missing: "Regionn" \(did you mean "Region"\?\)/);
+    writeFileSync(join(dir, "w.json"), JSON.stringify({ rows: ["Gone"], values: [{ field: "Units", agg: "sum", showAs: { type: "nope" } }] }));
+    const other = await run(["render", "w.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
+    // the show-as error is not about a missing field: printed on its own
+    assert.match(other.stderr, /^error unknownShowAs/m);
+});
+
+test("the pivot result is named only with two signs; one is 'may be'", async () => {
+    const dir = tempDir();
+    // a real data file with a column named "Grand Total" (one sign) and a field the view lacks
+    writeFileSync(join(dir, "d.csv"), "Region,Grand Total\nNorth,3\n");
+    writeFileSync(join(dir, "v.json"), JSON.stringify({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }));
+    const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
+    assert.match(r.stderr, /it may be an exported pivot result/);
+    assert.doesNotMatch(r.stderr, /it looks like/);
+});
+
+test("long field lists are cut by names, so the count stays; a cell value in a message is cut at 20 characters", async () => {
+    const dir = tempDir();
+    const names = Array.from({ length: 40 }, (_, i) => `Column number ${i + 1} with a long name`);
+    writeFileSync(join(dir, "d.csv"), `${names.join(",")}\n${names.map(() => "1").join(",")}\n`);
+    writeFileSync(join(dir, "v.json"), JSON.stringify({ rows: ["Nope"], values: [{ agg: "count" }] }));
+    const r = await run(["render", "v.json", "--data", "d.csv", "-f", "csv"], { cwd: dir });
+    assert.match(r.stderr, /the data has: .* and \d+ more$/m);
+    writeFileSync(join(dir, "s.csv"), "Region,Units\nNorth,3\nSouth,SECRET-1234567890-ABCDEFGHIJ\n");
+    writeFileSync(join(dir, "u.json"), JSON.stringify({ rows: ["Region"], values: [{ field: "Units", agg: "sum" }] }));
+    const cut = await run(["render", "u.json", "--data", "s.csv", "-f", "csv"], { cwd: dir });
+    assert.match(cut.stderr, /its value "SECRET-1234567890-AB…" in row 2/);
+    assert.doesNotMatch(cut.stderr, /ABCDEFGHIJ/);
+});
+
+test("-o into a missing directory outside the working directory: no path of it, no mkdir hint", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "d.csv"), "Region,Units\nNorth,3\n");
+    const r = await run(["render", '{"rows":["Region"],"values":[{"field":"Units","agg":"sum"}]}', "--data", "d.csv", "-o", "/no/such/secret/dir/t.html"], { cwd: dir });
+    assert.equal(r.code, 2);
+    assert.doesNotMatch(r.stderr, /secret|\.\.\//);
+    assert.doesNotMatch(r.stderr, /mkdir/);
+    assert.match(r.stderr, /its directory does not exist/);
 });

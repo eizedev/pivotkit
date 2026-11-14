@@ -404,14 +404,31 @@ function withViewTypes(data, fields) {
     return findings.length ? { ...data, table, notes: [...data.notes, ...findings] } : data;
 }
 
-/** At most this many of the data's field names in a message, then "and n more". */
-const LISTED_FIELDS = 12;
+/** A field name in a list of a message: at most this many characters. */
+const NAME_LENGTH = 30;
+/** A list of field names in a message: at most about this many characters, then "and n more". */
+const LIST_LENGTH = 140;
+/** A cell value in a message (what made a column text, a sign of a pivot result): at most this many characters. */
+const VALUE_LENGTH = 20;
 
-/** Field names as a message lists them. */
-const nameList = (names) => (names.length > LISTED_FIELDS ? `${names.slice(0, LISTED_FIELDS).join(", ")} and ${names.length - LISTED_FIELDS} more` : names.join(", "));
+/** Text cut to `max` characters with "…". */
+const cut = (text, max) => {
+    const chars = Array.from(String(text));
+    return chars.length > max ? `${chars.slice(0, max).join("")}…` : chars.join("");
+};
 
-/** The errors a field the data does not have brings along, counted under dataMismatch. */
-const FOLLOW_ON = new Set(["unknownField", "groupingNameTaken", "groupingNoSource"]);
+/** Field names as a message lists them: each cut, as many as fit, then "and n more". */
+function nameList(names) {
+    const shown = [];
+    let length = 0;
+    for (const name of names) {
+        const text = cut(name, NAME_LENGTH);
+        if (shown.length && length + text.length + 2 > LIST_LENGTH) break;
+        shown.push(text);
+        length += text.length + 2;
+    }
+    return names.length > shown.length ? `${shown.join(", ")} and ${names.length - shown.length} more` : shown.join(", ");
+}
 
 /** The words of a value's name in a pivot result's header ("Sum of", "Summe von"), every language's. */
 const VALUE_NAME = (() => {
@@ -426,24 +443,29 @@ const TOTAL_NAMES = new Set([DEFAULT_LABELS.grandTotal, ...Object.values(REPORT_
 
 /**
  * What says a data file is a pivot RESULT (the table's own CSV), not the rows: a grand total column,
- * a value's name ("Average of Mean °C") in its header or its first rows. At most two, for the message.
+ * a value's name ("Average of Mean °C") in its header or its first rows. Each cut for the message.
  * @param {import("pivotkit-core/import").ImportTable} table
  */
 function pivotResultSigns(table) {
     const signs = [];
     const total = table.columns.find((name) => TOTAL_NAMES.has(String(name).toLowerCase()));
-    if (total) signs.push(total);
+    if (total) signs.push(cut(total, VALUE_LENGTH));
     const valueName = (text) => typeof text === "string" && VALUE_NAME.some((w) => text.toLowerCase().startsWith(w));
     const named = table.columns.find(valueName) ?? table.raw.flatMap((values) => values.slice(0, 3)).find(valueName);
-    if (named) signs.push(named);
+    if (named) signs.push(cut(named, VALUE_LENGTH));
     return signs;
 }
+
+/** The errors a field the data does not have brings along, when they name one of the missing fields. */
+const FOLLOW_ON = new Set(["unknownField", "groupingNoSource", "aggregatorNeedsField", "filterFieldType"]);
 
 /**
  * The findings of a view over data, explained for a person: when the data lacks fields the view uses,
  * one error first (dataMismatch: the view's fields, the data's, the missing ones with a hint, and
- * whether the file looks like a pivot result), the errors that follow from it marked; an unknown
- * field names the data's fields; a value refused on a text field names the value that made it text.
+ * whether the file looks like a pivot result); an error that names a missing field (and, for a pivot
+ * result, a grouping whose name its header has) is marked as following from it; an unknown field
+ * names the data's fields; a value refused on a text field names the value (cut) and row that made it
+ * text. A message holds header names and at most one cell value, cut (errors.js).
  * @param {any[]} findings
  * @param {unknown} viewText  the view as given (text or an object of a link)
  * @param {NonNullable<Awaited<ReturnType<typeof readData>>>} data
@@ -452,7 +474,8 @@ function explain(findings, viewText, data) {
     const columns = data.table.columns.map(String);
     const has = new Set(columns.map((c) => c.toLowerCase()));
     const read = fromViewFile(typeof viewText === "string" ? viewText : JSON.stringify(viewText));
-    const wanted = read.failed ? [] : read.source?.fields?.length ? read.source.fields.map((f) => f.name) : viewFileFields(read.view ?? {});
+    // the fields the view uses; source.fields (every field of the file) only gives their types
+    const wanted = read.failed ? [] : viewFileFields(read.view ?? {});
     const missing = wanted.filter((name) => !has.has(String(name).toLowerCase()));
     const out = findings.map((f) => {
         if (f.code === "unknownField") {
@@ -464,7 +487,7 @@ function explain(findings, viewText, data) {
             const raw = c >= 0 ? data.table.raw[c] : [];
             const row = raw.findIndex((v) => v !== null && String(v).trim() !== "" && !Number.isFinite(Number(String(v).trim().replace(",", "."))));
             if (row >= 0) {
-                return { ...f, message: printable(`${f.message} (read as text: its value ${JSON.stringify(String(raw[row]))} in row ${row + 1} is no number)`) };
+                return { ...f, message: printable(`${f.message} (read as text: its value ${JSON.stringify(cut(raw[row], VALUE_LENGTH))} in row ${row + 1} is no number)`) };
             }
         }
         return f;
@@ -473,26 +496,33 @@ function explain(findings, viewText, data) {
         return out;
     }
     const signs = pivotResultSigns(data.table);
-    const followers = out.filter((f) => f.severity === "error" && FOLLOW_ON.has(f.code));
-    // a field of the view file missing, and exactly one field of its type the view file does not name: renamed?
+    const lower = missing.map((m) => String(m).toLowerCase());
+    const namesMissing = (f) => lower.some((m) => f.message.toLowerCase().includes(`"${m}"`));
+    const followers = out.filter((f) => f.severity === "error" && ((FOLLOW_ON.has(f.code) && namesMissing(f)) || (f.code === "groupingNameTaken" && signs.length > 0)));
+    // a field missing, and exactly one field of its type in the data the view does not use: renamed?
     const typeOf = new Map((read.source?.fields ?? []).map((f) => [String(f.name).toLowerCase(), f.type]));
     const wantedKeys = new Set(wanted.map((w) => String(w).toLowerCase()));
     const newOfType = (type) => columns.filter((c, i) => data.table.types[i] === type && !wantedKeys.has(c.toLowerCase()));
     const hints = missing
         .map((name) => {
             const near = closest(String(name), columns);
-            if (near) return `missing: "${name}" (did you mean "${near}"?)`;
+            if (near) return `missing: "${cut(name, NAME_LENGTH)}" (did you mean "${cut(near, NAME_LENGTH)}"?)`;
             const type = typeOf.get(String(name).toLowerCase());
             const fresh = type ? newOfType(type) : [];
-            return fresh.length === 1 ? `missing: "${name}" (${type}); the data has a new ${type} field "${fresh[0]}": renamed?` : null;
+            return fresh.length === 1 ? `missing: "${cut(name, NAME_LENGTH)}" (${type}); the data has a new ${type} field "${cut(fresh[0], NAME_LENGTH)}": renamed?` : null;
         })
         .filter(Boolean);
+    const signText = signs.map((s) => JSON.stringify(s)).join(", ");
     const details = [
         `the view uses: ${nameList(wanted)}`,
         `the data has: ${nameList(columns)}`,
         ...hints,
         ...(signs.length
-            ? [`it looks like an exported pivot result (${signs.map((s) => JSON.stringify(s)).join(", ")}), not the rows the report was made from:`, "in the report, take Export → Source data → All rows as CSV, and give that file to --data", "or give --data the file the report was made from, if you have it"]
+            ? [
+                  `it ${signs.length > 1 ? "looks like" : "may be"} an exported pivot result (${signText}), not the rows the report was made from:`,
+                  "in the report, take Export → Source data → All rows as CSV, and give that file to --data",
+                  "or give --data the file the report was made from, if you have it"
+              ]
             : []),
         ...(followers.length ? [`and ${followers.length} more error${followers.length === 1 ? "" : "s"} from the missing fields (--json lists them)`] : [])
     ].map(printable);
@@ -503,7 +533,7 @@ function explain(findings, viewText, data) {
         message: printable(`${data.name} does not have the fields the view uses`),
         missing: missing.map((m) => printable(String(m))),
         dataFields: columns.map(printable),
-        pivotResult: signs.length > 0,
+        pivotResult: signs.length > 1,
         details
     };
     const first = out.findIndex((f) => f.severity === "error");
@@ -549,7 +579,7 @@ async function renderCommand(positionals, values, ctx) {
         const ext = extname(values.output).slice(1).toLowerCase();
         if (Object.hasOwn(EXTENSIONS, ext) && EXTENSIONS[ext] !== values.format) {
             const name = shortName(values.output);
-            throw new CliError("usage", "FORMAT_MISMATCH", `${name} is an ${EXTENSIONS[ext]} file, -f asks for ${values.format}: name it ${name.slice(0, name.length - ext.length)}${values.format}, or leave out -f`);
+            throw new CliError("usage", "FORMAT_MISMATCH", `${name} names ${FORMAT_NAMES[EXTENSIONS[ext]]}, -f asks for ${FORMAT_NAMES[values.format]}: name it ${name.slice(0, name.length - ext.length)}${values.format}, or leave out -f`);
         }
     }
     const format = values.format ?? formatOf(values.output);

@@ -10,6 +10,10 @@ test("reportLabels: German for a German locale, English for any other", () => {
     assert.equal(reportLabels("fr-FR"), REPORT_LABELS.en);
     assert.equal(reportLabels(undefined), REPORT_LABELS.en);
     assert.equal(REPORT_LABELS.de.grandTotal, "Gesamtergebnis");
+    // frozen to the last table: a report shares them
+    for (const lang of ["en", "de"]) {
+        assert.ok(Object.isFrozen(REPORT_LABELS[lang]) && Object.isFrozen(REPORT_LABELS[lang].aggregators) && Object.isFrozen(REPORT_LABELS[lang].showAs), lang);
+    }
     // every text of DEFAULT_LABELS has its word in each language
     for (const lang of ["en", "de"]) {
         for (const key of Object.keys(DEFAULT_LABELS)) assert.ok(key in REPORT_LABELS[lang], `${lang}.${key}`);

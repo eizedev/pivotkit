@@ -123,8 +123,8 @@ cli) in the root `package.json`: `npm run types` and the builds depend on it.
   that the parser, the help and the completions are made from), `src/help.js` (help and bash, zsh,
   fish and PowerShell completions), `src/safe-files.js` (read a regular file once with its size checked
   first, write through a temporary file, `--allow-dir` by real path; internal, not an export of the
-  package, until the open points of #209 are settled), `src/errors.js` (`CliError` with a kind; no file content in a message, `printable` cleans
-  names), `src/examples.js` (`pivotkit example`: `examples/examples.json`, the files written, never
+  package, until the open points of #209 are settled), `src/errors.js` (`CliError` with a kind; no file content in a message beyond the data's
+  field names and one cell value cut at 20 characters, `printable` cleans names), `src/examples.js` (`pivotkit example`: `examples/examples.json`, the files written, never
   over one). `examples/` holds the example files: the view files and `examples.json` committed, the
   data gzipped (`*.csv.gz`, build output of `npm run build -w pivotkit-cli`, also in prepack and the
   CLI's `npm test`). `test/` spawns the CLI as a user runs it; `test/examples.test.js` runs every
