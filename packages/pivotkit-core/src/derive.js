@@ -9,20 +9,30 @@
  * it makes, its value and its label. normalize() and the pivot both read it; a new unit is one entry.
  */
 
-import { dateTimeFormat, numberFormat } from "./intl.js";
+import { dateFormatter, dateTimeFormat, numberFormat, yearText } from "./intl.js";
 import { MS_PER_DAY, decimalsOf, pad } from "./util.js";
 
 /** Bins smaller than this are refused: their labels and keys would no longer be exact. */
 export const MIN_BIN_SIZE = 1e-9;
 
+/** Milliseconds of a UTC day in any year; Date.UTC would read the years 0 to 99 as 1900 to 1999. */
+function utcDay(year, month, day) {
+    const d = new Date(0);
+    d.setUTCFullYear(year, month, day);
+    return d.getTime();
+}
+
+/** The remainder of a key's period ("Q1" of 20261, but also of -9, the first quarter of 2 BC). */
+const periodOf = (key, base) => key - Math.floor(key / base) * base;
+
 /** ISO 8601 week and its year for wall-clock milliseconds. */
 export function isoWeek(ms) {
     const d = new Date(ms);
     const day = (d.getUTCDay() + 6) % 7; // Monday = 0
-    const thursday = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 3);
+    const thursday = utcDay(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 3);
     const year = new Date(thursday).getUTCFullYear();
     // week 1 is the week with the year's first Thursday (the one that contains 4 January)
-    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4 = new Date(utcDay(year, 0, 4));
     const firstThursday = jan4.getTime() + (3 - ((jan4.getUTCDay() + 6) % 7)) * MS_PER_DAY;
     const week = 1 + Math.round((thursday - firstThursday) / (7 * MS_PER_DAY));
     return { year, week };
@@ -31,14 +41,10 @@ export function isoWeek(ms) {
 const monthName = (month, locale) =>
     dateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2000, month - 1, 1)));
 
-/** "Jan 2025" in English, "Jan. 2025" in German: the month of a year, as the locale writes it. */
+/** "Jan 2025" in English, "Jan. 2025" in German, "Jan 2 BC": the month of a year, as the locale writes it. */
 const yearMonthName = (v, locale) => {
     const year = Math.floor(v / 100);
-    const month = v - year * 100;
-    const start = new Date(0);
-    // Date.UTC remaps years 0–99; remainder is negative for BCE keys.
-    start.setUTCFullYear(year, month - 1, 1);
-    return dateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC", era: year <= 0 ? "short" : undefined }).format(start);
+    return dateFormatter(locale, { month: "short", year: "numeric", timeZone: "UTC" })(new Date(utcDay(year, periodOf(v, 100) - 1, 1)));
 };
 
 // 2024-01-01 was a Monday
@@ -60,7 +66,7 @@ export const TIMELINE_UNITS = Object.freeze(["year", "yearQuarter", "yearMonth",
 export const CYCLIC_UNITS = Object.freeze(["quarter", "month", "week", "weekday", "hour"]);
 
 export const DERIVED = Object.freeze({
-    year: { source: "date", type: "number", value: (d) => d.getUTCFullYear(), label: (v) => String(v) },
+    year: { source: "date", type: "number", value: (d) => d.getUTCFullYear(), label: yearText },
     quarter: { source: "date", type: "number", value: (d) => Math.floor(d.getUTCMonth() / 3) + 1, label: (v) => `Q${v}` },
     month: { source: "date", type: "number", value: (d) => d.getUTCMonth() + 1, label: monthName },
     week: { source: "date", type: "number", value: (d) => isoWeek(d.getTime()).week, label: (v) => `W${pad(v)}` },
@@ -71,7 +77,7 @@ export const DERIVED = Object.freeze({
         source: "date",
         type: "number",
         value: (d) => d.getUTCFullYear() * 10 + Math.floor(d.getUTCMonth() / 3) + 1,
-        label: (v) => `Q${v - Math.floor(v / 10) * 10} ${Math.floor(v / 10)}`
+        label: (v, locale) => `Q${periodOf(v, 10)} ${yearText(Math.floor(v / 10), locale)}`
     },
     yearMonth: {
         source: "date",
@@ -86,7 +92,7 @@ export const DERIVED = Object.freeze({
             const w = isoWeek(d.getTime());
             return w.year * 100 + w.week;
         },
-        label: (v) => `${Math.floor(v / 100)}-W${pad(v % 100)}`
+        label: (v, locale) => `${yearText(Math.floor(v / 100), locale)}-W${pad(periodOf(v, 100))}`
     },
     // number bins: value and label depend on size and origin, see binning()
     bin: { source: "number", type: "number" }

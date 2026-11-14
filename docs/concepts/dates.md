@@ -48,6 +48,13 @@ column in `filters`; one that sets years side by side puts `year` on one axis an
 Labels follow the locale; the keys stay numbers that sort in time. The "Q" of quarters and the "W" of
 weeks are the same in every locale, since Intl has no names for them.
 
+A year before 1 AD is written with its era, as the locale writes it, in every label: the grouping's
+(`year` "2 BC", `yearQuarter` "Q1 2 BC", `yearMonth` "Jan 2 BC", `yearWeek` "2 BC-W02"; "2 v. Chr."
+in German) and a date's ("Jan 11, 2 BC"). Without it 2 BC would read as the year 2. The key stays the
+astronomical year (0 is 1 BC, -1 is 2 BC), so the periods sort in time; years from 1 AD are written
+without an era. The year of a grouping is Gregorian also in a locale of another calendar, since its
+key is.
+
 ## Grouping when a date is placed
 
 In the UI a date is grouped as soon as it is put on rows or columns, by the span of its values: up to

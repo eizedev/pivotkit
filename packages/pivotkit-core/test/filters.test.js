@@ -165,6 +165,20 @@ test("compare: a date's wall-clock ms beyond what a Date holds are an issue, nev
     });
 });
 
+test("compare: a day before year 0 or after 9999 survives a second normalize and a saved view", () => {
+    for (const [value, value2] of [[-8.64e15, 8.64e15], ["-000001-02-28", "+010000-02-29"], ["-271821-04-20T00:00", "+275760-09-13T00:00"]]) {
+        for (const precision of ["day", "hour", "month"]) {
+            const first = normalize({ filters: [{ field: "Date", type: "compare", op: "between", value, value2, precision }] }, data);
+            assert.deepEqual(first.issues, [], `${value} ${precision}`);
+            const again = normalize(first.view, data);
+            assert.deepEqual(again.issues, [], `${value} ${precision} again`);
+            assert.deepEqual(again.view, first.view);
+            const saved = fromViewFile(viewFileText(toViewFile(first.view)));
+            assert.deepEqual(normalize(saved.view, data).view, first.view);
+        }
+    }
+});
+
 test("relative: the last N years, months and days end with today's", () => {
     const now = "2026-03-05";
     const rel = (unit, count, view = {}) => kept([{ field: "Date", type: "relative", unit, count }], view, { now });

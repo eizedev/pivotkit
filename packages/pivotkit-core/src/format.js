@@ -17,7 +17,7 @@
  * chosen per cell where the grid's look depends on the value (up to 2 decimals, compact).
  */
 
-import { numberFormat, dateTimeFormat } from "./intl.js";
+import { numberFormat, dateTimeFormat, dateFormatter } from "./intl.js";
 import { createCache, resolveLocale, optionsOf } from "./util.js";
 
 /** @typedef {(value: unknown) => string} Formatter */
@@ -216,10 +216,10 @@ export function formatterFor(spec, locale) {
         case "date":
         case "datetime":
         case "time": {
-            const df = dateTimeFormat(locale, DATE_STYLES[f.name]);
+            const df = dateFormatter(locale, DATE_STYLES[f.name]);
             return (v) => {
                 const n = toNumber(v);
-                return Number.isFinite(n) ? df.format(new Date(n)) : plain(v);
+                return Number.isFinite(n) ? df(new Date(n)) : plain(v);
             };
         }
         case "number":
