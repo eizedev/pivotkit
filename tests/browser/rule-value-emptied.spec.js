@@ -258,6 +258,7 @@ test.describe("a rule's × clicked while its value surely still waits: the page'
             await menu.getByTestId(field).click();
             await timersHeld(page, async () => {
                 await page.keyboard.type(text);
+                await expect(menu.getByTestId(field)).toHaveValue(text);
                 await expect(menu.getByTestId("rule-result")).toHaveText(incomplete);
                 await menu.getByTestId("rule-remove").click();
             });
@@ -283,6 +284,7 @@ test.describe("a rule's × clicked while its value surely still waits: the page'
         await menu.getByTestId("rule-item-value").last().click();
         await timersHeld(page, async () => {
             await page.keyboard.type("2010");
+            await expect(menu.getByTestId("rule-item-value").last()).toHaveValue("2010");
             await expect(menu.getByTestId("rule-result").last()).toHaveText(incomplete);
             await menu.getByTestId("rule-remove").first().click();
         });
@@ -316,6 +318,7 @@ test.describe("a rule's × clicked while its value surely still waits: the page'
         // B typed again, still waiting when A's × is clicked
         await timersHeld(page, async () => {
             await page.keyboard.type("2010");
+            await expect(menu.getByTestId("rule-item-value").nth(1)).toHaveValue("2010");
             await expect(menu.getByTestId("rule-result").nth(1)).toHaveText(incomplete);
             await menu.getByTestId("rule-remove").first().click();
         });
