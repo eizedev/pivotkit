@@ -206,9 +206,17 @@ export async function listen(options, runtime) {
             // what the headers tell is checked before a byte of the body is read
             const early = await handler.precheck(new Request(url, { method: req.method, headers }));
             if (early) {
-                res.writeHead(early.status, { ...Object.fromEntries(early.headers), connection: "close" });
+                // the body that follows is drained, not read, so the client gets the answer rather than a
+                // reset connection; one that keeps sending past 4 x the cap is cut off
+                let drained = 0;
+                req.on("data", (chunk) => {
+                    drained += chunk.length;
+                    if (drained > BODY_BYTES * 4) {
+                        req.destroy();
+                    }
+                });
+                res.writeHead(early.status, Object.fromEntries(early.headers));
                 res.end(Buffer.from(await early.arrayBuffer()));
-                req.resume();
                 return;
             }
             const body = req.method === "GET" || req.method === "HEAD" ? undefined : await readBody(req, BODY_BYTES);
