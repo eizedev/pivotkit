@@ -82,7 +82,7 @@ export function callerFields(caller) {
 }
 
 
-import { requestScope } from "./request-id.js";
+import { requestScope, withRequestScope } from "./request-id.js";
 
 /** The levels of `log.level`, least to most severe; "off" writes nothing. */
 export const LOG_LEVELS = Object.freeze(["debug", "info", "warn", "error", "off"]);
@@ -197,6 +197,49 @@ function insertAfter(pairs, after, added) {
     pairs.splice(at < 0 ? pairs.length : at + 1, 0, ...added);
 }
 
+/**
+ * The request scopes whose answer has a line of its own: an outcome line (also one the level leaves
+ * out, such as a debug refusal at info), an error, or a refusal of the protocol layer (noteAnswered).
+ * logUnanswered writes a `refused` line for a 4xx answer of any other scope.
+ * @type {WeakSet<object>}
+ */
+const answered = new WeakSet();
+
+/** Notes that the request running now has its line (pivotkit-mcp: a refusal the SDK reported through onerror). */
+export function noteAnswered() {
+    const scope = requestScope();
+    if (scope) {
+        answered.add(scope);
+    }
+}
+
+/** The reason of a refused line written for an answer that had none, by its status; any other 4xx is bad_request. */
+const UNANSWERED_REASONS = Object.freeze({ 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED", 413: "BODY_TOO_LARGE" });
+
+/** The statuses whose refused line is kept to the debug log: routine noise (a scan of paths, a GET of a stateless MCP endpoint). */
+const ROUTINE_STATUSES = new Set([404, 405]);
+
+/**
+ * The HTTP edge's last check: a 4xx answer (it carries an X-Request-Id) whose request wrote no line of
+ * its own gets a `refused` line, with the reason of its status, at debug for 404 and 405 and at warn
+ * otherwise. So every refusal can be found by its id: a route nobody serves, a method a route does not
+ * take, a body or a protocol header the MCP SDK refused without reporting it.
+ * @param {{ refused(entry: Record<string, any>, how?: { level?: "debug" }): void }} log
+ * @param {object | null | undefined} scope  the request's (requestScopeFor's)
+ * @param {Response | null | undefined} response
+ * @param {{ path?: string }} [fields]  path: the route family that answered
+ * @returns {Response | null | undefined} the response
+ */
+export function logUnanswered(log, scope, response, fields = {}) {
+    const status = Number(response?.status);
+    if (!scope || !(status >= 400 && status < 500) || answered.has(scope)) {
+        return response;
+    }
+    const reason = refusalReason(UNANSWERED_REASONS[/** @type {keyof typeof UNANSWERED_REASONS} */ (status)] ?? "INVALID_INPUT");
+    withRequestScope(/** @type {any} */ (scope), () => log.refused({ status, ...(fields.path ? { path: fields.path } : {}), reason }, ROUTINE_STATUSES.has(status) ? { level: "debug" } : {}));
+    return response;
+}
+
 /** The events whose level and outcome follow their status (or `ok`). */
 const OUTCOME_EVENTS = new Set(["call", "request", "download", "refused"]);
 
@@ -268,6 +311,7 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
     const outcomeLine = (event, msgOf) => (/** @type {Record<string, any>} */ entry, /** @type {{ level?: "debug" }} */ how = {}) => {
         const status = Number(entry.status);
         const ok = event !== "refused" && entry.ok !== false && !(status >= 400);
+        noteAnswered();
         // debug: a refusal that is routine noise (a GET of a stateless MCP endpoint, a path nobody serves)
         const lineLevel = how.level ?? (Number.isFinite(status) && status > 0 ? levelOfStatus(status) : ok ? "info" : "warn");
         write(lineLevel, msgOf(entry, ok), { event, ...entry });
@@ -299,7 +343,10 @@ export function createLog(settings, stream, { service = "pivotkit-server", versi
         /** Only with log.level debug: details an operator needs to set up (why a token was refused). */
         debug: (message, extra = {}) => write("debug", message, { event: "debug", message, ...extra }),
         /** An unexpected error: its name and message only with log.level debug, its stack never. */
-        error: (error, extra = {}) => write("error", "unexpected error", { event: "error", ...extra, ...(level === "debug" ? { error: String(error?.message ?? error).slice(0, 500) } : { error: error?.name ?? "Error" }) })
+        error: (error, extra = {}) => {
+            noteAnswered();
+            write("error", "unexpected error", { event: "error", ...extra, ...(level === "debug" ? { error: String(error?.message ?? error).slice(0, 500) } : { error: error?.name ?? "Error" }) });
+        }
     };
 }
 

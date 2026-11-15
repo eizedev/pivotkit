@@ -29,7 +29,7 @@ import { INLINE_ID, checkTableSize, dataRefusal, inlineLogFields, maySendData, r
 import { readMultipart } from "./multipart.js";
 import { openApiDocument } from "./openapi.js";
 import { SAFE_HEADERS, json, problem, problemOf, withRequestIdMember } from "./problem.js";
-import { callerFields, refusalReason } from "../log.js";
+import { callerFields, logUnanswered, refusalReason } from "../log.js";
 import { requestId, requestScopeFor, withRequestIdHeader, withRequestScope } from "../request-id.js";
 import { offeredScopes } from "../scopes.js";
 import { REST_ROUTES } from "./routes.js";
@@ -432,7 +432,7 @@ export async function createRestHandler(context, runtime = {}) {
             // the request's scope (its id, trace and addresses), made here or by serveFetch and kept in
             // info for the route: its refusals name it too
             const scope = requestScopeFor(request, info, { trustProxy });
-            const answer = await withRequestScope(scope, () => check(request, info));
+            const answer = logUnanswered(context.log, scope, await withRequestScope(scope, () => check(request, info)), routeFamily(request));
             return answer && withRequestIdHeader(await withRequestIdMember(answer, scope.id), scope.id);
         },
         /**
@@ -444,7 +444,8 @@ export async function createRestHandler(context, runtime = {}) {
             // work (a source's code, an error's details) and in an error's answer
             const scope = requestScopeFor(request, info, { trustProxy });
             try {
-                return withRequestIdHeader(await withRequestIdMember(await withRequestScope(scope, () => answer(request, info)), scope.id), scope.id);
+                const response = logUnanswered(context.log, scope, await withRequestScope(scope, () => answer(request, info)), routeFamily(request));
+                return withRequestIdHeader(await withRequestIdMember(/** @type {Response} */ (response), scope.id), scope.id);
             } finally {
                 // a place for a large body, held since the precheck: given back once the request ran
                 info[LARGE_PLACE]?.();
@@ -469,6 +470,15 @@ export async function createRestHandler(context, runtime = {}) {
             limits.close();
         }
     };
+
+    /**
+     * The route family of a request, for a refused line written by logUnanswered: /api/v1 or /openapi.json.
+     * @param {Request} request
+     */
+    function routeFamily(request) {
+        const path = new URL(request.url).pathname;
+        return path.startsWith(REST_BASE) ? { path: REST_BASE } : path.startsWith("/openapi.json") ? { path: "/openapi.json" } : {};
+    }
 
     /**
      * The checks a request's headers allow (precheck's work).

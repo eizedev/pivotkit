@@ -477,3 +477,54 @@ test("debug-level refusals: a path nobody serves and a GET of the MCP endpoint a
         }
     }
 });
+
+test("every 4xx answer has exactly one line under its X-Request-Id: what the MCP SDK refuses without reporting it, REST's wrong method and unknown route; never the body", async () => {
+    const dir = workspace();
+    const mcpHeaders = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" };
+    const listTools = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    // [name, path, request, status, reason, level]
+    const cases = [
+        ["MCP: a body that is not JSON", "/mcp", { method: "POST", headers: mcpHeaders, body: '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"render_view","arguments":{"data":{"rows":[["MKR-BODY-1"]' }, 400, "bad_request", "warn"],
+        ["MCP: an unsupported mcp-protocol-version", "/mcp", { method: "POST", headers: { ...mcpHeaders, "mcp-protocol-version": "1999-01-01" }, body: listTools }, 400, "bad_request", "warn"],
+        ["MCP: a GET (a client opening a stream)", "/mcp", { method: "GET", headers: { accept: "text/event-stream" } }, 405, "method_not_allowed", "debug"],
+        ["a path nobody serves", "/nothing-here", { method: "GET" }, 404, "not_found", "debug"],
+        ["REST: a wrong method", "/api/v1/sources", { method: "DELETE" }, 405, "method_not_allowed", "debug"],
+        ["REST: an unknown route", "/api/v1/nope", { method: "GET" }, 404, "not_found", "debug"],
+        ["REST: a POST of /openapi.json", "/openapi.json", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }, 405, "method_not_allowed", "debug"],
+        ["REST: a body that is not JSON", "/api/v1/views/validate", { method: "POST", headers: { "content-type": "application/json" }, body: '{"source":"MKR-BODY-2' }, 400, null, "warn"]
+    ];
+    for (const level of ["debug", "info"]) {
+        const { server, text } = await rawServer({ sources: { sales: { file: "data/sales.csv" } }, http: { enable: ["rest", "mcp"] }, log: { format: "json", level }, baseDir: dir });
+        try {
+            const answers = [];
+            for (const [name, path, request, status] of cases) {
+                const answer = await raw(`${server.url}${path}`, request);
+                assert.equal(answer.status, status, `${name}: ${JSON.stringify(answer.data)}`);
+                assert.match(String(answer.headers["x-request-id"]), /^[A-Za-z0-9_-]{11}$/, name);
+                answers.push(answer);
+            }
+            const lines = text.join("").trim().split("\n").map((l) => JSON.parse(l));
+            cases.forEach(([name, path, , status, reason, lineLevel], i) => {
+                const mine = lines.filter((l) => l.requestId === answers[i].headers["x-request-id"]);
+                if (level === "info" && lineLevel === "debug") {
+                    assert.deepEqual(mine, [], `${name}: kept to the debug log`);
+                    return;
+                }
+                assert.equal(mine.length, 1, `${name}: ${JSON.stringify(mine)}`);
+                const [line] = mine;
+                assert.equal(line.level, lineLevel, name);
+                assert.equal(line.status, status, name);
+                if (reason) {
+                    // a request refused before it reached an operation
+                    assert.deepEqual([line.event, line.reason, line.path], ["refused", reason, path.startsWith("/api/v1") ? "/api/v1" : path === "/nothing-here" ? undefined : path], name);
+                } else {
+                    // one that reached its operation keeps its request line
+                    assert.equal(line.event, "request", name);
+                }
+            });
+            assert.ok(!text.join("").includes("MKR-"), "no part of a refused body is logged");
+        } finally {
+            await server.close();
+        }
+    }
+});

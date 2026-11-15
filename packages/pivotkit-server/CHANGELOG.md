@@ -374,6 +374,17 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Fixed
 
+- Every 4xx answer has a log line under its `X-Request-Id`: a REST wrong method (405) or unknown
+  route under `/api/v1` (404) gets a `refused` line at `debug` (`method_not_allowed`, `not_found`),
+  and any other 4xx that wrote no line of its own a `refused` line with `bad_request` at `warn`
+  ([#456](https://github.com/eizedev/pivotkit/issues/456)).
+- A body found larger than the cap while it streams (no `Content-Length`, as a proxy forwards an
+  HTTP/2 body) is answered 413 with its `X-Request-Id` at once, before the connection is cut at four
+  times the cap; the client used to get a reset connection only.
+- check-config prints a source's policy rules in that source's spelling: an HTTP source's
+  `customer` is no longer printed as `Customer` because another source spells it so.
+- An `http://` `auth.issuer` with download sign-in and no `output.downloads.signIn.issuer` is
+  reported as `auth.issuer: must be an https:// address`, not under `signIn.issuer`.
 - REST: `inline:` from a caller without `data: true` is 403 `NOT_ALLOWED` on every route that takes
   a source, on a server that offers data to no profile in MCP's words ("this server takes no data
   sent in the request ..."), instead of 400 `INVALID_INPUT` "input has no key \"data\""

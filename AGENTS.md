@@ -294,6 +294,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`createLog`: one line per event as JSON or logfmt text (`log.format`, auto by the stream's TTY),
   `level`, `severity`, `msg`, `service`, `version` and the request scope on every line, the level of
   call/request/download/refused lines by status, `started`/`stopped` at every level; `refusalReason`,
+  `logUnanswered` (the HTTP edge's last check, in the REST, MCP and serve handlers: a 4xx whose request
+  wrote no line gets a `refused` line by its status; `noteAnswered` marks a line written elsewhere),
   `startFields`, `startErrorLine`, `flushed`; `callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js; `options/log.js` and `check/log.js` are its options and check-config section), `src/serve.js` (`serve`, `createServerHandler`: REST and, with

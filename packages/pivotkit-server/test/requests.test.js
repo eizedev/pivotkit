@@ -173,6 +173,47 @@ test("body size: a 413 names its request's id, in the answer and on a log line, 
     }
 });
 
+test("body size: a streamed body far over the cap (as a proxy forwards an HTTP/2 body) still gets its 413 and request id before the connection is cut", async () => {
+    const lines = [];
+    const handler = {
+        fetch: async () => Response.json({ ok: true }),
+        problem: (status) => {
+            lines.push(status);
+            return Response.json({ error: "too large" }, { status });
+        }
+    };
+    const listening = await serveFetch(handler, { host: "127.0.0.1", port: 0, bodyBytes: 1024 });
+    try {
+        const { request } = await import("node:http");
+        // 64 KiB in 1 KiB chunks, no Content-Length: past 4 x the cap the server cuts the connection
+        const answer = await new Promise((resolve) => {
+            const req = request({ host: "127.0.0.1", port: listening.port, path: "/x", method: "POST", headers: { "transfer-encoding": "chunked" } }, (res) => {
+                res.resume();
+                res.on("end", () => resolve({ status: res.statusCode, id: res.headers["x-request-id"] }));
+            });
+            req.on("error", (e) => resolve({ error: e.code }));
+            const chunk = Buffer.alloc(1024, 120);
+            let sent = 0;
+            const more = () => {
+                while (sent < 64 && !req.destroyed) {
+                    sent++;
+                    if (!req.write(chunk)) {
+                        req.once("drain", more);
+                        return;
+                    }
+                }
+                req.end();
+            };
+            more();
+        });
+        assert.equal(answer.status, 413, JSON.stringify(answer));
+        assert.match(answer.id ?? "", REQUEST_ID);
+        assert.deepEqual(lines, [413]);
+    } finally {
+        await listening.close();
+    }
+});
+
 test("log: only the allowlisted caller fields reach a line, never groups, claims, subject, issuer, scopes or a token", () => {
     assert.deepEqual(CALLER_LOG_FIELDS, ["client"]);
     const caller = { client: "report-bot", profile: "finance", scopes: new Set(["pivotkit"]), subject: "u-123", issuer: "https://idp.example", groups: ["finance-secret-group"], claims: { customer: "acme-secret" }, token: "eyJ.secret" };

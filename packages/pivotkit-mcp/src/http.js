@@ -17,7 +17,7 @@
  */
 
 import { createMcpHandler, hostHeaderValidationResponse, originValidationResponse } from "@modelcontextprotocol/server";
-import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
+import { BODY_BYTES, ConfigError, DEFAULT_PORT, DOWNLOAD_BODY_BYTES, DOWNLOADS_PATH, SIGNED_IN, allowedHosts, clientAddress, connectionLimitsOf, createDownloadHandler, createLimits, isLoopback, logUnanswered, noteAnswered, refusalReason, refusedText, requestScopeFor, serveFetch, startFields, takeSignIn, withRequestIdHeader, withRequestScope } from "pivotkit-server";
 import { createMcpContext } from "./context.js";
 import { createAuth, refusedClientOf } from "./auth.js";
 import { quickStartPage } from "./page.js";
@@ -103,6 +103,8 @@ function protocolRefusal(log, error) {
     const message = String(/** @type {any} */ (error)?.message ?? error);
     const kind = error instanceof Error ? error.name : "Error";
     const named = SDK_REFUSAL.exec(message)?.[1];
+    // this warning is the request's line: the HTTP edge adds no refused line for it
+    noteAnswered();
     log.warn(`request refused by the protocol layer: ${kind.slice(0, 60)}${named ? ` (${named})` : ""}`);
     log.debug("request refused by the protocol layer", { error: message.slice(0, 500) });
 }
@@ -244,7 +246,7 @@ export async function createHttpHandler(context, runtime = {}) {
         async precheck(request, info = {}) {
             // the request's scope: serveFetch's, or made here for a host that serves the handler itself
             const scope = requestScopeFor(request, info, { trustProxy });
-            const answer = await withRequestScope(scope, () => check(request, info));
+            const answer = logUnanswered(context.log, scope, await withRequestScope(scope, () => check(request, info)), routeFamily(request));
             return answer && withRequestIdHeader(answer, scope.id);
         },
         /**
@@ -253,7 +255,10 @@ export async function createHttpHandler(context, runtime = {}) {
          */
         async fetch(request, info = {}) {
             const scope = requestScopeFor(request, info, { trustProxy });
-            return withRequestIdHeader(await withRequestScope(scope, () => answer(request, info)), scope.id);
+            // a 4xx without a line of its own (the SDK answers a body that is not JSON or an
+            // unsupported protocol version without reporting it) gets a refused line
+            const response = logUnanswered(context.log, scope, await withRequestScope(scope, () => answer(request, info)), routeFamily(request));
+            return withRequestIdHeader(/** @type {Response} */ (response), scope.id);
         },
         async close() {
             downloads.close();
@@ -262,6 +267,15 @@ export async function createHttpHandler(context, runtime = {}) {
             await handler.close();
         }
     };
+
+    /**
+     * The route family of a request, for a refused line written by logUnanswered: /mcp or /downloads.
+     * @param {Request} request
+     */
+    function routeFamily(request) {
+        const path = new URL(request.url).pathname;
+        return path === ENDPOINT ? { path: ENDPOINT } : downloads.handles(path) ? { path: DOWNLOADS_PATH } : {};
+    }
 
     /**
      * The checks before the body is read (precheck's work).

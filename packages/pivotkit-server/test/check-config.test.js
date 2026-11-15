@@ -77,6 +77,27 @@ for (const c of CASES) {
     });
 }
 
+test("an http:// issuer under download sign-in names the key the operator set: auth.issuer when signIn.issuer is left out, signIn.issuer when it is set", async () => {
+    const dir = workspace();
+    const signIn = { clientId: "pivotkit-downloads", clientSecret: { env: "DL_SECRET" } };
+    const env = { PATH: process.env.PATH ?? "", DL_SECRET: "a-client-secret" };
+    const variants = [
+        { auth: { mode: "oauth", issuer: "http://idp.example.com/o/", resource: "https://reports.example.com/mcp" }, signIn, key: "auth.issuer" },
+        { auth: { mode: "oauth", issuer: "https://idp.example.com/o/", resource: "https://reports.example.com/mcp" }, signIn: { ...signIn, issuer: "http://idp.example.com/o/" }, key: "output.downloads.signIn.issuer" }
+    ];
+    for (const v of variants) {
+        const options = { sources: { sales }, auth: v.auth, output: { dir: "out", downloads: { signIn: v.signIn } }, http: { publicUrl: "https://reports.example.com" }, baseDir: dir };
+        const said = `${v.key}: must be an https:// address (auth.allowInsecureIssuer is for tests only)`;
+        const other = v.key === "auth.issuer" ? "output.downloads.signIn.issuer" : /(^|\s)auth\.issuer: must/;
+        // check-config refuses it as serve does (the runner prints the message and exits with 2)
+        const checked = await checkConfig(options, { http: true, env, name: "pivotkit-server", rest: true }).then((r) => r.text, (e) => String(e?.message));
+        assert.ok(checked.includes(said), checked);
+        assert.ok(typeof other === "string" ? !checked.includes(other) : !other.test(checked), checked);
+        const started = await starts(options, env);
+        assert.ok(started instanceof Error && started.message.includes(said), String(started));
+    }
+});
+
 test("check-config: an output directory the server cannot write is a PROBLEM the server starts with", { skip: (process.platform === "win32" || process.getuid?.() === 0) && "file modes" }, async () => {
     const dir = workspace();
     chmodSync(join(dir, "out"), 0o500);

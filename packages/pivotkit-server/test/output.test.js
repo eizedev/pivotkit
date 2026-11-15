@@ -219,6 +219,26 @@ test("check-config warns of a policy rule that matches no column and prints the 
     assert.ok(!/warning: .*PRODUCT|warning: .*region/i.test(said), "a rule that matches by another case is no warning");
 });
 
+test("check-config prints a source's rules in its own spelling, never in another source's", () => {
+    const dir = workspace();
+    const config = join(dir, "pivotkit.json");
+    writeFileSync(config, JSON.stringify({
+        sources: {
+            // the columns of an HTTP source are known only after a load: its rules as written
+            orders: { http: { url: "https://backend.example.com/v1/orders.csv", format: "csv" }, policy: { default: "hide", fields: { order: "show", customer: "show", Amount: "summary" } } },
+            sales: { file: "data/sales.csv", policy: { fields: { Customer: "values" } } },
+            other: { http: { url: "https://backend.example.com/v1/other.csv", format: "csv" }, policy: { fields: { CUSTOMER: "hide" } } }
+        },
+        policy: { fields: { amount: "show" } },
+        output: { dir: "out" }
+    }));
+    const res = run(["check-config", "--config", config]);
+    const said = factsOf(res.stdout);
+    assert.match(said, /\n {4}policy: hide by default; Amount summary, order show, customer show\n/, said);
+    assert.match(said, /\n {4}policy: summary by default; amount show, Customer values\n/, said);
+    assert.match(said, /\n {4}policy: summary by default; amount show, CUSTOMER hide\n/, said);
+});
+
 test("a missing output directory is created at start (0700, or 0755 narrowed by the umask where a web server serves it) and said once in the log", async () => {
     const dir = workspace();
     const server = await restServer({ sources: { sales: { file: "data/sales.csv" } }, output: { dir: "reports/new" }, baseDir: dir });

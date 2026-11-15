@@ -43,8 +43,9 @@ export async function section(options, registry, runtime) {
     // every column of every source by its policy key, in the data's spelling; null: not all known
     /** @type {Map<string, string> | null} */
     let everyColumn = registry.allow.length ? null : new Map();
-    // a rule's name as the configuration spells it, by its key: shown where no column has it
-    const configured = new Map([options.policy?.fields, ...Object.values(options.sources ?? {}).map((s) => s.policy?.fields)].flatMap((f) => Object.keys(f ?? {})).map((n) => [fieldKey(n), n]));
+    // a rule's name as the configuration spells it, by its key: shown where no column has it; a
+    // source's own rules over the server's, never another source's spelling
+    const spelt = (...policies) => new Map(policies.flatMap((f) => Object.keys(f ?? {})).map((n) => [fieldKey(n), n]));
     items.push(heading(`Sources (${sources.length}):`));
     // the exposure limits every source has unless its own policy says otherwise
     const server = resolvePolicy(options.policy);
@@ -68,6 +69,7 @@ export async function section(options, registry, runtime) {
         if (s.file && !s.exists) {
             items.push(problem(`sources.${s.id}.file: ${written.file} is not there`, { effect: `the server starts; ${s.id} answers FILE_NOT_AVAILABLE` }));
         }
+        const configured = spelt(options.policy?.fields, written.policy?.fields);
         items.push(plain(`policy: ${s.policy.default} by default${fields.length ? `; ${fields.map(([k, l]) => `${byKey.get(k) ?? configured.get(k) ?? k} ${l}`).join(", ")}` : ""}`, 2));
         // the limits only where this source's policy changes the server's
         if (s.policy.items !== server.items) {

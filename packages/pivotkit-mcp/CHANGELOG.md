@@ -107,6 +107,12 @@ All notable changes to `pivotkit-mcp` are documented in this file. The format is
 - The README links the page on what reaches an AI model at each level of the exposure policy, and
   how to give each client its own profile ([#338](https://github.com/eizedev/pivotkit/issues/338)).
 
+### Fixed
+
+- A body that is not JSON and an `mcp-protocol-version` the endpoint does not support, which the SDK
+  answers with 400 without reporting it, get a `refused` line with `bad_request` under the answer's
+  `X-Request-Id` ([#456](https://github.com/eizedev/pivotkit/issues/456)).
+
 ## [0.1.1] - 2026-11-14
 
 ### Upgrading from 0.1.0

@@ -174,6 +174,29 @@ export function pathOfTarget(target) {
  * @property {(status: 400 | 413, path: string, info?: Record<string | symbol, any>) => Response} [problem]  the answer for a body that cannot be read (path: the request's; info: the one the precheck had)
  */
 
+/** The longest a refused body is drained before the connection is closed. */
+const BODY_DRAIN_MS = 5000;
+
+/**
+ * Resolves once a request's body has ended or its connection closed, or after `ms` (a ref'd timer,
+ * cleared when the request ends first).
+ * @param {import("node:http").IncomingMessage} req
+ * @param {number} ms
+ */
+function untilSent(req, ms) {
+    return new Promise((resolve) => {
+        const timer = setTimeout(done, ms);
+        function done() {
+            clearTimeout(timer);
+            req.off("end", done);
+            req.off("close", done);
+            resolve(undefined);
+        }
+        req.once("end", done);
+        req.once("close", done);
+    });
+}
+
 /**
  * Reads a node:http request's body, at most `max` bytes, while it streams. Beyond that it rejects
  * with status 413 and drains what follows (up to 4 x max, then the connection is cut), so the client
@@ -356,19 +379,22 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 res.destroy();
                 return;
             }
-            if (e?.status === 413 && !req.complete) {
-                // answer once the client has sent the rest (drained by readBody, cut beyond 4 x the cap):
-                // closing while it still sends resets the connection before it reads the 413
-                await new Promise((resolve) => {
-                    req.once("end", resolve);
-                    req.once("close", resolve);
-                    setTimeout(resolve, 5000).unref();
-                });
-            }
             const failed = scope ?? requestScopeFor(null, info, { trustProxy });
             const answer = withRequestScope(failed, () => problem(e?.status === 413 ? 413 : 400, req.url ?? "/", info));
-            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close", "x-request-id": failed.id });
-            res.end(Buffer.from(await answer.arrayBuffer()));
+            const bytes = Buffer.from(await answer.arrayBuffer());
+            res.writeHead(answer.status, { ...Object.fromEntries(answer.headers), connection: "close", "content-length": String(bytes.length), "x-request-id": failed.id });
+            if (e?.status === 413 && !req.complete) {
+                // a body found too large while it streams (no Content-Length, as a proxy forwards an
+                // HTTP/2 body): the answer goes out at once, complete by its length, so a client or proxy
+                // that reads while it sends gets the 413 and its id also when it sends past 4 x the cap
+                // and the connection is cut; the connection stays open while the rest is drained
+                // (readBody), since closing while the client still sends resets it before it reads the answer
+                res.write(bytes);
+                await untilSent(req, BODY_DRAIN_MS);
+                res.end();
+            } else {
+                res.end(bytes);
+            }
         } finally {
             running--;
             if (running === 0) {
