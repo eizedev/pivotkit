@@ -1,8 +1,9 @@
 /*
  * `pivotkit-server serve`: one HTTP server on one port for the REST service (/api/v1,
  * /openapi.json) and, when pivotkit-mcp is installed and enabled, the MCP endpoint (/mcp, its
- * quick-start page at /), with /healthz (the process answers) and /readyz (it can take work: the
- * issuer loaded, workers up, the output directory writable).
+ * quick-start page at /), the server's own download links (/downloads, downloads.js), with /healthz
+ * (the process answers) and /readyz (it can take work: the issuer loaded, workers up, the output
+ * directory writable).
  */
 
 import { ConfigError } from "./config.js";
@@ -12,6 +13,7 @@ export { TOKEN_ENV };
 import { allowedHosts, hostRefusal } from "./checks.js";
 import { connectionLimitsOf, isLoopback, refusedText, serveFetch } from "./listen.js";
 import { bodyBytesOf } from "./limits.js";
+import { DOWNLOAD_BODY_BYTES, createDownloadHandler } from "./downloads.js";
 import { createRestHandler, REST_BODY_BYTES } from "./rest/handler.js";
 import { problem } from "./rest/problem.js";
 
@@ -42,7 +44,7 @@ export async function loadMcp() {
  * The combined fetch handler of a set of options: REST and, if enabled, MCP over one context.
  * @param {import("./config.js").ServerOptions} options
  * @param {{ env: Record<string, string | undefined>, stderr: { write(t: string): unknown }, loopback: boolean }} runtime
- * @returns {Promise<import("./listen.js").FetchHandler & { context: any, enable: string[], close(): Promise<void> }>}
+ * @returns {Promise<import("./listen.js").FetchHandler & { context: any, enable: string[], downloads: ReturnType<typeof createDownloadHandler>, close(): Promise<void> }>}
  */
 export async function createServerHandler(options, runtime) {
     const asked = options.http?.enable;
@@ -54,6 +56,10 @@ export async function createServerHandler(options, runtime) {
     /** @type {any} */
     const context = mcpModule ? await mcpModule.createMcpContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV }) : await createContext(options, { showPaths: false, stderr: runtime.stderr, tokenEnv: TOKEN_ENV });
     try {
+        // the download links' route: before REST and MCP (a browser's form POST carries an Origin
+        // that is not an MCP client's), shared with pivotkit-mcp's handler on this context
+        const downloads = createDownloadHandler(context, { env: runtime.env, loopback: runtime.loopback });
+        const isDownload = (request) => downloads.handles(new URL(request.url).pathname);
         const rest = enable.includes("rest") ? await createRestHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const mcp = enable.includes("mcp") && mcpModule ? await mcpModule.createHttpHandler(context, { env: runtime.env, loopback: runtime.loopback }) : null;
         const hosts = allowedHosts(options);
@@ -80,8 +86,12 @@ export async function createServerHandler(options, runtime) {
         return {
             context,
             enable,
+            downloads,
             /** @type {import("./listen.js").FetchHandler["precheck"]} */
             async precheck(request, info) {
+                if (isDownload(request)) {
+                    return downloads.precheck(request);
+                }
                 if (rest && isRest(request)) {
                     return rest.precheck(request, info);
                 }
@@ -100,6 +110,9 @@ export async function createServerHandler(options, runtime) {
                 if (early) {
                     return early;
                 }
+                if (isDownload(request)) {
+                    return downloads.fetch(request);
+                }
                 if (rest && isRest(request)) {
                     return rest.fetch(request, info);
                 }
@@ -109,8 +122,9 @@ export async function createServerHandler(options, runtime) {
                 const refused = hostRefusal(request, hosts);
                 return refused ? problem("FORBIDDEN_HOST", refused) : problem("NOT_FOUND", "no such route; the REST service is at /api/v1 (GET /openapi.json)");
             },
-            problem: (status, path, info) => (mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
+            problem: (status, path, info) => (downloads.handles(path.split("?")[0]) ? downloads.problem(status) : mcp && !rest?.handles(path.split("?")[0]) && mcp.problem ? mcp.problem(status) : rest ? rest.problem(status, path, info) : problem(status === 413 ? "BODY_TOO_LARGE" : "INVALID_INPUT", status === 413 ? "the body is larger than 2 MiB, the most this service takes" : "the request cannot be read")),
             async close() {
+                downloads.close();
                 await rest?.close();
                 await mcp?.close();
                 await context.close();
@@ -137,12 +151,15 @@ export async function serve(options, runtime) {
     const handler = await createServerHandler(options, { ...runtime, loopback: isLoopback(host) });
     let listening;
     try {
-        listening = await serveFetch(handler, { host, port, bodyBytes: bodyBytesOf(options), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
+        const bodyBytes = bodyBytesOf(options);
+        // a download takes no body: the form of a one-time link sends none
+        listening = await serveFetch(handler, { host, port, bodyBytes: (request, info) => (handler.downloads.handles(new URL(request.url).pathname) ? DOWNLOAD_BODY_BYTES : bodyBytes(request, info)), graceMs: options.http?.graceMs, limits: connectionLimitsOf(options), onRefused: (entry) => handler.context.log.warn(refusedText(entry), entry) });
     } catch (e) {
         await handler.close();
         throw e;
     }
     const url = `http://${host.includes(":") ? `[${host}]` : host}:${listening.port}`;
+    handler.downloads.listening(url);
     // what would fail on the first call is said now: a source file that is not there, a test issuer
     for (const s of await handler.context.registry.check()) {
         if (!s.exists) {

@@ -85,7 +85,10 @@ and the routes take `params` only when a configured source declares any
 ([parameters](mcp.md#configuration)).
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where
-(`output.name`, and `output.url` when `output.baseUrl` is set). The file's name is `name` from the
+(`output.name`, the stored name, and `output.filename`, the name a person sees), and gives a
+[download link](delivery.md) in `output.url` where the report gets one (`expiresAt`, `bound`, and
+`note`, one sentence on how to open it): a report over a source whose fields are all `show` always,
+one over another source only with `results: true` and a bound link. The file's name is `name` from the
 input, else `title`, else the view's name, else the source's, with `.pivotkit-out.` before the
 format (`sales.pivotkit-out.xlsx`), the mark by which the server knows its own files; a name that is
 taken gets `-2`, `-3` and so on, since no file is ever replaced. Check `ok` in the answer: a view with errors answers 200
@@ -343,7 +346,7 @@ token with the right audience is refused.
 The output directory holds at most `output.maxFiles` files and `output.maxMb` megabytes that
 pivotkit wrote. When it is full, a new report deletes the oldest reports, whoever made them: any
 token that may render can push other callers' older reports out, and a link to one of them
-(`output.baseUrl`) then answers 404. Schedule drafts are never deleted this way; they may take at
+(`output.baseUrl`) then answers 404, one of the server's own links 410 `LINK_EXPIRED`. Schedule drafts are never deleted this way; they may take at
 most half of `output.maxFiles` (none at 1), and a draft over that answers 409 `NO_OUTPUT` while
 reports keep working, so give `draft_schedule` a scope of its own too and set
 `output.maxAgeDays`. A file you name with `.pivotkit-out.` yourself counts as pivotkit's and may be
@@ -459,6 +462,7 @@ gives it to the operator. An error of a source or a store that failed (`SOURCE_U
 | 422 | <a id="error-data-mismatch"></a>`DATA_MISMATCH` | [Data sent in the request](#data) whose `rowCount` differs from the rows sent, or a file whose SHA-256 differs from `sha256` |
 | 502 | <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE` | A code or HTTP source's load failed, took longer than its `timeMs` or has too many loads running; `detail` is one of pivotkit's fixed texts (not available right now; the source's backend refused pivotkit's access; the source is not set up correctly), `retryable` says whether trying again may work ([HTTP sources](sources.md#http-errors)) |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free, or two [large bodies](#data) read already; starting or stopping; the OAuth issuer not loaded yet |
+| 400, 403, 409, 410, 503 | <a id="error-link-expired"></a>`LINK_EXPIRED`, <a id="error-link-used"></a>`LINK_USED`, <a id="error-link-not-yours"></a>`LINK_NOT_YOURS`, <a id="error-sign-in-failed"></a>`SIGN_IN_FAILED`, <a id="error-sign-in-not-ready"></a>`SIGN_IN_NOT_READY` | Answers of the server's own [download links](delivery.md#answers) (`/downloads/`), not of `/api/v1` |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 
 ## The OpenAPI document { #openapi }
@@ -514,10 +518,11 @@ new connection and lets running requests finish for up to `http.graceMs` (25 sec
 | `output.create` | true | Make a missing `output.dir` at start (with its parents, mode 0700, or 0755 narrowed by the umask when `output.baseUrl` is set; a warning in the log); `false` makes it an error, as a missing directory was before. A relative `output.dir` without a configuration file is relative to the working directory. `check-config` says whether the directory exists, will be made, or cannot be, and why (a parent the server's user may not write, a name too long, a symbolic link loop) |
 | `output.maxFiles`, `output.maxMb` | 1000, 1024 | Files pivotkit wrote and their megabytes the directory may hold: reports (`<name>.pivotkit-out.<format>`) and schedule drafts (`<name>.pivotkit-out.report.json`), at its top level. A new report deletes the oldest reports until it fits, one write at a time; drafts are counted but never deleted, and may take at most half of `output.maxFiles` (a draft over that answers 409 `NO_OUTPUT`). Files without that mark (the operator's, reports of older versions) are neither counted nor deleted, nor are subdirectories; a file named with the mark by hand counts as pivotkit's. Where the output directory is the configuration file's directory or holds a source, print template or token file, nothing is deleted: a full directory answers 409 `NO_OUTPUT`, and the start warns (with `output.maxAgeDays` it does not start) |
 | `output.maxAgeDays` | none | Delete reports and drafts (the files marked `.pivotkit-out.`) older than this from the top level of the output directory, at start and every hour, and the temporary files of writes the server was killed in (`.<name>.pivotkit-out.<format>.<pid>-<random>.tmp`, older than an hour); other files and subdirectories stay. Use a directory of its own: the server refuses to start when the output directory is the configuration file's directory or holds a source, print template or token file |
+| `output.downloads` | on (plain links for open sources) | The server's own [download links](delivery.md): `enabled`, `expiresMinutes` (60), `bind` (`signIn`, `once`, `none`), `key`, `signIn` |
 | `rest.openapi` | `"auth"` | Who gets `/openapi.json` |
 
-Behind a reverse proxy: forward `/api/v1/`, `/openapi.json` and `/.well-known/oauth-protected-resource/api/v1`
-(with MCP also `/mcp`, `/.well-known/` and `/`), keep the `Host` header (or add the proxy's name to
+Behind a reverse proxy: forward `/api/v1/`, `/openapi.json`, `/.well-known/oauth-protected-resource/api/v1`
+and `/downloads/` (with MCP also `/mcp`, `/.well-known/` and `/`), keep the `Host` header (or add the proxy's name to
 `http.allowHosts`), and set `http.publicUrl`. Set `http.trustProxy` when the proxy adds the client's
 address to `X-Forwarded-For`: otherwise every client has the proxy's address and shares one count of
 refused tokens (the [limit](#limits) per address). Only when the service is reachable through the proxy alone:
@@ -525,7 +530,7 @@ a client that reaches the server directly can write any `X-Forwarded-For`. With 
 client's address. Let the proxy take bodies of 2 MiB (nginx's default is 1 MiB), or `rest.data.maxBytes` where callers [send data](#data). For nginx:
 
 ```nginx
-location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|healthz$|readyz$|$) {
+location ~ ^/(api/v1/|openapi\.json$|mcp$|\.well-known/|downloads/|healthz$|readyz$|$) {
     proxy_pass http://127.0.0.1:3333;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -547,7 +552,8 @@ and hard links on Windows).
 One JSON line per event on stderr, as the [MCP server's](mcp.md#logging): `started` (version,
 address, what it serves, auth mode), `request` (operation, route, client, `requestId`, source id,
 status, error code, time in ms; for `inline:` data the number of rows and columns, or a file's
-format and bytes), `download` (operation, client, `requestId`, source, format, bytes),
+format and bytes), `download` (operation, client, `requestId`, source, format, bytes;
+for a [download link](delivery.md) `via: "link"`, its binding, whether it worked and the code, never the token),
 `refused` (a request refused by the Host, Origin or token check, or a body over the cap, with its
 `requestId`) and `warning`. `requestId` is random (11 characters) and the same on every line of one
 request and in its error answer. The

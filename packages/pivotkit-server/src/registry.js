@@ -187,14 +187,14 @@ export async function createRegistry(options) {
         ids: () => [...sources.keys()],
         titles: () => [...sources.entries()].map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
 
-        /** For --check-config: each source's file, whether it exists, and its fields by level. */
+        /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed (a field not "show" for someone). */
         async check() {
             const out = [];
             for (const [id, s] of sources) {
                 const policy = resolvePolicy(options.policy, s.policy);
                 const file = s.file ? pathOf(options, s.file) : null;
                 const exists = file ? await stat(file).then((i) => i.isFile()).catch(() => false) : true;
-                out.push({ id, file, exists, policy: { default: policy.default, fields: Object.fromEntries(policy.fields), items: policy.items, inline: policy.inline }, resolved: policy, scopes: s.scopes ?? [], link: s.link ?? null });
+                out.push({ id, file, exists, policy: { default: policy.default, fields: Object.fromEntries(policy.fields), items: policy.items, inline: policy.inline }, resolved: policy, scopes: s.scopes ?? [], link: s.link ?? null, closed: closedSources.get(id) ?? true });
             }
             return out;
         }

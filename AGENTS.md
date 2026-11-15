@@ -225,11 +225,16 @@ root `package.json`: `npm run types` and the builds depend on it.
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
-  `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: how a written report
-  reaches the caller, `output.note`), `src/scopes.js` (`offeredScopes`, the metadata's
+  `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: which link a
+  report gets, decided before it is written (`linkFor`), the write, `output.filename`/`url`/`note`;
+  `resourceLinkOf`, the MCP `resource_link`), `src/downloads.js` (the server's own download links:
+  `createDownloadHandler`, the route `/downloads/` and its sign-in callback, one state per context;
+  the HMAC-signed token, one-time markers in the output directory's `.pivotkit-downloads/`, the OpenID
+  Connect sign-in; `linksOf` for delivery.js; `options/downloads.js` and `check/downloads.js` are its
+  options and check-config section), `src/scopes.js` (`offeredScopes`, the metadata's
   `scopes_supported` of MCP and REST: the required scopes, and the sources' with
-  `auth.offerSourceScopes: true`, never a `scopeProfiles` scope, while the 401 challenge names the required ones only; `listHint`, the hint of an empty
-  list_sources), `src/request-id.js`
+  `auth.offerSourceScopes: true`, never a `scopeProfiles` scope, while the 401 challenge names the
+  required ones only; `listHint`, the hint of an empty list_sources), `src/request-id.js`
   (a request's id: `newRequestId`, `withRequestId` (each REST request and MCP tool call runs in one;
   its log lines carry the id), `requestId`, `errorDetails` for an `OperationError`'s `details`, which
   `rest/problem.js problemOf` and MCP's error text show; `serverTextOf`, the fixed 5xx texts both
@@ -255,7 +260,7 @@ root `package.json`: `npm run types` and the builds depend on it.
   (`callerFields`: the allowlist of a caller's fields a log line holds, and `subject` where
   `audit.subject` asks for it: `auditText`, a keyed hash or the claim's text, noted per caller by
   auth.js), `src/serve.js` (`serve`, `createServerHandler`: REST and, with
-  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/healthz`, `/readyz`),
+  pivotkit-mcp installed (imported by name, no dependency), MCP on one port, `/downloads/`, `/healthz`, `/readyz`),
   `src/runner.js` (the command `pivotkit-server`: serve, check-config, check-source, mcp, cli,
   healthcheck), `src/check-source.js` (`check-source`: one load of an HTTP source, never a value
   printed). What
@@ -278,9 +283,9 @@ root `package.json`: `npm run types` and the builds depend on it.
   `src/context.js` (`createMcpContext(options)`: pivotkit-server's context plus `context.server(ctx)`,
   a fresh McpServer per HTTP request or stdio connection, the instructions, the prompt, the skill),
   `src/tools.js` (one tool per operation of pivotkit-report's table, `TOOLS`: the words a model reads,
-  the annotations, the scope challenge; the work is pivotkit-server's `present()`), `src/runner.js`
+  the annotations, the scope challenge, the `resource_link` after the text; the work is pivotkit-server's `present()`), `src/runner.js`
   (`FLAGS`, the runner's flags; stdio or `--http`; `--check-config`), `src/http.js` (the fetch
-  handler: Host, Origin, `/healthz`, discovery documents, the quick-start page of `src/page.js`, auth,
+  handler: Host, `/downloads/` (pivotkit-server's), Origin, `/healthz`, discovery documents, the quick-start page of `src/page.js`, auth,
   the SDK's `createMcpHandler`; `listen()` on pivotkit-server's `serveFetch`), `src/auth.js` (the
   shared sign-in answered as MCP clients expect: the SDK's `requireBearerAuth` and
   `oauthMetadataResponse`), `src/policy.js` (`pivotkit-mcp/policy`, pivotkit-server's).

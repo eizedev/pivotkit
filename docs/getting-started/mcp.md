@@ -117,9 +117,10 @@ npx -y pivotkit-mcp --config pivotkit-mcp.json --http --auth token
 The server listens on `http://127.0.0.1:3333/mcp`; open `http://127.0.0.1:3333/` in a browser for
 the quick-start page with the configurations to copy. For other machines, put it behind a reverse
 proxy with TLS and give `--public-url https://reports.example.com` (and `--host 0.0.0.0` or the
-proxy's network). The reports are written on the server: for people on other machines, serve the
-output directory (behind the same sign-in) and set `output.baseUrl`, so results carry a link
-instead of a path on the server. Clients connect with:
+proxy's network). The reports are written on the server, which serves them itself under
+`/downloads/` for 60 minutes: results carry a link, plain for sources whose fields are all `show`,
+and for other sources only one the person opens after signing in with your identity provider (or a
+one-time link you switch on); see [download links](../reference/delivery.md). Clients connect with:
 
 ```bash
 claude mcp add --transport http pivotkit https://reports.example.com/mcp --header "Authorization: Bearer <token>"

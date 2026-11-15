@@ -3558,13 +3558,26 @@
             ],
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "The file's name on the server."
+              },
+              "filename": {
+                "type": "string",
+                "description": "The file's name for the person."
               },
               "path": {
                 "type": "string"
               },
               "url": {
                 "type": "string"
+              },
+              "expiresAt": {
+                "type": "string",
+                "description": "The server's own link: when it stops working (ISO 8601, UTC)."
+              },
+              "bound": {
+                "type": "string",
+                "description": "The server's own link: none (anyone with the link until it expires), once (one download), signIn (only the person who asked, after signing in)."
               },
               "format": {
                 "type": "string"
@@ -3574,7 +3587,7 @@
               },
               "note": {
                 "type": "string",
-                "description": "How to open the link, in one sentence."
+                "description": "How to open the file, in one sentence."
               }
             }
           },
@@ -3930,13 +3943,26 @@
             ],
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "The file's name on the server."
+              },
+              "filename": {
+                "type": "string",
+                "description": "The file's name for the person."
               },
               "path": {
                 "type": "string"
               },
               "url": {
                 "type": "string"
+              },
+              "expiresAt": {
+                "type": "string",
+                "description": "The server's own link: when it stops working (ISO 8601, UTC)."
+              },
+              "bound": {
+                "type": "string",
+                "description": "The server's own link: none (anyone with the link until it expires), once (one download), signIn (only the person who asked, after signing in)."
               },
               "format": {
                 "type": "string"
@@ -3946,7 +3972,7 @@
               },
               "note": {
                 "type": "string",
-                "description": "How to open the link, in one sentence."
+                "description": "How to open the file, in one sentence."
               }
             }
           },

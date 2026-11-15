@@ -11,6 +11,8 @@
 #     storageClassName of pivotkit-data (a class that offers ReadWriteMany).
 # The token is a Secret you create yourself (never in this file):
 #   kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
+# So are the key of the download links (the same in every pod, so a link works after a restart):
+#   kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(openssl rand -base64 48)"
 # The CronJob sends the header in the optional Secret pivotkit-source (key "header", e.g.
 # "Authorization: Bearer ...") when the data's host needs one.
 # The --8<-- lines mark the parts the docs page shows.
@@ -36,7 +38,7 @@ data:
       "sources": {
         "sales": { "file": "/data/sales.csv", "title": "Sales", "policy": { "fields": { "Region": "show", "Product": "show", "Customer": "hide" } } }
       },
-      "output": { "dir": "/out", "maxAgeDays": 7 },
+      "output": { "dir": "/out", "maxAgeDays": 7, "downloads": { "key": { "env": "PIVOTKIT_DOWNLOAD_KEY" } } },
       "auth": {
         "mode": "token",
         "tokens": [ { "name": "reports", "file": "/run/secrets/pivotkit/reports" } ]
@@ -119,6 +121,11 @@ spec:
           env:
             - name: PIVOTKIT_PORT
               value: "3333"
+            - name: PIVOTKIT_DOWNLOAD_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pivotkit-download-key
+                  key: key
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false

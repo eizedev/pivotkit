@@ -34,6 +34,13 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   switches it off. `check-config` prints a "Data in the request" line.
 - A code source's `signal` is also aborted when every request waiting for its load went away (a REST
   client that closed its connection, an MCP call over HTTP whose connection closed).
+- Over HTTP with `output.dir` and without `output.baseUrl`, the server serves reports itself under
+  `/downloads/` ([download links](https://pivotkit.eize.dev/reference/delivery/)): route that path to
+  it, set `output.downloads.key`, or set `output.downloads.enabled: false` to keep the old behaviour.
+  Reports that get a link are stored with 22 random characters before their name (`output.name`;
+  `output.filename` is the plain name).
+- With `output.baseUrl`, a report over a source with a field that is not `show` carries no `url` any
+  more (REST and MCP); the file is still written.
 
 ### Added
 
@@ -93,6 +100,16 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
   nested deeper than 64 levels is refused before it is parsed, a multipart body with more than two
   parts before its parts are read; a 413 names the cap that applied; a file sent that cannot be read
   says why in words. Exported: `INLINE_ID`, `MCP_DATA_CAP`, `REST_DATA_BYTES`, `inlineLogFields`.
+- Download links ([#327](https://github.com/eizedev/pivotkit/issues/327)): over HTTP a report is
+  served under `http.publicUrl` + `/downloads/<token>` until the link expires (`output.downloads`,
+  60 minutes by default). The token is HMAC-signed with 128 random bits and names no file. Reports
+  over sources whose fields are all `show` get a plain link; reports over other sources only a link
+  bound to the person's sign-in (OpenID Connect code flow with PKCE against `output.downloads.signIn`,
+  the issuer and subject compared with the caller's token's) or, where the operator chooses `bind: "once"`, a one-time
+  link (GET shows a page, one POST sends the file). REST callers get links to such reports only with
+  `results: true`. Results carry `output.filename`, `url`, `expiresAt`, `bound` and `note`;
+  `present()` returns the file's MCP `resource_link`. `check-config` prints a `Delivery:` section.
+  `createDownloadHandler`, `linksOf` and the route's constants are exported.
 
 - A request id on every REST request and MCP tool call: on every log line written inside it, inside
   its work (a source's code, an error's details), in every REST problem document and at the end of

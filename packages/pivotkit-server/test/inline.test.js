@@ -357,7 +357,9 @@ test("REST multipart: csv, tsv, json and xlsx files with the input beside them; 
         assert.equal(ok.status, 200, JSON.stringify(ok.data));
         assert.equal(ok.data.summary.sourceRows, 3);
         assert.equal(ok.data.suppliedAsOf, "2026-11-01T00:00:00Z");
-        assert.match(ok.data.output.name, /^Sales export\.pivotkit-out\.json$/);
+        // data sent in the request has no exposure policy (all shown): its report gets a plain download link, stored under the link's prefix
+        assert.match(ok.data.output.name, /^[A-Za-z0-9_-]{22}-Sales export\.pivotkit-out\.json$/);
+        assert.equal(ok.data.output.filename, "Sales export.json");
         // the format by the content type when the name has no known extension; tsv and json files
         assert.equal((await multipart(url, TOKEN, [["data", [new Blob(["Region\tSales\nNorth\t1\n"], { type: "text/tab-separated-values" }), "export"]], ["input", input()]])).status, 200);
         assert.equal((await multipart(url, TOKEN, [["data", [new Blob([JSON.stringify([{ Region: "North", Sales: 1 }])]), "rows.json"]], ["input", input()]])).status, 200);
