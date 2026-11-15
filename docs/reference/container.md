@@ -87,6 +87,9 @@ docker run --rm -i -v "$PWD/pivotkit.json:/config/pivotkit.json:ro" -v "$PWD/dat
 `/config/pivotkit.json` too. `cli` writes where you mount a writable folder. `serve --enable rest`
 serves REST only; the MCP endpoint is on by default.
 
+Give `check-config` the flags you give `serve`: `--host 0.0.0.0` as the image's own `serve` has,
+and `--enable` where you set it. Without them it checks a server on loopback with REST and MCP.
+
 ## Health { #health }
 
 The image has a `HEALTHCHECK` (`pivotkit-server healthcheck`, every 30 seconds): it asks

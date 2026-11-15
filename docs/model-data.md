@@ -141,7 +141,7 @@ In short:
 | `show` | name, type, counts, up to `items` values, and for numbers and dates the smallest and largest | inline for csv and json when every field of the view is `show` and it fits `inline` (500 cells, 32 KiB); the result's rows and columns and the rows kept (`summary`) |
 | `values` | name, type, counts, every distinct value (at most `valuesMax`, 50) | in the file only, `withheld` |
 | `summary` (default) | name, type, counts | in the file only, `withheld` |
-| `hide` | that a field is hidden (`hiddenFields`), not its name | none: the column is not read |
+| `hide` | that a field is hidden (`hiddenFields`), not its name | none: the column is dropped when the data is read, and no data the server keeps holds it ([memory](privacy.md#memory)) |
 
 A view that uses a field that is not `show` anywhere in it (rows, columns, values, filters, sorting)
 has its whole result withheld, so a filter on a `summary` field cannot be used to read counts. xlsx,

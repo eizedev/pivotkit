@@ -170,6 +170,20 @@ The server keeps in its memory, never on disk:
 
 Data in memory goes with a restart.
 
+What the server keeps holds no hidden column: not the loads it keeps per person, not the data sets
+a compute worker keeps, not the notes of a read. To drop a column, though, the server reads the
+whole answer first: an HTTP source's body and, for JSON, its parsed rows in the main thread; for CSV,
+the decoded text and every cell in the worker that reads it. These are freed once the answer is
+read, and freed memory can hold their values until the process reuses it, as in any process. A dump
+of the server's memory taken meanwhile (a core dump, a debugger, a scan by someone with access to
+the host) can show values of a hidden column. Where that matters, have the backend leave the column
+out of its answer, as with a file that leaves it out.
+
+The test `packages/pivotkit-server/test/memory.test.js` checks the first part: it serves a CSV and a
+JSON answer whose hidden columns hold unique markers, collects garbage, and finds none of them in
+the kept loads or among what the main thread and the compute worker still reach (a heap snapshot of
+each), while it finds every value of the shown column and markers kept on purpose.
+
 ## check-config and check-source { #check-output }
 
 `check-config` and `check-source` print no value and no secret, but they print field names, and

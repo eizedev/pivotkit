@@ -237,7 +237,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   `src/compute.js` and `src/worker.js` (worker threads with memory and time limits; an input the
   structured clone cannot copy is `INVALID_INPUT` and frees the worker; a table job with a key goes
   to the worker that kept its data, without the table, and a worker that pushed it out answers
-  `need` and gets the table once; `sent()` counts both), `src/present.js` (`present()`:
+  `need` and gets the table once; `sent()` counts both; `heapSnapshots()` for `test/memory.test.js`,
+  which with `test/memory/probe.mjs` proves no kept data holds a hidden column), `src/present.js` (`present()`:
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
   made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,

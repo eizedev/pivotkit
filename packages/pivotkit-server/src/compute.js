@@ -279,6 +279,15 @@ export function createComputer(options = {}, internal = {}) {
             await Promise.all(pool.map((s) => s.ready));
             return pool.map((s) => s.cacheBytes);
         },
+        /**
+         * A heap snapshot of each worker alive (tests: what a worker keeps, test/memory.test.js); a
+         * snapshot holds only what is still reachable, after V8 collected the rest.
+         * @returns {Promise<import("node:stream").Readable[]>}
+         */
+        heapSnapshots: async () => {
+            await Promise.all(pool.map((s) => s.ready));
+            return Promise.all(pool.filter((s) => !s.exited).map((s) => s.worker.getHeapSnapshot()));
+        },
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */
