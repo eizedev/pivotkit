@@ -59,7 +59,7 @@ async function leftoverTempFiles(dir) {
 /**
  * Removes the reports and drafts older than output.maxAgeDays from the output directory (its top
  * level; a file of another kind and a subdirectory stay), and the temporary files of its writes
- * older than an hour, at most once an hour.
+ * older than an hour, at most once an hour; an info line says how many reports and drafts went.
  * @param {any} context
  */
 export async function prune(context) {
@@ -73,10 +73,16 @@ export async function prune(context) {
     pruned.set(dir, Date.now());
     const now = Date.now();
     const before = now - days * 86_400_000;
+    const deleted = { reports: 0, drafts: 0 };
     for (const file of await reportsIn(dir)) {
-        if (file.mtimeMs < before) {
-            await unlink(file.path).catch(() => undefined);
+        if (file.mtimeMs < before && (await unlink(file.path).then(() => true, () => false))) {
+            deleted[file.draft ? "drafts" : "reports"]++;
         }
+    }
+    // one line per sweep that deleted something: drafts awaiting approval go too, and the operator
+    // must be able to tell where they went
+    if (deleted.reports || deleted.drafts) {
+        context.log?.info(`output.maxAgeDays: reports and schedule drafts older than ${days} days deleted`, { ...deleted, maxAgeDays: days });
     }
     for (const file of await leftoverTempFiles(dir)) {
         if (file.mtimeMs < now - TEMP_MAX_AGE_MS) {

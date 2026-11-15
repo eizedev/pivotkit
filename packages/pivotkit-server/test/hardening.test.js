@@ -4,7 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REQUEST_LIMITS, callerOf, checkConfig, createLimits, limitKeyOf, validateOptions } from "pivotkit-server";
 import { randomBytes } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, utimesSync, writeFileSync } from "node:fs";
+import { prune } from "../src/output.js";
 import { join } from "node:path";
 import { placeMarker, signToken, subkeysOf, sweepMarkers } from "../src/downloads.js";
 import { call, factsOf, restServer, tempDir, workspace } from "./helpers.js";
@@ -150,4 +151,26 @@ test("F5: sweepMarkers deletes an expired sign-in state's marker and keeps a liv
     await sweepMarkers(dir);
     assert.equal(existsSync(old), false);
     assert.equal(existsSync(live), true);
+});
+
+// --- the age sweep says what it deleted -----------------------------------------------------------
+
+test("output.maxAgeDays: a sweep that deletes old reports and drafts writes one info line with both counts; one that deletes nothing writes none", async () => {
+    const dir = tempDir();
+    const old = (Date.now() - 3 * 86_400_000) / 1000;
+    for (const name of ["a.pivotkit-out.csv", "b.pivotkit-out.xlsx", "Weekly.pivotkit-out.report.json", "fresh.pivotkit-out.csv", "mine.csv"]) {
+        writeFileSync(join(dir, name), "x");
+        if (name !== "fresh.pivotkit-out.csv") utimesSync(join(dir, name), old, old);
+    }
+    const lines = [];
+    const log = { info: (msg, fields) => lines.push({ msg, ...fields }) };
+    await prune({ output: { dir, maxAgeDays: 1, cleanUp: true }, log });
+    assert.deepEqual(readdirSync(dir).sort(), ["fresh.pivotkit-out.csv", "mine.csv"]);
+    assert.equal(lines.length, 1, JSON.stringify(lines));
+    assert.match(lines[0].msg, /output\.maxAgeDays/);
+    assert.equal(lines[0].reports, 2);
+    assert.equal(lines[0].drafts, 1);
+    const empty = tempDir();
+    await prune({ output: { dir: empty, maxAgeDays: 1, cleanUp: true }, log });
+    assert.equal(lines.length, 1, "nothing deleted, nothing said");
 });
