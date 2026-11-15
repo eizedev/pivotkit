@@ -264,9 +264,18 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                 // the body is not sent: given up, so whatever waits for its end (a caller's slot) is freed
                 await response.body.cancel().catch(() => undefined);
             } else if (response.body) {
-                // a client that leaves stops the stream; a full socket is waited for
-                abort.signal.addEventListener("abort", () => response.body?.cancel().catch(() => undefined), { once: true });
-                for await (const chunk of response.body) {
+                // a client that leaves stops the stream (through the reader that holds its lock: the
+                // stream itself cannot be cancelled while it is read, and the handler cannot count on
+                // its own request's signal, since a clone's signal can stop following the original's
+                // once garbage collected); a full socket is waited for
+                const reader = response.body.getReader();
+                const stop = () => reader.cancel().catch(() => undefined);
+                if (abort.signal.aborted) {
+                    await stop();
+                }
+                abort.signal.addEventListener("abort", stop, { once: true });
+                for (let next = await reader.read(); !next.done; next = await reader.read()) {
+                    const chunk = next.value;
                     if (!res.write(chunk)) {
                         // a client that leaves while the socket is full sends no drain: its close ends the wait
                         await new Promise((resolve) => {
@@ -274,6 +283,7 @@ export async function serveFetch(handler, { host, port, bodyBytes, graceMs = GRA
                             res.once("close", resolve);
                         });
                         if (res.destroyed) {
+                            await stop();
                             break;
                         }
                     }
