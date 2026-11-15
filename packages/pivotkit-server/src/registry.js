@@ -1,6 +1,7 @@
 /*
  * The sources a caller may use: the operator's (by id) and, when allowed, files inside the allowed
- * directories ("file:" and a path). A caller sees and uses only sources whose scopes it holds; a
+ * directories ("file:" and a path). A caller sees and uses only sources whose scopes it holds (and,
+ * for a source only a signed-in person can use, sources/auth.js personBound, only with a subject); a
  * source it may not use is "not found", the same answer as for a source that does not exist.
  */
 
@@ -13,6 +14,7 @@ import { OperationError } from "pivotkit-report/operations";
 import { pathOf, serverLimitsOf } from "./config.js";
 import { asOperationError } from "./data.js";
 import { fieldKey, resolvePolicy } from "./policy.js";
+import { isPerson, personBound } from "./sources/auth.js";
 import { FILE_PREFIX, INLINE_ID, KINDS, kindOf } from "./sources/index.js";
 import { resolveFilePath } from "./sources/file.js";
 import { resolveInline } from "./sources/inline.js";
@@ -50,13 +52,24 @@ export const holds = (caller, scopes) => caller.scopes === null || (scopes ?? []
  * The registry of a server's sources.
  * @param {import("./config.js").ServerOptions} options
  */
-export async function createRegistry(options) {
+export async function createRegistry(options, { log = null } = {}) {
     const limits = serverLimitsOf(options);
     const files = options.files ?? {};
     const allow = await allowedDirs((files.allowDirs ?? []).map((d) => pathOf(options, d)), options.baseDir ?? process.cwd());
     // httpSources.enabled: false leaves every HTTP source out, as if it were not configured
     const sources = new Map(Object.entries(options.sources ?? {}).filter(([, s]) => !(s.http && options.httpSources?.enabled === false)));
     const filePolicy = resolvePolicy(options.policy, files.policy, undefined, { file: true });
+    // the sources only a signed-in person can use (a token exchange, a claim): no schedule, and not
+    // there for a caller without a subject
+    const bound = new Set([...sources.entries()].filter(([, s]) => personBound(options, s)).map(([id]) => id));
+    /** Whether a caller may use a source: its scopes, and a person for a bound one. */
+    const usable = (caller, id, source) => holds(caller, source.scopes) && (!bound.has(id) || isPerson(caller));
+    /** The operator's line when a caller without a subject asks for such a source (the caller reads "not found"). */
+    const hidden = (caller, id) => {
+        if (bound.has(id) && holds(caller, sources.get(id)?.scopes) && !isPerson(caller)) {
+            log?.info(`a source only a signed-in person can use was asked for, and the caller's token has no subject (auth.subjectClaim); it answered "not found"`, { source: id });
+        }
+    };
     /** The profile a caller's policy takes, if any. */
     const profileOf = (caller) => (caller.profile && Object.hasOwn(options.policy?.profiles ?? {}, caller.profile) ? options.policy?.profiles?.[caller.profile] : undefined);
     // the operator's sources by their files' real paths: a file: path to one of them is that source
@@ -72,7 +85,7 @@ export async function createRegistry(options) {
 
     /** SOURCE_NOT_FOUND for an id, with the nearest id the caller may use. */
     function notFound(id, caller, how = {}) {
-        const known = [...sources.entries()].filter(([, s]) => holds(caller, s.scopes)).map(([k]) => k);
+        const known = [...sources.entries()].filter(([k, s]) => usable(caller, k, s)).map(([k]) => k);
         const near = closest(String(id), known);
         throw new OperationError("SOURCE_NOT_FOUND", `no source "${String(id).slice(0, 80)}"${near ? `; did you mean "${near}"?` : ""}; ${how.surface === "rest" ? "GET /sources" : "list_sources"} lists them`);
     }
@@ -80,7 +93,8 @@ export async function createRegistry(options) {
     /** The source of an id for a caller, or SOURCE_NOT_FOUND (also for one it may not use). */
     function sourceOf(id, caller, how = {}) {
         const source = sources.get(id);
-        if (!source || !holds(caller, source.scopes)) {
+        if (!source || !usable(caller, id, source)) {
+            hidden(caller, id);
             notFound(id, caller, how);
         }
         return source;
@@ -156,7 +170,8 @@ export async function createRegistry(options) {
                 params: values,
                 descriptions: descriptionsOf(source),
                 sourceClosed: closedSources.get(ref) ?? true,
-                spec: { id: ref, kind: "source", ...(await KINDS[kind].specOf(reg, ref, source)), name: source.title ?? ref, levels: levelsOf(policy), limits, timeZone: options.timeZone, schedulable: true }
+                personBound: bound.has(ref),
+                spec: { id: ref, kind: "source", ...(await KINDS[kind].specOf(reg, ref, source)), name: source.title ?? ref, levels: levelsOf(policy), limits, timeZone: options.timeZone, schedulable: !bound.has(ref) }
             };
         },
 
@@ -168,8 +183,8 @@ export async function createRegistry(options) {
         async list(caller, how = {}) {
             /** @type {Array<{ id: string, title: string, description?: string, kind: "source" | "file", link: boolean, schedulable: boolean, params?: ReturnType<typeof paramsList> }>} */
             const out = [...sources.entries()]
-                .filter(([, s]) => holds(caller, s.scopes))
-                .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), schedulable: true, ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }));
+                .filter(([id, s]) => usable(caller, id, s))
+                .map(([id, s]) => ({ id, title: s.title ?? id, ...(s.description ? { description: s.description } : {}), kind: /** @type {const} */ ("source"), link: Boolean(s.link), schedulable: !bound.has(id), ...(s.params && paramsList(s.params).length ? { params: paramsList(s.params) } : {}) }));
             if (files.list && allow.length && holds(caller, files.scopes) && how.files !== false) {
                 for (const dir of allow) {
                     const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -185,7 +200,8 @@ export async function createRegistry(options) {
 
         /** The ids of every source (the quick-start page, --check-config). */
         ids: () => [...sources.keys()],
-        titles: () => [...sources.entries()].map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
+        // the quick-start page has no caller: a source only a signed-in person can use is not there
+        titles: () => [...sources.entries()].filter(([id]) => !bound.has(id)).map(([id, s]) => ({ id, title: s.title ?? id, scopes: s.scopes ?? [] })),
 
         /** For --check-config: each source's file, whether it exists, its fields by level, and whether it is closed (a field not "show" for someone). */
         async check() {

@@ -9,6 +9,7 @@
  *   paramSchemaOf(declared)                    the JSON Schema of the values
  *   normalizeParams(declared, given, caller, id)  the values checked, typed, defaults filled
  *   paramsList(declared)                       what list_sources says about them
+ *   claimNamesOf(sources), claimsOf(payload, names)  the claims a verified token gives a caller
  */
 
 import { createContext, Script } from "node:vm";
@@ -32,6 +33,9 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The keys a parameter's declaration may have. */
 const DECLARATION_KEYS = new Set(["type", "required", "description", "example", "enum", "pattern", "minLength", "maxLength", "minimum", "maximum", "format", "default", "claim"]);
+
+/** The longest name of a claim a parameter is bound to. */
+const CLAIM_NAME_MAX = 256;
 
 /** The longest pattern a parameter may have. */
 export const PATTERN_MAX = 256;
@@ -180,7 +184,7 @@ export function declaredProblems(declared) {
         const numeric = p.type === "integer" || p.type === "number";
         if (p.required !== undefined && typeof p.required !== "boolean") fail("required must be true or false");
         if (p.description !== undefined && (typeof p.description !== "string" || p.description.length > 500)) fail("description must be a text of at most 500 characters");
-        if (p.claim !== undefined && (typeof p.claim !== "string" || !p.claim)) fail("claim must be a claim's name");
+        if (p.claim !== undefined && (typeof p.claim !== "string" || !p.claim || p.claim.length > CLAIM_NAME_MAX)) fail(`claim must be a claim's name (at most ${CLAIM_NAME_MAX} characters)`);
         if (p.format !== undefined && !(text && p.format === "date")) fail('format is "date", for a string parameter');
         if (p.pattern !== undefined) {
             if (!text || typeof p.pattern !== "string") {
@@ -226,6 +230,9 @@ export function declaredProblems(declared) {
         }
         if (p.claim !== undefined && (p.default !== undefined || p.required === false)) {
             fail("a parameter bound to a claim takes neither a default nor required: false (without the claim the source is refused)");
+        }
+        if (p.claim !== undefined && p.type === "string" && p.pattern === undefined && p.enum === undefined) {
+            fail("a parameter bound to a claim needs a pattern or an enum: the claim's value is checked like a caller's before it reaches the backend");
         }
     }
     return problems;
@@ -302,7 +309,8 @@ export function normalizeParams(declared, given, caller, id) {
         if (p.claim !== undefined) {
             value = caller?.claims && Object.hasOwn(caller.claims, p.claim) ? caller.claims[p.claim] : undefined;
             if (value === undefined) {
-                throw new OperationError("NOT_ALLOWED", `your sign-in has no ${p.claim} claim, which the source ${id} needs; ask the operator`);
+                const verified = p.claim === "email" ? " (a verified one: the token's email_verified is true)" : "";
+                throw new OperationError("NOT_ALLOWED", `your sign-in has no ${p.claim} claim${verified}, which the source ${id} needs; ask the operator`);
             }
             // a claim's value goes into a backend's address: nothing that could change its path or query
             if (typeof value === "string" && /[/\\%?\r\n\0]|\.\./.test(value)) {
@@ -320,8 +328,12 @@ export function normalizeParams(declared, given, caller, id) {
         try {
             out[p.name] = valueOf(p.name, p, value);
         } catch (e) {
+            if (p.claim !== undefined && e instanceof OperationError) {
+                // the sign-in's value, not the caller's: never said back, and nothing the caller can fix
+                throw new OperationError("NOT_ALLOWED", `your sign-in's ${p.claim} claim is not a value the source ${id} takes; ask the operator`);
+            }
             // a value the caller sent: what the parameter is and takes, so the next try can fit
-            throw p.claim === undefined && e instanceof OperationError ? new OperationError("INVALID_INPUT", `${e.message}${hintOf(p)}`) : e;
+            throw e instanceof OperationError ? new OperationError("INVALID_INPUT", `${e.message}${hintOf(p)}`) : e;
         }
     }
     return out;
@@ -417,4 +429,49 @@ export function paramsList(declared) {
             ...(p.format !== undefined ? { format: p.format } : {}),
             ...Object.fromEntries(["minLength", "maxLength", "minimum", "maximum"].filter((k) => p[k] !== undefined).map((k) => [k, p[k]]))
         }));
+}
+
+/**
+ * The names of the claims the sources' parameters are bound to (params.<name>.claim): the only
+ * claims a verified token gives its caller (Caller.claims).
+ * @param {Record<string, { params?: Record<string, any> }> | undefined} sources  options.sources
+ * @returns {Set<string>}
+ */
+export function claimNamesOf(sources) {
+    const names = new Set();
+    for (const source of Object.values(sources ?? {})) {
+        for (const p of Object.values(source?.params ?? {})) {
+            if (p && typeof p === "object" && typeof p.claim === "string" && p.claim) {
+                names.add(p.claim);
+            }
+        }
+    }
+    return names;
+}
+
+/**
+ * The claims of a verified token's payload a caller holds: only the names given, only texts (well
+ * formed, at most PARAM_LIMITS.length characters), finite numbers and booleans; "email" only when
+ * the token's email_verified is true. Undefined when none is named or none is there.
+ * @param {Record<string, unknown>} payload  a verified token's claims
+ * @param {ReadonlySet<string>} names  claimNamesOf's
+ * @param {{ verified?: boolean }} [how]  verified: the claims were taken by claimsOf already (the email rule applied)
+ * @returns {Readonly<Record<string, string | number | boolean>> | undefined}
+ */
+export function claimsOf(payload, names, { verified = false } = {}) {
+    if (!names.size || !payload || typeof payload !== "object") {
+        return undefined;
+    }
+    /** @type {Record<string, string | number | boolean>} */
+    const out = {};
+    for (const name of names) {
+        const value = Object.hasOwn(payload, name) ? payload[name] : undefined;
+        if (name === "email" && !verified && payload.email_verified !== true) {
+            continue;
+        }
+        if ((typeof value === "string" && value.length <= PARAM_LIMITS.length && /** @type {any} */ (value).isWellFormed()) || (typeof value === "number" && Number.isFinite(value)) || typeof value === "boolean") {
+            out[name] = value;
+        }
+    }
+    return Object.keys(out).length ? Object.freeze(out) : undefined;
 }

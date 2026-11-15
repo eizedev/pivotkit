@@ -12,8 +12,11 @@
  *
  * Loading goes through sources/run.js like a code source's: the source's timeMs for all pages, one
  * load in flight per key, the load limits, kept data for ttl seconds per caller (the identity is
- * part of the key; a caller without one keeps and shares nothing), last good data after a transient
- * failure only.
+ * part of the key; a caller without one keeps and shares nothing; for a token exchange or a claim
+ * the client and its scopes too), last good data after a transient failure only.
+ *
+ * The backend's sign-in (http.auth) is sources/auth.js's: its headers go on every page, after the
+ * static ones; a 401 drops the token it was sent and the page is asked once more with a new one.
  *
  * A backend's answer never reaches a caller in words: a status becomes a SourceError (BACKEND_ANSWERS)
  * whose text is pivotkit's, a GuardedFetchError's message goes to the log at debug only, and a body is
@@ -30,6 +33,7 @@ import { httpSettingsOf } from "../options/http.js";
 import { fieldKey } from "../policy.js";
 import { requestId } from "../request-id.js";
 import { asOfText } from "./as-of.js";
+import { backendHeaders, dropToken } from "./auth.js";
 import { GuardedFetchError, guardedFetch } from "./fetch.js";
 import { canonicalJson, configHashOf, tableKeyOf } from "./keys.js";
 import { SourceError, loadRunner, ownError } from "./run.js";
@@ -304,14 +308,14 @@ function linkNext(value) {
 /**
  * What a load saw, for check-source (never values): each page's status, content type and bytes, the
  * body's top-level keys when the rows' pointer matched nothing.
- * @typedef {{ pages: Array<{ status: number, type: string, bytes: number }>, keys?: string[], found?: string, asOfRaw?: boolean }} LoadTrace
+ * @typedef {{ pages: Array<{ status: number, type: string, bytes: number }>, keys?: string[], found?: string, asOfRaw?: boolean, auth?: import("./auth.js").AuthTrace }} LoadTrace
  */
 
 /**
  * Loads an HTTP source's data: every page, its rows as a table, when the data is from.
  * @param {import("../options/http.js").HttpSettings} settings
  * @param {Record<string, string | number | boolean> | null} values  the caller's checked values
- * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, declared: Record<string, any> | undefined, fetch?: typeof guardedFetch, trace?: LoadTrace }} how
+ * @param {{ signal: AbortSignal, limits: import("pivotkit-core").Limits, log: any, declared: Record<string, any> | undefined, caller: import("../registry.js").Caller, fetch?: typeof guardedFetch, trace?: LoadTrace }} how
  * @returns {Promise<{ table: { columns: string[], rows: unknown[][] } | null, upload: { bytes: Uint8Array, format: "csv" } | null, asOf: string, pages: number, bytes: number }>}
  */
 export async function loadHttp(settings, values, how) {
@@ -319,7 +323,14 @@ export async function loadHttp(settings, values, how) {
     const { id, template } = settings;
     const started = Date.now();
     const maxBytes = Math.min(settings.maxBytes, how.limits.fileBytes ?? settings.maxBytes);
-    const headers = { accept: settings.format === "csv" ? "text/csv" : "application/json", ...settings.headers, ...backendHeaders(settings) };
+    const fixed = { accept: settings.format === "csv" ? "text/csv" : "application/json", ...settings.headers };
+    const signIn = (trace) => backendHeaders(settings.auth, how.caller, { signal: how.signal, id, log: how.log, fetch, ...(trace ? { trace } : {}) });
+    // the sign-in's headers last: a static header never stands in for them
+    if (how.trace && settings.auth) {
+        how.trace.auth = { kind: settings.auth.kind };
+    }
+    let headers = { ...fixed, ...(await signIn(how.trace?.auth)) };
+    let retried = false;
     /** @type {unknown[]} */
     const rows = [];
     let bytes = 0;
@@ -342,12 +353,23 @@ export async function loadHttp(settings, values, how) {
         } catch (e) {
             throw e instanceof GuardedFetchError ? fetchFailure(e, { id, log: how.log, maxBytes, settings }) : e;
         }
+        if (answer.status === 401 && !retried && dropToken(settings.auth, how.caller, headers)) {
+            // the backend no longer takes the kept token: once more with a new one
+            retried = true;
+            how.log.debug(`the source ${id}: the backend answered 401; its token is asked for again`, { source: id, requestId: requestId() });
+            headers = { ...fixed, ...(await signIn(undefined)) };
+            continue;
+        }
         pages++;
         bytes += answer.body.length;
         how.trace?.pages.push({ status: answer.status, type: String(answer.headers["content-type"] ?? "").slice(0, 100), bytes: answer.body.length });
         how.log.debug(`the source ${id}: GET ${loggedPath(template, extra)} answered ${answer.status}`, { source: id, status: answer.status, requestId: requestId() });
         if (answer.status < 200 || answer.status > 299) {
             how.log.warn(`the source ${id}: the backend answered ${answer.status}`, { source: id, status: answer.status, template: template.text });
+            if (answer.status === 401 && settings.auth?.kind === "header") {
+                // a caller of a source with params reads DATA_NOT_AVAILABLE: this line says where to look
+                how.log.warn(`the source ${id}: the backend answered 401 to the header from ${settings.auth.at}.value: check the secret behind it`, { source: id, requestId: requestId() });
+            }
             throw backendAnswer(answer.status, how.declared, values, answer.headers);
         }
         if (settings.format === "csv") {
@@ -472,16 +494,6 @@ function nextPage(settings, body, headers, current, count, seen, log) {
     return seen.has(next.href) ? null : next;
 }
 
-/**
- * The headers of a backend's sign-in. A backend's sign-in is not configured in this version
- * (http.auth is no option), so there are none; this is where it is added.
- * @param {import("../options/http.js").HttpSettings} _settings
- * @returns {Record<string, string>}
- */
-function backendHeaders(_settings) {
-    return {};
-}
-
 /** A random name per configured source object, so two servers' sources of the same id never share data. */
 const names = new WeakMap();
 const nameOf = (source) => {
@@ -523,13 +535,18 @@ export async function loadFor(resolved, caller, log, signal = undefined) {
     const settings = httpSettingsOf(source);
     const spec = resolved.spec;
     const values = resolved.params ?? null;
-    const identity = identityKey(caller);
+    // a token exchange or a claim: the person through this client with these scopes (sources/auth.js)
+    const bound = resolved.personBound === true;
+    const identity = identityKey(caller, { client: bound });
+    if (settings.auth?.kind === "tokenExchange" && (identity === null || typeof caller.subject !== "string")) {
+        throw new OperationError("NOT_ALLOWED", `the source ${spec.id} needs a signed-in person (an OAuth token with a subject)`);
+    }
     const person = identity ?? `client:${caller.client}`;
     const name = nameOf(source);
     const configHash = configHashOf({ http: source.http, settings });
     const key = identity === null ? null : canonicalJson(["http", name, configHash, values ?? {}, identity]);
     const limits = { ...LIMITS, ...spec.limits };
-    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params }), {
+    const ran = await loadRunner.runLoad(key, (loadSignal) => loadHttp(settings, values, { signal: loadSignal, limits, log, declared: source.params, caller }), {
         prepare: (loaded) => ({ ...loaded, serial: randomBytes(9).toString("base64url") }),
         source: name,
         label: spec.id,
