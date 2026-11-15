@@ -1,0 +1,137 @@
+/*
+ * check-config's layout, shared by every section (check/<feature>.js): a section says what it found
+ * as items, and render() puts them on the page the same way for all of them.
+ *
+ *   pivotkit-server: the configuration is valid; the server starts, but not everything will work.
+ *   1 problem, 2 warnings.
+ *
+ *   PROBLEM: httpSources.backends.platform.auth.clientCredentials.clientSecret: the file
+ *     secrets/backend-secret cannot be read (no such file) -> the server starts; its sources
+ *     (vms) answer SOURCE_UNAVAILABLE
+ *
+ *   Sources (2):
+ *     sales: /srv/pivotkit/data/sales.csv
+ *     ...
+ *     WARNING: sources.sales.policy.fields.Custmer: no column of sales.csv has this name; did you
+ *       mean "Customer"?
+ *
+ *   New in this version: data in the request (inline:)
+ *     -> https://pivotkit.eize.dev/getting-started/upgrading/
+ *
+ * Three markers: PROBLEM (counted; keeps the server from starting, or a source or feature from
+ * working, and says which), WARNING (counted, not an error) and plain. The verdict and the counts come
+ * first, then every PROBLEM line, then the sections in their order. In a section the plain lines come
+ * first in the order the section gives them, its warnings last. One fact per line, wrapped at WIDTH
+ * columns; a wrapped line goes on two spaces further in.
+ */
+
+import { pathOf } from "../config.js";
+
+/** The width check-config wraps its lines at. */
+export const WIDTH = 78;
+
+/**
+ * @typedef {{ kind: "heading", text: string }
+ *   | { kind: "plain", text: string, depth: number }
+ *   | { kind: "warning", text: string }
+ *   | { kind: "problem", text: string, stops: boolean, effect: string | null }} Item
+ */
+
+/** A section's heading ("Sources (2):", "Auth: oauth"), at the left margin. */
+export const heading = (text) => /** @type {Item} */ ({ kind: "heading", text });
+
+/** A fact, under its heading (depth 1) or under another fact (depth 2, 3). */
+export const plain = (text, depth = 1) => /** @type {Item} */ ({ kind: "plain", text, depth });
+
+/** A warning: something to look at; the server works as configured. */
+export const warning = (text) => /** @type {Item} */ ({ kind: "warning", text });
+
+/**
+ * A problem. `stops`: the server does not start (createContext refuses it); otherwise `effect` says
+ * what does not work while the server runs ("the server starts; vms answers SOURCE_UNAVAILABLE").
+ * @param {string} text
+ * @param {{ stops: true } | { stops?: false, effect: string }} how
+ */
+export const problem = (text, how) => /** @type {Item} */ ({ kind: "problem", text, stops: how.stops === true, effect: how.stops === true ? null : /** @type {any} */ (how).effect });
+
+/**
+ * A text cut into lines of at most `width` columns at spaces: the first line starts at `indent`, the
+ * others at `hang`. A word longer than a line (an address, a path) stays whole, on the line it
+ * follows.
+ * @param {string} text
+ * @param {number} indent
+ * @param {number} [hang]
+ * @param {number} [width]
+ * @returns {string[]}
+ */
+export function wrap(text, indent, hang = indent + 2, width = WIDTH) {
+    const out = [];
+    let line = " ".repeat(indent);
+    let empty = true;
+    for (const word of text.split(" ")) {
+        // a word longer than any line (an address, a path) stays on the line it starts on
+        if (!empty && line.length + 1 + word.length > width && hang + word.length <= width) {
+            out.push(line);
+            line = " ".repeat(hang) + word;
+            continue;
+        }
+        line += empty ? word : ` ${word}`;
+        empty = false;
+    }
+    out.push(line);
+    return out;
+}
+
+/** A file the configuration names (a secret, a token) as check-config prints it: the path as written and, where it differs, the full one. */
+export const fileText = (options, file) => {
+    const full = pathOf(options, file);
+    return full === file ? file : `${file} (${full})`;
+};
+
+/** "1 problem", "2 warnings". */
+const count = (n, what) => `${n} ${what}${n === 1 ? "" : "s"}`;
+
+/** A problem's line: its text, then what it does. */
+const problemText = (item) => `PROBLEM: ${item.text} -> ${item.stops ? "the server does not start" : item.effect}`;
+
+/**
+ * The page: the verdict, the counts, the PROBLEM lines, the sections, and the one line of what is new
+ * in this version.
+ * @param {string} name  the program ("pivotkit-server", "pivotkit-mcp")
+ * @param {Item[][]} sections  each section's items, in the order printed
+ * @param {string[]} upgrade  short names of this version's changes that apply
+ * @param {string} upgradingUrl
+ * @returns {{ text: string, problems: number, warnings: number, stops: number }}
+ */
+export function render(name, sections, upgrade, upgradingUrl) {
+    const all = sections.flat();
+    const problems = all.filter((i) => i.kind === "problem");
+    const warnings = all.filter((i) => i.kind === "warning").length;
+    const stops = problems.filter((i) => /** @type {any} */ (i).stops).length;
+    const verdict = stops ? "the configuration is valid, but the server would not start with it as it is." : problems.length ? "the configuration is valid; the server starts, but not everything will work." : "the configuration is valid.";
+    const lines = [...wrap(`${name}: ${verdict}`, 0), `${count(problems.length, "problem")}, ${count(warnings, "warning")}.`];
+    if (problems.length) {
+        // the ones that stop the start first
+        lines.push("", ...[...problems].sort((a, b) => Number(/** @type {any} */ (b).stops) - Number(/** @type {any} */ (a).stops)).flatMap((p) => wrap(problemText(p), 0)));
+    }
+    for (const items of sections) {
+        const shown = items.filter((i) => i.kind !== "problem");
+        if (!shown.length) {
+            continue;
+        }
+        lines.push("");
+        for (const item of [...shown.filter((i) => i.kind !== "warning"), ...shown.filter((i) => i.kind === "warning")]) {
+            if (item.kind === "heading") {
+                lines.push(...wrap(item.text, 0));
+            } else if (item.kind === "plain") {
+                lines.push(...wrap(item.text, 2 * item.depth));
+            } else {
+                lines.push(...wrap(`WARNING: ${item.text}`, 2));
+            }
+        }
+    }
+    if (upgrade.length) {
+        lines.push("", ...wrap(`New in this version: ${upgrade.join(", ")}`, 0), `  -> ${upgradingUrl}`);
+    }
+    return { text: `${lines.join("\n")}\n`, problems: problems.length, warnings, stops };
+}

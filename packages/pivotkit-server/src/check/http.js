@@ -2,17 +2,26 @@
  * check-config's section for HTTP sources (options/http.js): per source where it asks (the template,
  * never a value), where the rows are, its limits and how its data is kept; which backends may reach
  * loopback and private addresses; warnings for a parameter no template uses and for header or query
- * names that look like a secret's with a literal value (the value is never printed); the backend's
- * sign-in (http.auth): how it is made and where its secrets come from, a PROBLEM for a variable that
- * is not set or a file that cannot be read (never the value or its length), a warning for a secret
- * file other users can read. It calls no backend and no token endpoint: `pivotkit-server
- * check-source <id>` does that.
+ * names that look like a secret's with a literal value (the value is never printed); the backend
+ * authentication (http.auth): how it is made and where its secrets come from (a file by its full
+ * path), a PROBLEM for a variable that is not set or a file that cannot be read (never the value or
+ * its length; the server starts and the sources that use it answer SOURCE_UNAVAILABLE), a warning for
+ * a secret file other users can read and for a backend's authentication no source uses. It calls no
+ * backend and no token endpoint: `pivotkit-server check-source <id>` does that.
  *
  *   HTTP sources (1):
- *     vms: backend platform (https://api.example.com/v1) /customers/{customer}/vms?state={state}, rows at /items, next page at /next, up to 10 pages / 20 MiB / 15 s, kept 300 s per caller, last good data up to 3600 s; links: create_link makes none (no sources.<id>.link); schedules: draft_schedule drafts them with the caller's params
+ *     vms: backend platform (https://api.example.com/v1)
+ *       GET /customers/{customer}/vms?state={state}
+ *       rows at /items
+ *       up to 20 MiB / 15 s
+ *       kept 300 s per caller
+ *       last good data: up to 3600 s
+ *       create_link: none (no sources.<id>.link)
+ *       draft_schedule: drafts with the caller's params
  *       params: customer (string, pattern), state (running|stopped)
- *       backend auth: client credentials as pivotkit-backend (secret from a file) at https://auth.example.com/application/o/token/
- *     intranet: backend platform may reach loopback and private addresses (sources vms)
+ *       backend authentication: client credentials as pivotkit-backend at
+ *         https://auth.example.com/application/o/token/ (httpSources.backends.platform)
+ *         client secret from the file secrets/backend-secret (/etc/pivotkit/secrets/backend-secret)
  *
  * check/index.js says what a section returns.
  */
@@ -20,13 +29,14 @@
 import { isIP } from "node:net";
 import { callerOf } from "../auth.js";
 import { serverLimitsOf } from "../config.js";
-import { httpSettingsOf } from "../options/http.js";
+import { backendAuthOf, httpSettingsOf } from "../options/http.js";
 import { addressRefusal } from "../sources/fetch.js";
 import { bytesText } from "../sources/inline.js";
 import { paramsList } from "../sources/params.js";
 import { personBound } from "../sources/auth.js";
 import { secretFileWarning } from "../secrets.js";
 import { secretsOf } from "../sources/auth.js";
+import { fileText, heading, plain, problem, warning } from "./format.js";
 
 /** The section's heading, which check.js's list of sources points to. */
 export const HTTP_HEADING = "HTTP sources";
@@ -48,120 +58,140 @@ function paramText(p, declared) {
     return `${p.name} (${what})`;
 }
 
-/** Where a secret comes from, in words (never its value). */
-const fromText = (ref) => (ref.env ? `$${ref.env}` : "a file");
+/**
+ * Where a secret comes from, in words (never its value): the variable, or the file as written and its
+ * full path.
+ */
+const fromText = (ref, options) => (ref.env ? `$${ref.env}` : `the file ${fileText(options, ref.file)}`);
 
 /**
- * How a backend's sign-in is made, in words.
+ * How a backend's authentication is made, in words: the first line, then where each secret comes
+ * from.
  * @param {import("../options/http.js").BackendAuth} auth
+ * @param {import("../config.js").ServerOptions} options
+ * @returns {string[]}
  */
-function authText(auth) {
+function authLines(auth, options) {
     if (auth.kind === "header") {
-        return `header ${auth.name} from ${fromText(auth.value)}`;
+        return [`header ${auth.name}`, `value from ${fromText(auth.value, options)}`];
     }
     const at = (url) => `${new URL(url).origin}${new URL(url).pathname}`;
     if (auth.kind === "clientCredentials") {
-        const secret = auth.clientSecret ? `secret from ${fromText(auth.clientSecret)}` : `assertion from ${fromText(/** @type {any} */ (auth.assertion))}`;
-        return `client credentials as ${auth.clientId} (${secret}) at ${at(auth.tokenUrl)}${auth.scope ? `, scope ${auth.scope}` : ""}`;
+        const secret = auth.clientSecret ? `client secret from ${fromText(auth.clientSecret, options)}` : `assertion from ${fromText(/** @type {any} */ (auth.assertion), options)}`;
+        return [`client credentials as ${auth.clientId} at ${at(auth.tokenUrl)}${auth.scope ? `, scope ${auth.scope}` : ""}`, secret];
     }
     const target = [auth.audience !== null ? `audience ${auth.audience}` : null, auth.resource !== null ? `resource ${auth.resource}` : null].filter(Boolean).join(" and ");
-    return `token exchange for ${target} at ${auth.tokenUrl ? at(auth.tokenUrl) : "the issuer's token endpoint"} as ${auth.clientId} (secret from ${fromText(auth.clientSecret)}), each token reused up to ${auth.maxAgeSeconds} s; only for a signed-in person`;
+    return [
+        `token exchange for ${target} at ${auth.tokenUrl ? at(auth.tokenUrl) : "the issuer's token endpoint"} as ${auth.clientId}`,
+        `client secret from ${fromText(auth.clientSecret, options)}`,
+        `each token reused up to ${auth.maxAgeSeconds} s; only for a signed-in person`
+    ];
 }
 
 /**
- * The secrets of a sign-in checked: a PROBLEM line for one that cannot be read, a warning for a file
- * other users can read.
+ * The secrets of a backend's authentication checked: a PROBLEM for one that cannot be read (the
+ * server starts; the sources that use it answer SOURCE_UNAVAILABLE), or a WARNING where no source
+ * uses it; a WARNING for a file other users can read and for a token endpoint on a private address.
  * @param {import("../options/http.js").BackendAuth} auth
  * @param {import("../config.js").ServerOptions} options
  * @param {Record<string, string | undefined>} env
- * @returns {Promise<{ lines: string[], problems: number }>}
+ * @param {string[]} users  the sources that use it (none: a backend's authentication every source replaces)
+ * @returns {Promise<import("./format.js").Item[]>}
  */
-async function secretLines(auth, options, env) {
-    const lines = [];
-    let problems = 0;
+async function secretItems(auth, options, env, users) {
+    const items = [];
     for (const secret of await secretsOf(auth, options, env)) {
         if (secret.problem) {
-            lines.push(`    PROBLEM: ${secret.at}: ${secret.problem}`);
-            problems++;
+            items.push(users.length ? problem(`${secret.at}: ${secret.problem}`, { effect: `the server starts; ${users.join(", ")} answer${users.length === 1 ? "s" : ""} SOURCE_UNAVAILABLE` }) : warning(`${secret.at}: ${secret.problem}`));
             continue;
         }
-        const warning = await secretFileWarning(secret.ref, options, `${secret.at} (${/** @type {any} */ (secret.ref).file})`);
-        if (warning) {
-            lines.push(`    ${warning}`);
+        const readable = await secretFileWarning(secret.ref, options, `${secret.at} (${/** @type {any} */ (secret.ref).file})`);
+        if (readable) {
+            items.push(warning(readable.replace(/^warning: /, "")));
         }
     }
     if (auth.kind !== "header") {
         const url = auth.tokenUrl ? new URL(auth.tokenUrl) : null;
         if (url && !auth.intranet && localHost(url.hostname)) {
-            lines.push(`    warning: ${auth.at}.tokenUrl: ${url.hostname} is a loopback or private address, which is refused unless intranet: true is set there`);
+            items.push(warning(`${auth.at}.tokenUrl: ${url.hostname} is a loopback or private address, which is refused unless intranet: true is set there`));
         }
         if (url && auth.kind === "tokenExchange" && auth.issuer && URL.canParse(auth.issuer) && new URL(auth.issuer).origin !== url.origin) {
-            lines.push(`    warning: ${auth.at}.tokenUrl: the person's token goes to ${url.host}, not to the issuer's ${new URL(auth.issuer).host}; check that this is the provider's token endpoint`);
+            items.push(warning(`${auth.at}.tokenUrl: the person's token goes to ${url.host}, not to the issuer's ${new URL(auth.issuer).host}; check that this is the provider's token endpoint`));
         }
     }
-    return { lines, problems };
+    return items;
 }
 
 /** @type {import("./index.js").Section} */
 export async function section(options, registry, runtime) {
     const http = Object.entries(options.sources ?? {}).filter(([, s]) => s.http);
     if (!http.length) {
-        return { lines: [], problems: 0, upgrade: [] };
+        return { items: [], upgrade: [] };
     }
     if (options.httpSources?.enabled === false) {
-        return { lines: ["", `${HTTP_HEADING}: off (httpSources.enabled: false); ${http.length} configured source${http.length === 1 ? " is" : "s are"} ignored`], problems: 0, upgrade: [] };
+        return { items: [heading(`${HTTP_HEADING}: off (httpSources.enabled: false)`), plain(`${http.length} configured source${http.length === 1 ? " is" : "s are"} ignored`)], upgrade: [] };
     }
-    const lines = ["", `${HTTP_HEADING} (${http.length}):`];
+    const items = [heading(`${HTTP_HEADING} (${http.length}):`)];
+    const env = runtime?.env ?? process.env;
     // links and schedules as list_sources says them (a caller holding every scope)
     const sourcesListed = new Map(registry ? (await registry.list(callerOf("none", undefined))).map((e) => [e.id, e]) : []);
     /** @type {Map<string, string[]>} the sources that may reach private addresses, by backend (or source) */
     const intranet = new Map();
-    let problems = 0;
-    /** @type {Set<object>} the sign-ins whose secrets were checked (a backend's is shared by its sources) */
+    // each authentication with the sources that use it (a backend's is shared by its sources)
+    /** @type {Map<object, string[]>} */
+    const users = new Map();
+    for (const [id, source] of http) {
+        const auth = httpSettingsOf(source).auth;
+        if (auth) users.set(auth, [...(users.get(auth) ?? []), id]);
+    }
+    /** @type {Set<object>} the authentications whose secrets were checked */
     const checked = new Set();
     for (const [id, source] of http) {
         const s = httpSettingsOf(source);
-        const where = s.backend ? `backend ${s.backend} (${s.backendUrl}) ${s.template.text.slice(s.backendUrl?.replace(/\/+$/, "").length ?? 0)}` : s.template.text;
+        const path = s.backend ? s.template.text.slice(s.backendUrl?.replace(/\/+$/, "").length ?? 0) : s.template.text;
         const query = s.template.query.length ? `?${s.template.query.map((q) => `${q.name}=${q.param ? `{${q.param}}` : "..."}`).join("&")}` : "";
-        const reads = s.format === "csv" ? "a CSV body" : `rows at ${s.rowsText || "the body"}`;
-        const kept = `${s.ttl > 0 ? `kept ${s.ttl} s per caller` : "loaded on every call (shared while in flight)"}, last good data ${s.maxStale > 0 ? `up to ${s.maxStale} s` : "off"}`;
         // what a load reads at most: maxBytes, within limits.fileBytes
         const fileBytes = /** @type {number} */ (serverLimitsOf(options).fileBytes);
         const bytes = Math.min(s.maxBytes, fileBytes);
         const entry = sourcesListed.get(id);
-        const links = source.link ? "create_link links to the source's page (sources.<id>.link)" : "create_link makes none (no sources.<id>.link)";
         const bound = personBound(options, source);
-        const schedules = bound ? `draft_schedule makes none (${s.auth?.kind === "tokenExchange" ? "token exchange" : "a claim"}: the data is the signed-in person's)` : entry?.schedulable === false ? "draft_schedule makes none" : "draft_schedule drafts them with the caller's params";
-        lines.push(`  ${id}: ${where}${query}, ${reads}${s.pagingText ? `, ${s.pagingText}` : ""}, up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s, ${kept}; links: ${links}; schedules: ${schedules}`);
+        items.push(plain(s.backend ? `${id}: backend ${s.backend} (${s.backendUrl})` : `${id}:`));
+        items.push(plain(`GET ${path}${query}`, 2));
+        items.push(plain(s.format === "csv" ? "reads a CSV body" : `rows at ${s.rowsText || "the body"}`, 2));
+        if (s.pagingText) items.push(plain(s.pagingText, 2));
+        items.push(plain(`up to ${s.paging ? `${s.maxPages} pages / ` : ""}${bytesText(bytes)} / ${s.timeMs / 1000} s`, 2));
+        items.push(plain(s.ttl > 0 ? `kept ${s.ttl} s per caller` : "loaded on every call (shared while in flight)", 2));
+        items.push(plain(`last good data: ${s.maxStale > 0 ? `up to ${s.maxStale} s` : "off"}`, 2));
+        items.push(plain(`create_link: ${source.link ? "links to the source's page (sources.<id>.link)" : "none (no sources.<id>.link)"}`, 2));
+        items.push(plain(`draft_schedule: ${bound ? `none (${s.auth?.kind === "tokenExchange" ? "token exchange" : "a claim"}: the data is the signed-in person's)` : entry?.schedulable === false ? "none" : "drafts with the caller's params"}`, 2));
         const host = new URL(s.template.origin).hostname;
         if (!s.intranet && localHost(host)) {
-            lines.push(`    warning: sources.${id}: ${host} is a loopback or private address, which is refused unless ${s.backend ? `the backend has intranet: true (httpSources.backends.${s.backend}.intranet)` : `the source has http.intranet: true`}`);
+            items.push(warning(`sources.${id}: ${host} is a loopback or private address, which is refused unless ${s.backend ? `the backend has intranet: true (httpSources.backends.${s.backend}.intranet)` : `the source has http.intranet: true`}`));
         }
         if (s.maxBytes > fileBytes) {
-            lines.push(`    warning: sources.${id}: maxBytes (${bytesText(s.maxBytes)}) is over limits.fileBytes (${bytesText(fileBytes)}); a load reads at most ${bytesText(fileBytes)}`);
+            items.push(warning(`sources.${id}: maxBytes (${bytesText(s.maxBytes)}) is over limits.fileBytes (${bytesText(fileBytes)}); a load reads at most ${bytesText(fileBytes)}`));
         }
         const listed = paramsList(source.params);
         if (listed.length) {
-            lines.push(`    params: ${listed.map((p) => paramText(p, source.params ?? {})).join(", ")}`);
+            items.push(plain(`params: ${listed.map((p) => paramText(p, source.params ?? {})).join(", ")}`, 2));
         }
         if (s.auth) {
-            lines.push(`    backend auth: ${authText(s.auth)}${s.auth.at.startsWith("httpSources.") ? ` (${s.auth.at.replace(/\.[^.]+$/, "")})` : ""}`);
+            const [first, ...rest] = authLines(s.auth, options);
+            items.push(plain(`backend authentication: ${first}${s.auth.at.startsWith("httpSources.") ? ` (${s.auth.at.replace(/\.[^.]+$/, "")})` : ""}`, 2), ...rest.map((t) => plain(t, 3)));
             if (!checked.has(s.auth)) {
                 checked.add(s.auth);
-                const said = await secretLines(s.auth, options, runtime?.env ?? process.env);
-                lines.push(...said.lines);
-                problems += said.problems;
+                items.push(...(await secretItems(s.auth, options, env, users.get(s.auth) ?? [id])));
             }
         }
         const claimed = Object.entries(source.params ?? {}).filter(([, p]) => p?.claim !== undefined);
         if (claimed.length) {
-            lines.push(`    from the sign-in: ${claimed.map(([name, p]) => `${name} (claim ${p.claim}${p.claim === "email" ? ", verified only" : ""})`).join(", ")}; listed only for a signed-in person`);
+            items.push(plain(`from the person's token: ${claimed.map(([name, p]) => `${name} (claim ${p.claim}${p.claim === "email" ? ", verified only" : ""})`).join(", ")}; listed only for a signed-in person`, 2));
         }
         for (const name of s.unused) {
-            lines.push(`    warning: sources.${id}.params.${name}: no part of the address uses it, so the backend never gets it`);
+            items.push(warning(`sources.${id}.params.${name}: no part of the address uses it, so the backend never gets it`));
         }
         for (const name of s.secretLooking) {
-            lines.push(`    warning: sources.${id}: the ${name} has a literal value and its name looks like a secret's; a secret written in the configuration file is read by everyone who can read the file`);
+            items.push(warning(`sources.${id}: the ${name} has a literal value and its name looks like a secret's; a secret written in the configuration file is read by everyone who can read the file`));
         }
         if (s.intranet) {
             const owner = s.backend ? `backend ${s.backend}` : `source ${id}`;
@@ -169,7 +199,16 @@ export async function section(options, registry, runtime) {
         }
     }
     for (const [owner, ids] of intranet) {
-        lines.push(`  intranet: ${owner} may reach loopback and private addresses (source${ids.length === 1 ? "" : "s"} ${ids.join(", ")})`);
+        items.push(plain(`intranet: ${owner} may reach loopback and private addresses (source${ids.length === 1 ? "" : "s"} ${ids.join(", ")})`));
     }
-    return { lines, problems, upgrade: [] };
+    // a backend's authentication that every source of it replaces with its own: its secrets still
+    // checked, as warnings (a later source without http.auth would use it)
+    for (const [name, backend] of Object.entries(options.httpSources?.backends ?? {})) {
+        if (backend.auth === undefined || http.some(([, s]) => s.http?.backend === name && s.http.auth === undefined)) {
+            continue;
+        }
+        items.push(warning(`httpSources.backends.${name}.auth is not used by any source (a source with its own http.auth replaces it)`));
+        items.push(...(await secretItems(backendAuthOf(options, backend.auth, `httpSources.backends.${name}.auth`, {}), options, env, [])));
+    }
+    return { items, upgrade: [] };
 }

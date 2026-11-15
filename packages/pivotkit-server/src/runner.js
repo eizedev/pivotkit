@@ -173,7 +173,8 @@ export async function run(argv, io) {
         }
         if (command === "check-config" || values["check-config"]) {
             const { checkConfig } = await import("./check.js");
-            const { text, problems } = await checkConfig(options, { http: true, env: io.env, name: "pivotkit-server", tokenEnv: TOKEN_ENV, rest: (options.http?.enable ?? ["rest"]).includes("rest"), mcp: (options.http?.enable ?? ["rest", "mcp"]).includes("mcp") });
+            const { discover } = await import("./auth.js");
+            const { text, problems } = await checkConfig(options, { http: true, env: io.env, name: "pivotkit-server", tokenEnv: TOKEN_ENV, rest: (options.http?.enable ?? ["rest"]).includes("rest"), mcp: (options.http?.enable ?? ["rest", "mcp"]).includes("mcp"), discover });
             io.stdout.write(text);
             return problems ? 1 : 0;
         }

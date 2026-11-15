@@ -56,8 +56,9 @@ export async function run(argv, io) {
         }
         const { options, values } = await optionsFrom(argv, io.env);
         if (values["check-config"]) {
-            const { checkConfig } = await import("pivotkit-server");
-            const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env });
+            const { checkConfig, discover } = await import("pivotkit-server");
+            // the issuer is asked only where it is used: over HTTP
+            const { text, problems } = await checkConfig(options, { http: Boolean(values.http), env: io.env, ...(values.http ? { discover } : {}) });
             io.stdout.write(text);
             return problems ? 1 : 0;
         }
