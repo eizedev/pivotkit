@@ -6,17 +6,20 @@
  *
  * Everything is checked here at start and compiled once (httpSettingsOf): the template
  * (sources/template.js), the JSON Pointers, the headers, the paging and the effective limits, so a
- * load only fills in a caller's values. A backend's sign-in (http.auth) is not part of this version:
- * the key is unknown, so a configuration that names one is refused instead of sending requests
- * without it.
+ * load only fills in a caller's values. A backend's sign-in (`http.auth`, or a backend's `auth`) is
+ * checked here too and compiled into `HttpSettings.auth` (backendAuthOf); sources/auth.js uses it:
+ * a header from a secret, OAuth client credentials, or the RFC 8693 token exchange for the signed-in
+ * person. A secret is always a reference (SECRET_REF), read when it is used, never here.
  *
  * A key is declared here once, never also in config.js or another fragment (options/index.js refuses a
  * second declaration).
  */
 
+import { createHash } from "node:crypto";
 import { resolvePolicy } from "../policy.js";
+import { canonicalJson } from "../sources/keys.js";
 import { compileTemplate } from "../sources/template.js";
-import { ConfigError } from "./shared.js";
+import { ConfigError, SECRET_REF } from "./shared.js";
 
 export const NAME = "http";
 
@@ -25,6 +28,7 @@ export const NAME = "http";
  * @property {string} url  https:// origin and path prefix, no query
  * @property {boolean} [intranet]  loopback and private addresses may be reached (default false)
  * @property {Record<string, string>} [headers]  static headers, under each source's
+ * @property {BackendAuthOptions} [auth]  the backend's sign-in, for every source that names no auth of its own
  * @property {number} [timeMs]
  * @property {number} [maxBytes]
  * @property {number} [ttl]
@@ -46,6 +50,7 @@ export const NAME = "http";
  * @property {boolean} [intranet]  with url: loopback and private addresses may be reached (default false)
  * @property {Record<string, string>} [query]  a literal or exactly one {name}
  * @property {Record<string, string>} [headers]
+ * @property {BackendAuthOptions} [auth]  the backend's sign-in (default: the backend's auth)
  * @property {string} [rows]  JSON Pointer to the rows (default "": the body is the list)
  * @property {"json" | "csv"} [format]
  * @property {string} [asOf]  JSON Pointer to the body's own time (ISO 8601 or epoch seconds)
@@ -54,14 +59,28 @@ export const NAME = "http";
  * @property {number} [maxBytes]  all pages together (default 20 MiB, at most limits.fileBytes)
  */
 
+/**
+ * @typedef {{ env: string } | { file: string }} SecretRef
+ * @typedef {object} BackendAuthOptions  exactly one of header, clientCredentials, tokenExchange
+ * @property {{ name?: string, prefix?: string, value: SecretRef }} [header]  a static header from a secret
+ * @property {{ tokenUrl: string, clientId: string, clientSecret?: SecretRef, assertion?: SecretRef, scope?: string, audience?: string, resource?: string, intranet?: boolean }} [clientCredentials]
+ * @property {{ tokenUrl?: string, clientId: string, clientSecret: SecretRef, audience?: string, resource?: string, scope?: string, maxAgeSeconds?: number, intranet?: boolean }} [tokenExchange]
+ */
+
+/** The defaults of a backend's sign-in. */
+export const AUTH_DEFAULTS = Object.freeze({ headerName: "authorization", maxAgeSeconds: 300, maxAgeMax: 86_400 });
+
 /** The defaults of an HTTP source (a backend's value, then the source's own, win). */
 export const HTTP_DEFAULTS = Object.freeze({ ttl: 60, maxStale: 3600, timeMs: 15_000, maxBytes: 20_971_520, maxPages: 10, format: "json" });
 
 /** The most pages and the longest load an HTTP source may have. */
 export const HTTP_MAX = Object.freeze({ pages: 100, timeMs: 600_000 });
 
-/** The headers a configuration may not set: the connection's own, and sign-in, which goes to http.auth. */
-const REFUSED_HEADERS = /^(authorization|cookie|host|content-length|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded)$/i;
+/** The headers no configuration sets: the connection's own (and what a proxy adds). */
+const CONNECTION_HEADERS = /^(host|content-length|transfer-encoding|connection|te|trailer|upgrade|keep-alive|accept-encoding|proxy-.*|x-forwarded-.*|forwarded)$/i;
+
+/** The sign-in headers, which go to http.auth (a secret reference), never to http.headers (a literal). */
+const SIGN_IN_HEADERS = /^(authorization|cookie)$/i;
 
 /** A header's name (RFC 9110 token). */
 export const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,64}$/;
@@ -78,6 +97,15 @@ const PAGING = { custom: pagingProblems };
 /** A map of texts (headers, query). */
 const TEXTS = { map: "string" };
 
+/** A backend's sign-in (http.auth, httpSources.backends.<name>.auth): its keys; backendAuthOf checks the rest. */
+const AUTH = {
+    object: {
+        header: { object: { name: "string", prefix: "string", value: SECRET_REF } },
+        clientCredentials: { object: { tokenUrl: "string", clientId: "string", clientSecret: SECRET_REF, assertion: SECRET_REF, scope: "string", audience: "string", resource: "string", intranet: "boolean" } },
+        tokenExchange: { object: { tokenUrl: "string", clientId: "string", clientSecret: SECRET_REF, audience: "string", resource: "string", scope: "string", maxAgeSeconds: "integer", intranet: "boolean" } }
+    }
+};
+
 /** @type {Readonly<Partial<Record<import("./shared.js").Slot, Record<string, any>>>>} */
 export const KEYS = Object.freeze({
     top: {
@@ -85,7 +113,7 @@ export const KEYS = Object.freeze({
             object: {
                 enabled: "boolean",
                 allowIpLiterals: "boolean",
-                backends: { map: { object: { url: "string", intranet: "boolean", headers: TEXTS, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } }
+                backends: { map: { object: { url: "string", intranet: "boolean", headers: TEXTS, auth: AUTH, timeMs: "integer", maxBytes: "integer", ttl: "integer", maxStale: "integer" } } }
             }
         }
     },
@@ -98,6 +126,7 @@ export const KEYS = Object.freeze({
                 intranet: "boolean",
                 query: TEXTS,
                 headers: TEXTS,
+                auth: AUTH,
                 rows: "string",
                 format: { enum: ["json", "csv"] },
                 asOf: "string",
@@ -180,7 +209,138 @@ export const pointerKeys = (text) => (text === "" ? [] : text.slice(1).split("/"
  * @property {number} maxStale
  * @property {string[]} unused  declared params no template uses
  * @property {string[]} secretLooking  header and query names that look like a secret's with a literal value (never the value)
+ * @property {BackendAuth | null} auth  the backend's sign-in (the source's own, else its backend's)
  */
+
+/**
+ * A backend's sign-in as sources/auth.js uses it, checked and compiled once. `hash` names the
+ * settings (never a secret: the references only) for the token cache; `at` is where it is configured,
+ * for messages.
+ * @typedef {{ kind: "header", at: string, hash: string, name: string, prefix: string, value: SecretRef, baseDir: string | undefined }
+ *   | { kind: "clientCredentials", at: string, hash: string, tokenUrl: string, clientId: string, clientSecret: SecretRef | null, assertion: SecretRef | null, scope: string | null, audience: string | null, resource: string | null, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }
+ *   | { kind: "tokenExchange", at: string, hash: string, tokenUrl: string | null, issuer: string | null, clientId: string, clientSecret: SecretRef, scope: string | null, audience: string | null, resource: string | null, maxAgeSeconds: number, intranet: boolean, allowIpLiterals: boolean, baseDir: string | undefined }} BackendAuth
+ */
+
+/** A text of the sign-in's settings (a client id, a scope): no control characters, at most `max`. */
+const plainText = (value, max) => typeof value === "string" && value.length > 0 && value.length <= max && !/\p{Cc}/u.test(value);
+
+/**
+ * Checks a token endpoint's address: https://, no user name or password, no fragment, an IP
+ * address only with httpSources.allowIpLiterals. Throws ConfigError.
+ * @param {string} text
+ * @param {string} at
+ * @param {boolean} allowIpLiterals
+ */
+function tokenUrlOf(text, at, allowIpLiterals) {
+    let url;
+    try {
+        url = new URL(text);
+    } catch {
+        throw new ConfigError(`${at}: an https:// address`);
+    }
+    if (url.protocol !== "https:") {
+        throw new ConfigError(`${at}: must start with https:// (the token endpoint gets the client's secret)`);
+    }
+    if (url.username || url.password || url.hash) {
+        throw new ConfigError(`${at}: no user name, password or fragment in the address (the client's secret goes in clientSecret)`);
+    }
+    if (!allowIpLiterals && /^\[|^\d+\.\d+\.\d+\.\d+$/.test(url.hostname)) {
+        throw new ConfigError(`${at}: an IP address as the host is refused unless httpSources.allowIpLiterals is true; use the host's name`);
+    }
+    return url.href;
+}
+
+/**
+ * Checks and compiles a backend's sign-in (http.auth or httpSources.backends.<name>.auth); throws
+ * ConfigError. The keys themselves (and each secret reference) were checked by the options' schema.
+ * @param {import("../config.js").ServerOptions} options
+ * @param {BackendAuthOptions} auth
+ * @param {string} at  where it is configured
+ * @param {Record<string, string>} headers  the static headers the requests carry (names in lower case)
+ * @returns {BackendAuth}
+ */
+export function backendAuthOf(options, auth, at, headers) {
+    const kinds = ["header", "clientCredentials", "tokenExchange"].filter((k) => /** @type {any} */ (auth)[k] !== undefined);
+    if (kinds.length !== 1) {
+        throw new ConfigError(`${at}: exactly one of header, clientCredentials or tokenExchange`);
+    }
+    const kind = kinds[0];
+    const allowIpLiterals = options.httpSources?.allowIpLiterals === true;
+    const hash = createHash("sha256").update(canonicalJson([at, options.baseDir ?? null, auth])).digest("base64url");
+    const common = { at: `${at}.${kind}`, hash, baseDir: options.baseDir };
+    const texts = (given, keys) => {
+        for (const key of keys) {
+            if (given[key] !== undefined && !plainText(given[key], 1000)) {
+                throw new ConfigError(`${at}.${kind}.${key}: a text of at most 1000 characters without control characters`);
+            }
+        }
+        if (given.resource !== undefined && !URL.canParse(given.resource)) {
+            throw new ConfigError(`${at}.${kind}.resource: an absolute URI (RFC 8707), such as https://api.example.com/`);
+        }
+    };
+    if (kind === "header") {
+        const h = /** @type {NonNullable<BackendAuthOptions["header"]>} */ (auth.header);
+        const name = (h.name ?? AUTH_DEFAULTS.headerName).toLowerCase();
+        if (!HEADER_NAME.test(name) || CONNECTION_HEADERS.test(name)) {
+            throw new ConfigError(`${at}.header.name: a header's name that the connection does not set itself (such as authorization or x-api-key)`);
+        }
+        if (Object.hasOwn(headers, name)) {
+            throw new ConfigError(`${at}.header.name: ${name} is also a static header (http.headers); a request carries it once`);
+        }
+        if (h.prefix !== undefined && !/^[\x20-\x7e]{0,100}$/.test(h.prefix)) {
+            throw new ConfigError(`${at}.header.prefix: printable ASCII, at most 100 characters (such as "Bearer ")`);
+        }
+        if (h.value === undefined) {
+            throw new ConfigError(`${at}.header.value: the secret reference, { "env": "NAME" } or { "file": "path" }`);
+        }
+        return Object.freeze({ ...common, kind: /** @type {const} */ ("header"), name, prefix: h.prefix ?? "", value: h.value });
+    }
+    if (kind === "clientCredentials") {
+        const c = /** @type {NonNullable<BackendAuthOptions["clientCredentials"]>} */ (auth.clientCredentials);
+        if (typeof c.tokenUrl !== "string") {
+            throw new ConfigError(`${at}.clientCredentials.tokenUrl: the token endpoint's https:// address`);
+        }
+        if (!plainText(c.clientId, 200)) {
+            throw new ConfigError(`${at}.clientCredentials.clientId: the client's id, a text of at most 200 characters`);
+        }
+        if ((c.clientSecret === undefined) === (c.assertion === undefined)) {
+            throw new ConfigError(`${at}.clientCredentials: either clientSecret or assertion (a JWT such as a Kubernetes service account token), as a secret reference`);
+        }
+        texts(c, ["scope", "audience", "resource"]);
+        return Object.freeze({ ...common, kind: /** @type {const} */ ("clientCredentials"), tokenUrl: tokenUrlOf(c.tokenUrl, `${at}.clientCredentials.tokenUrl`, allowIpLiterals), clientId: c.clientId, clientSecret: c.clientSecret ?? null, assertion: c.assertion ?? null, scope: c.scope ?? null, audience: c.audience ?? null, resource: c.resource ?? null, intranet: c.intranet === true, allowIpLiterals });
+    }
+    const x = /** @type {NonNullable<BackendAuthOptions["tokenExchange"]>} */ (auth.tokenExchange);
+    if (options.auth?.mode !== "oauth") {
+        throw new ConfigError(`${at}.tokenExchange: needs auth.mode "oauth": the token exchange is made with the signed-in person's token`);
+    }
+    if (!plainText(x.clientId, 200)) {
+        throw new ConfigError(`${at}.tokenExchange.clientId: pivotkit's client id at the token endpoint, a text of at most 200 characters`);
+    }
+    if (x.clientSecret === undefined) {
+        throw new ConfigError(`${at}.tokenExchange.clientSecret: the client's secret, as a secret reference (only a confidential client may exchange tokens)`);
+    }
+    if (x.audience === undefined && x.resource === undefined) {
+        throw new ConfigError(`${at}.tokenExchange: audience or resource names the backend the exchanged token is for`);
+    }
+    texts(x, ["scope", "audience", "resource"]);
+    if (x.maxAgeSeconds !== undefined && (x.maxAgeSeconds < 1 || x.maxAgeSeconds > AUTH_DEFAULTS.maxAgeMax)) {
+        throw new ConfigError(`${at}.tokenExchange.maxAgeSeconds: 1 to ${AUTH_DEFAULTS.maxAgeMax}`);
+    }
+    return Object.freeze({
+        ...common,
+        kind: /** @type {const} */ ("tokenExchange"),
+        tokenUrl: x.tokenUrl !== undefined ? tokenUrlOf(x.tokenUrl, `${at}.tokenExchange.tokenUrl`, allowIpLiterals) : null,
+        issuer: options.auth?.issuer ?? null,
+        clientId: x.clientId,
+        clientSecret: x.clientSecret,
+        scope: x.scope ?? null,
+        audience: x.audience ?? null,
+        resource: x.resource ?? null,
+        maxAgeSeconds: x.maxAgeSeconds ?? AUTH_DEFAULTS.maxAgeSeconds,
+        intranet: x.intranet === true,
+        allowIpLiterals
+    });
+}
 
 /** Each HTTP source's settings, by its configured object. */
 const compiled = new WeakMap();
@@ -210,8 +370,11 @@ function headersOf(headers, path) {
         if (!HEADER_NAME.test(name)) {
             throw new ConfigError(`${path}.${name.slice(0, 60)}: not a header name`);
         }
-        if (REFUSED_HEADERS.test(name)) {
-            throw new ConfigError(`${path}.${name}: this header is set by the connection or is a sign-in; a backend's sign-in is not configured in headers`);
+        if (CONNECTION_HEADERS.test(name)) {
+            throw new ConfigError(`${path}.${name}: this header is set by the connection, not by the configuration`);
+        }
+        if (SIGN_IN_HEADERS.test(name)) {
+            throw new ConfigError(`${path}.${name}: a sign-in header holds a secret, which is never written in the configuration; set the backend's sign-in in http.auth (a header from a secret reference, client credentials or token exchange)`);
         }
         if (!HEADER_VALUE.test(value)) {
             throw new ConfigError(`${path}.${name}: a value without line breaks, NUL or characters outside Latin-1, at most 1000 characters`);
@@ -244,9 +407,10 @@ function pagingOf(paging) {
  * @param {import("../config.js").ServerOptions} options
  * @param {string} id
  * @param {any} source
+ * @param {Map<string, BackendAuth>} backendAuths  each backend's compiled sign-in, by name
  * @returns {HttpSettings}
  */
-function compileSource(options, id, source) {
+function compileSource(options, id, source, backendAuths) {
     const http = source.http;
     const at = `sources.${id}.http`;
     const hasBackend = http.backend !== undefined || http.path !== undefined;
@@ -311,6 +475,11 @@ function compileSource(options, id, source) {
     }
     // a backend's settings were checked with the backends; its headers merged under the source's
     const headers = { ...(backend ? headersOf(backend.headers, `httpSources.backends.${http.backend}.headers`) : {}), ...headersOf(http.headers, `${at}.headers`) };
+    // the source's own sign-in, else its backend's (compiled once per backend, so its sources share a token)
+    const auth = http.auth !== undefined ? backendAuthOf(options, http.auth, `${at}.auth`, headers) : hasBackend ? (backendAuths.get(http.backend) ?? null) : null;
+    if (auth && hasBackend && http.auth === undefined && auth.kind === "header" && Object.hasOwn(headers, auth.name)) {
+        throw new ConfigError(`${at}.headers.${auth.name}: the backend's sign-in (httpSources.backends.${http.backend}.auth) sets this header`);
+    }
     const secretLooking = [...Object.keys(headers).map((n) => `header ${n}`), ...template.query.filter((q) => q.param === null).map((q) => `query ${q.name}`)].filter((n) => SECRET_NAME.test(n.split(" ")[1]));
     return Object.freeze({
         id,
@@ -332,7 +501,8 @@ function compileSource(options, id, source) {
         ttl: source.ttl ?? backend?.ttl ?? HTTP_DEFAULTS.ttl,
         maxStale: source.maxStale ?? backend?.maxStale ?? HTTP_DEFAULTS.maxStale,
         unused: Object.keys(source.params ?? {}).filter((name) => !template.uses.has(name)),
-        secretLooking
+        secretLooking,
+        auth
     });
 }
 
@@ -341,6 +511,8 @@ function compileSource(options, id, source) {
  * @param {import("../config.js").ServerOptions} options
  */
 export function validate(options) {
+    /** @type {Map<string, BackendAuth>} */
+    const backendAuths = new Map();
     for (const [name, backend] of Object.entries(options.httpSources?.backends ?? {})) {
         const at = `httpSources.backends.${name}`;
         if (typeof backend.url !== "string") {
@@ -354,13 +526,21 @@ export function validate(options) {
         } catch (e) {
             throw new ConfigError(`${at}.url: ${/** @type {Error} */ (e).message}`);
         }
-        headersOf(backend.headers, `${at}.headers`);
+        const headers = headersOf(backend.headers, `${at}.headers`);
+        if (backend.auth !== undefined) {
+            backendAuths.set(name, backendAuthOf(options, backend.auth, `${at}.auth`, headers));
+        }
         if (backend.timeMs !== undefined && (backend.timeMs < 1 || backend.timeMs > HTTP_MAX.timeMs)) {
             throw new ConfigError(`${at}.timeMs: 1 to ${HTTP_MAX.timeMs}`);
         }
     }
     const profiles = Object.values(options.policy?.profiles ?? {});
     for (const [id, source] of Object.entries(options.sources ?? {})) {
+        // a parameter bound to a claim (HTTP and code sources) is filled from a verified token's claim
+        const claimed = Object.entries(source.params ?? {}).find(([, p]) => p && typeof p === "object" && p.claim !== undefined);
+        if (claimed && options.auth?.mode !== "oauth") {
+            throw new ConfigError(`sources.${id}.params.${claimed[0]}.claim: needs auth.mode "oauth": the value comes from the signed-in person's verified token`);
+        }
         if (!source.http) {
             continue;
         }
@@ -368,6 +548,6 @@ export function validate(options) {
         if ([undefined, ...profiles].some((profile) => resolvePolicy(options.policy, source.policy, profile).default === "show")) {
             throw new ConfigError(`sources.${id}.policy: an HTTP source needs a default that is not "show", under the server's policy and every profile: a field the backend adds later would be shown without anyone deciding; set sources.${id}.policy.default to "hide" and list the fields to show in sources.${id}.policy.fields`);
         }
-        compiled.set(source, compileSource(options, id, source));
+        compiled.set(source, compileSource(options, id, source, backendAuths));
     }
 }

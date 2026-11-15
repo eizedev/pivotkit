@@ -66,7 +66,12 @@ memory until it is pushed out or the process restarts.
 
 An [HTTP source](reference/sources.md#http) sends the values a caller passes for its parameters to
 the operator's backend, in the address the operator configured, and nothing else of the caller: no
-token, no identity. Its data is kept per person in the same way (`ttl`, 60 seconds by default). The
+token, no identity, unless the operator configured one of these
+([backend sign-in](reference/sources.md#http-auth)): a token exchange sends the person's access token
+to the provider's token endpoint and gives the backend a token for that person; a parameter bound to
+a claim sends that claim's value (a customer id, a verified email) to the backend. Only the claims
+the configuration names are read from a token, and they are never logged. Exchanged tokens are kept
+in memory only, at most until the person's own token expires. The HTTP source's data is kept per person in the same way (`ttl`, 60 seconds by default). The
 log holds the backend's status, the address template and the source's id, never a value; with
 `log: "debug"` also each request's path with the values written as `{name}`.
 

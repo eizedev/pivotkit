@@ -404,8 +404,18 @@ address is the operator's, never a caller's:
   are bounded.
 - A backend's body, and the words of a failed request, never reach a caller or the log; its 401,
   403 and 404 for a source with parameters give one answer, so a caller cannot probe which other
-  customers exist. pivotkit sends no credentials of its own to a backend, and a header that carries
-  a sign-in cannot be configured.
+  customers exist.
+- A backend's sign-in ([backend sign-in](reference/sources.md#http-auth)) is a header from a secret
+  reference, OAuth client credentials or a token exchange; a secret is never written in the
+  configuration, logged or printed by `check-config` and `check-source`. A person's own access token
+  goes only to the token endpoint as the token exchange's `subject_token`, never to a backend
+  (no token passthrough). An exchanged token is kept per person, client and scopes, and never longer
+  than the person's own token and `maxAgeSeconds`. The token endpoint's `error_description` is
+  dropped. Configure the provider so only pivotkit's client may exchange, only tokens for pivotkit's
+  resource, only to the named audience.
+- A parameter bound to a claim of the verified token gives a backend without per-person rights each
+  person's own rows; it needs a pattern or a list, takes only a verified email, and is never set by a
+  caller or said back.
 - The policy of an HTTP source must hide fields by default, so a field the backend adds later is not
   shown without anyone deciding; its data is kept per caller and values, never shared between
   callers.
