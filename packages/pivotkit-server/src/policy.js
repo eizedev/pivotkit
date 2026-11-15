@@ -162,13 +162,18 @@ const nameText = (name) => {
  * @param {any} result  describe_source's result (asked with items = policy.items)
  * @param {Policy} policy
  * @param {number} hidden  the number of columns dropped
+ * @param {Map<string, string>} [descriptions]  the operator's words about fields, by fieldKey (sources.<id>.fields.<name>.description), shown at every level
  */
-export function exposeSource(result, policy, hidden) {
+export function exposeSource(result, policy, hidden, descriptions = undefined) {
     const fields = result.fields.map((f) => {
         const level = levelOf(policy, f.name);
         const name = nameText(f.name);
         /** @type {Record<string, unknown>} */
         const out = { name, type: f.type, level };
+        const description = descriptions?.get(fieldKey(f.name));
+        if (description) {
+            out.description = description;
+        }
         if (policy.counts && f.distinct !== undefined) {
             out.distinct = f.distinct;
             out.blanks = f.blanks;

@@ -58,6 +58,7 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
  * @property {string} [title]  the report's title; default the view file's name, the chart's title, "Report"
  * @property {string} [description]  default the view file's description
  * @property {string} [source]  where the data comes from, for the report's details (a file name)
+ * @property {string} [dataAsOf]  when the data is from, ISO 8601 in UTC to the second ("2026-11-15T08:00:00Z"); checked, not printed by this version
  * @property {string} [template]  html: a print template (parseTemplate), default DEFAULT_TEMPLATE
  * @property {boolean | "auto"} [chart]  html: with the chart; "auto" (default) when the view shows the chart
  * @property {"image" | "inline"} [chartEmbed]  html: the chart as a data: image (default) or as inline SVG
@@ -71,7 +72,10 @@ const RTL = new Set(["ar", "he", "fa", "ur", "ps", "sd", "ug", "yi", "dv", "ckb"
 const OPTION_VALUES = Object.freeze({ chart: [true, false, "auto"], chartEmbed: ["image", "inline"], bom: [true, false], strict: [true, false], trusted: [true, false] });
 
 /** The names of RenderOptions: any other is refused, so a misspelt option is not ignored. */
-const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom"]);
+/** The one form of dataAsOf: ISO 8601 in UTC to the second. */
+const DATA_AS_OF = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+const OPTION_KEYS = Object.freeze(["format", "locale", "timeZone", "now", "limits", "trusted", "strict", "labels", "texts", "tokens", "title", "description", "source", "template", "chart", "chartEmbed", "echarts", "size", "tableCells", "bom", "dataAsOf"]);
 
 /**
  * @typedef {object} RenderResult
@@ -160,6 +164,9 @@ export async function render(view, data, options = {}) {
     }
     if ((format === "svg" || (format === "html" && options.chart === true)) && typeof options.echarts?.init !== "function") {
         throw badOption("echarts", `${format === "svg" ? "an SVG" : "a report with chart: true"} needs ECharts: pass the echarts module (with its SVG renderer) as options.echarts`);
+    }
+    if (options.dataAsOf !== undefined && !(typeof options.dataAsOf === "string" && DATA_AS_OF.test(options.dataAsOf))) {
+        throw badOption("dataAsOf", 'dataAsOf is a time in UTC to the second: "2026-11-15T08:00:00Z"');
     }
     if (options.now !== undefined) {
         // checked here, so a wrong one is named as an option before any work

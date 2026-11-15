@@ -32,7 +32,7 @@ body). The routes are RPC-style (`POST /views/validate`), one per operation of t
 
 | Route | Operation | What it does |
 | --- | --- | --- |
-| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works |
+| `GET /sources` | `list_sources` | The sources the caller may use: id, title, whether a link or a schedule works, the parameters a source takes |
 | `GET /sources/{id}` | `describe_source` | A source's fields with their type, level and counts, the aggregators and filters each works with, example views |
 | `POST /sources/describe` | `describe_source` | The same, with `{ "source": "<id>" }` |
 | `POST /views/suggest` | `suggest_view` | A draft view from the source's fields, with the fields it picked (`picks`); a `layout` replaces the parts it gives |
@@ -63,9 +63,17 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 { "ok": true, "findings": [], "uses": ["Region", "Sales"], "format": "xlsx",
   "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "withheld": ["rows", "columns", "bytes", "content"],
+  "dataAsOf": "2026-11-15T08:00:00Z",
   "output": { "name": "sales.pivotkit-out.xlsx", "format": "xlsx", "mediaType": "..." },
-  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales." }
+  "message": "The report is saved as sales.pivotkit-out.xlsx in the output directory. Its content is not part of this answer, since the operator does not show the values of Sales. Data as of 2026-11-15 08:00 UTC." }
 ```
+
+Every answer over a source's data (all routes but `GET /sources` and `GET /views/guide`) carries
+`dataAsOf`: when the data is from, in UTC to the second (a file's modification time, a code source's
+own time or when it gave the data), parsed and written again by the server in this one form.
+A source a library host configured with parameters takes their values as `params` with its id
+(`{ "source": "tickets", "params": { "team": "blue" } }`); `GET /sources` lists them, and the routes
+take `params` only when a configured source declares any ([parameters](mcp.md#configuration)).
 
 `render_view` saves the file in the server's output directory (`output.dir`) and says where
 (`output.name`, and `output.url` when `output.baseUrl` is set). The file's name is `name` from the
@@ -286,6 +294,7 @@ carry `Retry-After`.
 | 429 | <a id="error-rate-limited"></a>`RATE_LIMITED` | A [limit](#limits) |
 | 500 | <a id="error-internal"></a>`INTERNAL` | Anything else; the details only in the log with `--log debug` |
 | 503 | <a id="error-busy"></a>`BUSY`, <a id="error-not-ready"></a>`NOT_READY`, <a id="error-auth-not-ready"></a>`AUTH_NOT_READY` | No worker free; starting or stopping; the OAuth issuer not loaded yet |
+| 404, 422, 502 | <a id="error-data-not-available"></a>`DATA_NOT_AVAILABLE`, <a id="error-data-mismatch"></a>`DATA_MISMATCH`, <a id="error-source-unavailable"></a>`SOURCE_UNAVAILABLE`, <a id="error-upload-failed"></a>`UPLOAD_FAILED` | Reserved for sources and delivery that load data or store reports elsewhere; this version does not answer them |
 | 504 | <a id="error-timeout"></a>`TIMEOUT` | A report over `compute.timeMs` |
 
 ## The OpenAPI document { #openapi }

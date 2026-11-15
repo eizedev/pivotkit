@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { connect } from "node:net";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -242,5 +242,34 @@ test("oauth without required scopes or tool scopes: REST warns at start, as MCP 
         assert.ok(!scoped.log.some((l) => l.event === "warning" && /REST: no required scopes/.test(l.message)));
     } finally {
         await scoped.close();
+    }
+});
+
+test("serveFetch: a client that leaves cancels the streamed answer it was waiting for", async () => {
+    let cancelled = 0;
+    const listening = await serveFetch(
+        {
+            fetch: async () =>
+                // an answer that would stream for ever: only a cancel ends it
+                new Response(new ReadableStream({ start: (controller) => controller.enqueue(new TextEncoder().encode(": open\n\n")), pull: () => new Promise((resolve) => setTimeout(resolve, 60_000).unref()), cancel: () => void cancelled++ }), { headers: { "content-type": "text/event-stream" } })
+        },
+        { host: "127.0.0.1", port: 0, bodyBytes: 1024 }
+    );
+    try {
+        await new Promise((resolve) => {
+            const req = httpRequest({ host: "127.0.0.1", port: listening.port, path: "/", method: "GET" });
+            req.on("error", () => resolve(undefined));
+            req.on("response", () => {
+                req.destroy();
+                resolve(undefined);
+            });
+            req.end();
+        });
+        for (let i = 0; i < 50 && !cancelled; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        assert.equal(cancelled, 1);
+    } finally {
+        await listening.close();
     }
 });

@@ -11,6 +11,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { LIMITS, closest } from "pivotkit-core";
 import { OPERATION_NAMES } from "pivotkit-report/operations";
 import { POLICY_LEVELS } from "./policy.js";
+import { declaredProblems } from "./sources/params.js";
 
 export class ConfigError extends Error {
     /** @param {string} message */
@@ -46,6 +47,8 @@ export class ConfigError extends Error {
  * @property {string} [template]  an HTML print template file for render_view's html
  * @property {string[]} [scopes]  OAuth scopes a caller needs to see and use the source
  * @property {PolicyOptions} [policy]
+ * @property {Record<string, { type: "string" | "integer" | "number" | "boolean", required?: boolean, description?: string, example?: string | number | boolean, enum?: Array<string | number>, pattern?: string, minLength?: number, maxLength?: number, minimum?: number, maximum?: number, format?: "date", default?: string | number | boolean }>} [params]  values a caller passes with the source (a code source gets them: load(params, { caller }))
+ * @property {Record<string, { description?: string }>} [fields]  the operator's words about fields, shown by describe_source (at most 500 characters each)
  */
 
 /**
@@ -94,6 +97,7 @@ export class ConfigError extends Error {
  * @property {string[]} [requiredScopes]
  * @property {Record<string, string[]>} [toolScopes]
  * @property {string} [scopeClaim]
+ * @property {string} [subjectClaim]  the claim that names the person (default "sub"): the identity caches and bindings use
  * @property {number} [clockTolerance]
  * @property {string} [requireTyp]
  * @property {boolean} [allowInsecureIssuer]
@@ -114,7 +118,8 @@ export const OUTPUT_DEFAULTS = Object.freeze({ maxFiles: 1000, maxMb: 1024 });
 export const DEFAULT_ALGORITHMS = Object.freeze(["RS256", "PS256", "ES256", "EdDSA"]);
 
 // A small schema language for the options: "string", "boolean", "integer", "strings" (array of
-// strings), "function", { enum: [...] }, { object: {...} } (known keys), { map: <schema> } (any keys)
+// strings), "function", { enum: [...] }, { object: {...} } (known keys), { map: <schema> } (any keys),
+// { custom: (value) => problems } (a check of its own, each problem "<key path>: <what>")
 const POLICY = { object: { default: { enum: POLICY_LEVELS }, fields: { map: { enum: POLICY_LEVELS } }, items: "integer", rows: "boolean", counts: "boolean", inline: { or: [{ const: false }, { object: { cells: "integer", bytes: "integer" } }] }, results: "boolean" } };
 /** The server's policy: a source's, plus the named profiles. */
 const SERVER_POLICY = { object: { ...POLICY.object, profiles: { map: POLICY } } };
@@ -124,7 +129,7 @@ export const ENDPOINTS = Object.freeze(["mcp", "rest"]);
 
 /** Every option, nested as the options object is. */
 export const OPTION_KEYS = Object.freeze({
-    sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: POLICY } } },
+    sources: { map: { object: { file: "string", load: "function", version: "function", title: "string", description: "string", sheet: "string", link: "string", linkKey: "string", template: "string", scopes: "strings", policy: POLICY, params: { custom: declaredProblems }, fields: { map: { object: { description: "string" } } } } } },
     files: { object: { allowDirs: "strings", list: "boolean", hardLinks: "boolean", scopes: "strings", policy: POLICY } },
     output: { object: { dir: "string", create: "boolean", baseUrl: "string", maxFiles: "integer", maxMb: "integer", maxAgeDays: "integer" } },
     policy: SERVER_POLICY,
@@ -147,6 +152,7 @@ export const OPTION_KEYS = Object.freeze({
             requiredScopes: "strings",
             toolScopes: { map: "strings" },
             scopeClaim: "string",
+            subjectClaim: "string",
             clockTolerance: "integer",
             requireTyp: "string",
             allowInsecureIssuer: "boolean",
@@ -193,6 +199,10 @@ function check(value, schema, path) {
     }
     if (schema === "strings") {
         return (Array.isArray(value) && value.every((v) => typeof v === "string")) || fail("must be a list of texts");
+    }
+    if (schema.custom) {
+        const problems = schema.custom(value);
+        return !problems.length || fail(problems.join("; "));
     }
     if (schema.enum) {
         return schema.enum.includes(value) || fail(`must be one of ${schema.enum.join(", ")}${typeof value === "string" && closest(value, schema.enum) ? `; did you mean ${closest(value, schema.enum)}?` : ""}`);
@@ -251,6 +261,14 @@ export function validateOptions(options) {
         }
         if (source.link !== undefined) {
             urlOf(source.link, `sources.${id}.link`);
+        }
+        if (source.params !== undefined && !source.load) {
+            throw new ConfigError(`sources.${id}.params: only a code source (load) takes params`);
+        }
+        for (const [name, field] of Object.entries(source.fields ?? {})) {
+            if ((field.description?.length ?? 0) > 500) {
+                throw new ConfigError(`sources.${id}.fields.${name.slice(0, 60)}.description: at most 500 characters`);
+            }
         }
     }
     for (const key of Object.keys(options.limits ?? {})) {

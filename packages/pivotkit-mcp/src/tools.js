@@ -29,9 +29,10 @@ const VIEW_ONLY = new Set(["create_link", "draft_schedule"]);
  * The tool's input schema: presentedInput, and for a tool of VIEW_ONLY a `layout` it refuses itself
  * (the SDK checks the schema before the tool runs and would list every property it misses).
  * @param {string} name
+ * @param {any} [offers]  the extra inputs the server offers on MCP (context.offers.mcp)
  */
-function inputSchemaOf(name) {
-    const schema = /** @type {any} */ (presentedInput(name));
+function inputSchemaOf(name, offers) {
+    const schema = /** @type {any} */ (presentedInput(name, { offers }));
     if (!VIEW_ONLY.has(name)) {
         return schema;
     }
@@ -66,7 +67,7 @@ export function registerTools(server, context, caller) {
             {
                 title: op.title,
                 description: descriptionOf(name),
-                inputSchema: fromJsonSchema(inputSchemaOf(name)),
+                inputSchema: fromJsonSchema(inputSchemaOf(name, context.offers?.mcp)),
                 outputSchema: fromJsonSchema(/** @type {any} */ (presentedOutput(name))),
                 annotations: annotationsOf(op),
                 ...(scopes.length && context.authMode === "oauth"

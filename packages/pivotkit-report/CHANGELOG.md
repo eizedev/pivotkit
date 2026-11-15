@@ -6,6 +6,15 @@ All notable changes to `pivotkit-report` are documented in this file. The format
 
 ## [Unreleased]
 
+### Added
+
+- `OPERATION_ERRORS` has `DATA_MISMATCH` (422), `DATA_NOT_AVAILABLE` (404), `SOURCE_UNAVAILABLE` (502)
+  and `UPLOAD_FAILED` (502); `OperationError` takes `details` (`requestId`, `retryable`,
+  `retryAfter`).
+- A front end's `data(source)` may give `asOf` (and `stale`); `render_view` passes it to `render` as
+  the option `dataAsOf`, which `render` checks (UTC to the second) and does not print yet.
+- list_sources' output schema has `params` per source; describe_source's a field's `description`.
+
 ## [0.2.1] - 2026-11-14
 
 ### Added

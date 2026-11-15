@@ -40,6 +40,15 @@ export default [
         languageOptions: { globals: { ...globals.node } }
     },
     {
+        // a caller's access token leaves auth.js only through exchangeTokenFor, and only the token
+        // exchange of HTTP sources (sources/auth.js) may call it
+        files: ["packages/pivotkit-server/src/**/*.js"],
+        ignores: ["packages/pivotkit-server/src/auth.js", "packages/pivotkit-server/src/sources/auth.js"],
+        rules: {
+            "no-restricted-imports": ["error", { patterns: [{ regex: "(^|/)auth\\.js$", importNames: ["exchangeTokenFor"], message: "only sources/auth.js may use exchangeTokenFor (the caller's token goes to a token endpoint and nowhere else)" }] }]
+        }
+    },
+    {
         // the UI, the web component, the playground and the element example run in browsers
         files: ["packages/pivotkit-react/src/**", "packages/pivotkit-element/src/**", "examples/*/src/**", "examples/element/**"],
         languageOptions: { globals: { ...globals.browser } }
