@@ -5,10 +5,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { CODE_DEFAULTS, ConfigError, SourceError, callerOf, checkConfig, createContext, present, serverTextOf, validateOptions } from "pivotkit-server";
-import { LOAD_CACHE, columnarBytes, createLoadCache, encodedBytes } from "../src/sources/cache.js";
+import { LOAD_CACHE, createLoadCache, encodedBytes } from "../src/sources/cache.js";
 import { LOAD_LIMITS, createLoadRunner, isTransient, sourceFailure } from "../src/sources/run.js";
+import { createComputer } from "../src/compute.js";
+import { packTable, packedBytes, unpackTable } from "../src/packed.js";
 import { call, restServer, workspace } from "./helpers.js";
 
 const LOCAL = callerOf("none", undefined);
@@ -983,9 +986,126 @@ test("where it runs: the same result, hidden fields and dataAsOf as before; rows
     }
 });
 
-test("the load cache measures a code source's table: 8 bytes a value, each distinct text of a column once", () => {
-    const table = { columns: ["Region", "Sales"], data: [["North", "North", "South", null], [1, 2, 3, 4]] };
-    // values 2 x 4 x 8; texts North and South (16 + 10 each); names Region and Sales (16 + 12, 16 + 10)
-    assert.equal(columnarBytes(table), 64 + 52 + 54);
-    assert.equal(columnarBytes({ columns: ["A"], data: [["x", "y", "z", "x"]] }), 32 + 3 * 18 + 18);
+/** A code source's table of repeated long texts: three columns of 50 categories each, and a number. */
+const repeatedTexts = (n, length) => {
+    const values = Array.from({ length: 50 }, (_, i) => `category-${i}-`.padEnd(length, "x"));
+    return { columns: ["A", "B", "C", "Sales"], data: [0, 1, 2].map((c) => Array.from({ length: n }, (_, i) => values[(i * (c + 3)) % 50])).concat([Array.from({ length: n }, (_, i) => i % 1000)]) };
+};
+
+test("where it runs: a kept load goes to a worker once; warm calls send its key only, to the worker that kept it", async () => {
+    let loads = 0;
+    const table = repeatedTexts(100_000, 400);
+    const context = await contextOf({ compute: { workers: 2 }, sources: { t: { load: async () => (loads++, table), ttl: 60 } } });
+    try {
+        const counts = [];
+        for (let i = 0; i < 4; i++) {
+            const described = await describe(context);
+            assert.equal(described.result.rows, 100_000);
+            counts.push(described.result.fields.map((f) => f.name).join());
+        }
+        assert.deepEqual(new Set(counts), new Set(["A,B,C,Sales"]));
+        assert.equal(loads, 1);
+        assert.deepEqual(context.computer.sent(), { tables: 1, cached: 3 }, "warm calls do not send the table again");
+    } finally {
+        await context.close();
+    }
+});
+
+test("where it runs: a worker that pushed a kept table out asks for it, and gets it once", async () => {
+    const dir = workspace(Object.fromEntries(Array.from({ length: 4 }, (_, i) => [`f${i}.csv`, `Region,Sales\nNorth,${i}\n`])));
+    const computer = createComputer({ workers: 1 });
+    const levels = { default: "show", fields: {}, counts: true, rows: true };
+    const spec = { id: "t", kind: "source", name: "T", levels, limits: {}, schedulable: true };
+    const job = { spec, table: packTable({ columns: ["Region"], data: [["North", "South", "North"]] }, 3, 0), tableKey: "key-a", asOf: "2026-11-15T08:00:00Z" };
+    try {
+        assert.equal((await computer.run("describe_source", { source: "t" }, job)).outcome.result.rows, 3);
+        // four file sources fill the worker's four places; the table's key is still noted for it
+        for (let i = 0; i < 4; i++) {
+            const file = { ...spec, kind: "file", path: join(dir, "data", `f${i}.csv`), allow: [join(dir, "data")], hardLinks: true };
+            await computer.run("describe_source", { source: "t" }, { spec: file });
+        }
+        const again = await computer.run("describe_source", { source: "t" }, job);
+        assert.equal(again.outcome.result.rows, 3);
+        assert.equal(again.asOf, "2026-11-15T08:00:00Z");
+        assert.deepEqual(computer.sent(), { tables: 2, cached: 1 }, "sent without the table, asked for, sent with it");
+        await computer.run("describe_source", { source: "t" }, job);
+        assert.deepEqual(computer.sent(), { tables: 2, cached: 2 });
+    } finally {
+        await computer.close();
+    }
+});
+
+test("where it runs: a new load is a new table for the workers (version and ttl 0), never the one kept before", async () => {
+    let n = 0;
+    const view = { rows: ["A"], values: [{ field: "A", agg: "count" }] };
+    const context = await contextOf({ compute: { workers: 1 }, sources: { versioned: { load: async () => [{ A: `load-${++n}` }], version: () => n }, plain: { load: async () => [{ A: `load-${++n}` }], ttl: 0 } } });
+    try {
+        for (const source of ["versioned", "plain"]) {
+            const first = await present(context, "render_view", { source, view, format: "csv" }, LOCAL);
+            const second = await present(context, "render_view", { source, view, format: "csv" }, LOCAL);
+            assert.notEqual(first.result.inline.text, second.result.inline.text, source);
+            assert.match(second.result.inline.text, new RegExp(`load-${n}`), source);
+        }
+    } finally {
+        await context.close();
+    }
+});
+
+test("where it runs: a row's later spelling of a key wins; rows without a shown field keep their count", async () => {
+    const context = await contextOf({
+        sources: {
+            t: { load: async () => [{ Team: "a", team: "b" }] },
+            hidden: { load: async () => [{ S: 1 }, { S: 2 }, { S: 3 }], policy: { fields: { S: "hide" } } },
+            empty: { load: async () => [{}, {}, {}] }
+        }
+    });
+    try {
+        const rendered = await present(context, "render_view", { source: "t", view: { rows: ["Team"], values: [{ field: "Team", agg: "count" }] }, format: "csv" }, LOCAL);
+        assert.match(rendered.result.inline.text, /^b,1$/m);
+        assert.doesNotMatch(rendered.result.inline.text, /^a,/m);
+        for (const id of ["hidden", "empty"]) {
+            const described = await describe(context, LOCAL, undefined, id);
+            assert.equal(described.result.rows, 3, id);
+            assert.equal(described.result.fields.length, 0, id);
+        }
+        assert.equal((await describe(context, LOCAL, undefined, "hidden")).result.hiddenFields, 1);
+    } finally {
+        await context.close();
+    }
+});
+
+test("packed tables: each kind of column back as it was; their size counted exactly", () => {
+    const day = new Date(Date.UTC(2026, 10, 15));
+    const big = 2n ** 70n;
+    const table = {
+        columns: ["Text", "Number", "Date", "Flag", "Mixed"],
+        types: [undefined, "number", undefined, undefined, undefined],
+        data: [
+            ["North", null, "North", "", undefined],
+            [1.5, null, Number.NaN, -0, 7],
+            [day, null, new Date(Number.NaN), day, day],
+            [true, false, null, true, false],
+            ["x", 1, day, big, null]
+        ]
+    };
+    const packed = packTable(table, 5, 2);
+    assert.deepEqual(packed.columns.map((c) => c.kind), ["text", "number", "date", "boolean", "any"]);
+    assert.equal(packed.dropped, 2);
+    const back = /** @type {any} */ (unpackTable(packed));
+    assert.deepEqual(back.columns, table.columns);
+    assert.deepEqual(back.types, table.types);
+    assert.deepEqual(back.data[0], ["North", null, "North", "", null], "a blank text is null, as encode reads both");
+    assert.deepEqual(back.data[1], [1.5, null, Number.NaN, -0, 7]);
+    assert.deepEqual(back.data[2].map((d) => (d === null ? null : d.getTime())), [day.getTime(), null, Number.NaN, day.getTime(), day.getTime()]);
+    assert.deepEqual(back.data[3], [true, false, null, true, false]);
+    assert.equal(back.data[4], table.data[4], "a mixed column goes as it is");
+    assert.ok(packed.columns[0].codes.buffer instanceof SharedArrayBuffer);
+    // header 64; names; text: codes 5 x 4 and North, "" once each; number and date: 5 x 8 and a blank byte each; flags 5; mixed: 5 x 8, "x", a Date and a BigInt
+    const names = table.columns.reduce((n, c) => n + 16 + 2 * c.length, 0);
+    const expected = 64 + names + (20 + 8 + 26 + 8 + 16) + (40 + 5) + (40 + 5) + 5 + (40 + 18 + 24 + 24);
+    assert.equal(packedBytes(packed), expected);
+    // the same text in two strings is one entry; without columns the rows stay counted
+    const two = packTable({ columns: ["T"], data: [["ab", ["a", "b"].join("")]] }, 2, 0);
+    assert.deepEqual(/** @type {any} */ (two.columns[0]).dict, ["ab"]);
+    assert.deepEqual(unpackTable(packTable({ columns: [], data: [] }, 3, 1)), [{}, {}, {}]);
 });

@@ -15,7 +15,9 @@ import { asCliError, readSafe, readTable } from "pivotkit-cli/files";
 import { OperationError } from "pivotkit-report/operations";
 import { fieldKey, levelOf } from "./policy.js";
 import { sourceStats } from "./stats.js";
+import { isPacked, packTable, unpackTable } from "./packed.js";
 import { asOfText } from "./sources/as-of.js";
+import { encodedBytes } from "./sources/cache.js";
 import { uploadError } from "./sources/inline.js";
 import { ownError } from "./sources/run.js";
 
@@ -38,8 +40,28 @@ import { ownError } from "./sources/run.js";
 /** The data sets kept per process (a worker or the main thread). */
 export const CACHE_ENTRIES = 4;
 
+/** The bytes of encoded data kept per process unless the worker is told otherwise (compute.js: a quarter of compute.memoryMb). */
+export const CACHE_BYTES = 268_435_456;
+
 /** Data sets by key, least recently used first. */
 const cache = new Map();
+
+/** The bound on the bytes kept, and the bytes kept now (encodedBytes of each data set). */
+let cacheBytes = CACHE_BYTES;
+let keptBytes = 0;
+const sizes = new Map();
+
+/**
+ * Sets the bytes of encoded data this process keeps (a worker: a quarter of its memory), so a few
+ * large data sets cannot take the memory another caller's run needs.
+ * @param {number} bytes
+ */
+export function setCacheBytes(bytes) {
+    cacheBytes = bytes;
+}
+
+/** Whether a data set is kept under a table job's key (a worker that holds it needs no table). */
+export const holds = (key) => key !== null && cache.has(key);
 
 /** The data formats read, by extension. */
 const FORMATS = new Set(["csv", "tsv", "txt", "json", "xlsx"]);
@@ -62,13 +84,31 @@ function withoutHidden(table, hide) {
 /** Reader notes without those about a hidden column: nothing about it reaches the model. */
 const cleanNotes = (notes, hide) => notes.filter((n) => !hide.some((h) => fieldKey(n.message).includes(h)));
 
-/** Keeps a data set, the oldest going first. */
-function remember(key, value) {
+/** Drops a kept data set. */
+function forget(key) {
+    keptBytes -= sizes.get(key) ?? 0;
+    sizes.delete(key);
     cache.delete(key);
-    cache.set(key, value);
-    while (cache.size > CACHE_ENTRIES) {
-        cache.delete(cache.keys().next().value);
+}
+
+/** Keeps a data set, the oldest going first, at most CACHE_ENTRIES and cacheBytes; one larger than all of it is not kept. */
+function remember(key, value) {
+    if (cache.has(key)) {
+        // used again: now the most recent
+        cache.delete(key);
+        cache.set(key, value);
+        return value;
     }
+    const bytes = encodedBytes(value.data);
+    if (bytes > cacheBytes) {
+        return value;
+    }
+    while (cache.size && (cache.size >= CACHE_ENTRIES || keptBytes + bytes > cacheBytes)) {
+        forget(cache.keys().next().value);
+    }
+    cache.set(key, value);
+    sizes.set(key, bytes);
+    keptBytes += bytes;
     return value;
 }
 
@@ -178,10 +218,10 @@ function keysOf(row, max) {
  * runs only here, and its errors are the source's): checked against the run limits a file has (rows
  * before any is read, columns, cells), texts cut at limits.textLength, hidden fields left out. Rows
  * (`[{...}]` or `{ rows, asOf }`) or columnar data (`{ columns, types?, data, asOf? }`), always as
- * columnar data (posted to a worker at a third of the cost of row objects).
+ * columnar data, with the rows counted (also when no column is left).
  * @param {unknown} loaded
  * @param {SourceSpec} spec
- * @returns {{ columnar: { columns: string[], types?: string[], data: unknown[][] }, asOf: unknown, hidden: number }}
+ * @returns {{ columnar: { columns: string[], types?: string[], data: unknown[][] }, length: number, asOf: unknown, hidden: number }}
  */
 function loadedTable(loaded, spec) {
     const limits = { ...LIMITS, ...spec.limits };
@@ -209,7 +249,7 @@ function loadedTable(loaded, spec) {
             throw overLimit("importCells", rows.length * keys.size, limits.importCells, "cells");
         }
         const hide = new Set(hiddenOf(spec.levels, [...keys]));
-        return { columnar: columnsOfRows(rows, rowKeys, hide, limits.textLength), asOf, hidden: hide.size };
+        return { columnar: columnsOfRows(rows, rowKeys, hide, limits.textLength), length: rows.length, asOf, hidden: hide.size };
     }
     if (!shape || typeof shape !== "object" || typeof shape.column === "function" || !Array.isArray(shape.columns) || !Array.isArray(shape.data)) {
         throw ownError(new OperationError("INTERNAL", "a code source returns rows, { rows, asOf } or columnar data ({ columns, types, data, asOf }), not encoded data, so hidden fields can be dropped"));
@@ -227,8 +267,12 @@ function loadedTable(loaded, spec) {
     const columns = Array.from(shape.columns, (c) => String(plainOf(c, limits.textLength)));
     const types = Array.isArray(shape.types) ? Array.from(shape.types, (t) => (typeof t === "string" ? t : undefined)) : undefined;
     const data = columns.map((_, i) => (Array.isArray(shape.data[i]) ? Array.from(shape.data[i], (v) => plainOf(v, limits.textLength)) : []));
+    if (data.some((column) => column.length !== count)) {
+        // encode() refuses columns of different lengths
+        throw ownError(new OperationError("INTERNAL", "internal error"));
+    }
     const hide = hiddenOf(spec.levels, columns);
-    return { columnar: withoutHidden({ columns, types, data }, hide), asOf, hidden: hide.length };
+    return { columnar: withoutHidden({ columns, types, data }, hide), length: count, asOf, hidden: hide.length };
 }
 
 /** A host's asOf as a plain value (a Date read without its own methods). */
@@ -237,7 +281,8 @@ const plainAsOf = (value) => (value instanceof Date ? Date.prototype.getTime.cal
 /**
  * Rows as columnar data, read as encode() reads rows: keys that differ only in case are one column,
  * named by its first spelling, a later value of a row wins, a missing value is null. Hidden fields
- * (by their field key) are left out, and their values are never read.
+ * (by their field key) are left out, and their values are never read. encode()'s columnCase notes
+ * about such keys are not made (nothing reads a data set's encode notes).
  * @param {unknown[]} rows
  * @param {string[][]} rowKeys  each row's own keys
  * @param {Set<string>} hide  the field keys of the hidden fields
@@ -275,46 +320,53 @@ function columnsOfRows(rows, rowKeys, hide, max) {
 }
 
 /**
- * A code source's loaded data (what its load() gave) as a plain table for a worker (a table job):
- * checked against the run limits, hidden fields dropped (`hidden` counts them, since the worker no
- * longer sees them); asOf the source's own (parsed, sources/as-of.js), else now, fixed here so kept
- * data keeps its time. Keeping and reusing it is sources/run.js's; encoding it is the worker's
- * (tableData). Errors of pivotkit's own checks are marked (ownError); an error of the host's code
- * while its data is read is the source's failure.
+ * A code source's loaded data (what its load() gave) as a packed table for a worker (a table job,
+ * packed.js): checked against the run limits, hidden fields dropped (the table's `dropped` counts
+ * them, since the worker never sees them), the rows counted; asOf the source's own (parsed,
+ * sources/as-of.js), else now, fixed here so kept data keeps its time. Keeping and reusing it is
+ * sources/run.js's; encoding it is the worker's (tableData). Errors of pivotkit's own checks are
+ * marked (ownError); an error of the host's code while its data is read is the source's failure.
  * @param {SourceSpec} spec
  * @param {unknown} loaded
- * @returns {{ table: { columns: string[], types?: string[], data: unknown[][] }, hidden: number, asOf: string }}
+ * @returns {{ table: import("./packed.js").PackedTable, asOf: string }}
  */
 export function codeTable(spec, loaded) {
     // the host's code runs here: its errors pass unmarked
-    const { columnar, asOf, hidden } = loadedTable(loaded, spec);
+    const { columnar, length, asOf, hidden } = loadedTable(loaded, spec);
     // when the host says the data is from, else when load() gave it
-    return { table: columnar, hidden, asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? /** @type {string} */ (asOfText(new Date())) };
+    return { table: packTable(columnar, length, hidden), asOf: (asOf !== undefined ? asOfText(asOf) : null) ?? /** @type {string} */ (asOfText(new Date())) };
 }
 
 /**
- * A table loaded in the main thread (an HTTP source's rows, data sent in a request), in a worker:
- * hidden columns dropped, encoded, kept by its key (a key of null: never kept).
+ * A table loaded in the main thread (an HTTP or code source's rows, data sent in a request), in a
+ * worker: hidden columns dropped, encoded, kept by its key (a key of null: never kept). A code
+ * source's table comes packed (packed.js), its hidden fields left out already.
  * @param {SourceSpec} spec
- * @param {{ columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] }} table  rows as lists in the columns' order, or columnar
+ * @param {{ columns: string[], rows: unknown[][] } | { columns: string[], types?: string[], data: unknown[][] } | import("./packed.js").PackedTable} table  rows as lists in the columns' order, columnar, or packed
  * @param {string | null} key  sources/keys.js tableKeyOf
  * @param {string | null} [asOf]  when the data is from (sources/as-of.js asOfText)
  * @param {import("pivotkit-report/operations").Finding[]} [notes]
- * @param {number} [dropped]  hidden fields the main thread already left out (a code source's), counted with those dropped here
  */
-export function tableData(spec, table, key, asOf = null, notes = [], dropped = 0) {
+export function tableData(spec, table, key, asOf = null, notes = []) {
     const of = (read) => ({ ...read, name: spec.name, schedulable: spec.schedulable });
     if (key !== null && cache.has(key)) {
         return of(remember(key, cache.get(key)));
     }
-    const columns = Array.isArray(table?.columns) ? table.columns.map(String) : null;
+    const unpacked = isPacked(table) ? unpackTable(/** @type {any} */ (table)) : null;
+    const plain = /** @type {any} */ (unpacked && !Array.isArray(unpacked) ? unpacked : table);
+    const columns = Array.isArray(unpacked) ? [] : Array.isArray(plain?.columns) ? plain.columns.map(String) : null;
     if (!columns) {
         throw new OperationError("INTERNAL", "a table has columns and rows (or columnar data)");
     }
-    const columnar = "data" in table && Array.isArray(table.data) ? { columns, types: table.types, data: table.data } : { columns, data: columns.map((_, i) => /** @type {unknown[][]} */ (/** @type {any} */ (table).rows ?? []).map((row) => (Array.isArray(row) ? row[i] : undefined))) };
     const hide = hiddenOf(spec.levels, columns);
     try {
-        const data = encode(/** @type {any} */ (withoutHidden(/** @type {any} */ (columnar), hide)), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
+        // a packed table without any column: its rows as empty rows, so their count stays
+        const input = Array.isArray(unpacked)
+            ? unpacked
+            : withoutHidden("data" in plain && Array.isArray(plain.data) ? { columns, types: plain.types, data: plain.data } : { columns, data: columns.map((_, i) => /** @type {unknown[][]} */ (plain.rows ?? []).map((row) => (Array.isArray(row) ? row[i] : undefined))) }, hide);
+        const data = encode(/** @type {any} */ (input), { timeZone: spec.timeZone ?? "UTC", limits: spec.limits });
+        // columns dropped before the table was kept count as hidden too
+        const dropped = Number(/** @type {any} */ (table).dropped) || 0;
         const out = { data, notes: cleanNotes(notes, hide), hidden: hide.length + dropped, stats: sourceStats(data), asOf: asOf ?? asOfText(new Date()) };
         return of(key !== null ? remember(key, out) : out);
     } catch (e) {

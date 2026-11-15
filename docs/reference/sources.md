@@ -624,8 +624,9 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
   source could not be refreshed.", and the log has a warning with the source's id. Any other failure
   answers at once and drops what was kept for that caller and values, so a withdrawn access is never
   covered by the cache.
-- **Bounds.** The process keeps at most 64 loads and 256 MiB of loaded tables (each estimated:
-  8 bytes a value, and each distinct text of a column once); one person (a shared
+- **Bounds.** The process keeps at most 64 loads and 256 MiB of loaded tables, each counted as
+  pivotkit holds it (each distinct text of a column once, numbers, dates and true/false values as
+  typed arrays); one person (a shared
   source counts as one) at most 8 loads and a quarter of the bytes, and a person's new load pushes
   out that person's oldest first, so one caller cannot push out everyone else's data. Otherwise the
   least recently used go first. Kept data stays in the process's memory until it is pushed out,
@@ -633,13 +634,16 @@ cells are written as JSON text, and every text is cut at `limits.textLength`.
 
 ### Where it runs { #code-thread }
 
-`load` runs in the host's thread, and pivotkit reads its rows there once into a plain table (the run
-limits above, hidden fields left out). The operation over that table runs in a worker, as for a file
+`load` runs in the host's thread, and pivotkit reads its rows there once into a compact table (the
+run limits above, hidden fields left out; each distinct text of a column once, numbers, dates and
+true/false values in shared memory). The operation over that table runs in a worker, as for a file
 or an HTTP source: `timeMs` bounds `load`, `compute.timeMs` the computation (`TIMEOUT`),
 `compute.memoryMb` its memory (`LIMIT_EXCEEDED`), and it waits up to `compute.queueMs` for a free
-worker (`BUSY`). The table is copied to the worker on every call (about 0.2 s of the host's thread for
-a million rows of eight columns, measured on a laptop), so keep the data a code source returns to
-what a report needs.
+worker (`BUSY`). A load that is kept (`ttl` or `version`) goes to a worker once; later calls go to
+that worker without the table while it keeps it (each worker keeps the data of its last four runs,
+at most a quarter of `compute.memoryMb`). Reading a million rows of eight columns takes about 0.5 s
+of the host's thread on a laptop, a call over kept data a few milliseconds, so keep the data a code
+source returns to what a report needs.
 
 A code source is your code: pivotkit hands it a frozen copy of the caller and never a token, which
 guards against mistakes, not against code that means harm.

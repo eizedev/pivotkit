@@ -1,7 +1,7 @@
 /*
  * Code sources of a library host (sources.<id>.load): the host's own function, called in the main
- * thread (the host's code stays in its process); its rows are read once into a plain table there,
- * and the operation over them runs in a worker as a table job (compute.js, bounded by
+ * thread (the host's code stays in its process); its rows are read once into a packed table there
+ * (packed.js), and the operation over them runs in a worker as a table job (compute.js, bounded by
  * compute.timeMs and compute.memoryMb), as an HTTP source's do. Every load is
  * load(params, { caller, signal }) and version(params, { caller }): `params` the caller's checked
  * values ({} for a source without params), `caller` a frozen view of the caller (auth.js callerView,
@@ -40,7 +40,8 @@ import { randomBytes } from "node:crypto";
 import { callerView, identityKey } from "../auth.js";
 import { codeTable } from "../data.js";
 import { CODE_DEFAULTS } from "../options/code.js";
-import { columnarBytes } from "./cache.js";
+import { packedBytes } from "../packed.js";
+import { LOAD_CACHE, OWNER_SHARE } from "./cache.js";
 import { canonicalJson, tableKeyOf } from "./keys.js";
 import { loadRunner } from "./run.js";
 
@@ -74,12 +75,14 @@ function ownerOf(caller, shared) {
 /**
  * Loads a code source's data for a caller (or reuses it): sources/run.js with the source's limits.
  * `tableKey` names this load's table for the worker (a new load has a new one, so a worker never
- * answers from an older table; null without an identity: nothing kept).
+ * answers from an older table): null without an identity, for a load that is not reused (no `ttl`
+ * and no `version`: every call loads, and a key per call would only push other data out of the
+ * workers), and for a load larger than the load cache keeps.
  * @param {any} resolved  registry.resolve's
  * @param {import("../registry.js").Caller} caller
  * @param {any} log
  * @param {AbortSignal} [signal]  the caller's request: the call stops waiting when it fires
- * @returns {Promise<{ value: { table: { columns: string[], types?: string[], data: unknown[][] }, hidden: number, asOf: string, serial: string }, stale: { since: string } | null, tableKey: string | null }>}
+ * @returns {Promise<{ value: { table: import("../packed.js").PackedTable, asOf: string, serial: string, bytes: number }, stale: { since: string } | null, tableKey: string | null }>}
  */
 export async function loadCode(resolved, caller, log, signal = undefined) {
     const source = resolved.source;
@@ -94,7 +97,10 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
     const person = identityKey(caller) ?? `client:${caller.client}`;
     const key = owner === null ? null : canonicalJson(["code", name, spec.id, params, owner, spec.levels, spec.timeZone ?? null, spec.limits]);
     const ran = await loadRunner.runLoad(key, (signal) => source.load(params, { caller: view, signal }), {
-        prepare: (loaded) => ({ ...codeTable(spec, loaded), serial: randomBytes(9).toString("base64url") }),
+        prepare: (loaded) => {
+            const read = codeTable(spec, loaded);
+            return { ...read, serial: randomBytes(9).toString("base64url"), bytes: packedBytes(read.table) };
+        },
         source: name,
         label: spec.id,
         bucket: person,
@@ -103,13 +109,15 @@ export async function loadCode(resolved, caller, log, signal = undefined) {
         ttl: source.ttl ?? CODE_DEFAULTS.ttl,
         maxStale: source.maxStale ?? CODE_DEFAULTS.maxStale,
         version: source.version ? () => source.version(params, { caller: view }) : null,
-        sizeOf: (read) => columnarBytes(read.table),
+        sizeOf: (read) => read.bytes,
         log,
         ...(signal ? { signal } : {})
     });
-    // this load's table (its serial) for the same owner as the load's key; a caller without an
-    // identity gets no key, so the worker keeps nothing of it either
-    const tableKey = tableKeyOf({ kind: "code", id: `${name}:${spec.id}`, configHash: canonicalJson([ran.value.serial, spec.timeZone ?? null]), params, identity: owner, levels: spec.levels, limits: spec.limits });
+    // this load's table (its serial) for the same owner as the load's key, only for a load the
+    // load cache keeps and reuses; a caller without an identity gets no key either
+    const reused = (source.ttl ?? CODE_DEFAULTS.ttl ?? 0) > 0 || typeof source.version === "function";
+    const kept = reused && ran.value.bytes <= LOAD_CACHE.bytes * OWNER_SHARE;
+    const tableKey = !kept ? null : tableKeyOf({ kind: "code", id: `${name}:${spec.id}`, configHash: canonicalJson([ran.value.serial, spec.timeZone ?? null]), params, identity: owner, levels: spec.levels, limits: spec.limits });
     return { value: ran.value, stale: ran.stale, tableKey };
 }
 
@@ -131,7 +139,7 @@ export const codeKind = Object.freeze({
      */
     async run(computer, op, input, resolved, base, caller, log, how = {}) {
         const { value, stale, tableKey } = await loadCode(resolved, caller, log, how.signal);
-        const ran = await computer.run(op, input, { ...base, spec: resolved.spec, table: value.table, tableKey, asOf: value.asOf, dropped: value.hidden });
+        const ran = await computer.run(op, input, { ...base, spec: resolved.spec, table: value.table, tableKey, asOf: value.asOf });
         return { ...ran, asOf: ran.asOf ?? value.asOf, stale };
     }
 });

@@ -193,7 +193,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 - A code source's operation is computed in a worker as a table job, as an HTTP source's: `load` and
   the reading of its rows stay in the host's thread, the encoding and the report are bounded by
   `compute.timeMs` and `compute.memoryMb` ([#414](https://github.com/eizedev/pivotkit/issues/414)).
-  Kept loads are measured as plain tables.
+  Its rows are kept packed (texts dictionary-coded, numbers, dates and true/false values in shared
+  typed arrays) and measured exactly; a kept load goes to a worker once, later calls send its key
+  only. Each worker keeps at most a quarter of `compute.memoryMb` of data sets. A source whose
+  every field is hidden keeps its row count.
 - `ConfigError` is defined in `src/options/shared.js`; `pivotkit-server` exports it as before.
 - A pattern of a source's parameter that runs out of time on a test value is tried once more before
   it is refused at start, so a busy host does not refuse a fast pattern.
