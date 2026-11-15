@@ -10,6 +10,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createComputer } from "../src/compute.js";
+import { KEPT_JOB } from "../src/data.js";
 
 const PROBE = fileURLToPath(new URL("./memory/probe.mjs", import.meta.url));
 
@@ -24,8 +26,10 @@ test("a hidden column is kept nowhere: not in the kept loads, not in the worker'
     const hiddenOf = (look) => ({ hiddenTexts: look.hiddenTexts, hiddenNumbers: look.hiddenNumbers });
 
     // the snapshot scan finds what is kept on purpose (markers short, deep in a long text, put together
-    // from parts and near the start of a long flat text, a boxed number, a buffer of an answer's
-    // size): its zeros below mean something
+    // from parts and near the start of a long flat text, a boxed number, a buffer of an answer's size
+    // by its size): its zeros below mean something for texts and boxed numbers. A snapshot shows no
+    // number held unboxed (a double array, a small integer) and no buffer's bytes: those are checked
+    // in the kept loads and the worker's data sets only, so a number kept unboxed elsewhere is not seen
     assert.deepEqual([control.texts, control.number], [4, true], JSON.stringify(control));
     assert.ok(control.largestBuffer >= answerBytes, JSON.stringify(control));
 
@@ -47,5 +51,16 @@ test("a hidden column is kept nowhere: not in the kept loads, not in the worker'
     // no answer's bytes (most of them hidden values) stay reachable
     for (const heap of [main, workers[0]]) {
         assert.ok(heap.largestBuffer < answerBytes / 2, `a buffer of ${heap.largestBuffer} bytes is reachable; the smallest answer had ${answerBytes}`);
+    }
+});
+
+test("the look into the workers is only there for a computer made for it: a normal one has neither hook, and its worker refuses the kept job", async () => {
+    const computer = createComputer({ workers: 1 });
+    try {
+        assert.equal(/** @type {any} */ (computer).keptDataSets, undefined);
+        assert.equal(/** @type {any} */ (computer).heapSnapshots, undefined);
+        await assert.rejects(computer.run(KEPT_JOB, null, /** @type {any} */ ({})), (e) => /** @type {any} */ (e).code === "INTERNAL");
+    } finally {
+        await computer.close();
     }
 });

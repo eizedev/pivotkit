@@ -238,7 +238,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   structured clone cannot copy is `INVALID_INPUT` and frees the worker; a table job with a key goes
   to the worker that kept its data, without the table, and a worker that pushed it out answers
   `need` and gets the table once; `sent()` counts both; `heapSnapshots()` and `keptDataSets()` (data.js
-  `KEPT_JOB`: what a worker's data sets hold) for `test/memory.test.js`, which with
+  `KEPT_JOB`: what a worker's data sets hold) only for a computer made with `internal.hooks`
+  (createContext's runtime key `COMPUTE_HOOKS`, never a setting) for `test/memory.test.js`, which with
   `test/memory/probe.mjs` proves no kept data holds a hidden column), `src/present.js` (`present()`:
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are

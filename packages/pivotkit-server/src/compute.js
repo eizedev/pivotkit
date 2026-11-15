@@ -17,9 +17,12 @@ import { COMPUTE_DEFAULTS } from "./config.js";
 import { CACHE_ENTRIES, KEPT_JOB, READ_JOB, codeTable } from "./data.js";
 import { isOwnError, sourceFailure } from "./sources/run.js";
 
+/** The key of createContext's runtime that turns on the tests' look into the workers (internal.hooks); not exported by the package. */
+export const COMPUTE_HOOKS = Symbol("pivotkit.computeHooks");
+
 /**
  * @param {{ workers?: number, timeMs?: number, memoryMb?: number, queueMs?: number }} [options]
- * @param {{ worker?: URL, cacheBytes?: number }} [internal]  worker: another worker script (tests that need a worker which misbehaves); cacheBytes: the workers' bound on kept data sets instead of a quarter of memoryMb (tests that need a bound below what a run needs, independent of the run's own memory)
+ * @param {{ worker?: URL, cacheBytes?: number, hooks?: boolean }} [internal]  worker: another worker script (tests that need a worker which misbehaves); cacheBytes: the workers' bound on kept data sets instead of a quarter of memoryMb (tests that need a bound below what a run needs, independent of the run's own memory); hooks: the tests' look into the workers (heapSnapshots, keptDataSets; test/memory.test.js), absent otherwise
  */
 export function createComputer(options = {}, internal = {}) {
     const { workers: size, timeMs, memoryMb, queueMs } = { ...COMPUTE_DEFAULTS, ...options };
@@ -34,7 +37,7 @@ export function createComputer(options = {}, internal = {}) {
 
     const spawn = () => {
         // the data sets a worker keeps take at most a quarter of its memory
-        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4) } });
+        const worker = new Worker(internal.worker ?? new URL("./worker.js", import.meta.url), { resourceLimits: { maxOldGenerationSizeMb: memoryMb, maxYoungGenerationSizeMb: Math.min(64, memoryMb) }, workerData: { cacheBytes: internal.cacheBytes ?? Math.floor((memoryMb * 1_048_576) / 4), hooks: internal.hooks === true } });
         worker.unref();
         /** @type {string[]} the table keys it said it kept, oldest first (its cache may have pushed them out since) */
         const keys = [];
@@ -252,7 +255,24 @@ export function createComputer(options = {}, internal = {}) {
         return inWorker(op, input, { ...job, table: read.table, tableKey: null, asOf: read.asOf });
     }
 
+    /** The tests' look into the workers: only for a computer made with internal.hooks. */
+    const hooks = {
+        /**
+         * A heap snapshot of each worker alive; a snapshot holds only what is still reachable, after
+         * V8 collected the rest.
+         * @param {import("node:v8").HeapSnapshotOptions} [options]
+         * @returns {Promise<import("node:stream").Readable[]>}
+         */
+        heapSnapshots: async (options = {}) => {
+            await Promise.all(pool.map((s) => s.ready));
+            return Promise.all(pool.filter((s) => !s.exited).map((s) => /** @type {any} */ (s.worker).getHeapSnapshot(options)));
+        },
+        /** What the data sets a worker keeps hold (data.js keptDataSets; with one worker, that worker's). */
+        keptDataSets: async () => /** @type {{ texts: string[], numbers: number[], bytes: Uint8Array[] }} */ (/** @type {unknown} */ ((await inWorker(KEPT_JOB, null, {})).outcome))
+    };
+
     return {
+        ...(internal.hooks === true ? hooks : {}),
         /**
          * @param {string} op
          * @param {any} input
@@ -279,18 +299,6 @@ export function createComputer(options = {}, internal = {}) {
             await Promise.all(pool.map((s) => s.ready));
             return pool.map((s) => s.cacheBytes);
         },
-        /**
-         * A heap snapshot of each worker alive (tests: what a worker keeps, test/memory.test.js); a
-         * snapshot holds only what is still reachable, after V8 collected the rest.
-         * @param {import("node:v8").HeapSnapshotOptions} [options]
-         * @returns {Promise<import("node:stream").Readable[]>}
-         */
-        heapSnapshots: async (options = {}) => {
-            await Promise.all(pool.map((s) => s.ready));
-            return Promise.all(pool.filter((s) => !s.exited).map((s) => /** @type {any} */ (s.worker).getHeapSnapshot(options)));
-        },
-        /** What the data sets a worker keeps hold (data.js keptDataSets; tests: with one worker, that worker's; test/memory.test.js). */
-        keptDataSets: async () => /** @type {{ texts: string[], numbers: number[], bytes: Uint8Array[] }} */ (/** @type {unknown} */ ((await inWorker(KEPT_JOB, null, {})).outcome)),
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */

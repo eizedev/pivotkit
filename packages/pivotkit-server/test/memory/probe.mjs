@@ -16,11 +16,13 @@
 // - the data sets the worker keeps (compute.js keptDataSets), looked at the same way;
 // - a heap snapshot of the main thread and of the worker: every string still reachable (a snapshot
 //   holds only reachable objects), every boxed number with its value (exposeNumericValues), and the
-//   largest ArrayBuffer still reachable, which would show an answer's bytes kept anywhere (a
-//   snapshot has a buffer's size, not its bytes, and no number held in a double array or as a small
-//   integer: those are looked at in the kept data above);
+//   largest ArrayBuffer still reachable, which would show an answer's bytes kept anywhere;
 // - then the same scan over a snapshot with controls kept on purpose: it must find them, or its
 //   zeros mean nothing.
+// What a snapshot does not show, so this cannot see it: the bytes of an ArrayBuffer (only its size)
+// and numbers held unboxed, in a double array or as small integers (V8 writes no element values;
+// tried with exposeNumericValues and exposeInternals). Numbers are looked for in the kept loads and
+// the worker's data sets above; numbers held unboxed outside the kept data are not seen.
 // A snapshot names a long flat string by its first characters only (about 1,000 in V8), so a text
 // kept whole (a decoded answer, a slice's parent) shows only its start. Every row has hidden
 // markers, about every 250 characters, so any kept stretch of an answer shows some.
@@ -36,6 +38,7 @@ import { callerOf, createContext, present } from "pivotkit-server";
 import { createGuardedFetch } from "../../src/sources/fetch.js";
 import { httpMeans, loadFor } from "../../src/sources/http.js";
 import { loadCode } from "../../src/sources/code.js";
+import { COMPUTE_HOOKS } from "../../src/compute.js";
 import { tempDir } from "../helpers.js";
 
 const ROWS = 2000;
@@ -272,7 +275,8 @@ const context = await createContext(
             ])
         )
     },
-    { stderr: { write: () => true } }
+    // the tests' look into the worker (computer.heapSnapshots, keptDataSets)
+    { stderr: { write: () => true }, [COMPUTE_HOOKS]: true }
 );
 const carol = callerOf("oauth", { token: "jwt", clientId: "app", scopes: [], expiresAt: 0, extra: { subject: "carol", issuer: "https://issuer.example.test" } });
 // signed in, but with no subject: nothing is kept or shared for it

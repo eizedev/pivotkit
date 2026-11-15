@@ -185,9 +185,12 @@ The test [test/memory.test.js](https://github.com/eizedev/pivotkit/blob/main/pac
 checks the first part. It calls a CSV, a JSON and a code source, each as a signed-in person and as a
 caller without an identity, with hidden text and number columns of unique values (hidden by the
 default level and by a field's own rule). After a garbage collection it finds none of them in the
-kept loads, in the worker's data sets, or among what the main thread and the worker still reach (a
-heap snapshot of each), while it finds every shown value and values kept on purpose. File sources
-and data sent in a request are not part of the test.
+kept loads, in the worker's data sets, or among the texts and boxed numbers the main thread and the
+worker still reach (a heap snapshot of each), while it finds every shown value and values kept on
+purpose. A heap snapshot does not show numbers held unboxed (in a double array, or as small
+integers), so hidden numbers are checked in the kept loads and the worker's data sets only: numbers
+held unboxed outside the kept data are not seen. File sources and data sent in a request are not
+part of the test.
 
 ## check-config and check-source { #check-output }
 

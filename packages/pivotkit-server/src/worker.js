@@ -32,7 +32,7 @@ parentPort?.on("message", async (job) => {
         return;
     }
     try {
-        if (op === KEPT_JOB) {
+        if (op === KEPT_JOB && workerData?.hooks === true) {
             // what this worker keeps, for the main thread to look at (tests); runs nothing
             parentPort.postMessage({ id, outcome: keptDataSets(), hidden: 0, stats: null, asOf: null });
             return;
