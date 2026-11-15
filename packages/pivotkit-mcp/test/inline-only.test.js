@@ -61,11 +61,20 @@ test("save: false over a field that is not fully shown: NOT_ALLOWED, no number o
         const rendered = await call(client, "render_view", { source: "sales", view: BY_REGION, format: "csv", save: false });
         assert.equal(rendered.isError, true);
         assert.match(rendered.text, /^NOT_ALLOWED: .*not fully shown.*leave out save/);
-        // the sums (15, 20, 7, 3) and the source's size stay out of the answer
-        assert.doesNotMatch(rendered.text, /\b(15|20|7|3|5|6)\b/);
+        // the sums (15, 20, 7, 3) and the source's size stay out of the answer (the random request id left out)
+        assert.doesNotMatch(rendered.text.replace(/\(request id [^)]*\)$/, ""), /\b(15|20|7|3|5|6)\b/);
         assert.deepEqual(files(), []);
         const line = log.find((l) => l.event === "call" && l.tool === "render_view");
         assert.deepEqual([line?.saved, line?.code], [false, "NOT_ALLOWED"]);
+    }));
+
+test("save: false over a source with fields that are not shown, for a view of shown fields only: inline as without save, no file", () =>
+    withServer(POLICY, async (client, { files }) => {
+        const rendered = await call(client, "render_view", { source: "sales", view: COUNT_BY_REGION, format: "csv", save: false });
+        assert.equal(rendered.isError, false, rendered.text);
+        assert.equal(rendered.data.output, null);
+        assert.match(rendered.data.inline.text, /North,2/);
+        assert.deepEqual(files(), []);
     }));
 
 test("save: false with a result over the inline caps: LIMIT_EXCEEDED with the caps, no file", () =>

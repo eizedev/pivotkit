@@ -241,7 +241,8 @@ root `package.json`: `npm run types` and the builds depend on it.
   `need` and gets the table once; `sent()` counts both), `src/present.js` (`present()`:
   run an operation for a caller and apply the policy, output files, inline results and the one
   sentence; `presentedInput`/`presentedOutput`, the schemas MCP's tools and the OpenAPI document are
-  made from; `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
+  made from, with render_view's `save` (false: inline only, never a file; `saveLogFields` its log
+  field); `renderFile` for the download route), `src/output.js` (the output directory: `writeOutput`,
   `makeRoom`, `prune`, `reportsIn`, `OUTPUT_MARK`), `src/delivery.js` (`deliver`: which link a
   report gets, decided before it is written (`linkFor`; `storeFor` for the upload target), the write, `output.filename`/`url`/`note`;
   `resourceLinkOf`, the MCP `resource_link`), `src/upload.js` (the operator's store, `output.upload`:
