@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { platform } from "node:process";
 import { createServer } from "node:https";
 import { join } from "node:path";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
@@ -20,6 +21,7 @@ import { checkConfig, serverTextOf, validateOptions } from "pivotkit-server";
 import { createGuardedFetch } from "../src/sources/fetch.js";
 import { checkedAddress, expiryOf, fillTemplate, nameSlug, uploadMeans } from "../src/upload.js";
 import { deliver, NO_LINK_NOTE, storeFor } from "../src/delivery.js";
+import { createDownloadHandler, subjectDigest, subkeysOf } from "../src/downloads.js";
 import { createContext } from "../src/context.js";
 import { withRequestId } from "../src/request-id.js";
 import { BY_REGION, SALES_CSV, call, restServer, tempDir, workspace } from "./helpers.js";
@@ -27,6 +29,9 @@ import { BY_REGION, SALES_CSV, call, restServer, tempDir, workspace } from "./he
 /** The store's credential: an environment variable, as an operator gives it. */
 const STORE_TOKEN = "STORE-TOKEN-must-never-leave-the-presign-request";
 process.env.PIVOTKIT_TEST_STORE_TOKEN = STORE_TOKEN;
+
+/** The download links' key, which the person's binding is made with. */
+const DL_KEY = "a-download-key-for-upload-tests-that-is-long-enough-0123";
 
 /** A part of every presigned address that must never reach a caller or the log. */
 const SIGNATURE = "PRESIGNED-SIGNATURE-0123456789";
@@ -40,6 +45,8 @@ let open = 0;
 let mostOpen = 0;
 let server;
 let port = 0;
+/** Names that resolve elsewhere than loopback: a cloud metadata address, a private one. */
+const ADDRESSES = { "meta.example.test": "169.254.169.254", "private.example.test": "10.0.0.1" };
 let cert;
 
 before(async () => {
@@ -72,7 +79,10 @@ before(async () => {
     port = server.address().port;
     uploadMeans.fetch = createGuardedFetch({
         ca: cert,
-        lookup: (_host, options, callback) => callback(null, options?.all ? [{ address: "127.0.0.1", family: 4 }] : "127.0.0.1", 4)
+        lookup: (host, options, callback) => {
+            const address = ADDRESSES[host] ?? "127.0.0.1";
+            callback(null, options?.all ? [{ address, family: 4 }] : address, 4);
+        }
     });
 });
 
@@ -229,10 +239,12 @@ test("which report goes to the store: open sources; closed ones only to bound li
     assert.equal(storeFor(null, how), false);
     assert.equal(storeFor(none, how), true);
     assert.equal(storeFor(none, { ...how, closed: true }), false);
-    assert.equal(storeFor(signIn, { ...how, closed: true }), true);
+    // signIn: only for a caller with an issuer and subject the store can check (as the server's own sign-in links)
+    assert.equal(storeFor(signIn, { ...how, closed: true }), false);
+    assert.equal(storeFor(signIn, { ...how, closed: true, signedIn: true }), true);
     assert.equal(storeFor({ bind: "once" }, { ...how, closed: true }), true);
-    assert.equal(storeFor(signIn, { ...how, closed: true, surface: "rest" }), false);
-    assert.equal(storeFor(signIn, { ...how, closed: true, surface: "rest", results: true }), true);
+    assert.equal(storeFor(signIn, { ...how, closed: true, signedIn: true, surface: "rest" }), false);
+    assert.equal(storeFor(signIn, { ...how, closed: true, signedIn: true, surface: "rest", results: true }), true);
     assert.equal(storeFor(none, { ...how, draft: true }), false);
 });
 
@@ -287,19 +299,30 @@ test("a report over a closed source never goes to a store whose links anyone can
     }
 });
 
-test("bound store links (signIn): a report over a closed source goes there; a REST program without results does not get it; a draft is never uploaded", async () => {
+test("bound store links (signIn): a report over a closed source goes there for a signed-in person, with their binding (never the subject); without a subject, a REST program without results, a draft: not uploaded", async () => {
     routes.set("POST /presign", presignRoute());
     routes.set("PUT *", bucket());
-    const { context } = await contextOf(presignOptions({ bind: "signIn" }));
+    process.env.PIVOTKIT_TEST_DL_KEY = DL_KEY;
+    const { context } = await contextOf(presignOptions({ bind: "signIn" }, { downloads: { key: { env: "PIVOTKIT_TEST_DL_KEY" } } }));
+    // the route's state holds the key the binding is made with (HTTP serving creates it)
+    createDownloadHandler(context);
+    const person = { ...MCP_HOW, caller: { ...MCP_HOW.caller, issuer: "https://auth.example.com/", subject: "alice-1234" } };
     try {
-        const out = await deliver(context, FILE, { ...MCP_HOW, sourceClosed: true });
+        const anonymous = await deliver(context, FILE, { ...MCP_HOW, sourceClosed: true });
+        assert.equal(anonymous?.url, undefined, "no subject: the server's own delivery");
+        assert.equal(anonymous?.note, NO_LINK_NOTE);
+        assert.equal(asked.length, 0);
+        const out = await deliver(context, FILE, { ...person, sourceClosed: true });
         assert.equal(out?.bound, "signIn");
         assert.match(String(out?.note), /^Open the link in your browser and sign in at the store; it works until /);
         assert.equal(asked.length, 2);
-        const rest = await deliver(context, FILE, { ...MCP_HOW, surface: "rest", policy: /** @type {any} */ ({ results: false }), sourceClosed: true });
+        const sent = JSON.parse(asked[0].body.toString("utf8"));
+        assert.equal(sent.subject, subjectDigest(subkeysOf(Buffer.from(DL_KEY, "utf8")), "https://auth.example.com/", "alice-1234"));
+        assert.ok(!asked[0].body.toString("utf8").includes("alice-1234"));
+        const rest = await deliver(context, FILE, { ...person, surface: "rest", policy: /** @type {any} */ ({ results: false }), sourceClosed: true });
         assert.equal(rest?.url, undefined);
         assert.equal(asked.length, 2);
-        const program = await deliver(context, FILE, { ...MCP_HOW, surface: "rest", policy: /** @type {any} */ ({ results: true }), sourceClosed: true });
+        const program = await deliver(context, FILE, { ...person, surface: "rest", policy: /** @type {any} */ ({ results: true }), sourceClosed: true });
         assert.equal(program?.bound, "signIn");
         assert.equal(asked.length, 4);
         const draft = await deliver(context, { ...FILE, extension: "report.json", mediaType: "application/json" }, { ...MCP_HOW, sourceClosed: false, draft: true });
@@ -315,7 +338,7 @@ async function failing(upload = {}, more = {}) {
     const { context, files, log } = await contextOf(presignOptions(upload, more));
     try {
         const error = await failureOf(withRequestId("Fai1ed_Id00", () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false })));
-        return { error, log, files: files() };
+        return { error, log, files: files(), code: log.find((l) => l.upload)?.upload };
     } finally {
         await context.close();
     }
@@ -323,29 +346,39 @@ async function failing(upload = {}, more = {}) {
 
 test("a presign answer that is not followed: an address off allowOrigins, http://, a credential or a line break in its headers, a link off linkOrigins, an answer over 64 KiB", async () => {
     const cases = [
-        [{ uploadUrl: `${origin("evil")}/b/x?X-Sig=${SIGNATURE}` }, "UPLOAD_URL"],
-        [{ uploadUrl: `http://bucket.example.test:${port}/b/x` }, "UPLOAD_URL"],
-        [{ uploadUrl: `${origin("bucket")}/b/\nx` }, "UPLOAD_URL"],
+        [{ uploadUrl: `${origin("evil")}/b/x?X-Sig=${SIGNATURE}` }, "UPLOAD_URL_ORIGIN"],
+        [{ uploadUrl: `http://bucket.example.test:${port}/b/x` }, "UPLOAD_URL_SCHEME"],
+        [{ uploadUrl: `${origin("bucket")}/b/\nx` }, "UPLOAD_URL_CHARS"],
+        [{ uploadUrl: undefined }, "UPLOAD_URL_MISSING"],
         [{ headers: { authorization: "Bearer stolen" } }, "UPLOAD_HEADERS"],
         [{ headers: { Cookie: "a=b" } }, "UPLOAD_HEADERS"],
         [{ headers: { "x-amz-meta-a": "x\r\nset-cookie: a=b" } }, "UPLOAD_HEADERS"],
         [{ headers: { "proxy-authorization": "x" } }, "UPLOAD_HEADERS"],
-        [{ downloadUrl: `${origin("evil")}/f/1?sig=${SIGNATURE}` }, "LINK"],
-        [{ downloadUrl: `https://user@files.example.test:${port}/f/1` }, "LINK"],
-        [{ downloadUrl: `${origin("files")}/f/${"a".repeat(2100)}` }, "LINK"],
+        // the body's type and encoding are the report's; proxy headers are not the store's to set
+        [{ headers: { "content-type": "text/html" } }, "UPLOAD_HEADERS"],
+        [{ headers: { "Content-Encoding": "gzip" } }, "UPLOAD_HEADERS"],
+        [{ headers: { expect: "100-continue" } }, "UPLOAD_HEADERS"],
+        [{ headers: { "x-forwarded-for": "10.0.0.1" } }, "UPLOAD_HEADERS"],
+        [{ headers: { forwarded: "for=10.0.0.1" } }, "UPLOAD_HEADERS"],
+        [{ downloadUrl: `${origin("evil")}/f/1?sig=${SIGNATURE}` }, "LINK_ORIGIN"],
+        [{ downloadUrl: `https://user@files.example.test:${port}/f/1` }, "LINK_USERINFO"],
+        [{ downloadUrl: `${origin("files")}/f/${"a".repeat(2100)}` }, "LINK_LENGTH"],
+        [{ downloadUrl: 42 }, "LINK_MISSING"],
         [{ padding: "x".repeat(65_536) }, "PRESIGN_TOO_LARGE"]
     ];
     for (const [more, code] of cases) {
         routes.set("POST /presign", presignRoute(more));
         routes.set("PUT *", bucket());
         asked = [];
-        const { error, log, files } = await failing();
+        const { error, log, files, code: logged } = await failing();
         assert.ok(error instanceof OperationError, code);
         assert.deepEqual([error.code, error.status, error.details?.retryable, error.details?.requestId], ["UPLOAD_FAILED", 502, false, "Fai1ed_Id00"], code);
-        assert.equal(error.message, `the report could not be stored (${code})`);
+        // the caller gets a fixed text; the code is the operator's, on the log
+        assert.equal(error.message, "the report could not be stored");
+        assert.equal(logged, code);
         // nothing went to an address the answer named off the list
         assert.ok(!asked.some((a) => a.host === "evil.example.test"), code);
-        if (code === "UPLOAD_URL" || code === "UPLOAD_HEADERS" || code === "PRESIGN_TOO_LARGE") {
+        if (code.startsWith("UPLOAD_URL") || code === "UPLOAD_HEADERS" || code === "PRESIGN_TOO_LARGE") {
             assert.equal(asked.filter((a) => a.method === "PUT").length, 0, code);
         }
         // the file stays in the output directory; the log says the code, never the answer
@@ -361,12 +394,12 @@ test("the store's own refusals and failures: a code each, retryable where trying
     // the presign service refuses (its body never shown)
     routes.set("POST /presign", json({ error: "STORE-BODY-MARKER denied" }, 403));
     let r = await failing();
-    assert.deepEqual([r.error.message, r.error.details.retryable], ["the report could not be stored (PRESIGN_403)", false]);
+    assert.deepEqual([r.code, r.error.details.retryable], ["PRESIGN_403", false]);
     assert.ok(!JSON.stringify(r.log).includes("STORE-BODY-MARKER"));
     // the secret cannot be read: never sent without it
     asked = [];
     r = await failing({ presign: { ...presignOptions().output.upload.presign, headers: { authorization: { prefix: "Bearer ", value: { env: "PIVOTKIT_TEST_NOT_SET" } } } } });
-    assert.deepEqual([r.error.message, asked.length], ["the report could not be stored (SECRET)", 0]);
+    assert.deepEqual([r.code, asked.length], ["SECRET", 0]);
     // the bucket fails once with 503: a PUT is tried again and stored
     routes.set("POST /presign", presignRoute());
     let puts = 0;
@@ -386,18 +419,18 @@ test("the store's own refusals and failures: a code each, retryable where trying
         json({ error: "busy" }, 503)(entry, res);
     });
     r = await failing();
-    assert.deepEqual([r.error.message, r.error.details.retryable, puts], ["the report could not be stored (STORE_503)", true, 2]);
+    assert.deepEqual([r.code, r.error.details.retryable, puts], ["STORE_503", true, 2]);
     // a POST store is never tried twice
     routes.set("POST /r", json({ error: "busy" }, 503));
     asked = [];
-    r = await failing({ presign: undefined, linkOrigins: undefined, url: `${origin("store")}/r?n={name}`, method: "POST", link: "/url" });
-    assert.deepEqual([r.error.message, asked.filter((a) => a.method === "POST").length], ["the report could not be stored (STORE_503)", 1]);
+    r = await failing({ presign: undefined, linkOrigins: undefined, url: `${origin("store")}/r?id={id}`, method: "POST", link: "/url" });
+    assert.deepEqual([r.code, asked.filter((a) => a.method === "POST").length], ["STORE_503", 1]);
 });
 
 test("loopback and private addresses only with intranet: the store on loopback is refused before any request", async () => {
     routes.set("POST /presign", presignRoute());
     const r = await failing({ intranet: false });
-    assert.equal(r.error.message, "the report could not be stored (PRESIGN_REFUSED_ADDRESS)");
+    assert.equal(r.code, "PRESIGN_REFUSED_ADDRESS");
     assert.equal(asked.length, 0);
 });
 
@@ -407,7 +440,7 @@ test("timeMs is presign and upload together", async () => {
     routes.set("PUT *", slow(bucket()));
     const started = Date.now();
     const r = await failing({ timeMs: 1000 });
-    assert.equal(r.error.message, "the report could not be stored (TIMEOUT)");
+    assert.equal(r.code, "TIMEOUT");
     assert.equal(r.error.details.retryable, true);
     assert.ok(Date.now() - started < 2500, "one budget, not one per request");
 });
@@ -442,14 +475,15 @@ test("at most two uploads at once: the third waits for a slot", async () => {
 test("keepLocal false: the local copy is removed once the store has it, and kept when the upload fails", async () => {
     routes.set("POST /presign", presignRoute());
     routes.set("PUT *", bucket());
-    const { context, files } = await contextOf(presignOptions({ keepLocal: false }));
+    const { context, files, log } = await contextOf(presignOptions({ keepLocal: false }));
     try {
         const out = await deliver(context, FILE, { ...MCP_HOW, sourceClosed: false });
         assert.ok(out?.url);
         assert.equal(out?.path, undefined);
         assert.deepEqual(files(), []);
         routes.set("PUT *", bucket(500));
-        await assert.rejects(deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }), /could not be stored \(STORE_500\)/);
+        await assert.rejects(deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }), /^OperationError: the report could not be stored$/);
+        assert.equal(log.findLast((l) => l.upload)?.upload, "STORE_500");
         assert.deepEqual(files(), ["Sales by region.pivotkit-out.csv"]);
     } finally {
         await context.close();
@@ -474,22 +508,23 @@ test("an address template: a PUT's link is the address; a POST's from its answer
         res.end();
     });
     asked = [];
-    r = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { url: `${origin("store")}/upload?name={name}`, method: "POST", link: "header:location", intranet: true } } });
+    r = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { url: `${origin("store")}/upload?id={id}&name={name}`, method: "POST", link: "header:location", intranet: true } } });
     try {
         const out = await deliver(r.context, FILE, { ...MCP_HOW, sourceClosed: false });
         assert.equal(out?.url, `${origin("store")}/files/abc`);
-        assert.equal(asked[0].path, "/upload?name=Sales-by-region");
+        assert.match(asked[0].path, /^\/upload\?id=[A-Za-z0-9_-]{22}&name=Sales-by-region$/);
     } finally {
         await r.context.close();
     }
     // a Location to another origin is not shown
-    routes.set("POST /upload", (entry, res) => {
+    routes.set("POST *", (entry, res) => {
         res.writeHead(201, { location: `${origin("evil")}/files/abc` });
         res.end();
     });
-    r = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { url: `${origin("store")}/upload`, method: "POST", link: "header:location", intranet: true } } });
+    r = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { url: `${origin("store")}/upload/{id}`, method: "POST", link: "header:location", intranet: true } } });
     try {
-        await assert.rejects(deliver(r.context, FILE, { ...MCP_HOW, sourceClosed: false }), /could not be stored \(LINK\)/);
+        await assert.rejects(deliver(r.context, FILE, { ...MCP_HOW, sourceClosed: false }), /could not be stored/);
+        assert.equal(r.log.findLast((l) => l.upload)?.upload, "LINK_ORIGIN");
     } finally {
         await r.context.close();
     }
@@ -563,7 +598,7 @@ test("check-config: where reports go and which go there", async () => {
     const dir = workspace();
     const result = await checkConfig({ ...presignOptions(), baseDir: dir }, { http: true, env: {} });
     assert.match(result.text, new RegExp(`Upload:\\n  target: presigned via ${origin("store")}/presign \\(uploads to ${origin("bucket")}\\), PUT, up to 1024 MiB, 30 s, may reach loopback and private addresses \\(intranet\\)`));
-    assert.match(result.text, new RegExp(`  reports over open sources \\(open\\): store links \\(bind none\\), from ${origin("files")}`));
+    assert.match(result.text, new RegExp(`  reports over open sources \\(open\\): store links \\(bind none, as you declared it; pivotkit does not check the store\\), from ${origin("files")}`));
     assert.match(result.text, / {2}reports over closed sources \(closed\): not uploaded \(the store's links work for anyone who has them\); no link/);
     assert.match(result.text, / {2}schedule drafts are not uploaded/);
     // the downloads section leaves open sources to the upload section
@@ -571,7 +606,7 @@ test("check-config: where reports go and which go there", async () => {
     assert.match(result.text, /PROBLEM: output\.upload\.presign\.headers\.authorization: \$PIVOTKIT_TEST_STORE_TOKEN is not set/);
     const once = await checkConfig({ ...presignOptions({ bind: "once", maxBytes: 52_428_800, timeMs: 30_000 }), baseDir: dir }, { http: true, env: { PIVOTKIT_TEST_STORE_TOKEN: "x" }, rest: true });
     assert.match(once.text, /up to 50 MiB, 30 s/);
-    assert.match(once.text, /reports over closed sources \(closed\): store links \(bind once: each link works once\).*; REST programs get them only with results: true/);
+    assert.match(once.text, /reports over closed sources \(closed\): store links \(bind once: you declared that each link works once\).*; REST programs get them only with results: true/);
     assert.match(once.text, /warning: one-time store links/);
     assert.doesNotMatch(once.text, /PROBLEM/);
     assert.ok(existsSync(join(dir, "data", "sales.csv")));
@@ -579,4 +614,127 @@ test("check-config: where reports go and which go there", async () => {
     const sas = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://acct.blob.core.example.com/reports/{id}.{format}?sv=2026-01-01&sig=SAS-SECRET", link: "header:location" } }, baseDir: dir }, { http: true, env: {} });
     assert.match(sas.text, /target: https:\/\/acct\.blob\.core\.example\.com\/reports\/\{id\}\.\{format\}\?\.\.\., PUT/);
     assert.ok(!sas.text.includes("SAS-SECRET"));
+});
+
+/** The file descriptors this process has open (macOS and Linux). */
+const openFds = () => readdirSync(platform === "linux" ? "/proc/self/fd" : "/dev/fd").length;
+
+test("a refused or timed-out upload closes its file: the count of open files stays flat", { skip: platform === "win32" }, async () => {
+    /** @type {import("node:http").ServerResponse[]} */
+    const unanswered = [];
+    // accepts and never answers: the upload times out (its connections are closed before counting)
+    routes.set("PUT *", (_entry, res) => unanswered.push(res));
+    const cases = [
+        ["metadata address", { url: `https://meta.example.test:${port}/r/{id}` }, "STORE_REFUSED_ADDRESS"],
+        ["private address without intranet", { url: `https://private.example.test:${port}/r/{id}`, intranet: false }, "STORE_REFUSED_ADDRESS"],
+        ["an IP address as the host", { url: `https://127.0.0.1:${port}/r/{id}` }, "STORE_IP_LITERAL"],
+        ["no answer", { url: `${origin("store")}/r/{id}`, timeMs: 1000 }, "TIMEOUT"]
+    ];
+    for (const [what, upload, code] of cases) {
+        const { context, log } = await contextOf({ sources: SOURCES, output: { dir: "out", upload: { intranet: true, ...upload } } });
+        try {
+            const before = openFds();
+            const tries = code === "TIMEOUT" ? 3 : 20;
+            for (let i = 0; i < tries; i++) {
+                await assert.rejects(deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }), /could not be stored/);
+            }
+            // the store's side of the timed-out connections, then a moment for closed streams to close their files
+            unanswered.splice(0).forEach((res) => res.destroy());
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            assert.equal(log.findLast((l) => l.upload)?.upload, code, what);
+            assert.ok(openFds() - before < tries, `${what}: ${openFds() - before} more open files after ${tries} uploads`);
+        } finally {
+            await context.close();
+        }
+    }
+});
+
+test("the slot queue is capped: an upload beyond 32 waiting ones fails at once, retryable", async () => {
+    routes.set("POST /presign", presignRoute());
+    /** @type {Array<() => void>} */
+    const held = [];
+    let hold = true;
+    routes.set("PUT *", (entry, res) => (hold ? held.push(() => bucket()(entry, res)) : bucket()(entry, res)));
+    const { context, log } = await contextOf(presignOptions());
+    try {
+        const waiting = Array.from({ length: 34 }, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }));
+        for (let i = 0; i < 200 && held.length < 2; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        const started = Date.now();
+        const refused = await failureOf(withRequestId("Queue_Full0", () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false })));
+        assert.ok(Date.now() - started < 1000, "refused at once, not after timeMs");
+        assert.deepEqual([refused?.code, refused?.details?.retryable], ["UPLOAD_FAILED", true]);
+        assert.equal(log.find((l) => l.requestId === "Queue_Full0" && l.upload)?.upload, "TIMEOUT");
+        hold = false;
+        held.splice(0).forEach((go) => go());
+        assert.equal((await Promise.all(waiting)).filter((o) => o?.url).length, 34);
+    } finally {
+        await context.close();
+    }
+});
+
+test("a POST presign whose connection drops is not tried again", async () => {
+    routes.set("POST /presign", (entry, res) => res.socket?.destroy());
+    const r = await failing();
+    assert.equal(r.code, "PRESIGN_NETWORK");
+    assert.equal(r.error.details.retryable, true);
+    assert.equal(asked.filter((a) => a.path === "/presign").length, 1);
+});
+
+test("the presign request gets what is left of timeMs after waiting for a slot, not all of it", async () => {
+    let presigns = 0;
+    let gaveUp = false;
+    const sign = presignRoute();
+    routes.set("POST /presign", (entry, res) => {
+        presigns++;
+        if (presigns < 3) {
+            sign(entry, res);
+            return;
+        }
+        // the third presign answers after 800 ms: by then its upload's time (1500 ms, 1000 of them waiting) is up
+        let closed = false;
+        res.on("close", () => {
+            closed = true;
+        });
+        setTimeout(() => {
+            gaveUp = closed;
+            if (!closed) {
+                sign(entry, res);
+            }
+        }, 800);
+    });
+    routes.set("PUT *", (entry, res) => setTimeout(() => bucket()(entry, res), 1000));
+    const { context, log } = await contextOf(presignOptions({ timeMs: 1500 }));
+    try {
+        const three = [1, 2, 3].map((n) => failureOf(withRequestId(`Budget_Id0${n}`, () => deliver(context, FILE, { ...MCP_HOW, sourceClosed: false }))));
+        const errors = await Promise.all(three);
+        assert.deepEqual(errors.map((e) => e?.code ?? null), [null, null, "UPLOAD_FAILED"]);
+        assert.equal(log.find((l) => l.requestId === "Budget_Id03" && l.upload)?.upload, "TIMEOUT");
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        assert.equal(gaveUp, true, "the presign request was ended at the deadline");
+    } finally {
+        await context.close();
+    }
+});
+
+test("keepLocal false: a 2xx with a link that is not shown keeps the local copy (the store has an orphan)", async () => {
+    routes.set("POST /presign", presignRoute({ downloadUrl: `${origin("evil")}/f/1` }));
+    routes.set("PUT *", bucket());
+    const r = await failing({ keepLocal: false });
+    assert.equal(r.code, "LINK_ORIGIN");
+    assert.equal(asked.filter((a) => a.method === "PUT").length, 1, "the store took the report");
+    assert.deepEqual(r.files, ["Sales by region.pivotkit-out.csv"]);
+});
+
+test("check-config: a target on a loopback, private or IP address without intranet is a problem, as the upload would refuse it", async () => {
+    const dir = workspace();
+    const local = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://localhost:8443/r/{id}" } }, baseDir: dir }, { http: true, env: {} });
+    assert.match(local.text, /PROBLEM: output\.upload\.url: localhost resolves to (127\.0\.0\.1|::1), a loopback or private address, which uploads refuse without output\.upload\.intranet: true/);
+    const literal = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://10.1.2.3/r/{id}" } }, baseDir: dir }, { http: true, env: {} });
+    assert.match(literal.text, /PROBLEM: output\.upload\.url: 10\.1\.2\.3 is an IP address, which uploads refuse; name the server/);
+    const intranet = await checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://localhost:8443/r/{id}", intranet: true } }, baseDir: dir }, { http: true, env: {} });
+    assert.doesNotMatch(intranet.text, /PROBLEM/);
+    // {id} is part of every template: refused at start, and so by check-config
+    await assert.rejects(checkConfig({ sources: SOURCES, output: { dir: "out", upload: { url: "https://store.example.com/r/{name}.{format}" } }, baseDir: dir }, { http: true, env: {} }), /output\.upload\.url: \{id\} is missing/);
 });

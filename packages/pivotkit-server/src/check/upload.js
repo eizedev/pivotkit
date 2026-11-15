@@ -15,6 +15,42 @@ import { settingsOf as downloadSettingsOf } from "../options/downloads.js";
 import { OUTPUT_DEFAULTS } from "../config.js";
 import { addressText, uploadMaxBytes, uploadSettingsOf } from "../options/upload.js";
 import { readSecret, secretFileWarning } from "../secrets.js";
+import { addressRefusal } from "../sources/fetch.js";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+
+/** How long check-config waits for a name's addresses. */
+const LOOKUP_MS = 3000;
+
+/**
+ * What keeps the server from reaching a host the uploads go to, by the rule a request applies
+ * (guardedFetch's addressRefusal over every address the name has now): a PROBLEM line, a warning
+ * when the name cannot be looked up now, or null.
+ * @param {string} host
+ * @param {boolean} intranet
+ * @param {string} key  the option that names it
+ */
+async function hostLine(host, intranet, key) {
+    const bare = host.replace(/^\[|\]$/g, "");
+    if (isIP(bare)) {
+        return `PROBLEM: ${key}: ${bare} is an IP address, which uploads refuse; name the server`;
+    }
+    /** @type {Array<{ address: string }> | null} */
+    const addresses = await Promise.race([lookup(bare, { all: true }), new Promise((resolve) => setTimeout(() => resolve(null), LOOKUP_MS).unref())]).catch(() => null);
+    if (!addresses?.length) {
+        return `warning: ${key}: ${bare} cannot be looked up from here; the upload checks its addresses when it runs`;
+    }
+    for (const { address } of addresses) {
+        const rule = addressRefusal(address, { allowPrivate: intranet });
+        if (rule === "always") {
+            return `PROBLEM: ${key}: ${bare} resolves to ${address}, which is never connected to (link-local, metadata, multicast or unspecified)`;
+        }
+        if (rule) {
+            return `PROBLEM: ${key}: ${bare} resolves to ${address}, a loopback or private address, which uploads refuse without output.upload.intranet: true`;
+        }
+    }
+    return null;
+}
 
 /** Up to six ids, then how many more. */
 const idsText = (ids) => (ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", "));
@@ -47,15 +83,24 @@ export async function section(options, registry, runtime) {
     let problems = 0;
     const how = `${settings.method}, up to ${sizeText(uploadMaxBytes(settings, options.output?.maxMb ?? OUTPUT_DEFAULTS.maxMb))}, ${+(settings.timeMs / 1000).toFixed(1)} s${settings.intranet ? ", may reach loopback and private addresses (intranet)" : ""}`;
     lines.push(settings.presign ? `  target: presigned via ${addressText(settings.presign.url)} (uploads to ${settings.presign.allowOrigins.join(", ")}), ${how}` : `  target: ${addressText(/** @type {string} */ (settings.template))}, ${how}`);
+    // the hosts requests go to, checked as a request checks them
+    const hosts = settings.presign ? [[new URL(settings.presign.url).hostname, "output.upload.presign.url"], ...settings.presign.allowOrigins.map((o) => [new URL(o).hostname, "output.upload.presign.allowOrigins"])] : [[new URL(/** @type {string} */ (settings.template).replace(/\{(id|name|format)\}/g, "x")).hostname, "output.upload.url"]];
+    for (const [host, key] of hosts) {
+        const said = await hostLine(host, settings.intranet, key);
+        if (said) {
+            lines.push(`  ${said}`);
+            problems += said.startsWith("PROBLEM") ? 1 : 0;
+        }
+    }
     const from = `from ${settings.linkOrigins.join(", ")}`;
     if (open.length) {
-        lines.push(`  reports over open sources (${idsText(open)}): store links (bind ${settings.bind}), ${from}`);
+        lines.push(`  reports over open sources (${idsText(open)}): store links (bind ${settings.bind}, as you declared it; pivotkit does not check the store), ${from}`);
     }
     if (closed.length) {
         if (settings.bind === "none") {
             lines.push(`  reports over closed sources (${idsText(closed)}): not uploaded (the store's links work for anyone who has them); ${ownDelivery(options, runtime)}`);
         } else {
-            lines.push(`  reports over closed sources (${idsText(closed)}): store links (bind ${settings.bind}: ${settings.bind === "signIn" ? "the store lets only the person open them" : "each link works once"}), ${from}${runtime.rest ? "; REST programs get them only with results: true" : ""}`);
+            lines.push(`  reports over closed sources (${idsText(closed)}): store links (bind ${settings.bind}: ${settings.bind === "signIn" ? "you declared that the store lets only the person open them; callers without a subject get the server's own delivery" : "you declared that each link works once"}), ${from}${runtime.rest ? "; REST programs get them only with results: true" : ""}`);
             if (settings.bind === "once") {
                 lines.push("  warning: one-time store links: anyone who sees the link can use it once, including an assistant with a browser or code tool");
             }

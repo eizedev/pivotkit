@@ -211,6 +211,9 @@ function checkTemplate(template) {
     if (unknown !== undefined) {
         throw new ConfigError(`${at}: {${unknown.slice(0, 40)}} is not a placeholder; the address may hold {id} (random), {name} (the report's name) and {format}`);
     }
+    if (!template.includes("{id}")) {
+        throw new ConfigError(`${at}: {id} is missing; it gives every report an address of its own (a report never replaces another, and its address cannot be guessed from its name): "https://store.example.com/reports/{id}/{name}.{format}"`);
+    }
     if (/[{}]/.test(template.replace(/\{(id|name|format)\}/g, ""))) {
         throw new ConfigError(`${at}: a "{" or "}" outside {id}, {name} and {format}`);
     }

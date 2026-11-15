@@ -298,8 +298,10 @@ may try to steer it:
   upload to must be on `presign.allowOrigins`, and the presign service cannot ask for credential or
   connection headers. A link is shown only when it is `https://`, on `linkOrigins`, without user
   name or control characters. A report over a closed source goes to the store only where the
-  operator declares its links bound (`once`, `signIn`); a store whose links anyone can open never
-  gets one. Presigned addresses, links, store tokens and answer bodies are never logged or shown;
+  operator declares its links bound (`once`, `signIn` for a caller with a subject); a store whose
+  links anyone can open never gets one. The binding is the operator's declaration: a `signIn` link is
+  only as strong as the store's own access control, which pivotkit does not verify; the presign
+  service gets the person's HMAC binding, never the subject. Presigned addresses, links, store tokens and answer bodies are never logged or shown;
   a failure is `UPLOAD_FAILED` with a fixed text and the request id.
 - **Templates and recipients**: a print template comes from the operator, never from the model.
   A schedule is a draft a person approves in the host; recipients are names, never addresses.

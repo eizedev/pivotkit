@@ -21,7 +21,8 @@
  *
  * | source | store's links (upload.bind) | caller                         | delivery                         |
  * | open   | any                         | any                            | uploaded, the store's link        |
- * | closed | "once" or "signIn"          | REST only with results: true   | uploaded, the store's link        |
+ * | closed | "once"                      | REST only with results: true   | uploaded, the store's link        |
+ * | closed | "signIn"                    | with a subject; REST as above  | uploaded, the store's link        |
  * | closed | "none"                      | any                            | not uploaded: the table above     |
  *
  * A report over a closed source never goes to a store whose links anyone can open, and a schedule
@@ -34,7 +35,7 @@ import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { OperationError } from "pivotkit-report/operations";
 import { outputDir, writeOutput } from "./output.js";
-import { filenameOf, linksOf } from "./downloads.js";
+import { filenameOf, linksOf, subjectBindingOf } from "./downloads.js";
 import { uploadSettingsOf } from "./options/upload.js";
 import { requestId, errorDetails } from "./request-id.js";
 import { UploadFailure, upload } from "./upload.js";
@@ -80,18 +81,22 @@ export function linkFor(links, { closed, surface, results, subject }) {
 /**
  * Whether a report goes to the upload target (and the result shows the store's link): never a
  * draft; a report over an open source always; over a closed source only where the store's links are
- * bound (once or signIn), and on REST only for a caller that may take results itself.
+ * bound (once, or signIn for a caller with an issuer and subject the store can check, as linkFor),
+ * and on REST only for a caller that may take results itself.
  * @param {{ bind: "none" | "once" | "signIn" } | null} store  uploadSettingsOf(options)
- * @param {{ closed: boolean, surface: "mcp" | "rest", results: boolean, draft: boolean }} how
+ * @param {{ closed: boolean, surface: "mcp" | "rest", results: boolean, draft: boolean, signedIn?: boolean }} how  signedIn: the caller has an issuer and subject
  */
-export function storeFor(store, { closed, surface, results, draft }) {
+export function storeFor(store, { closed, surface, results, draft, signedIn = false }) {
     if (!store || draft) {
         return false;
     }
     if (!closed) {
         return true;
     }
-    return store.bind !== "none" && (surface !== "rest" || results);
+    if (store.bind === "none" || (store.bind === "signIn" && !signedIn)) {
+        return false;
+    }
+    return surface !== "rest" || results;
 }
 
 /** "it works for 60 minutes", in the note's words. */
@@ -119,8 +124,11 @@ function noteOf(bound, minutes) {
 export async function deliver(context, file, how) {
     const closed = how.sourceClosed !== false;
     const store = uploadSettingsOf(context.options ?? {});
-    if (storeFor(store, { closed, surface: how.surface, results: how.policy?.results === true, draft: how.draft === true })) {
-        return toStore(context, file, /** @type {import("./options/upload.js").UploadSettings} */ (store));
+    const signedIn = Boolean(how.caller?.subject && how.caller?.issuer);
+    if (storeFor(store, { closed, surface: how.surface, results: how.policy?.results === true, draft: how.draft === true, signedIn })) {
+        // a signIn store gets the person's binding (the HMAC a sign-in link holds, never the subject), so it can scope the report
+        const subject = store?.bind === "signIn" && signedIn ? await subjectBindingOf(context, /** @type {string} */ (how.caller.issuer), /** @type {string} */ (how.caller.subject)) : null;
+        return toStore(context, file, /** @type {import("./options/upload.js").UploadSettings} */ (store), subject);
     }
     const links = linksOf(context);
     const caller = how.caller;
@@ -166,9 +174,10 @@ function storeNoteOf(bound, expiresAt) {
  * @param {any} context
  * @param {{ bytes: Uint8Array, mediaType: string, extension: string, name: string }} file
  * @param {import("./options/upload.js").UploadSettings} store
+ * @param {string | null} subject  the person's binding for the presign service
  * @returns {Promise<Delivered | null>}
  */
-async function toStore(context, file, store) {
+async function toStore(context, file, store, subject) {
     const written = await writeOutput(context, file, false);
     if (!written) {
         return null;
@@ -179,12 +188,13 @@ async function toStore(context, file, store) {
     const said = { requestId: requestId() ?? undefined, bytes: file.bytes.length, bind: store.bind };
     let link;
     try {
-        link = await upload(context, { path, bytes: file.bytes.length }, { filename, name: file.name, extension: file.extension, mediaType: file.mediaType, sha256: createHash("sha256").update(file.bytes).digest("hex") });
+        link = await upload(context, { path, bytes: file.bytes.length }, { filename, name: file.name, extension: file.extension, mediaType: file.mediaType, sha256: createHash("sha256").update(file.bytes).digest("hex"), ...(subject ? { subject } : {}) });
     } catch (e) {
         const failure = e instanceof UploadFailure ? e : new UploadFailure("INTERNAL", false);
         // the code only: never an address, a header or what the store answered
         context.log.warn(`upload failed: ${failure.code}; the report stays in the output directory${store.keepLocal ? "" : " until it is cleaned up"}`, { ...said, upload: failure.code, retryable: failure.retryable, ms: Date.now() - started });
-        throw new OperationError("UPLOAD_FAILED", `the report could not be stored (${failure.code})`, errorDetails({ retryable: failure.retryable }));
+        // the caller gets a fixed text and the request id: the code would tell it about the store's setup
+        throw new OperationError("UPLOAD_FAILED", "the report could not be stored", errorDetails({ retryable: failure.retryable }));
     }
     context.log.info("report uploaded", { ...said, ms: Date.now() - started });
     /** @type {Delivered} */

@@ -287,6 +287,20 @@ export function linksOf(context) {
 }
 
 /**
+ * The subject binding of a caller as a sign-in link's token holds it (subjectDigest: the HMAC of
+ * [issuer, subject] under output.downloads.key), for an upload target that scopes a report to the
+ * person; null without the route's state (no HTTP) or a readable key.
+ * @param {any} context
+ * @param {string} issuer
+ * @param {string} subject
+ * @returns {Promise<string | null>}
+ */
+export async function subjectBindingOf(context, issuer, subject) {
+    const keys = await states.get(context)?.keys().catch(() => null);
+    return keys ? subjectDigest(keys, issuer, subject) : null;
+}
+
+/**
  * The keys of output.downloads.key, read on every use (a rotated secret works without a restart;
  * links of the old key stop working) and derived once per value; a random key without one.
  * @param {import("./options/downloads.js").DownloadSettings} settings

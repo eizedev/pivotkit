@@ -19,7 +19,8 @@
  *   characters, at most 2048 characters, its origin on linkOrigins.
  *
  * A failure is an UploadFailure with a code of its own (never an address, an answer's body or a
- * header's value); delivery.js answers UPLOAD_FAILED and logs the code.
+ * header's value); delivery.js answers UPLOAD_FAILED with a fixed text and logs the code (the code
+ * would tell a caller about the store's setup, so it stays on the log).
  */
 
 import { randomBytes } from "node:crypto";
@@ -49,8 +50,11 @@ const UPLOAD_URL_MAX = 8192;
 /** The longest report name in an address. */
 const NAME_MAX = 80;
 
-/** Headers the presign service may not ask for: the connection's own and credentials. */
-const REFUSED_UPLOAD_HEADERS = /^(host|content-length|authorization|cookie|proxy-.*|connection|keep-alive|te|trailer|transfer-encoding|upgrade|accept-encoding)$/i;
+/** Headers the presign service may not ask for: the connection's own, the body's (its type and encoding are the report's), credentials and proxy headers. */
+const REFUSED_UPLOAD_HEADERS = /^(host|content-length|content-type|content-encoding|expect|authorization|cookie|proxy-.*|x-forwarded-.*|forwarded|connection|keep-alive|te|trailer|transfer-encoding|upgrade|accept-encoding)$/i;
+
+/** The most uploads waiting for a slot; one more is refused at once (TIMEOUT, retryable). */
+export const UPLOAD_QUEUE_MAX = 32;
 
 /** A header's value the presign service asks for: printable Latin-1 and tab (longer than a configured one: a signed session token). */
 const UPLOAD_HEADER_VALUE = /^[\t\x20-\x7e\x80-\xff]{0,4096}$/;
@@ -67,7 +71,8 @@ const EXPIRY_MAX_MS = 366 * 86_400_000;
 
 /**
  * An upload that failed. `code` says what (TOO_LARGE, SECRET, PRESIGN_<status>, PRESIGN_ANSWER,
- * UPLOAD_URL, UPLOAD_HEADERS, STORE_<status>, STORE_ANSWER, LINK, TIMEOUT, or a guardedFetch code);
+ * UPLOAD_URL_<problem>, UPLOAD_HEADERS, STORE_<status>, STORE_ANSWER, LINK_<problem>, TIMEOUT, or
+ * PRESIGN_/STORE_ and a guardedFetch code);
  * `retryable` whether the same request may work later. The message is the code: no address, answer
  * or header value.
  */
@@ -112,28 +117,47 @@ export function fillTemplate(template, values) {
 
 /**
  * An address from an answer, checked: https://, no user name or password, no control characters, at
- * most `max` characters, its origin on the list. Returns the parsed address or null.
+ * most `max` characters, its origin on the list. Returns the parsed address, or what is wrong with it:
+ * MISSING (no text), LENGTH, CHARS (control characters), PARSE, SCHEME (not https://), USERINFO,
+ * ORIGIN (not on the list).
  * @param {unknown} text
  * @param {string[]} origins
  * @param {number} max
  * @param {string} [base]  for a relative address (a Location header)
+ * @returns {{ url: URL, problem: null } | { url: null, problem: string }}
  */
-export function checkedAddress(text, origins, max, base) {
+export function addressCheck(text, origins, max, base) {
+    const no = (problem) => ({ url: null, problem });
     // the raw text first: URL drops tabs and line breaks without a word
-    if (typeof text !== "string" || text === "" || text.length > max || CONTROL.test(text)) {
-        return null;
+    if (typeof text !== "string" || text === "") {
+        return no("MISSING");
+    }
+    if (text.length > max) {
+        return no("LENGTH");
+    }
+    if (CONTROL.test(text)) {
+        return no("CHARS");
     }
     let url;
     try {
         url = base ? new URL(text, base) : new URL(text);
     } catch {
-        return null;
+        return no("PARSE");
     }
-    if (url.protocol !== "https:" || url.username || url.password || url.href.length > max || !origins.includes(url.origin)) {
-        return null;
+    if (url.protocol !== "https:") {
+        return no("SCHEME");
     }
-    return url;
+    if (url.username || url.password) {
+        return no("USERINFO");
+    }
+    if (url.href.length > max) {
+        return no("LENGTH");
+    }
+    return origins.includes(url.origin) ? { url, problem: null } : no("ORIGIN");
 }
+
+/** addressCheck's address, or null. */
+export const checkedAddress = (text, origins, max, base) => addressCheck(text, origins, max, base).url;
 
 /**
  * An expiry a store answered, in the one form (ISO 8601 in UTC to the second), or null: a time in the
@@ -172,6 +196,9 @@ async function inSlot(context, deadline, fn) {
         slots.set(context, state);
     }
     const s = state;
+    if (s.running >= UPLOAD_SLOTS && s.waiting.length >= UPLOAD_QUEUE_MAX) {
+        throw new UploadFailure("TIMEOUT", true);
+    }
     if (s.running >= UPLOAD_SLOTS) {
         await new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -273,6 +300,7 @@ function uploadHeadersOf(value) {
  * @property {string} extension  the format ("xlsx")
  * @property {string} mediaType
  * @property {string} sha256  hex
+ * @property {string} [subject]  a signIn store's report: the person's binding (subjectBindingOf), sent to the presign service
  */
 
 /**
@@ -312,7 +340,7 @@ export async function upload(context, file, meta) {
         if (presign) {
             let answer;
             try {
-                answer = await fetch(presign.url, { ...rules, method: "POST", headers: { ...headers, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ filename: meta.filename, mediaType: meta.mediaType, bytes: file.bytes, sha256: meta.sha256 }), timeMs: left() });
+                answer = await fetch(presign.url, { ...rules, method: "POST", headers: { ...headers, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ filename: meta.filename, mediaType: meta.mediaType, bytes: file.bytes, sha256: meta.sha256, ...(meta.subject ? { subject: meta.subject } : {}) }), timeMs: left() });
             } catch (e) {
                 throw fetchFailure(e, "PRESIGN");
             }
@@ -323,11 +351,11 @@ export async function upload(context, file, meta) {
             if (body === null || typeof body !== "object") {
                 throw new UploadFailure("PRESIGN_ANSWER", false);
             }
-            const address = checkedAddress(pointerValue(body, presign.uploadUrl), presign.allowOrigins, UPLOAD_URL_MAX);
-            if (!address) {
-                throw new UploadFailure("UPLOAD_URL", false);
+            const address = addressCheck(pointerValue(body, presign.uploadUrl), presign.allowOrigins, UPLOAD_URL_MAX);
+            if (!address.url) {
+                throw new UploadFailure(`UPLOAD_URL_${address.problem}`, false);
             }
-            target = address;
+            target = address.url;
             sendHeaders = uploadHeadersOf(presign.uploadHeaders ? pointerValue(body, presign.uploadHeaders) : undefined);
             linkText = pointerValue(body, presign.link);
             expiry = presign.expiresAt ? pointerValue(body, presign.expiresAt) : undefined;
@@ -338,14 +366,18 @@ export async function upload(context, file, meta) {
         const put = settings.method === "PUT";
         let stored;
         for (let attempt = 0; ; attempt++) {
+            // a stream per attempt, closed whatever happens: a request refused before it sent the body never reads it
+            const body = createReadStream(file.path);
             try {
-                stored = await fetch(target, { ...rules, method: settings.method, headers: { "content-type": meta.mediaType, ...sendHeaders, "content-length": String(file.bytes) }, body: createReadStream(file.path), timeMs: left() });
+                stored = await fetch(target, { ...rules, method: settings.method, headers: { "content-type": meta.mediaType, ...sendHeaders, "content-length": String(file.bytes) }, body, timeMs: left() });
             } catch (e) {
                 const failure = fetchFailure(e, "STORE");
                 if (put && attempt === 0 && failure.retryable && failure.code !== "TIMEOUT") {
                     continue;
                 }
                 throw failure;
+            } finally {
+                body.destroy();
             }
             if (stored.status >= 200 && stored.status <= 299) {
                 break;
@@ -371,9 +403,10 @@ export async function upload(context, file, meta) {
             expiry = settings.expiresAt ? pointerValue(jsonOf(stored.body), settings.expiresAt) : undefined;
         }
         // a relative Location is the store's own address
-        const url = checkedAddress(linkText, settings.linkOrigins, LINK_MAX, presign ? undefined : target.href);
+        const { url, problem } = addressCheck(linkText, settings.linkOrigins, LINK_MAX, presign ? undefined : target.href);
         if (!url) {
-            throw new UploadFailure("LINK", false);
+            // the store holds the report by now: it stays there (the operator's store cleans it up)
+            throw new UploadFailure(`LINK_${problem}`, false);
         }
         const expiresAt = expiry === undefined ? null : expiryOf(expiry);
         return { url: url.href, ...(expiresAt ? { expiresAt } : {}) };

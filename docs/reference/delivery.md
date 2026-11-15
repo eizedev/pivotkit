@@ -195,8 +195,10 @@ result shows the store's link. You configure the store; a caller cannot name an 
 ```
 
 Here pivotkit sends `POST https://store.example.com/presign` with the `authorization` header and the
-JSON `{ "filename": "Sales by region.xlsx", "mediaType": "...", "bytes": 18234, "sha256": "<hex>" }`.
-A presign service you run answers, for example:
+JSON `{ "filename": "Sales by region.xlsx", "mediaType": "...", "bytes": 18234, "sha256": "<hex>" }`,
+with `"subject"` added for a `bind: "signIn"` store (below). `filename` comes from the report's name,
+which a caller can choose: treat it as untrusted text, and never use it unchecked as an object key
+or a path. A presign service you run answers, for example:
 
 ```json
 {
@@ -211,8 +213,9 @@ pivotkit then sends the file with `PUT` to `uploadUrl`, with `content-type`, `co
 answer's `headers`, and shows `downloadUrl` as `output.url`, with `expiresAt`. Your credentials go to
 the presign address only, never to `uploadUrl`.
 
-Without a presign service, give an address template; `{id}` is random, `{name}` is the report's name
-as letters, digits, `.`, `_` and `-` (at most 80 characters), `{format}` its format:
+Without a presign service, give an address template; `{id}` is random and required (every report gets
+an address of its own that cannot be guessed from its name), `{name}` is the report's name as
+letters, digits, `.`, `_` and `-` (at most 80 characters), `{format}` its format:
 
 ```json
 "upload": {
@@ -226,7 +229,7 @@ answer names the stored report: a JSON Pointer (`"/url"`) or `"header:location"`
 
 | Key | Default | What it is |
 | --- | --- | --- |
-| `output.upload.url` | none | An `https://` address template with `{id}`, `{name}` and `{format}` in its path or query; or `presign` |
+| `output.upload.url` | none | An `https://` address template with `{id}` (required), `{name}` and `{format}` in its path or query; or `presign` |
 | `output.upload.headers` | none | With `url`: headers sent to the store. A value is a text, or `{ "prefix": "Bearer ", "value": <secret reference> }`; `authorization`, `cookie` and names with `key`, `token`, `secret`, `auth` or `pass` take a secret reference only |
 | `output.upload.link` | the address (`PUT` to an address without a query) | With `url`: a JSON Pointer into the store's answer, or `"header:location"`; required for `POST` and for an address with a query (a query may hold a signature, such as a SAS token, which is never shown) |
 | `output.upload.expiresAt` | none | With `url`: a JSON Pointer to the link's expiry in the store's answer |
@@ -240,7 +243,7 @@ answer names the stored report: a JSON Pointer (`"/url"`) or `"header:location"`
 | `output.upload.timeMs` | 30000 | Waiting for a slot, presign and upload together, 1000 to 600000 ms |
 | `output.upload.maxBytes` | `output.maxMb` | A larger report is not uploaded (`UPLOAD_FAILED`) |
 | `output.upload.keepLocal` | true | Keep the report in `output.dir` too; with `false` it is removed once the store answered 2xx and the link was checked |
-| `output.upload.bind` | `"none"` | What the store's links do, as you declare it: `none` (anyone with the link), `once`, or `signIn` (the store checks the person) |
+| `output.upload.bind` | `"none"` | What the store's links do, as you declare it (pivotkit does not check it): `none` (anyone with the link), `once`, or `signIn` (the store checks the person) |
 | `output.upload.intranet` | false | The store may be on a loopback or private address |
 
 `output.upload` needs `output.dir` and cannot be combined with `output.baseUrl`.
@@ -250,30 +253,61 @@ Which reports go to the store:
 | Source | `bind` | Delivery |
 | --- | --- | --- |
 | Open | any | Uploaded; the store's link (`bound` is `bind`) |
-| Closed | `once` or `signIn` | Uploaded; the store's link. Over REST only for a caller with `results: true` |
+| Closed | `once` | Uploaded; the store's link. Over REST only for a caller with `results: true` |
+| Closed | `signIn` | Uploaded for a caller signed in with an issuer and subject; the store's link. Over REST only with `results: true`. A caller without a subject gets the server's own delivery |
 | Closed | `none` | Not uploaded: a store whose links anyone can open never gets such a report. The server's own links apply (a sign-in link where configured), else no link |
 
 Schedule drafts are not uploaded: the host approves them in `output.dir`.
 
+With `bind: "signIn"` the presign request carries `subject`: the same binding a sign-in link holds,
+the HMAC of the caller's issuer and subject under `output.downloads.key` (never the subject itself),
+so your presign service can scope the object to the person and check it when they open the link.
+Set `output.downloads.key` for a binding that stays the same across restarts and replicas; over
+stdio, or when the key cannot be read, no `subject` is sent. A `signIn` link is only as strong as the
+store's own access control: pivotkit declares the binding, it does not verify it.
+
 What is checked: every request goes through the same guarded fetch as [HTTP sources](sources.md#http)
 (`https://` only, no redirects followed, cloud metadata and link-local addresses never, loopback and
 private addresses only with `intranet`). `uploadUrl` must be `https://` and on `allowOrigins`. The
-presign service may not ask for `host`, `content-length`, `authorization`, `cookie`, `proxy-*` or
-connection headers, nor for line breaks in a value. A link must be `https://`, on `linkOrigins`,
+presign service may not ask for `host`, `content-length`, `content-type`, `content-encoding`,
+`expect`, `authorization`, `cookie`, `proxy-*`, `x-forwarded-*`, `forwarded` or connection headers,
+nor for line breaks in a value. A link must be `https://`, on `linkOrigins`,
 without a user name or password or control characters, and at most 2048 characters. Answers are read
-up to 64 KiB. At most two uploads run at once; the file is streamed from disk. A `PUT` is tried once
+up to 64 KiB. At most two uploads run at once and 32 wait for a slot (one more fails at once,
+retryable); the file is streamed from disk. A `PUT` is tried once
 more after a dropped connection or a 502, 503 or 504 while time is left; a `POST` (the presign
 request among them) never is.
 
 When an upload fails, the caller gets `UPLOAD_FAILED` (502) with a fixed text, the request id and
 `retryable` ([REST](rest.md#error-upload-failed), [MCP](mcp.md#errors)); the report stays in
-`output.dir` (with `keepLocal: false` until it is cleaned up). The log line `upload failed` names the
-request id and a code (`PRESIGN_403`, `UPLOAD_URL`, `LINK`, `STORE_503`, `TIMEOUT`, `SECRET`, ...),
-never an address, a header or what the store answered: presigned addresses and links are
-credentials.
+`output.dir` (with `keepLocal: false` until it is cleaned up). What went wrong is on the log only: the
+line `upload failed` names the request id and one of the codes below, never an address, a header or
+what the store answered (presigned addresses and links are credentials). The caller never sees the
+code, since it would describe your store's setup.
 
-`check-config` prints an `Upload:` section: the target (without its query), which sources' reports go there, and a
-`PROBLEM:` line for a header secret it cannot read.
+| Code | Meaning | What to check |
+| --- | --- | --- |
+| `TOO_LARGE` | The report is larger than `maxBytes` | `output.upload.maxBytes`, `output.maxMb` |
+| `SECRET` | A header's secret cannot be read | The variable or file the header names; `check-config` says which |
+| `TIMEOUT` | `timeMs` passed (waiting for a slot, presign and upload), or 32 uploads were already waiting | The store's speed, `timeMs`, how many reports are made at once |
+| `PRESIGN_<status>` (`PRESIGN_403`, `PRESIGN_503`) | The presign service answered with this status | Its credentials (4xx), its health (5xx) |
+| `PRESIGN_ANSWER` | The presign answer is not a JSON object | The presign service |
+| `PRESIGN_<fetch code>` | The presign request failed: `REFUSED_ADDRESS`, `IP_LITERAL`, `NETWORK`, `REDIRECT`, `TOO_LARGE` (answer over 64 KiB), `BAD_ENCODING` | Its address, `intranet`, the service's answer |
+| `UPLOAD_URL_<problem>` | The answer's `uploadUrl` was not used: `MISSING`, `LENGTH` (over 8192 characters), `CHARS` (control characters), `PARSE`, `SCHEME` (not `https://`), `USERINFO`, `ORIGIN` (not on `presign.allowOrigins`) | `presign.uploadUrl` (the pointer), `presign.allowOrigins` |
+| `UPLOAD_HEADERS` | The answer's upload headers hold a refused name, a line break, or more than 20 entries | The presign service |
+| `STORE_<status>` (`STORE_403`, `STORE_503`) | The store answered the upload with this status (a PUT after 502, 503 or 504 was tried twice) | The store's permissions (4xx), its health (5xx) |
+| `STORE_<fetch code>` | The upload failed: `REFUSED_ADDRESS` (a metadata, loopback or private address without `intranet`), `IP_LITERAL`, `NETWORK`, `REDIRECT`, `BAD_BODY`, ... | The store's address, `intranet` |
+| `STORE_ANSWER` | The store's answer has no JSON where `link` points into it | `output.upload.link`, the store |
+| `LINK_<problem>` | The link was not shown: `MISSING`, `LENGTH` (over 2048 characters), `CHARS`, `PARSE`, `SCHEME`, `USERINFO`, `ORIGIN` (not on `linkOrigins`) | `link` (the pointer), `linkOrigins` |
+
+`LINK_<problem>` and `STORE_ANSWER` come after the upload: the store holds the report then, with no
+link given out for it. pivotkit does not delete it there (it may not have the right to); let the
+store's own retention remove such objects.
+
+`check-config` prints an `Upload:` section: the target (without its query), which sources' reports go there, a
+`PROBLEM:` line for a header secret it cannot read, and a `PROBLEM:` line for a target that resolves
+to an address uploads refuse (an IP address, a metadata address, or a loopback or private one
+without `intranet`).
 
 ## Behind a proxy { #proxy }
 

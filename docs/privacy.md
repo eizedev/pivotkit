@@ -103,6 +103,16 @@ person who asked; a link is in the browser's history and a proxy's log until it 
 [upload target](reference/delivery.md#upload) reports also go to the store you name, and how long
 they stay there is that store's setting.
 
+What an upload target receives, for the people you tell about it: the whole report file, under a
+name taken from the report's name (a source's title, or a name the caller gave); in presign mode the
+presign service also gets the file's size and SHA-256, and with `bind: "signIn"` an HMAC of the
+person's sign-in (never the name itself). The presign service sees one request per report, so it
+knows when and how often reports are made. With `bind: "none"` anyone holding a link can open the
+file until the link expires; in template mode the store does not have to say when that is
+(`expiresAt` is optional), so the store's own settings decide. `bind` is your declaration of what the
+store does; pivotkit does not check it. `keepLocal: false` removes only the copy in `output.dir`
+after a successful upload; a failed upload keeps it there until it is cleaned up.
+
 ## The AI client { #ai-client }
 
 An MCP client sends what the model sees (descriptions, findings, inline results) to the model's
