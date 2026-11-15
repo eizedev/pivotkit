@@ -32,6 +32,7 @@ holds every part shown below; the sections explain each one.
     kubectl create namespace pivotkit
     openssl rand -base64 32 | tr -d '/+=\n' > reports.token   # about 42 characters
     kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
+    kubectl -n pivotkit create secret generic pivotkit-download-key --from-literal=key="$(openssl rand -base64 48)"
     kubectl apply -f kubernetes.example.yaml
     kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
     kubectl -n pivotkit rollout status deployment/pivotkit
@@ -39,7 +40,8 @@ holds every part shown below; the sections explain each one.
 
     `apply` warns once that the namespace has no `last-applied-configuration` annotation and adds
     it. A token has at least 32 characters. Keep it out of the manifest and out of environment
-    variables (`kubectl describe` shows those).
+    variables (`kubectl describe` shows those). `pivotkit-download-key` is the key of the
+    [download links](../reference/delivery.md): at least 32 bytes, and kept, so links survive a restart.
 
 ## Check it { #check }
 
@@ -151,7 +153,9 @@ With the defaults that is about 150 MB + 2 x (1024 + 64 + 50) MB, about 2.4 GB: 
 2560Mi. Large files with many columns need more than this for the encoded columns kept; watch the
 pod's memory with your own data. A limit below the sum turns a report that would fail alone with `LIMIT_EXCEEDED` into an OOM
 kill of the whole pod, with every report running in it. For a smaller pod lower `compute.memoryMb`
-(with 512 and 2 workers, about 1.4 GB) or the workers, not the limit alone.
+(with 512 and 2 workers, about 1.4 GB) or the workers, not the limit alone. With code or HTTP
+sources the main process also keeps up to `sourceCache.maxMb` (256 MiB by default) of loaded data
+([bounds](../reference/sources.md#code-cache)): add it to the limit, or lower `sourceCache.maxMb`.
 
 For an idea of real use (measured once with Node 26 on macOS, not with the image; take it as a rough
 order and check your own data with `kubectl top pod`): over a CSV file of 30 MB with 700,000 rows and
@@ -286,7 +290,8 @@ The Ingress sends everything on the host to the Service: `/mcp`, `/api/v1`, `/op
 `/.well-known/` addresses of [OAuth](../reference/mcp.md#oauth) and the [download links](../reference/delivery.md)
 under `/downloads/` are all served by the one process.
 Without a token it answers the quick-start page at `/` (`http.page: false` turns it off), `/healthz`
-and `/readyz`; everything else needs one. It
+and `/readyz`; the [download links](../reference/delivery.md) under `/downloads/` answer without a
+token (the link is the credential); everything else needs one. It
 needs an ingress controller in the cluster (and `ingressClassName` where the cluster has no default
 class); `pivotkit-tls` is the certificate's Secret, by hand or from a tool such as cert-manager. The
 controller must pass the request's `Host` on unchanged and write `X-Forwarded-For`. Its time limit
@@ -415,7 +420,8 @@ cluster, on port 443. Add the rule to the policy's `egress`:
 When Authentik runs in the same cluster and its host name resolves to the ingress controller, allow
 the controller's namespace instead of an `ipBlock`. An issuer whose name resolves to a cluster or
 other private address also needs `"intranet": true` in `auth`: the server refuses loopback and
-private addresses for the issuer without it (`check-config` names it).
+private addresses for the issuer without it (`check-config` names it). The same setting covers the
+token endpoint of the [download sign-in](../reference/delivery.md#sign-in).
 
 What these settings are based on: Authentik's
 [OAuth2 provider documentation](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)

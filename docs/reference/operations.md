@@ -94,6 +94,8 @@ Lines of calls, requests, downloads and refusals add:
 | `ms` | `call`, `request` | The time the work took, in milliseconds |
 | `reason` | `refused` | `no_token`, `bad_token`, `rate_limited`, `body_too_large`, `host`, `origin`, `insufficient_scope`, `not_allowed` (the person's groups), `not_ready` (the issuer is not loaded yet), `busy`, `bad_request` (a body or a request the HTTP parser cannot read), `token_in_address`, and at `debug` only `method_not_allowed` (a GET of the MCP endpoint, which clients send to open a stream) and `not_found` (a path nobody serves) |
 | `limit`, `size` | `refused` | For `body_too_large`: the bytes allowed and the declared size; for `rate_limited` after sign-in, `limit` is `rate` or `concurrency` |
+| `path` | `refused` | The route family that refused it (`/api/v1`, `/openapi.json`, `/mcp`, `/downloads`) |
+| `host`, `origin` | `refused` | For `reason` `host` or `origin`: the Host or Origin the request sent (at most 100 characters) |
 | `parserError` | `refused` | For a request the HTTP parser refused (answered 400, 408 or 431 with an `X-Request-Id`): the parser's code, such as `HPE_INVALID_HEADER_TOKEN` |
 
 The level of a `call`, `request`, `download` or `refused` line follows its status: `info` below 400,
@@ -145,8 +147,8 @@ time=2026-11-15T11:12:45.066Z level=warn event=request msg="describe_source fail
 | `error` | An unexpected error: its class, its message only at `debug`, never its stack |
 | `debug` | Only at `debug`: why a token was refused, what a backend answered |
 
-The fields `message` (beside `msg`), `ok` (beside `outcome`) and the event name `warning` are kept
-for log queries written before these fields existed.
+`message` repeats `msg`, `ok` repeats `outcome` on `call` lines, and warnings have the event name
+`warning`; query by `msg`, `outcome` and `level` where you can.
 
 ## Error codes in the log { #codes }
 
