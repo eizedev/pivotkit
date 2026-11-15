@@ -14,7 +14,7 @@
 import { Worker } from "node:worker_threads";
 import { OperationError } from "pivotkit-report/operations";
 import { COMPUTE_DEFAULTS } from "./config.js";
-import { CACHE_ENTRIES, READ_JOB, codeTable } from "./data.js";
+import { CACHE_ENTRIES, KEPT_JOB, READ_JOB, codeTable } from "./data.js";
 import { isOwnError, sourceFailure } from "./sources/run.js";
 
 /**
@@ -282,12 +282,15 @@ export function createComputer(options = {}, internal = {}) {
         /**
          * A heap snapshot of each worker alive (tests: what a worker keeps, test/memory.test.js); a
          * snapshot holds only what is still reachable, after V8 collected the rest.
+         * @param {import("node:v8").HeapSnapshotOptions} [options]
          * @returns {Promise<import("node:stream").Readable[]>}
          */
-        heapSnapshots: async () => {
+        heapSnapshots: async (options = {}) => {
             await Promise.all(pool.map((s) => s.ready));
-            return Promise.all(pool.filter((s) => !s.exited).map((s) => s.worker.getHeapSnapshot()));
+            return Promise.all(pool.filter((s) => !s.exited).map((s) => /** @type {any} */ (s.worker).getHeapSnapshot(options)));
         },
+        /** What the data sets a worker keeps hold (data.js keptDataSets; tests: with one worker, that worker's; test/memory.test.js). */
+        keptDataSets: async () => /** @type {{ texts: string[], numbers: number[], bytes: Uint8Array[] }} */ (/** @type {unknown} */ ((await inWorker(KEPT_JOB, null, {})).outcome)),
         /** How many table jobs with a key went with their table and how many without it (tests). */
         sent: () => ({ ...sent }),
         /** The workers alive (0 once closed). */

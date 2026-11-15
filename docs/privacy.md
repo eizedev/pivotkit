@@ -170,19 +170,24 @@ The server keeps in its memory, never on disk:
 
 Data in memory goes with a restart.
 
-What the server keeps holds no hidden column: not the loads it keeps per person, not the data sets
-a compute worker keeps, not the notes of a read. To drop a column, though, the server reads the
-whole answer first: an HTTP source's body and, for JSON, its parsed rows in the main thread; for CSV,
-the decoded text and every cell in the worker that reads it. These are freed once the answer is
-read, and freed memory can hold their values until the process reuses it, as in any process. A dump
-of the server's memory taken meanwhile (a core dump, a debugger, a scan by someone with access to
-the host) can show values of a hidden column. Where that matters, have the backend leave the column
-out of its answer, as with a file that leaves it out.
+For code and HTTP sources (CSV and JSON), what the server keeps holds no hidden column: not the
+loads it keeps per person, not the data sets a compute worker keeps, not the notes of a read, for a
+signed-in person as for a caller whose data is not kept. To drop a column, though, the server reads
+all of the data first: a code source's rows as `load` returns them, and an HTTP source's body and,
+for JSON, its parsed rows in the main thread; for CSV, the decoded text and every cell in the worker
+that reads it. These are freed once the data is read, and freed memory can hold their values until
+the process reuses it, as in any process. A dump of the server's memory taken meanwhile (a core
+dump, a debugger, a scan by someone with access to the host) can show values of a hidden column.
+Where that matters, have the backend or the `load` function leave the column out, as with a file
+that leaves it out.
 
-The test `packages/pivotkit-server/test/memory.test.js` checks the first part: it serves a CSV and a
-JSON answer whose hidden columns hold unique markers, collects garbage, and finds none of them in
-the kept loads or among what the main thread and the compute worker still reach (a heap snapshot of
-each), while it finds every value of the shown column and markers kept on purpose.
+The test [test/memory.test.js](https://github.com/eizedev/pivotkit/blob/main/packages/pivotkit-server/test/memory.test.js)
+checks the first part. It calls a CSV, a JSON and a code source, each as a signed-in person and as a
+caller without an identity, with hidden text and number columns of unique values (hidden by the
+default level and by a field's own rule). After a garbage collection it finds none of them in the
+kept loads, in the worker's data sets, or among what the main thread and the worker still reach (a
+heap snapshot of each), while it finds every shown value and values kept on purpose. File sources
+and data sent in a request are not part of the test.
 
 ## check-config and check-source { #check-output }
 

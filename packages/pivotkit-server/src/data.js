@@ -64,6 +64,39 @@ export function setCacheBytes(bytes) {
 /** The bytes of encoded data this process keeps (a worker reports it when it is ready). */
 export const cacheBytesNow = () => cacheBytes;
 
+/** A job that only gives back the data sets this worker keeps (tests: test/memory.test.js reads what a worker holds). */
+export const KEPT_JOB = "pivotkit:kept";
+
+/**
+ * What the data sets this process keeps hold, oldest first (KEPT_JOB): every text, number and typed
+ * array or buffer reachable from them through objects, arrays, Maps and Sets, as lists a worker can
+ * post (a data set itself holds functions, which a message cannot carry).
+ * @returns {{ texts: string[], numbers: number[], bytes: Uint8Array[] }}
+ */
+export function keptDataSets() {
+    const out = { texts: [], numbers: [], bytes: [] };
+    const seen = new Set();
+    const stack = [...cache.values()];
+    while (stack.length) {
+        const v = stack.pop();
+        if (typeof v === "string") {
+            out.texts.push(v);
+        } else if (typeof v === "number") {
+            out.numbers.push(v);
+        } else if (v !== null && typeof v === "object" && !seen.has(v)) {
+            seen.add(v);
+            if (ArrayBuffer.isView(v)) {
+                out.bytes.push(new Uint8Array(v.buffer, v.byteOffset, v.byteLength).slice());
+            } else if (v instanceof ArrayBuffer || v instanceof SharedArrayBuffer) {
+                out.bytes.push(new Uint8Array(v).slice());
+            } else {
+                stack.push(...(v instanceof Map ? [...v.entries()].flat() : v instanceof Set ? [...v] : Object.values(v)));
+            }
+        }
+    }
+    return out;
+}
+
 /** Whether a data set is kept under a table job's key (a worker that holds it needs no table). */
 export const holds = (key) => key !== null && cache.has(key);
 

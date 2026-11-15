@@ -282,9 +282,10 @@ Every field keeps its level and the automatic rule is off; the [upgrade page](ht
 
 ### Changed
 
-- The privacy page says what the server's memory holds of a hidden column: nothing it keeps (the
-  loads per person, the workers' data sets), measured by `test/memory.test.js` with heap snapshots of
-  the main thread and the worker; the answer it reads to drop the column is freed, and freed memory
+- The privacy page says what the server's memory holds of a hidden column of a code or HTTP source:
+  nothing it keeps (the loads per person, the workers' data sets), measured by `test/memory.test.js`
+  for texts and numbers, with and without a caller's identity, in the kept data and in heap snapshots
+  of the main thread and the worker; the data it reads to drop the column is freed, and freed memory
   can hold its values until it is reused ([#456](https://github.com/eizedev/pivotkit/issues/456)).
 - The docs: check-config in a container runs with `serve`'s flags; behind a published Docker port
   `address` can be the Docker network's gateway, which `http.trustProxy` cannot fix; Synology Log
