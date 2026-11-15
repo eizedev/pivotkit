@@ -22,12 +22,15 @@ holds every part shown below; the sections explain each one.
 2. Edit your copy: `<version>` (a release of pivotkit-server, or the image's digest;
    [which tag](upgrading.md#update-image)), `reports.example.com` (your host name), the CronJob's
    `SOURCE_URL` and the addresses of its host in the NetworkPolicy `pivotkit-fetch-data`, and the
-   namespace of your ingress controller in the NetworkPolicy `pivotkit`.
+   namespace of your ingress controller in the NetworkPolicy `pivotkit`. Where needed also: the
+   Ingress's `ingressClassName` (when the cluster has no default class), the certificate's Secret
+   `pivotkit-tls` (made by hand or by a tool such as cert-manager), and the `storageClassName` of
+   `pivotkit-data` (when the default class offers no ReadWriteMany).
 3. Create the namespace and the token, then apply the manifest and fetch the data once:
 
     ```bash
     kubectl create namespace pivotkit
-    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" > reports.token
+    openssl rand -base64 32 | tr -d '/+=\n' > reports.token   # about 42 characters
     kubectl -n pivotkit create secret generic pivotkit-tokens --from-file=reports=./reports.token
     kubectl apply -f kubernetes.example.yaml
     kubectl -n pivotkit create job --from=cronjob/pivotkit-fetch-data pivotkit-fetch-data-first
@@ -47,6 +50,7 @@ answers):
 kubectl -n pivotkit port-forward svc/pivotkit 3333:3333 &
 curl -s http://localhost:3333/readyz
 curl -s -H "Authorization: Bearer $(cat reports.token)" http://localhost:3333/api/v1/sources
+kill %1   # ends the port forward
 ```
 
 `/readyz` answers `{"ok":true,...}`, and `/api/v1/sources` lists `sales`; a call to the source
@@ -253,7 +257,8 @@ call that reads the file in the moment of the flip may fail once. git-sync's ima
 start and the server does not start while a directory named there is missing: name the volume's
 mount (`/data`), which exists from the start, not a directory git-sync makes later (`/data/git`) or the
 link (`/data/git/current`). A private repository needs credentials (git-sync's `--password-file` or
-`--ssh-key-file`, from a Secret). The policy `pivotkit` needs egress to the Git server (port 443, as
+`--ssh-key-file`, from a Secret); over SSH, git may need a passwd entry for the user 10001 (git-sync's
+`--add-user`; not tried here). The policy `pivotkit` needs egress to the Git server (port 443, as
 for [the issuer](#oauth-egress)); it holds for both containers of the pod. This sidecar setup follows
 git-sync's documentation and passes the schema check, but has not been run in a cluster here: check
 the flags against the documentation of the version you run. Any other sidecar works the same way when
@@ -299,7 +304,9 @@ see a node's address.
 pods look up names and reach the data's host on port 443 (put the addresses its host name resolves
 to there; a policy cannot name a host). Policies take effect only with a network plugin that enforces NetworkPolicy. The namespace selector uses
 the label `kubernetes.io/metadata.name`, which Kubernetes sets on every namespace: put the name of
-your ingress controller's namespace there (`ingress-controller` is a placeholder). The kubelet's
+your ingress controller's namespace there (`ingress-controller` is a placeholder). A controller that
+runs with `hostNetwork` arrives from the nodes' addresses instead of its pods': allow the nodes'
+address range as an `ipBlock` there (check how your cluster's controller runs). The kubelet's
 probes come from the node, which most network plugins let through whatever the policy says; check
 yours if the pod never gets ready with the policy applied.
 
@@ -307,7 +314,7 @@ yours if the pod never gets ready with the policy applied.
 
 With the policy as it is, programs in the cluster call the public address through the ingress
 controller. To let them call the Service directly (`http://pivotkit.pivotkit.svc:3333`), allow their
-namespace in the policy's `ingress`, add `pivotkit` and `pivotkit.pivotkit.svc` to `http.allowHosts`,
+namespace in the policy's `ingress`, add the names they call (`pivotkit`, `pivotkit.pivotkit.svc`, `pivotkit.pivotkit.svc.cluster.local`) to `http.allowHosts`,
 and turn `http.trustProxy` off: a direct caller can write any `X-Forwarded-For`, and with
 `trustProxy` the server would believe it (its limits per address count by that header). With
 `trustProxy` off, every request through the controller counts with the controller's address.
@@ -315,7 +322,9 @@ and turn `http.trustProxy` off: a direct caller can write any `X-Forwarded-For`,
 ### Egress { #egress }
 
 With static tokens the server opens no connection of its own: the policy allows name lookups (the
-cluster DNS, `k8s-app: kube-dns` in `kube-system` on most clusters) and nothing else. With OAuth it
+cluster DNS, `k8s-app: kube-dns` in `kube-system` on most clusters) and nothing else. Clusters
+whose DNS is elsewhere need another rule for it: NodeLocal DNSCache answers on an address of the
+node, and OpenShift runs its DNS in the namespace `openshift-dns`. With OAuth it
 needs the issuer too ([below](#oauth-egress)).
 
 ## Sign-in with Authentik { #oauth }
@@ -333,9 +342,9 @@ access tokens). With [Authentik](https://goauthentik.io/):
      - **Client Type**: **Public** (an MCP client keeps no secret; it signs in with PKCE).
      - **Redirect URIs/Origins (RegEx)**: the callback addresses of the MCP clients you allow, from
        their documentation, each with the matching mode **Strict** (the address exactly). With
-       **Regex** the whole address must match the expression: anchor nothing more than needed,
-       escape every dot (`https://app\.example\.com/callback`) and never use `.*`, or a sign-in can
-       be sent to an address you did not mean.
+       **Regex** the whole address must match the expression; escape the dots
+       (`https://app\.example\.com/callback`) and use no `.*`, or a sign-in can be sent to an
+       address you did not mean.
      - **Signing Key**: a certificate with an RSA key (RS256), an EC P-256 key (ES256) or an Ed25519
        key (EdDSA), the algorithms the server accepts by default (`auth.algorithms`; Authentik signs
        with ES384 or ES512 for the other EC curves). Without a signing key, Authentik signs with HS256
